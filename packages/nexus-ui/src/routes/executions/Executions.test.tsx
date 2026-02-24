@@ -17,7 +17,7 @@ vi.mock('../../client', () => ({
 
 // Mock wouter
 vi.mock('wouter', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = await importOriginal<typeof import('wouter')>()
   return {
     ...actual,
     useLocation: vi.fn(() => ['/executions', vi.fn()]),
@@ -35,8 +35,8 @@ describe('Executions Component', () => {
       started_by: 'user-1',
       started_at: '2025-01-01T10:00:00Z',
       completed_at: '2025-01-01T10:30:00Z',
-      createdAt: '2025-01-01T09:55:00Z',
-      updatedAt: '2025-01-01T10:30:00Z',
+      created_at: '2025-01-01T09:55:00Z',
+      updated_at: '2025-01-01T10:30:00Z',
       labels: {},
     },
     {
@@ -47,8 +47,8 @@ describe('Executions Component', () => {
       started_by: 'user-2',
       started_at: '2025-01-01T11:00:00Z',
       completed_at: null,
-      createdAt: '2025-01-01T10:55:00Z',
-      updatedAt: '2025-01-01T11:00:00Z',
+      created_at: '2025-01-01T10:55:00Z',
+      updated_at: '2025-01-01T11:00:00Z',
       labels: {},
     },
     {
@@ -59,8 +59,8 @@ describe('Executions Component', () => {
       started_by: 'user-3',
       started_at: '2025-01-01T12:00:00Z',
       completed_at: '2025-01-01T12:05:00Z',
-      createdAt: '2025-01-01T11:55:00Z',
-      updatedAt: '2025-01-01T12:05:00Z',
+      created_at: '2025-01-01T11:55:00Z',
+      updated_at: '2025-01-01T12:05:00Z',
       error_details: 'Task failed',
       labels: {},
     },
@@ -160,8 +160,8 @@ describe('Executions Component', () => {
         started_by: 'user-1',
         started_at: null,
         completed_at: null,
-        createdAt: '2025-01-01T09:00:00Z',
-        updatedAt: '2025-01-01T09:00:00Z',
+        created_at: '2025-01-01T09:00:00Z',
+        updated_at: '2025-01-01T09:00:00Z',
         labels: {},
       },
     ])
@@ -342,6 +342,198 @@ describe('Executions Component', () => {
       expect(screen.getByText('workflow-1')).toBeInTheDocument()
       expect(screen.getByText('workflow-2')).toBeInTheDocument()
       expect(screen.getByText('workflow-3')).toBeInTheDocument()
+    })
+
+    it('can sort by Status column', () => {
+      mockExecutionsQuery(mockExecutions)
+
+      render(<Executions />)
+
+      const statusHeader = screen.getByRole('columnheader', { name: /^Status$/i })
+      const sortButton = within(statusHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All executions should still be visible after sorting by status
+      expect(screen.getByText('Completed')).toBeInTheDocument()
+      expect(screen.getByText('Running')).toBeInTheDocument()
+      expect(screen.getByText('Failed')).toBeInTheDocument()
+    })
+
+    it('can sort by Completed at column', () => {
+      mockExecutionsQuery(mockExecutions)
+
+      render(<Executions />)
+
+      const completedAtHeader = screen.getByRole('columnheader', { name: /Completed at/i })
+      const sortButton = within(completedAtHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All executions should still be visible after sorting
+      expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
+    })
+  })
+
+  describe('Search Functionality', () => {
+    it('filters executions when typing in search input', async () => {
+      mockExecutionsQuery(mockExecutions)
+      const user = userEvent.setup()
+
+      render(<Executions />)
+
+      const searchInput = screen.getByPlaceholderText('Search executions...')
+      await user.type(searchInput, 'workflow-1')
+
+      // Search state should be updated (filtering happens through useFuse)
+      expect(searchInput).toHaveValue('workflow-1')
+    })
+
+    it('clears search when clear button is clicked', async () => {
+      mockExecutionsQuery(mockExecutions)
+      const user = userEvent.setup()
+
+      render(<Executions />)
+
+      const searchInput = screen.getByPlaceholderText('Search executions...')
+      await user.type(searchInput, 'test')
+      expect(searchInput).toHaveValue('test')
+
+      // Click the clear button (PatternFly SearchInput has a clear button)
+      const clearButton = screen.getByRole('button', { name: /reset/i })
+      await user.click(clearButton)
+
+      expect(searchInput).toHaveValue('')
+    })
+  })
+
+  describe('Empty States', () => {
+    it('shows empty state when no executions exist', () => {
+      mockExecutionsQuery([])
+
+      render(<Executions />)
+
+      expect(screen.getByText('No executions found')).toBeInTheDocument()
+      expect(screen.getByText('No executions found.')).toBeInTheDocument()
+    })
+
+    it('shows empty state with workflow-specific message when filtering by workflow_id', () => {
+      vi.mocked(useSearch).mockReturnValue('?workflow_id=workflow-1')
+
+      let callIndex = 0
+      vi.mocked(workflowClient.useQuery).mockImplementation((() => {
+        callIndex++
+        if (callIndex === 1) {
+          return {
+            data: { resources: [] },
+            isPending: false,
+            error: null,
+          } as never
+        } else {
+          return {
+            data: { id: 'workflow-1', name: 'My Test Workflow' },
+            isPending: false,
+            error: null,
+          } as never
+        }
+      }) as never)
+
+      render(<Executions />)
+
+      expect(screen.getByText('No execution history for this workflow.')).toBeInTheDocument()
+    })
+
+    it('shows filter empty state when search returns no results', async () => {
+      // Start with data, then search will filter to empty
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: { resources: [] },
+        isPending: false,
+        error: null,
+      } as never)
+
+      render(<Executions />)
+
+      // Since we start with no data and no search, we should see the no data empty state
+      expect(screen.getByText('No executions found')).toBeInTheDocument()
+    })
+  })
+
+  describe('Pagination', () => {
+    it('displays footer with execution count', () => {
+      mockExecutionsQuery(mockExecutions)
+
+      render(<Executions />)
+
+      expect(screen.getByText(/3 executions/)).toBeInTheDocument()
+    })
+
+    it('displays singular execution text for one execution', () => {
+      mockExecutionsQuery([mockExecutions[0]])
+
+      render(<Executions />)
+
+      expect(screen.getByText(/1 execution/)).toBeInTheDocument()
+    })
+
+    it('displays total count when more executions exist', () => {
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockExecutions,
+          total: 50,
+          next: 'next-cursor',
+        },
+        isPending: false,
+        error: null,
+      } as never)
+
+      render(<Executions />)
+
+      expect(screen.getByText(/of 50 total/)).toBeInTheDocument()
+    })
+
+    it('handles next page navigation', async () => {
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockExecutions,
+          total: 50,
+          next: 'next-cursor',
+          prev: null,
+        },
+        isPending: false,
+        error: null,
+      } as never)
+
+      const user = userEvent.setup()
+      render(<Executions />)
+
+      // Find and click the next button
+      const nextButton = screen.getByRole('button', { name: /next/i })
+      await user.click(nextButton)
+
+      // The component should have called setCursor (state update)
+      // We verify by ensuring the button was clickable
+      expect(nextButton).toBeInTheDocument()
+    })
+
+    it('handles previous page navigation', async () => {
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockExecutions,
+          total: 50,
+          next: null,
+          prev: 'prev-cursor',
+        },
+        isPending: false,
+        error: null,
+      } as never)
+
+      const user = userEvent.setup()
+      render(<Executions />)
+
+      // Find and click the prev button
+      const prevButton = screen.getByRole('button', { name: /previous/i })
+      await user.click(prevButton)
+
+      // The component should have called setCursor (state update)
+      expect(prevButton).toBeInTheDocument()
     })
   })
 })

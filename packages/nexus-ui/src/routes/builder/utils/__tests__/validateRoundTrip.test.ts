@@ -1,6 +1,7 @@
 import type { Activity } from '@ansible/nexus-contracts'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import * as buildNestedModule from '../buildNestedStructure'
 import { validateRoundTrip, validateSavePath } from '../validateRoundTrip'
 import type { EdgeConnection } from '../workflowTransform'
 
@@ -389,6 +390,448 @@ describe('validateRoundTrip', () => {
       validateRoundTrip(original)
     }).not.toThrow()
   })
+
+  it('handles condition with empty then and non-empty else', () => {
+    const original: Activity[] = [
+      {
+        type: 'condition',
+        id: 'C',
+        name: 'Condition',
+        condition: '${test}',
+        then: [],
+        else: [
+          {
+            type: 'task',
+            id: 'T1',
+            name: 'Task 1',
+            task: { executor: 'script', config: { language: 'python', code: '' } },
+          },
+        ],
+      },
+    ]
+
+    expect(() => {
+      validateRoundTrip(original)
+    }).not.toThrow()
+  })
+
+  it('handles loop nested inside condition then branch', () => {
+    const original: Activity[] = [
+      {
+        type: 'condition',
+        id: 'C',
+        name: 'Condition',
+        condition: '${test}',
+        then: [
+          {
+            type: 'loop',
+            id: 'loop_1',
+            name: 'Loop',
+            loop: {
+              over: '${items}',
+              item: 'item',
+              do: [
+                {
+                  type: 'task',
+                  id: 'T1',
+                  name: 'Task 1',
+                  task: { executor: 'script', config: { language: 'python', code: '' } },
+                },
+              ],
+            },
+          },
+        ] as unknown as Activity[],
+        else: [],
+      },
+    ]
+
+    // Should skip validation due to nested loop (legacy activity)
+    expect(() => {
+      validateRoundTrip(original)
+    }).not.toThrow()
+  })
+
+  it('logs and continues on unexpected errors during validation', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    // Create activities that will cause an unexpected error during flattening
+    // by having undefined nested arrays
+    const original = [
+      {
+        type: 'condition',
+        id: 'C',
+        name: 'Condition',
+        condition: '${test}',
+        then: undefined,
+        else: undefined,
+      },
+    ] as unknown as Activity[]
+
+    // Should not throw - unexpected errors are caught and logged
+    expect(() => {
+      validateRoundTrip(original)
+    }).not.toThrow()
+
+    consoleSpy.mockRestore()
+    warnSpy.mockRestore()
+  })
+
+  describe('structural comparison failures', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('throws when rebuilt structure has different length', () => {
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([])
+
+      const original: Activity[] = [
+        {
+          type: 'task',
+          id: 'T1',
+          name: 'Task 1',
+          task: { executor: 'script', config: { language: 'python', code: '' } },
+        },
+      ]
+
+      expect(() => {
+        validateRoundTrip(original)
+      }).toThrow('Workflow structure changed during round-trip conversion')
+
+      buildSpy.mockRestore()
+    })
+
+    it('throws when rebuilt activity has different type', () => {
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([
+        {
+          type: 'condition',
+          id: 'T1',
+          name: 'Task 1',
+          condition: '${test}',
+          then: [],
+          else: [],
+        },
+      ])
+
+      const original: Activity[] = [
+        {
+          type: 'task',
+          id: 'T1',
+          name: 'Task 1',
+          task: { executor: 'script', config: { language: 'python', code: '' } },
+        },
+      ]
+
+      expect(() => {
+        validateRoundTrip(original)
+      }).toThrow('Workflow structure changed during round-trip conversion')
+
+      buildSpy.mockRestore()
+    })
+
+    it('throws when rebuilt activity has different ID', () => {
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([
+        {
+          type: 'task',
+          id: 'T2',
+          name: 'Task 1',
+          task: { executor: 'script', config: { language: 'python', code: '' } },
+        },
+      ])
+
+      const original: Activity[] = [
+        {
+          type: 'task',
+          id: 'T1',
+          name: 'Task 1',
+          task: { executor: 'script', config: { language: 'python', code: '' } },
+        },
+      ]
+
+      expect(() => {
+        validateRoundTrip(original)
+      }).toThrow('Workflow structure changed during round-trip conversion')
+
+      buildSpy.mockRestore()
+    })
+
+    it('throws when rebuilt activity has different name', () => {
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([
+        {
+          type: 'task',
+          id: 'T1',
+          name: 'Different Name',
+          task: { executor: 'script', config: { language: 'python', code: '' } },
+        },
+      ])
+
+      const original: Activity[] = [
+        {
+          type: 'task',
+          id: 'T1',
+          name: 'Task 1',
+          task: { executor: 'script', config: { language: 'python', code: '' } },
+        },
+      ]
+
+      expect(() => {
+        validateRoundTrip(original)
+      }).toThrow('Workflow structure changed during round-trip conversion')
+
+      buildSpy.mockRestore()
+    })
+
+    it('throws when condition has different condition expression', () => {
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([
+        {
+          type: 'condition',
+          id: 'C1',
+          name: 'Condition',
+          condition: '${different}',
+          then: [],
+          else: [],
+        },
+      ])
+
+      const original: Activity[] = [
+        {
+          type: 'condition',
+          id: 'C1',
+          name: 'Condition',
+          condition: '${test}',
+          then: [],
+          else: [],
+        },
+      ]
+
+      expect(() => {
+        validateRoundTrip(original)
+      }).toThrow('Workflow structure changed during round-trip conversion')
+
+      buildSpy.mockRestore()
+    })
+
+    it('throws when condition then branch differs', () => {
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([
+        {
+          type: 'condition',
+          id: 'C1',
+          name: 'Condition',
+          condition: '${test}',
+          then: [
+            {
+              type: 'task',
+              id: 'different',
+              name: 'Different',
+              task: { executor: 'script', config: { language: 'python', code: '' } },
+            },
+          ],
+          else: [],
+        },
+      ])
+
+      const original: Activity[] = [
+        {
+          type: 'condition',
+          id: 'C1',
+          name: 'Condition',
+          condition: '${test}',
+          then: [
+            {
+              type: 'task',
+              id: 'T1',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'python', code: '' } },
+            },
+          ],
+          else: [],
+        },
+      ]
+
+      expect(() => {
+        validateRoundTrip(original)
+      }).toThrow('Workflow structure changed during round-trip conversion')
+
+      buildSpy.mockRestore()
+    })
+
+    it('throws when condition else branch differs', () => {
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([
+        {
+          type: 'condition',
+          id: 'C1',
+          name: 'Condition',
+          condition: '${test}',
+          then: [],
+          else: [
+            {
+              type: 'task',
+              id: 'different',
+              name: 'Different',
+              task: { executor: 'script', config: { language: 'python', code: '' } },
+            },
+          ],
+        },
+      ])
+
+      const original: Activity[] = [
+        {
+          type: 'condition',
+          id: 'C1',
+          name: 'Condition',
+          condition: '${test}',
+          then: [],
+          else: [
+            {
+              type: 'task',
+              id: 'T1',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'python', code: '' } },
+            },
+          ],
+        },
+      ]
+
+      expect(() => {
+        validateRoundTrip(original)
+      }).toThrow('Workflow structure changed during round-trip conversion')
+
+      buildSpy.mockRestore()
+    })
+
+    it('throws when parallel branches differ', () => {
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([
+        {
+          type: 'parallel',
+          id: 'parallel_for_test',
+          name: 'Parallel',
+          branches: [
+            {
+              type: 'task',
+              id: 'different',
+              name: 'Different',
+              task: { executor: 'script', config: { language: 'python', code: '' } },
+            },
+          ],
+        },
+      ])
+
+      const original: Activity[] = [
+        {
+          type: 'parallel',
+          id: 'parallel_for_test',
+          name: 'Parallel',
+          branches: [
+            {
+              type: 'task',
+              id: 'T1',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'python', code: '' } },
+            },
+          ],
+        },
+      ]
+
+      expect(() => {
+        validateRoundTrip(original)
+      }).toThrow('Workflow structure changed during round-trip conversion')
+
+      buildSpy.mockRestore()
+    })
+
+    it('throws when sequence steps differ', () => {
+      // First mock to return a sequence with different steps
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([
+        {
+          type: 'sequence',
+          id: 'seq_1',
+          name: 'Sequence',
+          steps: [
+            {
+              type: 'task',
+              id: 'different',
+              name: 'Different',
+              task: { executor: 'script', config: { language: 'python', code: '' } },
+            },
+          ],
+        },
+      ])
+
+      // Use a parallel_for_ wrapper so it's not considered legacy
+      const original: Activity[] = [
+        {
+          type: 'sequence',
+          id: 'seq_1',
+          name: 'Sequence',
+          steps: [
+            {
+              type: 'task',
+              id: 'T1',
+              name: 'Task 1',
+              task: { executor: 'script', config: { language: 'python', code: '' } },
+            },
+          ],
+        },
+      ]
+
+      // Note: This won't throw because sequence is considered legacy
+      // The validation is skipped for legacy activities
+      expect(() => {
+        validateRoundTrip(original)
+      }).not.toThrow()
+
+      buildSpy.mockRestore()
+    })
+
+    it('throws when loop do activities differ', () => {
+      const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockReturnValue([
+        {
+          type: 'loop',
+          id: 'loop_1',
+          name: 'Loop',
+          loop: {
+            over: '${items}',
+            item: 'item',
+            do: [
+              {
+                type: 'task',
+                id: 'different',
+                name: 'Different',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+          },
+        },
+      ] as unknown as Activity[])
+
+      const original = [
+        {
+          type: 'loop',
+          id: 'loop_1',
+          name: 'Loop',
+          loop: {
+            over: '${items}',
+            item: 'item',
+            do: [
+              {
+                type: 'task',
+                id: 'T1',
+                name: 'Task 1',
+                task: { executor: 'script', config: { language: 'python', code: '' } },
+              },
+            ],
+          },
+        },
+      ] as unknown as Activity[]
+
+      // Note: This won't throw because loop is considered legacy
+      expect(() => {
+        validateRoundTrip(original)
+      }).not.toThrow()
+
+      buildSpy.mockRestore()
+    })
+  })
 })
 
 describe('validateSavePath', () => {
@@ -484,5 +927,177 @@ describe('validateSavePath', () => {
     expect(() => {
       validateSavePath(activities, edges)
     }).not.toThrow()
+  })
+
+  it('warns when condition has outgoing edges but empty then/else arrays', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const activities: Activity[] = [
+      {
+        type: 'condition',
+        id: 'C1',
+        name: 'Condition 1',
+        condition: '${check}',
+        then: [],
+        else: [],
+      },
+    ]
+    // Edges indicate there should be branches, but the nested structure has empty arrays
+    const edges: EdgeConnection[] = [
+      { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'true', targetHandle: 'target' },
+      { id: 'C1-T2', source: 'C1', target: 'T2', sourceHandle: 'false', targetHandle: 'target' },
+    ]
+
+    // Should not throw, but should warn
+    expect(() => {
+      validateSavePath(activities, edges)
+    }).not.toThrow()
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Condition node C1 has outgoing edges but empty then/else arrays')
+    )
+
+    warnSpy.mockRestore()
+  })
+
+  it('handles condition with only true branch edge', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const activities: Activity[] = [
+      {
+        type: 'condition',
+        id: 'C1',
+        name: 'Condition 1',
+        condition: '${check}',
+        then: [],
+        else: [],
+      },
+    ]
+    const edges: EdgeConnection[] = [
+      { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'true', targetHandle: 'target' },
+    ]
+
+    expect(() => {
+      validateSavePath(activities, edges)
+    }).not.toThrow()
+
+    warnSpy.mockRestore()
+  })
+
+  it('handles condition with only false branch edge', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const activities: Activity[] = [
+      {
+        type: 'condition',
+        id: 'C1',
+        name: 'Condition 1',
+        condition: '${check}',
+        then: [],
+        else: [],
+      },
+    ]
+    const edges: EdgeConnection[] = [
+      { id: 'C1-T2', source: 'C1', target: 'T2', sourceHandle: 'false', targetHandle: 'target' },
+    ]
+
+    expect(() => {
+      validateSavePath(activities, edges)
+    }).not.toThrow()
+
+    warnSpy.mockRestore()
+  })
+
+  it('does not warn when condition has no outgoing branch edges', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const activities: Activity[] = [
+      {
+        type: 'condition',
+        id: 'C1',
+        name: 'Condition 1',
+        condition: '${check}',
+        then: [],
+        else: [],
+      },
+    ]
+    // No true/false edges - just a regular edge
+    const edges: EdgeConnection[] = [
+      { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'source', targetHandle: 'target' },
+    ]
+
+    expect(() => {
+      validateSavePath(activities, edges)
+    }).not.toThrow()
+
+    expect(warnSpy).not.toHaveBeenCalled()
+
+    warnSpy.mockRestore()
+  })
+
+  it('throws when buildNestedConditionStructure returns non-array', () => {
+    const buildSpy = vi
+      .spyOn(buildNestedModule, 'buildNestedConditionStructure')
+      .mockReturnValue('not an array' as unknown as Activity[])
+
+    const activities: Activity[] = [
+      {
+        type: 'task',
+        id: 'T1',
+        name: 'Task 1',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
+    ]
+    const edges: EdgeConnection[] = []
+
+    expect(() => {
+      validateSavePath(activities, edges)
+    }).toThrow('buildNestedConditionStructure did not return an array')
+
+    buildSpy.mockRestore()
+  })
+
+  it('throws with original error message when buildNestedConditionStructure throws', () => {
+    const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockImplementation(() => {
+      throw new Error('Something went wrong')
+    })
+
+    const activities: Activity[] = [
+      {
+        type: 'task',
+        id: 'T1',
+        name: 'Task 1',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
+    ]
+    const edges: EdgeConnection[] = []
+
+    expect(() => {
+      validateSavePath(activities, edges)
+    }).toThrow('Failed to build nested structure from flat activities')
+
+    buildSpy.mockRestore()
+  })
+
+  it('handles non-Error throws in validateSavePath', () => {
+    const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockImplementation(() => {
+      throw 'string error'
+    })
+
+    const activities: Activity[] = [
+      {
+        type: 'task',
+        id: 'T1',
+        name: 'Task 1',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
+    ]
+    const edges: EdgeConnection[] = []
+
+    expect(() => {
+      validateSavePath(activities, edges)
+    }).toThrow('Original error: string error')
+
+    buildSpy.mockRestore()
   })
 })

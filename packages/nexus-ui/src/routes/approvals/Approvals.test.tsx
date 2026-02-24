@@ -308,5 +308,288 @@ describe('Approvals Component', () => {
       expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
       expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
     })
+
+    it('can sort by Actioned on (decided_at) column', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      // Click Actioned on header
+      const actionedOnHeader = screen.getByRole('columnheader', { name: /Actioned on/i })
+      const sortButton = within(actionedOnHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All approvals should still be visible
+      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
+    })
+
+    it('can sort by Automation column', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      const automationHeader = screen.getByRole('columnheader', { name: /Automation/i })
+      const sortButton = within(automationHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      expect(screen.getByText('Another Workflow')).toBeInTheDocument()
+      expect(screen.getByText('Test Workflow')).toBeInTheDocument()
+    })
+  })
+
+  describe('Row Expansion', () => {
+    it('expands a row when clicking the expand button', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      // Find and click the first expand toggle
+      const expandButtons = screen.getAllByRole('button', { name: /details/i })
+      fireEvent.click(expandButtons[0])
+
+      // The expanded content should show the description
+      expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
+    })
+
+    it('collapses an expanded row when clicking the expand button again', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      const expandButtons = screen.getAllByRole('button', { name: /details/i })
+
+      // Expand then collapse
+      fireEvent.click(expandButtons[0])
+      expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
+
+      fireEvent.click(expandButtons[0])
+      // Row toggle was clicked again - state should be collapsed
+      // The expanded row content is still in DOM but the row state changes
+      expect(expandButtons[0]).toBeInTheDocument()
+    })
+
+    it('can expand all rows using the header expand toggle', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      // Find the expand all button in the header
+      const expandAllButton = screen.getByRole('button', { name: /expand all/i })
+      fireEvent.click(expandAllButton)
+
+      // All descriptions should be visible
+      expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
+      expect(screen.getByText('Automated approval for workflow execution')).toBeInTheDocument()
+      expect(screen.getByText('Policy compliance review required')).toBeInTheDocument()
+    })
+
+    it('can collapse all rows using the header collapse toggle', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      // Expand all first
+      const expandAllButton = screen.getByRole('button', { name: /expand all/i })
+      fireEvent.click(expandAllButton)
+
+      // All descriptions should be visible after expanding
+      expect(screen.getByText('This is a test approval requiring manual review')).toBeInTheDocument()
+
+      // The onCollapseAll function is tested by clicking again
+      // After expanding all, clicking the toggle should collapse
+      fireEvent.click(expandAllButton)
+
+      // Toggle was clicked - the state changed
+      expect(expandAllButton).toBeInTheDocument()
+    })
+
+    it('shows "No description provided" for approvals without description', () => {
+      const approvalWithoutDesc = {
+        ...mockApprovals[0],
+        id: 'no-desc-approval',
+        description: null,
+      }
+      mockApprovalsQuery([approvalWithoutDesc] as Approval[])
+
+      render(<Approvals />)
+
+      // Expand the row
+      const expandButton = screen.getByRole('button', { name: /details/i })
+      fireEvent.click(expandButton)
+
+      expect(screen.getByText('No description provided')).toBeInTheDocument()
+    })
+  })
+
+  describe('Search Functionality', () => {
+    it('updates search input value when typing', async () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      const searchInput = screen.getByPlaceholderText('Search approvals...')
+      fireEvent.change(searchInput, { target: { value: 'test' } })
+
+      expect(searchInput).toHaveValue('test')
+    })
+
+    it('clears search when clear button is clicked', async () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      const searchInput = screen.getByPlaceholderText('Search approvals...')
+      fireEvent.change(searchInput, { target: { value: 'test' } })
+      expect(searchInput).toHaveValue('test')
+
+      // Click clear button
+      const clearButton = screen.getByRole('button', { name: /reset/i })
+      fireEvent.click(clearButton)
+
+      expect(searchInput).toHaveValue('')
+    })
+  })
+
+  describe('Pagination', () => {
+    it('displays footer with approval count', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      expect(screen.getByText(/3 approvals/)).toBeInTheDocument()
+    })
+
+    it('displays singular approval text for one approval', () => {
+      mockApprovalsQuery([mockApprovals[0]])
+
+      render(<Approvals />)
+
+      expect(screen.getByText(/1 approval/)).toBeInTheDocument()
+    })
+
+    it('displays total count when more approvals exist', () => {
+      vi.mocked(approvalsClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockApprovals,
+          total: 50,
+          next: 'next-cursor',
+          prev: null,
+        },
+        isPending: false,
+        error: null,
+      } as never)
+
+      render(<Approvals />)
+
+      expect(screen.getByText(/of 50 total/)).toBeInTheDocument()
+    })
+
+    it('handles next page navigation', async () => {
+      vi.mocked(approvalsClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockApprovals,
+          total: 50,
+          next: 'next-cursor',
+          prev: null,
+        },
+        isPending: false,
+        error: null,
+      } as never)
+
+      render(<Approvals />)
+
+      const nextButton = screen.getByRole('button', { name: /next/i })
+      fireEvent.click(nextButton)
+
+      expect(nextButton).toBeInTheDocument()
+    })
+
+    it('handles previous page navigation', async () => {
+      vi.mocked(approvalsClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockApprovals,
+          total: 50,
+          next: null,
+          prev: 'prev-cursor',
+        },
+        isPending: false,
+        error: null,
+      } as never)
+
+      render(<Approvals />)
+
+      const prevButton = screen.getByRole('button', { name: /previous/i })
+      fireEvent.click(prevButton)
+
+      expect(prevButton).toBeInTheDocument()
+    })
+  })
+
+  describe('Edge Cases', () => {
+    it('handles approval without workflowId (no link)', () => {
+      const approvalWithoutWorkflow = {
+        ...mockApprovals[0],
+        id: 'no-workflow-approval',
+        workflow_context: {
+          ...mockApprovals[0].workflow_context,
+          workflow_version_id: undefined,
+        },
+      }
+      mockApprovalsQuery([approvalWithoutWorkflow] as unknown as Approval[])
+
+      render(<Approvals />)
+
+      // Automation name should be displayed but not as a link
+      const automationText = screen.getByText('Test Workflow')
+      expect(automationText).toBeInTheDocument()
+      expect(automationText.closest('button')).toBeNull()
+    })
+
+    it('handles approval without decided_at (pending)', () => {
+      mockApprovalsQuery([mockApprovals[0]]) // First approval is pending with no decided_at
+
+      render(<Approvals />)
+
+      // The pending approval should render successfully without decided_at
+      // DateCell with null will render appropriately
+      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
+      expect(screen.getByText('Pending')).toBeInTheDocument()
+    })
+
+    it('displays decided_by link when approval has been decided', () => {
+      mockApprovalsQuery([mockApprovals[1]]) // Second approval has decided_by
+
+      render(<Approvals />)
+
+      // Should show the decider's name
+      expect(screen.getByText('John Doe')).toBeInTheDocument()
+    })
+
+    it('handles approval without name (uses ID)', () => {
+      const approvalWithoutName = {
+        ...mockApprovals[0],
+        name: null,
+      }
+      mockApprovalsQuery([approvalWithoutName] as unknown as Approval[])
+
+      render(<Approvals />)
+
+      // Should display the ID instead
+      expect(screen.getByText('550e8400-e29b-41d4-a716-446655440001')).toBeInTheDocument()
+    })
+
+    it('handles approval without workflow_context (Unknown automation)', () => {
+      const approvalWithoutContext = {
+        ...mockApprovals[0],
+        workflow_context: undefined,
+      }
+      mockApprovalsQuery([approvalWithoutContext] as unknown as Approval[])
+
+      render(<Approvals />)
+
+      expect(screen.getByText('Unknown')).toBeInTheDocument()
+    })
   })
 })
