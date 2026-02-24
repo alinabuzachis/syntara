@@ -5,7 +5,9 @@
 
 // Auto-discover all registration modules matching the pattern register*.ts
 // Using eager: true to load them synchronously during app initialization
-const nodeModules = import.meta.glob<{ default: () => void }>('./register*.ts', { eager: true })
+const nodeModules = import.meta.glob<{ default: () => void }>(['./register*.ts', '!./*.test.ts', '!./*.spec.ts'], {
+  eager: true,
+})
 
 /**
  * Register all node types

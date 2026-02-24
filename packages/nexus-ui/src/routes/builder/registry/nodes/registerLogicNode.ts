@@ -150,10 +150,28 @@ export default function registerLogicNode() {
             onSuccess(activityId)
             return
           } else if (data.logicType === 'converge') {
+            if (!data.strategy) {
+              onError('Continue when criteria is required')
+              return
+            }
+            if (data.strategy === 'any') {
+              if (data.requiredPathCount === undefined || data.requiredPathCount < 1) {
+                onError('Required path count must be at least 1 when using "Any branches reach this node"')
+                return
+              }
+              if (!data.remainingBehavior) {
+                onError('Behavior of remaining nodes is required when using "Any branches reach this node"')
+                return
+              }
+            }
             activity = createConvergeActivity(activityId, name, {
+              strategy: data.strategy,
               timeout: data.timeout,
               onTimeout: data.onTimeout,
-              aggregateOutputs: data.aggregateOutputs,
+              ...(data.strategy === 'any' && {
+                requiredPathCount: data.requiredPathCount,
+                remainingBehavior: data.remainingBehavior,
+              }),
             })
           } else {
             onError('Invalid logic type')

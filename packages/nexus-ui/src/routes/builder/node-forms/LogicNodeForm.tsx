@@ -1,24 +1,36 @@
 import {
-  Alert,
-  AlertVariant,
   FormGroup,
   FormHelperText,
   FormSelect,
   FormSelectOption,
   HelperText,
   HelperTextItem,
+  MenuToggle,
+  Select,
+  SelectList,
+  SelectOption,
   Stack,
   StackItem,
+  Switch,
   TextArea,
   TextInput,
 } from '@patternfly/react-core'
+import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
+
+import { timeUnitsToSeconds } from '../utils/timeUtils'
 
 import { ActivityNameField } from './shared/ActivityNameField'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+
+/** Converge strategy: when to continue after branches */
+export type ConvergeStrategy = 'all' | 'any'
+
+/** Behavior of remaining nodes when strategy is 'any' */
+export type RemainingBehavior = 'continue' | 'cancel'
 
 export interface LogicFormData {
   name: string
@@ -29,10 +41,49 @@ export interface LogicFormData {
   maxIterations?: number
   indexVariable?: string
   itemVariable?: string
+  /** Computed total timeout in seconds (output only — derived from the unit fields below) */
   timeout?: number
+  /** Whether the timeout toggle is enabled */
+  timeoutEnabled?: boolean
+  timeoutSeconds?: number
+  timeoutMinutes?: number
+  timeoutHours?: number
+  timeoutDays?: number
   onTimeout?: 'continue' | 'fail'
-  aggregateOutputs?: boolean
+  /** Continue when criteria - which branches must reach the converge node */
+  strategy?: ConvergeStrategy
+  /** Required path count when strategy is 'any' */
+  requiredPathCount?: number
+  /** Behavior of remaining nodes when strategy is 'any' */
+  remainingBehavior?: RemainingBehavior
 }
+
+/** Options for "Continue when criteria" dropdown */
+const CONTINUE_WHEN_CRITERIA_OPTIONS: Array<{ label: string; value: ConvergeStrategy; disabled?: boolean }> = [
+  { label: 'All branches reach this node', value: 'all' },
+  { label: 'Any branches reach this node (not yet implemented)', value: 'any', disabled: true },
+]
+
+/** Options for "Behavior of remaining nodes" when strategy is 'any' */
+const REMAINING_BEHAVIOR_OPTIONS: Array<{ label: string; value: 'continue' | 'cancel' }> = [
+  { label: 'Continue running', value: 'continue' },
+  { label: 'Cancel node runs from remaining paths', value: 'cancel' },
+]
+
+/** Options for "Timeout action" dropdown */
+const TIMEOUT_ACTION_OPTIONS: Array<{ label: string; value: 'fail' | 'continue'; description: string }> = [
+  {
+    value: 'fail',
+    label: 'Fail',
+    description:
+      'The automation will fail if the parameters set on this converge node are not met by the specified timeout time.',
+  },
+  {
+    value: 'continue',
+    label: 'Continue with partial data',
+    description: 'The automation will continue ignoring the parameters set for this converge node.',
+  },
+]
 
 interface LogicNodeFormProps {
   onSubmit: (data: LogicFormData) => void
@@ -49,9 +100,17 @@ function LogicFormFields({
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
 }) {
-  const { register, control } = useFormContext<LogicFormData>()
+  const {
+    register,
+    control,
+    setValue,
+    formState: { errors },
+  } = useFormContext<LogicFormData>()
   const logicType = useWatch({ control, name: 'logicType' })
   const type = useWatch({ control, name: 'type' })
+  const strategy = useWatch({ control, name: 'strategy' })
+  const timeoutEnabled = useWatch({ control, name: 'timeoutEnabled' })
+  const [isTimeoutActionOpen, setIsTimeoutActionOpen] = useState(false)
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="logic-name" ariaLabel="Name" />,
@@ -183,70 +242,218 @@ function LogicFormFields({
       {logicType === 'converge' && (
         <>
           <StackItem>
-            <FormGroup label="Timeout (seconds)" fieldId="logic-timeout">
-              <TextInput
-                {...register('timeout', { valueAsNumber: true })}
-                id="logic-timeout"
-                placeholder="300 (5 minutes)"
-                type="number"
-                min={1}
-              />
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem>
-                    Maximum time to wait for all branches in seconds (e.g., 300 = 5 min, 3600 = 1 hour)
-                  </HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            </FormGroup>
-          </StackItem>
-
-          <StackItem>
-            <FormGroup label="On timeout" fieldId="logic-onTimeout">
+            <FormGroup label="Continue when criteria" isRequired fieldId="logic-strategy">
               <Controller
                 control={control}
-                name="onTimeout"
+                name="strategy"
+                rules={{ required: 'Continue when criteria is required' }}
                 render={({ field }) => (
                   <FormSelect
-                    id="logic-onTimeout"
-                    aria-label="On timeout"
-                    value={field.value}
+                    id="logic-strategy"
+                    aria-label="Continue when criteria"
+                    value={field.value ?? ''}
                     onChange={(_event, value) => field.onChange(value)}
+                    isRequired
                   >
-                    <FormSelectOption value="fail" label="Fail - Stop workflow" />
-                    <FormSelectOption value="continue" label="Continue - Proceed anyway" />
+                    <FormSelectOption value="" label="Select continue when criteria" isPlaceholder />
+                    {CONTINUE_WHEN_CRITERIA_OPTIONS.map((option) => (
+                      <FormSelectOption
+                        key={option.value}
+                        value={option.value}
+                        label={option.label}
+                        isDisabled={option.disabled}
+                      />
+                    ))}
                   </FormSelect>
                 )}
               />
+              {errors.strategy && (
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                      {errors.strategy.message}
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              )}
             </FormGroup>
           </StackItem>
 
-          <StackItem>
-            <FormGroup label="Aggregate outputs" fieldId="logic-aggregateOutputs">
-              <Controller
-                control={control}
-                name="aggregateOutputs"
-                render={({ field }) => (
-                  <FormSelect
-                    id="logic-aggregateOutputs"
-                    aria-label="Aggregate outputs"
-                    value={String(field.value ?? true)}
-                    onChange={(_event, value) => field.onChange(value === 'true')}
-                  >
-                    <FormSelectOption value="true" label="Yes - Collect outputs from all branches" />
-                    <FormSelectOption value="false" label="No - Don't aggregate outputs" />
-                  </FormSelect>
-                )}
-              />
-            </FormGroup>
-          </StackItem>
+          {strategy === 'any' && (
+            <>
+              <StackItem>
+                <FormGroup label="Required path count" isRequired fieldId="logic-requiredPathCount">
+                  <TextInput
+                    {...register('requiredPathCount', {
+                      required: strategy === 'any' ? 'Required path count is required' : false,
+                      min: { value: 1, message: 'Must be at least 1' },
+                      valueAsNumber: true,
+                    })}
+                    id="logic-requiredPathCount"
+                    type="number"
+                    min={1}
+                  />
+                  {errors.requiredPathCount && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                          {errors.requiredPathCount.message}
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </FormGroup>
+              </StackItem>
+
+              <StackItem>
+                <FormGroup label="Behavior of remaining nodes" isRequired fieldId="logic-remainingBehavior">
+                  <Controller
+                    control={control}
+                    name="remainingBehavior"
+                    rules={{
+                      required: strategy === 'any' ? 'Behavior of remaining nodes is required' : false,
+                    }}
+                    render={({ field }) => (
+                      <FormSelect
+                        id="logic-remainingBehavior"
+                        aria-label="Behavior of remaining nodes"
+                        value={field.value ?? ''}
+                        onChange={(_event, value) => field.onChange(value)}
+                        isRequired
+                      >
+                        <FormSelectOption value="" label="Select behavior of remaining nodes" isPlaceholder />
+                        {REMAINING_BEHAVIOR_OPTIONS.map((option) => (
+                          <FormSelectOption key={option.value} value={option.value} label={option.label} />
+                        ))}
+                      </FormSelect>
+                    )}
+                  />
+                  {errors.remainingBehavior && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                          {errors.remainingBehavior.message}
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </FormGroup>
+              </StackItem>
+            </>
+          )}
 
           <StackItem>
-            <Alert variant={AlertVariant.info} title="Note">
-              Converge nodes wait for all connected parallel branches to complete before proceeding. Connect incoming
-              edges from the branches you want to synchronize.
-            </Alert>
+            <Switch
+              id="logic-timeoutEnabled"
+              label="Timeout"
+              isChecked={timeoutEnabled ?? false}
+              onChange={(_event, checked) => setValue('timeoutEnabled', checked)}
+              aria-label="Timeout"
+            />
           </StackItem>
+
+          {timeoutEnabled && (
+            <>
+              <StackItem>
+                <FormGroup label="Second(s)" fieldId="logic-timeout-seconds">
+                  <TextInput
+                    {...register('timeoutSeconds', { valueAsNumber: true })}
+                    id="logic-timeout-seconds"
+                    placeholder="Enter number of seconds"
+                    type="number"
+                    min={0}
+                  />
+                </FormGroup>
+              </StackItem>
+
+              <StackItem>
+                <FormGroup label="Minute(s)" fieldId="logic-timeout-minutes">
+                  <TextInput
+                    {...register('timeoutMinutes', { valueAsNumber: true })}
+                    id="logic-timeout-minutes"
+                    placeholder="Enter number of minutes"
+                    type="number"
+                    min={0}
+                  />
+                </FormGroup>
+              </StackItem>
+
+              <StackItem>
+                <FormGroup label="Hour(s)" fieldId="logic-timeout-hours">
+                  <TextInput
+                    {...register('timeoutHours', { valueAsNumber: true })}
+                    id="logic-timeout-hours"
+                    placeholder="Enter number of hours"
+                    type="number"
+                    min={0}
+                  />
+                </FormGroup>
+              </StackItem>
+
+              <StackItem>
+                <FormGroup label="Day(s)" fieldId="logic-timeout-days">
+                  <TextInput
+                    {...register('timeoutDays', { valueAsNumber: true })}
+                    id="logic-timeout-days"
+                    placeholder="Enter number of days"
+                    type="number"
+                    min={0}
+                  />
+                </FormGroup>
+              </StackItem>
+
+              <StackItem>
+                <FormGroup label="Timeout action" isRequired fieldId="logic-timeoutAction">
+                  <Controller
+                    control={control}
+                    name="onTimeout"
+                    rules={{ required: timeoutEnabled ? 'Timeout action is required' : false }}
+                    render={({ field }) => (
+                      <Select
+                        id="logic-timeoutAction"
+                        isOpen={isTimeoutActionOpen}
+                        onOpenChange={setIsTimeoutActionOpen}
+                        popperProps={{ minWidth: 'trigger', maxWidth: 'trigger' }}
+                        onSelect={(_event, value) => {
+                          field.onChange(value)
+                          setIsTimeoutActionOpen(false)
+                        }}
+                        selected={field.value}
+                        toggle={(toggleRef) => (
+                          <MenuToggle
+                            ref={toggleRef}
+                            onClick={() => setIsTimeoutActionOpen(!isTimeoutActionOpen)}
+                            isExpanded={isTimeoutActionOpen}
+                            isFullWidth
+                          >
+                            {TIMEOUT_ACTION_OPTIONS.find((o) => o.value === field.value)?.label ??
+                              'Select timeout action'}
+                          </MenuToggle>
+                        )}
+                      >
+                        <SelectList>
+                          {TIMEOUT_ACTION_OPTIONS.map((option) => (
+                            <SelectOption key={option.value} value={option.value} description={option.description}>
+                              {option.label}
+                            </SelectOption>
+                          ))}
+                        </SelectList>
+                      </Select>
+                    )}
+                  />
+                  {errors.onTimeout && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                          {errors.onTimeout.message}
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </FormGroup>
+              </StackItem>
+            </>
+          )}
         </>
       )}
     </Stack>
@@ -263,11 +470,22 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
     indexVariable: 'index',
     itemVariable: 'item',
     onTimeout: 'fail',
-    aggregateOutputs: true,
+    requiredPathCount: 1,
+    timeoutEnabled: false,
     ...props.initialData,
   }
 
   const handleSubmit = (data: LogicFormData) => {
+    const timeout =
+      data.logicType === 'converge' && data.timeoutEnabled
+        ? timeUnitsToSeconds(
+            Number(data.timeoutSeconds) || 0,
+            Number(data.timeoutMinutes) || 0,
+            Number(data.timeoutHours) || 0,
+            Number(data.timeoutDays) || 0
+          ) || undefined
+        : undefined
+
     const cleanedData: LogicFormData = {
       name: data.name,
       logicType: data.logicType,
@@ -283,9 +501,11 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
           : undefined,
       indexVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.indexVariable : undefined,
       itemVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.itemVariable : undefined,
-      timeout: data.logicType === 'converge' ? data.timeout : undefined,
-      onTimeout: data.logicType === 'converge' ? data.onTimeout : undefined,
-      aggregateOutputs: data.logicType === 'converge' ? data.aggregateOutputs : undefined,
+      timeout,
+      onTimeout: timeout !== undefined ? data.onTimeout : undefined,
+      strategy: data.logicType === 'converge' ? data.strategy : undefined,
+      requiredPathCount: data.logicType === 'converge' && data.strategy === 'any' ? data.requiredPathCount : undefined,
+      remainingBehavior: data.logicType === 'converge' && data.strategy === 'any' ? data.remainingBehavior : undefined,
     }
     props.onSubmit(cleanedData)
   }

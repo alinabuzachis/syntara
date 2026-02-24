@@ -381,6 +381,29 @@ describe('workflowFactories', () => {
         expect(activity.converge.timeout).toBe(3600)
         expect(activity.converge.onTimeout).toBe('fail')
         expect(activity.converge.aggregateOutputs).toBe(true)
+        expect(activity.converge.strategy).toBe('all')
+      })
+
+      it('creates a converge activity with strategy', () => {
+        const activity = createConvergeActivity('conv-1', 'Converge', {
+          strategy: 'any',
+          timeout: 600,
+        })
+
+        expect(activity.converge.strategy).toBe('any')
+        expect(activity.converge.timeout).toBe(600)
+      })
+
+      it('creates a converge activity with strategy any and optional fields', () => {
+        const activity = createConvergeActivity('conv-1', 'Converge Any', {
+          strategy: 'any',
+          requiredPathCount: 2,
+          remainingBehavior: 'cancel',
+        })
+
+        expect(activity.converge.strategy).toBe('any')
+        expect((activity.converge as { requiredPathCount?: number }).requiredPathCount).toBe(2)
+        expect((activity.converge as { remainingBehavior?: string }).remainingBehavior).toBe('cancel')
       })
     })
 

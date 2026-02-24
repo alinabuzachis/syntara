@@ -15,31 +15,11 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
+import { secondsToTimeUnits, timeUnitsToSeconds } from '../utils/timeUtils'
+
 import { ActivityNameField } from './shared/ActivityNameField'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
-
-// Helper function to break down total seconds into days, hours, minutes, seconds
-function secondsToTimeUnits(totalSeconds: number): {
-  days: number
-  hours: number
-  minutes: number
-  seconds: number
-} {
-  const days = Math.floor(totalSeconds / 86400)
-  const remainingAfterDays = totalSeconds % 86400
-  const hours = Math.floor(remainingAfterDays / 3600)
-  const remainingAfterHours = remainingAfterDays % 3600
-  const minutes = Math.floor(remainingAfterHours / 60)
-  const seconds = remainingAfterHours % 60
-
-  return { days, hours, minutes, seconds }
-}
-
-// Helper function to convert time units back to total seconds
-function timeUnitsToSeconds(seconds: number = 0, minutes: number = 0, hours: number = 0, days: number = 0): number {
-  return seconds + minutes * 60 + hours * 3600 + days * 86400
-}
 
 // Form data structure used internally by the form (approvers as comma-separated string, timeout broken into units)
 interface ApprovalFormData {

@@ -390,9 +390,12 @@ export function createConvergeActivity(
   id: string,
   name: string,
   config?: {
+    strategy?: 'all' | 'any'
     timeout?: number
     onTimeout?: 'continue' | 'fail'
     aggregateOutputs?: boolean
+    requiredPathCount?: number
+    remainingBehavior?: 'continue' | 'cancel'
   }
 ): Extract<Activity, { type: 'converge' }> {
   const convergeActivity: Extract<Activity, { type: 'converge' }> = {
@@ -401,11 +404,15 @@ export function createConvergeActivity(
     name,
     converge: {
       branches: [], // Will be populated based on incoming edges
-      strategy: 'all', // Only 'all' strategy is supported
+      // TODO: remove cast when backend schema supports 'any' strategy
+      strategy: (config?.strategy ?? 'all') as 'all',
       timeout: config?.timeout,
       onTimeout: config?.onTimeout,
       aggregateOutputs: config?.aggregateOutputs,
-    },
+      ...(config?.strategy === 'any' &&
+        config.requiredPathCount !== undefined && { requiredPathCount: config.requiredPathCount }),
+      ...(config?.strategy === 'any' && config.remainingBehavior && { remainingBehavior: config.remainingBehavior }),
+    } as Extract<Activity, { type: 'converge' }>['converge'],
   }
 
   return convergeActivity

@@ -21,51 +21,72 @@ vi.mock('../../../components/alerts', () => ({
   })),
 }))
 
-// Mock LogicNodeForm
-vi.mock('../node-forms/LogicNodeForm', () => ({
-  LogicNodeForm: ({
-    onSubmit,
-    onCancel,
-    submitButtonText,
-    initialData,
-  }: {
-    onSubmit: (data: Record<string, unknown>) => void
-    onCancel: () => void
-    submitButtonText?: string
-    initialData?: Record<string, unknown>
-  }) => (
-    <div data-testid="logic-node-form">
-      <span data-testid="initial-name">{initialData?.name as string}</span>
-      <span data-testid="initial-timeout">{initialData?.timeout as string}</span>
-      <button
-        onClick={() =>
-          onSubmit({
-            name: 'Updated Converge',
-            timeout: 3600,
-            onTimeout: 'continue',
-            aggregateOutputs: false,
-          })
-        }
-        data-testid="submit-button"
-      >
-        {submitButtonText || 'Add node'}
-      </button>
-      <button
-        onClick={() =>
-          onSubmit({
-            name: 'Converge Without Timeout',
-          })
-        }
-        data-testid="submit-without-timeout"
-      >
-        Submit without timeout
-      </button>
-      <button onClick={onCancel} data-testid="cancel-button">
-        Cancel
-      </button>
-    </div>
-  ),
-}))
+// Use real timeUtils helpers (secondsToTimeUnits is now imported directly in ConvergeNodeDetails)
+vi.mock('../utils/timeUtils', async (importOriginal) => importOriginal())
+
+vi.mock('../node-forms/LogicNodeForm', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../node-forms/LogicNodeForm')>()
+  return {
+    ...actual,
+    LogicNodeForm: ({
+      onSubmit,
+      onCancel,
+      submitButtonText,
+      initialData,
+    }: {
+      onSubmit: (data: Record<string, unknown>) => void
+      onCancel: () => void
+      submitButtonText?: string
+      initialData?: Record<string, unknown>
+    }) => (
+      <div data-testid="logic-node-form">
+        <span data-testid="initial-name">{initialData?.name as string}</span>
+        <span data-testid="initial-timeout-enabled">{String(initialData?.timeoutEnabled ?? false)}</span>
+        <span data-testid="initial-required-path-count">{String(initialData?.requiredPathCount ?? '')}</span>
+        <button
+          onClick={() =>
+            onSubmit({
+              name: 'Updated Converge',
+              strategy: 'all',
+              timeout: 3600,
+              onTimeout: 'continue',
+            })
+          }
+          data-testid="submit-button"
+        >
+          {submitButtonText || 'Add node'}
+        </button>
+        <button
+          onClick={() =>
+            onSubmit({
+              name: 'Converge Without Timeout',
+              strategy: 'all',
+            })
+          }
+          data-testid="submit-without-timeout"
+        >
+          Submit without timeout
+        </button>
+        <button
+          onClick={() =>
+            onSubmit({
+              name: 'Converge Cleared Timeout',
+              strategy: 'all',
+              timeout: undefined,
+              onTimeout: undefined,
+            })
+          }
+          data-testid="submit-clear-timeout"
+        >
+          Submit clear timeout
+        </button>
+        <button onClick={onCancel} data-testid="cancel-button">
+          Cancel
+        </button>
+      </div>
+    ),
+  }
+})
 
 describe('ConvergeNodeDetails Component', () => {
   const mockOnClose = vi.fn()
@@ -98,7 +119,7 @@ describe('ConvergeNodeDetails Component', () => {
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
     expect(screen.getByTestId('initial-name')).toHaveTextContent('Test Converge')
-    expect(screen.getByTestId('initial-timeout')).toHaveTextContent('7200')
+    expect(screen.getByTestId('initial-timeout-enabled')).toHaveTextContent('true')
   })
 
   it('calls updateActivity on successful form submission', async () => {
@@ -113,9 +134,9 @@ describe('ConvergeNodeDetails Component', () => {
       expect.objectContaining({
         name: 'Updated Converge',
         converge: expect.objectContaining({
+          strategy: 'all',
           timeout: 3600,
           onTimeout: 'continue',
-          aggregateOutputs: false,
         }),
       })
     )
@@ -167,11 +188,13 @@ describe('ConvergeNodeDetails Component', () => {
       expect.objectContaining({
         name: 'Converge Without Timeout',
         converge: expect.objectContaining({
-          onTimeout: 'fail',
-          aggregateOutputs: true,
+          strategy: 'all',
         }),
       })
     )
+    const call = mockUpdateActivity.mock.calls[0][1]
+    expect(call.converge).not.toHaveProperty('timeout')
+    expect(call.converge).not.toHaveProperty('onTimeout')
   })
 
   it('shows error when updateActivity throws', async () => {
@@ -185,5 +208,73 @@ describe('ConvergeNodeDetails Component', () => {
     await user.click(screen.getByTestId('submit-button'))
 
     expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Update Failed')
+  })
+
+  describe('timeout toggle state initialization', () => {
+    it('sets timeoutEnabled true and decomposes time units when converge has timeout', () => {
+      render(
+        <ConvergeNodeDetails
+          convergeData={createConvergeData({ converge: { branches: [], strategy: 'all', timeout: 3600 } })}
+          nodeId="converge-1"
+          onClose={mockOnClose}
+        />
+      )
+
+      expect(screen.getByTestId('initial-timeout-enabled')).toHaveTextContent('true')
+    })
+
+    it('sets timeoutEnabled false when converge has no timeout', () => {
+      render(
+        <ConvergeNodeDetails
+          convergeData={createConvergeData({ converge: { branches: [], strategy: 'all' } })}
+          nodeId="converge-1"
+          onClose={mockOnClose}
+        />
+      )
+
+      expect(screen.getByTestId('initial-timeout-enabled')).toHaveTextContent('false')
+    })
+  })
+
+  it('clearing timeout on save removes timeout and onTimeout from converge', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <ConvergeNodeDetails
+        convergeData={createConvergeData({
+          converge: { branches: [], strategy: 'all', timeout: 7200, onTimeout: 'fail' },
+        })}
+        nodeId="converge-1"
+        onClose={mockOnClose}
+      />
+    )
+
+    await user.click(screen.getByTestId('submit-clear-timeout'))
+
+    expect(mockUpdateActivity).toHaveBeenCalledWith(
+      'converge-1',
+      expect.objectContaining({
+        name: 'Converge Cleared Timeout',
+        converge: expect.not.objectContaining({
+          timeout: expect.anything(),
+          onTimeout: expect.anything(),
+        }),
+      })
+    )
+    const call = mockUpdateActivity.mock.calls[0][1]
+    expect(call.converge).not.toHaveProperty('timeout')
+    expect(call.converge).not.toHaveProperty('onTimeout')
+  })
+
+  it('defaults requiredPathCount to 1 in edit form when not previously set', () => {
+    render(
+      <ConvergeNodeDetails
+        convergeData={createConvergeData({ converge: { branches: [], strategy: 'all' } })}
+        nodeId="converge-1"
+        onClose={mockOnClose}
+      />
+    )
+
+    expect(screen.getByTestId('initial-required-path-count')).toHaveTextContent('1')
   })
 })
