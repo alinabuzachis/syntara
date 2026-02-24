@@ -1,0 +1,54 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: https://github.com/syntara-orchestration/syntara?rev={{revision}}
+    build.appstudio.redhat.com/commit_sha: '{{revision}}'
+    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
+    build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main"
+  creationTimestamp: null
+  labels:
+    appstudio.openshift.io/application: ansible-automation-orchestrator-main
+    appstudio.openshift.io/component: ansible-automation-orchestrator-backend-main
+    pipelines.appstudio.openshift.io/type: build
+  name: ansible-automation-orchestrator-backend-main-on-pull-request
+  namespace: nexus-tenant
+spec:
+  params:
+  - name: git-url
+    value: '{{source_url}}'
+  - name: revision
+    value: '{{revision}}'
+  - name: output-image
+    value: quay.io/redhat-user-workloads/nexus-tenant/ansible-automation-platform/automation-orchestrator-backend-rhel9:on-pr-{{revision}}
+  - name: image-expires-after
+    value: 5d
+  - name: dockerfile
+    value: containers/nexus/Containerfile
+  - name: path-context
+    value: .
+  - name: build-platforms
+    value:
+      - linux/x86_64
+      - linux/arm64
+  - name: hermetic
+    value: 'false'
+  pipelineRef:
+    params:
+    - name: name
+      value: pde-docker-build-multi-platform-oci-ta
+    - name: bundle
+      value: quay.io/aap-ci/pde-docker-build-multi-platform-oci-ta-bundle@sha256:dcbf3dbb4fd318f5fbd1493e360d4f6f2d453c69968084028a43d591137df7a3
+    - name: kind
+      value: pipeline
+    resolver: bundles
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-ansible-automation-orchestrator-backend-main
+  workspaces:
+  - name: git-auth
+    secret:
+      secretName: '{{ git_auth_secret }}'
+status: {}
