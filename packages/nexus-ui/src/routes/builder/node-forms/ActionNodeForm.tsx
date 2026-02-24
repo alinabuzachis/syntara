@@ -15,6 +15,8 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
+import { ExpandableCodeEditor } from '../../../components/ExpandableCodeEditor'
+
 import { ActivityNameField } from './shared/ActivityNameField'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
@@ -76,6 +78,8 @@ function ActionFormFields({
     formState: { errors },
   } = useFormContext<ActionFormData>()
   const executor = useWatch({ control, name: 'executor' })
+  const language = useWatch({ control, name: 'language' })
+  const editorLanguage = language === 'bash' ? 'bash' : language === 'python' ? 'python' : 'plaintext'
 
   const nameField = useMemo(
     () => (
@@ -129,12 +133,21 @@ function ActionFormFields({
             </FormGroup>
           </StackItem>
           <StackItem>
-            <FormGroup label="Code" isRequired fieldId="action-code">
-              <TextArea
-                {...register('code', { required: 'Code is required' })}
-                id="action-code"
-                placeholder="Enter your code..."
-                rows={5}
+            <FormGroup label="Script" isRequired fieldId="action-code">
+              <Controller
+                control={control}
+                name="code"
+                rules={{ required: 'Code is required' }}
+                render={({ field }) => (
+                  <ExpandableCodeEditor
+                    code={field.value ?? ''}
+                    onCodeChange={field.onChange}
+                    language={editorLanguage}
+                    height="200px"
+                    ariaLabel="Script code editor"
+                    isDarkTheme
+                  />
+                )}
               />
               {errors.code && (
                 <FormHelperText>

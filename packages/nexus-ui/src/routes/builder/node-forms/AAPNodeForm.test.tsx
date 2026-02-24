@@ -6,6 +6,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AAPNodeForm } from './AAPNodeForm'
 
+// Mock ExpandableCodeEditor to use a simple textarea for testing
+vi.mock('../../../components/ExpandableCodeEditor', () => ({
+  ExpandableCodeEditor: ({
+    code,
+    onCodeChange,
+    ariaLabel,
+  }: {
+    code: string
+    onCodeChange: (code: string) => void
+    ariaLabel?: string
+  }) => (
+    <textarea
+      data-testid="extra-vars-editor"
+      id="aap-extraVars"
+      value={code}
+      onChange={(e) => onCodeChange(e.target.value)}
+      placeholder='{"version": "1.0", "environment": "prod"}'
+      aria-label={ariaLabel}
+    />
+  ),
+}))
+
 function renderWithHeader(ui: ReactElement) {
   function Wrapper() {
     const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)

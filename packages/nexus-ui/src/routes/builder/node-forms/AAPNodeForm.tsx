@@ -7,13 +7,14 @@ import {
   HelperTextItem,
   Stack,
   StackItem,
-  TextArea,
   TextInput,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
+
+import { ExpandableCodeEditor } from '../../../components/ExpandableCodeEditor'
 
 import { ActivityNameField } from './shared/ActivityNameField'
 import { NodeFormContainer } from './shared/NodeFormContainer'
@@ -118,14 +119,23 @@ function AAPFormFields({
       </StackItem>
       <StackItem>
         <FormGroup label="Extra variables (JSON)" fieldId="aap-extraVars">
-          <TextArea
-            {...register('extraVars', {
-              validate: validateJSON,
-            })}
-            id="aap-extraVars"
-            placeholder='{"version": "1.0", "environment": "prod"}'
-            rows={4}
-            style={{ fontFamily: 'monospace' }}
+          <Controller
+            control={control}
+            name="extraVars"
+            rules={{ validate: validateJSON }}
+            render={({ field }) => (
+              <ExpandableCodeEditor
+                code={field.value ?? ''}
+                onCodeChange={(value) => {
+                  field.onChange(value)
+                }}
+                language="json"
+                height="150px"
+                modalTitle="Edit extra variables"
+                ariaLabel="Extra variables JSON editor"
+                isDarkTheme
+              />
+            )}
           />
           <FormHelperText>
             <HelperText>

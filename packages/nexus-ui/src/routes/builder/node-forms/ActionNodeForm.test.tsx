@@ -6,6 +6,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ActionNodeForm } from './ActionNodeForm'
 
+// Mock ExpandableCodeEditor to use a simple textarea for testing
+vi.mock('../../../components/ExpandableCodeEditor', () => ({
+  ExpandableCodeEditor: ({
+    code,
+    onCodeChange,
+    ariaLabel,
+  }: {
+    code: string
+    onCodeChange: (code: string) => void
+    ariaLabel?: string
+  }) => (
+    <textarea
+      data-testid="code-editor"
+      value={code}
+      onChange={(e) => onCodeChange(e.target.value)}
+      aria-label={ariaLabel}
+      placeholder="Enter your code..."
+    />
+  ),
+}))
+
 function renderWithHeader(ui: ReactElement) {
   function Wrapper() {
     const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
