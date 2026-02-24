@@ -10,12 +10,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.config.base import get_settings
 
+settings = get_settings()
+
 # Create async engine with connection pooling
 engine = create_async_engine(
-    get_settings().database_url,
+    settings.database_url,
     echo=False,  # Set to True for SQL query logging in development
-    pool_size=10,  # Maximum number of connections in the pool
-    max_overflow=20,  # Maximum overflow connections
+    pool_size=settings.db_pool_size,  # Maximum number of connections in the pool
+    max_overflow=settings.db_max_overflow,  # Maximum overflow connections
+    pool_timeout=settings.db_pool_timeout_seconds,  # Timeout waiting for an available connection
     pool_pre_ping=True,  # Verify connections before using them
     pool_recycle=3600,  # Recycle connections after 1 hour
 )

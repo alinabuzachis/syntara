@@ -273,6 +273,24 @@ class DatabaseSettings(BaseSettings):
         description="Database name",
     )
 
+    db_pool_size: int = Field(
+        default=10,
+        description="Maximum number of persistent database connections in SQLAlchemy pool",
+        ge=1,
+    )
+
+    db_max_overflow: int = Field(
+        default=20,
+        description="Maximum number of overflow connections beyond db_pool_size",
+        ge=0,
+    )
+
+    db_pool_timeout_seconds: float = Field(
+        default=30.0,
+        description="Seconds to wait for a free connection before pool checkout timeout",
+        gt=0,
+    )
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def database_url(self) -> str:

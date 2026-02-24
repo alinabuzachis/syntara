@@ -20,7 +20,7 @@ from temporalio.service import RPCError
 
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.core.config.base import get_settings
-from nexus.core.database.session import get_db
+from nexus.core.database.session import engine, get_db
 from nexus.core.error_handlers import (
     generic_exception_handler,
     integrity_error_handler,
@@ -94,6 +94,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         # Stop WebSocket connection monitoring
         lifecycle_manager.stop_monitoring()
         logger.info("WebSocket connection health monitoring stopped")
+
+        # Dispose SQLAlchemy engine/pool for clean shutdown during restarts/deployments
+        await engine.dispose()
+        logger.info("Database engine disposed")
 
         # Clean up lock file created by this server instance
         lock_file = _get_lock_file_path()

@@ -148,6 +148,9 @@ The application uses these environment variables (with defaults):
 - `NEXUS_DB_HOST` (default: `localhost`)
 - `NEXUS_DB_PORT` (default: `5432`)
 - `NEXUS_DB_NAME` (default: `nexus_api`)
+- `NEXUS_DB_POOL_SIZE` (default: `10`)
+- `NEXUS_DB_MAX_OVERFLOW` (default: `20`)
+- `NEXUS_DB_POOL_TIMEOUT_SECONDS` (default: `30`)
 
 You can override individual variables or set `NEXUS_DATABASE_URL` directly:
 ```bash
@@ -339,6 +342,9 @@ NEXUS_DB_PORT=5432
 NEXUS_DB_USER=admin
 NEXUS_DB_PASSWORD=admin
 NEXUS_DB_NAME=nexus_api
+NEXUS_DB_POOL_SIZE=10
+NEXUS_DB_MAX_OVERFLOW=20
+NEXUS_DB_POOL_TIMEOUT_SECONDS=30
 
 # Cache Configuration
 NEXUS_CACHE_PORT=6379

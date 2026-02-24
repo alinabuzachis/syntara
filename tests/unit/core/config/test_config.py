@@ -39,6 +39,9 @@ class TestDatabaseSettings:
         assert settings.db_host == "localhost"
         assert settings.db_port == 5432
         assert settings.db_name == "nexus_api"
+        assert settings.db_pool_size == 10
+        assert settings.db_max_overflow == 20
+        assert settings.db_pool_timeout_seconds == 30.0
 
     def test_database_url_computed_field(self) -> None:
         """Test that database_url is correctly computed from components."""
@@ -91,6 +94,48 @@ class TestDatabaseSettings:
             assert settings.database_url == override_url
         finally:
             os.environ.pop("NEXUS_DATABASE_URL", None)
+
+    def test_database_pool_settings_from_env(self) -> None:
+        """Test database pool settings can be configured via environment."""
+        os.environ["NEXUS_DB_POOL_SIZE"] = "25"
+        os.environ["NEXUS_DB_MAX_OVERFLOW"] = "10"
+        os.environ["NEXUS_DB_POOL_TIMEOUT_SECONDS"] = "45"
+        try:
+            settings = Settings()
+            assert settings.db_pool_size == 25
+            assert settings.db_max_overflow == 10
+            assert settings.db_pool_timeout_seconds == 45
+        finally:
+            os.environ.pop("NEXUS_DB_POOL_SIZE", None)
+            os.environ.pop("NEXUS_DB_MAX_OVERFLOW", None)
+            os.environ.pop("NEXUS_DB_POOL_TIMEOUT_SECONDS", None)
+
+    def test_database_pool_size_validation(self) -> None:
+        """Test that database pool size must be at least 1."""
+        os.environ["NEXUS_DB_POOL_SIZE"] = "0"
+        try:
+            with pytest.raises(ValueError, match="greater than or equal to 1"):
+                Settings()
+        finally:
+            os.environ.pop("NEXUS_DB_POOL_SIZE", None)
+
+    def test_database_max_overflow_validation(self) -> None:
+        """Test that database max overflow cannot be negative."""
+        os.environ["NEXUS_DB_MAX_OVERFLOW"] = "-1"
+        try:
+            with pytest.raises(ValueError, match="greater than or equal to 0"):
+                Settings()
+        finally:
+            os.environ.pop("NEXUS_DB_MAX_OVERFLOW", None)
+
+    def test_database_pool_timeout_validation(self) -> None:
+        """Test that database pool timeout must be positive."""
+        os.environ["NEXUS_DB_POOL_TIMEOUT_SECONDS"] = "0"
+        try:
+            with pytest.raises(ValueError, match="greater than 0"):
+                Settings()
+        finally:
+            os.environ.pop("NEXUS_DB_POOL_TIMEOUT_SECONDS", None)
 
 
 # =============================================================================
