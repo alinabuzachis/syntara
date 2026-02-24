@@ -20,11 +20,11 @@ from nexus.core.models import User
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
+    WorkflowValidationError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
 from nexus.workflows.services.workflow_service import WorkflowConvertResourceMixin, WorkflowService
-from nexus.workflows.validators import ValidationError
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 
 
@@ -266,11 +266,11 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
 
         workflow_definition = self._create_workflow_definition()
 
-        # Mock validator to raise ValidationError
+        # Mock validator to raise WorkflowValidationError
         with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.side_effect = ValidationError("Invalid definition")
+            mock_validator.validate.side_effect = WorkflowValidationError("Invalid definition")
 
-            with pytest.raises(ValidationError):
+            with pytest.raises(WorkflowValidationError):
                 await service.create_workflow(
                     name="invalid-workflow",
                     description=None,
@@ -535,11 +535,11 @@ class TestWorkflowServiceCreateVersion(TestWorkflowServiceBase):
         workflow = self._create_test_workflow(created_by=test_user.id)
         invalid_definition = self._create_workflow_definition()
 
-        # Mock validator to raise ValidationError
+        # Mock validator to raise WorkflowValidationError
         with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.side_effect = ValidationError("Invalid definition")
+            mock_validator.validate.side_effect = WorkflowValidationError("Invalid definition")
 
-            with pytest.raises(ValidationError):
+            with pytest.raises(WorkflowValidationError):
                 await service.create_workflow_version(
                     workflow,
                     invalid_definition,

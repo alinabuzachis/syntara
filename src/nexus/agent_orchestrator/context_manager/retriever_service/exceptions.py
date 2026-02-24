@@ -1,7 +1,9 @@
 """Domain-specific exceptions for RetrieverService framework."""
 
+from nexus.agent_orchestrator.exceptions import AgentOrchestratorError
 
-class RetrieverServiceError(Exception):
+
+class RetrieverServiceError(AgentOrchestratorError):
     """Base exception for RetrieverService framework."""
 
 

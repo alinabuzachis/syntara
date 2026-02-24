@@ -19,15 +19,15 @@ if TYPE_CHECKING:
         WorkflowDisabledError,
         WorkflowNameConflictError,
         WorkflowNotFoundError,
+        WorkflowValidationError,
         WorkflowVersionNotFoundError,
     )
-    from nexus.workflows.validators import ValidationError
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-def validation_error_handler(request: Request, exc: "ValidationError") -> JSONResponse:
-    """Handle core ValidationError with RFC 9457 format."""
+def validation_error_handler(request: Request, exc: "WorkflowValidationError") -> JSONResponse:
+    """Handle core WorkflowValidationError with RFC 9457 format."""
     logger.error("Core validation error", exc_info=exc)
     return create_problem_details_response(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

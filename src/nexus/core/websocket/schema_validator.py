@@ -10,10 +10,12 @@ from typing import Any
 import structlog
 import yaml
 
+from nexus.core.exceptions import NexusError
+
 logger = structlog.stdlib.get_logger(__name__)
 
 
-class ValidationError(Exception):
+class ValidationError(NexusError):
     """Raised when message validation fails."""
 
     def __init__(self, error_type: str, message: str, field: str | None = None) -> None:

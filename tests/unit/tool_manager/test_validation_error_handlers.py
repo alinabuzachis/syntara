@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.tool_manager.error_handlers import tool_bulk_update_validation_error_handler
-from nexus.tool_manager.lib.exceptions import ToolBulkUpdateValidationError
+from nexus.tool_manager.exceptions import ToolBulkUpdateValidationError
 
 
 class TestToolBulkUpdateValidationErrorHandler:

@@ -11,7 +11,7 @@ from nexus.tool_manager.error_handlers import (
     tool_provider_name_conflict_handler,
     tool_provider_not_found_handler,
 )
-from nexus.tool_manager.lib.exceptions import (
+from nexus.tool_manager.exceptions import (
     ProviderNameConflictError,
     ProviderNotFoundError,
 )

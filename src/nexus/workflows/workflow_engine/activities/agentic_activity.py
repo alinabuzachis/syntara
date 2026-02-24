@@ -22,8 +22,8 @@ from nexus.workflows.workflow_engine.models import AgenticExecutorConfig
 with workflow.unsafe.imports_passed_through():
     from nexus.workflows.clients.agent_orchestrator_client import (
         AgentOrchestratorClient,
-        AgentOrchestratorConnectionError,
-        AgentOrchestratorError,
+        AgentOrchestratorClientConnectionError,
+        AgentOrchestratorClientError,
     )
 
 
@@ -185,7 +185,7 @@ async def execute_agentic_activity(
 
     Raises:
         AgenticActivityError: If required config is missing or execution fails
-        AgentOrchestratorConnectionError: If connection fails
+        AgentOrchestratorClientConnectionError: If connection fails
 
     """
     # Propagate correlation ID from workflow context if available, otherwise generate new one
@@ -301,11 +301,11 @@ async def execute_agentic_activity(
 
             return result
 
-        except AgentOrchestratorConnectionError:
+        except AgentOrchestratorClientConnectionError:
             logger.exception("Failed to connect to Agent Orchestrator", correlation_id=correlation_id)
             raise
 
-        except AgentOrchestratorError as e:
+        except AgentOrchestratorClientError as e:
             logger.exception("Agent Orchestrator error", correlation_id=correlation_id)
             msg = f"Agent Orchestrator error: {e}"
             raise AgenticActivityError(msg) from e

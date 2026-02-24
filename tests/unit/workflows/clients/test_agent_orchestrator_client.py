@@ -20,8 +20,8 @@ import pytest
 
 from nexus.workflows.clients.agent_orchestrator_client import (
     AgentOrchestratorClient,
-    AgentOrchestratorConnectionError,
-    AgentOrchestratorError,
+    AgentOrchestratorClientConnectionError,
+    AgentOrchestratorClientError,
     ErrorCode,
 )
 
@@ -313,7 +313,7 @@ class TestAgentOrchestratorClientRetryLogic:
         async with AgentOrchestratorClient(max_retries=0, retry_backoff_base=0.01) as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_always_fails)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorConnectionError):
+            with pytest.raises(AgentOrchestratorClientConnectionError):
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
@@ -332,7 +332,7 @@ class TestAgentOrchestratorClientRetryLogic:
         async with AgentOrchestratorClient(max_retries=2, retry_backoff_base=0.01) as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_always_fails)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorConnectionError) as exc_info:
+            with pytest.raises(AgentOrchestratorClientConnectionError) as exc_info:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
@@ -385,7 +385,7 @@ class TestAgentOrchestratorClientRetryLogic:
         async with AgentOrchestratorClient(max_retries=3, retry_backoff_base=0.01) as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_with_400)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorError) as exc_info:
+            with pytest.raises(AgentOrchestratorClientError) as exc_info:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
@@ -437,7 +437,7 @@ class TestAgentOrchestratorClientRetryLogic:
         async with AgentOrchestratorClient(max_retries=3, retry_backoff_base=0.01) as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_invalid_response)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorError) as exc_info:
+            with pytest.raises(AgentOrchestratorClientError) as exc_info:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
@@ -472,7 +472,7 @@ class TestAgentOrchestratorClientResponseValidation:
         async with AgentOrchestratorClient() as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_invalid)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorError) as exc_info:
+            with pytest.raises(AgentOrchestratorClientError) as exc_info:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
@@ -789,7 +789,7 @@ class TestAgentOrchestratorClientErrorHandling:
         async with AgentOrchestratorClient() as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_invalid_json)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorError) as exc_info:
+            with pytest.raises(AgentOrchestratorClientError) as exc_info:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
@@ -801,7 +801,7 @@ class TestAgentOrchestratorClientErrorHandling:
     @pytest.mark.asyncio
     async def test_agentorchestrator_error_re_raised_unchanged(self) -> None:
         """Test that AgentOrchestratorError instances are re-raised without modification."""
-        original_error = AgentOrchestratorError(
+        original_error = AgentOrchestratorClientError(
             "Original error message",
             code=ErrorCode.MISSING_FIELD,
             details="Original details",
@@ -813,7 +813,7 @@ class TestAgentOrchestratorClientErrorHandling:
         async with AgentOrchestratorClient() as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_raises_orchestrator_error)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorError) as exc_info:
+            with pytest.raises(AgentOrchestratorClientError) as exc_info:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
@@ -834,7 +834,7 @@ class TestAgentOrchestratorClientErrorHandling:
         async with AgentOrchestratorClient() as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_raises_value_error)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorError) as exc_info:
+            with pytest.raises(AgentOrchestratorClientError) as exc_info:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
@@ -858,7 +858,7 @@ class TestAgentOrchestratorClientErrorHandling:
         async with AgentOrchestratorClient(max_retries=2, retry_backoff_base=0.01) as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_always_500)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorError) as exc_info:
+            with pytest.raises(AgentOrchestratorClientError) as exc_info:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",
@@ -879,7 +879,7 @@ class TestAgentOrchestratorClientErrorHandling:
         async with AgentOrchestratorClient(max_retries=2, retry_backoff_base=0.01) as client:
             client.http_client.post = AsyncMock(side_effect=mock_post_always_timeout)  # type: ignore[method-assign]
 
-            with pytest.raises(AgentOrchestratorConnectionError) as exc_info:
+            with pytest.raises(AgentOrchestratorClientConnectionError) as exc_info:
                 await client.invoke_agent_async(
                     prompt="Test",
                     user_id="test-user",

@@ -4,7 +4,8 @@ import json
 
 import pytest
 
-from nexus.workflows.validators.workflow_definition import ValidationError, WorkflowDefinitionValidator
+from nexus.workflows.exceptions import WorkflowValidationError
+from nexus.workflows.validators.workflow_definition import WorkflowDefinitionValidator
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
 
 
@@ -94,7 +95,7 @@ class TestWorkflowDefinitionValidator:
             "workflow": {"activities": []},
         }
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(WorkflowValidationError) as exc_info:
             WorkflowDefinitionValidator.validate(workflow_dict)
 
         assert "Workflow definition validation failed" in str(exc_info.value.message)
@@ -110,7 +111,7 @@ class TestWorkflowDefinitionValidator:
             "workflow": {"activities": []},
         }
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(WorkflowValidationError) as exc_info:
             WorkflowDefinitionValidator.validate(workflow_dict)
 
         assert "Workflow definition validation failed" in str(exc_info.value.message)
@@ -137,7 +138,7 @@ class TestWorkflowDefinitionValidator:
             },
         }
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(WorkflowValidationError) as exc_info:
             WorkflowDefinitionValidator.validate(workflow_dict)
 
         assert "Workflow definition validation failed" in str(exc_info.value.message)

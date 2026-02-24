@@ -13,7 +13,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from nexus.agent_orchestrator.agents import GenericAgent
 from nexus.agent_orchestrator.exceptions import (
     AgentConfigurationError,
-    AgentError,
+    AgentOrchestratorError,
     AgentRateLimitError,
     AgentTimeoutError,
 )
@@ -253,7 +253,7 @@ class TestGenericAgentPromptEngineering:
 
     @pytest.mark.asyncio
     async def test_generic_agent_raises_error_for_malformed_llm_response(self) -> None:
-        """Test GenericAgent raises AgentError for malformed LLM responses."""
+        """Test GenericAgent raises AgentOrchestratorError for malformed LLM responses."""
         mock_llm = Mock()
         mock_llm_with_tools = AsyncMock()
         mock_llm_with_tools.ainvoke.return_value = None  # Malformed response
@@ -275,7 +275,7 @@ class TestGenericAgentPromptEngineering:
             "metadata": None,
         }
 
-        with pytest.raises(AgentError) as exc_info:
+        with pytest.raises(AgentOrchestratorError) as exc_info:
             await agent.execute_as_node(state)
 
         assert exc_info.value.invocation_id == invocation_id

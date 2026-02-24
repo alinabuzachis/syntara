@@ -39,7 +39,7 @@ class ActivitySignalPayload(BaseModel):
         ...     "status": "failed",
         ...     "error": {
         ...         "message": "Execution failed",
-        ...         "error_type": "AgentError"
+        ...         "error_type": "AgentOrchestratorError"
         ...     }
         ... })
 

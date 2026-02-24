@@ -7,9 +7,11 @@ following DRY principle by centralizing exception definitions.
 from uuid import UUID
 
 from nexus.core.exception_registry import fastapi_exception
+from nexus.core.exceptions import NexusError
 from nexus.workflows.error_handlers import (
     execution_not_found_handler,
     temporal_unavailable_handler,
+    validation_error_handler,
     workflow_disabled_handler,
     workflow_name_conflict_handler,
     workflow_not_found_handler,
@@ -17,8 +19,17 @@ from nexus.workflows.error_handlers import (
 )
 
 
+class WorkflowError(NexusError):
+    """Base exception for all workflow errors."""
+
+
+@fastapi_exception(handler=validation_error_handler)
+class WorkflowValidationError(WorkflowError):
+    """Workflow validation error."""
+
+
 @fastapi_exception(handler=workflow_not_found_handler)
-class WorkflowNotFoundError(Exception):
+class WorkflowNotFoundError(WorkflowError):
     """Raised when a workflow is not found."""
 
     def __init__(self, workflow_id: UUID) -> None:
@@ -28,7 +39,7 @@ class WorkflowNotFoundError(Exception):
 
 
 @fastapi_exception(handler=workflow_name_conflict_handler)
-class WorkflowNameConflictError(Exception):
+class WorkflowNameConflictError(WorkflowError):
     """Raised when a workflow name already exists."""
 
     def __init__(self, name: str) -> None:
@@ -38,7 +49,7 @@ class WorkflowNameConflictError(Exception):
 
 
 @fastapi_exception(handler=workflow_version_not_found_handler)
-class WorkflowVersionNotFoundError(Exception):
+class WorkflowVersionNotFoundError(WorkflowError):
     """Raised when a workflow version is not found."""
 
     def __init__(self, workflow_id: UUID, version: int) -> None:
@@ -49,7 +60,7 @@ class WorkflowVersionNotFoundError(Exception):
 
 
 @fastapi_exception(handler=workflow_disabled_handler)
-class WorkflowDisabledError(Exception):
+class WorkflowDisabledError(WorkflowError):
     """Raised when attempting to execute a disabled workflow."""
 
     def __init__(self, workflow_id: UUID) -> None:
@@ -59,7 +70,7 @@ class WorkflowDisabledError(Exception):
 
 
 @fastapi_exception(handler=execution_not_found_handler)
-class ExecutionNotFoundError(Exception):
+class ExecutionNotFoundError(WorkflowError):
     """Raised when an execution is not found."""
 
     def __init__(self, execution_id: UUID) -> None:
@@ -69,7 +80,7 @@ class ExecutionNotFoundError(Exception):
 
 
 @fastapi_exception(handler=temporal_unavailable_handler)
-class TemporalUnavailableError(Exception):
+class TemporalUnavailableError(WorkflowError):
     """Raised when Temporal service is unavailable."""
 
     def __init__(self, operation: str = "operation") -> None:

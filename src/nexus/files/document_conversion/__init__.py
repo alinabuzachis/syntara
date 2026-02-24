@@ -36,7 +36,7 @@ Example:
 
 """
 
-from .exceptions import (
+from nexus.files.document_conversion.exceptions import (
     ConversionFailureError,
     DocumentConversionError,
     FileNotReadableError,

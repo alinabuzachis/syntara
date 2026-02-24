@@ -20,7 +20,7 @@ from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.core.utils.filters import Filter
-from nexus.tool_manager.lib.exceptions import (
+from nexus.tool_manager.exceptions import (
     ProviderNameConflictError,
     ProviderNotFoundError,
     ToolRefreshError,
@@ -307,8 +307,8 @@ class ToolProviderService(BaseService):
             Created ToolProvider instance with VALIDATING status
 
         Raises:
-            ValidationError: If provider data is invalid
             ProviderNameConflictError: If provider name already exists
+            pydantic.ValidationError: If provider data is invalid
 
         """
         # Create provider instance from ToolProviderCreate
@@ -370,8 +370,8 @@ class ToolProviderService(BaseService):
 
         Raises:
             ProviderNotFoundError: If provider doesn't exist
-            ValidationError: If update data is invalid
             ProviderNameConflictError: If new name conflicts with existing provider
+            pydantic.ValidationError: If update data is invalid
 
         """
         query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]
@@ -412,8 +412,8 @@ class ToolProviderService(BaseService):
 
         Raises:
             ProviderNotFoundError: If provider doesn't exist
-            ValidationError: If patch data is invalid
             ProviderNameConflictError: If new name conflicts with existing provider
+            pydantic.ValidationError: If patch data is invalid
 
         """
         query = select(ToolProvider).filter(ToolProvider.id == provider_id, ToolProvider.deleted_at.is_(None))  # type: ignore[union-attr,arg-type]

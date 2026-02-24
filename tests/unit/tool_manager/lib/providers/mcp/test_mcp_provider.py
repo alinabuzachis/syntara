@@ -22,7 +22,7 @@ from httpx import HTTPStatusError, Request, Response
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel
 
-from nexus.tool_manager.lib.exceptions import ToolNotFoundError
+from nexus.tool_manager.exceptions import ToolNotFoundError
 from nexus.tool_manager.lib.providers.mcp.mcp_provider import MCPProvider
 from nexus.tool_manager.models import (
     Tool,

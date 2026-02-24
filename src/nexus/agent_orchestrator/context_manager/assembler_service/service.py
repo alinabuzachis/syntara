@@ -13,13 +13,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator.context_manager.compressor import CompressorService
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.agent_orchestrator.context_manager.retriever_service.models import RelevantDocument
+from nexus.agent_orchestrator.exceptions import AgentOrchestratorError
 from nexus.agent_orchestrator.token_manager.exceptions import TokenLimitExceededError
 from nexus.agent_orchestrator.token_manager.services import TokenValidationService
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-class ContextAssemblyError(Exception):
+class ContextAssemblyError(AgentOrchestratorError):
     """Raised when context assembly fails due to unrecoverable errors.
 
     This exception indicates that the assembly process cannot continue,

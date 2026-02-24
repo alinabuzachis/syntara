@@ -18,6 +18,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.config.base import get_settings
 from nexus.files import storage, utils, validators
+from nexus.files.exceptions import FileValidationError
 from nexus.files.models import FileMetadata, FileStatus
 from nexus.files.retrievers.base import BaseRetriever
 from nexus.files.retrievers.local import LocalFileRetriever
@@ -104,7 +105,7 @@ class FileManager:
             List of FileMetadata objects with file information (not yet persisted)
 
         Raises:
-            ValidationError: If file validation fails (count, size, or MIME type)
+            FileValidationError: If file validation fails (count, size, or MIME type)
             OSError: If storage operation fails (disk full, permission denied)
             PermissionError: If insufficient permissions to write
             IOError: If I/O operation fails
@@ -118,7 +119,7 @@ class FileManager:
         # Step 1: Validate all files (single read per file)
         try:
             validated_files = await validators.validate_files(files, self.settings)
-        except validators.ValidationError:
+        except FileValidationError:
             logger.warning("File validation failed")
             raise
 

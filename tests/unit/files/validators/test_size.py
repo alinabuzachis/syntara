@@ -1,7 +1,7 @@
 """Unit tests for FileManager file size validation.
 
 These tests validate:
-- FileManager raises ValidationError when any file exceeds size limit (10MB default per file)
+- FileManager raises FileValidationError when any file exceeds size limit (10MB default per file)
 - Error message includes actual and max size
 """
 
@@ -16,15 +16,15 @@ if TYPE_CHECKING:
     from fastapi import UploadFile
 
 from nexus.files import FileManager
-from nexus.files.validators import ValidationError
+from nexus.files.exceptions import FileValidationError
 
 
 @pytest.mark.asyncio
 async def test_rejects_file_exceeding_size_limit() -> None:
-    """Test that FileManager raises ValidationError for oversized files.
+    """Test that FileManager raises FileValidationError for oversized files.
 
     Validates:
-    - Raises ValidationError when file size > max_size_mb
+    - Raises FileValidationError when file size > max_size_mb
     - Default limit is 10MB per file
     """
     # Arrange - 11MB file (exceeds default 10MB limit)
@@ -39,7 +39,7 @@ async def test_rejects_file_exceeding_size_limit() -> None:
     file_manager = FileManager()
 
     # Act & Assert
-    with pytest.raises(ValidationError) as exc_info:
+    with pytest.raises(FileValidationError) as exc_info:
         await file_manager.validate_and_save_files([mock_file])
 
     # Error message should mention file is too large
@@ -68,7 +68,7 @@ async def test_error_message_includes_actual_and_max_size() -> None:
     file_manager = FileManager()
 
     # Act & Assert
-    with pytest.raises(ValidationError) as exc_info:
+    with pytest.raises(FileValidationError) as exc_info:
         await file_manager.validate_and_save_files([mock_file])
 
     error_message = str(exc_info.value)
@@ -181,7 +181,7 @@ async def test_validates_each_file_size_independently() -> None:
     file_manager = FileManager()
 
     # Act & Assert
-    with pytest.raises(ValidationError) as exc_info:
+    with pytest.raises(FileValidationError) as exc_info:
         await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
     # Should fail due to large.pdf being too large
@@ -214,7 +214,7 @@ async def test_configurable_max_size_limit(
         file_manager = FileManager()
 
         # Act & Assert
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(FileValidationError) as exc_info:
             await file_manager.validate_and_save_files([mock_file])
 
         # Should validate against custom limit (5MB)

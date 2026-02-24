@@ -1,13 +1,14 @@
-"""Custom exceptions for document conversion operations."""
+"""Exception classes for document conversion subdomain.
+
+This module contains all custom exceptions specific to document conversion operations,
+including format validation, size limits, and conversion failures.
+"""
+
+from nexus.files.exceptions import FileError
 
 
-class DocumentConversionError(Exception):
+class DocumentConversionError(FileError):
     """Base exception for document conversion errors."""
-
-    def __init__(self, message: str) -> None:
-        """Initialize error with descriptive message."""
-        self.message = message
-        super().__init__(self.message)
 
 
 class UnsupportedFormatError(DocumentConversionError):

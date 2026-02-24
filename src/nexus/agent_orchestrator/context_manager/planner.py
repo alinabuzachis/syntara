@@ -74,7 +74,7 @@ class ContextManagerPlanner:
                 invocation = await session.get(Invocation, invocation_id)
                 if invocation and invocation.status == InvocationStatus.CANCELLED:
                     logger.info("Invocation cancelled during phase", phase=phase, invocation_id=invocation_id)
-                    raise InvocationCancelledError(invocation_id, phase)
+                    raise InvocationCancelledError(str(invocation_id), phase)
         except (SQLAlchemyError, OSError) as e:
             # Log but don't fail on database errors - graceful degradation
             logger.warning(

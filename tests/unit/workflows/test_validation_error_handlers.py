@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.workflows.error_handlers import validation_error_handler
-from nexus.workflows.validators import ValidationError
+from nexus.workflows.exceptions import WorkflowValidationError
 
 
 class TestValidationErrorHandler:
@@ -19,7 +19,7 @@ class TestValidationErrorHandler:
         request = Mock(spec=Request)
         request.url = "https://api.example.com/validate"
 
-        exc = ValidationError("Core validation error")
+        exc = WorkflowValidationError("Core validation error")
         response = validation_error_handler(request, exc)
 
         assert isinstance(response, JSONResponse)
@@ -37,7 +37,7 @@ class TestValidationErrorHandler:
         request = Mock(spec=Request)
         request.url = "https://api.example.com/validate"
 
-        exc = ValidationError("Specific error details that should be ignored")
+        exc = WorkflowValidationError("Specific error details that should be ignored")
         response = validation_error_handler(request, exc)
 
         data = json.loads(bytes(response.body).decode())

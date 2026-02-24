@@ -5,24 +5,8 @@ from typing import Any
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
-from nexus.core.exception_registry import fastapi_exception
-from nexus.workflows.error_handlers import validation_error_handler
+from nexus.workflows.exceptions import WorkflowValidationError
 from nexus.workflows.workflow_engine.models import WorkflowDefinition
-
-
-@fastapi_exception(handler=validation_error_handler)
-class ValidationError(Exception):
-    """Workflow validation error."""
-
-    def __init__(self, message: str) -> None:
-        """Initialize validation error.
-
-        Args:
-            message: Error message describing the validation failure
-
-        """
-        self.message = message
-        super().__init__(self.message)
 
 
 class WorkflowDefinitionValidator:
@@ -56,7 +40,7 @@ class WorkflowDefinitionValidator:
             The workflow_dict can be stored directly in JSONB column.
 
         Raises:
-            ValidationError: If validation fails
+            WorkflowValidationError: If validation fails
 
         Example:
             ```python
@@ -64,7 +48,7 @@ class WorkflowDefinitionValidator:
                 # From dict
                 workflow_def, schema_ver, workflow_dict = WorkflowDefinitionValidator.validate(workflow_dict)
                 # Store workflow_dict in database JSONB column
-            except ValidationError as e:
+            except WorkflowValidationError as e:
                 print(f"Validation failed: {e.message}")
             ```
 
@@ -90,7 +74,7 @@ class WorkflowDefinitionValidator:
                 error_messages.append(f"{loc}: {msg}")
 
             full_message = "Workflow definition validation failed:\n" + "\n".join(error_messages)
-            raise ValidationError(full_message) from e
+            raise WorkflowValidationError(full_message) from e
 
         # Convert validated model to dict for JSONB storage
         # SQLAlchemy will automatically serialize this dict to JSONB

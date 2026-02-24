@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES
 from nexus.files.error_handlers import file_validation_error_handler
-from nexus.files.validators import ValidationError as FileValidationError
+from nexus.files.exceptions import FileValidationError
 
 
 class TestFileValidationErrorHandler:

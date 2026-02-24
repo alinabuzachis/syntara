@@ -15,8 +15,7 @@ from fastapi import UploadFile
 
 from nexus.core.config.base import Settings
 from nexus.core.constants import MIME_TYPE_DETECTION_MIN_BYTES
-from nexus.core.exception_registry import fastapi_exception
-from nexus.files.error_handlers import file_validation_error_handler
+from nexus.files.exceptions import FileValidationError
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -40,25 +39,6 @@ class SeekableFile(Protocol):
     async def read(self, size: int = -1) -> bytes:
         """Read bytes from the file."""
         ...
-
-
-@fastapi_exception(handler=file_validation_error_handler)
-class ValidationError(Exception):
-    """File validation error with actionable messages.
-
-    This exception is raised when file validation fails and should be
-    caught by the API layer to return appropriate 400 Bad Request responses.
-    """
-
-    def __init__(self, message: str) -> None:
-        """Initialize validation error.
-
-        Args:
-            message: Actionable error message for the client
-
-        """
-        self.message = message
-        super().__init__(self.message)
 
 
 async def get_file_size(file: UploadFile) -> int:
@@ -118,13 +98,13 @@ async def validate_file_count(
         max_files: Maximum allowed number of files
 
     Raises:
-        ValidationError: If file count exceeds maximum
+        FileValidationError: If file count exceeds maximum
 
     """
     if len(files) > max_files:
         msg = f"Too many files uploaded. Maximum allowed is {max_files} files, but received {len(files)} files."
         logger.warning(msg)
-        raise ValidationError(msg)
+        raise FileValidationError(msg)
 
 
 async def validate_file_size(
@@ -138,7 +118,7 @@ async def validate_file_size(
         max_size_mb: Maximum allowed file size in megabytes
 
     Raises:
-        ValidationError: If file is empty or exceeds maximum size
+        FileValidationError: If file is empty or exceeds maximum size
 
     """
     # Get file size efficiently without reading into memory
@@ -149,7 +129,7 @@ async def validate_file_size(
     if file_size_bytes == 0:
         msg = f"File '{filename}' is empty (0 bytes). Empty files are not allowed."
         logger.warning(msg)
-        raise ValidationError(msg)
+        raise FileValidationError(msg)
 
     # Check maximum size
     max_size_bytes = max_size_mb * 1024 * 1024
@@ -160,7 +140,7 @@ async def validate_file_size(
             f"but file is {file_size_mb:.2f}MB."
         )
         logger.warning(msg)
-        raise ValidationError(msg)
+        raise FileValidationError(msg)
 
 
 def validate_mime_type_from_bytes(
@@ -179,7 +159,7 @@ def validate_mime_type_from_bytes(
         Detected MIME type string
 
     Raises:
-        ValidationError: If MIME type is not in allowed list
+        FileValidationError: If MIME type is not in allowed list
 
     Note:
         MIME detection requires sufficient bytes for accuracy. Files smaller
@@ -205,7 +185,7 @@ def validate_mime_type_from_bytes(
             f"Supported formats: {', '.join(allowed_mime_types)}."
         )
         logger.warning(msg)
-        raise ValidationError(msg)
+        raise FileValidationError(msg)
 
     logger.debug(
         "MIME type validated",
@@ -236,7 +216,7 @@ async def validate_files(
         List of tuples (file_content, mime_type) for each file in same order
 
     Raises:
-        ValidationError: If any validation fails
+        FileValidationError: If any validation fails
 
     """
     # Validate file count

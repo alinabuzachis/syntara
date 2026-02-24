@@ -13,10 +13,15 @@ from nexus.approvals.error_handlers import (
 )
 from nexus.approvals.models import ApprovalRequestStatus
 from nexus.core.exception_registry import fastapi_exception
+from nexus.core.exceptions import NexusError
+
+
+class ApprovalError(NexusError):
+    """Base exception for all approval errors."""
 
 
 @fastapi_exception(handler=approval_not_found_handler)
-class ApprovalNotFoundError(Exception):
+class ApprovalNotFoundError(ApprovalError):
     """Raised when an approval request is not found."""
 
     def __init__(self, approval_id: UUID) -> None:
@@ -26,7 +31,7 @@ class ApprovalNotFoundError(Exception):
 
 
 @fastapi_exception(handler=approval_already_decided_handler)
-class ApprovalAlreadyDecidedError(Exception):
+class ApprovalAlreadyDecidedError(ApprovalError):
     """Raised when attempting to decide an already-decided approval."""
 
     def __init__(self, approval_id: UUID, current_status: ApprovalRequestStatus) -> None:
@@ -37,7 +42,7 @@ class ApprovalAlreadyDecidedError(Exception):
 
 
 @fastapi_exception(handler=approval_already_requested_handler)
-class ApprovalAlreadyRequestedError(Exception):
+class ApprovalAlreadyRequestedError(ApprovalError):
     """Raised when attempting to create an approval that already exists for the execution and node."""
 
     def __init__(self, execution_id: UUID, approval_node_id: str) -> None:

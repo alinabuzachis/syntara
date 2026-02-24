@@ -17,7 +17,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.tool_manager.lib.exceptions import (
+from nexus.tool_manager.exceptions import (
     ToolBulkUpdateValidationError,
     ToolNotFoundError,
 )

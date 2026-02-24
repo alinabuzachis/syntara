@@ -14,6 +14,8 @@ from uuid import uuid4
 import httpx
 import structlog
 
+from nexus.workflows.exceptions import WorkflowError
+
 # Configure logger
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -40,7 +42,7 @@ class ErrorCode(str, Enum):
     UNEXPECTED_ERROR = "UNEXPECTED_ERROR"
 
 
-class AgentOrchestratorError(Exception):
+class AgentOrchestratorClientError(WorkflowError):
     """Base exception for Agent Orchestrator client errors.
 
     Attributes:
@@ -70,7 +72,7 @@ class AgentOrchestratorError(Exception):
         self.details = details
 
 
-class AgentOrchestratorConnectionError(AgentOrchestratorError):
+class AgentOrchestratorClientConnectionError(AgentOrchestratorClientError):
     """Exception raised when connection to Agent Orchestrator fails."""
 
     def __init__(self, message: str, details: str | None = None) -> None:
@@ -169,34 +171,34 @@ class AgentOrchestratorClient:
         """Validate invocation response has required fields and valid state.
 
         Raises:
-            AgentOrchestratorError: If response is invalid or incomplete
+            AgentOrchestratorClientError: If response is invalid or incomplete
 
         """
         # Check required fields exist
         invocation_id = result.get("id")
         if not invocation_id:
             msg = "Agent Orchestrator response missing or invalid 'id'"
-            raise AgentOrchestratorError(msg, code=ErrorCode.MISSING_FIELD, details=str(result))
+            raise AgentOrchestratorClientError(msg, code=ErrorCode.MISSING_FIELD, details=str(result))
 
         status = result.get("status")
         if not status:
             msg = f"Agent Orchestrator response missing 'status' (invocation_id={invocation_id})"
-            raise AgentOrchestratorError(msg, code=ErrorCode.MISSING_FIELD, details=str(result))
+            raise AgentOrchestratorClientError(msg, code=ErrorCode.MISSING_FIELD, details=str(result))
 
         # Validate terminal status
         if status not in ("completed", "failed", "cancelled"):
             msg = f"Agent Orchestrator response has non-terminal status '{status}' (invocation_id={invocation_id})"
-            raise AgentOrchestratorError(msg, code=ErrorCode.INVALID_STATUS, details=str(result))
+            raise AgentOrchestratorClientError(msg, code=ErrorCode.INVALID_STATUS, details=str(result))
 
         # For completed invocations, result should exist
         if status == "completed" and "result" not in result:
             msg = f"Completed invocation missing 'result' (invocation_id={invocation_id})"
-            raise AgentOrchestratorError(msg, code=ErrorCode.MISSING_RESULT, details=str(result))
+            raise AgentOrchestratorClientError(msg, code=ErrorCode.MISSING_RESULT, details=str(result))
 
         # For failed invocations, error_message should exist
         if status == "failed" and not result.get("error_message"):
             msg = f"Failed invocation missing 'error_message' (invocation_id={invocation_id})"
-            raise AgentOrchestratorError(msg, code=ErrorCode.MISSING_ERROR_MESSAGE, details=str(result))
+            raise AgentOrchestratorClientError(msg, code=ErrorCode.MISSING_ERROR_MESSAGE, details=str(result))
 
     def _build_invocation_payload(
         self,
@@ -271,7 +273,7 @@ class AgentOrchestratorClient:
             Invocation ID
 
         Raises:
-            AgentOrchestratorError: If invocation ID is missing
+            AgentOrchestratorClientError: If invocation ID is missing
             Exception: For HTTP errors
 
         """
@@ -288,7 +290,7 @@ class AgentOrchestratorClient:
         invocation_id = result.get("id")
         if not invocation_id:
             msg = "Agent Orchestrator response missing or invalid 'id'"
-            raise AgentOrchestratorError(msg, code=ErrorCode.MISSING_FIELD, details=str(result))
+            raise AgentOrchestratorClientError(msg, code=ErrorCode.MISSING_FIELD, details=str(result))
 
         logger.info(
             "Invocation created",
@@ -305,26 +307,26 @@ class AgentOrchestratorClient:
             error: The error to handle
 
         Raises:
-            AgentOrchestratorConnectionError: For connection errors
-            AgentOrchestratorError: For HTTP and other errors
+            AgentOrchestratorClientConnectionError: For connection errors
+            AgentOrchestratorClientError: For HTTP and other errors
 
         """
         if isinstance(error, (httpx.ConnectError, httpx.TimeoutException)):
             msg = f"Failed to connect after {self.max_retries} attempts"
-            raise AgentOrchestratorConnectionError(msg, details=str(error)) from error
+            raise AgentOrchestratorClientConnectionError(msg, details=str(error)) from error
 
         if isinstance(error, httpx.HTTPStatusError):
             is_server_error = error.response.status_code >= http.HTTPStatus.INTERNAL_SERVER_ERROR
             code = ErrorCode.HTTP_SERVER_ERROR if is_server_error else ErrorCode.HTTP_CLIENT_ERROR
             msg = f"HTTP {error.response.status_code} error"
-            raise AgentOrchestratorError(msg, code=code, details=error.response.text) from error
+            raise AgentOrchestratorClientError(msg, code=code, details=error.response.text) from error
 
-        if isinstance(error, AgentOrchestratorError):
+        if isinstance(error, AgentOrchestratorClientError):
             raise error
 
         # Other errors
         msg = f"{type(error).__name__}: {error}"
-        raise AgentOrchestratorError(msg, code=ErrorCode.UNEXPECTED_ERROR, details=str(error)) from error
+        raise AgentOrchestratorClientError(msg, code=ErrorCode.UNEXPECTED_ERROR, details=str(error)) from error
 
     async def invoke_agent_async(
         self,
@@ -359,8 +361,8 @@ class AgentOrchestratorClient:
             str: The invocation ID for tracking
 
         Raises:
-            AgentOrchestratorConnectionError: If connection fails after retries
-            AgentOrchestratorError: For other invocation errors
+            AgentOrchestratorClientConnectionError: If connection fails after retries
+            AgentOrchestratorClientError: For other invocation errors
 
         """
         # Generate IDs if not provided
@@ -411,7 +413,7 @@ class AgentOrchestratorClient:
 
         # Safeguard: Should never reach here due to is_last_attempt check above
         msg = "Unexpected error: exited retry loop without returning"
-        raise AgentOrchestratorError(
+        raise AgentOrchestratorClientError(
             msg,
             code=ErrorCode.UNEXPECTED_ERROR,
             details=str(last_error) if last_error else None,

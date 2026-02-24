@@ -15,7 +15,7 @@ from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient  # type: ignore[import-untyped]
 
 from nexus.core.utils.exceptions import extract_all_exceptions
-from nexus.tool_manager.lib.exceptions import ToolNotFoundError
+from nexus.tool_manager.exceptions import ToolNotFoundError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
 from nexus.tool_manager.models import (
     MCPConfiguration,

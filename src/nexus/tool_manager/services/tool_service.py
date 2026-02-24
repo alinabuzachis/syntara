@@ -19,7 +19,7 @@ from sqlmodel.sql._expression_select_cls import SelectOfScalar
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin
-from nexus.tool_manager.lib.exceptions import (
+from nexus.tool_manager.exceptions import (
     ToolBulkUpdateValidationError,
     ToolNotFoundError,
 )
@@ -145,7 +145,7 @@ class ToolService(BaseService):
 
         Raises:
             ToolNotFoundError: If tool doesn't exist
-            ValidationError: If update data is invalid
+            pydantic.ValidationError: If update data is invalid
 
         """
         query = (
@@ -185,7 +185,7 @@ class ToolService(BaseService):
             Dict with updated_count, skipped_count, and updated_at
 
         Raises:
-            ValidationError: If tool_ids list is invalid
+            pydantic.ValidationError: If tool_ids list is invalid
 
         """
         if not tool_ids:

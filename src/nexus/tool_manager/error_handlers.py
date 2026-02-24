@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
 
 if TYPE_CHECKING:
-    from nexus.tool_manager.lib.exceptions import (
+    from nexus.tool_manager.exceptions import (
         ProviderNameConflictError,
         ProviderNotFoundError,
         ToolBulkUpdateValidationError,

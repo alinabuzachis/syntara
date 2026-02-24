@@ -3,11 +3,12 @@
 Provides base exceptions for WebSocket streaming error handling.
 """
 
+from nexus.core.exceptions import NexusError
 from nexus.core.models.base.error import ErrorData
 from nexus.core.websocket.close_codes import INTERNAL_ERROR, NORMAL_CLOSURE
 
 
-class StreamingValidationError(Exception):
+class StreamingValidationError(NexusError):
     """Base exception for streaming validation errors.
 
     These exceptions are caught by stream_events_to_websocket() and converted

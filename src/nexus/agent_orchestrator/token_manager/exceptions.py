@@ -9,8 +9,10 @@ This module defines custom exceptions for token counting and validation:
 
 from uuid import UUID
 
+from nexus.agent_orchestrator.exceptions import AgentOrchestratorError
 
-class TokenValidationError(Exception):
+
+class TokenValidationError(AgentOrchestratorError):
     """Base exception for all token validation errors."""
 
 

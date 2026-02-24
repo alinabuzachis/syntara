@@ -16,7 +16,7 @@ import pytest
 
 from nexus.core.config.base import get_settings
 from nexus.core.constants import CONTEXT_KEY
-from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorError
+from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorClientError
 from nexus.workflows.workflow_engine.activities.agentic_activity import AgenticActivityError, execute_agentic_activity
 
 
@@ -158,16 +158,16 @@ class TestAgenticActivityErrorHandling:
     async def test_handles_agent_orchestrator_unavailable(self, workflow_definition_agentic, mock_agent_client) -> None:
         """Test error handling when Agent Orchestrator is unavailable."""
         # Reconfigure mock to raise connection error from async method
-        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorConnectionError
+        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorClientConnectionError
 
-        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorConnectionError(
+        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorClientConnectionError(
             "Agent Orchestrator unavailable"
         )
 
         activity_config = workflow_definition_agentic["tasks"][0]
 
         # Should raise the connection error (not wrapped since it's already specific)
-        with pytest.raises(AgentOrchestratorConnectionError) as exc_info:
+        with pytest.raises(AgentOrchestratorClientConnectionError) as exc_info:
             await execute_agentic_activity(
                 activity_config=activity_config,
                 input_data={"question": "test"},
@@ -179,9 +179,9 @@ class TestAgenticActivityErrorHandling:
     async def test_handles_agent_orchestrator_timeout(self, workflow_definition_agentic, mock_agent_client) -> None:
         """Test timeout handling for Agent Orchestrator invocations."""
         # Reconfigure mock to raise timeout error from async method
-        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorError, ErrorCode
+        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorClientError, ErrorCode
 
-        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorError(
+        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
             "Invocation timed out", code=ErrorCode.TIMEOUT
         )
 
@@ -232,9 +232,9 @@ class TestAgenticActivityRetryLogic:
         This test verifies the activity fails on connection errors without internal retry.
         """
         # Reconfigure mock to fail with Agent Orchestrator error
-        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorError, ErrorCode
+        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorClientError, ErrorCode
 
-        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorError(
+        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
             "Temporary failure", code=ErrorCode.HTTP_SERVER_ERROR
         )
 
@@ -296,7 +296,7 @@ class TestAgenticActivityEdgeCases:
         """Test handling of malformed Agent Orchestrator response."""
         # Mock client that raises error for missing invocation_id
         bad_client = AsyncMock()
-        bad_client.invoke_agent_async.side_effect = AgentOrchestratorError(
+        bad_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
             "Agent Orchestrator response missing or invalid 'id'"
         )
         bad_client.__aenter__ = AsyncMock(return_value=bad_client)
@@ -490,7 +490,7 @@ class TestAgenticActivityErrorHandlingAdvanced:
         """Test handling of malformed JSON from Agent Orchestrator."""
         # Mock client that returns malformed response
         bad_client = AsyncMock()
-        bad_client.invoke_agent_async.side_effect = AgentOrchestratorError("Response missing 'id'")
+        bad_client.invoke_agent_async.side_effect = AgentOrchestratorClientError("Response missing 'id'")
         bad_client.__aenter__ = AsyncMock(return_value=bad_client)
         bad_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -517,7 +517,9 @@ class TestAgenticActivityErrorHandlingAdvanced:
     async def test_handles_invalid_status_in_response(self) -> None:
         """Test handling of invalid status values from Agent Orchestrator."""
         bad_client = AsyncMock()
-        bad_client.invoke_agent_async.side_effect = AgentOrchestratorError("Response has non-terminal status 'pending'")
+        bad_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
+            "Response has non-terminal status 'pending'"
+        )
         bad_client.__aenter__ = AsyncMock(return_value=bad_client)
         bad_client.__aexit__ = AsyncMock(return_value=None)
 
@@ -544,7 +546,7 @@ class TestAgenticActivityErrorHandlingAdvanced:
     async def test_handles_json_decode_error(self) -> None:
         """Test handling of JSON decode errors from Agent Orchestrator."""
         bad_client = AsyncMock()
-        bad_client.invoke_agent_async.side_effect = AgentOrchestratorError(
+        bad_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
             f"{json.JSONDecodeError.__name__}: Invalid JSON"
         )
         bad_client.__aenter__ = AsyncMock(return_value=bad_client)

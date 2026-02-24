@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_response
 
 if TYPE_CHECKING:
-    from nexus.files.validators import ValidationError as FileValidationError
+    from nexus.files.exceptions import FileValidationError
 
 logger = structlog.stdlib.get_logger(__name__)
 

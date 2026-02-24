@@ -1,7 +1,7 @@
 """Unit tests for FileManager file count validation.
 
 These tests validate:
-- FileManager raises ValidationError when file count exceeds limit (10 files default)
+- FileManager raises FileValidationError when file count exceeds limit (10 files default)
 - Error message includes actual count and max count
 """
 
@@ -16,15 +16,15 @@ if TYPE_CHECKING:
     from fastapi import UploadFile
 
 from nexus.files import FileManager
-from nexus.files.validators import ValidationError
+from nexus.files.exceptions import FileValidationError
 
 
 @pytest.mark.asyncio
 async def test_rejects_files_exceeding_count_limit() -> None:
-    """Test that FileManager raises ValidationError for too many files.
+    """Test that FileManager raises FileValidationError for too many files.
 
     Validates:
-    - Raises ValidationError when count > max_files
+    - Raises FileValidationError when count > max_files
     - Default limit is 10 files
     """
     # Arrange - 11 files (exceeds default limit of 10)
@@ -40,7 +40,7 @@ async def test_rejects_files_exceeding_count_limit() -> None:
     file_manager = FileManager()
 
     # Act & Assert
-    with pytest.raises(ValidationError) as exc_info:
+    with pytest.raises(FileValidationError) as exc_info:
         await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
     # Error message should mention too many files
@@ -69,7 +69,7 @@ async def test_error_message_includes_actual_and_max_count() -> None:
     file_manager = FileManager()
 
     # Act & Assert
-    with pytest.raises(ValidationError) as exc_info:
+    with pytest.raises(FileValidationError) as exc_info:
         await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
     error_message = str(exc_info.value)
@@ -158,7 +158,7 @@ async def test_configurable_max_files_limit(
         file_manager = FileManager()
 
         # Act & Assert
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(FileValidationError) as exc_info:
             await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
         # Should validate against custom limit (5)

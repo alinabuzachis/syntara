@@ -7,7 +7,7 @@ import structlog
 
 from nexus.agent_orchestrator.exceptions import (
     AgentConfigurationError,
-    AgentError,
+    AgentOrchestratorError,
     AgentRateLimitError,
     AgentTimeoutError,
 )
@@ -50,7 +50,7 @@ class BaseAgent(ABC):
             Response dictionary compatible with AgentState (from SQLModel.model_dump())
 
         Raises:
-            AgentError: For general agent execution errors
+            AgentOrchestratorError: For general agent execution errors
             AgentTimeoutError: When execution times out
             AgentConfigurationError: For configuration/validation errors
             AgentRateLimitError: When rate limits are exceeded
@@ -100,7 +100,7 @@ class BaseAgent(ABC):
             AgentTimeoutError: When the error is a timeout
             AgentConfigurationError: For configuration/validation errors
             AgentRateLimitError: When rate limits are detected
-            AgentError: For all other errors
+            AgentOrchestratorError: For all other errors
 
         """
         # Handle timeout errors
@@ -124,7 +124,7 @@ class BaseAgent(ABC):
 
         # Handle as general agent error
         msg = f"Execution error: {error}"
-        raise AgentError(msg, invocation_id) from error
+        raise AgentOrchestratorError(msg, invocation_id) from error
 
     def _log_execution_start(self, invocation_id: str, session_id: str) -> None:
         """Log the start of agent execution.

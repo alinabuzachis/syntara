@@ -8,8 +8,8 @@ Nexus enables coordinated AI agents to work together on complex tasks.
 # -----------------------------------------------------------
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.approvals.exceptions import ApprovalAlreadyDecidedError, ApprovalAlreadyRequestedError, ApprovalNotFoundError
-from nexus.files.validators import ValidationError as FileValidationError
-from nexus.tool_manager.lib.exceptions import (
+from nexus.files.exceptions import FileValidationError
+from nexus.tool_manager.exceptions import (
     ProviderNameConflictError,
     ProviderNotFoundError,
     ToolBulkUpdateValidationError,
@@ -23,8 +23,6 @@ from nexus.workflows.exceptions import (
     WorkflowDisabledError,
     WorkflowNameConflictError,
     WorkflowNotFoundError,
+    WorkflowValidationError,
     WorkflowVersionNotFoundError,
-)
-from nexus.workflows.validators.workflow_definition import (
-    ValidationError as WorkflowValidationError,
 )

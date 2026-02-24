@@ -33,6 +33,7 @@ from fastapi import APIRouter, FastAPI
 from filelock import FileLock
 
 from nexus.core.config.base import get_settings
+from nexus.core.exceptions import NexusError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -55,7 +56,7 @@ def _get_lock_file_path() -> Path:
     return Path(tempfile.gettempdir()) / lock_filename
 
 
-class RouterDiscoveryError(Exception):
+class RouterDiscoveryError(NexusError):
     """Error during router discovery or registration."""
 
 

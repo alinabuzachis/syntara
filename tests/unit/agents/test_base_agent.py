@@ -8,7 +8,7 @@ import pytest
 from nexus.agent_orchestrator.agents.base_agent import BaseAgent
 from nexus.agent_orchestrator.exceptions import (
     AgentConfigurationError,
-    AgentError,
+    AgentOrchestratorError,
     AgentRateLimitError,
     AgentTimeoutError,
 )
@@ -104,12 +104,12 @@ class TestBaseAgentErrorHandling:
         assert exc_info.value.__cause__ == original_error
 
     def test_handle_execution_error_converts_general_errors(self) -> None:
-        """Test that general errors are converted to AgentError."""
+        """Test that general errors are converted to AgentOrchestratorError."""
         agent = ConcreteAgent()
         invocation_id = str(uuid4())
         original_error = ConnectionError("Network failure")
 
-        with pytest.raises(AgentError) as exc_info:
+        with pytest.raises(AgentOrchestratorError) as exc_info:
             agent._handle_execution_error(original_error, invocation_id)
 
         assert exc_info.value.invocation_id == invocation_id

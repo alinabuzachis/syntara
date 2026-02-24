@@ -13,11 +13,12 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from nexus.files.exceptions import FileValidationError
+
 if TYPE_CHECKING:
     from fastapi import UploadFile
 
 from nexus.files import FileManager
-from nexus.files.validators import ValidationError
 
 
 @pytest.mark.asyncio
@@ -84,7 +85,7 @@ async def test_rejects_unsupported_mime_types(
             file_manager = FileManager()
 
             # Act & Assert
-            with pytest.raises(ValidationError) as exc_info:
+            with pytest.raises(FileValidationError) as exc_info:
                 await file_manager.validate_and_save_files([mock_file])
 
             # Error should mention unsupported format and detected MIME type
@@ -119,7 +120,7 @@ async def test_error_message_lists_supported_formats(
             file_manager = FileManager()
 
             # Act & Assert
-            with pytest.raises(ValidationError) as exc_info:
+            with pytest.raises(FileValidationError) as exc_info:
                 await file_manager.validate_and_save_files([mock_file])
 
             error_message = str(exc_info.value)
@@ -275,7 +276,7 @@ async def test_validates_mime_type_for_each_file(
             file_manager = FileManager()
 
             # Act & Assert
-            with pytest.raises(ValidationError) as exc_info:
+            with pytest.raises(FileValidationError) as exc_info:
                 await file_manager.validate_and_save_files(cast("list[UploadFile]", mock_files))
 
             # Should fail due to image.png with specific error message
@@ -309,7 +310,7 @@ async def test_configurable_allowed_mime_types(
             file_manager = FileManager()
 
             # Act & Assert
-            with pytest.raises(ValidationError) as exc_info:
+            with pytest.raises(FileValidationError) as exc_info:
                 await file_manager.validate_and_save_files([mock_file])
 
             # Should reject text/plain and show only PDF is supported

@@ -186,7 +186,9 @@ class TestInvocationExecutorCancellationRaceCondition:
             patch("nexus.agent_orchestrator.services.orchestration_service.OrchestrationService") as mock_orchestration,
         ):
             # Simulate InvocationCancelledError being raised during execution
-            mock_orchestration.return_value.execute.side_effect = InvocationCancelledError(invocation_id, "test phase")
+            mock_orchestration.return_value.execute.side_effect = InvocationCancelledError(
+                str(invocation_id), "test phase"
+            )
 
             # Act
             await executor.execute_invocation(invocation_id)
