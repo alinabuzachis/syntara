@@ -7,8 +7,8 @@ Tests complete MCP provider workflow including:
 - Tools API integration
 """
 
-import asyncio
-from typing import Any
+from typing import Any, Never
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -137,8 +137,6 @@ class TestMCPProviderIntegration:
         test_server = ExampleMCPServer(host="localhost", port=8765)
 
         async with test_server.running():
-            await asyncio.sleep(1.0)
-
             provider_data = {
                 "name": "test-mcp-integration",
                 "description": "Integration test MCP provider with real server",
@@ -167,6 +165,7 @@ class TestMCPProviderIntegration:
         # ✅ Provider status transitions to ERROR when validation fails
         # ✅ No tools are created for failed providers
         # ✅ Error handling in MCP provider connection validation
+
         # Step 1: Create provider with unreachable MCP server
         provider_data = {
             "name": "test-mcp-unreachable",
@@ -193,6 +192,7 @@ class TestMCPProviderIntegration:
         validation_result = validate_response.json()
         assert validation_result["valid"] is False, "Validation should fail for unreachable server"
         assert "error" in validation_result
+        assert "All connection attempts failed" in validation_result["error"]
 
         # Step 3: Check provider status - should be in error state
         get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
@@ -208,6 +208,212 @@ class TestMCPProviderIntegration:
 
         tools_data = tools_response.json()
         assert len(tools_data["resources"]) == 0, "No tools should be created for failed provider"
+
+    @pytest.mark.mcp
+    @pytest.mark.asyncio
+    async def test_mcp_provider_connection_failure_unauthorized(self, base_client: AsyncClient) -> None:
+        """Test MCP provider creation with unauthorised user."""
+        # Test demonstrates that:
+        # ✅ Provider creation succeeds even with unauthorised user (starts in VALIDATING status)
+        # ✅ Provider validation correctly fails for unauthorised user
+        # ✅ Provider status transitions to ERROR when validation fails
+        # ✅ No tools are created for failed providers
+        # ✅ Error handling in MCP provider connection validation
+
+        # Start test MCP server
+        # There are a lot of issues running FastMCP with beartype.
+        # See https://github.com/beartype/beartype/issues/542 (for example).
+        # Unfortunately the simplest solution is to isolate the MCP tests from all others.
+        # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
+        from fastmcp.server.auth import StaticTokenVerifier
+
+        from tests.fixtures.example_mcp_server import ExampleMCPServer
+
+        test_server = ExampleMCPServer(host="localhost", port=8765, auth=StaticTokenVerifier(tokens={"an-api-key": {}}))
+
+        async with test_server.running():
+            # Step 1: Create provider with unauthorised user
+            provider_data = {
+                "name": "test-mcp-unauthorised",
+                "description": "Test MCP provider with unauthorised user",
+                "configuration": {
+                    "provider_type": "mcp",
+                    "base_url": f"{test_server.base_url}",
+                    "api_key": None,  # MCP Server expects 'an-api-key'
+                },
+            }
+
+            # Create the provider (should succeed with validating status)
+            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+            assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
+
+            provider_data_response = create_response.json()
+            provider_id = provider_data_response["id"]
+            assert provider_data_response["status"] == "validating"
+
+            # Step 2: Validate the provider (expecting failure due to unauthorised user)
+            validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
+            assert validate_response.status_code == 200, f"Validation request failed: {validate_response.text}"
+
+            validation_result = validate_response.json()
+            assert validation_result["valid"] is False, "Validation should fail for unauthorised user"
+            assert "error" in validation_result
+            assert "Unauthorized" in validation_result["error"]
+
+            # Step 3: Check provider status - should be in error state
+            get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+            assert get_provider_response.status_code == 200
+
+            provider_status = get_provider_response.json()
+            assert provider_status["status"] == "error"
+            assert "Unauthorized" in provider_status["validation_error"]
+
+            # Step 4: Verify no tools were created for failed provider
+            tools_response = await base_client.get(
+                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
+            )
+            assert tools_response.status_code == 200
+
+            tools_data = tools_response.json()
+            assert len(tools_data["resources"]) == 0, "No tools should be created for failed provider"
+
+    @pytest.mark.mcp
+    @pytest.mark.asyncio
+    async def test_mcp_provider_connection_failure_forbidden(self, base_client: AsyncClient) -> None:
+        """Test MCP provider creation with forbidden user."""
+        # Test demonstrates that:
+        # ✅ Provider creation succeeds even forbidden users (starts in VALIDATING status)
+        # ✅ Provider validation correctly fails for forbidden user
+        # ✅ Provider status transitions to ERROR when validation fails
+        # ✅ No tools are created for failed providers
+        # ✅ Error handling in MCP provider connection validation
+
+        # Start test MCP server
+        # There are a lot of issues running FastMCP with beartype.
+        # See https://github.com/beartype/beartype/issues/542 (for example).
+        # Unfortunately the simplest solution is to isolate the MCP tests from all others.
+        # This means we also need to lazy-import our ExampleMCPServer to avoid it being loaded early.
+        from tests.fixtures.example_mcp_server import ForbiddenMCPServer
+
+        test_server = ForbiddenMCPServer(host="localhost", port=8766)
+
+        async with test_server.running():
+            # Step 1: Create provider with forbidden user
+            provider_data = {
+                "name": "test-mcp-forbidden",
+                "description": "Test MCP provider with forbidden user",
+                "configuration": {
+                    "provider_type": "mcp",
+                    "base_url": f"{test_server.base_url}",
+                },
+            }
+
+            # Create the provider (should succeed with validating status)
+            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+            assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
+
+            provider_data_response = create_response.json()
+            provider_id = provider_data_response["id"]
+            assert provider_data_response["status"] == "validating"
+
+            # Step 2: Validate the provider (expecting failure due to forbidden user)
+            validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
+            assert validate_response.status_code == 200, f"Validation request failed: {validate_response.text}"
+
+            validation_result = validate_response.json()
+            assert validation_result["valid"] is False, "Validation should fail for forbidden user"
+            assert "error" in validation_result
+            assert "Forbidden" in validation_result["error"]
+
+            # Step 3: Check provider status - should be in error state
+            get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+            assert get_provider_response.status_code == 200
+
+            provider_status = get_provider_response.json()
+            assert provider_status["status"] == "error"
+            assert "Forbidden" in provider_status["validation_error"]
+
+            # Step 4: Verify no tools were created for failed provider
+            tools_response = await base_client.get(
+                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
+            )
+            assert tools_response.status_code == 200
+
+            tools_data = tools_response.json()
+            assert len(tools_data["resources"]) == 0, "No tools should be created for failed provider"
+
+    @pytest.mark.mcp
+    @pytest.mark.asyncio
+    async def test_mcp_provider_unhandled_exception(self, base_client: AsyncClient) -> None:
+        """Test MCP provider validation when there's an unexpected exception."""
+        # Test demonstrates that:
+        # ✅ Provider creation succeeds (starts in VALIDATING status)
+        # ✅ Provider validation correctly fails when there is an unhandled exception
+        # ✅ Validation error handler returns HTTP 500 status
+        # ✅ Response payload conforms to tool_provider_validation_error_handler format
+        # ✅ Provider status transitions to ERROR when validation fails
+        # ✅ No tools are created for failed providers
+
+        from tests.fixtures.example_mcp_server import ExampleMCPServer
+
+        test_server = ExampleMCPServer(host="localhost", port=8768)
+
+        async with test_server.running():
+            # Step 1: Create provider with working server
+            provider_data = {
+                "name": "test-mcp-runtime-error",
+                "description": "Test MCP provider with runtime error during tool discovery",
+                "configuration": {
+                    "provider_type": "mcp",
+                    "base_url": f"{test_server.base_url}",
+                    "api_key": "test-cancelled-key",
+                },
+            }
+
+            # Create the provider (should succeed with validating status)
+            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+            assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
+
+            provider_data_response = create_response.json()
+            provider_id = provider_data_response["id"]
+            assert provider_data_response["status"] == "validating"
+
+            # Step 2: Patch client.get_tools to throw RuntimeError during validation
+            def mock_get_tools_runtime_error(*_args: object, **_kwargs: object) -> Never:
+                msg = "Unexpected runtime error"
+                raise RuntimeError(msg)
+
+            with patch(
+                "nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient.get_tools",
+                side_effect=mock_get_tools_runtime_error,
+            ):
+                # Validate the provider (expecting failure due to runtime exception)
+                validate_response = await base_client.post(
+                    f"/api/v1/tool_manager/tool_providers/{provider_id}/validate"
+                )
+                assert validate_response.status_code == 200, f"Validation request failed: {validate_response.text}"
+
+                validation_result = validate_response.json()
+                assert validation_result["valid"] is False, "Validation should fail for unhandled exceptions"
+                assert "error" in validation_result
+                assert "Unexpected runtime error" in validation_result["error"]
+
+            # Step 3: Check provider status - should be in error state
+            get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+            assert get_provider_response.status_code == 200
+
+            provider_status = get_provider_response.json()
+            assert provider_status["status"] == "error"
+            assert "Unexpected runtime error" in provider_status["validation_error"]
+
+            # Step 4: Verify no tools were created for failed provider
+            tools_response = await base_client.get(
+                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
+            )
+            assert tools_response.status_code == 200
+
+            tools_data = tools_response.json()
+            assert len(tools_data["resources"]) == 0, "No tools should be created for failed provider"
 
     @pytest.mark.mcp
     @pytest.mark.asyncio
@@ -229,8 +435,6 @@ class TestMCPProviderIntegration:
         test_server = ExampleMCPServer(host="localhost", port=8766)
 
         async with test_server.running():
-            await asyncio.sleep(1.0)
-
             # Step 1: Create MCP provider
             provider_data = {
                 "name": "test-mcp-parameters",
@@ -309,8 +513,6 @@ class TestMCPProviderIntegration:
         test_server = ExampleMCPServer(host="localhost", port=8767)
 
         async with test_server.running():
-            await asyncio.sleep(1.0)
-
             # Step 1: Create MCP provider to test factory integration
             provider_data = {
                 "name": "test-mcp-factory",

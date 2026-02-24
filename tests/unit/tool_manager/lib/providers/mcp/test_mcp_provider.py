@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID, uuid4
 
 import pytest
+from httpx import HTTPStatusError, Request, Response
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel
 
@@ -222,14 +223,23 @@ class TestMCPProvider:
         """Test connection validation timeout handling."""
         # Setup
         mock_client = AsyncMock()
-        mock_client.get_tools.side_effect = TimeoutError()
+        mock_client.get_tools.side_effect = TimeoutError("Timed out")
         mock_client_class.return_value = mock_client
 
         provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
 
-        # Execute and verify
-        with pytest.raises(TimeoutError, match="Connection validation timed out after 30s"):
-            await provider.validate_connection()
+        # Execute
+        result = await provider.validate_connection()
+
+        # Verify
+        assert isinstance(result, ToolProviderValidationResult)
+        assert result.valid is False
+        assert result.provider_type == "mcp"
+        assert isinstance(result.validated_at, datetime)
+        assert result.error is not None
+        assert "Timed out" in result.error
+
+        mock_client.get_tools.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
@@ -242,9 +252,66 @@ class TestMCPProvider:
 
         provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
 
-        # Execute and verify
-        with pytest.raises(ConnectionError, match="Connection validation failed"):
-            await provider.validate_connection()
+        # Execute
+        result = await provider.validate_connection()
+
+        # Verify
+        assert isinstance(result, ToolProviderValidationResult)
+        assert result.valid is False
+        assert result.provider_type == "mcp"
+        assert isinstance(result.validated_at, datetime)
+        assert result.error is not None
+        assert "Network error" in result.error
+
+        mock_client.get_tools.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
+    async def test_validate_connection_nested_exception_groups(self, mock_client_class: Mock) -> None:
+        """Test connection validation with nested ExceptionGroups."""
+        # Setup
+        mock_client = AsyncMock()
+
+        # Create HTTPStatusError instances - need Request and Response objects
+        mock_request = Request("GET", "http://test.com")
+
+        # Create responses with different status codes
+        unauthorized_response = Response(401, request=mock_request)
+        server_error_response = Response(500, request=mock_request)
+
+        # Create HTTPStatusError instances
+        server_error = HTTPStatusError("Internal Server Error", request=mock_request, response=server_error_response)
+        nested_unauthorized_error = HTTPStatusError(
+            "Nested Unauthorized", request=mock_request, response=unauthorized_response
+        )
+
+        # Create nested ExceptionGroup containing an UNAUTHORIZED HTTPStatusError
+        nested_group = ExceptionGroup("Nested HTTP errors", [nested_unauthorized_error])
+
+        # Create main ExceptionGroup with multiple HTTPStatusError instances and nested ExceptionGroup
+        exception_group = ExceptionGroup("HTTP connection errors", [server_error, nested_group])
+
+        mock_client.get_tools.side_effect = exception_group
+        mock_client_class.return_value = mock_client
+
+        provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
+
+        # Execute - should now handle nested ExceptionGroups properly
+        result = await provider.validate_connection()
+
+        # Verify
+        assert isinstance(result, ToolProviderValidationResult)
+        assert result.valid is False
+        assert result.provider_type == "mcp"
+        assert isinstance(result.validated_at, datetime)
+        assert result.error is not None
+
+        # Should contain error messages for all HTTPStatusErrors
+        # The nested UNAUTHORIZED error should be sanitized specially
+        assert "MCP session failed to establish connection - Unauthorized" in result.error
+        assert "Connection validation failed with HTTP error" in result.error
+
+        mock_client.get_tools.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")
@@ -258,7 +325,7 @@ class TestMCPProvider:
         provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
 
         # Execute and verify
-        with pytest.raises(ConnectionError, match="MCP session failed to establish connection"):
+        with pytest.raises(RuntimeError, match="Session terminated unexpectedly"):
             await provider.validate_connection()
 
     @pytest.mark.asyncio
@@ -272,14 +339,9 @@ class TestMCPProvider:
 
         provider = MCPProvider(base_url="http://localhost:8765/mcp", api_key="test-key")
 
-        # Execute
-        result = await provider.validate_connection()
-
-        # Verify
-        assert isinstance(result, ToolProviderValidationResult)
-        assert result.valid is False
-        assert result.provider_type == "mcp"
-        assert result.error == "Connection validation failed: Invalid response format"
+        # Execute and verify
+        with pytest.raises(ValueError, match="Invalid response format"):
+            await provider.validate_connection()
 
     @pytest.mark.asyncio
     @patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient")

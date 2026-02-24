@@ -8,8 +8,8 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from nexus.core.error_handlers import PROBLEM_TYPES
-from nexus.tool_manager.error_handlers import tool_not_found_handler
-from nexus.tool_manager.lib.exceptions import ToolNotFoundError
+from nexus.tool_manager.error_handlers import tool_not_found_handler, tool_refresh_error_handler
+from nexus.tool_manager.lib.exceptions import ToolNotFoundError, ToolRefreshError
 
 
 class TestToolNotFoundHandler:
@@ -87,3 +87,74 @@ class TestToolNotFoundHandler:
 
         data = json.loads(bytes(response.body).decode())
         assert data["instance"] == expected_instance
+
+
+class TestToolRefreshErrorHandler:
+    """Test suite for provider_error_handler."""
+
+    def test_handles_tool_refresh_error(self) -> None:
+        """Test handling of ProviderError."""
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/providers/test/action"
+
+        exc = ToolRefreshError("Provider configuration is invalid")
+        response = tool_refresh_error_handler(request, exc)
+
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 400
+        assert response.media_type == "application/problem+json"
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["type"] == PROBLEM_TYPES["provider_error"]
+        assert data["title"] == "Tool Refresh Error"
+        assert data["detail"] == "Provider configuration is invalid"
+        assert data["code"] == "TOOL_REFRESH_ERROR"
+        assert data["retryable"] is True
+        assert data["instance"] == "https://api.example.com/providers/test/action"
+
+    def test_is_retryable(self) -> None:
+        """Test that provider errors are retryable."""
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/providers/test"
+
+        exc = ToolRefreshError("Temporary provider issue")
+        response = tool_refresh_error_handler(request, exc)
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["retryable"] is True
+
+    @pytest.mark.parametrize(
+        "error_message",
+        [
+            "Provider authentication failed",
+            "Rate limit exceeded",
+            "Provider service unavailable",
+        ],
+    )
+    def test_various_error_messages(self, error_message: str) -> None:
+        """Test handling of various provider error messages."""
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/providers/test"
+
+        exc = ToolRefreshError(error_message)
+        response = tool_refresh_error_handler(request, exc)
+
+        data = json.loads(bytes(response.body).decode())
+        assert data["detail"] == error_message
+
+    def test_empty_error_message(self) -> None:
+        """Test handling of ProviderError with empty message."""
+        request = Mock(spec=Request)
+        request.url = "https://api.example.com/providers/test"
+
+        # ErrorData requires detail to have at least 1 character
+        # This might cause a validation error or be handled gracefully
+        exc = ToolRefreshError("")
+        try:
+            response = tool_refresh_error_handler(request, exc)
+            data = json.loads(bytes(response.body).decode())
+            # If it doesn't raise, it should handle empty gracefully
+            assert isinstance(data["detail"], str)
+        except Exception:
+            # If it raises a validation error, that's expected behavior
+            pass

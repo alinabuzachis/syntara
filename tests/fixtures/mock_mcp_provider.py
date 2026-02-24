@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 from langchain_core.tools import BaseTool
 
-from nexus.tool_manager.lib.exceptions import ProviderError, ToolNotFoundError
+from nexus.tool_manager.lib.exceptions import ToolNotFoundError, ToolRefreshError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
 from nexus.tool_manager.models import (
     Tool,
@@ -321,11 +321,11 @@ class MockMCPProvider(ToolProviderAdapter):
             elif operation == "divide":
                 if b == 0:
                     msg = "Division by zero"
-                    raise ProviderError(msg)
+                    raise ToolRefreshError(msg)
                 result = a / b
             else:
                 msg = f"Unknown operation: {operation}"
-                raise ProviderError(msg)
+                raise ToolRefreshError(msg)
 
             return {
                 "operation": operation,
@@ -352,7 +352,7 @@ class MockMCPProvider(ToolProviderAdapter):
 
             if min_value > max_value:
                 msg = "min_value must be <= max_value"
-                raise ProviderError(msg)
+                raise ToolRefreshError(msg)
 
             result = random.randint(min_value, max_value)  # noqa: S311
             return {
@@ -362,4 +362,4 @@ class MockMCPProvider(ToolProviderAdapter):
             }
 
         msg = f"Unknown tool for execution simulation: {tool_name}"
-        raise ProviderError(msg)
+        raise ToolRefreshError(msg)

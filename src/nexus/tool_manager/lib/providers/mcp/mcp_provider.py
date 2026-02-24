@@ -6,12 +6,15 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+import httpx
 import structlog
+from httpx import HTTPStatusError, codes
 from langchain_core.tools import BaseTool
 
 # See https://github.com/langchain-ai/langchain-mcp-adapters/issues/319
 from langchain_mcp_adapters.client import MultiServerMCPClient  # type: ignore[import-untyped]
 
+from nexus.core.utils.exceptions import extract_all_exceptions
 from nexus.tool_manager.lib.exceptions import ToolNotFoundError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
 from nexus.tool_manager.models import (
@@ -118,19 +121,23 @@ class MCPProvider(ToolProviderAdapter):
 
         return self._client
 
+    def _process_http_status_error(self, error: HTTPStatusError) -> str:
+        if error.response.status_code == codes.UNAUTHORIZED:
+            return "MCP session failed to establish connection - Unauthorized"
+        if error.response.status_code == codes.FORBIDDEN:
+            return "MCP session failed to establish connection - Forbidden"
+        return f"Connection validation failed with HTTP error: {error}"
+
     async def validate_connection(self) -> ToolProviderValidationResult:
         """Validate connection to the MCP server.
 
         Returns:
             ToolProviderValidationResult containing validation details
 
-        Raises:
-            ProviderError: If connection validation fails due to provider issues
-            TimeoutError: If connection times out
-            ConnectionError: If unable to establish connection
-
         """
         timeout = 30
+        validation_errors: list[str] = []
+
         try:
             logger.info("Validating connection to MCP provider", provider_name=self.provider_name)
 
@@ -145,46 +152,37 @@ class MCPProvider(ToolProviderAdapter):
                 provider_name=self.provider_name,
                 tool_count=len(tools),
             )
+        except* TimeoutError as eg:
+            # Extract all exceptions from potentially nested ExceptionGroups
+            all_exceptions = extract_all_exceptions(eg)
+            validation_errors.extend([str(e) for e in all_exceptions])
+        except* httpx.ConnectError as eg:
+            # Extract all exceptions from potentially nested ExceptionGroups
+            all_exceptions = extract_all_exceptions(eg)
+            validation_errors.extend([str(e) for e in all_exceptions])
+        except* ConnectionError as eg:
+            # Extract all exceptions from potentially nested ExceptionGroups
+            all_exceptions = extract_all_exceptions(eg)
+            validation_errors.extend([str(e) for e in all_exceptions])
+        except* HTTPStatusError as eg:
+            # Extract all exceptions from potentially nested ExceptionGroups
+            all_exceptions = extract_all_exceptions(eg)
 
-            return ToolProviderValidationResult(
-                valid=True,
-                provider_type="mcp",
-                validated_at=datetime.now(UTC),
-            )
+            # Process each exception, handling HTTPStatusError with sanitization
+            for exception in all_exceptions:
+                if isinstance(exception, HTTPStatusError):
+                    msg = self._process_http_status_error(exception)
+                    validation_errors.append(msg)
+                else:
+                    # Handle any non-HTTPStatusError exceptions that might be mixed in
+                    validation_errors.append(str(exception))
 
-        except TimeoutError as e:
-            msg = f"Connection validation timed out after {timeout}s"
-            logger.warning(
-                "MCP provider connection validation timed out",
-                provider_name=self.provider_name,
-                message=msg,
-                timeout_seconds=timeout,
-            )
-            raise TimeoutError(msg) from e
-        except ConnectionError as e:
-            msg = "Connection validation failed"
-            logger.warning("MCP provider connection validation failed", provider_name=self.provider_name, message=msg)
-            raise ConnectionError(msg) from e
-        except Exception as e:
-            # Handle session termination and other connection errors
-            if "Session terminated" in str(e) or "TaskGroup" in str(e):
-                msg = "MCP session failed to establish connection - server may not be ready or incompatible"
-                logger.warning(
-                    "MCP provider session failed to establish connection", provider_name=self.provider_name, message=msg
-                )
-                raise ConnectionError(msg) from e
-            msg = f"Connection validation failed: {e}"
-            logger.exception(
-                "MCP provider connection validation failed with exception",
-                provider_name=self.provider_name,
-                message=msg,
-            )
-            return ToolProviderValidationResult(
-                valid=False,
-                provider_type="mcp",
-                validated_at=datetime.now(UTC),
-                error=msg,
-            )
+        return ToolProviderValidationResult(
+            valid=len(validation_errors) == 0,
+            provider_type="mcp",
+            validated_at=datetime.now(UTC),
+            error="\n".join(validation_errors) if validation_errors else None,
+        )
 
     async def get_base_tools(self) -> list[BaseTool]:
         """Get LangChain BaseTools from provider without conversion.

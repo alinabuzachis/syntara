@@ -19,9 +19,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.tool_manager.lib.exceptions import (
-    ProviderError,
     ProviderNameConflictError,
     ProviderNotFoundError,
+    ToolRefreshError,
 )
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
 from nexus.tool_manager.models.tool import Tool, ToolParameter
@@ -606,7 +606,7 @@ async def test_refresh_tools_unavailable_provider(
     test_tool_provider.status = ProviderStatus.ERROR
     await test_db_session.commit()
 
-    with pytest.raises(ProviderError, match=f"Provider {test_tool_provider.id} is not available for tool refresh"):
+    with pytest.raises(ToolRefreshError, match=f"Provider {test_tool_provider.id} is not available for tool refresh"):
         await service.refresh_tools(test_tool_provider.id)
 
 
@@ -798,7 +798,7 @@ async def test_validate_provider_definition_invalid_provider_type(
     assert result.provider_type == "unknown_type"
     assert result.validated_at is not None
     assert result.error is not None
-    assert "Provider connection validation failed: Unknown provider type 'unknown_type'" in result.error
+    assert "Unknown provider type 'unknown_type'. Available types: mcp" in result.error
 
 
 @pytest.mark.asyncio
@@ -978,7 +978,7 @@ async def test_refresh_tools_only_works_with_available_provider(
     assert provider.status == ProviderStatus.VALIDATING
 
     # Try to refresh tools while status is VALIDATING (should fail)
-    with pytest.raises(ProviderError, match=f"Provider {provider.id} is not available for tool refresh"):
+    with pytest.raises(ToolRefreshError, match=f"Provider {provider.id} is not available for tool refresh"):
         await test_tool_provider_service.refresh_tools(provider.id)
 
     # Validate provider to make it AVAILABLE

@@ -13,14 +13,12 @@ from nexus.core.error_handlers import PROBLEM_TYPES, create_problem_details_resp
 
 if TYPE_CHECKING:
     from nexus.tool_manager.lib.exceptions import (
-        ProviderError,
         ProviderNameConflictError,
         ProviderNotFoundError,
+        ToolBulkUpdateValidationError,
         ToolManagerError,
         ToolNotFoundError,
-    )
-    from nexus.tool_manager.lib.exceptions import (
-        ValidationError as ToolValidationError,
+        ToolRefreshError,
     )
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -68,29 +66,29 @@ def tool_provider_name_conflict_handler(request: Request, exc: "ProviderNameConf
     )
 
 
-def tool_provider_error_handler(request: Request, exc: "ProviderError") -> JSONResponse:
+def tool_refresh_error_handler(request: Request, exc: "ToolRefreshError") -> JSONResponse:
     """Handle ProviderError with RFC 9457 format."""
-    logger.error("Provider error", exc_info=exc)
+    logger.error("Tool refresh error", exc_info=exc)
     return create_problem_details_response(
         status_code=status.HTTP_400_BAD_REQUEST,
         problem_type=PROBLEM_TYPES["provider_error"],
-        title="Provider Error",
+        title="Tool Refresh Error",
         detail=exc.message,
-        code="PROVIDER_ERROR",
+        code="TOOL_REFRESH_ERROR",
         retryable=True,
         instance=str(request.url),
     )
 
 
-def tool_validation_error_handler(request: Request, exc: "ToolValidationError") -> JSONResponse:
+def tool_bulk_update_validation_error_handler(request: Request, exc: "ToolBulkUpdateValidationError") -> JSONResponse:
     """Handle tool ValidationError with RFC 9457 format."""
     logger.error("Tool validation error", exc_info=exc)
     return create_problem_details_response(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         problem_type=PROBLEM_TYPES["validation_error"],
-        title="Tool Validation Error",
+        title="Tool Bulk Update Validation Error",
         detail=exc.message,
-        code="TOOL_VALIDATION_ERROR",
+        code="TOOL_BULK_UPDATE_VALIDATION_ERROR",
         retryable=False,
         instance=str(request.url),
     )

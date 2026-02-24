@@ -20,8 +20,8 @@ from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin
 from nexus.tool_manager.lib.exceptions import (
+    ToolBulkUpdateValidationError,
     ToolNotFoundError,
-    ValidationError,
 )
 from nexus.tool_manager.models.tool import (
     Tool,
@@ -190,11 +190,11 @@ class ToolService(BaseService):
         """
         if not tool_ids:
             msg = "tool_ids cannot be empty"
-            raise ValidationError(msg)
+            raise ToolBulkUpdateValidationError(msg)
 
         if len(tool_ids) > MAX_BULK_UPDATES:
             msg = f"Cannot update more than {MAX_BULK_UPDATES} tools at once"
-            raise ValidationError(msg)
+            raise ToolBulkUpdateValidationError(msg)
 
         # Remove duplicates while preserving order
         unique_tool_ids = list(dict.fromkeys(tool_ids))

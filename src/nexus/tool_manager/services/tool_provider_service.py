@@ -21,10 +21,9 @@ from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
 from nexus.core.utils.filters import Filter
 from nexus.tool_manager.lib.exceptions import (
-    ProviderError,
     ProviderNameConflictError,
     ProviderNotFoundError,
-    ValidationError,
+    ToolRefreshError,
 )
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
 from nexus.tool_manager.models.tool import Tool, ToolParameter, ToolStatus
@@ -139,31 +138,19 @@ class ToolProviderService(BaseService):
         Returns:
             ToolProviderValidationResult from the adapter's validate_connection method
 
-        Raises:
-            ValidationError: If configuration is invalid
-            ProviderError: If validation fails
-
         """
-        try:
-            # Extract provider type and configuration parameters
-            provider_type = configuration.provider_type
-            config_params = {k: v for k, v in configuration.model_dump().items() if k != "provider_type"}
-            # Add provider context for adapters that need it
-            config_params["provider_id"] = provider_id
-            config_params["provider_name"] = provider_name
+        # Extract provider type and configuration parameters
+        provider_type = configuration.provider_type
+        config_params = {k: v for k, v in configuration.model_dump().items() if k != "provider_type"}
+        # Add provider context for adapters that need it
+        config_params["provider_id"] = provider_id
+        config_params["provider_name"] = provider_name
 
-            # Create provider adapter from factory
-            adapter = self.provider_factory.create_provider_instance(provider_type, **config_params)
+        # Create provider adapter from factory
+        adapter = self.provider_factory.create_provider_instance(provider_type, **config_params)
 
-            # Validate connection using the adapter
-            return await adapter.validate_connection()
-
-        except KeyError as e:
-            msg = f"Missing required configuration field: {e}"
-            raise ValidationError(msg) from e
-        except (ValueError, TypeError, AttributeError, ConnectionError, TimeoutError, OSError) as e:
-            msg = f"Provider connection validation failed: {e}"
-            raise ProviderError(msg) from e
+        # Validate connection using the adapter
+        return await adapter.validate_connection()
 
     async def _create_or_update_tool_parameters(self, tool: Tool, tool_parameters: list[ToolParameter]) -> None:
         """Create or update tool parameters for a given tool.
@@ -549,19 +536,13 @@ class ToolProviderService(BaseService):
             )
 
         except Exception as e:  # noqa: BLE001
-            # Handle any unexpected exceptions gracefully
-            try:
-                provider.status = ProviderStatus.ERROR
-                provider.validation_error = str(e)
-                provider.last_validated_at = datetime.now(UTC)
-                provider.updated_by = self.user.id
-                provider.updated_at = datetime.now(UTC)
+            # Handle other exceptions gracefully and return validation failure result
+            provider.status = ProviderStatus.ERROR
+            provider.validation_error = str(e)
+            provider.last_validated_at = datetime.now(UTC)
+            provider.updated_by = self.user.id
+            provider.updated_at = datetime.now(UTC)
 
-            except Exception:
-                # If we can't even update the provider status, log and continue
-                logger.exception("Failed to update provider status after validation error")
-
-            # Return validation failure result instead of raising
             return ToolProviderValidationResult(
                 valid=False,
                 provider_type=provider.configuration.provider_type,
@@ -621,7 +602,7 @@ class ToolProviderService(BaseService):
 
         if provider.status != ProviderStatus.AVAILABLE:
             msg = f"Provider {provider_id} is not available for tool refresh"
-            raise ProviderError(msg)
+            raise ToolRefreshError(msg)
 
         try:
             # Get provider adapter from factory
@@ -677,4 +658,4 @@ class ToolProviderService(BaseService):
 
         except Exception as e:
             msg = f"Tool refresh failed: {e}"
-            raise ProviderError(msg) from e
+            raise ToolRefreshError(msg) from e

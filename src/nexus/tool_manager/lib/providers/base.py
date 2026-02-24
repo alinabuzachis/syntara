@@ -29,11 +29,6 @@ class ToolProviderAdapter(Protocol):
         Returns:
             ToolProviderValidationResult containing validation details
 
-        Raises:
-            ProviderError: If connection validation fails due to provider issues
-            TimeoutError: If connection times out
-            ConnectionError: If unable to establish connection
-
         """
 
     @abstractmethod

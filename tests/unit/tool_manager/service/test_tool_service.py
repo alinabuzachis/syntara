@@ -18,8 +18,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.tool_manager.lib.exceptions import (
+    ToolBulkUpdateValidationError,
     ToolNotFoundError,
-    ValidationError,
 )
 from nexus.tool_manager.models.tool import (
     Tool,
@@ -272,7 +272,7 @@ async def test_bulk_update_tools_empty_list(test_db_session: AsyncSession, test_
     """Test bulk update fails with empty tool IDs list."""
     service = ToolService(test_db_session, test_user)
 
-    with pytest.raises(ValidationError, match="tool_ids cannot be empty"):
+    with pytest.raises(ToolBulkUpdateValidationError, match="tool_ids cannot be empty"):
         await service.bulk_update_tools([], enabled=False)
 
 
@@ -284,7 +284,7 @@ async def test_bulk_update_tools_too_many(test_db_session: AsyncSession, test_us
     # Create list of 51 tool IDs
     tool_ids = [uuid4() for _ in range(51)]
 
-    with pytest.raises(ValidationError, match="Cannot update more than 50 tools at once"):
+    with pytest.raises(ToolBulkUpdateValidationError, match="Cannot update more than 50 tools at once"):
         await service.bulk_update_tools(tool_ids, enabled=False)
 
 
