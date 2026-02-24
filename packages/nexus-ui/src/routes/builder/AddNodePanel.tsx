@@ -57,7 +57,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
       style={{
         height: '100%',
         maxHeight: '100%',
-        width: '32rem', //TODO: temp size increase to demo fileUpload
+        width: '20rem',
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
