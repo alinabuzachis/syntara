@@ -1,6 +1,8 @@
 import { CodeBlock } from '../../../../../components/details/CodeBlock'
 import { Detail } from '../../../../../components/details/Detail'
 
+const nodeCodeBlockProps = { noMaxHeight: true }
+
 /**
  * Renders a condition detail if condition exists
  */
@@ -8,7 +10,7 @@ export function renderCondition(condition?: string) {
   if (!condition) return null
   return (
     <Detail label="Condition">
-      <CodeBlock>{condition}</CodeBlock>
+      <CodeBlock {...nodeCodeBlockProps}>{condition}</CodeBlock>
     </Detail>
   )
 }
@@ -20,7 +22,7 @@ export function renderOutputs(outputs?: Record<string, unknown>) {
   if (!outputs) return null
   return (
     <Detail label="Outputs">
-      <CodeBlock>
+      <CodeBlock {...nodeCodeBlockProps}>
         {Object.entries(outputs)
           .map(([key, value]) => `${key}: ${value}`)
           .join('\n')}
@@ -36,7 +38,7 @@ export function renderInputs(inputs?: Record<string, unknown>) {
   if (!inputs) return null
   return (
     <Detail label="Inputs">
-      <CodeBlock>
+      <CodeBlock {...nodeCodeBlockProps}>
         {Object.entries(inputs)
           .map(([key, value]) => `${key}: ${value}`)
           .join('\n')}
@@ -53,7 +55,7 @@ export function renderJson(data: unknown, show?: boolean, label = 'JSON') {
   const jsonObject = typeof data === 'object' ? data : { value: data }
   return (
     <Detail label={label}>
-      <CodeBlock jsonObject={jsonObject} />
+      <CodeBlock jsonObject={jsonObject} {...nodeCodeBlockProps} />
     </Detail>
   )
 }
@@ -65,7 +67,7 @@ export function renderObject(label: string, data?: Record<string, unknown>) {
   if (!data) return null
   return (
     <Detail label={label}>
-      <CodeBlock jsonObject={data} />
+      <CodeBlock jsonObject={data} {...nodeCodeBlockProps} />
     </Detail>
   )
 }
@@ -77,7 +79,7 @@ export function renderText(label: string, text?: string) {
   if (text === undefined || text === null || text === '') return null
   return (
     <Detail label={label}>
-      <CodeBlock>{text}</CodeBlock>
+      <CodeBlock {...nodeCodeBlockProps}>{text}</CodeBlock>
     </Detail>
   )
 }

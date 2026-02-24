@@ -1,9 +1,11 @@
+import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 import { CompassPanel } from '@patternfly/react-core'
-import { Handle, type NodeProps, Position, useReactFlow } from '@xyflow/react'
-import React, { useEffect, useRef, useState } from 'react'
+import { Handle, type NodeProps, Position } from '@xyflow/react'
+import React, { useEffect, useState } from 'react'
 
 import { ExecutionStatusBadge } from '../../../../builder/components/ExecutionStatusBadge'
 
+import { detectTaskNodeType } from './detectTaskNodeType'
 import { targetHandleStyle, sourceHandleStyle } from './handleStyle'
 import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 import { NodeExpandedContext } from './NodeExpandedContext'
@@ -14,6 +16,32 @@ interface ExecutionState {
   completed_at?: string
   error_details?: string
   retry_count?: number
+}
+
+const DEFAULT_NODE_WIDTH = 240
+const WIDE_NODE_WIDTH = 360
+
+const isWideTaskNode = (nodeProps: NodeProps) => {
+  if (nodeProps.type === 'generic') {
+    return true
+  }
+
+  if (nodeProps.type !== 'task' && nodeProps.type !== 'task-reversed') {
+    return false
+  }
+
+  const data = nodeProps.data as TaskActivity | undefined
+  if (!data) {
+    return false
+  }
+
+  const { connectorData } = detectTaskNodeType(data)
+
+  if (data.task?.executor === ExecutorTypeEnum.AGENTIC && !connectorData) {
+    return true
+  }
+
+  return false
 }
 
 export function NodeComponent(props: {
@@ -34,8 +62,6 @@ export function NodeComponent(props: {
 }) {
   const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
   const expandedContext = useState(true)
-  const nodeRef = useRef<HTMLDivElement>(null)
-  const reactFlowInstance = useReactFlow()
   const isCollapsible = props.collapsible ?? true
 
   useEffect(() => {
@@ -55,46 +81,21 @@ export function NodeComponent(props: {
     }
   }, [expandAllEvent, collapseAllEvent, expandedContext, isCollapsible])
 
-  // Auto-resize node based on content width
-  // Extract expanded state to avoid complex dependency expression
-  const isExpanded = expandedContext[0]
-  useEffect(() => {
-    if (!nodeRef.current) return
-
-    // Use ResizeObserver to detect when content size changes
-    const resizeObserver = new ResizeObserver(() => {
-      // Measure the actual content width and update the node
-      const width = nodeRef.current?.scrollWidth
-      if (width && width > 0) {
-        const node = reactFlowInstance.getNode(props.nodeProps.id)
-        if (node && node.width !== width) {
-          reactFlowInstance.updateNode(props.nodeProps.id, { width })
-        }
-      }
-    })
-
-    resizeObserver.observe(nodeRef.current)
-
-    return () => {
-      resizeObserver.disconnect()
-    }
-  }, [isExpanded, props.nodeProps.id, reactFlowInstance])
-
   const isSelected = props.nodeProps.selected
+  const nodeWidth = isWideTaskNode(props.nodeProps) ? WIDE_NODE_WIDTH : DEFAULT_NODE_WIDTH
 
   return (
     <NodeExpandedContext.Provider value={expandedContext}>
       <CompassPanel
-        ref={nodeRef}
         hasNoPadding
         className={props.className}
         onClick={props.onClick}
         style={{
           overflow: 'visible', // Allow execution badge to overflow outside node
           cursor: props.onClick || props.hasDashedBorder ? 'pointer' : undefined,
-          width: 'max-content', // Allow node to size based on content
-          minWidth: props.nodeProps.type === 'trigger' ? '180px' : '240px', // Minimum width for consistency
-          maxWidth: '600px', // Maximum width to prevent nodes from becoming too wide
+          width: `${nodeWidth}px`, // Fixed width for consistent node sizing
+          minWidth: `${nodeWidth}px`,
+          maxWidth: `${nodeWidth}px`,
           // Apply dashed border styling for placeholder nodes
           ...(props.hasDashedBorder && {
             border: '2px dashed rgba(196, 181, 253, 0.5)',

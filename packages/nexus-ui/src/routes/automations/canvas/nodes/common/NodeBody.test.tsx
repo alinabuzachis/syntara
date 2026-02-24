@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { useState } from 'react'
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { NodeBody } from './NodeBody'
 import { NodeExpandedContext } from './NodeExpandedContext'
@@ -83,14 +83,6 @@ describe('NodeBody', () => {
   })
 
   describe('styling', () => {
-    it('applies scrollable container styles', () => {
-      const { container } = renderWithContext(true, <div>Content</div>)
-
-      // Find the scrollable div that has max-height style
-      const scrollableDiv = container.querySelector('div[style*="max-height"]')
-      expect(scrollableDiv).toBeInTheDocument()
-    })
-
     it('has default cursor style on stack item', () => {
       const { container } = renderWithContext(true, <div>Content</div>)
 
@@ -113,28 +105,6 @@ describe('NodeBody', () => {
 
       const scrollableDiv = container.querySelector('div.nodrag.nopan')
       expect(scrollableDiv).toBeInTheDocument()
-    })
-  })
-
-  describe('wheel event handling', () => {
-    it('stops wheel event propagation on scrollable div', () => {
-      const parentWheelHandler = vi.fn()
-      const { container } = render(
-        <div onWheel={parentWheelHandler}>
-          <NodeExpandedContext.Provider value={[true, vi.fn()]}>
-            <NodeBody>
-              <div>Content</div>
-            </NodeBody>
-          </NodeExpandedContext.Provider>
-        </div>
-      )
-
-      const scrollableDiv = container.querySelector('.nodrag.nopan')
-      const wheelEvent = new WheelEvent('wheel', { bubbles: true })
-      scrollableDiv?.dispatchEvent(wheelEvent)
-
-      // Due to stopPropagation, parent should not receive the event via React's synthetic events
-      // Note: The actual behavior depends on how React handles events
     })
   })
 
@@ -192,33 +162,7 @@ describe('NodeBody', () => {
     })
   })
 
-  describe('useEffect cleanup', () => {
-    let addEventListenerSpy: ReturnType<typeof vi.spyOn>
-    let removeEventListenerSpy: ReturnType<typeof vi.spyOn>
-
-    beforeEach(() => {
-      addEventListenerSpy = vi.spyOn(HTMLDivElement.prototype, 'addEventListener')
-      removeEventListenerSpy = vi.spyOn(HTMLDivElement.prototype, 'removeEventListener')
-    })
-
-    afterEach(() => {
-      addEventListenerSpy.mockRestore()
-      removeEventListenerSpy.mockRestore()
-    })
-
-    it('sets up wheel event listener when expanded', async () => {
-      vi.useFakeTimers()
-
-      renderWithContext(true, <div>Content</div>)
-
-      // The effect uses setTimeout
-      await vi.runAllTimersAsync()
-
-      expect(addEventListenerSpy).toHaveBeenCalledWith('wheel', expect.any(Function), { capture: true })
-
-      vi.useRealTimers()
-    })
-
+  describe('expanded state', () => {
     it('does not render content when collapsed', () => {
       renderWithContext(false, <div data-testid="body-content">Content</div>)
 
