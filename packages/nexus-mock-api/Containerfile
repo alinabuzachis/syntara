@@ -1,5 +1,5 @@
 # Build stage - use native platform for faster builds
-FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -19,7 +19,7 @@ COPY packages/nexus-contracts ./packages/nexus-contracts
 COPY packages/nexus-mock-api ./packages/nexus-mock-api
 
 # Production stage - target platform will be used automatically
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 
 # Copy package files and install production dependencies
