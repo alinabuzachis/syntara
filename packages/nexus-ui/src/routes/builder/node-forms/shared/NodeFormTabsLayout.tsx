@@ -34,7 +34,7 @@ export function NodeFormTabsLayout({
           </FlexItem>
           <FlexItem>
             <Button variant="primary" type="button" onClick={() => showInfo('Not yet implemented')}>
-              Test step
+              Run step
             </Button>
           </FlexItem>
         </Flex>
