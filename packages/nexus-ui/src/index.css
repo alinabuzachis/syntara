@@ -1,9 +1,11 @@
 /* PatternFly base CSS */
 @import '@patternfly/react-core/dist/styles/base.css';
 
-/* Sticky header background color, fix for `isPlain` showing table rows through it without blur */
+/* Sticky header background: fix for `isPlain` setting thead background to transparent,
+   causing table rows to show through it when scrolling. Match CompassPanel's glass effect. */
 table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
-  background: var(--pf-t--global--background--color--glass--default);
+  background: var(--pf-t--global--background--color--glass--primary--default);
+  backdrop-filter: var(--pf-t--global--background--filter--glass--blur--primary);
 }
 
 /**
