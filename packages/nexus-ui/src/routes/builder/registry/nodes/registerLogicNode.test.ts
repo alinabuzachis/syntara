@@ -209,7 +209,7 @@ describe('registerLogicNode', () => {
       const onError = vi.fn()
       getHandler()({ logicType: 'condition', name: 'Check' }, onSuccess, onError)
 
-      expect(onError).toHaveBeenCalledWith('Condition expression is required')
+      expect(onError).toHaveBeenCalledWith('Conditional expression is required')
       expect(onSuccess).not.toHaveBeenCalled()
     })
 
@@ -244,7 +244,7 @@ describe('registerLogicNode', () => {
       const onError = vi.fn()
       getHandler()({ logicType: 'loop', type: 'while', name: 'While Loop' }, onSuccess, onError)
 
-      expect(onError).toHaveBeenCalledWith('Condition expression is required for while loop')
+      expect(onError).toHaveBeenCalledWith('Conditional expression is required for while loop')
       expect(onSuccess).not.toHaveBeenCalled()
     })
   })

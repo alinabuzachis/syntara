@@ -1,4 +1,4 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
 import {
   RhUiBranchFillIcon,
   RhUiConditionNodeIcon,
@@ -52,7 +52,7 @@ export default function registerLogicNode() {
             icon: RhUiConditionNodeIcon,
             description: 'Set parameters to branch the automation.',
             formTitle: 'Configure Conditional Logic',
-            initialData: { logicType: 'condition' },
+            initialData: { logicType: ActivityTypeEnum.CONDITION },
           },
           {
             id: 'logic-converge',
@@ -60,7 +60,7 @@ export default function registerLogicNode() {
             icon: RhUiMergeNodesIcon,
             description: 'Converge automation to single path.',
             formTitle: 'Configure Converge Logic',
-            initialData: { logicType: 'converge' },
+            initialData: { logicType: ActivityTypeEnum.CONVERGE },
           },
           {
             id: 'logic-loop',
@@ -68,7 +68,7 @@ export default function registerLogicNode() {
             icon: RhUiLoopNodeIcon,
             description: 'Batch automation to repeat specific actions.',
             formTitle: 'Configure Loop Logic',
-            initialData: { logicType: 'loop' },
+            initialData: { logicType: ActivityTypeEnum.LOOP },
           },
         ],
       },
@@ -82,18 +82,23 @@ export default function registerLogicNode() {
             getDefaultNodeBaseName({
               nodeTypeId: 'logic',
               initialData: { logicType: data.logicType },
-              label: data.logicType === 'condition' ? 'Conditional' : data.logicType === 'loop' ? 'Loop' : 'Converge',
+              label:
+                data.logicType === ActivityTypeEnum.CONDITION
+                  ? 'Conditional'
+                  : data.logicType === ActivityTypeEnum.LOOP
+                    ? 'Loop'
+                    : 'Converge',
             }),
             data.name
           )
 
-          if (data.logicType === 'condition') {
+          if (data.logicType === ActivityTypeEnum.CONDITION) {
             if (!data.condition) {
-              onError('Condition expression is required')
+              onError('Conditional expression is required')
               return
             }
             activity = createConditionActivity(activityId, name, data.condition)
-          } else if (data.logicType === 'loop') {
+          } else if (data.logicType === ActivityTypeEnum.LOOP) {
             const loopType = data.type as 'forEach' | 'while'
 
             if (loopType === 'forEach' && !data.items) {
@@ -101,7 +106,7 @@ export default function registerLogicNode() {
               return
             }
             if (loopType === 'while' && !data.condition) {
-              onError('Condition expression is required for while loop')
+              onError('Conditional expression is required for while loop')
               return
             }
 

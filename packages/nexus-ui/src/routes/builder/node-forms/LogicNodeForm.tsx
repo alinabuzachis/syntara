@@ -1,3 +1,4 @@
+import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import {
   FormGroup,
   FormHelperText,
@@ -5,6 +6,7 @@ import {
   FormSelectOption,
   HelperText,
   HelperTextItem,
+  Popover,
   MenuToggle,
   Select,
   SelectList,
@@ -12,13 +14,17 @@ import {
   Stack,
   StackItem,
   Switch,
-  TextArea,
   TextInput,
 } from '@patternfly/react-core'
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
+
+import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
+import { parseExpression } from '../../../utils/expressions/parser'
+import { hasValidationErrors } from '../../../utils/expressions/validation'
 
 import { timeUnitsToSeconds } from '../utils/timeUtils'
 
@@ -93,6 +99,42 @@ interface LogicNodeFormProps {
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
+const ConditionalExpressionHelp = () => (
+  <Popover
+    aria-label="Conditional expression help"
+    headerContent="Conditional expression"
+    bodyContent={
+      <div>
+        <p>
+          <strong>Visual expression builder:</strong> Build conditions visually using a form interface with dropdowns
+          and inputs.
+        </p>
+        <p style={{ marginTop: '8px' }}>
+          <strong>Custom expression:</strong> Write conditions directly as template expressions in the format{' '}
+          <code>{'${variable operator value}'}</code>
+        </p>
+      </div>
+    }
+    triggerAction="click"
+  >
+    <button
+      type="button"
+      aria-label="Conditional expression help"
+      onClick={(e) => e.preventDefault()}
+      style={{
+        background: 'none',
+        border: 'none',
+        padding: 0,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+      }}
+    >
+      <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--color--icon--default)' }} />
+    </button>
+  </Popover>
+)
+
 function LogicFormFields({
   submitButtonText,
   onHeaderContentChange,
@@ -124,25 +166,75 @@ function LogicFormFields({
     }
   }, [nameField, onHeaderContentChange])
 
+  // Shared validation rules for condition fields
+  const conditionValidationRules = {
+    required: 'Condition is required',
+    validate: (value: string | undefined) => {
+      if (!value || !value.trim()) return 'Condition cannot be empty'
+      if (!value.startsWith('${') || !value.endsWith('}')) {
+        return 'Condition must be in format: ${expression}'
+      }
+
+      // Parse and validate the expression tree
+      const parsed = parseExpression(value)
+      if (parsed.root && hasValidationErrors(parsed.root)) {
+        return 'Please fill in all required fields (Field and Value for each condition)'
+      }
+
+      return true
+    },
+  }
+
   const parametersContent = (
     <Stack hasGutter>
+      {!onHeaderContentChange && <ActivityNameField register={register} fieldId="logic-name" />}
       <input type="hidden" {...register('logicType')} />
 
-      {logicType === 'condition' && (
+      {logicType === ActivityTypeEnum.CONDITION && (
         <StackItem>
-          <FormGroup label="Condition expression" isRequired fieldId="logic-condition">
-            <TextArea
-              {...register('condition', { required: true })}
-              id="logic-condition"
-              placeholder="${output.status == 'success'}"
-              rows={2}
-              style={{ fontFamily: 'monospace' }}
+          <FormGroup
+            label={
+              <span
+                style={{
+                  marginLeft: 'var(--pf-t--global--spacer--sm)',
+                  marginRight: 'var(--pf-t--global--spacer--sm)',
+                  display: 'inline-block',
+                }}
+              >
+                Conditional expression <ConditionalExpressionHelp />
+              </span>
+            }
+            isRequired
+            fieldId="logic-condition"
+          >
+            <Controller
+              control={control}
+              name="condition"
+              rules={conditionValidationRules}
+              render={({ field, fieldState }) => (
+                <>
+                  <ExpressionBuilder
+                    id="logic-condition"
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    error={!!fieldState.error}
+                    placeholder="Build your condition"
+                  />
+                  {fieldState.error && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </>
+              )}
             />
           </FormGroup>
         </StackItem>
       )}
 
-      {logicType === 'loop' && (
+      {logicType === ActivityTypeEnum.LOOP && (
         <>
           <StackItem>
             <FormGroup label="Type" fieldId="logic-type">
@@ -207,13 +299,37 @@ function LogicFormFields({
           {type === 'while' && (
             <>
               <StackItem>
-                <FormGroup label="Condition expression" isRequired fieldId="logic-condition-while">
-                  <TextArea
-                    {...register('condition', { required: true })}
-                    id="logic-condition-while"
-                    placeholder="${counter < 10}"
-                    rows={2}
-                    style={{ fontFamily: 'monospace' }}
+                <FormGroup
+                  label={
+                    <span>
+                      Conditional expression <ConditionalExpressionHelp />
+                    </span>
+                  }
+                  isRequired
+                  fieldId="logic-condition-while"
+                >
+                  <Controller
+                    control={control}
+                    name="condition"
+                    rules={conditionValidationRules}
+                    render={({ field, fieldState }) => (
+                      <>
+                        <ExpressionBuilder
+                          id="logic-condition-while"
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          error={!!fieldState.error}
+                          placeholder="Build your condition"
+                        />
+                        {fieldState.error && (
+                          <FormHelperText>
+                            <HelperText>
+                              <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                            </HelperText>
+                          </FormHelperText>
+                        )}
+                      </>
+                    )}
                   />
                 </FormGroup>
               </StackItem>
@@ -239,7 +355,7 @@ function LogicFormFields({
         </>
       )}
 
-      {logicType === 'converge' && (
+      {logicType === ActivityTypeEnum.CONVERGE && (
         <>
           <StackItem>
             <FormGroup label="Continue when criteria" isRequired fieldId="logic-strategy">
@@ -465,7 +581,7 @@ function LogicFormFields({
 export function LogicNodeForm(props: LogicNodeFormProps) {
   const defaultValues: LogicFormData = {
     name: '',
-    logicType: props.initialData?.logicType ?? 'condition',
+    logicType: props.initialData?.logicType ?? ActivityTypeEnum.CONDITION,
     type: 'forEach',
     indexVariable: 'index',
     itemVariable: 'item',
@@ -477,7 +593,7 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
 
   const handleSubmit = (data: LogicFormData) => {
     const timeout =
-      data.logicType === 'converge' && data.timeoutEnabled
+      data.logicType === ActivityTypeEnum.CONVERGE && data.timeoutEnabled
         ? timeUnitsToSeconds(
             Number(data.timeoutSeconds) || 0,
             Number(data.timeoutMinutes) || 0,
@@ -490,22 +606,29 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
       name: data.name,
       logicType: data.logicType,
       condition:
-        data.logicType === 'condition' || (data.logicType === 'loop' && data.type === 'while')
+        data.logicType === ActivityTypeEnum.CONDITION ||
+        (data.logicType === ActivityTypeEnum.LOOP && data.type === 'while')
           ? data.condition
           : undefined,
-      type: data.logicType === 'loop' ? data.type : undefined,
-      items: data.logicType === 'loop' && data.type === 'forEach' ? data.items : undefined,
+      type: data.logicType === ActivityTypeEnum.LOOP ? data.type : undefined,
+      items: data.logicType === ActivityTypeEnum.LOOP && data.type === 'forEach' ? data.items : undefined,
       maxIterations:
-        data.logicType === 'loop' && data.type === 'while' && data.maxIterations && !Number.isNaN(data.maxIterations)
+        data.logicType === ActivityTypeEnum.LOOP &&
+        data.type === 'while' &&
+        data.maxIterations &&
+        !Number.isNaN(data.maxIterations)
           ? data.maxIterations
           : undefined,
-      indexVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.indexVariable : undefined,
-      itemVariable: data.logicType === 'loop' && data.type === 'forEach' ? data.itemVariable : undefined,
+      indexVariable:
+        data.logicType === ActivityTypeEnum.LOOP && data.type === 'forEach' ? data.indexVariable : undefined,
+      itemVariable: data.logicType === ActivityTypeEnum.LOOP && data.type === 'forEach' ? data.itemVariable : undefined,
       timeout,
       onTimeout: timeout !== undefined ? data.onTimeout : undefined,
-      strategy: data.logicType === 'converge' ? data.strategy : undefined,
-      requiredPathCount: data.logicType === 'converge' && data.strategy === 'any' ? data.requiredPathCount : undefined,
-      remainingBehavior: data.logicType === 'converge' && data.strategy === 'any' ? data.remainingBehavior : undefined,
+      strategy: data.logicType === ActivityTypeEnum.CONVERGE ? data.strategy : undefined,
+      requiredPathCount:
+        data.logicType === ActivityTypeEnum.CONVERGE && data.strategy === 'any' ? data.requiredPathCount : undefined,
+      remainingBehavior:
+        data.logicType === ActivityTypeEnum.CONVERGE && data.strategy === 'any' ? data.remainingBehavior : undefined,
     }
     props.onSubmit(cleanedData)
   }

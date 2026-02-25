@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { cloneElement, useState } from 'react'
 import type { ReactElement, ReactNode } from 'react'
@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { secondsToTimeUnits, timeUnitsToSeconds } from '../utils/timeUtils'
 
 import { LogicNodeForm, type LogicFormData } from './LogicNodeForm'
+import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 
 function renderWithHeader(ui: ReactElement) {
   function Wrapper() {
@@ -35,7 +36,7 @@ describe('LogicNodeForm', () => {
   it('renders condition fields by default and hides loop/converge fields', () => {
     renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
-    expect(screen.getByLabelText(/Condition expression/i)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
     expect(screen.queryByLabelText(/Items expression/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: /Timeout/i })).not.toBeInTheDocument()
   })
@@ -45,14 +46,20 @@ describe('LogicNodeForm', () => {
     renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Condition')
-    await user.type(screen.getByPlaceholderText(/output.status/i), 'result > 0')
+
+    // Switch to raw mode and enter expression
+    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+    const rawInput = screen.getByLabelText(/Raw expression/i)
+    await user.click(rawInput)
+    await user.paste('${result > 0}')
+
     await user.click(screen.getByRole('button', { name: /Add node/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Test Condition',
         logicType: 'condition',
-        condition: 'result > 0',
+        condition: '${result > 0}',
       })
     )
   })
@@ -111,8 +118,8 @@ describe('LogicNodeForm', () => {
       />
     )
 
-    expect(screen.getByPlaceholderText(/counter < 10/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/1000/i)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/Max iterations/i)).toBeInTheDocument()
   })
 
   it('submits while loop data', async () => {
@@ -126,8 +133,14 @@ describe('LogicNodeForm', () => {
     )
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'While Loop')
-    await user.type(screen.getByPlaceholderText(/counter < 10/i), 'x < 100')
-    await user.type(screen.getByPlaceholderText(/1000/i), '500')
+
+    // Switch to raw mode and enter expression
+    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+    const rawInput = screen.getByLabelText(/Raw expression/i)
+    await user.click(rawInput)
+    await user.paste('${x < 100}')
+
+    await user.type(screen.getByLabelText(/Max iterations/i), '500')
     await user.click(screen.getByRole('button', { name: /Add node/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
@@ -135,7 +148,7 @@ describe('LogicNodeForm', () => {
         name: 'While Loop',
         logicType: 'loop',
         type: 'while',
-        condition: 'x < 100',
+        condition: '${x < 100}',
         maxIterations: 500,
       })
     )
@@ -152,13 +165,20 @@ describe('LogicNodeForm', () => {
     )
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Simple While')
-    await user.type(screen.getByPlaceholderText(/counter < 10/i), 'running')
+
+    // Switch to raw mode and enter expression
+    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+    const rawInput = screen.getByLabelText(/Raw expression/i)
+    await user.click(rawInput)
+    await user.paste('${running}')
+
     await user.click(screen.getByRole('button', { name: /Add node/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         logicType: 'loop',
         type: 'while',
+        condition: '${running}',
         maxIterations: undefined,
       })
     )
@@ -166,7 +186,11 @@ describe('LogicNodeForm', () => {
 
   it('renders converge fields when initialData sets logicType to converge', () => {
     renderWithHeader(
-      <LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ logicType: 'converge' }} />
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
+      />
     )
 
     expect(screen.getByLabelText(/Continue when criteria/i)).toBeInTheDocument()
@@ -179,7 +203,11 @@ describe('LogicNodeForm', () => {
   it('submits converge data without timeout when toggle is off', async () => {
     const user = userEvent.setup()
     renderWithHeader(
-      <LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ logicType: 'converge' }} />
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
+      />
     )
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Branches')
@@ -189,7 +217,7 @@ describe('LogicNodeForm', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Join Branches',
-        logicType: 'converge',
+        logicType: ActivityTypeEnum.CONVERGE,
         strategy: 'all',
         timeout: undefined,
         onTimeout: undefined,
@@ -200,7 +228,11 @@ describe('LogicNodeForm', () => {
   it('submits converge data with timeout when toggle is on', async () => {
     const user = userEvent.setup()
     renderWithHeader(
-      <LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ logicType: 'converge' }} />
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
+      />
     )
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Branches')
@@ -214,7 +246,7 @@ describe('LogicNodeForm', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Join Branches',
-        logicType: 'converge',
+        logicType: ActivityTypeEnum.CONVERGE,
         strategy: 'all',
         timeout: 600,
         onTimeout: 'continue',
@@ -230,13 +262,14 @@ describe('LogicNodeForm', () => {
         initialData={{
           name: 'Existing Condition',
           logicType: 'condition',
-          condition: 'status == "active"',
+          condition: '${status == "active"}',
         }}
       />
     )
 
     expect(screen.getByDisplayValue('Existing Condition')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('status == "active"')).toBeInTheDocument()
+    // Expression builder should be present with visual mode showing the condition
+    expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
   })
 
   it('populates form with initial data for loop', () => {
@@ -248,7 +281,7 @@ describe('LogicNodeForm', () => {
           name: 'Existing Loop',
           logicType: 'loop',
           type: 'forEach',
-          items: 'items',
+          items: '${items}',
           itemVariable: 'obj',
           indexVariable: 'idx',
         }}
@@ -256,7 +289,7 @@ describe('LogicNodeForm', () => {
     )
 
     expect(screen.getByDisplayValue('Existing Loop')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('items')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('${items}')).toBeInTheDocument()
     expect(screen.getByDisplayValue('obj')).toBeInTheDocument()
     expect(screen.getByDisplayValue('idx')).toBeInTheDocument()
   })
@@ -268,7 +301,7 @@ describe('LogicNodeForm', () => {
         onCancel={mockOnCancel}
         initialData={{
           name: 'Existing Converge',
-          logicType: 'converge',
+          logicType: ActivityTypeEnum.CONVERGE,
           strategy: 'any',
           timeoutEnabled: true,
           timeoutMinutes: 20,
@@ -291,7 +324,7 @@ describe('LogicNodeForm', () => {
         onCancel={mockOnCancel}
         initialData={{
           name: 'Existing Converge Any',
-          logicType: 'converge',
+          logicType: ActivityTypeEnum.CONVERGE,
           strategy: 'any',
           requiredPathCount: 3,
           remainingBehavior: 'cancel',
@@ -309,7 +342,7 @@ describe('LogicNodeForm', () => {
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge', strategy: 'all' }}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'all' }}
       />
     )
 
@@ -322,7 +355,7 @@ describe('LogicNodeForm', () => {
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge', strategy: 'any' }}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
       />
     )
 
@@ -335,7 +368,7 @@ describe('LogicNodeForm', () => {
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge', strategy: 'any' }}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
       />
     )
 
@@ -348,7 +381,7 @@ describe('LogicNodeForm', () => {
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge', strategy: 'any' }}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
       />
     )
 
@@ -363,7 +396,7 @@ describe('LogicNodeForm', () => {
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge', strategy: 'any' }}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
       />
     )
 
@@ -374,7 +407,7 @@ describe('LogicNodeForm', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Join Any',
-        logicType: 'converge',
+        logicType: ActivityTypeEnum.CONVERGE,
         strategy: 'any',
         requiredPathCount: 1,
         remainingBehavior: 'cancel',
@@ -388,7 +421,7 @@ describe('LogicNodeForm', () => {
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge', strategy: 'any' }}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
       />
     )
 
@@ -405,7 +438,7 @@ describe('LogicNodeForm', () => {
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge', strategy: 'any' }}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
       />
     )
 
@@ -424,7 +457,7 @@ describe('LogicNodeForm', () => {
       <LogicNodeForm
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
-        initialData={{ logicType: 'converge', strategy: '' } as unknown as Partial<LogicFormData>}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: '' } as unknown as Partial<LogicFormData>}
       />
     )
 
@@ -442,7 +475,11 @@ describe('LogicNodeForm', () => {
 
   it("'any' option is disabled in continue when criteria dropdown", () => {
     renderWithHeader(
-      <LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ logicType: 'converge' }} />
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
+      />
     )
 
     const anyOption = screen.getByRole('option', { name: /Any branches reach this node/i })
@@ -482,7 +519,11 @@ describe('LogicNodeForm', () => {
   it('timeout toggle saves all four time units', async () => {
     const user = userEvent.setup()
     renderWithHeader(
-      <LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ logicType: 'converge' }} />
+      <LogicNodeForm
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
+      />
     )
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Converge With Timeout')
@@ -499,7 +540,7 @@ describe('LogicNodeForm', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Converge With Timeout',
-        logicType: 'converge',
+        logicType: ActivityTypeEnum.CONVERGE,
         strategy: 'all',
         timeout: 86400 + 7200 + 180 + 4,
         onTimeout: 'fail',
@@ -513,7 +554,7 @@ describe('LogicNodeForm', () => {
         onSubmit={mockOnSubmit}
         onCancel={mockOnCancel}
         initialData={{
-          logicType: 'converge',
+          logicType: ActivityTypeEnum.CONVERGE,
           timeoutEnabled: true,
           timeoutDays: 1,
           timeoutHours: 2,
@@ -527,5 +568,71 @@ describe('LogicNodeForm', () => {
     expect(screen.getByLabelText(/Hour\(s\)/i)).toHaveValue(2)
     expect(screen.getByLabelText(/Minute\(s\)/i)).toHaveValue(3)
     expect(screen.getByLabelText(/Second\(s\)/i)).toHaveValue(4)
+  })
+
+  it('allows switching from custom expression back to visual expression builder with empty conditions', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+
+    // Should start in visual mode
+    expect(screen.getByLabelText(/Expression editor mode/i)).toHaveValue('visual')
+
+    // Switch to custom expression mode
+    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+    expect(screen.getByLabelText(/Expression editor mode/i)).toHaveValue('raw')
+    expect(screen.getByLabelText(/Raw expression/i)).toBeInTheDocument()
+
+    // Switch back to visual mode (should work even with empty expression)
+    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'visual')
+    expect(screen.getByLabelText(/Expression editor mode/i)).toHaveValue('visual')
+
+    // Should show the visual builder with empty condition fields
+    expect(screen.getAllByText(/Field/i)[0]).toBeInTheDocument()
+    expect(screen.getAllByText(/Operator/i)[0]).toBeInTheDocument()
+    expect(screen.getAllByText(/Value/i)[0]).toBeInTheDocument()
+  })
+
+  it('prevents submission when condition has incomplete fields', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+
+    // Fill in name
+    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Incomplete Condition')
+
+    // Stay in visual mode - don't fill any fields
+    // The default empty condition will serialize to empty string
+
+    // Try to submit - form validation should prevent it
+    await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+    // Wait for form validation to complete
+    await waitFor(() => {
+      expect(mockOnSubmit).not.toHaveBeenCalled()
+    })
+  })
+
+  it('submits successfully when all condition fields are filled', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+
+    // Fill in name
+    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Complete Condition')
+
+    // Fill in both variable and value
+    const fieldInputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+    await user.type(fieldInputs[0], 'input.age')
+    await user.type(fieldInputs[1], '18')
+
+    // Submit
+    await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+    // Should call onSubmit successfully
+    expect(mockOnSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Complete Condition',
+        logicType: 'condition',
+        condition: '${input.age == 18}',
+      })
+    )
   })
 })

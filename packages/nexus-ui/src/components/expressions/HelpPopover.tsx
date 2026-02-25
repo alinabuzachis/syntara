@@ -1,0 +1,43 @@
+/**
+ * Reusable help popover component for expression builder
+ * Displays a question mark icon that opens a popover with help content
+ */
+
+import { Popover } from '@patternfly/react-core'
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
+import type { ReactNode } from 'react'
+
+interface HelpPopoverProps {
+  /** Accessible label for the help button */
+  ariaLabel: string
+  /** Header text for the popover */
+  headerContent: string
+  /** Body content for the popover */
+  bodyContent: ReactNode
+}
+
+/**
+ * Help popover component
+ * Renders a question mark icon that opens a popover with help content
+ */
+export function HelpPopover({ ariaLabel, headerContent, bodyContent }: HelpPopoverProps) {
+  return (
+    <Popover aria-label={ariaLabel} headerContent={headerContent} bodyContent={bodyContent} triggerAction="click">
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        onClick={(e) => e.preventDefault()}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+        }}
+      >
+        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--color--icon--default)' }} />
+      </button>
+    </Popover>
+  )
+}
