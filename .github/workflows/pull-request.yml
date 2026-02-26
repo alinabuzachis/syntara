@@ -28,6 +28,10 @@ jobs:
 
       - run: npm ci
 
+      - name: Check for dead code with knip
+        run: npm run knip -- --reporter compact
+        working-directory: packages/nexus-ui
+
       - name: Run tests with coverage
         run: npm run test:coverage
         working-directory: packages/nexus-ui

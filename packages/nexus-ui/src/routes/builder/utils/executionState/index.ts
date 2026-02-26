@@ -12,16 +12,6 @@
  * - Utilities: Helper functions for execution state (isTerminalState, isBranchHandle)
  */
 
-export {
-  ACTIVITY_TYPES,
-  ACTIVITY_STATUS,
-  BRANCH_HANDLES,
-  TERMINAL_ACTIVITY_STATUSES,
-  isBranchHandle,
-  isTerminalState,
-  type ActivityTypeValue,
-  type ActivityStatusValue,
-  type BranchHandle,
-} from './executionHelpers'
+export type { ActivityTypeValue, ActivityStatusValue, BranchHandle } from './executionHelpers'
 export { ExecutionStateEnricher, type ActivityWithMetadata } from './ExecutionStateEnricher'
 export type { ExecutionState, NodeStateInferrer } from './nodeStateInference'

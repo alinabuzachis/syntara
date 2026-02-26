@@ -26,7 +26,7 @@ import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import noResultsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
-import { toolProvidersClient } from '../../../client'
+import { toolManagerClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { IconLabel } from '../../../components/IconLabel'
@@ -120,7 +120,7 @@ export default function Integrations() {
   })
   const { cursor, validateDialogOpen, providerToValidate, deleteDialogOpen, providerToDelete } = state
 
-  const query = toolProvidersClient.useQuery('get', '/tool_providers', {
+  const query = toolManagerClient.useQuery('get', '/tool_providers', {
     params: {
       query: {
         cursor: cursor ?? undefined,
@@ -157,8 +157,8 @@ export default function Integrations() {
     }
   })
 
-  const { mutate: validateProvider } = toolProvidersClient.useMutation('post', '/tool_providers/{provider_id}/validate')
-  const { mutate: deleteProvider } = toolProvidersClient.useMutation('delete', '/tool_providers/{provider_id}')
+  const { mutate: validateProvider } = toolManagerClient.useMutation('post', '/tool_providers/{provider_id}/validate')
+  const { mutate: deleteProvider } = toolManagerClient.useMutation('delete', '/tool_providers/{provider_id}')
 
   const handleValidate = () => {
     if (!providerToValidate) return

@@ -3,18 +3,14 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { toolProvidersClient, toolsClient } from '../../../client'
+import { toolManagerClient } from '../../../client'
 import { AlertProvider } from '../../../components/alerts'
 
 import IntegrationTools from './IntegrationTools'
 
 // Mock dependencies
 vi.mock('../../../client', () => ({
-  toolProvidersClient: {
-    useQuery: vi.fn(),
-    useMutation: vi.fn(),
-  },
-  toolsClient: {
+  toolManagerClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
@@ -87,59 +83,62 @@ describe('IntegrationTools Component', () => {
 
   const mockMutate = vi.fn()
 
+  const baseQueryResult = {
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }
+
   beforeEach(() => {
-    // Reset mocks before each test
-    vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
-      data: mockProvider,
-      isPending: false,
-      isError: false,
-      error: null,
+    // Reset mocks before each test - use mockImplementation to return different data per endpoint
+    mockMutate.mockClear()
+    vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+      if (path === '/tool_providers/{provider_id}') {
+        return { ...baseQueryResult, data: mockProvider } as never
+      }
+      return { ...baseQueryResult, data: { resources: mockTools } } as never
     })
 
-    vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
-      isError: false,
-      error: null,
-      data: null,
-      reset: vi.fn(),
-      mutateAsync: vi.fn(),
-      isSuccess: false,
-      isIdle: true,
-      failureCount: 0,
-      failureReason: null,
-      isPaused: false,
-      status: 'idle',
-      submittedAt: 0,
-      variables: undefined,
-      context: undefined,
-    })
-
-    vi.mocked(toolsClient.useQuery).mockReturnValue({
-      data: { resources: mockTools },
-      isPending: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    })
-
-    vi.mocked(toolsClient.useMutation).mockReturnValue({
-      mutate: mockMutate,
-      isPending: false,
-      isError: false,
-      error: null,
-      data: undefined,
-      reset: vi.fn(),
-      mutateAsync: mockMutate.mockResolvedValue(undefined),
-      isSuccess: false,
-      isIdle: true,
-      failureCount: 0,
-      failureReason: null,
-      isPaused: false,
-      status: 'idle',
-      submittedAt: 0,
-      variables: undefined,
-      context: undefined,
+    vi.mocked(toolManagerClient.useMutation).mockImplementation((_method, path: string) => {
+      if (path === '/tools/bulk_update') {
+        return {
+          mutate: mockMutate,
+          isPending: false,
+          isError: false,
+          error: null,
+          data: undefined,
+          reset: vi.fn(),
+          mutateAsync: mockMutate.mockResolvedValue(undefined),
+          isSuccess: false,
+          isIdle: true,
+          failureCount: 0,
+          failureReason: null,
+          isPaused: false,
+          status: 'idle',
+          submittedAt: 0,
+          variables: undefined,
+          context: undefined,
+        } as never
+      }
+      return {
+        mutate: vi.fn(),
+        isPending: false,
+        isError: false,
+        error: null,
+        data: null,
+        reset: vi.fn(),
+        mutateAsync: vi.fn(),
+        isSuccess: false,
+        isIdle: true,
+        failureCount: 0,
+        failureReason: null,
+        isPaused: false,
+        status: 'idle',
+        submittedAt: 0,
+        variables: undefined,
+        context: undefined,
+      } as never
     })
   })
 
@@ -367,7 +366,7 @@ describe('IntegrationTools Component', () => {
 
   describe('Error Handling', () => {
     it('displays loading state for provider', () => {
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValueOnce({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValueOnce({
         data: null,
         isPending: true,
         isError: false,
@@ -384,7 +383,7 @@ describe('IntegrationTools Component', () => {
     it('displays error state when provider fails to load', () => {
       const mockError = new Error('Failed to load provider')
       // NOTE: component may re-render due to AlertProvider updates; keep error stable across renders
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: null,
         isPending: false,
         isError: true,
@@ -403,14 +402,16 @@ describe('IntegrationTools Component', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no tools exist', () => {
-      // Mock with empty resources
-      vi.mocked(toolsClient.useQuery).mockReturnValue({
-        data: { resources: [] },
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      })
+      // Mock provider first, then empty tools (useQuery is called for provider then tools)
+      vi.mocked(toolManagerClient.useQuery)
+        .mockReturnValueOnce({
+          ...baseQueryResult,
+          data: mockProvider,
+        } as never)
+        .mockReturnValueOnce({
+          ...baseQueryResult,
+          data: { resources: [] },
+        } as never)
 
       render(<IntegrationTools />, { wrapper })
 
@@ -487,7 +488,7 @@ describe('IntegrationTools Component', () => {
 
   describe('Pagination', () => {
     it('displays pagination controls when next or prev cursors are available', () => {
-      vi.mocked(toolsClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockTools,
           next: 'next-cursor-123',
@@ -515,7 +516,7 @@ describe('IntegrationTools Component', () => {
     it('displays total count when available', () => {
       const toolsWithoutEnabled = mockTools.map((tool) => ({ ...tool, enabled: false }))
 
-      vi.mocked(toolsClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: toolsWithoutEnabled,
           next: 'next-cursor',
@@ -539,7 +540,7 @@ describe('IntegrationTools Component', () => {
     })
 
     it('calls onPageChange with next cursor when Next button is clicked', () => {
-      vi.mocked(toolsClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockTools,
           next: 'next-cursor-123',
@@ -563,7 +564,7 @@ describe('IntegrationTools Component', () => {
     })
 
     it('calls onPageChange with prev cursor when Previous button is clicked', () => {
-      vi.mocked(toolsClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockTools,
           next: 'next-cursor',
@@ -587,7 +588,7 @@ describe('IntegrationTools Component', () => {
     })
 
     it('does not display pagination when no cursors are available', () => {
-      vi.mocked(toolsClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockTools,
           next: null,
@@ -626,7 +627,7 @@ describe('IntegrationTools Component', () => {
 
     it('calls refresh mutation when confirmation dialog is confirmed', async () => {
       const mockRefreshMutate = vi.fn()
-      vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
+      vi.mocked(toolManagerClient.useMutation).mockReturnValue({
         mutate: mockRefreshMutate,
         isPending: false,
         isError: false,
@@ -662,7 +663,7 @@ describe('IntegrationTools Component', () => {
 
     it('does not call refresh mutation when confirmation dialog is cancelled', () => {
       const mockRefreshMutate = vi.fn()
-      vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
+      vi.mocked(toolManagerClient.useMutation).mockReturnValue({
         mutate: mockRefreshMutate,
         isPending: false,
         isError: false,
@@ -696,7 +697,7 @@ describe('IntegrationTools Component', () => {
 
     it('calls refresh mutation directly when empty state Refresh tools button is clicked', async () => {
       const mockRefreshMutate = vi.fn()
-      vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
+      vi.mocked(toolManagerClient.useMutation).mockReturnValue({
         mutate: mockRefreshMutate,
         isPending: false,
         isError: false,
@@ -716,7 +717,7 @@ describe('IntegrationTools Component', () => {
       })
 
       // Mock with empty tools
-      vi.mocked(toolsClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: { resources: [] },
         isPending: false,
         isError: false,

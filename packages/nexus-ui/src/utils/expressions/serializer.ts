@@ -45,7 +45,7 @@ export function serializeExpression(expression: Expression): string {
  * @param node - Node to serialize (condition or group)
  * @returns String representation of the node
  */
-export function serializeNode(node: ExpressionNode): string {
+function serializeNode(node: ExpressionNode): string {
   if (node.type === 'condition') {
     return serializeCondition(node)
   }

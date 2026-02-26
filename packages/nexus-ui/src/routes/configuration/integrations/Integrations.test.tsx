@@ -3,14 +3,14 @@ import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { toolProvidersClient } from '../../../client'
+import { toolManagerClient } from '../../../client'
 import { AlertProvider } from '../../../components/alerts'
 
 import Integrations from './Integrations'
 
 // Mock dependencies
 vi.mock('../../../client', () => ({
-  toolProvidersClient: {
+  toolManagerClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
@@ -84,7 +84,7 @@ describe('Integrations Component', () => {
     // Reset mocks before each test
     mockNavigate.mockClear()
 
-    vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+    vi.mocked(toolManagerClient.useQuery).mockReturnValue({
       data: { resources: mockIntegrations },
       isPending: false,
       isError: false,
@@ -92,7 +92,7 @@ describe('Integrations Component', () => {
       refetch: vi.fn(),
     } as never)
 
-    vi.mocked(toolProvidersClient.useMutation).mockReturnValue({
+    vi.mocked(toolManagerClient.useMutation).mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
       isError: false,
@@ -196,7 +196,7 @@ describe('Integrations Component', () => {
 
   describe('Error Handling', () => {
     it('displays loading state', () => {
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValueOnce({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValueOnce({
         data: null,
         isPending: true,
         isError: false,
@@ -213,7 +213,7 @@ describe('Integrations Component', () => {
     it('displays error state', () => {
       const mockError = new Error('Failed to load integrations')
       // NOTE: component may re-render due to AlertProvider updates; keep error stable across renders
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: null,
         isPending: false,
         isError: true,
@@ -232,7 +232,7 @@ describe('Integrations Component', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no integrations exist', () => {
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValueOnce({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValueOnce({
         data: { resources: [] },
         isPending: false,
         isError: false,
@@ -326,7 +326,7 @@ describe('Integrations Component', () => {
 
   describe('Pagination', () => {
     it('displays pagination controls when next or prev cursors are available', () => {
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor-abc',
@@ -351,7 +351,7 @@ describe('Integrations Component', () => {
     })
 
     it('displays total count when available', () => {
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor',
@@ -371,7 +371,7 @@ describe('Integrations Component', () => {
     })
 
     it('enables Previous button when prev cursor is available', () => {
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor',
@@ -391,7 +391,7 @@ describe('Integrations Component', () => {
     })
 
     it('hides pagination when no cursors are available', () => {
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: null,
@@ -411,7 +411,7 @@ describe('Integrations Component', () => {
     })
 
     it('calls onNext when Next page button is clicked', () => {
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor-abc',
@@ -434,7 +434,7 @@ describe('Integrations Component', () => {
     })
 
     it('calls onPrev when Previous page button is clicked', () => {
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: {
           resources: mockIntegrations,
           next: 'next-cursor',
@@ -577,7 +577,7 @@ describe('Integrations Component', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: { resources: mockIntegrations },
         isPending: false,
         isError: false,
@@ -585,7 +585,7 @@ describe('Integrations Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(toolProvidersClient.useMutation).mockImplementation((_method: string, path: string) => {
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method: string, path: string) => {
         if (path.includes('validate')) {
           return { mutate: mockValidateMutate, isPending: false } as never
         }
@@ -614,7 +614,7 @@ describe('Integrations Component', () => {
       const mockValidateMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: { resources: mockIntegrations },
         isPending: false,
         isError: false,
@@ -622,7 +622,7 @@ describe('Integrations Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(toolProvidersClient.useMutation).mockImplementation((_method: string, path: string) => {
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method: string, path: string) => {
         if (path.includes('validate')) {
           return { mutate: mockValidateMutate, isPending: false } as never
         }
@@ -655,7 +655,7 @@ describe('Integrations Component', () => {
     it('shows error alert on validation failure', () => {
       const mockValidateMutate = vi.fn()
 
-      vi.mocked(toolProvidersClient.useMutation).mockImplementation((_method: string, path: string) => {
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method: string, path: string) => {
         if (path.includes('validate')) {
           return { mutate: mockValidateMutate, isPending: false } as never
         }
@@ -709,7 +709,7 @@ describe('Integrations Component', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: { resources: mockIntegrations },
         isPending: false,
         isError: false,
@@ -717,7 +717,7 @@ describe('Integrations Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(toolProvidersClient.useMutation).mockImplementation((method: string) => {
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((method: string) => {
         if (method === 'delete') {
           return { mutate: mockDeleteMutate, isPending: false } as never
         }
@@ -746,7 +746,7 @@ describe('Integrations Component', () => {
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
-      vi.mocked(toolProvidersClient.useQuery).mockReturnValue({
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
         data: { resources: mockIntegrations },
         isPending: false,
         isError: false,
@@ -754,7 +754,7 @@ describe('Integrations Component', () => {
         refetch: mockRefetch,
       } as never)
 
-      vi.mocked(toolProvidersClient.useMutation).mockImplementation((method: string) => {
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((method: string) => {
         if (method === 'delete') {
           return { mutate: mockDeleteMutate, isPending: false } as never
         }
@@ -786,7 +786,7 @@ describe('Integrations Component', () => {
     it('shows error alert on delete failure', () => {
       const mockDeleteMutate = vi.fn()
 
-      vi.mocked(toolProvidersClient.useMutation).mockImplementation((method: string) => {
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((method: string) => {
         if (method === 'delete') {
           return { mutate: mockDeleteMutate, isPending: false } as never
         }

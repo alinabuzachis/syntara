@@ -20,19 +20,16 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage } from '../../../../app/AppPage'
 import { AppPageHeader } from '../../../../app/AppPageHeader'
 import { AppRoute } from '../../../../app/AppRoute'
-import { toolProvidersClient } from '../../../../client'
+import { toolManagerClient } from '../../../../client'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 
 export function IntegrationForm() {
-  const { mutate: createIntegration } = toolProvidersClient.useMutation('post', '/tool_providers')
-  const { mutate: validateIntegration } = toolProvidersClient.useMutation(
+  const { mutate: createIntegration } = toolManagerClient.useMutation('post', '/tool_providers')
+  const { mutate: validateIntegration } = toolManagerClient.useMutation(
     'post',
     '/tool_providers/{provider_id}/validate'
   )
-  const { mutate: refreshTools } = toolProvidersClient.useMutation(
-    'post',
-    '/tool_providers/{provider_id}/refresh_tools'
-  )
+  const { mutate: refreshTools } = toolManagerClient.useMutation('post', '/tool_providers/{provider_id}/refresh_tools')
 
   const { control, handleSubmit, setError } = useForm<ToolProvider>({
     defaultValues: {

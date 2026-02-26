@@ -32,33 +32,6 @@ interface NodeConfig<TFormData = unknown> {
 }
 
 /**
- * Creates a basic node that just calls onSuccess when submitted.
- * Useful for placeholder nodes where the actual logic will be implemented later.
- *
- * @param config - Node configuration
- * @param errorMessage - Custom error message (defaults to "Failed to add {label}")
- */
-export function createBasicNode<TFormData = unknown>(
-  config: NodeConfig<TFormData>,
-  errorMessage?: string
-): NodeTypeDefinition<TFormData> {
-  const defaultErrorMessage = errorMessage || `Failed to add ${config.label}`
-
-  return {
-    ...config,
-    onSubmit: (_data, onSuccess, onError) => {
-      try {
-        // Placeholder submission logic
-        // Actual implementation will be added when form provides proper data structure
-        onSuccess()
-      } catch (error) {
-        onError(error instanceof Error ? error.message : defaultErrorMessage)
-      }
-    },
-  }
-}
-
-/**
  * Creates a node with custom submission logic.
  * Useful for nodes that need to interact with stores or perform complex operations.
  *

@@ -37,7 +37,7 @@ export interface ActionFormData {
   requiresApproval?: boolean
 }
 
-export function useNodeCreation(onSuccess: () => void) {
+function useNodeCreation(onSuccess: () => void) {
   // Use action accessor - component won't re-render when store state changes
   const { addTrigger, addActivity } = useWorkflowStoreActions()
 

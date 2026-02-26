@@ -13,6 +13,7 @@
     "test:nexus-ui": "npm run test --prefix packages/nexus-ui",
     "test:nexus-ui:e2e": "npm run test:e2e --prefix packages/nexus-ui",
     "test:nexus-ui:e2e:ui": "npm run test:e2e:ui --prefix packages/nexus-ui",
+    "knip:nexus-ui": "npm run knip --prefix packages/nexus-ui",
     "clean": "npm run clean --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

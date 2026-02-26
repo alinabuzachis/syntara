@@ -67,17 +67,3 @@ export interface Expression {
   /** Root node of the expression tree, or null if empty */
   root: ExpressionNode | null
 }
-
-/**
- * Type guard to check if a node is an ExpressionGroup
- */
-export function isExpressionGroup(node: ExpressionNode): node is ExpressionGroup {
-  return node.type === 'group'
-}
-
-/**
- * Type guard to check if a node is an ExpressionCondition
- */
-export function isExpressionCondition(node: ExpressionNode): node is ExpressionCondition {
-  return node.type === 'condition'
-}

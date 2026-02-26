@@ -338,12 +338,6 @@ export const selectExecutionId = (state: ExecutionStore) => state.executionId
 export const selectVisualization = (state: ExecutionStore) => state.visualization
 
 /**
- * Select activity state by ID (returns full ActivityState object)
- */
-export const selectActivityState = (activityId: string) => (state: ExecutionStore) =>
-  state.activityStates.get(activityId)
-
-/**
  * Select activity status by ID (returns just the ActivityStatus)
  */
 export const selectActivityStatus = (activityId: string) => (state: ExecutionStore) =>
@@ -358,12 +352,12 @@ export const selectActivityError = (activityId: string) => (state: ExecutionStor
 /**
  * Select all activity states
  */
-export const selectAllActivityStates = (state: ExecutionStore) => state.activityStates
+const selectAllActivityStates = (state: ExecutionStore) => state.activityStates
 
 /**
  * Select all activity errors
  */
-export const selectAllActivityErrors = (state: ExecutionStore) => state.activityErrors
+const selectAllActivityErrors = (state: ExecutionStore) => state.activityErrors
 
 /**
  * Select connection state
@@ -444,31 +438,31 @@ export type ExecutionStoreActionAccessors = ReturnType<typeof useExecutionStoreA
 // ============================================================================
 
 /** Hook to get execution ID (for visualization) */
-export const useExecutionId = () => useExecutionStore(selectExecutionId)
+const useExecutionId = () => useExecutionStore(selectExecutionId)
 
 /** Hook to get visualization data */
-export const useVisualization = () => useExecutionStore(selectVisualization)
+const useVisualization = () => useExecutionStore(selectVisualization)
 
 /** Hook to get all activity states */
-export const useActivityStates = () => useExecutionStore(selectAllActivityStates)
+const useActivityStates = () => useExecutionStore(selectAllActivityStates)
 
 /** Hook to get all activity errors */
-export const useActivityErrors = () => useExecutionStore(selectAllActivityErrors)
+const useActivityErrors = () => useExecutionStore(selectAllActivityErrors)
 
 /** Hook to get WebSocket connection state */
-export const useConnectionState = () => useExecutionStore(selectConnectionState)
+const useConnectionState = () => useExecutionStore(selectConnectionState)
 
 /** Hook to check if execution is complete */
-export const useIsComplete = () => useExecutionStore(selectIsComplete)
+const useIsComplete = () => useExecutionStore(selectIsComplete)
 
 /** Hook to get error state */
-export const useExecutionError = () => useExecutionStore(selectError)
+const useExecutionError = () => useExecutionStore(selectError)
 
 /** Hook to check if execution is loaded */
-export const useIsLoaded = () => useExecutionStore(selectIsLoaded)
+const useIsLoaded = () => useExecutionStore(selectIsLoaded)
 
 /** Hook to get activity status by ID */
-export const useActivityStatus = (activityId: string) => useExecutionStore(selectActivityStatus(activityId))
+const useActivityStatus = (activityId: string) => useExecutionStore(selectActivityStatus(activityId))
 
 /** Hook to get activity error by ID */
-export const useActivityError = (activityId: string) => useExecutionStore(selectActivityError(activityId))
+const useActivityError = (activityId: string) => useExecutionStore(selectActivityError(activityId))

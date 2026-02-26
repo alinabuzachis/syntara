@@ -12,7 +12,7 @@ import type { ActivityStatus } from '../automations/execution/types'
 
 type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
 
-export const statusIcons: Record<ExecutionStatus, React.ComponentType<{ className?: string }>> = {
+const statusIcons: Record<ExecutionStatus, React.ComponentType<{ className?: string }>> = {
   pending: RhUiHourglassIcon,
   running: RhUiSyncIcon,
   paused: RhUiPauseIcon,
@@ -21,7 +21,7 @@ export const statusIcons: Record<ExecutionStatus, React.ComponentType<{ classNam
   cancelled: RhUiWarningIcon,
 }
 
-export const statusColors: Record<ExecutionStatus, string> = {
+const statusColors: Record<ExecutionStatus, string> = {
   pending: 'var(--pf-t--global--color--nonstatus--gray--300)',
   running: 'var(--pf-t--global--color--brand--default)',
   paused: 'var(--pf-t--global--color--status--warning--default)',

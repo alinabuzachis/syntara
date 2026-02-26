@@ -81,7 +81,7 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   )
 }
 
-export function TriggerNodeDetails(
+function TriggerNodeDetails(
   props: Readonly<{
     node: {
       label: string

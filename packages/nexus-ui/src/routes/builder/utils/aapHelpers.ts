@@ -11,7 +11,7 @@ export function parsePositiveInt(value: string, min = 1): number | undefined {
 /**
  * Parse comma-separated credential IDs into an array of positive integers
  */
-export function parseCredentials(value: string): number[] | undefined {
+function parseCredentials(value: string): number[] | undefined {
   const credentials = value
     .split(',')
     .map((id) => Number.parseInt(id.trim(), 10))
@@ -22,7 +22,7 @@ export function parseCredentials(value: string): number[] | undefined {
 /**
  * Parse and validate JSON extra variables
  */
-export function parseExtraVars(value: string): Record<string, unknown> | undefined {
+function parseExtraVars(value: string): Record<string, unknown> | undefined {
   try {
     const parsed = JSON.parse(value)
     return typeof parsed === 'object' && parsed !== null ? parsed : undefined

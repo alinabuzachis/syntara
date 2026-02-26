@@ -11,16 +11,10 @@
  * })
  */
 
-// ============================================================================
 // Channels
-// ============================================================================
-
 export { WebSocketChannel, type WebSocketChannelConfig, type WebSocketChannelId } from './channels'
 
-// ============================================================================
 // Types
-// ============================================================================
-
 export type {
   ConnectionState,
   ChannelState,
@@ -32,34 +26,8 @@ export type {
   SubscriberOptions,
 } from './types'
 
-export { DEFAULT_CONFIG } from './types'
-
-// ============================================================================
 // Hooks (Primary API)
-// ============================================================================
+export { useWebSocket, type UseWebSocketOptions, type UseWebSocketReturn } from './hooks'
 
-export {
-  useWebSocket,
-  useWebSocketState,
-  useIsWebSocketConnected,
-  type UseWebSocketOptions,
-  type UseWebSocketReturn,
-} from './hooks'
-
-// ============================================================================
-// Store (Advanced Usage)
-// ============================================================================
-
-export { useWebSocketStore, selectConnectionState, selectIsConnected, selectError } from './store'
-
-// ============================================================================
 // Utilities
-// ============================================================================
-
-export {
-  getConnectionStateLabel,
-  getConnectionStateColor,
-  isActiveState,
-  isConnectingState,
-  isFailedState,
-} from './utils'
+export { getConnectionStateLabel, getConnectionStateColor } from './utils'

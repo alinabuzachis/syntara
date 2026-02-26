@@ -4,14 +4,14 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { navigate } from 'wouter/use-browser-location'
 
-import { toolProvidersClient } from '../../../../client'
+import { toolManagerClient } from '../../../../client'
 import { AlertProvider } from '../../../../components/alerts'
 
 import { IntegrationForm } from './IntegrationForm'
 
 // Mock dependencies
 vi.mock('../../../../client', () => ({
-  toolProvidersClient: {
+  toolManagerClient: {
     useMutation: vi.fn(),
   },
 }))
@@ -51,7 +51,7 @@ describe('IntegrationForm Component', () => {
     mockNavigate.mockImplementation(navigate)
 
     // Mock the mutation hooks - return different mutate functions for each endpoint
-    vi.mocked(toolProvidersClient.useMutation).mockImplementation(((method: string, endpoint: string) => {
+    vi.mocked(toolManagerClient.useMutation).mockImplementation(((method: string, endpoint: string) => {
       if (endpoint === '/tool_providers') {
         return {
           mutate: mockCreateMutate,

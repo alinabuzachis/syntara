@@ -22,7 +22,7 @@ import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute.tsx'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
-import { toolProvidersClient, toolsClient } from '../../../client'
+import { toolManagerClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
@@ -40,12 +40,12 @@ export default function IntegrationTools() {
   const { showAlert } = useAlerts()
   const [cursor, setCursor] = useState<string | null>(null)
 
-  const integrationQuery = toolProvidersClient.useQuery('get', '/tool_providers/{provider_id}', {
+  const integrationQuery = toolManagerClient.useQuery('get', '/tool_providers/{provider_id}', {
     params: { path: { provider_id } },
   })
   const provider = integrationQuery.data!
   const integrationQueryStatus = useQueryState(integrationQuery, 'Error loading tools')
-  const query = toolsClient.useQuery('get', '/tools', {
+  const query = toolManagerClient.useQuery('get', '/tools', {
     params: {
       query: {
         provider_id: provider_id,
@@ -55,11 +55,8 @@ export default function IntegrationTools() {
       },
     },
   })
-  const { mutateAsync: updateTools } = toolsClient.useMutation('patch', '/tools/bulk_update')
-  const { mutate: refreshTools } = toolProvidersClient.useMutation(
-    'post',
-    '/tool_providers/{provider_id}/refresh_tools'
-  )
+  const { mutateAsync: updateTools } = toolManagerClient.useMutation('patch', '/tools/bulk_update')
+  const { mutate: refreshTools } = toolManagerClient.useMutation('post', '/tool_providers/{provider_id}/refresh_tools')
 
   const handleRefreshTools = () => {
     refreshTools(

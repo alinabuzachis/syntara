@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignoreDependencies": [
+    "@ansible/nexus-contracts",
+    "@playwright/test",
+    "@vitest/browser",
+    "babel-plugin-react-compiler",
+    "prettier"
+  ],
+  "ignoreBinaries": ["vite", "concurrently", "vitest", "playwright", "tsc", "knip"],
+  "exclude": ["unlisted", "types"]
+}

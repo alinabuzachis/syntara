@@ -37,6 +37,3 @@ export function registerAllNodes() {
     console.log(`✓ Registered ${Object.keys(nodeModules).length} node types`)
   }
 }
-
-// Re-export the registry for convenience
-export { NodeRegistry } from '../NodeRegistry'
