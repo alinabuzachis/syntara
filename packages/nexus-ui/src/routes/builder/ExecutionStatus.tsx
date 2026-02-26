@@ -1,21 +1,42 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import { Flex, FlexItem } from '@patternfly/react-core'
-
-import { statusIcons, statusColors } from './executionStatusConstants'
+import { Label } from '@patternfly/react-core'
+import type React from 'react'
+import {
+  RhUiCheckCircleIcon,
+  RhUiCloseCircleIcon,
+  RhUiHourglassIcon,
+  RhUiPauseCircleFillIcon,
+  RhUiStopCircleFillIcon,
+  RhUiSyncIcon,
+} from '@patternfly/react-icons'
 
 type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
 
+const statusMap: Record<ExecutionStatus, 'success' | 'danger' | 'warning' | 'info' | 'custom'> = {
+  pending: 'custom',
+  running: 'custom',
+  paused: 'warning',
+  completed: 'success',
+  failed: 'danger',
+  cancelled: 'custom',
+}
+
+const statusIcons: Record<ExecutionStatus, React.ComponentType<{ className?: string }>> = {
+  pending: RhUiHourglassIcon,
+  running: RhUiSyncIcon,
+  paused: RhUiPauseCircleFillIcon,
+  completed: RhUiCheckCircleIcon,
+  failed: RhUiCloseCircleIcon,
+  cancelled: RhUiStopCircleFillIcon,
+}
+
 export function StatusLabel({ status }: { status: ExecutionStatus }) {
   const IconComponent = statusIcons[status]
-  const color = statusColors[status]
   const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
 
   return (
-    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
-      <FlexItem>
-        <IconComponent style={{ color, fill: color, stroke: color }} />
-      </FlexItem>
-      <FlexItem style={{ color }}>{capitalizedStatus}</FlexItem>
-    </Flex>
+    <Label variant="outline" status={statusMap[status]} icon={<IconComponent />}>
+      {capitalizedStatus}
+    </Label>
   )
 }

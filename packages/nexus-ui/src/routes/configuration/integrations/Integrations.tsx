@@ -2,6 +2,7 @@ import type { ToolProvider } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
+  Label,
   Modal,
   ModalBody,
   ModalFooter,
@@ -39,28 +40,28 @@ import { IntegrationEmptyState } from './IntegrationEmptyState'
 
 type ProviderStatus = 'available' | 'error' | 'validating'
 
+const statusMap: Record<ProviderStatus, 'success' | 'danger' | 'custom'> = {
+  available: 'success',
+  error: 'danger',
+  validating: 'custom',
+}
+
 const statusIcons: Record<ProviderStatus, React.ComponentType<{ className?: string }>> = {
   available: RhUiCheckCircleIcon,
   error: RhUiCloseCircleIcon,
   validating: RhUiSyncIcon,
 }
 
-const statusColors: Record<ProviderStatus, string> = {
-  available: 'var(--pf-t--global--color--status--success--default)',
-  error: 'var(--pf-t--global--color--status--danger--default)',
-  validating: 'var(--pf-t--global--color--status--info--default)',
-}
-
 function StatusLabel({ status }: { status: string }) {
   const providerStatus = status as ProviderStatus
   const Icon = statusIcons[providerStatus] || RhUiCloseCircleIcon
-  const color = statusColors[providerStatus] || 'var(--pf-t--global--color--status--default--default)'
+  const labelStatus = statusMap[providerStatus] || 'custom'
   const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1)
 
   return (
-    <IconLabel icon={<Icon />} color={color}>
+    <Label variant="outline" status={labelStatus} icon={<Icon />}>
       {capitalizedStatus}
-    </IconLabel>
+    </Label>
   )
 }
 
