@@ -11,10 +11,9 @@ npm run test:ui             # Interactive test UI
 # Coverage
 npm run test:coverage       # Generate coverage report
 
-# Browser mode tests (real browser)
-npm run test:browser        # Run browser tests headless
-npm run test:browser:headed # Watch in browser
-npm run test:browser:ui     # Browser tests with Vitest UI
+# Playwright E2E tests (real browser)
+npm run e2e                   # Run E2E tests headless
+npm run e2e:ui                # Run E2E tests with Playwright UI
 ```
 
 ## Coverage Requirements
@@ -50,21 +49,20 @@ The check will **fail the PR** if any changed source file has less than 80% cove
 ## Test File Naming
 
 - **Standard tests**: `*.test.ts`, `*.test.tsx` (uses jsdom)
-- **Browser tests**: `*.browser.test.tsx` (uses Playwright)
+- **E2E tests**: `packages/nexus-ui/e2e/*.spec.ts`
 
-## When to Use Browser Mode
+## When to Use Playwright E2E
 
-Use browser mode (`*.browser.test.tsx`) when testing:
+Use Playwright E2E when testing:
 
-- **Browser APIs**: IntersectionObserver, ResizeObserver, MutationObserver
-- **Canvas/WebGL**: Any rendering that requires canvas context
-- **Layout**: Accurate getBoundingClientRect calculations
-- **Drag & Drop**: Real DataTransfer API behavior
-- **Visual**: Screenshot or visual regression testing
+- **End-to-end flows**: Create/edit/save/delete workflows
+- **Routing**: Multi-page navigation across screens
+- **Integration**: Mock API or real backend behavior
+- **Smoke tests**: Critical paths before releases
 
 **Default to jsdom** for everything else - it's much faster.
 
-**Why?** jsdom simulates browser behavior in Node.js (fast), while browser mode runs tests in real browsers (slower but more accurate). Browser mode eliminates false positives/negatives from simulation gaps. See [Vitest Browser Mode docs](https://vitest.dev/guide/browser/) for details.
+**Why?** jsdom simulates browser behavior in Node.js (fast), while E2E runs in real browsers (slower but more accurate). E2E eliminates cross-page and integration gaps.
 
 ## Industry Best Practices (80% Coverage)
 
@@ -143,12 +141,11 @@ it('should do something', async () => {
 npm run test:coverage  # jsdom tests with coverage report
 ```
 
-**Browser Tests (Selective):**
-Run browser tests only when needed:
+**E2E Tests (Selective):**
+Run E2E tests only when needed:
 
-- Components using IntersectionObserver, ResizeObserver
-- Canvas/WebGL rendering
-- Real layout calculations
+- Multi-step user journeys
+- Integration with the mock API
 - Manual validation before releases
 
 ### Why Not Run Browser Tests on Every Commit?
@@ -161,8 +158,8 @@ Run browser tests only when needed:
 **Coverage:**
 
 - 90%+ of tests work in jsdom
-- Only use browser mode for specific APIs
-- Following `*.browser.test.tsx` naming = few browser tests
+- Keep E2E focused on critical workflows
+- Avoid duplicating component-level jsdom tests
 
 ### CI Workflow
 
@@ -173,37 +170,29 @@ See [.github/workflows/pull-request.yml](../../.github/workflows/pull-request.ym
 
 Coverage reports are generated in CI. View them locally with `npm run test:coverage`.
 
-## Browser Mode Details
+## Playwright E2E Details
 
 ### Configuration
 
-Browser tests use [vitest.browser.config.ts](vitest.browser.config.ts):
+E2E tests use Playwright config in `packages/nexus-ui/playwright.config.ts`:
 
-- **Provider**: Playwright (Chromium)
+- **Browser**: Chromium
 - **Headless**: Yes (by default)
 - **Screenshots**: On failure
-- **Pattern**: `**/*.browser.test.tsx`
+- **Pattern**: `packages/nexus-ui/e2e/*.spec.ts`
 
-### Browser Mode Example
+### Playwright E2E Example
 
 ```typescript
-// Component using IntersectionObserver
-// File: LazyImage.browser.test.tsx
-import { render, screen, waitFor } from '@testing-library/react'
-import { expect, test } from 'vitest'
-import { LazyImage } from './LazyImage'
+// File: packages/nexus-ui/e2e/automations.spec.ts
+import { test, expect } from '@playwright/test'
 
-test('loads image when scrolled into view', async () => {
-  render(<LazyImage src="/image.jpg" alt="Lazy loaded" />)
-
-  const img = screen.getByAltText('Lazy loaded')
-
-  // Scroll element into view - IntersectionObserver needs real browser
-  img.scrollIntoView()
-
-  await waitFor(() => {
-    expect(img).toHaveAttribute('src', '/image.jpg')
-  })
+test('user creates an automation', async ({ page }) => {
+  await page.goto('/automations')
+  await page.getByRole('button', { name: 'Create automation' }).click()
+  await page.getByPlaceholder('Workflow name').fill('Example workflow')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText('Workflow created successfully')).toBeVisible()
 })
 ```
 
@@ -217,11 +206,11 @@ For more examples and guidance, see the [Testing Guidelines in CLAUDE.md](../../
 - Check if file is in `.gitignore`
 - Ensure tests are running: `npm run test:coverage`
 
-### Browser tests timeout
+### E2E tests timeout
 
-- Increase timeout in test: `it('test', { timeout: 10000 })`
+- Increase timeout in test: `test.setTimeout(10000)`
 - Check if element selectors are correct
-- Run headed to debug: `npm run test:browser:headed`
+- Run UI mode to debug: `npm run e2e:ui`
 
 ### Coverage report missing
 
@@ -233,7 +222,6 @@ For more examples and guidance, see the [Testing Guidelines in CLAUDE.md](../../
 
 - [Vitest Documentation](https://vitest.dev/)
 - [Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
-- [Vitest Browser Mode](https://vitest.dev/guide/browser/)
 - [CLAUDE.md Testing Guidelines](../../CLAUDE.md#testing-guidelines)
 
 ## Playwright Integration Tests
@@ -251,7 +239,7 @@ The Playwright config starts:
 Override with:
 
 ```bash
-NEXUS_E2E_PORT=5174 NEXUS_E2E_API_PORT=3301 npm run test:nexus-ui:e2e
+NEXUS_E2E_PORT=5174 NEXUS_E2E_API_PORT=3301 npm run e2e
 ```
 
 ### Selector Strategy (Required)

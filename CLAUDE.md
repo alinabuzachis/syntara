@@ -13,17 +13,15 @@ Claude, you have access to the following skills. Use them when appropriate:
 ```bash
 # Development
 npm start                  # Start all services (UI, mock API)
-npm run start:nexus-ui     # Start UI only
-npm run start:nexus-mock-api # Start mock API only
+npm run start:ui           # Start UI only
+npm run start:mock-api     # Start mock API only
 
 # Testing
-npm test                   # Run all tests
-npm run test:nexus-ui      # Run UI package tests
-npm run test:coverage      # Run tests with coverage report
-npm run test:ui            # Interactive test UI (Vitest UI)
-npm run test:browser       # Run browser mode tests (Playwright)
-npm run test:browser:ui    # Browser tests with Vitest UI
-npm run test:browser:headed # Browser tests visible (not headless)
+npm test                    # Run all tests
+npm run test:ui             # Run UI package tests
+npm run test:coverage       # Run tests with coverage report
+npm run e2e                 # Run e2e playwright tests
+npm run e2e:ui              # Run e2e playwright tests in the playwright  UI
 
 # Run a specific test
 cd packages/nexus-ui
@@ -31,7 +29,7 @@ npm run vitest -- path/to/specific/test.test.ts
 
 # Build
 npm run build              # Build all packages
-npm run build:nexus-ui     # Build UI package
+npm run build:ui           # Build UI package
 npm run gen                # Regenerate API contracts
 
 # Code Quality
@@ -518,55 +516,43 @@ it('increments counter when button clicked', async () => {
 - Use for: Component rendering, user interactions, form validation, hooks, utilities
 - Environment: Simulated DOM via jsdom
 
-**Browser Mode** - Real browser for specific needs:
+**Playwright E2E** - Full workflow tests in real browser:
 
-- File naming: `*.browser.test.tsx`
-- Use for: IntersectionObserver, ResizeObserver, Canvas API, real layout calculations
-- Environment: Chromium via Playwright
+- File naming: `*.spec.ts` under `packages/nexus-ui/e2e`
+- Use for: end-to-end user flows, routing, and integration with mock API
+- Environment: Playwright + Chromium (mock API + UI started by Playwright config)
 - Commands:
-  - `npm run test:browser` - Run headless
-  - `npm run test:browser:headed` - Watch in browser
-  - `npm run test:browser:ui` - Vitest UI
+  - `npm run e2e` - Run headless
+  - `npm run e2e:ui` - Run with Playwright UI
 
-**When to use browser mode:**
+**When to use Playwright E2E:**
 
-- Testing components that use IntersectionObserver, ResizeObserver, MutationObserver
-- Canvas/WebGL rendering
-- Accurate layout/positioning with getBoundingClientRect
-- Real drag-and-drop with DataTransfer API
-- Screenshot/visual regression testing
-- Testing focus management and keyboard navigation that requires real browser behavior
-- Components that rely on CSS-driven behavior (animations, transitions, media queries)
+- Multi-step workflows that cross routes or screens
+- Integration with the mock API or real backend flows
+- Validating full user journeys (create, edit, save, delete)
+- Smoke tests for critical paths before releases
 
 **Default to jsdom** unless you specifically need browser APIs - it's much faster.
 
 **Why the distinction matters:**
 
-- jsdom/happy-dom **simulate** browser behavior in Node.js but can produce false positives/negatives
-- Browser mode runs tests in **real browsers** for accurate, reliable results
-- Trade-off: Browser mode is slower to start but eliminates simulation gaps
-- See [Vitest Browser Mode docs](https://vitest.dev/guide/browser/) and [Why Browser Mode](https://vitest.dev/guide/browser/why.html) for details
+- jsdom/happy-dom **simulate** browser behavior in Node.js and can miss cross-page issues
+- E2E runs in a **real browser** with routing, network, and storage in place
+- Trade-off: E2E is slower but validates full user journeys
 
-**Example - When Browser Mode is Required:**
+**Example - When Playwright E2E is Required:**
 
-```typescript
-// ✅ Use browser mode for IntersectionObserver
-// File: LazyImage.browser.test.tsx
-import { render, screen, waitFor } from '@testing-library/react'
-import { expect, test } from 'vitest'
-import { LazyImage } from './LazyImage'
+```ts
+// ✅ Use Playwright for a multi-step workflow
+// File: packages/nexus-ui/e2e/automations.spec.ts
+import { test, expect } from '@playwright/test'
 
-test('loads image when scrolled into view', async () => {
-  render(<LazyImage src="/image.jpg" alt="Lazy loaded" />)
-
-  const img = screen.getByAltText('Lazy loaded')
-
-  // Scroll element into view - IntersectionObserver needs real browser
-  img.scrollIntoView()
-
-  await waitFor(() => {
-    expect(img).toHaveAttribute('src', '/image.jpg')
-  })
+test('user creates an automation', async ({ page }) => {
+  await page.goto('/automations')
+  await page.getByRole('button', { name: 'Create automation' }).click()
+  await page.getByPlaceholder('Workflow name').fill('Example workflow')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText('Workflow created successfully')).toBeVisible()
 })
 ```
 
@@ -594,7 +580,7 @@ test('increments count on button click', async () => {
 
 ```text
 Does the component use browser-specific APIs?
-├─ Yes → Use browser mode (*.browser.test.tsx)
+├─ Yes → Use Playwright E2E (`packages/nexus-ui/e2e/*.spec.ts`)
 │  └─ Examples: IntersectionObserver, ResizeObserver, Canvas, real layout
 └─ No → Use jsdom (*.test.tsx)
    └─ Examples: Rendering, clicks, state, forms, most user interactions
@@ -706,18 +692,18 @@ describe('Button', () => {
 
 ```bash
 # Build containers
-npm run podman:build                    # Build all containers
-npm run podman:build:nexus-ui           # Build UI container only
-npm run podman:build:nexus-mock-api     # Build mock API container only
+npm run podman:build              # Build all containers
+npm run podman:build:ui           # Build UI container only
+npm run podman:build:mock-api     # Build mock API container only
 
 # Run containers
-npm run podman:run                      # Run all containers
-npm run podman:run:nexus-ui             # Run UI on port 4000
-npm run podman:run:nexus-mock-api       # Run API on port 3000
+npm run podman:run                # Run all containers
+npm run podman:run:ui             # Run UI on port 4000
+npm run podman:run:mock-api       # Run API on port 3000
 
 # Multi-arch builds
-./build-multiarch.sh                    # Build for AMD64 + ARM64
-./build-multiarch.sh push               # Build and push to registry
+./build-multiarch.sh              # Build for AMD64 + ARM64
+./build-multiarch.sh push         # Build and push to registry
 ```
 
 ## Error Handling with RFC 9457 Problem Details

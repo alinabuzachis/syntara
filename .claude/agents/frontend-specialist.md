@@ -127,7 +127,7 @@ Given the project context:
 - **Use PatternFly components** as foundation for new UI components
 - **Place application-specific components** in packages/nexus-ui/src/components/
 - **Follow the component development guidelines** outlined in CLAUDE.md
-- **Run tests before finalizing**: npm test or npm run test:nexus-ui
+- **Run tests before finalizing**: npm test or npm run test:ui
 - **Type check**: cd packages/nexus-ui && npm run tsc
 - **Format code**: npm run format
 

@@ -112,12 +112,12 @@ nexus-ui/
 ```bash
 # Development
 npm start                          # Start all services (UI dev server + mock API)
-npm run start:nexus-ui             # Start UI only
-npm run start:nexus-mock-api       # Start mock API server only
+npm run start:ui                   # Start UI only
+npm run start:mock-api             # Start mock API server only
 
 # Building
 npm run build                      # Build all packages
-npm run build:nexus-ui             # Build UI only
+npm run build:ui                   # Build UI only
 
 # Testing & Linting
 npm test                           # Run all tests (format check + ESLint + TypeScript)
@@ -125,8 +125,8 @@ npm run format                     # Format code with Prettier
 npm run format:check               # Check code formatting
 
 # Playwright integration tests
-npm run test:nexus-ui:e2e          # Run Playwright tests
-npm run test:nexus-ui:e2e:ui       # Run Playwright UI mode
+npm run e2e                        # Run Playwright tests
+npm run e2e:ui                     # Run Playwright UI mode
 
 # E2E environment
 # Tests run against the mock backend by default.
@@ -139,11 +139,11 @@ npm run gen                        # Regenerate TypeScript types from OpenAPI sp
 
 # Deployment
 npm run podman:build               # Build all container images
-npm run podman:build:nexus-ui      # Build UI image only
-npm run podman:build:nexus-mock-api # Build mock API image only
+npm run podman:build:ui            # Build UI image only
+npm run podman:build:mock-api      # Build mock API image only
 npm run podman:run                 # Run all containers (UI on 4000, API on 3000)
-npm run podman:run:nexus-ui        # Run UI container only
-npm run podman:run:nexus-mock-api  # Run mock API container only
+npm run podman:run:ui              # Run UI container only
+npm run podman:run:mock-api        # Run mock API container only
 
 # Multi-architecture builds (AMD64 + ARM64)
 ./build-multiarch.sh               # Build multi-arch images with Podman

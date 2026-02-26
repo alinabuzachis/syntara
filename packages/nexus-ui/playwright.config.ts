@@ -22,7 +22,7 @@ export default defineConfig({
   webServer: useWebServer
     ? [
         {
-          command: 'npm run start:nexus-mock-api',
+          command: 'npm run start:mock-api',
           cwd: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'),
           url: `http://localhost:${apiPort}/api/v1/workflows`,
           reuseExistingServer: !process.env.CI,

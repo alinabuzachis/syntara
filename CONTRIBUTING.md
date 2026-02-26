@@ -159,7 +159,7 @@ The application will be available at:
 npm test
 
 # Run UI package tests
-npm run test:nexus-ui
+npm run test:ui
 
 # Run with coverage
 npm run test:coverage

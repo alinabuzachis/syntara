@@ -179,14 +179,14 @@ npm run start         # Start mock API server
 npm test
 
 # Run specific package tests
-npm run test:nexus-ui
+npm run test:ui
 npm run test:nexus-mock-api
 
 # Run with coverage
 npm run test:coverage
 
-# Interactive test runner
-npm run test:ui
+# End to end tests
+npm run e2e
 ```
 
 ### Writing Tests
