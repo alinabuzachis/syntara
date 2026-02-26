@@ -17,6 +17,7 @@ export default function App() {
         <UnsavedChangesProvider>
           <AppLogin>
             <Compass
+              className="pf-m-no-screen-warning"
               backgroundSrcDark="/src/assets/background.jpg"
               backgroundSrcLight="/src/assets/background.jpg"
               dock={<AppDockedNav />}
