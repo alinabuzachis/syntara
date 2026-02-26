@@ -8,9 +8,23 @@
  * - No support for complex nested property access in values
  * - No support for function calls
  * - Falls back to returning null for unparseable expressions (raw mode)
+ * - **CRITICAL: Variable names cannot contain operator keywords** (startsWith, endsWith, contains, etc.)
+ *   The regex-based parser will incorrectly treat operator keywords inside variable names as the actual operator.
+ *
+ *   Example failure mode:
+ *   ```
+ *   parseExpression('${user.startsWith startsWith "admin"}')
+ *   // Incorrectly parses as: variable="user.", operator="startsWith", value="startsWith \"admin\""
+ *   // Expected: variable="user.startsWith", operator="startsWith", value="\"admin\""
+ *   ```
+ *
+ *   Workarounds:
+ *   - Avoid using operator keywords (startsWith, endsWith, contains, matches, exists, isEmpty, etc.) in variable names
+ *   - Use alternative property names (e.g., `user.startsWithValue` instead of `user.startsWith`)
+ *   - For complex cases, use raw mode (manual expression input) instead of the visual builder
  */
 
-import { generateUUID } from './defaults'
+import { generateUUID, isUnaryOperator, SYMBOL_OPERATORS, WORD_OPERATORS } from './defaults'
 import type { Expression, ExpressionNode, ExpressionCondition, ComparisonOperator } from './types'
 
 /**
@@ -133,27 +147,50 @@ export function parseNode(expr: string): ExpressionNode {
 /**
  * Parse a condition expression
  *
- * @param expr - Condition string like "input.age >= 18"
+ * @param expr - Condition string like "input.age >= 18" or "name contains admin"
  * @returns ExpressionCondition
  * @throws Error if not a valid condition
  */
 function parseCondition(expr: string): ExpressionCondition {
-  // Match: variable operator value
-  // Operators: ==, !=, >=, <=, >, <
-  // Note: Order matters - check >= and <= before > and <
-  const conditionMatch = expr.match(/^(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)$/)
+  // Build regex pattern with all operators
+  // Symbol operators must be checked in order (>= before >, <= before <, != included for backward compatibility)
+  // Word operators can be in any order
+  // Using centralized constants from defaults.ts
+  const symbolOps = SYMBOL_OPERATORS.join('|')
+  const wordOps = WORD_OPERATORS.join('|')
+  const allOps = `${symbolOps}|${wordOps}`
+
+  const conditionMatch = expr.match(new RegExp(`^(.+?)\\s*(${allOps})\\s*(.*)$`))
 
   if (!conditionMatch) {
+    throw new Error(`Invalid condition: ${expr}`)
+  }
+
+  const variable = conditionMatch[1].trim()
+  let operator = conditionMatch[2] as ComparisonOperator
+  const value = conditionMatch[3].trim()
+
+  // Convert negated operators to their positive form + negate flag
+  // This provides backward compatibility while standardizing the UI representation
+  // Old workflows with ${x != y} will parse and display as: x == y with NOT checkbox checked
+  let negate = false
+  if (operator === '!=') {
+    operator = '=='
+    negate = true
+  }
+
+  // Validate that unary operators don't have extra tokens
+  if (isUnaryOperator(operator) && value.length > 0) {
     throw new Error(`Invalid condition: ${expr}`)
   }
 
   return {
     type: 'condition',
     id: generateUUID(),
-    variable: conditionMatch[1].trim(),
-    operator: conditionMatch[2] as ComparisonOperator,
-    value: conditionMatch[3].trim(),
-    negate: false,
+    variable,
+    operator,
+    value,
+    negate,
   }
 }
 

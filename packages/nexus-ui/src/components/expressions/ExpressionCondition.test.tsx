@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -116,26 +116,74 @@ describe('ExpressionCondition', () => {
     expect(onRemove).toHaveBeenCalledTimes(1)
   })
 
-  it('renders all comparison operators', () => {
+  it('renders all 14 operators with semantic grouping in dropdown', () => {
     const condition = createDefaultCondition()
     render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
-    // Check all 6 operators are available with descriptive labels
-    const operators = [
-      '==   equal to',
-      '!=   not equal to',
-      '>   greater than',
-      '<   less than',
-      '>=   greater than or equal to',
-      '<=   less than or equal to',
-    ]
-    const options = screen.getAllByRole('option')
-    expect(options).toHaveLength(6)
+    const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+    expect(operatorSelect).toBeInTheDocument()
 
-    // Verify each operator label is present
-    operators.forEach((label) => {
-      expect(options.some((option) => option.textContent === label)).toBe(true)
-    })
+    // Verify all 14 operators are present (no disabled separators)
+    const options = within(operatorSelect).getAllByRole('option')
+    expect(options).toHaveLength(14) // Only operators, no separators
+
+    // Verify semantic optgroups are present with descriptive labels
+    const optgroups = within(operatorSelect).queryAllByRole('group')
+    expect(optgroups).toHaveLength(4)
+
+    // Verify group labels
+    const groupLabels = optgroups.map((group) => group.getAttribute('label'))
+    expect(groupLabels).toEqual(['Comparison', 'String', 'Existence', 'Length'])
+
+    // Spot check operators from each group
+    const operatorNames = options.map((opt) => opt.textContent)
+    expect(operatorNames).toContain('is equal to') // Comparison
+    expect(operatorNames).toContain('is greater than') // Comparison
+    expect(operatorNames).toContain('contains') // String
+    expect(operatorNames).toContain('exists') // Existence
+    expect(operatorNames).toContain('length is equal to') // Length
+  })
+
+  it('does not include removed negated operators (use NOT checkbox instead)', () => {
+    const condition = createDefaultCondition()
+    render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+    const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+
+    // Verify negated operators are NOT present (use NOT checkbox instead)
+    expect(within(operatorSelect).queryByRole('option', { name: 'is not equal to' })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: 'does not contain' })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: 'does not start with' })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: 'does not end with' })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: 'does not match regex' })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: 'does not exist' })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: 'length is not equal to' })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: 'is not empty' })).not.toBeInTheDocument()
+  })
+
+  it('does not include removed Date/Time operators', () => {
+    const condition = createDefaultCondition()
+    render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+    const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+
+    // Verify Date/Time operators are NOT present
+    expect(within(operatorSelect).queryByRole('option', { name: /is before$/i })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: /is after$/i })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: /is today/i })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: /is in the past/i })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: /is in the future/i })).not.toBeInTheDocument()
+  })
+
+  it('does not include removed Boolean operators', () => {
+    const condition = createDefaultCondition()
+    render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+    const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+
+    // Verify Boolean-specific operators are NOT present
+    expect(within(operatorSelect).queryByRole('option', { name: 'is true' })).not.toBeInTheDocument()
+    expect(within(operatorSelect).queryByRole('option', { name: 'is false' })).not.toBeInTheDocument()
   })
 
   it('shows error state on variable when error prop is true and variable is empty', () => {
@@ -147,7 +195,7 @@ describe('ExpressionCondition', () => {
   })
 
   it('shows error state on value when error prop is true and value is empty', () => {
-    const condition = { ...createDefaultCondition(), value: '' }
+    const condition = { ...createDefaultCondition(), value: '', operator: '==' as const } // Explicitly use binary operator
     render(<ExpressionCondition {...defaultProps} condition={condition} error={true} />)
 
     const valueInputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
@@ -186,7 +234,8 @@ describe('ExpressionCondition', () => {
 
   it('opens value help popover on click', async () => {
     const user = userEvent.setup()
-    render(<ExpressionCondition {...defaultProps} />)
+    const condition = { ...createDefaultCondition(), operator: '==' as const } // Explicitly use binary operator
+    render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
     const helpButton = screen.getByRole('button', { name: 'Value help' })
     await user.click(helpButton)
@@ -202,5 +251,132 @@ describe('ExpressionCondition', () => {
     await user.click(helpButton)
 
     expect(await screen.findByText(/Inverse the logic of this specific condition/)).toBeInTheDocument()
+  })
+
+  describe('Operator Selection', () => {
+    it('changes operator when user selects new option', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const condition = createDefaultCondition()
+
+      render(<ExpressionCondition {...defaultProps} condition={condition} onChange={onChange} />)
+
+      const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+
+      await user.selectOptions(operatorSelect, 'contains')
+
+      expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ operator: 'contains' }))
+    })
+  })
+
+  describe('Value Field Visibility', () => {
+    it('shows value field for binary operators (number category)', () => {
+      const condition = { ...createDefaultCondition(), operator: '==' as const }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      // Value field should be present for binary operators
+      const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(2) // Field and Value
+    })
+
+    it('hides value field for object operators - exists', async () => {
+      const user = userEvent.setup()
+      const condition = { ...createDefaultCondition(), operator: 'exists' as const }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      // Only Field input should be present, not Value
+      const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(1) // Only Field
+
+      // Verify the Value help button is not present
+      expect(screen.queryByRole('button', { name: 'Value help' })).not.toBeInTheDocument()
+    })
+
+    it('hides value field for unary operators - exists with NOT checkbox', () => {
+      const condition = { ...createDefaultCondition(), operator: 'exists' as const, negate: true }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(1) // Only Field (exists is unary, doesn't need value)
+    })
+
+    it('hides value field for object operators - isEmpty', () => {
+      const condition = { ...createDefaultCondition(), operator: 'isEmpty' as const }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(1) // Only Field
+    })
+
+    it('hides value field for unary operators - isEmpty with NOT checkbox', () => {
+      const condition = { ...createDefaultCondition(), operator: 'isEmpty' as const, negate: true }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(1) // Only Field (isEmpty is unary, doesn't need value even with NOT)
+    })
+
+    it('shows value field for string operators', () => {
+      const condition = { ...createDefaultCondition(), operator: 'contains' as const }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      // Value field should be present for binary string operators
+      const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(2) // Field and Value
+    })
+
+    it('shows value field for binary array operators (length)', () => {
+      const condition = { ...createDefaultCondition(), operator: 'lengthEqualTo' as const }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      // Value field should be present for binary array operators
+      const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(2) // Field and Value
+    })
+
+    it('hides value field for unary/existence operators', () => {
+      const condition = { ...createDefaultCondition(), operator: 'isEmpty' as const }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      // Value field should be hidden for unary/existence operators
+      const inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(1) // Only Field
+    })
+
+    it('hides value field when switching to unary operator', async () => {
+      const user = userEvent.setup()
+      const condition = { ...createDefaultCondition(), operator: '==' as const }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      // Initially, value field should be present
+      let inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(2) // Field and Value
+
+      // Switch to unary operator
+      const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+      await user.selectOptions(operatorSelect, 'exists')
+
+      // Value field should be hidden now
+      inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(1) // Only Field
+    })
+
+    it('shows value field when switching from unary to binary operator', async () => {
+      const user = userEvent.setup()
+      const condition = { ...createDefaultCondition(), operator: 'exists' as const }
+      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+
+      // Initially, value field should be hidden
+      let inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(1) // Only Field
+
+      // Switch to binary operator
+      const operatorSelect = screen.getByRole('combobox', { name: 'Comparison operator' })
+      await user.selectOptions(operatorSelect, '==')
+
+      // Value field should be shown now
+      inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
+      expect(inputs).toHaveLength(2) // Field and Value
+    })
   })
 })

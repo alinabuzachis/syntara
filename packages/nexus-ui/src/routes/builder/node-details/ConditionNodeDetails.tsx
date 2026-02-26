@@ -48,7 +48,6 @@ export function ConditionNodeDetails({
       initialData={initialData}
       submitButtonText="Update node"
       onSubmit={handleSubmit}
-      onCancel={onClose}
       onHeaderContentChange={onHeaderContentChange}
     />
   )

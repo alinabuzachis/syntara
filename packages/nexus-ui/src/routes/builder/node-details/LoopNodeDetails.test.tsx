@@ -31,14 +31,16 @@ vi.mock('../../../components/alerts', () => ({
 vi.mock('../node-forms/LogicNodeForm', () => ({
   LogicNodeForm: ({
     onSubmit,
-    onCancel,
     submitButtonText,
+    initialData,
   }: {
     onSubmit: (data: Record<string, unknown>) => void
-    onCancel: () => void
     submitButtonText?: string
+    initialData?: Record<string, unknown>
   }) => (
     <div data-testid="logic-node-form">
+      <span data-testid="initial-type">{initialData?.type as string}</span>
+      <span data-testid="initial-name">{initialData?.name as string}</span>
       <button
         onClick={() =>
           onSubmit({
@@ -50,9 +52,6 @@ vi.mock('../node-forms/LogicNodeForm', () => ({
         data-testid="submit-button"
       >
         {submitButtonText || 'Add node'}
-      </button>
-      <button onClick={onCancel} data-testid="cancel-button">
-        Cancel
       </button>
     </div>
   ),
@@ -128,24 +127,22 @@ describe('LoopNodeDetails Component', () => {
     expect(screen.getByText('Update node')).toBeInTheDocument()
   })
 
-  it('calls onClose when cancel button is clicked', async () => {
-    const user = userEvent.setup()
+  it('passes correct loop type to form initialData', () => {
     const loopData = {
       type: 'loop' as const,
       id: 'loop-1',
-      name: 'Loop',
+      name: 'Test While Loop',
       loop: {
-        type: 'count' as const,
-        count: 5,
+        type: 'while' as const,
+        condition: 'counter < 10',
         do: [],
       },
     }
 
     render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
 
-    await user.click(screen.getByTestId('cancel-button'))
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('initial-type')).toHaveTextContent('while')
+    expect(screen.getByTestId('initial-name')).toHaveTextContent('Test While Loop')
   })
 
   it('shows error and closes when loop data is missing', () => {

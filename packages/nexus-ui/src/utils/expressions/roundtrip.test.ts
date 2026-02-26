@@ -44,6 +44,25 @@ describe('parse/serialize roundtrip', () => {
     expect(output).toBe(input)
   })
 
+  it('converts != to canonical form with NOT operator', () => {
+    // Old workflows using != should parse and serialize to the canonical form
+    const input = '${x != y}'
+    const parsed = parseExpression(input)
+    const output = serializeExpression(parsed)
+
+    // Should convert to canonical form: !(x == y)
+    expect(output).toBe('${!(x == y)}')
+  })
+
+  it('converts != in complex expressions to canonical form', () => {
+    const input = '${user.status != active && user.role != admin}'
+    const parsed = parseExpression(input)
+    const output = serializeExpression(parsed)
+
+    // Should convert both != to canonical form with NOT
+    expect(output).toBe('${(!(user.status == active) && !(user.role == admin))}')
+  })
+
   it('preserves deeply nested expression', () => {
     const input = '${(input.age >= 18 && ((input.score > 50 && input.verified == true) || input.premium == true))}'
     const parsed = parseExpression(input)
@@ -96,14 +115,7 @@ describe('parse/serialize roundtrip', () => {
   })
 
   it('preserves all comparison operators', () => {
-    const expressions = [
-      '${input.a == b}',
-      '${input.a != b}',
-      '${input.a > b}',
-      '${input.a < b}',
-      '${input.a >= b}',
-      '${input.a <= b}',
-    ]
+    const expressions = ['${input.a == b}', '${input.a > b}', '${input.a < b}', '${input.a >= b}', '${input.a <= b}']
 
     expressions.forEach((input) => {
       const parsed = parseExpression(input)

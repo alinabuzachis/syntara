@@ -13,6 +13,16 @@ export function generateUUID(): string {
   return uuidv4()
 }
 
+// Re-export operator utilities from the centralized operators module
+export {
+  SYMBOL_OPERATORS,
+  WORD_OPERATORS,
+  ALL_OPERATORS,
+  OPERATOR_LABELS,
+  OPERATOR_GROUPS,
+  isUnaryOperator,
+} from './operators'
+
 /**
  * Empty expression (no conditions)
  */

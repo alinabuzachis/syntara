@@ -5,6 +5,7 @@
  */
 
 import type { ExpressionNode } from './types'
+import { isUnaryOperator } from './defaults'
 
 /**
  * Validation error for a specific node/field
@@ -47,7 +48,8 @@ export function validateExpression(node: ExpressionNode | null): ValidationError
           message: 'Field is required',
         })
       }
-      if (!node.value.trim()) {
+      // Only validate value for binary operators (unary operators don't need a value)
+      if (!isUnaryOperator(node.operator) && !node.value.trim()) {
         errors.push({
           path,
           field: 'value',

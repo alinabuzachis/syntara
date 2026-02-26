@@ -6,6 +6,7 @@
  */
 
 import type { Expression, ExpressionNode, ExpressionCondition, ExpressionGroup } from './types'
+import { isUnaryOperator } from './defaults'
 
 /**
  * Serialize an expression tree to a template string
@@ -78,14 +79,38 @@ function serializeNode(node: ExpressionNode): string {
  *   negate: true
  * })
  * // Returns: "!(user.status == inactive)"
+ *
+ * @example
+ * serializeCondition({
+ *   type: 'condition',
+ *   variable: 'data',
+ *   operator: 'isEmpty',
+ *   value: '',
+ *   negate: false
+ * })
+ * // Returns: "data isEmpty"
  */
 function serializeCondition(condition: ExpressionCondition): string {
-  // Skip empty conditions (variable or value missing)
-  if (!condition.variable.trim() || !condition.value.trim()) {
+  // Skip if variable is missing
+  if (!condition.variable.trim()) {
     return ''
   }
 
-  const base = `${condition.variable} ${condition.operator} ${condition.value}`
+  // Check if this is a unary operator (using shared helper from defaults.ts)
+  const isUnary = isUnaryOperator(condition.operator)
+
+  // For binary operators, skip if value is missing
+  if (!isUnary && !condition.value.trim()) {
+    return ''
+  }
+
+  // Build the base expression
+  // For unary operators: always ignore value, even if present
+  // For binary operators: include value only if present
+  const base = isUnary
+    ? `${condition.variable} ${condition.operator}`
+    : `${condition.variable} ${condition.operator} ${condition.value}`
+
   return condition.negate ? `!(${base})` : base
 }
 

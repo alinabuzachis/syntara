@@ -163,16 +163,20 @@ describe('ExpressionBuilderCore', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} id="custom-builder-id" />)
 
-    expect(screen.getByRole('group')).toHaveAttribute('id', 'custom-builder-id')
+    // Get the outermost group (ExpressionBuilderCore container)
+    expect(screen.getByRole('group', { name: 'Expression builder' })).toHaveAttribute('id', 'custom-builder-id')
   })
 
   it('renders with aria-labelledby', () => {
     const onChange = vi.fn()
     render(<ExpressionBuilderCore value="" onChange={onChange} aria-labelledby="custom-label" />)
 
-    const group = screen.getByRole('group')
-    expect(group).toHaveAttribute('aria-labelledby', 'custom-label')
-    expect(group).not.toHaveAttribute('aria-label')
+    // Get the outermost group by the custom label
+    const groups = screen.getAllByRole('group')
+    const builderGroup = groups.find((g) => g.hasAttribute('aria-labelledby'))
+    expect(builderGroup).toBeDefined()
+    expect(builderGroup).toHaveAttribute('aria-labelledby', 'custom-label')
+    expect(builderGroup).not.toHaveAttribute('aria-label')
   })
 
   it('renders with default aria-label when no aria-labelledby', () => {

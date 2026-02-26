@@ -86,7 +86,6 @@ export function ConvergeNodeDetails({
       initialData={initialData}
       submitButtonText="Update node"
       onSubmit={handleSubmit}
-      onCancel={onClose}
       onHeaderContentChange={onHeaderContentChange}
     />
   )

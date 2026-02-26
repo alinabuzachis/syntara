@@ -3,6 +3,8 @@
  * Renders a single condition row with variable, operator, value inputs
  */
 
+import { useState, useEffect } from 'react'
+
 import {
   Card,
   CardBody,
@@ -20,19 +22,9 @@ import {
 import { TrashIcon } from '@patternfly/react-icons'
 
 import type { ExpressionCondition as ExpressionConditionType, ComparisonOperator } from '../../utils/expressions/types'
+import { isUnaryOperator, OPERATOR_LABELS, OPERATOR_GROUPS } from '../../utils/expressions/defaults'
 
 import { HelpPopover } from './HelpPopover'
-
-const COMPARISON_OPERATORS: ComparisonOperator[] = ['==', '!=', '>', '<', '>=', '<=']
-
-const OPERATOR_LABELS: Record<ComparisonOperator, string> = {
-  '==': '==   equal to',
-  '!=': '!=   not equal to',
-  '>': '>   greater than',
-  '<': '<   less than',
-  '>=': '>=   greater than or equal to',
-  '<=': '<=   less than or equal to',
-}
 
 const FieldHelp = () => (
   <HelpPopover
@@ -53,8 +45,8 @@ const OperatorHelp = () => (
     headerContent="Operator"
     bodyContent={
       <div>
-        The logical test to apply to your field. Common options include "Equals," "Contains," "Is greater than," or "Is
-        empty."
+        The logical test to apply to your field. Common options include "is equal to," "contains," "is greater than," or
+        "is empty."
       </div>
     }
   />
@@ -103,12 +95,31 @@ interface ExpressionConditionProps {
  * Renders inputs for:
  * - NOT checkbox (optional negation) - in separate row
  * - Variable input (e.g., "input.age")
- * - Operator select (==, !=, >, <, >=, <=)
- * - Value input (e.g., "18")
+ * - Operator select (unified list)
+ * - Value input (e.g., "18") - hidden for unary operators (exists, isEmpty, etc.)
  * - Remove button (if onRemove provided)
  */
 export function ExpressionCondition(props: ExpressionConditionProps) {
   const { condition, onChange, onRemove, error } = props
+
+  // Track the current operator in local state for immediate UI updates
+  const [currentOperator, setCurrentOperator] = useState<ComparisonOperator>(condition.operator)
+
+  // Sync currentOperator with prop changes from parent
+  useEffect(() => {
+    setCurrentOperator(condition.operator)
+  }, [condition.operator])
+
+  // Handle operator change
+  const handleOperatorChange = (_event: unknown, value: string) => {
+    const newOp = value as ComparisonOperator
+    setCurrentOperator(newOp)
+    // Clear value when switching to unary operator (exists, isEmpty don't need values)
+    onChange({
+      operator: newOp,
+      ...(isUnaryOperator(newOp) && { value: '' }),
+    })
+  }
 
   return (
     <Card style={{ borderRadius: '16px' }}>
@@ -166,30 +177,36 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
             <FormGroup label="Operator" labelHelp={<OperatorHelp />} isRequired fieldId={`operator-${condition.id}`}>
               <FormSelect
                 id={`operator-${condition.id}`}
-                value={condition.operator}
-                onChange={(_event, value) => onChange({ operator: value as ComparisonOperator })}
-                style={{ fontFamily: 'monospace' }}
+                value={currentOperator}
+                onChange={handleOperatorChange}
+                aria-label="Comparison operator"
               >
-                {COMPARISON_OPERATORS.map((op) => (
-                  <FormSelectOption key={op} value={op} label={OPERATOR_LABELS[op]} />
+                {OPERATOR_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.operators.map((op) => (
+                      <FormSelectOption key={op} value={op} label={OPERATOR_LABELS[op]} />
+                    ))}
+                  </optgroup>
                 ))}
               </FormSelect>
             </FormGroup>
           </StackItem>
 
-          {/* Value */}
-          <StackItem>
-            <FormGroup label="Value" labelHelp={<ValueHelp />} isRequired fieldId={`value-${condition.id}`}>
-              <TextInput
-                id={`value-${condition.id}`}
-                value={condition.value}
-                onChange={(_event, value) => onChange({ value })}
-                placeholder="Enter or drag and drop value"
-                style={{ fontFamily: 'monospace', fontSize: 'var(--pf-t--global--font--size--body--sm)' }}
-                validated={error && !condition.value.trim() ? 'error' : 'default'}
-              />
-            </FormGroup>
-          </StackItem>
+          {/* Value (only for binary operators) */}
+          {!isUnaryOperator(currentOperator) && (
+            <StackItem>
+              <FormGroup label="Value" labelHelp={<ValueHelp />} isRequired fieldId={`value-${condition.id}`}>
+                <TextInput
+                  id={`value-${condition.id}`}
+                  value={condition.value}
+                  onChange={(_event, value) => onChange({ value })}
+                  placeholder="Enter or drag and drop value"
+                  style={{ fontFamily: 'monospace', fontSize: 'var(--pf-t--global--font--size--body--sm)' }}
+                  validated={error && !condition.value.trim() ? 'error' : 'default'}
+                />
+              </FormGroup>
+            </StackItem>
+          )}
         </Stack>
       </CardBody>
     </Card>

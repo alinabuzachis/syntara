@@ -11,9 +11,35 @@
 export type LogicalOperator = 'AND' | 'OR'
 
 /**
- * Comparison operators for individual conditions
+ * Data type categories for operator selection
  */
-export type ComparisonOperator = '==' | '!=' | '>' | '<' | '>=' | '<='
+export type OperatorCategory = 'number' | 'string' | 'array' | 'object' | 'boolean' | 'dateTime'
+
+/**
+ * Comparison operators for individual conditions
+ * Note: != is supported for backward compatibility with existing workflows,
+ * but the UI should use the negate property (NOT checkbox) instead.
+ */
+export type ComparisonOperator =
+  // Number operators
+  | '=='
+  | '!=' // Kept for backward compatibility with existing workflows
+  | '>'
+  | '<'
+  | '>='
+  | '<='
+  // String operators
+  | 'contains'
+  | 'startsWith'
+  | 'endsWith'
+  | 'matches'
+  // Common operators (all types)
+  | 'exists'
+  | 'isEmpty'
+  // Array operators
+  | 'lengthEqualTo'
+  | 'lengthGreaterThan'
+  | 'lengthLessThan'
 
 /**
  * A node in the expression tree - either a group or a condition

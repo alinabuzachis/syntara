@@ -50,19 +50,39 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
     itemVariable?: string
   }) => {
     try {
+      // Validate type before casting
+      if (!data.type || (data.type !== 'forEach' && data.type !== 'while')) {
+        throw new Error('Invalid loop type')
+      }
+
+      // Build fresh loop object based on type to avoid stale fields
+      const loopType = data.type as 'forEach' | 'while'
+      const baseLoop = {
+        type: loopType,
+        do: loopData.loop.do,
+      }
+
+      const loop =
+        loopType === 'forEach'
+          ? {
+              ...baseLoop,
+              type: 'forEach' as const,
+              items: data.items ?? '',
+              indexVariable: data.indexVariable,
+              itemVariable: data.itemVariable,
+            }
+          : {
+              ...baseLoop,
+              type: 'while' as const,
+              condition: data.condition ?? '',
+              maxIterations:
+                data.maxIterations !== undefined && !Number.isNaN(data.maxIterations) ? data.maxIterations : undefined,
+            }
+
       const updatedActivity: LoopActivity = {
         ...loopData,
         name: data.name,
-        loop: {
-          ...loopData.loop,
-          type: data.type! as 'forEach' | 'while',
-          ...(data.items && { items: data.items }),
-          ...(data.condition && { condition: data.condition }),
-          ...(data.maxIterations !== undefined &&
-            !Number.isNaN(data.maxIterations) && { maxIterations: data.maxIterations }),
-          ...(data.indexVariable && { indexVariable: data.indexVariable }),
-          ...(data.itemVariable && { itemVariable: data.itemVariable }),
-        },
+        loop,
       }
 
       updateActivity(nodeId, updatedActivity)
@@ -77,7 +97,6 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
       initialData={initialData}
       submitButtonText="Update node"
       onSubmit={handleSubmit}
-      onCancel={onClose}
       onHeaderContentChange={onHeaderContentChange}
     />
   )

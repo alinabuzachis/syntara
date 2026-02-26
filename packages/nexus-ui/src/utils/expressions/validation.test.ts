@@ -91,6 +91,66 @@ describe('validateExpression', () => {
     })
   })
 
+  describe('unary operator validation', () => {
+    it('does not require value for exists operator', () => {
+      const condition = createCondition('user.email', 'exists', '')
+      const errors = validateExpression(condition)
+
+      expect(errors).toEqual([])
+    })
+
+    it('allows unary operators (e.g., "exists") with negate=true to pass validation (no value required)', () => {
+      // When using NOT checkbox with 'exists', it's still a unary operator (no value needed)
+      const condition = { ...createCondition('user.phone', 'exists', ''), negate: true }
+      const errors = validateExpression(condition)
+
+      expect(errors).toEqual([])
+    })
+
+    it('does not require value for isEmpty operator', () => {
+      const condition = createCondition('data', 'isEmpty', '')
+      const errors = validateExpression(condition)
+
+      expect(errors).toEqual([])
+    })
+
+    it('isEmpty with NOT works correctly', () => {
+      // isEmpty with NOT checkbox (equivalent to isNotEmpty) still doesn't need a value
+      const condition = { ...createCondition('data', 'isEmpty', ''), negate: true }
+      const errors = validateExpression(condition)
+
+      expect(errors).toEqual([])
+    })
+
+    it('still requires variable for unary operators', () => {
+      const condition = createCondition('', 'isEmpty', '')
+      const errors = validateExpression(condition)
+
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toEqual({
+        path: [],
+        field: 'variable',
+        message: 'Field is required',
+      })
+    })
+
+    it('validates unary operators in groups', () => {
+      const group = createGroup('AND', [
+        createCondition('data', 'isEmpty', ''), // valid - unary operator
+        createCondition('email', 'exists', ''), // valid - unary operator
+        createCondition('name', 'contains', ''), // invalid - binary operator needs value
+      ])
+      const errors = validateExpression(group)
+
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toEqual({
+        path: ['children', '2'],
+        field: 'value',
+        message: 'Value is required',
+      })
+    })
+  })
+
   describe('group validation errors', () => {
     it('detects empty group with no children', () => {
       const emptyGroup: ExpressionNode = {

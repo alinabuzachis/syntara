@@ -38,11 +38,12 @@ describe('parseExpression', () => {
     expect(condition.value).toBe('active')
   })
 
-  it('parses condition with != operator', () => {
-    const result = parseExpression('${input.status != inactive}')
+  it('parses condition with == operator and NOT', () => {
+    const result = parseExpression('${!(input.status == inactive)}')
     const condition = result.root as ExpressionCondition
 
-    expect(condition.operator).toBe('!=')
+    expect(condition.operator).toBe('==')
+    expect(condition.negate).toBe(true)
   })
 
   it('parses condition with > operator', () => {
@@ -75,6 +76,38 @@ describe('parseExpression', () => {
     expect(condition.operator).toBe('==')
     expect(condition.value).toBe('inactive')
     expect(condition.negate).toBe(true)
+  })
+
+  it('converts != operator to == with negate flag for backward compatibility', () => {
+    const result = parseExpression('${x != y}')
+    const condition = result.root as ExpressionCondition
+
+    expect(condition.type).toBe('condition')
+    expect(condition.variable).toBe('x')
+    expect(condition.operator).toBe('==')
+    expect(condition.value).toBe('y')
+    expect(condition.negate).toBe(true)
+  })
+
+  it('converts != in complex expressions for backward compatibility', () => {
+    const result = parseExpression('${user.status != active && user.role != admin}')
+    const group = result.root as ExpressionGroup
+
+    expect(group.type).toBe('group')
+    expect(group.operator).toBe('AND')
+    expect(group.children).toHaveLength(2)
+
+    const firstChild = group.children[0] as ExpressionCondition
+    expect(firstChild.variable).toBe('user.status')
+    expect(firstChild.operator).toBe('==')
+    expect(firstChild.value).toBe('active')
+    expect(firstChild.negate).toBe(true)
+
+    const secondChild = group.children[1] as ExpressionCondition
+    expect(secondChild.variable).toBe('user.role')
+    expect(secondChild.operator).toBe('==')
+    expect(secondChild.value).toBe('admin')
+    expect(secondChild.negate).toBe(true)
   })
 
   it('parses AND group with two conditions', () => {
@@ -434,5 +467,191 @@ describe('splitByOperator', () => {
   it('splits expression with negated conditions', () => {
     const result = splitByOperator('!(a < b) && !(c == d)', '&&')
     expect(result).toEqual(['!(a < b)', '!(c == d)'])
+  })
+})
+
+describe('parseExpression - new operators', () => {
+  describe('String operators', () => {
+    it('parses contains operator', () => {
+      const result = parseExpression('${name contains "admin"}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.type).toBe('condition')
+      expect(condition.variable).toBe('name')
+      expect(condition.operator).toBe('contains')
+      expect(condition.value).toBe('"admin"')
+      expect(condition.negate).toBe(false)
+    })
+
+    it('parses contains operator with NOT', () => {
+      const result = parseExpression('${!(email contains spam)}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('contains')
+      expect(condition.variable).toBe('email')
+      expect(condition.value).toBe('spam')
+      expect(condition.negate).toBe(true)
+    })
+
+    it('parses startsWith operator', () => {
+      const result = parseExpression('${username startsWith "user_"}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('startsWith')
+      expect(condition.value).toBe('"user_"')
+    })
+
+    it('parses endsWith operator', () => {
+      const result = parseExpression('${filename endsWith .txt}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('endsWith')
+      expect(condition.value).toBe('.txt')
+    })
+
+    it('parses matches operator for regex', () => {
+      const result = parseExpression('${code matches ^[A-Z]{3}$}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('matches')
+      expect(condition.value).toBe('^[A-Z]{3}$')
+    })
+  })
+
+  describe('Array operators', () => {
+    it('parses lengthEqualTo operator', () => {
+      const result = parseExpression('${tags lengthEqualTo 5}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.type).toBe('condition')
+      expect(condition.variable).toBe('tags')
+      expect(condition.operator).toBe('lengthEqualTo')
+      expect(condition.value).toBe('5')
+    })
+
+    it('parses lengthEqualTo operator with NOT', () => {
+      const result = parseExpression('${!(items lengthEqualTo 0)}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('lengthEqualTo')
+      expect(condition.negate).toBe(true)
+    })
+
+    it('parses lengthGreaterThan operator', () => {
+      const result = parseExpression('${items lengthGreaterThan 10}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('lengthGreaterThan')
+      expect(condition.variable).toBe('items')
+      expect(condition.value).toBe('10')
+    })
+
+    it('parses lengthLessThan operator', () => {
+      const result = parseExpression('${queue lengthLessThan 100}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('lengthLessThan')
+    })
+
+    it('parses contains operator for arrays', () => {
+      const result = parseExpression('${tags contains urgent}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.type).toBe('condition')
+      expect(condition.variable).toBe('tags')
+      expect(condition.operator).toBe('contains')
+      expect(condition.value).toBe('urgent')
+    })
+  })
+
+  describe('Object operators', () => {
+    it('parses exists operator', () => {
+      const result = parseExpression('${user.email exists}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.type).toBe('condition')
+      expect(condition.variable).toBe('user.email')
+      expect(condition.operator).toBe('exists')
+      expect(condition.value).toBe('')
+    })
+
+    it('parses exists operator with NOT', () => {
+      const result = parseExpression('${!(data.optional exists)}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('exists')
+      expect(condition.negate).toBe(true)
+      expect(condition.value).toBe('')
+    })
+
+    it('parses isEmpty operator', () => {
+      const result = parseExpression('${data isEmpty}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('isEmpty')
+      expect(condition.variable).toBe('data')
+      expect(condition.value).toBe('')
+    })
+
+    it('parses isEmpty operator with NOT', () => {
+      const result = parseExpression('${!(results isEmpty)}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('isEmpty')
+      expect(condition.negate).toBe(true)
+    })
+
+    it('rejects invalid unary form with extra tokens after exists', () => {
+      const result = parseExpression('${user.email exists foo}')
+
+      // Parser should reject invalid unary forms with extra tokens
+      expect(result.root).toBeNull()
+    })
+
+    it('rejects invalid unary form with extra tokens after isEmpty', () => {
+      const result = parseExpression('${data isEmpty bar}')
+
+      // Parser should reject invalid unary forms with extra tokens
+      expect(result.root).toBeNull()
+    })
+
+    it('rejects negated invalid unary form with extra tokens after exists', () => {
+      const result = parseExpression('${!(user.email exists foo)}')
+
+      // Parser should reject invalid unary forms even when negated
+      expect(result.root).toBeNull()
+    })
+
+    it('rejects negated invalid unary form with extra tokens after isEmpty', () => {
+      const result = parseExpression('${!(data isEmpty bar)}')
+
+      // Parser should reject invalid unary forms even when negated
+      expect(result.root).toBeNull()
+    })
+  })
+
+  describe('Mixed operators in groups', () => {
+    it('parses group with old and new operators', () => {
+      const result = parseExpression('${age >= 18 && name contains "user"}')
+
+      const group = result.root as ExpressionGroup
+      expect(group.type).toBe('group')
+      expect(group.operator).toBe('AND')
+      expect(group.children).toHaveLength(2)
+
+      const firstChild = group.children[0] as ExpressionCondition
+      expect(firstChild.operator).toBe('>=')
+
+      const secondChild = group.children[1] as ExpressionCondition
+      expect(secondChild.operator).toBe('contains')
+    })
+
+    it('parses negated condition with new operator', () => {
+      const result = parseExpression('${!(tags contains admin)}')
+      const condition = result.root as ExpressionCondition
+
+      expect(condition.operator).toBe('contains')
+      expect(condition.negate).toBe(true)
+    })
   })
 })

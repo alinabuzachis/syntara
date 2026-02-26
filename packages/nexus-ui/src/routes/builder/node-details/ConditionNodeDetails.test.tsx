@@ -31,19 +31,14 @@ vi.mock('../../../components/alerts', () => ({
 vi.mock('../node-forms/LogicNodeForm', () => ({
   LogicNodeForm: ({
     onSubmit,
-    onCancel,
     submitButtonText,
   }: {
     onSubmit: (data: Record<string, unknown>) => void
-    onCancel: () => void
     submitButtonText?: string
   }) => (
     <div data-testid="logic-node-form">
       <button onClick={() => onSubmit({ name: 'Updated Condition', condition: 'true' })} data-testid="submit-button">
         {submitButtonText || 'Add node'}
-      </button>
-      <button onClick={onCancel} data-testid="cancel-button">
-        Cancel
       </button>
     </div>
   ),
@@ -102,22 +97,6 @@ describe('ConditionNodeDetails Component', () => {
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
 
     expect(screen.getByText('Update node')).toBeInTheDocument()
-  })
-
-  it('calls onClose when cancel button is clicked', async () => {
-    const user = userEvent.setup()
-    const conditionData = {
-      type: 'condition' as const,
-      id: 'condition-1',
-      name: 'Condition',
-      condition: 'test',
-    }
-
-    render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
-
-    await user.click(screen.getByTestId('cancel-button'))
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
   it('shows error when updateActivity throws', async () => {

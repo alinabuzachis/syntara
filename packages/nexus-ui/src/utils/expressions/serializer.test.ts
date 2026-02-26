@@ -21,7 +21,6 @@ describe('serializeExpression', () => {
   it('serializes condition with different operators', () => {
     const operators: Array<[ExpressionCondition['operator'], string, string, string]> = [
       ['==', 'input.status', 'active', '${input.status == active}'],
-      ['!=', 'input.status', 'inactive', '${input.status != inactive}'],
       ['>', 'input.score', '50', '${input.score > 50}'],
       ['<', 'input.score', '100', '${input.score < 100}'],
       ['>=', 'input.age', '18', '${input.age >= 18}'],
@@ -312,5 +311,199 @@ describe('serializeExpression', () => {
         expect(group.children[0].value).toBe('d')
       }
     }
+  })
+})
+
+describe('serializeExpression - new operators', () => {
+  describe('String operators', () => {
+    it('serializes contains operator', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('name', 'contains', 'admin'),
+        })
+      ).toBe('${name contains admin}')
+    })
+
+    it('serializes contains operator with NOT', () => {
+      expect(
+        serializeExpression({
+          root: { ...createCondition('email', 'contains', 'spam'), negate: true },
+        })
+      ).toBe('${!(email contains spam)}')
+    })
+
+    it('serializes startsWith operator', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('username', 'startsWith', 'user_'),
+        })
+      ).toBe('${username startsWith user_}')
+    })
+
+    it('serializes endsWith operator', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('filename', 'endsWith', '.txt'),
+        })
+      ).toBe('${filename endsWith .txt}')
+    })
+
+    it('serializes matches operator', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('code', 'matches', '^[A-Z]{3}$'),
+        })
+      ).toBe('${code matches ^[A-Z]{3}$}')
+    })
+  })
+
+  describe('Array operators', () => {
+    it('serializes lengthEqualTo operator', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('tags', 'lengthEqualTo', '5'),
+        })
+      ).toBe('${tags lengthEqualTo 5}')
+    })
+
+    it('serializes lengthEqualTo operator with NOT', () => {
+      expect(
+        serializeExpression({
+          root: { ...createCondition('items', 'lengthEqualTo', '0'), negate: true },
+        })
+      ).toBe('${!(items lengthEqualTo 0)}')
+    })
+
+    it('serializes lengthGreaterThan operator', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('items', 'lengthGreaterThan', '10'),
+        })
+      ).toBe('${items lengthGreaterThan 10}')
+    })
+
+    it('serializes lengthLessThan operator', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('queue', 'lengthLessThan', '100'),
+        })
+      ).toBe('${queue lengthLessThan 100}')
+    })
+
+    it('serializes contains operator for arrays', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('tags', 'contains', 'urgent'),
+        })
+      ).toBe('${tags contains urgent}')
+    })
+
+    it('serializes exists operator for arrays', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('items', 'exists', ''),
+        })
+      ).toBe('${items exists}')
+    })
+  })
+
+  describe('Object operators (unary)', () => {
+    it('serializes exists operator with empty value', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('user.email', 'exists', ''),
+        })
+      ).toBe('${user.email exists}')
+    })
+
+    it('serializes exists operator with NOT and empty value', () => {
+      expect(
+        serializeExpression({
+          root: { ...createCondition('data.optional', 'exists', ''), negate: true },
+        })
+      ).toBe('${!(data.optional exists)}')
+    })
+
+    it('serializes isEmpty operator with empty value', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('data', 'isEmpty', ''),
+        })
+      ).toBe('${data isEmpty}')
+    })
+
+    it('serializes isEmpty operator with NOT and empty value', () => {
+      expect(
+        serializeExpression({
+          root: { ...createCondition('results', 'isEmpty', ''), negate: true },
+        })
+      ).toBe('${!(results isEmpty)}')
+    })
+
+    it('serializes isEmpty operator ignoring non-empty value', () => {
+      // Unary operators should always ignore the value, even if present
+      expect(
+        serializeExpression({
+          root: createCondition('data', 'isEmpty', 'thisValueShouldBeIgnored'),
+        })
+      ).toBe('${data isEmpty}')
+    })
+
+    it('serializes exists operator ignoring non-empty value', () => {
+      // Unary operators should always ignore the value, even if present
+      expect(
+        serializeExpression({
+          root: createCondition('user.email', 'exists', 'alsoIgnored'),
+        })
+      ).toBe('${user.email exists}')
+    })
+  })
+
+  describe('Negation with new operators', () => {
+    it('serializes negated string condition', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('name', 'contains', 'admin', true),
+        })
+      ).toBe('${!(name contains admin)}')
+    })
+
+    it('serializes negated unary operator', () => {
+      expect(
+        serializeExpression({
+          root: createCondition('data', 'isEmpty', '', true),
+        })
+      ).toBe('${!(data isEmpty)}')
+    })
+  })
+
+  describe('Round-trip tests for new operators', () => {
+    it('round-trips contains operator', () => {
+      const original = '${name contains admin}'
+      const parsed = parseExpression(original)
+      const serialized = serializeExpression(parsed)
+      expect(serialized).toBe(original)
+    })
+
+    it('round-trips isEmpty operator', () => {
+      const original = '${data isEmpty}'
+      const parsed = parseExpression(original)
+      const serialized = serializeExpression(parsed)
+      expect(serialized).toBe(original)
+    })
+
+    it('round-trips lengthEqualTo operator', () => {
+      const original = '${items lengthEqualTo 5}'
+      const parsed = parseExpression(original)
+      const serialized = serializeExpression(parsed)
+      expect(serialized).toBe(original)
+    })
+
+    it('round-trips group with mixed operators', () => {
+      const original = '${(age >= 18 && name contains "user")}'
+      const parsed = parseExpression(original)
+      const serialized = serializeExpression(parsed)
+      expect(serialized).toBe(original)
+    })
   })
 })

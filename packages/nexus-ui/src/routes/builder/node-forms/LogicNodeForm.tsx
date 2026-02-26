@@ -6,7 +6,6 @@ import {
   FormSelectOption,
   HelperText,
   HelperTextItem,
-  Popover,
   MenuToggle,
   Select,
   SelectList,
@@ -16,21 +15,22 @@ import {
   Switch,
   TextInput,
 } from '@patternfly/react-core'
-import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
-import { parseExpression } from '../../../utils/expressions/parser'
-import { hasValidationErrors } from '../../../utils/expressions/validation'
 
 import { timeUnitsToSeconds } from '../utils/timeUtils'
 
-import { ActivityNameField } from './shared/ActivityNameField'
-import { NodeFormContainer } from './shared/NodeFormContainer'
-import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import {
+  ActivityNameField,
+  ConditionalExpressionHelp,
+  conditionValidationRules,
+  NodeFormContainer,
+  NodeFormTabsLayout,
+} from './shared'
 
 /** Converge strategy: when to continue after branches */
 export type ConvergeStrategy = 'all' | 'any'
@@ -93,47 +93,10 @@ const TIMEOUT_ACTION_OPTIONS: Array<{ label: string; value: 'fail' | 'continue';
 
 interface LogicNodeFormProps {
   onSubmit: (data: LogicFormData) => void
-  onCancel: () => void
   submitButtonText?: string
   initialData?: Partial<LogicFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
-
-const ConditionalExpressionHelp = () => (
-  <Popover
-    aria-label="Conditional expression help"
-    headerContent="Conditional expression"
-    bodyContent={
-      <div>
-        <p>
-          <strong>Visual expression builder:</strong> Build conditions visually using a form interface with dropdowns
-          and inputs.
-        </p>
-        <p style={{ marginTop: '8px' }}>
-          <strong>Custom expression:</strong> Write conditions directly as template expressions in the format{' '}
-          <code>{'${variable operator value}'}</code>
-        </p>
-      </div>
-    }
-    triggerAction="click"
-  >
-    <button
-      type="button"
-      aria-label="Conditional expression help"
-      onClick={(e) => e.preventDefault()}
-      style={{
-        background: 'none',
-        border: 'none',
-        padding: 0,
-        cursor: 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-      }}
-    >
-      <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--color--icon--default)' }} />
-    </button>
-  </Popover>
-)
 
 function LogicFormFields({
   submitButtonText,
@@ -165,25 +128,6 @@ function LogicFormFields({
       onHeaderContentChange?.(null)
     }
   }, [nameField, onHeaderContentChange])
-
-  // Shared validation rules for condition fields
-  const conditionValidationRules = {
-    required: 'Condition is required',
-    validate: (value: string | undefined) => {
-      if (!value || !value.trim()) return 'Condition cannot be empty'
-      if (!value.startsWith('${') || !value.endsWith('}')) {
-        return 'Condition must be in format: ${expression}'
-      }
-
-      // Parse and validate the expression tree
-      const parsed = parseExpression(value)
-      if (parsed.root && hasValidationErrors(parsed.root)) {
-        return 'Please fill in all required fields (Field and Value for each condition)'
-      }
-
-      return true
-    },
-  }
 
   const parametersContent = (
     <Stack hasGutter>
@@ -592,15 +536,18 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
   }
 
   const handleSubmit = (data: LogicFormData) => {
-    const timeout =
-      data.logicType === ActivityTypeEnum.CONVERGE && data.timeoutEnabled
-        ? timeUnitsToSeconds(
-            Number(data.timeoutSeconds) || 0,
-            Number(data.timeoutMinutes) || 0,
-            Number(data.timeoutHours) || 0,
-            Number(data.timeoutDays) || 0
-          ) || undefined
-        : undefined
+    // Calculate timeout only if enabled, preserving 0 as valid timeout
+    let timeout: number | undefined
+    if (data.logicType === ActivityTypeEnum.CONVERGE && data.timeoutEnabled) {
+      const calculatedTimeout = timeUnitsToSeconds(
+        Number(data.timeoutSeconds) || 0,
+        Number(data.timeoutMinutes) || 0,
+        Number(data.timeoutHours) || 0,
+        Number(data.timeoutDays) || 0
+      )
+      // timeUnitsToSeconds always returns a number (with default params), including 0
+      timeout = calculatedTimeout
+    }
 
     const cleanedData: LogicFormData = {
       name: data.name,
@@ -623,7 +570,7 @@ export function LogicNodeForm(props: LogicNodeFormProps) {
         data.logicType === ActivityTypeEnum.LOOP && data.type === 'forEach' ? data.indexVariable : undefined,
       itemVariable: data.logicType === ActivityTypeEnum.LOOP && data.type === 'forEach' ? data.itemVariable : undefined,
       timeout,
-      onTimeout: timeout !== undefined ? data.onTimeout : undefined,
+      onTimeout: data.logicType === ActivityTypeEnum.CONVERGE && data.timeoutEnabled ? data.onTimeout : undefined,
       strategy: data.logicType === ActivityTypeEnum.CONVERGE ? data.strategy : undefined,
       requiredPathCount:
         data.logicType === ActivityTypeEnum.CONVERGE && data.strategy === 'any' ? data.requiredPathCount : undefined,
