@@ -14,8 +14,8 @@ This directory contains sample files for testing the AAP (Ansible Automation Pla
 Add the following to your `.env` file:
 
 ```bash
-# AAP Controller URL
-NEXUS_AAP_BASE_URL=https://your-aap-controller.example.com
+# AAP URL
+NEXUS_AAP_BASE_URL=https://your-aap.example.com
 
 # Authentication (choose one method)
 # Option A: Token authentication (recommended)
@@ -213,7 +213,7 @@ The playbook accepts these extra variables:
 
 ```bash
 # Test AAP connectivity
-curl -k https://your-aap-controller.example.com/api/v2/ping \
+curl -k https://your-aap.example.com/api/v2/ping \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -221,11 +221,11 @@ curl -k https://your-aap-controller.example.com/api/v2/ping \
 
 ```bash
 # List all job templates
-curl -k https://your-aap-controller.example.com/api/v2/job_templates/ \
+curl -k https://your-aap.example.com/api/v2/job_templates/ \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Get specific template
-curl -k https://your-aap-controller.example.com/api/v2/job_templates/42/ \
+curl -k https://your-aap.example.com/api/v2/job_templates/42/ \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
