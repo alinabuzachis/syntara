@@ -38,7 +38,7 @@ spec:
     - name: name
       value: pde-docker-build-multi-platform-oci-ta
     - name: bundle
-      value: quay.io/aap-ci/pde-docker-build-multi-platform-oci-ta-bundle@sha256:dcbf3dbb4fd318f5fbd1493e360d4f6f2d453c69968084028a43d591137df7a3
+      value: quay.io/aap-ci/pde-docker-build-multi-platform-oci-ta-bundle@sha256:2a9a9c1fe69dcc0185f26580b778ed4b1f0295eb1b4faf9900dc4990a7c0cd73
     - name: kind
       value: pipeline
     resolver: bundles
