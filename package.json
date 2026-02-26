@@ -11,6 +11,8 @@
     "build:nexus-ui": "npm run build --workspace=packages/nexus-ui",
     "test": "npm run build && concurrently --group npm:test:* npm:format:check -c auto && if [ $? -eq 0 ]; then echo 'All Tests Passed: Success' && exit 0; else echo 'Checks failed: Failure' && exit 1; fi",
     "test:nexus-ui": "npm run test --prefix packages/nexus-ui",
+    "test:nexus-ui:e2e": "npm run test:e2e --prefix packages/nexus-ui",
+    "test:nexus-ui:e2e:ui": "npm run test:e2e:ui --prefix packages/nexus-ui",
     "clean": "npm run clean --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -235,3 +235,46 @@ For more examples and guidance, see the [Testing Guidelines in CLAUDE.md](../../
 - [Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
 - [Vitest Browser Mode](https://vitest.dev/guide/browser/)
 - [CLAUDE.md Testing Guidelines](../../CLAUDE.md#testing-guidelines)
+
+## Playwright Integration Tests
+
+Playwright integration tests live in `packages/nexus-ui/e2e` and exercise full user workflows.
+
+### Environment
+
+Tests run against the mock backend by default.
+The Playwright config starts:
+
+- UI on port `4173`
+- Mock API on port `3300`
+
+Override with:
+
+```bash
+NEXUS_E2E_PORT=5174 NEXUS_E2E_API_PORT=3301 npm run test:nexus-ui:e2e
+```
+
+### Selector Strategy (Required)
+
+- Prefer `getByRole`, `getByLabel`, `getByText`
+- Use `getByPlaceholder` only when no label exists
+- Add `aria-label` to UI elements when a semantic locator is missing
+- Avoid `data-testid` unless absolutely necessary
+- No CSS/XPath selectors in integration tests
+
+### Example Pattern (AAA)
+
+```ts
+test('user creates an automation', async ({ page }) => {
+  // Arrange - Start from the list
+  await page.goto('/automations')
+
+  // Act - Create a workflow
+  await page.getByRole('button', { name: 'Create automation' }).click()
+  await page.getByPlaceholder('Workflow name').fill('Example workflow')
+  await page.getByRole('button', { name: 'Save' }).click()
+
+  // Assert - Saved workflow appears
+  await expect(page.getByText('Workflow created successfully')).toBeVisible()
+})
+```

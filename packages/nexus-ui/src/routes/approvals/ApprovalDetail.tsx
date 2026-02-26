@@ -25,6 +25,7 @@ import { useAlerts } from '../../components/alerts'
 import { CodeBlock } from '../../components/details/CodeBlock'
 import { ErrorState } from '../../components/states/ErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
+import { getDateField } from '../../utils/getDateField'
 
 import { ApprovalStatusBadges } from './approvalUtils'
 
@@ -142,7 +143,7 @@ export default function ApprovalDetail() {
   const automationName = approval?.workflow_context?.workflow_name || 'Automation'
   const automationId = approval?.workflow_context?.workflow_version_id
   const automationLink = automationId ? AppRoute.AutomationBuilder.Edit.replace(':workflowId', automationId) : undefined
-  const createdAt = approval?.createdAt
+  const createdAt = approval ? getDateField(approval as Record<string, unknown>, 'createdAt') : null
   const approvalInitiated = formatDateTime(createdAt)
   const decisionNotes = approval?.decision_notes ?? undefined
   const notesLabel = getNotesLabel(approvalStatus)

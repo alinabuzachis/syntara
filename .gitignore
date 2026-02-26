@@ -33,8 +33,5 @@ dist-ssr
 **/coverage.claude/
 **/coverage/
 
-# Playwright test files and reports
-**/e2e/
-**/playwright-report/
-**/playwright.config.ts
 **/test-results/
+**/playwright-report/

@@ -2,7 +2,7 @@ import { CodeEditor, CodeEditorControl, Language } from '@patternfly/react-code-
 import { Button, Content, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import type { KeyboardEvent } from 'react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 /** Supported code languages for syntax highlighting */
 export type CodeLanguage = 'python' | 'bash' | 'json' | 'plaintext'
@@ -71,7 +71,13 @@ export function ExpandableCodeEditor({
   isDarkTheme = false,
 }: ExpandableCodeEditorProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const editorContainerRef = useRef<HTMLDivElement | null>(null)
   const monacoLanguage = languageMap[language]
+
+  const focusInlineEditor = () => {
+    const textarea = editorContainerRef.current?.querySelector('textarea')
+    textarea?.focus()
+  }
 
   const expandControl = (
     <CodeEditorControl
@@ -84,7 +90,14 @@ export function ExpandableCodeEditor({
 
   return (
     <>
-      <div role="presentation" onKeyDown={stopKeyboardPropagation}>
+      <div
+        ref={editorContainerRef}
+        role="textbox"
+        aria-label={ariaLabel}
+        tabIndex={0}
+        onClick={focusInlineEditor}
+        onKeyDown={stopKeyboardPropagation}
+      >
         <CodeEditor
           code={code}
           onCodeChange={onCodeChange}

@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw'
 import { v4 as uuidv4 } from 'uuid'
 import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
 import type * as WorkflowAPI from '@ansible/nexus-contracts/src/workflow-api.js'
-import type { ToolProvider, WorkflowsResponse, Tool, Execution } from '@ansible/nexus-contracts'
+import type { ToolProvider, WorkflowsResponse, Tool, WorkflowWithVersion } from '@ansible/nexus-contracts'
 import { providers } from './resources/providers'
 import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
@@ -18,6 +18,9 @@ type ToolProvidersResponse = {
 }
 type ExecutionsResponse = WorkflowAPI.paths['/executions']['get']['responses']['200']['content']['application/json']
 type ApprovalsResponse = WorkflowAPI.paths['/approvals']['get']['responses']['200']['content']['application/json']
+type CreateWorkflowBody = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
+type UpdateWorkflowBody =
+  WorkflowAPI.paths['/workflows/{workflow_id}']['patch']['requestBody']['content']['application/json']
 
 const randomCharacters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const randomCharactersLowercase = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -156,6 +159,33 @@ export const handlers = [
     }
     return HttpResponse.json(body)
   }),
+  http.post('/api/v1/workflows', async (req) => {
+    const body = (await req.request.json()) as CreateWorkflowBody
+    const now = new Date().toISOString()
+    const workflowId = uuidv4()
+    const createdWorkflow: WorkflowWithVersion = {
+      id: workflowId,
+      name: body.name ?? 'Untitled workflow',
+      description: body.description ?? body.name ?? 'New workflow',
+      labels: body.labels ?? {},
+      is_enabled: body.is_enabled ?? false,
+      created_at: now,
+      updated_at: now,
+      created_by: 'user-1',
+      updated_by: null,
+      version: {
+        version: 1,
+        schema_version: body.workflow_definition?.schemaVersion ?? '1.0.0',
+        workflow_definition: body.workflow_definition,
+        created_by: 'user-1',
+        created_at: now,
+        change_description: 'Initial version',
+      },
+    }
+
+    workflows.push(createdWorkflow)
+    return HttpResponse.json(createdWorkflow, { status: 201 })
+  }),
 
   http.get('/api/v1/workflows/:workflowId', (request) => {
     const workflowId = request.params.workflowId
@@ -174,6 +204,65 @@ export const handlers = [
       )
     }
     return HttpResponse.json(body)
+  }),
+  http.patch('/api/v1/workflows/:workflowId', async (request) => {
+    const workflowId = request.params.workflowId
+    const workflow = workflows.find((w) => w.id === workflowId)
+    if (!workflow) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/workflow-not-found',
+          title: 'Workflow Not Found',
+          detail: `Workflow with id '${workflowId}' not found`,
+          code: 'WORKFLOW_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/workflows/${workflowId}`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await request.request.json()) as UpdateWorkflowBody
+    const now = new Date().toISOString()
+    const nextVersion = (workflow.version?.version ?? workflow.current_version ?? 1) + 1
+
+    workflow.name = body.name ?? workflow.name
+    workflow.description = body.description ?? workflow.description
+    workflow.is_enabled = body.is_enabled ?? workflow.is_enabled
+    workflow.labels = body.labels ?? workflow.labels
+    workflow.updated_at = now
+    workflow.updated_by = 'user-1'
+    workflow.current_version = nextVersion
+    workflow.version = {
+      version: nextVersion,
+      schema_version: body.workflow_definition?.schemaVersion ?? workflow.version?.schema_version ?? '1.0.0',
+      workflow_definition: body.workflow_definition ?? workflow.version?.workflow_definition,
+      created_by: workflow.updated_by ?? workflow.version?.created_by ?? 'user-1',
+      created_at: now,
+      change_description: 'Updated via mock API',
+    }
+
+    return HttpResponse.json(workflow)
+  }),
+  http.delete('/api/v1/workflows/:workflowId', (request) => {
+    const workflowId = request.params.workflowId
+    const workflowIndex = workflows.findIndex((w) => w.id === workflowId)
+    if (workflowIndex === -1) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/workflow-not-found',
+          title: 'Workflow Not Found',
+          detail: `Workflow with id '${workflowId}' not found`,
+          code: 'WORKFLOW_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/workflows/${workflowId}`,
+        },
+        { status: 404 }
+      )
+    }
+
+    workflows.splice(workflowIndex, 1)
+    return new HttpResponse(null, { status: 204 })
   }),
 
   http.get('/api/v1/executions', ({ request }) => {

@@ -124,6 +124,16 @@ npm test                           # Run all tests (format check + ESLint + Type
 npm run format                     # Format code with Prettier
 npm run format:check               # Check code formatting
 
+# Playwright integration tests
+npm run test:nexus-ui:e2e          # Run Playwright tests
+npm run test:nexus-ui:e2e:ui       # Run Playwright UI mode
+
+# E2E environment
+# Tests run against the mock backend by default.
+# UI runs on port 4173 and mock API on port 3300.
+# Override ports with NEXUS_E2E_PORT and NEXUS_E2E_API_PORT.
+
+
 # API Contracts
 npm run gen                        # Regenerate TypeScript types from OpenAPI specs
 

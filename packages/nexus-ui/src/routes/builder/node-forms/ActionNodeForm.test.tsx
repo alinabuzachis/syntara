@@ -56,7 +56,7 @@ describe('ActionNodeForm', () => {
 
     expect(screen.queryByLabelText(/Action type/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/Language/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Code/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Script code editor/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/URL/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/HTTP Method/i)).not.toBeInTheDocument()
   })
@@ -88,7 +88,7 @@ describe('ActionNodeForm', () => {
     expect(screen.getByLabelText(/URL/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/HTTP Method/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/Language/i)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/Code/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Script code editor/i)).not.toBeInTheDocument()
   })
 
   it('submits API form data', async () => {

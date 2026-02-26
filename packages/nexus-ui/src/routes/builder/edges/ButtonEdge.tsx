@@ -16,6 +16,7 @@ import type { ButtonEdgeProps } from './types'
 export function ButtonEdge(props: ButtonEdgeProps) {
   const { sourceX, sourceY, sourcePosition, style, data, id, source } = props
   const [isDragging, setIsDragging] = useState(false)
+  const [isFocused, setIsFocused] = useState(false)
   const reactFlowInstance = useReactFlow()
 
   // Get the full edge to access the sourceHandle (could be "source", "true", or "false" for condition nodes)
@@ -55,7 +56,7 @@ export function ButtonEdge(props: ButtonEdgeProps) {
   const buttonX = targetX
   const buttonY = targetY
 
-  const handleClick = (event: React.MouseEvent | React.TouchEvent) => {
+  const handleClick = (event: React.SyntheticEvent) => {
     event.stopPropagation()
     if (!isDragging) {
       data?.onButtonClick?.()
@@ -107,6 +108,13 @@ export function ButtonEdge(props: ButtonEdgeProps) {
     event.stopPropagation()
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleClick(event)
+    }
+  }
+
   // When dragging, use inline styles to override CSS that hides button edges during connection
   const draggingStyle = isDragging ? { opacity: 1 } : undefined
 
@@ -154,6 +162,14 @@ export function ButtonEdge(props: ButtonEdgeProps) {
         rx={4}
         onClick={handleClick}
         onMouseDown={handleMouseDown}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        role="button"
+        aria-label="Add connected node"
+        tabIndex={0}
+        stroke={isFocused ? '#60a5fa' : 'none'}
+        strokeWidth={isFocused ? 2 : 0}
         style={{ cursor: 'pointer', pointerEvents: 'all', zIndex: 100 }}
       />
     </>

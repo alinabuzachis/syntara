@@ -54,6 +54,8 @@ export function AddNodePanel(props: AddNodePanelProps) {
   return (
     <CompassPanel
       hasNoPadding
+      role="region"
+      aria-label={panelTitle}
       style={{
         height: '100%',
         maxHeight: '100%',
