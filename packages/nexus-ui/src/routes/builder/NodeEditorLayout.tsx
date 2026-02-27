@@ -164,7 +164,6 @@ export function NodeEditorLayout({
                 <PanelMain style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                   <PanelMainBody
                     style={{
-                      paddingBottom: 'var(--pf-t--global--spacer--xl)',
                       height: '100%',
                       overflowY: 'auto',
                       flex: 1,
