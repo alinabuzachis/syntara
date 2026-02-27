@@ -72,8 +72,18 @@ User clicks "Edit Workflow"
          │
          ▼
 ┌─────────────────────────────────┐
-│  BuilderEdit component calls    │
-│  setWorkflow(apiResponse)       │
+│  BuilderContent calls           │
+│  loadWorkflow(activities)       │
+│  (pure function — returns       │
+│   { activities, edges })        │
+└─────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────┐
+│  BuilderContent calls           │
+│  loadWorkflowWithEdges(         │
+│    flatWorkflow, edges)         │
+│  (atomic store update)          │
 └─────────────────────────────────┘
          │
          ▼
@@ -81,7 +91,8 @@ User clicks "Edit Workflow"
 │  Zustand store updates:         │
 │  • currentWorkflow = {...}      │
 │  • workflowVersion++            │
-│  • edges = computed from flow   │
+│  • edges = generatedEdges       │
+│  • isDirty = false              │
 └─────────────────────────────────┘
          │
          ▼
@@ -249,10 +260,14 @@ interface WorkflowStore {
 ├─────────────────────────────────────────────────────────────────────────────┤
 │   createManualTrigger()        createScriptActivity()                        │
 │   createScheduledTrigger()     createApiActivity()                           │
-│   createEventTrigger()         createConditionActivity()                     │
+│   createEventTrigger()         createAgenticActivity()                       │
+│                                createConditionActivity()                     │
 │                                createLoopActivity()                          │
 │                                createConvergeActivity()                      │
 │                                createConnectorActivity()                     │
+│                                createAAPJobTemplateActivity()                │
+│                                createGenericActivity()                       │
+│                                createApprovalActivity()                      │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -354,7 +369,7 @@ const unsubscribe = useWorkflowStore.subscribe((state) => {
 ### 5. Creating Entities → Factory Functions
 
 ```typescript
-import { createScriptActivity, createManualTrigger } from '../../stores/useWorkflowStore'
+import { createScriptActivity, createManualTrigger } from '../../stores/workflowFactories'
 
 // Clean, type-safe entity creation
 const task = createScriptActivity('task-1', 'Run Script', 'python', 'print("hello")')
@@ -697,6 +712,37 @@ The architecture prioritizes:
 ---
 
 ## Other Zustand Stores
+
+### Execution Store (`useExecutionStore`)
+
+The execution visualization uses a dedicated Zustand store:
+
+```text
+packages/nexus-ui/src/routes/automations/stores/useExecutionStore.ts
+```
+
+| Purpose               | Description                                                     |
+| --------------------- | --------------------------------------------------------------- |
+| Track execution state | Current execution ID, visualization data, completion status     |
+| Activity-level states | Per-activity execution status and error tracking                |
+| WebSocket integration | Connection state, staleness detection, last event ID for replay |
+| Incremental updates   | Apply patches from WebSocket messages to update activity states |
+
+**Key state:**
+
+| Field            | Type                  | Description                                    |
+| ---------------- | --------------------- | ---------------------------------------------- |
+| `executionId`    | `string \| null`      | Currently tracked execution                    |
+| `visualization`  | `object \| null`      | Full visualization snapshot from backend       |
+| `activityStates` | `Map<string, status>` | Per-activity execution status                  |
+| `activityErrors` | `Map<string, string>` | Per-activity error messages                    |
+| `isConnected`    | `boolean`             | WebSocket connection state                     |
+| `isComplete`     | `boolean`             | Whether execution has finished                 |
+| `lastEventId`    | `string \| null`      | Last processed event (for replay on reconnect) |
+
+**Key actions:** `setExecution`, `applyPatch`, `setComplete`, `setConnectionState`, `setActivityExecutions`, `reset`
+
+> 📚 **See [`docs/execution-visualizer-protocol.md`](./execution-visualizer-protocol.md) for the full execution WebSocket protocol.**
 
 ### WebSocket Store (`useWebSocketStore`)
 

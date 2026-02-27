@@ -56,16 +56,18 @@ A utility module for parsing API error responses consistently across the applica
 
 ### Functions
 
-| Function                           | Description                                               |
-| ---------------------------------- | --------------------------------------------------------- |
-| `getErrorMessage(error)`           | Extracts user-friendly message from various error formats |
-| `getErrorStatus(error)`            | Extracts HTTP status code from error                      |
-| `getErrorCode(error)`              | Extracts error code (e.g., `"service_unavailable"`)       |
-| `getErrorTitle(error)`             | Returns human-readable title for error codes              |
-| `isServiceUnavailableError(error)` | Detects 503 errors by status code or error code           |
-| `isAdminConfigurationError(error)` | Detects configuration-related errors                      |
-| `isValidationError(error)`         | Detects 422 validation errors with FastAPI detail arrays  |
-| `getValidationFieldErrors(error)`  | Extracts field-level validation errors for form mapping   |
+| Function                           | Description                                                   |
+| ---------------------------------- | ------------------------------------------------------------- |
+| `getErrorMessage(error)`           | Extracts user-friendly message from various error formats     |
+| `getErrorStatus(error)`            | Extracts HTTP status code from error                          |
+| `getErrorCode(error)`              | Extracts error code (e.g., `"service_unavailable"`)           |
+| `getErrorTitle(error)`             | Returns human-readable title for error codes                  |
+| `isServiceUnavailableError(error)` | Detects 503 errors by status code or error code               |
+| `isAdminConfigurationError(error)` | Detects configuration-related errors                          |
+| `isValidationError(error)`         | Detects 422 validation errors with FastAPI detail arrays      |
+| `getValidationFieldErrors(error)`  | Extracts field-level validation errors for form mapping       |
+| `isRetryableError(error)`          | Detects errors marked as retryable (5xx or `retryable: true`) |
+| `isConflictError(error)`           | Detects 409 conflict errors (e.g., duplicate names)           |
 
 ### Usage Example
 
@@ -103,14 +105,21 @@ Automatically handles query loading, error, and 503 states.
 
 #### Usage
 
+The second argument accepts either a string (shorthand for title) or an options object:
+
 ```tsx
+// Simple usage with title string
 const query = workflowClient.useQuery('get', '/workflows')
 const queryState = useQueryState(query, 'Error loading workflows')
 
 if (queryState) return queryState // Renders appropriate state component
-
-// Render successful data...
 return <WorkflowList data={query.data} />
+
+// With options object (supports retry)
+const queryState = useQueryState(query, {
+  title: 'Error loading workflows',
+  onRetry: () => query.refetch(),
+})
 ```
 
 ### useApiErrorAlert Hook
@@ -323,16 +332,17 @@ packages/
 └── nexus-ui/
     └── src/
         ├── components/
-        │   ├── EmptyStateServiceUnavailable.tsx      # 503 empty state
-        │   ├── EmptyStateServiceUnavailable.test.tsx
         │   └── states/
-        │       ├── useQueryState.tsx     # Query state hook (handles 503)
-        │       └── ErrorState.tsx        # Generic error display
+        │       ├── EmptyStateServiceUnavailable.tsx       # 503 empty state
+        │       ├── EmptyStateServiceUnavailable.test.tsx
+        │       ├── useQueryState.tsx          # Query state hook (handles 503)
+        │       └── ErrorState.tsx             # Generic error display with retry
         ├── hooks/
-        │   ├── useApiErrorAlert.ts       # Deduped error alerts
-        │   └── useMutationErrorHandler.ts # Mutation error handler
+        │   ├── useApiErrorAlert.ts            # Deduped error alerts
+        │   ├── useMutationErrorHandler.ts     # Mutation error handler
+        │   └── useFormMutationErrorHandler.ts # Form-aware mutation error handler
         └── utils/
-            ├── apiErrors.ts              # Error parsing utilities
+            ├── apiErrors.ts                   # Error parsing utilities
             └── apiErrors.test.ts
 ```
 

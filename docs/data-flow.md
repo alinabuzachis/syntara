@@ -63,6 +63,7 @@ flowchart LR
         W[workflow-api.yaml]
         TM[tool_manager/openapi.yaml]
         F[files-api.yaml]
+        A[approvals-api.yaml]
     end
 
     subgraph Gen["Generation Process"]
@@ -74,15 +75,18 @@ flowchart LR
         WT[workflow-api.ts]
         TMT[tool-manager.ts]
         FT[files-api.ts]
+        AT[approvals-api.ts]
     end
 
     W --> Clone
     TM --> Clone
     F --> Clone
+    A --> Clone
     Clone --> OT
     OT --> WT
     OT --> TMT
     OT --> FT
+    OT --> AT
 ```
 
 ### How to Regenerate Types
@@ -112,6 +116,8 @@ packages/nexus-contracts/
     ├── workflow-api.ts    # Generated workflow types
     ├── tool-manager.ts    # Generated tool manager types (unified tools & providers)
     ├── files-api.ts       # Generated files API types
+    ├── approvals-api.ts   # Generated approvals types
+    ├── interfaces.ts      # Shared interfaces and enum constants
     └── index.ts           # Exports all types
 ```
 
@@ -126,7 +132,7 @@ The UI creates API clients using the generated types:
 ```typescript
 // packages/nexus-ui/src/client.tsx
 
-import type { FilesAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ApprovalsAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
@@ -142,16 +148,14 @@ const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({
 })
 export const toolManagerClient = createClient(toolManagerFetchClient)
 
-// Legacy clients for backward compatibility - both use the unified tool manager API
-export const toolsClient = toolManagerClient
-export const toolProvidersClient = toolManagerClient
-
-// Files API client
-const filesFetchClient = createFetchClient<FilesAPI.paths>({
+// Approvals API client
+const approvalsFetchClient = createFetchClient<ApprovalsAPI.paths>({
   baseUrl: '/api/v1/',
 })
-export const filesClient = createClient(filesFetchClient)
+export const approvalsClient = createClient(approvalsFetchClient)
 ```
+
+> **Note:** File uploads use a direct fetch call via the `useFileUploadWithProgress` hook (not a generated client), since `openapi-react-query` doesn't support upload progress tracking.
 
 ### Type Safety Benefits
 
@@ -374,6 +378,16 @@ flowchart TB
 
 Located in `packages/nexus-ui/src/routes/builder/utils/workflowTransform.ts`:
 
+> ⚠️ **Complexity Note**: The actual `flatten()` implementation is significantly more sophisticated than the simplified example below. The production code (~550 lines across `flatten()` and its private helpers) includes:
+>
+> - Three-pass algorithm for converge node handling
+> - Support for partial convergence (not all parallel branches converge)
+> - Backend activity reordering detection
+> - Nested branch activity edge creation
+> - Complex edge tracking for loops, conditions, and approvals
+>
+> The example below shows the conceptual approach. See [`workflow-loading-saving.md`](./workflow-loading-saving.md) for detailed converge node handling documentation.
+
 ```typescript
 /**
  * Converts nested workflow structure to flat representation.
@@ -575,13 +589,27 @@ export function buildNestedConditionStructure(
 /**
  * WorkflowTransform.nest() - Core transformation logic
  *
- * This operation:
- * 1. Reads edges to determine which activities belong in which branches
- * 2. Reconstructs condition.then/else arrays
- * 3. Creates parallel containers for converge nodes
- * 4. Returns nested structure suitable for API
+ * IMPORTANT: This is a 4-step hierarchical nesting process!
+ *
+ * The nest() operation processes structural nodes in this specific order:
+ * Step 1: PARALLEL - Find and wrap outermost parallel groups recursively (lines 349-356)
+ * Step 2: LOOP - Nest loops, which can contain conditions and approvals (lines 360, 614-664)
+ * Step 3: APPROVAL - Nest approvals, which can contain conditions (lines 363, 718-805)
+ * Step 4: CONDITION - Finally nest conditions (lines 368, 810-925)
+ *
+ * This order is critical because:
+ * - Parallel groups must be identified first (they can contain any other structure)
+ * - Loops are nested before approvals/conditions (a loop can contain them)
+ * - Approvals are nested before conditions (an approval can contain conditions)
+ * - Conditions are nested last (they're the innermost structures)
+ *
+ * Each step modifies the activities array and recursively processes nested structures.
+ *
+ * See workflowTransform.ts for the full ~600 line implementation with support for
+ * partial convergence, recursive nesting, and complex edge tracking.
  */
 static nest(flatActivities: Activity[], edges: EdgeConnection[]): Activity[] {
+  // Simplified example of Step 4 (condition nesting):
   const nested: Activity[] = []
 
   for (const activity of flatActivities) {
@@ -608,7 +636,7 @@ static nest(flatActivities: Activity[], edges: EdgeConnection[]): Activity[] {
         }
       })
     }
-    // Handle other types...
+    // Steps 1-3 handle parallel, loop, and approval nesting...
   }
 
   return nested

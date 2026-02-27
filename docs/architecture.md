@@ -196,11 +196,30 @@ Notes:
 
 ### 3. Make a small change (10 min)
 
-Try one of these:
+Let's add a console.log to understand the data flow:
 
-- Add a `console.log` in `BuilderFlow.tsx` when nodes are rendered
-- Change a button label in `BuilderContent.tsx`
-- Add a new route path in `AppRoute.tsx` and see the router pick it up
+**Task**: See what data flows through the workflow builder
+
+1. **Open**: `packages/nexus-ui/src/routes/builder/BuilderFlow.tsx`
+2. **Find**: The `BuilderFlow` function (around line 80)
+3. **Add** this line at the top of the function:
+
+   ```typescript
+   console.log('🔍 BuilderFlow rendered with:', { nodeCount: nodes.length, edgeCount: edges.length })
+   ```
+
+4. **Go to**: <http://localhost:5173/automations> in your browser
+5. **Click** any workflow to open the builder
+6. **Open DevTools** (F12 → Console tab)
+7. **Watch** the console log appear when you interact with the canvas
+8. **Remove** the console.log when done
+
+**Success criteria**: ✅ You see console messages showing node/edge counts in browser DevTools
+
+**Try also** (optional):
+
+- Change the page title in `Automations.tsx` (look for `AppPageHeader`)
+- Add a `console.log` in `BuilderContent.tsx` inside the `useEffect` that loads the workflow
 
 ### 4. Read the workflow builder section below
 
@@ -283,11 +302,11 @@ flowchart LR
   end
 
   subgraph Files["Registration Files"]
-    D[registerTaskNode.ts]
-    E[registerConditionNode.ts]
-    F[registerLoopNode.ts]
-    G[registerJoinNode.ts]
-    H["...more"]
+    D[registerActionNode.ts]
+    E[registerLogicNode.ts]
+    F[registerTriggerNode.ts]
+    G[registerApprovalNode.ts]
+    H["registerAIAgentNode.ts<br/>registerAAPNode.ts<br/>registerGenericNode.ts"]
   end
 
   subgraph Registry["NodeRegistry (singleton)"]
@@ -346,6 +365,8 @@ flowchart LR
 | `app/AppRoute.tsx`        | Route path constants (e.g., `/automations`, `/automation-builder/:workflowId`) |
 | `app/navigationItems.tsx` | Defines nav tree + lazy-loaded route components                                |
 | `app/AppRouter.tsx`       | Maps `navigationItems` into `<Route>` elements                                 |
+
+> **Note**: The `/dashboard` route is defined in `AppRoute.tsx` and appears in navigation, but has no component mounted (placeholder for future implementation).
 
 **Common patterns:**
 
@@ -485,15 +506,13 @@ mutation.mutate({ body: workflowPayload })
 
 ### Available clients
 
-| Client                | Used for                                     |
-| --------------------- | -------------------------------------------- |
-| `workflowClient`      | Workflows, executions                        |
-| `toolManagerClient`   | Tool manager (tools & providers unified API) |
-| `toolsClient`         | Legacy alias for `toolManagerClient`         |
-| `toolProvidersClient` | Legacy alias for `toolManagerClient`         |
-| `filesClient`         | File uploads and management                  |
+| Client              | Base URL                | Used for                                     |
+| ------------------- | ----------------------- | -------------------------------------------- |
+| `workflowClient`    | `/api/v1/`              | Workflows, executions                        |
+| `toolManagerClient` | `/api/v1/tool_manager/` | Tool manager (tools & providers unified API) |
+| `approvalsClient`   | `/api/v1/`              | Approval requests and responses              |
 
-**Note:** `toolsClient` and `toolProvidersClient` are backward compatibility aliases that both point to `toolManagerClient`, which uses the unified `/api/v1/tool_manager/` API endpoints.
+**Note:** File uploads use a direct fetch call via the `useFileUploadWithProgress` hook (not a generated client) since `openapi-react-query` doesn't support upload progress tracking.
 
 ### Where does the backend URL come from?
 
@@ -726,10 +745,8 @@ flowchart TB
   subgraph Load["Load Path (API → Builder)"]
     direction TB
     L1[API Response<br/>nested workflow] --> L2[loadWorkflow.ts]
-    L2 --> L3[WorkflowTransform.flatten]
-    L3 --> L4[generateEdgesFromStructure]
-    L4 --> L5[flattenConditionStructure]
-    L5 --> L6[Zustand Store<br/>flat activities + edges]
+    L2 --> L3["WorkflowTransform.flatten()<br/>extracts activities + generates edges"]
+    L3 --> L6[Zustand Store<br/>flat activities + edges]
   end
 
   subgraph Save["Save Path (Builder → API)"]
@@ -744,8 +761,9 @@ flowchart TB
 ```
 
 - **Load (API → builder)**:
-  - `utils/loadWorkflow.ts` orchestrates loading.
-  - `utils/workflowTransform.ts` flattens nested structures into flat activities and derives the initial edge set.
+  - `utils/loadWorkflow.ts` orchestrates loading. It's a **pure function** that takes `activities: Activity[]` and returns `{ activities, edges }`.
+  - `utils/workflowTransform.ts` `flatten()` handles all the work: extracting nested activities to a flat array and generating edges in a single pass.
+  - `BuilderContent` uses the result with `loadWorkflowWithEdges()` to atomically update the store.
 - **Save (builder → API)**:
   - The builder validates the graph first (`utils/validation/`).
   - `utils/buildNestedStructure.ts` is responsible for building the nested payload for save.
@@ -760,11 +778,10 @@ Central class for bidirectional workflow conversion:
   - Traverses nested structures (condition.then/else, parallel.branches)
   - Extracts all activities into flat array
   - Generates edge connections representing structure
-- `WorkflowTransform.nest(flat)` - Converts Builder format → API format (partial)
-  - Currently only handles condition nodes via `buildNestedConditionStructure()`
-  - Other structures remain flat with edges (sequence/loop/parallel)
-- Symmetric design for easier debugging and validation
-- Handles special cases like parallel wrappers and loop handles
+- `WorkflowTransform.nest(flat, edges)` - Converts Builder format → API format
+  - 4-step hierarchical process: parallel → loop → approval → condition
+  - Full bidirectional support for all container types
+- Handles special cases like parallel wrappers, loop handles, and partial convergence
 
 **Serialization workflow (Save → API):**
 
@@ -777,13 +794,16 @@ Central class for bidirectional workflow conversion:
 
 **Deserialization workflow (API → Edit):**
 
-1. `generateEdgesFromStructure(activities)` - Extracts edges from nested structure
+The `WorkflowTransform.flatten()` method handles the deserialization process:
+
+1. Extracts edges from nested structure
 2. Creates edges from condition nodes to then/else activities
 3. Handles `parallel_for_*` wrappers (creates edges to branches, not wrapper)
-4. `flattenConditionStructure(activities)` - Flattens nested structure
-5. Recursively extracts nested activities to top level
+4. Flattens nested structure recursively
+5. Extracts all nested activities to top level
 6. Leaves condition nodes with empty then/else arrays
-7. Located in `packages/nexus-ui/src/routes/builder/utils/flattenConditionStructure.ts` and `packages/nexus-ui/src/routes/builder/utils/generateEdgesFromStructure.ts`
+
+Located in `packages/nexus-ui/src/routes/builder/utils/workflowTransform.ts`
 
 **Note:** sequence/loop/parallel containers are lossy — after flatten→nest, they become flat tasks with edges. This is acceptable as the semantic meaning (execution order) is preserved.
 

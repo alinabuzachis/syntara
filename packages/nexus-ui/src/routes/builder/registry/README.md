@@ -79,7 +79,7 @@ import { NodeRegistry } from '../NodeRegistry'
 import { MyCustomForm } from '../../node-forms/MyCustomForm'
 import type { MyCustomFormData } from '../../node-forms/MyCustomForm'
 
-export function registerMyNode() {
+export default function registerMyNode() {
   NodeRegistry.register<MyCustomFormData>({
     id: 'my-node',
     label: 'My Custom Node',

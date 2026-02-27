@@ -34,7 +34,7 @@ npm ci
 ### Development Server
 
 ```bash
-# Start all services (framework, UI, mock API)
+# Start all services (UI + mock API)
 npm start
 ```
 
@@ -55,6 +55,21 @@ npm start
 
 - **UI**: http://localhost:5173
 - **Mock API**: http://localhost:3000
+
+The UI loads with demo workflows from the mock API. No backend setup needed for initial exploration!
+
+### Your First Change (5 minutes)
+
+Get familiar with the hot reload workflow:
+
+1. **Open the UI** in your browser: http://localhost:5173
+2. **Navigate to** the Automations page
+3. **Open the code** in your editor: `packages/nexus-ui/src/routes/automations/Automations.tsx`
+4. **Find the `AppPageHeader`** component and change the title text
+5. **Watch it reload** automatically in your browser - no refresh needed!
+6. **Revert the change** - you're ready to start real development
+
+**What's next?** See [docs/architecture.md](docs/architecture.md) → "Your First Day" section for a guided tour.
 
 ### Common Commands
 
@@ -78,13 +93,20 @@ npm run gen
 - Run `npm ci` instead of `npm install`
 - Check that all dependencies are installed correctly
 - Refer to [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines
-- Check out our [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for comprehensive development information
+- Check out [CLAUDE.md](CLAUDE.md) for comprehensive development information
 
 ## Project Documentation
 
 - [Contributing Guidelines](CONTRIBUTING.md)
 - [Developer Guide](DEVELOPER_GUIDE.md)
-- [Architectural Overview](CLAUDE.md)
+- [Architecture Overview](docs/architecture.md)
+- [Data Flow & API Contracts](docs/data-flow.md)
+- [Zustand State Management](docs/zustand-architecture.md)
+- [WebSocket Architecture](docs/websocket-architecture.md)
+- [Workflow Loading & Saving](docs/workflow-loading-saving.md)
+- [Execution Visualizer Protocol](docs/execution-visualizer-protocol.md)
+- [Error Handling](docs/error-handling.md)
+- [Developer Quick Reference](CLAUDE.md)
 
 ## Project Structure
 
@@ -96,6 +118,8 @@ nexus-ui/
 │   ├── nexus-ui/              # Main React 19 application
 │   ├── nexus-contracts/       # OpenAPI TypeScript types
 │   └── nexus-mock-api/        # MSW-based mock API server
+├── docs/                      # Architecture and design documentation
+├── tools/                     # Developer utilities (workflow creator, CI scripts)
 ├── package.json               # Root workspace configuration
 └── Containerfile              # Production deployment
 ```
@@ -111,7 +135,7 @@ nexus-ui/
 
 ```bash
 # Development
-npm start                          # Start all services (UI dev server + mock API)
+npm start                          # Start all services (UI + mock API)
 npm run start:ui                   # Start UI only
 npm run start:mock-api             # Start mock API server only
 
@@ -205,7 +229,6 @@ We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING
 - React 19 with TypeScript
 - Vite build tool
 - PatternFly 6
-- Base UI headless components
 - Wouter (routing)
 - TanStack Query (data fetching)
 - openapi-fetch + openapi-react-query (type-safe API client)

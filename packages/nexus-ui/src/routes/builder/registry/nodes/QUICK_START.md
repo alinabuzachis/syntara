@@ -291,6 +291,6 @@ export default function registerWebhookNode() {
 
 ## Next Steps
 
-- Review existing nodes for patterns and examples
-- Check [IMPROVEMENTS.md](../IMPROVEMENTS.md) for future enhancements
-- Read [CLAUDE.md](/CLAUDE.md) for architectural overview
+- Review existing `register*.ts` files in this directory for patterns and examples
+- Read the [Node Registry README](../README.md) for the full API reference
+- See [docs/architecture.md](/docs/architecture.md) for the broader architectural overview

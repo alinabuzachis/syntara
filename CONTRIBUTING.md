@@ -12,9 +12,60 @@ We're excited that you're interested in contributing to the Nexus UI project. Th
 
 ## Getting Started
 
+### Choose Your Contribution Path
+
+We have two development workflows depending on the size of your change:
+
+#### Quick Fix Path (No Spec Needed)
+
+**Use this for:**
+
+- Bug fixes (typos, styling issues, broken links)
+- Documentation updates
+- Dependency updates
+- Small refactors (< 50 lines changed)
+- UI tweaks and polish
+
+**Workflow:**
+
+1. Create branch: `git checkout -b fix/short-description` or `docs/short-description`
+2. Make your change
+3. Run tests: `npm test`
+4. Commit with conventional commit format: `fix: description` or `docs: description`
+5. Create PR
+
+**No spec, plan, or tasks files needed!**
+
+#### Feature Development Path (Spec Kit Required)
+
+**Use this for:**
+
+- New features
+- Significant refactors
+- Architecture changes
+- Multi-file changes (> 50 lines)
+- Changes requiring design decisions
+
+**Follow the Spec Kit workflow** (see section below)
+
+---
+
 ### Specification-Driven Development with GitHub Spec Kit
 
-This project utilizes [GitHub's Spec Kit](https://github.com/github/spec-kit) for specification-driven development. This aligns our development workflow with the backend repository.
+This project utilizes [GitHub's Spec Kit](https://github.com/github/spec-kit) for **feature development**. This aligns our development workflow with the backend repository.
+
+**When to use Spec Kit:**
+
+- You're adding new functionality
+- Multiple files will be changed
+- You need to make design/architecture decisions
+- The change requires planning and task breakdown
+
+**When NOT to use Spec Kit:**
+
+- Simple bug fixes
+- Documentation updates
+- Trivial changes (see "Quick Fix Path" above)
 
 #### Setup
 
@@ -95,9 +146,9 @@ The application will be available at:
 
 - Create a new branch for each feature or bugfix
 - Branch naming convention:
-  - `feature/short-description`
-  - `bugfix/short-description`
-  - `docs/short-description`
+  - `feature/short-description` — new features
+  - `bugfix/short-description` or `fix/short-description` — bug fixes
+  - `docs/short-description` — documentation updates
 
 ### Making Changes
 
@@ -161,7 +212,8 @@ npm test
 # Run UI package tests
 npm run test:ui
 
-# Run with coverage
+# Run with coverage (from packages/nexus-ui)
+cd packages/nexus-ui
 npm run test:coverage
 ```
 

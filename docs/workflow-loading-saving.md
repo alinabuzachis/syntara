@@ -132,20 +132,27 @@ When a workflow is loaded from the API, it goes through a flattening transformat
 
 ### File: `loadWorkflow.ts`
 
+**Important:** `loadWorkflow` is a **pure function** — it does NOT update the store. It takes nested activities from the API and returns the flat representation. The caller (`BuilderContent`) is responsible for updating the store.
+
 ```typescript
-export function loadWorkflow(apiWorkflow: WorkflowDefinition): LoadedWorkflow {
-  // 1. Flatten the nested structure
-  const { activities, edges } = WorkflowTransform.flatten(apiWorkflow.workflow.activities)
+export function loadWorkflow(activities: Activity[]): LoadWorkflowResult {
+  // 1. Flatten the nested structure and generate edges
+  const { activities: flatActivities, edges } = WorkflowTransform.flatten(activities)
 
-  // 2. Store in workflow store
-  useWorkflowStore.getState().setWorkflow({
-    ...apiWorkflow,
-    workflow: { activities },
-  })
-  useWorkflowStore.getState().setEdges(edges)
+  // 2. Deduplicate edges (handles saved workflows with duplicate edges)
+  const deduplicatedEdges = deduplicateEdges(edges)
 
-  return { activities, edges }
+  return { activities: flatActivities, edges: deduplicatedEdges }
 }
+```
+
+The store is updated by `BuilderContent` using the atomic `loadWorkflowWithEdges()` action:
+
+```typescript
+// In BuilderContent.tsx
+const { activities, edges } = loadWorkflow(workflowDef.workflow.activities)
+const flatWorkflow = { ...workflowDef, workflow: { ...workflowDef.workflow, activities } }
+loadWorkflowWithEdges(flatWorkflow, edges) // Atomic store update
 ```
 
 ### File: `workflowTransform.ts` - `flatten()` method
@@ -316,16 +323,18 @@ When saving, the flat structure with edges is converted back to nested format.
 
 ### File: `buildNestedStructure.ts`
 
-The save process only nests **condition nodes**. Other structures remain flat with edges.
+The `buildNestedConditionStructure()` function is a wrapper that calls `WorkflowTransform.nest()`, which performs a **4-step hierarchical nesting** process:
+
+1. **Parallel** — Find and wrap outermost parallel groups recursively
+2. **Loop** — Nest loops (which can contain conditions and approvals)
+3. **Approval** — Nest approvals (which can contain conditions)
+4. **Condition** — Nest conditions (innermost structures)
+
+This ordering is critical because outer containers must be identified before inner ones. See [`data-flow.md`](./data-flow.md) for the full description of the nesting algorithm.
 
 ```typescript
 export function buildNestedConditionStructure(activities: Activity[], edges: EdgeConnection[]): Activity[] {
-  // For each condition node:
-  // 1. Find edges from 'true' handle
-  // 2. Recursively collect downstream activities → then array
-  // 3. Find edges from 'false' handle
-  // 4. Recursively collect downstream activities → else array
-  // 5. Handle parallel_for_* wrappers (include wrapper, not branches)
+  return WorkflowTransform.nest(activities, edges)
 }
 ```
 
@@ -372,20 +381,17 @@ if (activityToParentParallelMap.has('task-1')) {
 }
 ```
 
-### What Gets Saved (Lossy Transformation)
+### What Gets Saved
 
-| Structure     | Editing (Flat)       | Save (Nested)             | Note                                 |
-| ------------- | -------------------- | ------------------------- | ------------------------------------ |
-| **Condition** | Flat with edges      | Nested `then`/`else`      | ✅ Fully preserved                   |
-| **Loop**      | Flat with empty `do` | Flat with edges           | ⚠️ Lossy - `do` array not rebuilt    |
-| **Parallel**  | Flat with join nodes | `parallel_for_*` wrappers | ⚠️ Lossy - becomes flat after reload |
-| **Sequence**  | Flat with edges      | Flat with edges           | ⚠️ Lossy - not nested                |
+The `WorkflowTransform.nest()` method handles all structural nesting in a 4-step hierarchical process (parallel → loop → approval → condition). The result preserves the full workflow structure for the backend API.
 
-**Note**: The lossy transformation is acceptable because:
-
-- The **semantic meaning** (execution order) is preserved via edges
-- The graph visualization is more important than the API structure
-- Future save operations can improve nesting if needed
+| Structure     | Editing (Flat)       | Save (Nested)             | Note                                          |
+| ------------- | -------------------- | ------------------------- | --------------------------------------------- |
+| **Condition** | Flat with edges      | Nested `then`/`else`      | Fully preserved                               |
+| **Loop**      | Flat with empty `do` | Nested `do` array         | Reconstructed from edges                      |
+| **Parallel**  | Flat with join nodes | `parallel_for_*` wrappers | Reconstructed from converge branches          |
+| **Approval**  | Flat with edges      | Nested branches           | Reconstructed from approved/rejected edges    |
+| **Sequence**  | Flat with edges      | Preserved via edge order  | Semantic meaning preserved through edge order |
 
 ## Special Handle Types
 

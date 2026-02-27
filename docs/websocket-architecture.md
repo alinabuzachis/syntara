@@ -54,7 +54,7 @@ The Nexus backend exposes **separate WebSocket endpoints per channel**:
 | ----------------------------- | ----------------------- | ------------------- |
 | `/ws/example/v1/coffee`       | `handle_coffee()`       | Coffee words demo   |
 | `/ws/example/v1/chat`         | `handle_chat()`         | Bidirectional chat  |
-| `/ws/example/v1/agent-events` | `handle_agent_events()` | Event subscriptions |
+| `/ws/example/v1/agent_events` | `handle_agent_events()` | Event subscriptions |
 | `/ws/example/v1/tokens`       | `on_connect_tokens()`   | Token streaming     |
 
 Each endpoint is defined via AsyncAPI specs (`websocket-*.yaml`) with its own message schemas. The frontend **must** create separate connections because:
@@ -280,40 +280,44 @@ sendRaw({ message: 'Hello' })
 For execution streaming, use the channel builder helper:
 
 ```tsx
-import { buildExecutionChannelPath } from '../lib/websocket'
+import { buildExecutionChannelPath } from '../lib/websocket/channels'
 
-// Build execution channel path with optional replay parameter
-const channelPath = buildExecutionChannelPath('exec-123')
-// Returns: '/ws/workflows/v1/executions/exec-123'
+// Build execution channel config with optional replay parameter
+const channel = buildExecutionChannelPath('exec-123')
+// Returns: { id: 'execution_exec-123', path: '/ws/workflows/v1/executions/exec-123' }
 
-const channelPathWithReplay = buildExecutionChannelPath('exec-123', 'event-456')
-// Returns: '/ws/workflows/v1/executions/exec-123?replay=event-456'
+const channelWithReplay = buildExecutionChannelPath('exec-123', 'event-456')
+// Returns: { id: 'execution_exec-123', path: '/ws/workflows/v1/executions/exec-123?replay=event-456' }
 
-// Use with useWebSocket
-const { isConnected } = useWebSocket(
-  { id: `execution-${executionId}`, path: buildExecutionChannelPath(executionId, lastEventId) },
-  { onMessage: handleExecutionMessage }
-)
+// Use with useWebSocket — pass the returned config directly
+const { isConnected } = useWebSocket(buildExecutionChannelPath(executionId, lastEventId), {
+  onMessage: handleExecutionMessage,
+})
 ```
 
 > 📚 **See [`docs/execution-visualizer-protocol.md`](./execution-visualizer-protocol.md) for the complete execution WebSocket protocol specification.**
 
-### `useWebSocketState(channelId)`
+### Internal Hooks (Not Exported from Public API)
 
-Hook to access connection state with minimal re-renders.
+These hooks exist in `lib/websocket/hooks.ts` but are **not exported** from the public `lib/websocket/index.ts` API. They are used internally by the WebSocket infrastructure.
+
+#### `useWebSocketState(channelId)`
+
+Returns the connection state as a `ConnectionState` string (not an object).
 
 ```tsx
-import { useWebSocketState } from '../lib/websocket'
+import { useWebSocketState } from '../lib/websocket/hooks'
 
-const { connectionState, isConnected, error } = useWebSocketState('chat')
+const connectionState = useWebSocketState('chat')
+// Returns: ConnectionState ('connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'failed')
 ```
 
-### `useIsWebSocketConnected(channelId)`
+#### `useIsWebSocketConnected(channelId)`
 
-Minimal hook that returns only the connection boolean. Use when you only need to know if connected.
+Returns only the connection boolean.
 
 ```tsx
-import { useIsWebSocketConnected } from '../lib/websocket'
+import { useIsWebSocketConnected } from '../lib/websocket/hooks'
 
 const isConnected = useIsWebSocketConnected('chat')
 // Returns: boolean
@@ -321,20 +325,21 @@ const isConnected = useIsWebSocketConnected('chat')
 
 ### Utility Functions
 
+Exported from the public API:
+
 ```tsx
-import {
-  getConnectionStateLabel,
-  getConnectionStateColor,
-  isActiveState,
-  isConnectingState,
-  isFailedState,
-} from '../lib/websocket'
+import { getConnectionStateLabel, getConnectionStateColor } from '../lib/websocket'
 
 // Display helpers
 getConnectionStateLabel('connected') // 'Connected'
 getConnectionStateColor('connected') // 'green'
+```
 
-// State check utilities
+Additional utilities exist in `lib/websocket/utils.ts` (not exported from the public API):
+
+```tsx
+import { isActiveState, isConnectingState, isFailedState } from '../lib/websocket/utils'
+
 isActiveState('connected') // true - checks if state is 'connected'
 isConnectingState('connecting') // true - checks if state is 'connecting' or 'reconnecting'
 isFailedState('failed') // true - checks if state is 'failed'
@@ -342,13 +347,13 @@ isFailedState('failed') // true - checks if state is 'failed'
 
 ### Store (Advanced Usage)
 
-For advanced use cases, access the store directly:
+For advanced use cases, import the store directly (not part of the public API):
 
 ```tsx
-import { useWebSocketStore, selectConnectionState, selectIsConnected, selectError } from '../lib/websocket'
+import { useWebSocketStore, selectConnectionState, selectIsConnected, selectError } from '../lib/websocket/store'
 
 // Actions
-const { connect, disconnect, send, sendRaw, disconnectAll, reset, updateConfig } = useWebSocketStore()
+const { connect, disconnect, send, sendRaw, disconnectAll, reset, updateConfig } = useWebSocketStore.getState()
 
 // State with selectors (minimal re-renders)
 const connectionState = useWebSocketStore(selectConnectionState('chat'))
@@ -366,6 +371,18 @@ useWebSocketStore.getState().updateConfig({
   reconnection: { maxAttempts: 5 },
 })
 ```
+
+### Public API Summary
+
+The `lib/websocket/index.ts` exports only what most consumers need:
+
+| Export                    | Type       | Description                                                        |
+| ------------------------- | ---------- | ------------------------------------------------------------------ |
+| `useWebSocket`            | Hook       | Main hook for all WebSocket needs                                  |
+| `WebSocketChannel`        | Constant   | Predefined channel configurations                                  |
+| `getConnectionStateLabel` | Utility    | Human-readable state labels                                        |
+| `getConnectionStateColor` | Utility    | Color for connection state badges                                  |
+| Types                     | TypeScript | `ConnectionState`, `WebSocketMessage`, `UseWebSocketOptions`, etc. |
 
 ---
 
@@ -427,7 +444,7 @@ Default WebSocket base URL is `ws://localhost:8000`. Override via environment va
 VITE_WS_URL=wss://api.example.com
 ```
 
-> ⚠️ **Important:** WebSocket connections require the real backend server. The mock API (`npm run dev:mock`) does not support WebSocket endpoints. Run the full backend to use WebSocket features.
+> ⚠️ **Important:** WebSocket connections require the real backend server. The mock API (`npm run start:mock-api`) does not support WebSocket endpoints. Run the full backend to use WebSocket features.
 
 ---
 

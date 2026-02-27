@@ -23,7 +23,7 @@ Nexus UI is a React-based application for building and managing complex automati
 
 - **Frontend**: React 19, TypeScript, Wouter
 - **Styling**: PatternFly 6
-- **State Management**: TanStack Query
+- **State Management**: TanStack Query (server state), Zustand (client state)
 - **API Integration**: openapi-fetch, openapi-react-query
 - **Testing**: Vitest, React Testing Library
 - **Build**: Vite, npm workspaces
@@ -65,7 +65,7 @@ npm start
 
 ### Key Architectural Patterns
 
-- Centralized routing in `src/app/AppRoute.tsx`
+- Centralized routing: path constants in `src/app/AppRoute.tsx`, route mapping in `src/app/AppRouter.tsx`
 - Lazy-loaded components
 - Type-safe API calls
 - Automatic memoization via React Compiler
@@ -81,19 +81,23 @@ The `nexus-contracts` package contains auto-generated TypeScript types from the 
 
 ### Updating Contracts
 
+The recommended approach is using the automated gen script (see below). For manual generation with a local backend clone:
+
 ```bash
 cd packages/nexus-contracts
 
-# Generate TypeScript types from OpenAPI schemas
-# Replace /path/to/nexus with your local backend path
-npx openapi-typescript /path/to/nexus/schemas/workflows/workflow-api.yaml \
+# Replace /path/to/nexus with your local backend clone path
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/workflows/workflow-api.yaml \
   --output ./src/workflow-api.ts --default-non-nullable false
 
-npx openapi-typescript /path/to/nexus/schemas/tool_management/tools.yaml \
-  --output ./src/tools.ts --default-non-nullable false
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/tool_manager/openapi.yaml \
+  --output ./src/tool-manager.ts --default-non-nullable false
 
-npx openapi-typescript /path/to/nexus/schemas/tool_management/tool-providers.yaml \
-  --output ./src/tool-providers.ts --default-non-nullable false
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/files/files-api.yaml \
+  --output ./src/files-api.ts --default-non-nullable false
+
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/approvals/approvals-api.yaml \
+  --output ./src/approvals-api.ts --default-non-nullable false
 
 # Copy example workflows to mock API
 cp -r /path/to/nexus/tests/integration/workflow/examples ../nexus-mock-api/src/
@@ -128,11 +132,14 @@ This will:
 
 ### Contract Files
 
-| File                | Source Schema                                 | Description                  |
-| ------------------- | --------------------------------------------- | ---------------------------- |
-| `workflow-api.ts`   | `schemas/workflows/workflow-api.yaml`         | Workflow and execution types |
-| `tools.ts`          | `schemas/tool_management/tools.yaml`          | Tool management types        |
-| `tool-providers.ts` | `schemas/tool_management/tool-providers.yaml` | Tool provider types          |
+| File                | Source Schema                          | Description                                    |
+| ------------------- | -------------------------------------- | ---------------------------------------------- |
+| `workflow-api.ts`   | `schemas/workflows/workflow-api.yaml`  | Workflow and execution types                   |
+| `tool-manager.ts`   | `schemas/tool_manager/openapi.yaml`    | Unified tool & provider management types       |
+| `files-api.ts`      | `schemas/files/files-api.yaml`         | File upload and management types               |
+| `approvals-api.ts`  | `schemas/approvals/approvals-api.yaml` | Approval request and response types            |
+| `tools.ts`          | Legacy (not auto-generated)            | Legacy tool types (kept for compatibility)     |
+| `tool-providers.ts` | Legacy (not auto-generated)            | Legacy provider types (kept for compatibility) |
 
 ## Development Workflow
 
@@ -140,7 +147,8 @@ This will:
 
 - `main`: Stable production branch
 - Feature branches: `feature/descriptive-name`
-- Bugfix branches: `bugfix/descriptive-name`
+- Bug fix branches: `bugfix/descriptive-name` or `fix/descriptive-name`
+- Documentation branches: `docs/descriptive-name`
 
 ### Typical Development Process
 
@@ -178,107 +186,133 @@ npm run start         # Start mock API server
 # Run all tests
 npm test
 
-# Run specific package tests
+# Run UI package tests
 npm run test:ui
-npm run test:nexus-mock-api
 
-# Run with coverage
+# Run with coverage (from packages/nexus-ui)
+cd packages/nexus-ui
 npm run test:coverage
 
-# End to end tests
-npm run e2e
+# Check coverage meets 80% threshold on changed files
+npm run test:coverage:check
+
+# End-to-end tests
+npm run e2e            # Run headless
+npm run e2e:ui         # Run with Playwright UI
+
+# Run a specific test file
+cd packages/nexus-ui
+npm run vitest -- path/to/specific/test.test.ts
 ```
 
 ### Writing Tests
 
-- Use React Testing Library
-- Mock external dependencies
-- Cover edge cases
-- Aim for high coverage
+- Use React Testing Library with `userEvent` for interactions
+- Follow AAA pattern (Arrange-Act-Assert)
+- Mock external dependencies with `vi.fn()` and `vi.mock()`
+- All new/modified code must meet **80% coverage** (lines, statements, functions, branches)
+- Use `*.test.tsx` for jsdom unit tests, `*.spec.ts` under `packages/nexus-ui/e2e/` for Playwright E2E tests
 
 ## Performance Optimization
 
-### Techniques
+The application uses several strategies for performance:
 
-- Use React Compiler
-- Lazy load routes and components
-- Minimize re-renders
-- Use TanStack Query for efficient data fetching
+- **React Compiler** — Automatic memoization, no manual `useMemo`/`useCallback` needed
+- **Lazy-loaded routes** — Each route is loaded on demand via `React.lazy()`
+- **Selective Zustand subscriptions** — Custom hooks ensure components only re-render when their specific data changes (see [docs/zustand-architecture.md](docs/zustand-architecture.md))
+- **TanStack Query caching** — Server data is cached and deduplicated automatically
 
 ### Profiling
 
-- Use React DevTools
-- Analyze bundle size: `npm run build`
-- Check Lighthouse metrics
+- **React DevTools** — Performance tab to identify re-renders
+- **Bundle analysis** — Run `npm run build` and inspect the Vite output
+- **Browser DevTools** — Network tab for API timing, Performance tab for rendering
 
 ## Debugging
 
-### Common Debugging Tools
+### Workflow Builder
 
-- React DevTools
-- Browser Developer Console
-- Vitest debug mode
-- Source map support
+The builder is the most complex part of the codebase. Common debugging approaches:
 
-### Debugging Strategies
+| Symptom                        | Where to look                                                 |
+| ------------------------------ | ------------------------------------------------------------- |
+| Nodes not laying out correctly | `BuilderFlow.tsx` (Dagre layout)                              |
+| Edges duplicating or missing   | `useButtonEdgeMaintenance.ts`                                 |
+| Save payload looks wrong       | `buildNestedStructure.ts` + `workflowTransform.ts`            |
+| Join/parallel drift            | `useEdgeSynchronization.ts`                                   |
+| State not updating             | Check Zustand store actions via `useWorkflowStore.getState()` |
 
-- Use `console.log()` sparingly
-- Leverage TypeScript for type checking
-- Use React DevTools performance tab
-- Check network requests in browser tools
+See [docs/architecture.md](docs/architecture.md) — "Where to look when debugging graph weirdness" for a visual guide.
+
+### General Debugging
+
+- **Zustand state inspection**: Call `useWorkflowStore.getState()` in the browser console
+- **React DevTools**: Inspect component props and state
+- **API responses**: Check the Network tab in browser DevTools; the Vite proxy forwards `/api/*` to the mock API or real backend
+- **TypeScript errors**: Run `cd packages/nexus-ui && npm run tsc` for type-only checks
 
 ## Common Pitfalls
 
-### Dependency Issues
+| Pitfall                                  | Fix                                                                                         |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `npm install` creates inconsistent state | Always use `npm ci`                                                                         |
+| Port 5173 or 3000 already in use         | Kill the existing process or change the port                                                |
+| Broad Zustand subscriptions              | Use custom hooks (`useActivities()`, etc.) instead of `useWorkflowStore()` with no selector |
+| Non-atomic coupled state updates         | Use `batchRemoveNodesAndEdges()` instead of separate calls                                  |
+| String literals for node types           | Use enum constants from `@ansible/nexus-contracts` (e.g., `ActivityTypeEnum.CONDITION`)     |
+| Using display strings in logic           | Compare raw API values, not translated labels                                               |
 
-- Always use `npm ci` instead of `npm install`
-- Keep dependencies updated
-- Check peer dependency conflicts
-
-### Performance Warnings
-
-- Avoid unnecessary re-renders
-- Use memoization carefully
-- Be mindful of bundle size
+See [docs/zustand-architecture.md](docs/zustand-architecture.md) — "Common Pitfalls & Solutions" for detailed examples.
 
 ## Best Practices
 
 ### Code Quality
 
-- Follow TypeScript strict mode
-- Use ESLint and Prettier
-- Write comprehensive tests
+- Follow TypeScript strict mode — avoid `any`
+- Use ESLint and Prettier (`npm run format`)
+- Write comprehensive tests ([80% coverage threshold](docs/zustand-architecture.md))
 - Keep components small and focused
+- Use PatternFly 6 components as the foundation for all UI
 
 ### API Interaction
 
-- Use generated OpenAPI types
-- Handle loading and error states
-- Use TanStack Query hooks
+- Use generated OpenAPI types from `@ansible/nexus-contracts`
+- Handle loading and error states with `useQueryState` and `useMutationErrorHandler`
+- Use TanStack Query hooks (`workflowClient.useQuery`, `workflowClient.useMutation`)
+- See [docs/data-flow.md](docs/data-flow.md) for the complete API integration guide
+- See [docs/error-handling.md](docs/error-handling.md) for error handling patterns
 
 ### State Management
 
-- Prefer local state when possible
-- Use context for global state sparingly
-- Leverage React Query for server state
+| Type                | Technology     | Use case                                             |
+| ------------------- | -------------- | ---------------------------------------------------- |
+| **Server state**    | TanStack Query | All API data (fetching, caching, background updates) |
+| **Workflow state**  | Zustand        | The workflow currently being edited in the builder   |
+| **WebSocket state** | Zustand        | Real-time connection state and messages              |
+| **Local UI state**  | `useState`     | Component-local state (modals, forms, selections)    |
+
+See [docs/zustand-architecture.md](docs/zustand-architecture.md) for the complete Zustand guide and [docs/websocket-architecture.md](docs/websocket-architecture.md) for WebSocket patterns.
 
 ## Troubleshooting
 
-### Common Issues
+| Issue                                   | Solution                                                  |
+| --------------------------------------- | --------------------------------------------------------- |
+| Dependencies out of sync                | `npm ci` from root                                        |
+| Port already in use                     | Check for running processes on 5173 (UI) or 3000 (API)    |
+| TypeScript errors after contract update | Run `npm run gen` then `npm test`                         |
+| WebSocket demo not working              | WebSocket requires the real backend, not the mock API     |
+| Tests failing after node change         | Ensure `register*.ts` files use `export default function` |
 
-- Dependency conflicts
-- Port already in use
-- Build or type errors
+## Further Reading
 
-### Solutions
-
-- `npm ci` to reset dependencies
-- Check Node.js and npm versions
-- Refer to error messages
-- Consult team or open an issue
-
-## Continuous Learning
-
-- Stay updated with React 19 changes
-- Follow project best practices
-- Contribute back to the project
+| Topic                         | Document                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| Architecture overview         | [docs/architecture.md](docs/architecture.md)                                   |
+| API integration & data flow   | [docs/data-flow.md](docs/data-flow.md)                                         |
+| Zustand state management      | [docs/zustand-architecture.md](docs/zustand-architecture.md)                   |
+| WebSocket infrastructure      | [docs/websocket-architecture.md](docs/websocket-architecture.md)               |
+| Execution visualizer protocol | [docs/execution-visualizer-protocol.md](docs/execution-visualizer-protocol.md) |
+| Error handling                | [docs/error-handling.md](docs/error-handling.md)                               |
+| Workflow loading & saving     | [docs/workflow-loading-saving.md](docs/workflow-loading-saving.md)             |
+| Testing guide                 | [packages/nexus-ui/TESTING.md](packages/nexus-ui/TESTING.md)                   |
+| Contributing guidelines       | [CONTRIBUTING.md](CONTRIBUTING.md)                                             |

@@ -8,6 +8,15 @@ Claude, you have access to the following skills. Use them when appropriate:
 
 - See `.claude/skills/pr_review.md` for PR review steps
 
+### Documentation Must Stay in Sync with Code
+
+**CRITICAL: Documentation must always reflect the current state of the codebase.**
+
+- **When adding or changing code**: Review all related documentation (`docs/`, `README.md`, `CLAUDE.md`, `DEVELOPER_GUIDE.md`, `CONTRIBUTING.md`, and any in-source `README.md` files) and update them to reflect the change. New features, renamed files, changed APIs, removed dependencies, or altered behavior must be documented immediately — not deferred.
+- **During code review**: Verify that documentation is accurate and consistent with the code being reviewed. Flag any PR that changes behavior without updating the corresponding docs.
+- **What to check**: Architecture docs, API client references, tech stack lists, command examples, file path references, code examples, cross-document links, and any "How to" guides.
+- **No stale docs**: If a document references a file, dependency, function, or pattern that no longer exists, fix it or remove the reference. Dead links and outdated examples erode trust in the documentation.
+
 ## Essential Commands
 
 ```bash
@@ -19,13 +28,14 @@ npm run start:mock-api     # Start mock API only
 # Testing
 npm test                    # Run all tests
 npm run test:ui             # Run UI package tests
-npm run test:coverage       # Run tests with coverage report
 npm run e2e                 # Run e2e playwright tests
-npm run e2e:ui              # Run e2e playwright tests in the playwright  UI
+npm run e2e:ui              # Run e2e playwright tests in the playwright UI
 
-# Run a specific test
+# Run a specific test or coverage (from packages/nexus-ui)
 cd packages/nexus-ui
 npm run vitest -- path/to/specific/test.test.ts
+npm run test:coverage       # Run tests with coverage report
+npm run test:coverage:check # Check coverage meets 80% threshold
 
 # Build
 npm run build              # Build all packages
@@ -73,6 +83,109 @@ For how the UI is structured, see these comprehensive guides:
 | **State management**           | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide                                      |
 | **WebSocket / real-time**      | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - Multi-channel WebSocket infrastructure                  |
 | **Execution visualization** 🆕 | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - WebSocket protocol, endpoints, data specs |
+
+### Quick Reference: Common Tasks
+
+**New to the codebase?** Here's how to do the most common development tasks:
+
+#### How do I add a new node type to the workflow builder?
+
+1. Create file: `packages/nexus-ui/src/routes/builder/registry/nodes/registerMyNode.ts`
+2. Define your registration function (must be a **default export**):
+
+   ```typescript
+   import { NodeRegistry } from '../NodeRegistry'
+   import { createBasicNode } from '../helpers/nodeTemplates'
+
+   export default function registerMyNode() {
+     NodeRegistry.register(
+       createBasicNode({
+         id: 'my_node',
+         label: 'My Node',
+         icon: MyIcon,
+         category: 'action',
+         description: 'Does something useful',
+         formComponent: MyNodeForm,
+       })
+     )
+   }
+   ```
+
+3. That's it! The `registerAllNodes()` auto-discovery finds files matching `register*.ts` pattern
+4. See: [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes" for details
+
+#### How do I make API calls?
+
+Use the type-safe clients from `client.tsx`:
+
+```typescript
+import { workflowClient } from '../client'
+
+// In a component:
+const { data, isLoading, error } = workflowClient.useQuery('get', '/workflows')
+
+// Mutation:
+const { mutate } = workflowClient.useMutation('post', '/workflows')
+mutate({
+  /* workflow data */
+})
+```
+
+See: [`docs/data-flow.md`](docs/data-flow.md) - "Type-Safe API Clients"
+
+#### How do I add a new route?
+
+1. Add route constant to `packages/nexus-ui/src/app/AppRoute.tsx`
+2. Add navigation item to `packages/nexus-ui/src/app/navigationItems.tsx` with lazy-loaded component
+3. The router auto-discovers it from `navigationItems` - no manual route config needed
+
+#### How do I debug the workflow builder?
+
+- **React DevTools**: Use the React DevTools browser extension to inspect component props and Zustand state
+- **Direct state inspection**: Call `useWorkflowStore.getState()` in the browser console to inspect the current workflow store
+- **Common issues**:
+  - Nodes not appearing → Check `NodeRegistry` has your node type
+  - Edges not connecting → Verify handle IDs match (sourceHandle/targetHandle)
+  - State not updating → Check Zustand store actions are called
+
+#### How do I handle errors from API calls?
+
+Always use error utilities:
+
+```typescript
+import { getErrorMessage } from '../utils/apiErrors'
+import { useMutationErrorHandler } from '../hooks/useMutationErrorHandler'
+
+// For queries:
+const queryState = useQueryState(query, { title: 'Error loading data' })
+
+// For mutations:
+const handleError = useMutationErrorHandler()
+mutate(data, {
+  onError: handleError({ title: 'Failed to save' }),
+})
+```
+
+See: [`docs/error-handling.md`](docs/error-handling.md) for complete error handling patterns
+
+#### How do I run tests for my changes?
+
+```bash
+# Run all tests (from root)
+npm test
+
+# Run specific test file (from packages/nexus-ui)
+cd packages/nexus-ui
+npm run vitest -- path/to/MyComponent.test.tsx
+
+# Run with coverage (from packages/nexus-ui)
+npm run test:coverage
+
+# Check if your changes meet coverage threshold (from packages/nexus-ui)
+npm run test:coverage:check
+```
+
+**Coverage requirement**: All new/modified code must meet 80% coverage (lines, statements, functions, branches)
 
 ### Component Development Guidelines
 
@@ -481,9 +594,10 @@ This is enforced incrementally - existing files can improve gradually, but new c
 
 **Coverage enforcement:**
 
-Coverage is enforced on changed files in PRs via `scripts/check-pr-coverage.js`. Run locally:
+Coverage is enforced on changed files in PRs via `scripts/check-pr-coverage.js`. Run locally from `packages/nexus-ui`:
 
 ```bash
+cd packages/nexus-ui
 npm run test:coverage        # Generate coverage report
 npm run test:coverage:check  # Check coverage for changed files (fails if below 80%)
 ```
