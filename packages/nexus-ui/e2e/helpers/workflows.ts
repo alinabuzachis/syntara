@@ -22,8 +22,19 @@ export async function fillCodeEditor(
 ) {
   const typeInto = async (target: ReturnType<Page['locator']>) => {
     await expect(target).toBeVisible()
-    await target.click({ force: true })
+    const monacoSurface = target.locator('.monaco-editor')
+    if ((await monacoSurface.count()) > 0) {
+      await monacoSurface.first().click({ force: true })
+    } else {
+      await target.click({ force: true })
+    }
     await page.keyboard.insertText(value)
+  }
+
+  const visibleInlineEditor = page.getByTestId('inline-code-editor').locator(':visible').first()
+  if ((await visibleInlineEditor.count()) > 0) {
+    await typeInto(visibleInlineEditor)
+    return
   }
 
   const roleEditor = page.getByRole('textbox', { name: label }).first()

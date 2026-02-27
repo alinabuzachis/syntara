@@ -2,7 +2,7 @@ import { CodeEditor, CodeEditorControl, Language } from '@patternfly/react-code-
 import { Button, Content, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import type { KeyboardEvent } from 'react'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 
 /** Supported code languages for syntax highlighting */
 export type CodeLanguage = 'python' | 'bash' | 'json' | 'plaintext'
@@ -71,13 +71,7 @@ export function ExpandableCodeEditor({
   isDarkTheme = false,
 }: ExpandableCodeEditorProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const editorContainerRef = useRef<HTMLDivElement | null>(null)
   const monacoLanguage = languageMap[language]
-
-  const focusInlineEditor = () => {
-    const textarea = editorContainerRef.current?.querySelector('textarea')
-    textarea?.focus()
-  }
 
   const expandControl = (
     <CodeEditorControl
@@ -90,17 +84,11 @@ export function ExpandableCodeEditor({
 
   return (
     <>
-      <div
-        ref={editorContainerRef}
-        role="textbox"
-        aria-label={ariaLabel}
-        tabIndex={0}
-        onClick={focusInlineEditor}
-        onKeyDown={stopKeyboardPropagation}
-      >
+      <div data-testid="inline-code-editor">
         <CodeEditor
           code={code}
           onCodeChange={onCodeChange}
+          onKeyDown={stopKeyboardPropagation}
           language={monacoLanguage}
           height={height}
           isReadOnly={isReadOnly}
@@ -108,6 +96,7 @@ export function ExpandableCodeEditor({
           isDarkTheme={isDarkTheme}
           customControls={expandControl}
           aria-label={ariaLabel}
+          options={{ ariaLabel }}
         />
       </div>
 
@@ -127,16 +116,19 @@ export function ExpandableCodeEditor({
           }
         />
         <ModalBody>
-          <CodeEditor
-            code={code}
-            onCodeChange={onCodeChange}
-            language={monacoLanguage}
-            height={modalHeight}
-            isReadOnly={isReadOnly}
-            isLineNumbersVisible={isLineNumbersVisible}
-            isDarkTheme={isDarkTheme}
-            aria-label={`${ariaLabel} expanded`}
-          />
+          <div data-testid="modal-code-editor">
+            <CodeEditor
+              code={code}
+              onCodeChange={onCodeChange}
+              language={monacoLanguage}
+              height={modalHeight}
+              isReadOnly={isReadOnly}
+              isLineNumbersVisible={isLineNumbersVisible}
+              isDarkTheme={isDarkTheme}
+              aria-label={`${ariaLabel} expanded`}
+              options={{ ariaLabel: `${ariaLabel} expanded` }}
+            />
+          </div>
         </ModalBody>
         <ModalFooter>
           <Button variant="primary" onClick={() => setIsModalOpen(false)}>
