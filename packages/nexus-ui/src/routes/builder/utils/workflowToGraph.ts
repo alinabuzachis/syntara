@@ -98,10 +98,11 @@ export function extractTaskActivities(
 }
 
 /**
- * Generates a human-readable label for a trigger based on its type and configuration
+ * Extracts display name and details from a trigger based on its type and configuration.
+ * Returns separate fields to avoid encoding issues with special characters in names.
  */
-export function getTriggerLabel(trigger: Trigger): string {
-  const displayName = trigger.name?.trim() || 'Trigger'
+export function getTriggerDisplayData(trigger: Trigger): { name: string; details: string | null } {
+  const name = trigger.name?.trim() || 'Trigger'
   let details: string | null = null
 
   switch (trigger.type) {
@@ -120,9 +121,7 @@ export function getTriggerLabel(trigger: Trigger): string {
     case 'event':
       details = `Event: ${trigger.event.source}/${trigger.event.eventType}`
       break
-    default:
-      details = null
   }
 
-  return details ? `${displayName} (${details})` : displayName
+  return { name, details }
 }

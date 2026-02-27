@@ -1,6 +1,6 @@
+import type React from 'react'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Label } from '@patternfly/react-core'
-import type React from 'react'
 import {
   RhUiCheckCircleIcon,
   RhUiCloseCircleIcon,

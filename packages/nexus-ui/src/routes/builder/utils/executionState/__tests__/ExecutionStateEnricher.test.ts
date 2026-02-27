@@ -342,7 +342,7 @@ describe('ExecutionStateEnricher', () => {
 
   describe('enrichTriggerNode', () => {
     it('returns trigger data as-is when not in execution view', () => {
-      const triggerData = { label: 'Manual trigger', triggerType: 'manual' }
+      const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
 
@@ -353,7 +353,7 @@ describe('ExecutionStateEnricher', () => {
     })
 
     it('marks trigger as completed when any connected node has started', () => {
-      const triggerData = { label: 'Manual trigger', triggerType: 'manual' }
+      const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'trigger-0', target: 'task-1', sourceHandle: 'source', targetHandle: 'target' },
         { id: '2', source: 'trigger-0', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
@@ -370,7 +370,7 @@ describe('ExecutionStateEnricher', () => {
     })
 
     it('marks trigger as pending when all connected nodes are pending', () => {
-      const triggerData = { label: 'Manual trigger', triggerType: 'manual' }
+      const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'trigger-0', target: 'task-1', sourceHandle: 'source', targetHandle: 'target' },
         { id: '2', source: 'trigger-0', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
@@ -387,7 +387,7 @@ describe('ExecutionStateEnricher', () => {
     })
 
     it('marks trigger as pending when no connected nodes have state', () => {
-      const triggerData = { label: 'Manual trigger', triggerType: 'manual' }
+      const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'trigger-0', target: 'task-1', sourceHandle: 'source', targetHandle: 'target' },
       ]
@@ -400,7 +400,7 @@ describe('ExecutionStateEnricher', () => {
     })
 
     it('marks trigger as pending when trigger has no outgoing edges', () => {
-      const triggerData = { label: 'Manual trigger', triggerType: 'manual' }
+      const triggerData = { name: 'Manual trigger', details: 'Manual', triggerType: 'manual' }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
 
@@ -411,7 +411,12 @@ describe('ExecutionStateEnricher', () => {
     })
 
     it('preserves existing metadata when adding execution badge', () => {
-      const triggerData = { label: 'Manual trigger', triggerType: 'manual', metadata: { customProp: 'value' } }
+      const triggerData = {
+        name: 'Manual trigger',
+        details: 'Manual',
+        triggerType: 'manual',
+        metadata: { customProp: 'value' },
+      }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
 

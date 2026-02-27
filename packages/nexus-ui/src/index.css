@@ -29,7 +29,7 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
     padding: 1em;
     border-radius: var(--pf-t--global--border--radius--large);
     background: var(--pf-t--global--background--color--primary--default);
-    content: "This app requires a viewport width of at least 1200px.\A\APlease use a larger display or expand your browser window.";
+    content: 'This app requires a viewport width of at least 1200px.\A\APlease use a larger display or expand your browser window.';
     width: 300px;
     border: 1px solid var(--pf-t--global--border--color--default);
     box-shadow: var(--pf-t--global--box-shadow--md);
@@ -40,4 +40,3 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
     display: none;
   }
 }
-

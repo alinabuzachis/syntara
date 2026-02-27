@@ -52,7 +52,7 @@ import { getLayoutedElements } from './utils/layoutEngine'
 import { validateConnection } from './utils/validateConnection'
 import {
   extractTaskActivities,
-  getTriggerLabel,
+  getTriggerDisplayData,
   markerEnd,
   type EdgeType,
   type TaskActivity,
@@ -130,8 +130,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const triggersList = triggers || []
     triggersList.forEach((trigger: Trigger, index: number) => {
       const triggerId = buildTriggerNodeId(index)
+      const { name, details } = getTriggerDisplayData(trigger)
       const triggerData = {
-        label: getTriggerLabel(trigger),
+        name,
+        details,
         triggerType: trigger.type,
         inputs: currentWorkflow?.inputs || {},
       }

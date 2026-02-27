@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ReactFlowProvider } from '@xyflow/react'
-import type { NodeProps, Node } from '@xyflow/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createManualTrigger, useWorkflowStore } from '../../stores/useWorkflowStore'
@@ -36,17 +35,20 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 // Create mock node props for TriggerNodeComponent
-function createMockTriggerNodeProps(id: string, label: string): NodeProps<Node<{ label: string }>> {
+function createMockTriggerNodeProps(id: string, name: string, details: string | null = 'Manual') {
   return {
     id,
-    type: 'trigger',
-    data: { label },
+    type: 'trigger' as const,
+    data: { name, details },
     dragging: false,
     selected: false,
     isConnectable: true,
     positionAbsoluteX: 0,
     positionAbsoluteY: 0,
     zIndex: 0,
+    selectable: true,
+    deletable: true,
+    draggable: true,
   }
 }
 
@@ -68,12 +70,12 @@ describe('Trigger Node Kebab Menu Delete', () => {
       workflow: { activities: [] },
     })
 
-    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+    const props = createMockTriggerNodeProps('trigger-0', 'Trigger', 'Manual')
 
     renderWithProviders(<TriggerNodeComponent {...props} />)
 
     // Verify the node renders with the correct title
-    expect(screen.getByText('Manual')).toBeInTheDocument()
+    expect(screen.getByText('Trigger')).toBeInTheDocument()
 
     // Verify the kebab menu button is present
     expect(screen.getByRole('button', { name: /node actions menu/i })).toBeInTheDocument()
@@ -92,7 +94,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
       workflow: { activities: [] },
     })
 
-    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+    const props = createMockTriggerNodeProps('trigger-0', 'Trigger', 'Manual')
 
     renderWithProviders(<TriggerNodeComponent {...props} />)
 
@@ -120,7 +122,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
       workflow: { activities: [] },
     })
 
-    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+    const props = createMockTriggerNodeProps('trigger-0', 'Trigger', 'Manual')
 
     renderWithProviders(<TriggerNodeComponent {...props} />)
 
@@ -156,7 +158,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
       workflow: { activities: [] },
     })
 
-    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+    const props = createMockTriggerNodeProps('trigger-0', 'Trigger', 'Manual')
 
     renderWithProviders(<TriggerNodeComponent {...props} />)
 
@@ -185,7 +187,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
       workflow: { activities: [] },
     })
 
-    const props = createMockTriggerNodeProps('trigger-0', 'Manual')
+    const props = createMockTriggerNodeProps('trigger-0', 'Trigger', 'Manual')
 
     // Track if the parent was clicked (would happen in ReactFlow for node selection)
     let parentClicked = false

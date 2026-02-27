@@ -3,7 +3,6 @@ import { FlexItem, Content, ContentVariants, Title, TitleSizes } from '@patternf
 import { type Node, type NodeProps } from '@xyflow/react'
 import type { CSSProperties } from 'react'
 
-import { parseTriggerLabel } from '../../../../utils/triggerFormatting'
 import { parseTriggerIndex } from '../../../../utils/triggerNodeIds'
 import { useIsExecutionView } from '../../../builder/ExecutionViewContext'
 
@@ -16,13 +15,15 @@ import { nodeMetadata } from './nodeMetadata'
 import { renderNodeIcon } from './renderNodeIcon'
 
 export type TriggerNode = { type: 'trigger' } & Node<{
-  label: string
+  name: string
+  details: string | null
   triggerType?: string
   inputs?: WorkflowAPI.components['schemas']['workflow-definition.schema']['inputs']
 }>
 
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
-  const { type: triggerType, details: triggerDetails } = parseTriggerLabel(props.data.label)
+  const triggerName = props.data.name
+  const triggerDetails = props.data.details
   const isScheduled = props.data.triggerType === TriggerTypeEnum.SCHEDULED
   const metadata = isScheduled ? nodeMetadata.scheduledTrigger : nodeMetadata.trigger
   const iconId = isScheduled ? 'trigger-scheduled' : 'trigger-manual'
@@ -73,7 +74,7 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
         node={props.data}
         icon={iconNode}
         menuActions={menuActions}
-        triggerType={triggerType}
+        triggerName={triggerName}
         triggerDetails={triggerDetails}
         triggerKind={props.data.triggerType}
       />
@@ -84,12 +85,13 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
 function TriggerNodeDetails(
   props: Readonly<{
     node: {
-      label: string
+      name: string
+      details: string | null
       inputs?: WorkflowAPI.components['schemas']['workflow-definition.schema']['inputs']
     }
     icon?: React.ReactNode
     menuActions?: ReturnType<typeof useNodeMenuActions>
-    triggerType: string
+    triggerName: string
     triggerDetails: string | null
     triggerKind?: string
   }>
@@ -116,7 +118,7 @@ function TriggerNodeDetails(
       <NodeBody>
         <div>
           <Title headingLevel="h3" size={TitleSizes.md}>
-            {props.triggerType}
+            {props.triggerName}
           </Title>
           {isScheduledTrigger && normalizedDetails && (
             <Content component={ContentVariants.small}>Schedule trigger</Content>

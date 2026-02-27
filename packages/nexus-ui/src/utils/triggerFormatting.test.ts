@@ -6,7 +6,6 @@ import {
   formatDate,
   formatTime,
   formatIntervalDescription,
-  parseTriggerLabel,
 } from './triggerFormatting'
 
 describe('parseRepeatingInterval', () => {
@@ -133,60 +132,5 @@ describe('formatIntervalDescription', () => {
   it('returns empty string for invalid interval', () => {
     expect(formatIntervalDescription('')).toBe('')
     expect(formatIntervalDescription('invalid')).toBe('')
-  })
-})
-
-describe('parseTriggerLabel', () => {
-  it('parses simple label without details', () => {
-    const result = parseTriggerLabel('Manual')
-
-    expect(result).toEqual({ type: 'Manual', details: null })
-  })
-
-  it('parses label with parenthetical details', () => {
-    const result = parseTriggerLabel('Manual (Requires Approval)')
-
-    expect(result).toEqual({ type: 'Manual', details: 'Requires Approval' })
-  })
-
-  it('parses scheduled label with interval', () => {
-    const result = parseTriggerLabel('Scheduled (Interval: R/2024-01-01T10:00:00Z/P1D)')
-
-    expect(result.type).toBe('Scheduled')
-    expect(result.details).toContain('Starts')
-    expect(result.details).toContain('Repeats daily')
-  })
-
-  it('parses scheduled label with cron expression', () => {
-    const result = parseTriggerLabel('Scheduled (Cron: 0 9 * * *)')
-
-    expect(result).toEqual({ type: 'Scheduled', details: 'Cron: 0 9 * * *' })
-  })
-
-  it('parses scheduled label with continuous', () => {
-    const result = parseTriggerLabel('Scheduled (Continuous)')
-
-    expect(result).toEqual({ type: 'Scheduled', details: 'Continuous' })
-  })
-
-  it('returns label as type when no parentheses', () => {
-    const result = parseTriggerLabel('Event-driven')
-
-    expect(result).toEqual({ type: 'Event-driven', details: null })
-  })
-
-  it('handles whitespace in label', () => {
-    // The regex trims the type from the match
-    const result = parseTriggerLabel('Manual (Approval Required)')
-
-    expect(result.type).toBe('Manual')
-    expect(result.details).toBe('Approval Required')
-  })
-
-  it('falls back to raw details if interval formatting fails', () => {
-    const result = parseTriggerLabel('Scheduled (Interval: invalid)')
-
-    expect(result.type).toBe('Scheduled')
-    expect(result.details).toBe('Interval: invalid')
   })
 })

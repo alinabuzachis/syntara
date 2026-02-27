@@ -32,10 +32,13 @@ vi.mock('./hooks/useNodeMenuActions', () => ({
 }))
 
 describe('TriggerNodeComponent', () => {
-  const createNodeProps = (dataOverrides?: Partial<{ label: string; triggerType?: string }>) => ({
+  const createNodeProps = (
+    dataOverrides?: Partial<{ name: string; details: string | null; triggerType?: string }>
+  ) => ({
     id: 'trigger-0',
     data: {
-      label: 'Manual',
+      name: 'Trigger',
+      details: 'Manual',
       triggerType: 'manual',
       ...dataOverrides,
     },
@@ -72,7 +75,8 @@ describe('TriggerNodeComponent', () => {
     render(
       <TriggerNodeComponent
         {...createNodeProps({
-          label: 'Trigger (Manual)',
+          name: 'Trigger',
+          details: 'Manual',
           triggerType: 'manual',
         })}
       />
@@ -85,7 +89,8 @@ describe('TriggerNodeComponent', () => {
     render(
       <TriggerNodeComponent
         {...createNodeProps({
-          label: 'MyTrigger (Continuous)',
+          name: 'MyTrigger',
+          details: 'Continuous',
           triggerType: 'scheduled',
         })}
       />
@@ -93,5 +98,19 @@ describe('TriggerNodeComponent', () => {
 
     expect(screen.getByText('Schedule trigger')).toBeInTheDocument()
     expect(screen.getByText('Continuous')).toBeInTheDocument()
+  })
+
+  it('renders names containing parentheses correctly', () => {
+    render(
+      <TriggerNodeComponent
+        {...createNodeProps({
+          name: 'Hello(World)',
+          details: 'Manual',
+          triggerType: 'manual',
+        })}
+      />
+    )
+
+    expect(screen.getByText('Hello(World)')).toBeInTheDocument()
   })
 })

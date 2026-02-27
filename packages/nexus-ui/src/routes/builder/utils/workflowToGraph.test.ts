@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Activity, Trigger } from './workflowToGraph'
-import { extractTaskActivities, getTriggerLabel, markerEnd } from './workflowToGraph'
+import { extractTaskActivities, getTriggerDisplayData, markerEnd } from './workflowToGraph'
 
 describe('workflowToGraph', () => {
   describe('markerEnd', () => {
@@ -209,21 +209,21 @@ describe('workflowToGraph', () => {
     })
   })
 
-  describe('getTriggerLabel', () => {
-    it('returns "Manual" for manual trigger without approval', () => {
+  describe('getTriggerDisplayData', () => {
+    it('returns separate name and details for manual trigger without approval', () => {
       const trigger: Trigger = {
         type: 'manual',
         requiresApproval: false,
       }
-      expect(getTriggerLabel(trigger)).toBe('Trigger (Manual)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Manual' })
     })
 
-    it('returns "Manual - Requires Approval" for manual trigger with approval', () => {
+    it('returns "Manual - Requires Approval" details for manual trigger with approval', () => {
       const trigger: Trigger = {
         type: 'manual',
         requiresApproval: true,
       }
-      expect(getTriggerLabel(trigger)).toBe('Trigger (Manual - Requires Approval)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Manual - Requires Approval' })
     })
 
     it('uses trigger name when provided', () => {
@@ -232,7 +232,7 @@ describe('workflowToGraph', () => {
         name: 'Start Workflow',
         requiresApproval: false,
       }
-      expect(getTriggerLabel(trigger)).toBe('Start Workflow (Manual)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Start Workflow', details: 'Manual' })
     })
 
     it('handles cron scheduled trigger', () => {
@@ -243,7 +243,7 @@ describe('workflowToGraph', () => {
           cron: '0 9 * * *',
         },
       }
-      expect(getTriggerLabel(trigger)).toBe('Trigger (Cron: 0 9 * * *)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Cron: 0 9 * * *' })
     })
 
     it('handles interval scheduled trigger', () => {
@@ -254,7 +254,7 @@ describe('workflowToGraph', () => {
           interval: '1h',
         },
       }
-      expect(getTriggerLabel(trigger)).toBe('Trigger (Interval: 1h)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Interval: 1h' })
     })
 
     it('handles continuous scheduled trigger', () => {
@@ -265,7 +265,7 @@ describe('workflowToGraph', () => {
           continuous: true,
         },
       }
-      expect(getTriggerLabel(trigger)).toBe('Trigger (Continuous)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Continuous' })
     })
 
     it('handles event trigger', () => {
@@ -276,7 +276,7 @@ describe('workflowToGraph', () => {
           eventType: 'push',
         },
       }
-      expect(getTriggerLabel(trigger)).toBe('Trigger (Event: github/push)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Event: github/push' })
     })
 
     it('handles event trigger with custom name', () => {
@@ -288,15 +288,15 @@ describe('workflowToGraph', () => {
           eventType: 'push',
         },
       }
-      expect(getTriggerLabel(trigger)).toBe('GitHub Push (Event: github/push)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'GitHub Push', details: 'Event: github/push' })
     })
 
-    it('returns just the name for unknown trigger type', () => {
+    it('returns just the name with null details for unknown trigger type', () => {
       const trigger = {
         type: 'unknown' as 'manual',
         name: 'Custom Trigger',
       } as Trigger
-      expect(getTriggerLabel(trigger)).toBe('Custom Trigger')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Custom Trigger', details: null })
     })
 
     it('trims whitespace from trigger name', () => {
@@ -305,7 +305,7 @@ describe('workflowToGraph', () => {
         name: '  Trimmed Name  ',
         requiresApproval: false,
       }
-      expect(getTriggerLabel(trigger)).toBe('Trimmed Name (Manual)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trimmed Name', details: 'Manual' })
     })
 
     it('falls back to "Trigger" when name is empty', () => {
@@ -314,7 +314,16 @@ describe('workflowToGraph', () => {
         name: '   ',
         requiresApproval: false,
       }
-      expect(getTriggerLabel(trigger)).toBe('Trigger (Manual)')
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Trigger', details: 'Manual' })
+    })
+
+    it('handles names with parentheses correctly', () => {
+      const trigger: Trigger = {
+        type: 'manual',
+        name: 'Hello(World)',
+        requiresApproval: false,
+      }
+      expect(getTriggerDisplayData(trigger)).toEqual({ name: 'Hello(World)', details: 'Manual' })
     })
   })
 })
