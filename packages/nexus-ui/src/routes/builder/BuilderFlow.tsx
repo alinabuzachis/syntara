@@ -92,6 +92,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     onAddNodeFromEdge,
     onNodesDeleted,
     disableDeleteKey,
+    disableSpacePanning,
   } = props
 
   // Use typed selectors for optimized subscriptions
@@ -732,6 +733,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         isValidConnection={isValidConnection}
         proOptions={{ hideAttribution: true }}
         deleteKeyCode={isExecutionView || disableDeleteKey ? null : ['Delete', 'Backspace']}
+        panActivationKeyCode={disableSpacePanning ? null : 'Space'}
         fitView
         minZoom={0.1}
         maxZoom={1}

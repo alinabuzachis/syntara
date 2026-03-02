@@ -28,6 +28,8 @@ export interface BuilderFlowProps {
   onNodesDeleted?: (deletedNodeIds: string[]) => void
   /** Disable keyboard delete shortcuts (e.g., while editor overlay is open) */
   disableDeleteKey?: boolean
+  /** Disable space key panning (e.g., while editor overlay with code editor is open) */
+  disableSpacePanning?: boolean
 }
 
 /**

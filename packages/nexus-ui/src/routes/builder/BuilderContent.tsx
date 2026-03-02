@@ -1106,6 +1106,7 @@ export function BuilderContent(props: BuilderContentProps) {
                         activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
                         executionStatus={null}
                         disableDeleteKey={isNodeEditorOpen}
+                        disableSpacePanning={isNodeEditorOpen}
                         onNodeClick={handleNodeClick}
                         onAddNodeFromEdge={handleAddNodeFromEdge}
                         onNodesDeleted={handleNodesDeleted}
