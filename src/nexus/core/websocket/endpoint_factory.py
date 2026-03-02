@@ -658,7 +658,7 @@ def _find_request_message_type(channel_def: dict[str, Any]) -> str | None:
     for msg_name in messages:
         msg_ref: str = messages[msg_name].get("$ref", "")
         if msg_ref.startswith("#/components/messages/"):
-            actual_msg_name: str = msg_ref.split("/")[-1]
+            actual_msg_name: str = msg_ref.rsplit("/", maxsplit=1)[-1]
             if actual_msg_name.endswith("Request"):
                 return actual_msg_name
     return None

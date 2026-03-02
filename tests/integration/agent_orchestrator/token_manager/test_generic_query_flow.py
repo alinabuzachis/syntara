@@ -39,7 +39,7 @@ class TestGenericQueryFlow:
 
         # Wait for execution to start
         async with wait_for_invocation_execution(base_client_with_mocked_llm, invocation_id) as final_data:
-            data = final_data if final_data else data
+            data = final_data or data
             assert data["status"] in ["running", "completed"]  # Execution should have started
 
         # Verify invocation ID is valid UUID
@@ -104,7 +104,7 @@ class TestGenericQueryFlow:
 
         # Wait for execution to start
         async with wait_for_invocation_execution(base_client_with_mocked_llm, invocation_id) as final_data:
-            data = final_data if final_data else data
+            data = final_data or data
             assert data["status"] in ["running", "completed"]
         # Invocation accepted successfully - LLM will process in background/sync
 

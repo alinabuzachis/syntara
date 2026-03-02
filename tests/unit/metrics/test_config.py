@@ -1,0 +1,56 @@
+"""Unit tests for MetricsSettings configuration."""
+
+import os
+
+import pytest
+
+from nexus.core.config.base import Settings
+
+
+class TestMetricsSettings:
+    """Tests for MetricsSettings configuration."""
+
+    def test_metrics_defaults(self) -> None:
+        """Test default metrics configuration values."""
+        settings = Settings()
+        assert settings.metrics_retention_seconds == 86400
+        assert settings.metrics_max_records == 1_000_000
+        assert settings.metrics_enabled is True
+        assert settings.metrics_prometheus_enabled is True
+
+    def test_metrics_settings_from_env(self) -> None:
+        """Test metrics settings can be configured via environment."""
+        os.environ["NEXUS_METRICS_RETENTION_SECONDS"] = "3600"
+        os.environ["NEXUS_METRICS_MAX_RECORDS"] = "500000"
+        os.environ["NEXUS_METRICS_ENABLED"] = "false"
+        os.environ["NEXUS_METRICS_PROMETHEUS_ENABLED"] = "false"
+
+        try:
+            settings = Settings()
+            assert settings.metrics_retention_seconds == 3600
+            assert settings.metrics_max_records == 500000
+            assert settings.metrics_enabled is False
+            assert settings.metrics_prometheus_enabled is False
+        finally:
+            os.environ.pop("NEXUS_METRICS_RETENTION_SECONDS", None)
+            os.environ.pop("NEXUS_METRICS_MAX_RECORDS", None)
+            os.environ.pop("NEXUS_METRICS_ENABLED", None)
+            os.environ.pop("NEXUS_METRICS_PROMETHEUS_ENABLED", None)
+
+    def test_metrics_retention_allows_zero(self) -> None:
+        """Retention of 0 is valid (no retention / immediate expiry)."""
+        os.environ["NEXUS_METRICS_RETENTION_SECONDS"] = "0"
+        try:
+            settings = Settings()
+            assert settings.metrics_retention_seconds == 0
+        finally:
+            os.environ.pop("NEXUS_METRICS_RETENTION_SECONDS", None)
+
+    def test_metrics_max_records_validation(self) -> None:
+        """max_records must be at least 1."""
+        os.environ["NEXUS_METRICS_MAX_RECORDS"] = "0"
+        try:
+            with pytest.raises(ValueError, match="greater than or equal to 1"):
+                Settings()
+        finally:
+            os.environ.pop("NEXUS_METRICS_MAX_RECORDS", None)

@@ -180,7 +180,7 @@ class CompressorService:
         # Re-format with always_prefix=True for LLM citation context
         # (differs from pass-through format which omits prefix for single documents)
         documents_text = self._format_documents(documents, always_prefix=True)
-        goal_text = goal if goal else "summarize the key information"
+        goal_text = goal or "summarize the key information"
 
         prompt = f"""Summarize the following documents with respect to the stated goal.
 

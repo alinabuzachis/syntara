@@ -1092,6 +1092,43 @@ class ToolManagerSettings(BaseSettings):
 
 
 # =============================================================================
+# Metrics Configuration
+# =============================================================================
+
+
+class MetricsSettings(BaseSettings):
+    """Performance metrics subsystem configuration.
+
+    Controls recording and retention of raw performance metrics exposed via
+    REST API and Prometheus endpoints.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    metrics_retention_seconds: int = Field(
+        default=86400,
+        description="How long to retain raw metrics in memory (NFR-003)",
+        ge=0,
+    )
+
+    metrics_max_records: int = Field(
+        default=1_000_000,
+        description="Maximum number of raw metrics to store in memory",
+        ge=1,
+    )
+
+    metrics_enabled: bool = Field(
+        default=True,
+        description="Enable/disable metrics collection globally",
+    )
+
+    metrics_prometheus_enabled: bool = Field(
+        default=True,
+        description="Enable Prometheus /metrics endpoint",
+    )
+
+
+# =============================================================================
 # Workflow Client Configuration
 # =============================================================================
 
@@ -1178,6 +1215,7 @@ class Settings(
     WorkflowEngineSettings,
     ToolManagerSettings,
     WorkflowClientSettings,
+    MetricsSettings,
 ):
     """Application-wide settings.
 

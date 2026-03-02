@@ -50,7 +50,7 @@ class TestContextEnhancedInvocations:
         async with wait_for_invocation_execution(
             auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
         ) as final_data:
-            data = final_data if final_data else data
+            data = final_data or data
 
         # Verify invocation completed successfully
         assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
@@ -113,7 +113,7 @@ class TestContextEnhancedInvocations:
         async with wait_for_invocation_execution(
             auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
         ) as final_data:
-            data = final_data if final_data else data
+            data = final_data or data
 
         # Verify invocation completed successfully
         assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"

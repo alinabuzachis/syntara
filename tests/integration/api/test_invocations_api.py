@@ -70,7 +70,7 @@ async def test_invoke_response_schema(auth_client_with_mocked_llm: AsyncClient, 
     # Wait for execution to start or complete
     async with wait_for_invocation_execution(auth_client_with_mocked_llm, invocation_id) as final_data:
         # Use the final data for assertions
-        data = final_data if final_data else data
+        data = final_data or data
 
     # Required fields
     assert "id" in data
@@ -626,7 +626,7 @@ async def test_invoke_null_fields_handling(auth_client_with_mocked_llm: AsyncCli
 
     # Wait for execution to start or complete using the context manager
     async with wait_for_invocation_execution(auth_client_with_mocked_llm, invocation_id) as final_data:
-        data = final_data if final_data else data
+        data = final_data or data
 
     # Test null/optional field handling based on the actual behavior
     # In the test environment, background tasks may not execute immediately

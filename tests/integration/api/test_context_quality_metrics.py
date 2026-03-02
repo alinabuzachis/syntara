@@ -53,7 +53,7 @@ class TestContextQualityMetrics:
         async with wait_for_invocation_execution(
             auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
         ) as final_data:
-            data = final_data if final_data else data
+            data = final_data or data
 
         assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
         assert data["result"] is not None
@@ -99,7 +99,7 @@ class TestContextQualityMetrics:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, context_invocation_id, max_wait_time=10.0
             ) as final_data:
-                context_data = final_data if final_data else context_data
+                context_data = final_data or context_data
 
             assert context_data["status"] == "completed", (
                 f"Context invocation failed: {context_data.get('error_message')}"
@@ -153,7 +153,7 @@ class TestContextQualityMetrics:
                 async with wait_for_invocation_execution(
                     auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
                 ) as final_data:
-                    data = final_data if final_data else data
+                    data = final_data or data
 
                 assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
                 assert data["result"] is not None
@@ -205,7 +205,7 @@ class TestContextQualityMetrics:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
             ) as final_data:
-                data = final_data if final_data else data
+                data = final_data or data
 
             assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
             assert data["result"] is not None
@@ -270,7 +270,7 @@ class TestContextQualityMetrics:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, empty_invocation_id, max_wait_time=10.0
             ) as final_data:
-                empty_data = final_data if final_data else empty_data
+                empty_data = final_data or empty_data
 
             assert empty_data["status"] == "completed", (
                 f"Empty context invocation failed: {empty_data.get('error_message')}"
@@ -307,7 +307,7 @@ class TestContextQualityMetrics:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, populated_invocation_id, max_wait_time=10.0
             ) as final_data:
-                populated_data = final_data if final_data else populated_data
+                populated_data = final_data or populated_data
 
             assert populated_data["status"] == "completed", (
                 f"Populated context invocation failed: {populated_data.get('error_message')}"
@@ -364,7 +364,7 @@ class TestContextQualityMetrics:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
             ) as final_data:
-                data = final_data if final_data else data
+                data = final_data or data
 
             assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
             assert data["result"] is not None

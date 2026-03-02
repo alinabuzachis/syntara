@@ -96,7 +96,7 @@ def create_payload_capturing_mock(
         if isinstance(json_data, dict):
             captured_payload.clear()
             captured_payload.update(json_data)
-        return response if response else create_mock_http_response()
+        return response or create_mock_http_response()
 
     return mock_post
 
@@ -115,7 +115,7 @@ def create_simple_mock_post(
     """
 
     async def mock_post(url: str, **kwargs: object) -> MagicMock:
-        return response if response else create_mock_http_response()
+        return response or create_mock_http_response()
 
     return mock_post
 

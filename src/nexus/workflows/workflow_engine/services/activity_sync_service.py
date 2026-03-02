@@ -389,7 +389,7 @@ class ActivitySyncService:
         scheduled_id = attrs.scheduled_event_id
         if scheduled_id in metadata.pending_activity_updates:
             # Set status based on attempt number: RUNNING for first attempt, RETRYING for subsequent attempts
-            attempt = attrs.attempt if attrs.attempt else 1
+            attempt = attrs.attempt or 1
             metadata.pending_activity_updates[scheduled_id]["status"] = (
                 ActivityStatus.RETRYING if attempt > 1 else ActivityStatus.RUNNING
             )
@@ -705,9 +705,9 @@ class ActivitySyncService:
 
                 traverse_activities(
                     activities_list,
-                    lambda activity, _: activity_definitions_map.update({activity["id"]: activity})
-                    if "id" in activity
-                    else None,
+                    lambda activity, _: (
+                        activity_definitions_map.update({activity["id"]: activity}) if "id" in activity else None
+                    ),
                 )
 
             return activity_definitions_map, activities_list

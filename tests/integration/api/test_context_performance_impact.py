@@ -55,7 +55,7 @@ class TestContextPerformanceImpact:
         async with wait_for_invocation_execution(
             auth_client_with_mocked_llm, baseline_invocation_id, max_wait_time=30.0
         ) as final_data:
-            baseline_data = final_data if final_data else baseline_data
+            baseline_data = final_data or baseline_data
 
         baseline_end_time = time.time()
         baseline_duration = baseline_end_time - start_time
@@ -98,7 +98,7 @@ class TestContextPerformanceImpact:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, context_invocation_id, max_wait_time=30.0
             ) as final_data:
-                context_data = final_data if final_data else context_data
+                context_data = final_data or context_data
 
             context_end_time = time.time()
             context_duration = context_end_time - context_start_time
@@ -155,7 +155,7 @@ class TestContextPerformanceImpact:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, invocation_id, max_wait_time=15.0
             ) as final_data:
-                data = final_data if final_data else data
+                data = final_data or data
 
             end_time = time.time()
             total_duration = end_time - start_time
@@ -271,7 +271,7 @@ class TestContextPerformanceImpact:
                 async with wait_for_invocation_execution(
                     auth_client_with_mocked_llm, invocation_id, max_wait_time=15.0
                 ) as final_data:
-                    data = final_data if final_data else data
+                    data = final_data or data
 
                 end_time = time.time()
                 duration = end_time - start_time
@@ -321,7 +321,7 @@ class TestContextPerformanceImpact:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, invocation_id, max_wait_time=15.0
             ) as final_data:
-                data = final_data if final_data else data
+                data = final_data or data
 
             end_time = time.time()
             duration = end_time - start_time

@@ -202,7 +202,7 @@ async def execute_agentic_activity(
     _validate_resolved_prompt(config.prompt)
 
     # Extract file_ids from config (empty list if not specified)
-    file_ids = config.file_ids if config.file_ids else []
+    file_ids = config.file_ids or []
 
     # Get workflow info for audit trail (if running in Temporal context)
     try:

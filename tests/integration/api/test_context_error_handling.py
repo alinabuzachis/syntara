@@ -60,7 +60,7 @@ class TestContextErrorHandling:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
             ) as final_data:
-                data = final_data if final_data else data
+                data = final_data or data
 
             # Should still complete successfully despite context failure
             error_msg = data.get("error_message")
@@ -127,7 +127,7 @@ class TestContextErrorHandling:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, invocation_id, max_wait_time=3.0
             ) as final_data:
-                data = final_data if final_data else data
+                data = final_data or data
 
             end_time = asyncio.get_event_loop().time()
             total_time = end_time - start_time
@@ -177,7 +177,7 @@ class TestContextErrorHandling:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
             ) as final_data:
-                data = final_data if final_data else data
+                data = final_data or data
 
             # Should complete successfully
             assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
@@ -229,7 +229,7 @@ class TestContextErrorHandling:
                 async with wait_for_invocation_execution(
                     auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
                 ) as final_data:
-                    data = final_data if final_data else data
+                    data = final_data or data
 
                 # Should complete successfully regardless of exception type
                 assert data["status"] == "completed", (
@@ -272,7 +272,7 @@ class TestContextErrorHandling:
             async with wait_for_invocation_execution(
                 auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
             ) as final_data:
-                data = final_data if final_data else data
+                data = final_data or data
 
             # Should complete successfully
             assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
