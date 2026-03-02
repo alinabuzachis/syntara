@@ -1,8 +1,8 @@
 import { Button, CompassPanel, Flex, FlexItem, Icon } from '@patternfly/react-core'
 import {
-  RhUiOptimizeIcon,
   RhUiCaretDownIcon,
   RhUiCaretUpIcon,
+  RhUiCleanUpFillIcon,
   RhUiExpandArrowsIcon,
   RhUiZoomInIcon,
   RhUiZoomOutIcon,
@@ -88,7 +88,7 @@ export function CanvasControls(props: { onLayout: () => void }) {
               aria-label="Layout"
               icon={
                 <Icon isInline>
-                  <RhUiOptimizeIcon />
+                  <RhUiCleanUpFillIcon />
                 </Icon>
               }
             />

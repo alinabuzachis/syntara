@@ -5,7 +5,6 @@ import {
   RhUiCalendarIcon,
   RhUiPlayIcon,
   RhUiPlugFillIcon,
-  RhUiServerFillIcon,
   RhUiConditionNodeIcon,
   RhUiLoopNodeIcon,
   RhUiUserCheckIcon,
@@ -67,7 +66,7 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
 export const executorMetadata: Record<string, { icon: ComponentType<{ className?: string }>; label: string }> = {
   script: { icon: RhUiCodeIcon, label: 'Script' },
   agentic: { icon: RhUiRobotIcon, label: 'Agentic' },
-  api: { icon: RhUiServerFillIcon, label: 'REST Api' },
+  api: { icon: RhUiPlugFillIcon, label: 'REST API' },
   connector: { icon: RhUiPlugFillIcon, label: 'Connector' },
   aap_job_template: { icon: AnsibleIcon, label: 'AAP Job' },
   approval: { icon: RhUiUserCheckIcon, label: 'Approval' }, // Human approval gate

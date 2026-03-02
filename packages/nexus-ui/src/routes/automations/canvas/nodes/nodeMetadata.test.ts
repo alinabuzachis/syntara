@@ -126,7 +126,7 @@ describe('executorMetadata', () => {
 
     it('has metadata for api executor', () => {
       expect(executorMetadata.api).toBeDefined()
-      expect(executorMetadata.api.label).toBe('REST Api')
+      expect(executorMetadata.api.label).toBe('REST API')
       expect(executorMetadata.api.icon).toBeDefined()
     })
 

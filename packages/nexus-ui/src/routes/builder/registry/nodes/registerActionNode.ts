@@ -1,4 +1,4 @@
-import { RhUiFileCodeIcon, RhUiElectricityFillIcon, RhUiLanguageIcon } from '@patternfly/react-icons'
+import { RhUiFileCodeIcon, RhUiElectricityFillIcon, RhUiPlugFillIcon } from '@patternfly/react-icons'
 
 import { createApiActivity, createScriptActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import type { ActionFormData } from '../../hooks/useNodeCreation'
@@ -35,7 +35,7 @@ export default function registerActionNode() {
           {
             id: 'action-api',
             label: 'REST API',
-            icon: RhUiLanguageIcon,
+            icon: RhUiPlugFillIcon,
             description: 'Trigger an action or retrieve data from an external source.',
             formTitle: 'Configure REST API Actions',
             initialData: { executor: 'api' },
