@@ -42,7 +42,6 @@ export interface ActionFormData {
 
 interface ActionNodeFormProps {
   onSubmit: (data: ActionFormData) => void
-  onCancel: () => void
   submitButtonText?: string
   initialData?: Partial<ActionFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void

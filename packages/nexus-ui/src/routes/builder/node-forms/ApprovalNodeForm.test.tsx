@@ -1,30 +1,12 @@
 import { render, screen } from '@testing-library/react'
+import { renderWithHeader } from './test-utils/renderWithHeader'
 import userEvent from '@testing-library/user-event'
-import { cloneElement, useState } from 'react'
-import type { ReactElement, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApprovalNodeForm } from './ApprovalNodeForm'
 
-function renderWithHeader(ui: ReactElement) {
-  function Wrapper() {
-    const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
-    return (
-      <>
-        {headerContent}
-        {cloneElement(ui as ReactElement<{ onHeaderContentChange?: (content: ReactNode | null) => void }>, {
-          onHeaderContentChange: setHeaderContent,
-        })}
-      </>
-    )
-  }
-
-  render(<Wrapper />)
-}
-
 describe('ApprovalNodeForm', () => {
   const mockOnSubmit = vi.fn()
-  const mockOnCancel = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -32,7 +14,7 @@ describe('ApprovalNodeForm', () => {
 
   describe('Rendering', () => {
     it('renders all required fields', () => {
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.getByText(/Usernames to notify/i)).toBeInTheDocument()
       expect(screen.getByLabelText(/Message/i)).toBeInTheDocument()
@@ -43,27 +25,25 @@ describe('ApprovalNodeForm', () => {
     })
 
     it('displays timeout section title', () => {
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.getByText(/Timeout after time interval:/i)).toBeInTheDocument()
     })
 
     it('displays helper text for approvers field', () => {
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.getByText(/Type a username and press Enter or comma to add/i)).toBeInTheDocument()
     })
 
     it('displays default submit button text', () => {
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.getByRole('button', { name: /Add node/i })).toBeInTheDocument()
     })
 
     it('displays custom submit button text when provided', () => {
-      renderWithHeader(
-        <ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} submitButtonText="Update approval" />
-      )
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} submitButtonText="Update approval" />)
 
       expect(screen.getByRole('button', { name: /Update approval/i })).toBeInTheDocument()
     })
@@ -72,7 +52,7 @@ describe('ApprovalNodeForm', () => {
   describe('Approvers Management', () => {
     it('adds approver on Enter key', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const input = screen.getByLabelText('Add approver')
       await user.type(input, 'user1{Enter}')
@@ -83,7 +63,7 @@ describe('ApprovalNodeForm', () => {
 
     it('adds approver on comma key', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const input = screen.getByLabelText('Add approver')
       await user.type(input, 'user1,')
@@ -94,7 +74,7 @@ describe('ApprovalNodeForm', () => {
 
     it('adds multiple approvers', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const input = screen.getByLabelText('Add approver')
       await user.type(input, 'user1{Enter}')
@@ -108,7 +88,7 @@ describe('ApprovalNodeForm', () => {
 
     it('removes approver on close button click', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const input = screen.getByLabelText('Add approver')
       await user.type(input, 'user1{Enter}')
@@ -122,7 +102,7 @@ describe('ApprovalNodeForm', () => {
 
     it('does not add duplicate approvers', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const input = screen.getByLabelText('Add approver')
       await user.type(input, 'user1{Enter}')
@@ -134,7 +114,7 @@ describe('ApprovalNodeForm', () => {
 
     it('trims whitespace from approvers', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const input = screen.getByLabelText('Add approver')
       await user.type(input, '  user1  {Enter}')
@@ -144,7 +124,7 @@ describe('ApprovalNodeForm', () => {
 
     it('does not add empty approvers', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const input = screen.getByLabelText('Add approver')
       await user.type(input, '   {Enter}')
@@ -156,7 +136,7 @@ describe('ApprovalNodeForm', () => {
   describe('Timeout Configuration', () => {
     it('converts time units to total seconds correctly', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, 'user1{Enter}')
@@ -177,7 +157,7 @@ describe('ApprovalNodeForm', () => {
 
     it('handles only days', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, 'user1{Enter}')
@@ -198,7 +178,7 @@ describe('ApprovalNodeForm', () => {
 
     it('handles only minutes', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, 'user1{Enter}')
@@ -219,7 +199,7 @@ describe('ApprovalNodeForm', () => {
 
     it('handles only seconds', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, 'user1{Enter}')
@@ -240,7 +220,7 @@ describe('ApprovalNodeForm', () => {
 
     it('excludes timeout when all time fields are empty', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, 'user1{Enter}')
@@ -262,7 +242,7 @@ describe('ApprovalNodeForm', () => {
 
     it('excludes timeout when all time fields are zero', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, 'user1{Enter}')
@@ -289,7 +269,7 @@ describe('ApprovalNodeForm', () => {
   describe('Form Submission', () => {
     it('submits with minimal valid data', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, 'user1{Enter}')
@@ -313,7 +293,7 @@ describe('ApprovalNodeForm', () => {
 
     it('submits with empty message field', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, 'user1{Enter}')
@@ -334,7 +314,7 @@ describe('ApprovalNodeForm', () => {
 
     it('submits with all fields populated', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, 'user1{Enter}')
@@ -363,7 +343,7 @@ describe('ApprovalNodeForm', () => {
 
     it('trims approvers and prompt on submission', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
       const approverInput = screen.getByLabelText('Add approver')
       await user.type(approverInput, '  user1  {Enter}')
@@ -385,7 +365,6 @@ describe('ApprovalNodeForm', () => {
       renderWithHeader(
         <ApprovalNodeForm
           onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
           initialData={{
             name: 'Approval Step',
             approvers: ['admin', 'manager'],
@@ -406,7 +385,6 @@ describe('ApprovalNodeForm', () => {
       renderWithHeader(
         <ApprovalNodeForm
           onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
           initialData={{
             name: 'Test',
             approvers: ['user1'],
@@ -427,7 +405,6 @@ describe('ApprovalNodeForm', () => {
       renderWithHeader(
         <ApprovalNodeForm
           onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
           initialData={{
             name: 'Test',
             approvers: ['user1'],

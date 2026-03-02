@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
+import { renderWithHeader } from './test-utils/renderWithHeader'
 import userEvent from '@testing-library/user-event'
-import type { ReactElement, ReactNode } from 'react'
-import { cloneElement, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ActionNodeForm } from './ActionNodeForm'
@@ -27,32 +26,15 @@ vi.mock('../../../components/ExpandableCodeEditor', () => ({
   ),
 }))
 
-function renderWithHeader(ui: ReactElement) {
-  function Wrapper() {
-    const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
-    return (
-      <>
-        {headerContent}
-        {cloneElement(ui as ReactElement<{ onHeaderContentChange?: (content: ReactNode | null) => void }>, {
-          onHeaderContentChange: setHeaderContent,
-        })}
-      </>
-    )
-  }
-
-  render(<Wrapper />)
-}
-
 describe('ActionNodeForm', () => {
   const mockOnSubmit = vi.fn()
-  const mockOnCancel = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('renders script fields by default and hides the action type selector', () => {
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
     expect(screen.queryByLabelText(/Action type/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/Language/i)).toBeInTheDocument()
@@ -63,7 +45,7 @@ describe('ActionNodeForm', () => {
 
   it('submits script form data', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Script')
     await user.type(screen.getByPlaceholderText(/Enter your code/i), 'print("hello")')
@@ -80,9 +62,7 @@ describe('ActionNodeForm', () => {
   })
 
   it('renders API fields when initialData sets executor to api', () => {
-    renderWithHeader(
-      <ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ executor: 'api' }} />
-    )
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'api' }} />)
 
     expect(screen.queryByLabelText(/Action type/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/URL/i)).toBeInTheDocument()
@@ -93,9 +73,7 @@ describe('ActionNodeForm', () => {
 
   it('submits API form data', async () => {
     const user = userEvent.setup()
-    renderWithHeader(
-      <ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ executor: 'api' }} />
-    )
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'api' }} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test API')
     await user.type(screen.getByPlaceholderText(/https:\/\/api.example.com/i), 'https://api.test.com/data')
@@ -118,7 +96,6 @@ describe('ActionNodeForm', () => {
     renderWithHeader(
       <ActionNodeForm
         onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
         initialData={{
           name: 'Existing Script',
           executor: 'script',
@@ -139,7 +116,6 @@ describe('ActionNodeForm', () => {
     renderWithHeader(
       <ActionNodeForm
         onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
         initialData={{
           name: 'Existing API',
           executor: 'api',
@@ -160,22 +136,20 @@ describe('ActionNodeForm', () => {
   })
 
   it('uses custom submit button text when provided', () => {
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} submitButtonText="Update node" />)
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} submitButtonText="Update node" />)
 
     expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
   })
 
   it('validates URL field for API executor', () => {
-    renderWithHeader(
-      <ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ executor: 'api' }} />
-    )
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'api' }} />)
 
     expect(screen.getByPlaceholderText(/https:\/\/api.example.com/i)).toHaveAttribute('type', 'url')
   })
 
   it('allows changing language for script executor', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
     await user.selectOptions(screen.getByLabelText(/Language/i), 'bash')
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Bash Script')
@@ -191,7 +165,7 @@ describe('ActionNodeForm', () => {
 
   it('includes parameters in submission when provided', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test')
     await user.type(screen.getByPlaceholderText(/Enter your code/i), 'code')

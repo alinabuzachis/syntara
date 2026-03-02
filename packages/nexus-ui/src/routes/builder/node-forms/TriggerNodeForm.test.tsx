@@ -1,26 +1,9 @@
 import { render, screen } from '@testing-library/react'
+import { renderWithHeader } from './test-utils/renderWithHeader'
 import userEvent from '@testing-library/user-event'
-import type { ReactElement, ReactNode } from 'react'
-import { cloneElement, useState } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { TriggerNodeForm } from './TriggerNodeForm'
-
-function renderWithHeader(ui: ReactElement) {
-  function Wrapper() {
-    const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
-    return (
-      <>
-        {headerContent}
-        {cloneElement(ui as ReactElement<{ onHeaderContentChange?: (content: ReactNode | null) => void }>, {
-          onHeaderContentChange: setHeaderContent,
-        })}
-      </>
-    )
-  }
-
-  render(<Wrapper />)
-}
 
 // Mock DateRangeCadencePicker
 vi.mock('../../../components/forms/DateRangeCadencePicker', () => ({
@@ -47,7 +30,6 @@ vi.mock('../../../components/forms/DateRangeCadencePicker', () => ({
 
 describe('TriggerNodeForm Component', () => {
   const mockOnSubmit = vi.fn()
-  const mockOnCancel = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -55,7 +37,7 @@ describe('TriggerNodeForm Component', () => {
 
   describe('Manual Trigger', () => {
     it('renders manual trigger form by default', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.queryByLabelText('Trigger type')).not.toBeInTheDocument()
       expect(screen.queryByLabelText('Requires Approval')).not.toBeInTheDocument()
@@ -63,7 +45,7 @@ describe('TriggerNodeForm Component', () => {
 
     it('submits manual trigger', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} />)
 
       await user.click(screen.getByRole('button', { name: 'Add node' }))
 
@@ -80,7 +62,7 @@ describe('TriggerNodeForm Component', () => {
         triggerType: 'manual',
       }
 
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={initialData} />)
+      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
       expect(screen.queryByLabelText('Trigger type')).not.toBeInTheDocument()
     })
@@ -88,9 +70,7 @@ describe('TriggerNodeForm Component', () => {
 
   describe('Scheduled Trigger', () => {
     it('shows schedule options when scheduled trigger is selected', async () => {
-      renderWithHeader(
-        <TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ triggerType: 'scheduled' }} />
-      )
+      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled' }} />)
 
       expect(screen.getByLabelText('Schedule type')).toBeInTheDocument()
       expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
@@ -98,11 +78,7 @@ describe('TriggerNodeForm Component', () => {
 
     it('shows interval picker for interval schedule type', async () => {
       renderWithHeader(
-        <TriggerNodeForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-          initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }}
-        />
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
       )
 
       expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
@@ -112,7 +88,6 @@ describe('TriggerNodeForm Component', () => {
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
           initialData={{ triggerType: 'scheduled', scheduleType: 'continuous' }}
         />
       )
@@ -123,11 +98,7 @@ describe('TriggerNodeForm Component', () => {
     it('toggles interval picker when schedule type changes', async () => {
       const user = userEvent.setup()
       renderWithHeader(
-        <TriggerNodeForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-          initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }}
-        />
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
       )
 
       expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
@@ -142,11 +113,7 @@ describe('TriggerNodeForm Component', () => {
     it('submits scheduled trigger with interval', async () => {
       const user = userEvent.setup()
       renderWithHeader(
-        <TriggerNodeForm
-          onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
-          initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }}
-        />
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
       )
 
       await user.type(screen.getByTestId('interval-input'), 'R/2024-01-01T10:00:00Z/P1D')
@@ -165,7 +132,6 @@ describe('TriggerNodeForm Component', () => {
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
-          onCancel={mockOnCancel}
           initialData={{ triggerType: 'scheduled', scheduleType: 'continuous' }}
         />
       )
@@ -187,7 +153,7 @@ describe('TriggerNodeForm Component', () => {
         interval: 'R/2024-01-01T10:00:00Z/P1D',
       }
 
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={initialData} />)
+      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
       expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
       expect(screen.getByTestId('interval-input')).toHaveValue('R/2024-01-01T10:00:00Z/P1D')
@@ -196,15 +162,13 @@ describe('TriggerNodeForm Component', () => {
 
   describe('Submit Button', () => {
     it('displays default submit button text', () => {
-      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.getByRole('button', { name: 'Add node' })).toBeInTheDocument()
     })
 
     it('displays custom submit button text when provided', () => {
-      renderWithHeader(
-        <TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} submitButtonText="Update trigger" />
-      )
+      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} submitButtonText="Update trigger" />)
 
       expect(screen.getByRole('button', { name: 'Update trigger' })).toBeInTheDocument()
     })
@@ -212,9 +176,7 @@ describe('TriggerNodeForm Component', () => {
 
   describe('Form State', () => {
     it('does not show approval checkbox when scheduled trigger is selected', async () => {
-      renderWithHeader(
-        <TriggerNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} initialData={{ triggerType: 'scheduled' }} />
-      )
+      renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled' }} />)
 
       expect(screen.queryByLabelText('Requires Approval')).not.toBeInTheDocument()
     })

@@ -1,11 +1,9 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { LoopActivity } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
-import { LogicNodeForm } from '../node-forms/LogicNodeForm'
-
-type LoopActivity = WorkflowAPI['components']['schemas']['activity'] & { type: 'loop' }
+import { LoopNodeForm } from '../node-forms/LoopNodeForm'
 
 interface LoopNodeDetailsProps {
   loopData: LoopActivity
@@ -26,18 +24,17 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
     return null
   }
 
+  // Runtime guard: only allow valid loop types
+  const loopType = loopData.loop.type === 'forEach' || loopData.loop.type === 'while' ? loopData.loop.type : 'forEach'
+
   const initialData = {
     name: loopData.name,
-    logicType: 'loop' as const,
-    type: loopData.loop.type,
-    items: loopData.loop.type === 'forEach' && 'items' in loopData.loop ? loopData.loop.items : undefined,
-    condition: loopData.loop.type === 'while' && 'condition' in loopData.loop ? loopData.loop.condition : undefined,
-    maxIterations:
-      loopData.loop.type === 'while' && 'maxIterations' in loopData.loop ? loopData.loop.maxIterations : undefined,
-    indexVariable:
-      loopData.loop.type === 'forEach' && 'indexVariable' in loopData.loop ? loopData.loop.indexVariable : undefined,
-    itemVariable:
-      loopData.loop.type === 'forEach' && 'itemVariable' in loopData.loop ? loopData.loop.itemVariable : undefined,
+    type: loopType,
+    items: loopType === 'forEach' && 'items' in loopData.loop ? loopData.loop.items : undefined,
+    condition: loopType === 'while' && 'condition' in loopData.loop ? loopData.loop.condition : undefined,
+    maxIterations: loopType === 'while' && 'maxIterations' in loopData.loop ? loopData.loop.maxIterations : undefined,
+    indexVariable: loopType === 'forEach' && 'indexVariable' in loopData.loop ? loopData.loop.indexVariable : undefined,
+    itemVariable: loopType === 'forEach' && 'itemVariable' in loopData.loop ? loopData.loop.itemVariable : undefined,
   }
 
   const handleSubmit = (data: {
@@ -93,7 +90,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
   }
 
   return (
-    <LogicNodeForm
+    <LoopNodeForm
       initialData={initialData}
       submitButtonText="Update node"
       onSubmit={handleSubmit}

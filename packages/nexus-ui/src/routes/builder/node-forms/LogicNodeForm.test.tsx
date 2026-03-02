@@ -1,638 +1,274 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { ActivityTypeEnum } from '@ansible/nexus-contracts'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { cloneElement, useState } from 'react'
-import type { ReactElement, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { secondsToTimeUnits, timeUnitsToSeconds } from '../utils/timeUtils'
-
 import { LogicNodeForm, type LogicFormData } from './LogicNodeForm'
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
-
-function renderWithHeader(ui: ReactElement) {
-  function Wrapper() {
-    const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
-    return (
-      <>
-        {headerContent}
-        {cloneElement(ui as ReactElement<{ onHeaderContentChange?: (content: ReactNode | null) => void }>, {
-          onHeaderContentChange: setHeaderContent,
-        })}
-      </>
-    )
-  }
-
-  render(<Wrapper />)
-}
+import { renderWithHeader } from './test-utils/renderWithHeader'
 
 describe('LogicNodeForm', () => {
   const mockOnSubmit = vi.fn()
-  const mockOnCancel = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('renders condition fields by default and hides loop/converge fields', () => {
-    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
-
-    expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
-    expect(screen.queryByLabelText(/Items expression/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: /Timeout/i })).not.toBeInTheDocument()
-  })
-
-  it('submits condition form data', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Condition')
-
-    // Switch to raw mode and enter expression
-    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
-    const rawInput = screen.getByLabelText(/Raw expression/i)
-    await user.click(rawInput)
-    await user.paste('${result > 0}')
-
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Test Condition',
-        logicType: 'condition',
-        condition: '${result > 0}',
-      })
-    )
-  })
-
-  it('renders loop fields when initialData sets logicType to loop', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: 'loop', type: 'forEach' }}
-      />
-    )
-
-    expect(screen.getByLabelText(/Items expression/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Item variable/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Index variable/i)).toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: /Timeout/i })).not.toBeInTheDocument()
-  })
-
-  it('submits forEach loop data', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: 'loop', type: 'forEach' }}
-      />
-    )
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Loop')
-    await user.type(screen.getByPlaceholderText(/input.item_list/i), 'myArray')
-    await user.clear(screen.getByPlaceholderText(/^item$/i))
-    await user.type(screen.getByPlaceholderText(/^item$/i), 'element')
-    await user.clear(screen.getByPlaceholderText(/^index$/i))
-    await user.type(screen.getByPlaceholderText(/^index$/i), 'i')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Test Loop',
-        logicType: 'loop',
-        type: 'forEach',
-        items: 'myArray',
-        itemVariable: 'element',
-        indexVariable: 'i',
-      })
-    )
-  })
-
-  it('renders while loop fields when initialData sets type to while', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: 'loop', type: 'while' }}
-      />
-    )
-
-    expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/Max iterations/i)).toBeInTheDocument()
-  })
-
-  it('submits while loop data', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: 'loop', type: 'while' }}
-      />
-    )
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'While Loop')
-
-    // Switch to raw mode and enter expression
-    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
-    const rawInput = screen.getByLabelText(/Raw expression/i)
-    await user.click(rawInput)
-    await user.paste('${x < 100}')
-
-    await user.type(screen.getByLabelText(/Max iterations/i), '500')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'While Loop',
-        logicType: 'loop',
-        type: 'while',
-        condition: '${x < 100}',
-        maxIterations: 500,
-      })
-    )
-  })
-
-  it('submits while loop data without maxIterations', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: 'loop', type: 'while' }}
-      />
-    )
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Simple While')
-
-    // Switch to raw mode and enter expression
-    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
-    const rawInput = screen.getByLabelText(/Raw expression/i)
-    await user.click(rawInput)
-    await user.paste('${running}')
-
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        logicType: 'loop',
-        type: 'while',
-        condition: '${running}',
-        maxIterations: undefined,
-      })
-    )
-  })
-
-  it('renders converge fields when initialData sets logicType to converge', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
-      />
-    )
-
-    expect(screen.getByLabelText(/Continue when criteria/i)).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: /Timeout/i })).toBeInTheDocument()
-    expect(screen.queryByText(/Timeout action/i)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/Aggregate outputs/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Converge nodes wait/i)).not.toBeInTheDocument()
-  })
-
-  it('submits converge data without timeout when toggle is off', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
-      />
-    )
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Branches')
-    await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), 'all')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Join Branches',
-        logicType: ActivityTypeEnum.CONVERGE,
-        strategy: 'all',
-        timeout: undefined,
-        onTimeout: undefined,
-      })
-    )
-  })
-
-  it('submits converge data with timeout when toggle is on', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
-      />
-    )
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Branches')
-    await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), 'all')
-    await user.click(screen.getByRole('switch', { name: /Timeout/i }))
-    await user.type(screen.getByLabelText(/Minute\(s\)/i), '10')
-    await user.click(screen.getByRole('button', { name: /Select timeout action|Fail/i }))
-    await user.click(screen.getByRole('option', { name: /Continue with partial data/i }))
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Join Branches',
-        logicType: ActivityTypeEnum.CONVERGE,
-        strategy: 'all',
-        timeout: 600,
-        onTimeout: 'continue',
-      })
-    )
-  })
-
-  it('populates form with initial data for condition', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{
-          name: 'Existing Condition',
-          logicType: 'condition',
-          condition: '${status == "active"}',
-        }}
-      />
-    )
-
-    expect(screen.getByDisplayValue('Existing Condition')).toBeInTheDocument()
-    // Expression builder should be present with visual mode showing the condition
-    expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
-  })
-
-  it('populates form with initial data for loop', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{
-          name: 'Existing Loop',
-          logicType: 'loop',
-          type: 'forEach',
-          items: '${items}',
-          itemVariable: 'obj',
-          indexVariable: 'idx',
-        }}
-      />
-    )
-
-    expect(screen.getByDisplayValue('Existing Loop')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('${items}')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('obj')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('idx')).toBeInTheDocument()
-  })
-
-  it('populates form with initial data for converge', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{
-          name: 'Existing Converge',
-          logicType: ActivityTypeEnum.CONVERGE,
-          strategy: 'any',
-          timeoutEnabled: true,
-          timeoutMinutes: 20,
-          onTimeout: 'continue',
-        }}
-      />
-    )
-
-    expect(screen.getByDisplayValue('Existing Converge')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Continue when criteria/i)).toHaveValue('any')
-    expect(screen.getByRole('switch', { name: /Timeout/i })).toBeChecked()
-    expect(screen.getByDisplayValue('20')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Continue with partial data/i })).toBeInTheDocument()
-  })
-
-  it('populates form with initial data for converge strategy any and optional fields', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{
-          name: 'Existing Converge Any',
-          logicType: ActivityTypeEnum.CONVERGE,
-          strategy: 'any',
-          requiredPathCount: 3,
-          remainingBehavior: 'cancel',
-        }}
-      />
-    )
-
-    expect(screen.getByDisplayValue('Existing Converge Any')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Required path count/i)).toHaveValue(3)
-    expect(screen.getByLabelText(/Behavior of remaining nodes/i)).toHaveValue('cancel')
-  })
-
-  it('does not show required path count or remaining behavior when strategy is all', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'all' }}
-      />
-    )
-
-    expect(screen.queryByLabelText(/Required path count/i)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/Behavior of remaining nodes/i)).not.toBeInTheDocument()
-  })
-
-  it('shows required path count and remaining behavior when strategy is any', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
-      />
-    )
-
-    expect(screen.getByLabelText(/Required path count/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Behavior of remaining nodes/i)).toBeInTheDocument()
-  })
-
-  it('pre-populates required path count with 1 when strategy any is first selected', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
-      />
-    )
-
-    const requiredPathCountInput = screen.getByLabelText(/Required path count/i)
-    expect(requiredPathCountInput).toHaveValue(1)
-  })
-
-  it('shows placeholder for remaining behavior when no value selected', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
-      />
-    )
-
-    const remainingBehaviorSelect = screen.getByLabelText(/Behavior of remaining nodes/i)
-    expect(remainingBehaviorSelect).toHaveValue('')
-    expect(screen.getByText(/Select behavior of remaining nodes/i)).toBeInTheDocument()
-  })
-
-  it('submits converge data with "any" strategy and all required fields', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
-      />
-    )
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Any')
-    await user.selectOptions(screen.getByLabelText(/Behavior of remaining nodes/i), 'cancel')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Join Any',
-        logicType: ActivityTypeEnum.CONVERGE,
-        strategy: 'any',
-        requiredPathCount: 1,
-        remainingBehavior: 'cancel',
-      })
-    )
-  })
-
-  it('blocks submit when strategy is any but remaining behavior not selected', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
-      />
-    )
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Any')
-    // requiredPathCount defaults to 1, but remainingBehavior is empty
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).not.toHaveBeenCalled()
-  })
-
-  it('blocks submit when strategy is any but required path count is invalid', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: 'any' }}
-      />
-    )
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Any')
-    await user.clear(screen.getByLabelText(/Required path count/i))
-    await user.type(screen.getByLabelText(/Required path count/i), '0')
-    await user.selectOptions(screen.getByLabelText(/Behavior of remaining nodes/i), 'continue')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).not.toHaveBeenCalled()
-  })
-
-  it('prevents submit when converge strategy is not selected', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE, strategy: '' } as unknown as Partial<LogicFormData>}
-      />
-    )
-
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Converge')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    expect(mockOnSubmit).not.toHaveBeenCalled()
-  })
-
-  it('uses custom submit button text when provided', () => {
-    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} submitButtonText="Update node" />)
-
-    expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
-  })
-
-  it("'any' option is disabled in continue when criteria dropdown", () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
-      />
-    )
-
-    const anyOption = screen.getByRole('option', { name: /Any branches reach this node/i })
-    expect(anyOption).toBeDisabled()
-  })
-
-  describe('helpers', () => {
-    describe('secondsToTimeUnits', () => {
-      it('converts 3600 seconds to 1 hour', () => {
-        expect(secondsToTimeUnits(3600)).toEqual({ days: 0, hours: 1, minutes: 0, seconds: 0 })
-      })
-
-      it('converts 86400 seconds to 1 day', () => {
-        expect(secondsToTimeUnits(86400)).toEqual({ days: 1, hours: 0, minutes: 0, seconds: 0 })
-      })
-
-      it('converts 3661 seconds to 1 hour, 1 minute, 1 second', () => {
-        expect(secondsToTimeUnits(3661)).toEqual({ days: 0, hours: 1, minutes: 1, seconds: 1 })
-      })
-
-      it('converts 0 seconds to all zeros', () => {
-        expect(secondsToTimeUnits(0)).toEqual({ days: 0, hours: 0, minutes: 0, seconds: 0 })
-      })
+  describe('Delegation to specialized forms', () => {
+    it('renders ConditionNodeForm when logicType is condition', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.CONDITION,
+            name: 'Test Condition',
+            condition: '${x > 0}',
+          }}
+        />
+      )
+
+      // Verify ConditionNodeForm is rendered by checking for its unique elements
+      expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
+      expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Condition')
     })
 
-    describe('timeUnitsToSeconds', () => {
-      it('converts days, hours, minutes, seconds to total seconds', () => {
-        expect(timeUnitsToSeconds(30, 5, 2, 1)).toBe(30 + 300 + 7200 + 86400)
-      })
+    it('renders LoopNodeForm when logicType is loop', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.LOOP,
+            name: 'Test Loop',
+            type: 'forEach',
+            items: '${items}',
+          }}
+        />
+      )
 
-      it('returns 0 when called with no arguments', () => {
-        expect(timeUnitsToSeconds()).toBe(0)
-      })
+      // Verify LoopNodeForm is rendered by checking for its unique elements
+      expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Loop')
+      expect(screen.getByLabelText(/^Type$/i)).toBeInTheDocument()
+    })
+
+    it('renders ConvergeNodeForm when logicType is converge', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.CONVERGE,
+            name: 'Test Converge',
+            strategy: 'all',
+          }}
+        />
+      )
+
+      // Verify ConvergeNodeForm is rendered by checking for its unique elements
+      expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Converge')
+      expect(screen.getByLabelText(/Continue when/i)).toBeInTheDocument()
+    })
+
+    it('returns null when logicType is unknown', () => {
+      const { container } = render(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: 'unknown',
+          }}
+        />
+      )
+
+      expect(container.firstChild).toBeNull()
+    })
+
+    it('returns null when logicType is undefined', () => {
+      const { container } = render(<LogicNodeForm onSubmit={mockOnSubmit} />)
+
+      expect(container.firstChild).toBeNull()
     })
   })
 
-  it('timeout toggle saves all four time units', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{ logicType: ActivityTypeEnum.CONVERGE }}
-      />
-    )
+  describe('Data mapping and submission', () => {
+    it('maps condition data correctly and adds logicType on submit', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.CONDITION,
+            name: 'Initial Name',
+            condition: '${initial}',
+          }}
+        />
+      )
 
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Converge With Timeout')
-    await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), 'all')
-    await user.click(screen.getByRole('switch', { name: /Timeout/i }))
-    await user.type(screen.getByLabelText(/Day\(s\)/i), '1')
-    await user.type(screen.getByLabelText(/Hour\(s\)/i), '2')
-    await user.type(screen.getByLabelText(/Minute\(s\)/i), '3')
-    await user.type(screen.getByLabelText(/Second\(s\)/i), '4')
-    await user.click(screen.getByRole('button', { name: /Select timeout action|Fail/i }))
-    await user.click(screen.getByRole('option', { name: /Fail/i }))
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+      // Clear and update name
+      const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Updated Condition')
 
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Converge With Timeout',
-        logicType: ActivityTypeEnum.CONVERGE,
-        strategy: 'all',
-        timeout: 86400 + 7200 + 180 + 4,
-        onTimeout: 'fail',
+      // Update expression in raw mode
+      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      const rawInput = screen.getByLabelText(/Raw expression/i)
+      await user.clear(rawInput)
+      await user.paste('${x > 5}')
+
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        name: 'Updated Condition',
+        condition: '${x > 5}',
+        logicType: ActivityTypeEnum.CONDITION,
       })
-    )
-  })
+    })
 
-  it('timeout state persists correctly on edit with all time unit fields pre-populated', () => {
-    renderWithHeader(
-      <LogicNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        initialData={{
-          logicType: ActivityTypeEnum.CONVERGE,
-          timeoutEnabled: true,
-          timeoutDays: 1,
-          timeoutHours: 2,
-          timeoutMinutes: 3,
-          timeoutSeconds: 4,
-        }}
-      />
-    )
+    it('maps loop data correctly and adds logicType on submit', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.LOOP,
+            name: 'Test Loop',
+            type: 'forEach',
+            items: '${items}',
+            maxIterations: 10,
+            indexVariable: 'i',
+            itemVariable: 'item',
+          }}
+        />
+      )
 
-    expect(screen.getByLabelText(/Day\(s\)/i)).toHaveValue(1)
-    expect(screen.getByLabelText(/Hour\(s\)/i)).toHaveValue(2)
-    expect(screen.getByLabelText(/Minute\(s\)/i)).toHaveValue(3)
-    expect(screen.getByLabelText(/Second\(s\)/i)).toHaveValue(4)
-  })
+      // Update name
+      const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Updated Loop')
 
-  it('allows switching from custom expression back to visual expression builder with empty conditions', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
 
-    // Should start in visual mode
-    expect(screen.getByLabelText(/Expression editor mode/i)).toHaveValue('visual')
+      expect(mockOnSubmit).toHaveBeenCalled()
+      const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
+      expect(submittedData.logicType).toBe(ActivityTypeEnum.LOOP)
+      expect(submittedData.name).toBe('Updated Loop')
+      expect(submittedData.type).toBe('forEach')
+    })
 
-    // Switch to custom expression mode
-    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
-    expect(screen.getByLabelText(/Expression editor mode/i)).toHaveValue('raw')
-    expect(screen.getByLabelText(/Raw expression/i)).toBeInTheDocument()
+    it('maps converge data correctly and adds logicType on submit', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.CONVERGE,
+            name: 'Test Converge',
+            strategy: 'all',
+            timeoutEnabled: false,
+          }}
+        />
+      )
 
-    // Switch back to visual mode (should work even with empty expression)
-    await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'visual')
-    expect(screen.getByLabelText(/Expression editor mode/i)).toHaveValue('visual')
+      // Update name
+      const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Updated Converge')
 
-    // Should show the visual builder with empty condition fields
-    expect(screen.getAllByText(/Field/i)[0]).toBeInTheDocument()
-    expect(screen.getAllByText(/Operator/i)[0]).toBeInTheDocument()
-    expect(screen.getAllByText(/Value/i)[0]).toBeInTheDocument()
-  })
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
 
-  it('prevents submission when condition has incomplete fields', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+      expect(mockOnSubmit).toHaveBeenCalled()
+      const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
+      expect(submittedData.logicType).toBe(ActivityTypeEnum.CONVERGE)
+      expect(submittedData.name).toBe('Updated Converge')
+    })
 
-    // Fill in name
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Incomplete Condition')
+    it('defaults loop type to forEach when not provided', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.LOOP,
+            name: 'Loop without type',
+          }}
+        />
+      )
 
-    // Stay in visual mode - don't fill any fields
-    // The default empty condition will serialize to empty string
-
-    // Try to submit - form validation should prevent it
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-    // Wait for form validation to complete
-    await waitFor(() => {
-      expect(mockOnSubmit).not.toHaveBeenCalled()
+      // Verify forEach is selected by default
+      expect(screen.getByLabelText(/^Type$/i)).toHaveValue('forEach')
     })
   })
 
-  it('submits successfully when all condition fields are filled', async () => {
-    const user = userEvent.setup()
-    renderWithHeader(<LogicNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />)
+  describe('Props propagation', () => {
+    it('passes submitButtonText to specialized form', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          submitButtonText="Custom Submit"
+          initialData={{
+            logicType: ActivityTypeEnum.CONDITION,
+          }}
+        />
+      )
 
-    // Fill in name
-    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Complete Condition')
+      expect(screen.getByRole('button', { name: /Custom Submit/i })).toBeInTheDocument()
+    })
+  })
 
-    // Fill in both variable and value
-    const fieldInputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
-    await user.type(fieldInputs[0], 'input.age')
-    await user.type(fieldInputs[1], '18')
+  describe('Initial data mapping', () => {
+    it('maps all condition fields from initialData', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.CONDITION,
+            name: 'Condition Node',
+            condition: '${value > 10}',
+          }}
+        />
+      )
 
-    // Submit
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+      expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Condition Node')
+    })
 
-    // Should call onSubmit successfully
-    expect(mockOnSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Complete Condition',
-        logicType: 'condition',
-        condition: '${input.age == 18}',
-      })
-    )
+    it('maps all loop fields from initialData', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.LOOP,
+            name: 'Loop Node',
+            type: 'while',
+            condition: '${count < 5}',
+            maxIterations: 100,
+            indexVariable: 'idx',
+            itemVariable: 'val',
+          }}
+        />
+      )
+
+      expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Loop Node')
+      expect(screen.getByLabelText(/^Type$/i)).toHaveValue('while')
+    })
+
+    it('maps all converge fields from initialData', () => {
+      renderWithHeader(
+        <LogicNodeForm
+          onSubmit={mockOnSubmit}
+          initialData={{
+            logicType: ActivityTypeEnum.CONVERGE,
+            name: 'Converge Node',
+            strategy: 'any',
+            timeoutEnabled: true,
+            timeoutSeconds: 30,
+            timeoutMinutes: 5,
+            timeoutHours: 1,
+            timeoutDays: 0,
+            timeout: 3930,
+            onTimeout: 'fail',
+            requiredPathCount: 2,
+            remainingBehavior: 'cancel',
+          }}
+        />
+      )
+
+      expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Converge Node')
+      expect(screen.getByLabelText(/Continue when/i)).toHaveValue('any')
+    })
   })
 })

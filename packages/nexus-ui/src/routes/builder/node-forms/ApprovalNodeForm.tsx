@@ -54,7 +54,6 @@ export type ApprovalFormSubmitData = {
 
 interface ApprovalNodeFormProps {
   onSubmit: (data: ApprovalFormSubmitData) => void
-  onCancel: () => void
   submitButtonText?: string
   initialData?: Partial<ApprovalFormSubmitData>
   onHeaderContentChange?: (content: ReactNode | null) => void

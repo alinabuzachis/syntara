@@ -154,7 +154,7 @@ export default function registerLogicNode() {
             // Signal success with the loop node ID (not the generic node)
             onSuccess(activityId)
             return
-          } else if (data.logicType === 'converge') {
+          } else if (data.logicType === ActivityTypeEnum.CONVERGE) {
             if (!data.strategy) {
               onError('Continue when criteria is required')
               return

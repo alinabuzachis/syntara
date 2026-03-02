@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
-import { LogicNodeForm } from '../node-forms/LogicNodeForm'
+import { ConditionNodeForm } from '../node-forms/ConditionNodeForm'
 
 interface ConditionNodeDetailsProps {
   conditionData: ConditionActivity
@@ -24,7 +24,6 @@ export function ConditionNodeDetails({
 
   const initialData = {
     name: conditionData.name,
-    logicType: 'condition' as const,
     condition: conditionData.condition,
   }
 
@@ -44,7 +43,7 @@ export function ConditionNodeDetails({
   }
 
   return (
-    <LogicNodeForm
+    <ConditionNodeForm
       initialData={initialData}
       submitButtonText="Update node"
       onSubmit={handleSubmit}

@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
+import { renderWithHeader } from './test-utils/renderWithHeader'
 import userEvent from '@testing-library/user-event'
-import { cloneElement, useState } from 'react'
-import type { ReactElement, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AAPNodeForm } from './AAPNodeForm'
@@ -28,32 +27,15 @@ vi.mock('../../../components/ExpandableCodeEditor', () => ({
   ),
 }))
 
-function renderWithHeader(ui: ReactElement) {
-  function Wrapper() {
-    const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
-    return (
-      <>
-        {headerContent}
-        {cloneElement(ui as ReactElement<{ onHeaderContentChange: (content: ReactNode | null) => void }>, {
-          onHeaderContentChange: setHeaderContent,
-        })}
-      </>
-    )
-  }
-
-  render(<Wrapper />)
-}
-
 describe('AAPNodeForm', () => {
   const mockOnSubmit = vi.fn()
-  const mockOnCancel = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('renders form with required fields', () => {
-    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} onHeaderContentChange={vi.fn()} />)
+    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onHeaderContentChange={vi.fn()} />)
 
     expect(screen.getByLabelText(/Name/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Job Template ID/i)).toBeInTheDocument()
@@ -68,7 +50,7 @@ describe('AAPNodeForm', () => {
 
   it('submits minimal valid form with only required fields', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} onHeaderContentChange={vi.fn()} />)
+    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onHeaderContentChange={vi.fn()} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Job')
     await user.type(screen.getByPlaceholderText('123'), '456')
@@ -89,7 +71,7 @@ describe('AAPNodeForm', () => {
 
   it('submits with all optional fields', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} onHeaderContentChange={vi.fn()} />)
+    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onHeaderContentChange={vi.fn()} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Job')
     await user.type(screen.getByPlaceholderText('123'), '456')
@@ -118,7 +100,7 @@ describe('AAPNodeForm', () => {
 
   it('validates JSON and disables submit on invalid input', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} onHeaderContentChange={vi.fn()} />)
+    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onHeaderContentChange={vi.fn()} />)
 
     const extraVarsInput = screen.getByPlaceholderText(/version/i)
     await user.click(extraVarsInput)
@@ -130,7 +112,7 @@ describe('AAPNodeForm', () => {
 
   it('clears validation error when JSON input is cleared', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} onHeaderContentChange={vi.fn()} />)
+    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onHeaderContentChange={vi.fn()} />)
 
     const extraVarsInput = screen.getByPlaceholderText(/version/i)
     await user.click(extraVarsInput)
@@ -145,7 +127,6 @@ describe('AAPNodeForm', () => {
     renderWithHeader(
       <AAPNodeForm
         onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
         onHeaderContentChange={vi.fn()}
         initialData={{
           name: 'Existing Job',
@@ -174,12 +155,7 @@ describe('AAPNodeForm', () => {
 
   it('uses custom submit button text when provided', () => {
     renderWithHeader(
-      <AAPNodeForm
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        onHeaderContentChange={vi.fn()}
-        submitButtonText="Update node"
-      />
+      <AAPNodeForm onSubmit={mockOnSubmit} onHeaderContentChange={vi.fn()} submitButtonText="Update node" />
     )
 
     expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()

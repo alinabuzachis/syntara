@@ -132,16 +132,6 @@ describe('ApprovalNodeDetails Component', () => {
     expect(screen.getByText('Update node')).toBeInTheDocument()
   })
 
-  it('calls onClose when cancel button is clicked', async () => {
-    const user = userEvent.setup()
-
-    render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
-
-    await user.click(screen.getByTestId('cancel-button'))
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
-  })
-
   it('handles taskData without approval data', () => {
     const taskDataWithoutApproval = createTaskData({ approval: undefined })
 

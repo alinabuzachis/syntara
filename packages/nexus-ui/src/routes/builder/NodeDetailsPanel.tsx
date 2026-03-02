@@ -176,7 +176,6 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           initialData={initialData}
           submitButtonText={submitButtonText}
           onSubmit={(data) => handleCreate(data as Record<string, unknown>)}
-          onCancel={onClose}
           onHeaderContentChange={setHeaderContent}
         />
       )

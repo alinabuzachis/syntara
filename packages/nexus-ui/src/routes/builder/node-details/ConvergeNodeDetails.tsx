@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
 import { useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
-import { LogicNodeForm } from '../node-forms/LogicNodeForm'
+import { ConvergeNodeForm } from '../node-forms/ConvergeNodeForm'
 import { secondsToTimeUnits } from '../utils/timeUtils'
 
 interface ConvergeNodeDetailsProps {
@@ -28,7 +28,6 @@ export function ConvergeNodeDetails({
 
   const initialData = {
     name: convergeData.name,
-    logicType: 'converge' as const,
     strategy: (convergeData.converge?.strategy as 'all' | 'any') ?? 'all',
     timeoutEnabled: !!storedTimeout,
     timeoutSeconds: timeUnits?.seconds ?? undefined,
@@ -82,7 +81,7 @@ export function ConvergeNodeDetails({
   }
 
   return (
-    <LogicNodeForm
+    <ConvergeNodeForm
       initialData={initialData}
       submitButtonText="Update node"
       onSubmit={handleSubmit}

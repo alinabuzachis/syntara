@@ -38,7 +38,6 @@ const FileContext = createContext<FileContextType | null>(null)
 
 interface AIAgentNodeFormProps {
   onSubmit: (data: AIAgentFormSubmitData) => void
-  onCancel: () => void
   submitButtonText?: string
   initialData?: AIAgentFormInitialData
   onHeaderContentChange?: (content: ReactNode | null) => void

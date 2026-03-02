@@ -27,16 +27,16 @@ vi.mock('../../../components/alerts', () => ({
   })),
 }))
 
-// Mock LogicNodeForm
-vi.mock('../node-forms/LogicNodeForm', () => ({
-  LogicNodeForm: ({
+// Mock ConditionNodeForm
+vi.mock('../node-forms/ConditionNodeForm', () => ({
+  ConditionNodeForm: ({
     onSubmit,
     submitButtonText,
   }: {
     onSubmit: (data: Record<string, unknown>) => void
     submitButtonText?: string
   }) => (
-    <div data-testid="logic-node-form">
+    <div data-testid="condition-node-form">
       <button onClick={() => onSubmit({ name: 'Updated Condition', condition: 'true' })} data-testid="submit-button">
         {submitButtonText || 'Add node'}
       </button>
@@ -51,7 +51,7 @@ describe('ConditionNodeDetails Component', () => {
     vi.clearAllMocks()
   })
 
-  it('renders LogicNodeForm', () => {
+  it('renders ConditionNodeForm', () => {
     const conditionData = {
       type: 'condition' as const,
       id: 'condition-1',
@@ -61,7 +61,7 @@ describe('ConditionNodeDetails Component', () => {
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
 
-    expect(screen.getByTestId('logic-node-form')).toBeInTheDocument()
+    expect(screen.getByTestId('condition-node-form')).toBeInTheDocument()
   })
 
   it('calls updateActivity on successful form submission', async () => {

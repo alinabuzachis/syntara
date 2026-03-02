@@ -25,24 +25,26 @@ vi.mock('../../../components/alerts', () => ({
 vi.mock('../utils/timeUtils', async (importOriginal) => importOriginal())
 
 // Mock that triggers real handleSubmit flow for accurate payload testing
-vi.mock('../node-forms/LogicNodeForm', () => ({
-  LogicNodeForm: ({
+vi.mock('../node-forms/ConvergeNodeForm', () => ({
+  ConvergeNodeForm: ({
     onSubmit,
+    onCancel,
     submitButtonText,
     initialData,
   }: {
     onSubmit: (data: Record<string, unknown>) => void
+    onCancel: () => void
     submitButtonText?: string
     initialData?: Record<string, unknown>
   }) => {
     return (
-      <div data-testid="logic-node-form">
+      <div data-testid="converge-node-form">
         <span data-testid="initial-name">{initialData?.name as string}</span>
         <span data-testid="initial-timeout-enabled">{String(initialData?.timeoutEnabled ?? false)}</span>
         <span data-testid="initial-required-path-count">{String(initialData?.requiredPathCount ?? '')}</span>
         <button
           onClick={() => {
-            // Simulate LogicNodeForm's behavior: compute timeout from time units before calling handleSubmit
+            // Simulate ConvergeNodeForm's behavior: compute timeout from time units before calling handleSubmit
             const timeoutInSeconds = initialData?.timeoutEnabled
               ? (Number(initialData?.timeoutSeconds) || 0) +
                 (Number(initialData?.timeoutMinutes) || 0) * 60 +
@@ -88,10 +90,10 @@ describe('ConvergeNodeDetails Component', () => {
     vi.clearAllMocks()
   })
 
-  it('renders LogicNodeForm', () => {
+  it('renders ConvergeNodeForm', () => {
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
-    expect(screen.getByTestId('logic-node-form')).toBeInTheDocument()
+    expect(screen.getByTestId('converge-node-form')).toBeInTheDocument()
   })
 
   it('passes initial data from convergeData to form', () => {
@@ -155,7 +157,7 @@ describe('ConvergeNodeDetails Component', () => {
 
     render(<ConvergeNodeDetails convergeData={convergeDataWithoutConverge} nodeId="converge-1" onClose={mockOnClose} />)
 
-    expect(screen.getByTestId('logic-node-form')).toBeInTheDocument()
+    expect(screen.getByTestId('converge-node-form')).toBeInTheDocument()
   })
 
   it('passes initialData to form with timeout decomposed', () => {

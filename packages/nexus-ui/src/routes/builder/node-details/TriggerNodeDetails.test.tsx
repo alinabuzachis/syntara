@@ -246,23 +246,6 @@ describe('TriggerNodeDetails Component', () => {
     })
   })
 
-  describe('Cancel Functionality', () => {
-    it('calls onClose when cancel button is clicked', async () => {
-      const user = userEvent.setup()
-      const trigger = {
-        type: 'manual' as const,
-        requiresApproval: false,
-        name: 'Trigger',
-      }
-
-      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
-
-      await user.click(screen.getByTestId('cancel-button'))
-
-      expect(mockOnClose).toHaveBeenCalledTimes(1)
-    })
-  })
-
   describe('Default Fallback', () => {
     it('falls back to manual trigger for unsupported trigger types', () => {
       // Create an event trigger (which is not yet fully implemented)

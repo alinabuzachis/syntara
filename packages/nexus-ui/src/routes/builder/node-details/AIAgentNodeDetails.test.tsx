@@ -146,27 +146,6 @@ describe('AIAgentNodeDetails Component', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onClose when cancel button is clicked', async () => {
-    const user = userEvent.setup()
-    const taskData = {
-      type: 'task' as const,
-      id: 'agent-1',
-      name: 'Agent',
-      task: {
-        executor: 'agentic' as const,
-        config: {
-          agent: '',
-        },
-      },
-    }
-
-    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
-
-    await user.click(screen.getByTestId('cancel-button'))
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
-  })
-
   it('handles empty tools array', () => {
     const taskData = {
       type: 'task' as const,

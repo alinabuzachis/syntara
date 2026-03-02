@@ -19,7 +19,6 @@ export interface TriggerFormData {
 
 interface TriggerNodeFormProps {
   onSubmit: (data: TriggerFormData) => void
-  onCancel: () => void
   initialData?: Partial<TriggerFormData>
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void

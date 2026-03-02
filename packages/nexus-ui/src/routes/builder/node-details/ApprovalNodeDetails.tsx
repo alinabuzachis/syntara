@@ -53,7 +53,6 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose, onHeaderContent
   return (
     <ApprovalNodeForm
       onSubmit={handleSubmit}
-      onCancel={onClose}
       submitButtonText="Update node"
       initialData={initialData}
       onHeaderContentChange={onHeaderContentChange}

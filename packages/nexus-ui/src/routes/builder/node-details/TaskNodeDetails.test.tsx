@@ -394,28 +394,6 @@ describe('TaskNodeDetails Component', () => {
     expect(screen.getByText('Update node')).toBeInTheDocument()
   })
 
-  it('calls onClose when cancel button is clicked', async () => {
-    const user = userEvent.setup()
-    const taskData = {
-      type: 'task' as const,
-      id: 'task-1',
-      name: 'Task',
-      task: {
-        executor: 'script' as const,
-        config: {
-          language: 'python' as const,
-          code: 'print("test")',
-        },
-      },
-    }
-
-    renderTaskNodeDetails(taskData, 'task-1')
-
-    await user.click(screen.getByTestId('cancel-button'))
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
-  })
-
   it('returns null for approval node (type approval)', () => {
     const taskData: Extract<Activity, { type: 'approval' }> = {
       type: 'approval' as const,

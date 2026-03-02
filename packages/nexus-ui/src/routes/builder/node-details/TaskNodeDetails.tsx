@@ -95,7 +95,6 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
         initialData={aapInitialData}
         submitButtonText="Update node"
         onSubmit={handleAAPSubmit}
-        onCancel={onClose}
         onHeaderContentChange={onHeaderContentChange}
       />
     )
@@ -193,7 +192,6 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
       initialData={initialData}
       submitButtonText="Update node"
       onSubmit={handleSubmit}
-      onCancel={onClose}
       onHeaderContentChange={onHeaderContentChange}
     />
   )

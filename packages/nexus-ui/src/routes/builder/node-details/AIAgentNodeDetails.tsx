@@ -72,7 +72,6 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
       initialData={initialData}
       submitButtonText="Update node"
       onSubmit={handleSubmit}
-      onCancel={onClose}
       onHeaderContentChange={onHeaderContentChange}
     />
   )

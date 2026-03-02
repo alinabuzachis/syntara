@@ -34,7 +34,6 @@ export interface AAPFormData {
 
 interface AAPNodeFormProps {
   onSubmit: (data: AAPFormData) => void
-  onCancel: () => void
   initialData?: Partial<AAPFormData>
   submitButtonText?: string
   onHeaderContentChange: (content: ReactNode | null) => void

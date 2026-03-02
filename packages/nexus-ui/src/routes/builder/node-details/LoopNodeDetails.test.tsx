@@ -27,9 +27,9 @@ vi.mock('../../../components/alerts', () => ({
   })),
 }))
 
-// Mock LogicNodeForm
-vi.mock('../node-forms/LogicNodeForm', () => ({
-  LogicNodeForm: ({
+// Mock LoopNodeForm
+vi.mock('../node-forms/LoopNodeForm', () => ({
+  LoopNodeForm: ({
     onSubmit,
     submitButtonText,
     initialData,
@@ -38,7 +38,7 @@ vi.mock('../node-forms/LogicNodeForm', () => ({
     submitButtonText?: string
     initialData?: Record<string, unknown>
   }) => (
-    <div data-testid="logic-node-form">
+    <div data-testid="loop-node-form">
       <span data-testid="initial-type">{initialData?.type as string}</span>
       <span data-testid="initial-name">{initialData?.name as string}</span>
       <button
@@ -64,7 +64,7 @@ describe('LoopNodeDetails Component', () => {
     vi.clearAllMocks()
   })
 
-  it('renders LogicNodeForm', () => {
+  it('renders LoopNodeForm', () => {
     const loopData = {
       type: 'loop' as const,
       id: 'loop-1',
@@ -78,7 +78,7 @@ describe('LoopNodeDetails Component', () => {
 
     render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
 
-    expect(screen.getByTestId('logic-node-form')).toBeInTheDocument()
+    expect(screen.getByTestId('loop-node-form')).toBeInTheDocument()
   })
 
   it('calls updateActivity on successful form submission', async () => {
