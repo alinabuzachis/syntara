@@ -21,14 +21,20 @@ export async function fillCodeEditor(
   { value, label = 'Script code editor' }: { value: string; label?: string }
 ) {
   const typeInto = async (target: ReturnType<Page['locator']>) => {
-    await expect(target).toBeVisible()
-    const monacoSurface = target.locator('.monaco-editor')
-    if ((await monacoSurface.count()) > 0) {
-      await monacoSurface.first().click({ force: true })
-    } else {
-      await target.click({ force: true })
+    const textbox = target.getByRole('textbox', { name: label }).first()
+    if (await textbox.isVisible()) {
+      await textbox.click({ force: true })
+      await page.keyboard.press('ControlOrMeta+A')
+      await page.keyboard.type(value, { delay: 10 })
+      await expect(textbox).toHaveValue(value)
+      return
     }
+
+    const monacoSurface = target.locator('.monaco-editor').first()
+    await monacoSurface.click({ force: true })
+    await page.keyboard.press('ControlOrMeta+A')
     await page.keyboard.insertText(value)
+    await expect(monacoSurface.locator('.view-lines')).toContainText(value.slice(0, 20))
   }
 
   const visibleInlineEditor = page.getByTestId('inline-code-editor').locator(':visible').first()
@@ -37,8 +43,18 @@ export async function fillCodeEditor(
     return
   }
 
+  const visibleModalEditor = page.getByTestId('modal-code-editor').locator(':visible').first()
+  if ((await visibleModalEditor.count()) > 0) {
+    await typeInto(visibleModalEditor)
+    return
+  }
+
   const roleEditor = page.getByRole('textbox', { name: label }).first()
-  await typeInto(roleEditor)
+  await expect(roleEditor).toBeVisible()
+  await roleEditor.click({ force: true })
+  await page.keyboard.press('ControlOrMeta+A')
+  await page.keyboard.type(value, { delay: 10 })
+  await expect(roleEditor).toHaveValue(value)
 }
 
 export async function createBasicWorkflow(page: Page, workflowName: string, actionName: string) {
@@ -67,6 +83,6 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
   await page.getByPlaceholder('Workflow name').fill(workflowName)
   await page.getByRole('button', { name: 'Save' }).click()
 
-  // Assert - Workflow created toast
-  await expect(page.getByText('Workflow created successfully')).toBeVisible()
+  // Assert - Workflow created and navigated to edit route
+  await expect(page).toHaveURL(/automation-builder\/.+/)
 }

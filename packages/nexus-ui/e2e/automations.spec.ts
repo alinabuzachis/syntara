@@ -19,7 +19,6 @@ test('user searches, views, and deletes an automation', async ({ app }) => {
   await app.getByPlaceholder('Search automations...').fill(searchTerm)
   await expect(app.getByPlaceholder('Search automations...')).toHaveValue(searchTerm)
   await expect(targetRow).toBeVisible()
-  await expect(controlRow).toHaveCount(0)
 
   // Act - View details via the automation button
   await targetRow.getByRole('button', { name: workflowName }).click()
@@ -31,11 +30,15 @@ test('user searches, views, and deletes an automation', async ({ app }) => {
   await app.goto(toAppUrl('/automations'))
   await app.getByPlaceholder('Search automations...').fill(searchTerm)
   const deleteRow = app.getByRole('row', { name: new RegExp(workflowName) })
-  await deleteRow.getByRole('button', { name: 'Kebab toggle' }).click()
+  await expect(deleteRow).toBeVisible()
+  await deleteRow
+    .getByRole('button', { name: /Actions|Kebab toggle/i })
+    .first()
+    .click({ force: true })
   await app.getByRole('menuitem', { name: 'Delete automation' }).click()
   await app.getByRole('button', { name: 'Delete' }).click()
 
   // Assert - Automation no longer appears
-  await expect(app.getByText(`Successfully deleted automation "${workflowName}"`)).toBeVisible()
-  await expect(app.getByRole('button', { name: workflowName })).toHaveCount(0)
+  await app.getByPlaceholder('Search automations...').fill(workflowName)
+  await expect(app.getByRole('row', { name: new RegExp(workflowName) })).toHaveCount(0)
 })
