@@ -3,11 +3,13 @@
   "project": ["src/**/*.{ts,tsx}"],
   "ignoreDependencies": [
     "@ansible/nexus-contracts",
+    "@eslint/js",
     "@playwright/test",
     "@vitest/browser",
     "babel-plugin-react-compiler",
+    "eslint",
     "prettier"
   ],
-  "ignoreBinaries": ["vite", "concurrently", "vitest", "playwright", "tsc", "knip"],
+  "ignoreBinaries": ["vite", "concurrently", "vitest", "playwright", "tsc", "knip", "eslint"],
   "exclude": ["unlisted", "types"]
 }

@@ -21,7 +21,7 @@
   "dependencies": {
     "@ansible/nexus-contracts": "file:../nexus-contracts",
     "@dagrejs/dagre": "^2.0.4",
-    "@patternfly/react-code-editor": "^6.4.1",
+    "@patternfly/react-code-editor": "^6.5.0-prerelease.35",
     "@patternfly/react-core": "^6.5.0-prerelease.35",
     "@patternfly/react-table": "^6.5.0-prerelease.36",
     "@tanstack/react-query": "^5.90.21",
