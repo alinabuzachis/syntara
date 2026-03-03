@@ -264,7 +264,7 @@ class TestMetricsSummary:
 
 
 # =============================================================================
-# GET /api/v1/metrics/openmetrics
+# GET /api/v1/metrics/openmetrics (Prometheus scrape endpoint)
 # =============================================================================
 
 
@@ -286,6 +286,24 @@ class TestOpenMetricsEndpoint:
         content = resp.text
         assert "nexus_llm_duration_seconds" in content
         assert "nexus_cache_hits_total" in content
+
+    def test_returns_valid_prometheus_openmetrics_format(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """OpenMetrics endpoint returns valid Prometheus/OpenMetrics exposition format."""
+        recorder.record(MetricType.LLM_DURATION, 100.0, labels={"model": "gpt-4"})
+        recorder.record(MetricType.CACHE_HIT, 1.0)
+
+        resp = client.get("/api/v1/metrics/openmetrics")
+        assert resp.status_code == 200
+        content = resp.text
+
+        assert "# HELP" in content
+        assert "# TYPE" in content
+        assert "nexus_llm_duration_seconds" in content
+        assert "nexus_cache_hits_total" in content
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        for line in lines:
+            if not line.startswith("#"):
+                assert " " in line or "{" in line, f"Metric line should contain space or labels: {line!r}"
 
     def test_counter_values_appear(self, client: TestClient, recorder: MetricsRecorder) -> None:
         """OpenMetrics output reflects recorded counter values."""

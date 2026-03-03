@@ -1122,9 +1122,9 @@ class MetricsSettings(BaseSettings):
         description="Enable/disable metrics collection globally",
     )
 
-    metrics_prometheus_enabled: bool = Field(
+    metrics_openmetrics_enabled: bool = Field(
         default=True,
-        description="Enable Prometheus /metrics endpoint",
+        description="Enable OpenMetrics scrape endpoint (GET /api/v1/metrics/openmetrics)",
     )
 
 

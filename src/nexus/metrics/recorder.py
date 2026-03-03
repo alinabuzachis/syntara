@@ -225,14 +225,16 @@ class MetricsRecorder:
         p = self._prometheus
 
         if metric_type == MetricType.REQUEST_DURATION:
-            p.request_duration_seconds.labels(
-                endpoint=labels.get("endpoint", "unknown"),
-            ).observe(value / 1000)
+            endpoint = labels.get("endpoint", "unknown")
+            status_label = labels.get("status", "unknown")
+            p.request_duration_seconds.labels(endpoint=endpoint).observe(value / 1000)
+            p.requests_total.labels(status=status_label, endpoint=endpoint).inc()
 
         elif metric_type == MetricType.LLM_DURATION:
-            p.llm_duration_seconds.labels(
-                model=labels.get("model", "unknown"),
-            ).observe(value / 1000)
+            model = labels.get("model", "unknown")
+            status_label = labels.get("status", "success")
+            p.llm_duration_seconds.labels(model=model).observe(value / 1000)
+            p.llm_calls_total.labels(model=model, status=status_label).inc()
 
         elif metric_type == MetricType.LLM_TTFT:
             p.ttft_seconds.labels(

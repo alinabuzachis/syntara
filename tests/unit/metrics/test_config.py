@@ -16,26 +16,26 @@ class TestMetricsSettings:
         assert settings.metrics_retention_seconds == 86400
         assert settings.metrics_max_records == 1_000_000
         assert settings.metrics_enabled is True
-        assert settings.metrics_prometheus_enabled is True
+        assert settings.metrics_openmetrics_enabled is True
 
     def test_metrics_settings_from_env(self) -> None:
         """Test metrics settings can be configured via environment."""
         os.environ["NEXUS_METRICS_RETENTION_SECONDS"] = "3600"
         os.environ["NEXUS_METRICS_MAX_RECORDS"] = "500000"
         os.environ["NEXUS_METRICS_ENABLED"] = "false"
-        os.environ["NEXUS_METRICS_PROMETHEUS_ENABLED"] = "false"
+        os.environ["NEXUS_METRICS_OPENMETRICS_ENABLED"] = "false"
 
         try:
             settings = Settings()
             assert settings.metrics_retention_seconds == 3600
             assert settings.metrics_max_records == 500000
             assert settings.metrics_enabled is False
-            assert settings.metrics_prometheus_enabled is False
+            assert settings.metrics_openmetrics_enabled is False
         finally:
             os.environ.pop("NEXUS_METRICS_RETENTION_SECONDS", None)
             os.environ.pop("NEXUS_METRICS_MAX_RECORDS", None)
             os.environ.pop("NEXUS_METRICS_ENABLED", None)
-            os.environ.pop("NEXUS_METRICS_PROMETHEUS_ENABLED", None)
+            os.environ.pop("NEXUS_METRICS_OPENMETRICS_ENABLED", None)
 
     def test_metrics_retention_allows_zero(self) -> None:
         """Retention of 0 is valid (no retention / immediate expiry)."""

@@ -266,6 +266,34 @@ class TestRecorderPrometheus:
         )._sum.get()
         assert sample_value == pytest.approx(0.25, rel=0.01)
 
+    def test_request_duration_increments_requests_total(self, recorder: MetricsRecorder) -> None:
+        """Recording REQUEST_DURATION also increments requests_total."""
+        recorder.record(
+            MetricType.REQUEST_DURATION,
+            100.0,
+            unit="ms",
+            labels={"endpoint": "/api/v1/health", "status": "200"},
+        )
+        value = recorder.prometheus.requests_total.labels(
+            status="200",
+            endpoint="/api/v1/health",
+        )._value.get()
+        assert value == pytest.approx(1.0)
+
+    def test_llm_duration_increments_llm_calls_total(self, recorder: MetricsRecorder) -> None:
+        """Recording LLM_DURATION also increments llm_calls_total."""
+        recorder.record(
+            MetricType.LLM_DURATION,
+            200.0,
+            unit="ms",
+            labels={"model": "gpt-4", "status": "success"},
+        )
+        value = recorder.prometheus.llm_calls_total.labels(
+            model="gpt-4",
+            status="success",
+        )._value.get()
+        assert value == pytest.approx(1.0)
+
     def test_workflow_duration_updates_counter(self, recorder: MetricsRecorder) -> None:
         """Recording WORKFLOW_DURATION also increments workflows_total counter."""
         recorder.record(

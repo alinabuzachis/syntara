@@ -11,8 +11,9 @@ Endpoints:
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
+from nexus.core.config.base import get_settings
 from nexus.core.models.base.pagination import ResourcesResponse
 from nexus.core.utils.cursor import (
     PaginationDirection,
@@ -183,6 +184,7 @@ async def openmetrics_endpoint(
 
     Returns metrics in the text-based OpenMetrics exposition format
     understood by Prometheus, Grafana Agent, and compatible scrapers.
+    When metrics_openmetrics_enabled is False, returns 404.
 
     Args:
         recorder: Application metrics recorder (injected).
@@ -193,5 +195,11 @@ async def openmetrics_endpoint(
     """
     from prometheus_client import generate_latest  # noqa: PLC0415
 
+    settings = get_settings()
+    if not settings.metrics_openmetrics_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Openmetrics endpoint is disabled",
+        )
     body = generate_latest(recorder.prometheus.registry)
     return Response(content=body, media_type="text/plain; version=0.0.4; charset=utf-8")
