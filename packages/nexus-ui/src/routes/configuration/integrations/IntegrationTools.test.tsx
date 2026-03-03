@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -270,43 +271,53 @@ describe('IntegrationTools Component', () => {
   })
 
   describe('Search Functionality', () => {
-    it('allows searching tools', () => {
+    it('allows searching tools', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const searchInput = screen.getByPlaceholderText('Search tools...')
 
       // Simulate typing in the search input
-      const searchTerm = 'tool_one'
-      fireEvent.change(searchInput, { target: { value: searchTerm } })
+      await user.clear(searchInput)
+      await user.type(searchInput, 'tool_one')
 
       // Verify the input value is updated
-      expect(searchInput.value).toBe(searchTerm)
+      await waitFor(() => {
+        expect(searchInput).toHaveValue('tool_one')
+      })
     })
 
-    it('filters tools with fuzzy search', () => {
+    it('filters tools with fuzzy search', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const searchInput = screen.getByPlaceholderText('Search tools...')
 
       // Simulate searching for "tool_one"
-      fireEvent.change(searchInput, { target: { value: 'tool_one' } })
+      await user.clear(searchInput)
+      await user.type(searchInput, 'tool_one')
 
       // The matching tool should be visible
-      expect(screen.getByText('test.tool_one')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText('test.tool_one')).toBeInTheDocument()
+      })
     })
 
-    it('shows all tools when search is empty', () => {
+    it('shows all tools when search is empty', async () => {
+      const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const searchInput = screen.getByPlaceholderText('Search tools...')
 
       // Clear the search input
-      fireEvent.change(searchInput, { target: { value: '' } })
+      await user.clear(searchInput)
 
       // Verify all tools are shown
-      expect(screen.getByText('test.tool_one')).toBeInTheDocument()
-      expect(screen.getByText('test.tool_two')).toBeInTheDocument()
-      expect(screen.getByText('test.tool_three')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText('test.tool_one')).toBeInTheDocument()
+        expect(screen.getByText('test.tool_two')).toBeInTheDocument()
+        expect(screen.getByText('test.tool_three')).toBeInTheDocument()
+      })
     })
   })
 

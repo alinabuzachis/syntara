@@ -18,7 +18,6 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { TrashIcon } from '@patternfly/react-icons'
-import { useState, useEffect } from 'react'
 
 import { isUnaryOperator, OPERATOR_LABELS, OPERATOR_GROUPS } from '../../utils/expressions/defaults'
 import type { ExpressionCondition as ExpressionConditionType, ComparisonOperator } from '../../utils/expressions/types'
@@ -101,18 +100,9 @@ interface ExpressionConditionProps {
 export function ExpressionCondition(props: ExpressionConditionProps) {
   const { condition, onChange, onRemove, error } = props
 
-  // Track the current operator in local state for immediate UI updates
-  const [currentOperator, setCurrentOperator] = useState<ComparisonOperator>(condition.operator)
-
-  // Sync currentOperator with prop changes from parent
-  useEffect(() => {
-    setCurrentOperator(condition.operator)
-  }, [condition.operator])
-
   // Handle operator change
   const handleOperatorChange = (_event: unknown, value: string) => {
     const newOp = value as ComparisonOperator
-    setCurrentOperator(newOp)
     // Clear value when switching to unary operator (exists, isEmpty don't need values)
     onChange({
       operator: newOp,
@@ -176,7 +166,7 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
             <FormGroup label="Operator" labelHelp={<OperatorHelp />} isRequired fieldId={`operator-${condition.id}`}>
               <FormSelect
                 id={`operator-${condition.id}`}
-                value={currentOperator}
+                value={condition.operator}
                 onChange={handleOperatorChange}
                 aria-label="Comparison operator"
               >
@@ -192,7 +182,7 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
           </StackItem>
 
           {/* Value (only for binary operators) */}
-          {!isUnaryOperator(currentOperator) && (
+          {!isUnaryOperator(condition.operator) && (
             <StackItem>
               <FormGroup label="Value" labelHelp={<ValueHelp />} isRequired fieldId={`value-${condition.id}`}>
                 <TextInput

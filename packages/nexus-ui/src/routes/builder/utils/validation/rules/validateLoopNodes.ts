@@ -49,7 +49,7 @@ export function validateLoopNodes(activities: Activity[], edges?: EdgeConnection
   const loopNodes = findActivities(activities, (activity) => activity.type === ActivityTypeEnum.LOOP)
 
   for (const loopNode of loopNodes) {
-    let hasBody = false
+    let hasBody: boolean
 
     // If edges are provided, we're validating the flat format
     if (edges) {

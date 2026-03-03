@@ -18,9 +18,6 @@ import type { IAction } from '@patternfly/react-table'
 import { useReducer } from 'react'
 import { useLocation } from 'wouter'
 
-// eslint-disable-next-line no-console
-console.log('[DEBUG] Automations.tsx loaded with handleRunAutomation updates')
-
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { workflowClient } from '../../client'
@@ -135,29 +132,16 @@ export default function Automations() {
   })
 
   const handleRunAutomation = (workflow: Workflow) => {
-    // eslint-disable-next-line no-console
-    console.log('[DEBUG] Running automation:', workflow.id)
     executeAutomation(
       { body: { workflow_id: workflow?.id, input_data: {} } },
       {
         onSuccess: (data) => {
-          // eslint-disable-next-line no-console
-          console.log('[DEBUG] Automation started successfully:', data)
           showSuccess(`Successfully started automation "${workflow.name}"`, 'Automation Started')
-          // Navigate to execution detail page
           if (data && 'id' in data) {
-            const targetUrl = `/executions/${data.id}`
-            // eslint-disable-next-line no-console
-            console.log('[DEBUG] Navigating to:', targetUrl)
-            setLocation(targetUrl)
-          } else {
-            // eslint-disable-next-line no-console
-            console.log('[DEBUG] No execution ID in response data:', data)
+            setLocation(`/executions/${data.id}`)
           }
         },
         onError: (error: unknown) => {
-          // eslint-disable-next-line no-console
-          console.log('[DEBUG] Automation execution failed:', error)
           showError(`Failed to start automation "${workflow.name}": ${getErrorMessage(error)}`, 'Automation Failed')
         },
       }

@@ -9,7 +9,7 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { Thead, Tbody, Tr, Th, Td, ExpandableRowContent } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
@@ -265,8 +265,8 @@ export default function Approvals() {
               const isExpanded = expandedRows.has(approval.id)
 
               return (
-                <>
-                  <Tr key={approval.id} isContentExpanded={isExpanded}>
+                <Fragment key={approval.id}>
+                  <Tr isContentExpanded={isExpanded}>
                     <Td
                       expand={{
                         rowIndex: index,
@@ -299,7 +299,7 @@ export default function Approvals() {
                       <ApprovalStatusBadges status={approval.status} />
                     </Td>
                   </Tr>
-                  <Tr key={`${approval.id}-expanded`} isExpanded={isExpanded}>
+                  <Tr isExpanded={isExpanded}>
                     <Td colSpan={6}>
                       <ExpandableRowContent>
                         <DescriptionList>
@@ -314,7 +314,7 @@ export default function Approvals() {
                       </ExpandableRowContent>
                     </Td>
                   </Tr>
-                </>
+                </Fragment>
               )
             })}
           </Tbody>

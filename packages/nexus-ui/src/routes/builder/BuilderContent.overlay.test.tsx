@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ReactFlowProvider } from '@xyflow/react'
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import * as React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -9,6 +9,8 @@ import { workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
 
 import { BuilderContent } from './BuilderContent'
+
+type BuilderContentProps = ComponentProps<typeof BuilderContent>
 
 vi.mock('./components/NodeEditorOverlay', () => ({
   NodeEditorOverlay: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="node-editor-overlay" /> : null),
@@ -59,9 +61,18 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
+async function renderBuilder(props: BuilderContentProps) {
+  let result: ReturnType<typeof render>
+  await act(async () => {
+    result = render(<BuilderContent {...props} />, { wrapper })
+  })
+  return result!
+}
+
 describe('BuilderContent overlay', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    queryClient.clear()
     shouldAutoSelectNode = false
 
     vi.mocked(workflowClient.useQuery).mockReturnValue({
@@ -93,7 +104,7 @@ describe('BuilderContent overlay', () => {
   it('renders node editor overlay after selecting a node to add', async () => {
     shouldAutoSelectNode = true
 
-    render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+    await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
     fireEvent.click(screen.getByRole('button', { name: /add node/i }))
 

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, within, act } from '@testing-library/react'
+import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -294,33 +295,39 @@ describe('Integrations Component', () => {
     })
 
     it('opens validate dialog when validate action is clicked', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Find and click the actions menu for the first row
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
+      await user.click(actionButtons[0])
 
       // Click validate connection option
-      const validateOption = screen.getByRole('menuitem', { name: /validate connection/i })
-      fireEvent.click(validateOption)
+      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      await user.click(validateOption)
 
       // Validate dialog should open
-      expect(screen.getByText(/validate integration/i)).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText(/validate integration/i)).toBeInTheDocument()
+      })
     })
 
     it('opens delete dialog when uninstall action is clicked', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Find and click the actions menu for the first row
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
+      await user.click(actionButtons[0])
 
       // Click uninstall option
-      const uninstallOption = screen.getByRole('menuitem', { name: /uninstall/i })
-      fireEvent.click(uninstallOption)
+      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
+      await user.click(uninstallOption)
 
       // Delete dialog should open
-      expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
+      })
     })
   })
 
@@ -572,7 +579,8 @@ describe('Integrations Component', () => {
   })
 
   describe('Validate Dialog Flow', () => {
-    it('calls validate mutation when Validate button is clicked', () => {
+    it('calls validate mutation when Validate button is clicked', async () => {
+      const user = userEvent.setup()
       const mockValidateMutate = vi.fn()
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
@@ -596,13 +604,13 @@ describe('Integrations Component', () => {
 
       // Open actions menu and click validate (first row is ID 3 - Development Server, alphabetically)
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
-      const validateOption = screen.getByRole('menuitem', { name: /validate connection/i })
-      fireEvent.click(validateOption)
+      await user.click(actionButtons[0])
+      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      await user.click(validateOption)
 
       // Click Validate button in dialog
-      const validateButton = screen.getByRole('button', { name: 'Validate' })
-      fireEvent.click(validateButton)
+      const validateButton = await screen.findByRole('button', { name: 'Validate' })
+      await user.click(validateButton)
 
       // Verify mutation was called with provider_id (first row is ID 3 due to alphabetical sort)
       expect(mockValidateMutate).toHaveBeenCalled()
@@ -610,7 +618,8 @@ describe('Integrations Component', () => {
       expect(callArgs[0]).toEqual({ params: { path: { provider_id: '3' } } })
     })
 
-    it('shows success alert and closes dialog on successful validation', () => {
+    it('shows success alert and closes dialog on successful validation', async () => {
+      const user = userEvent.setup()
       const mockValidateMutate = vi.fn()
       const mockRefetch = vi.fn()
 
@@ -633,11 +642,13 @@ describe('Integrations Component', () => {
 
       // Open validate dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
-      fireEvent.click(screen.getByRole('menuitem', { name: /validate connection/i }))
+      await user.click(actionButtons[0])
+      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      await user.click(validateOption)
 
       // Click Validate
-      fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
+      const validateButton = await screen.findByRole('button', { name: 'Validate' })
+      await user.click(validateButton)
 
       // Simulate successful mutation by calling onSuccess and onSettled
       const mutationCall = mockValidateMutate.mock.calls[0]
@@ -648,11 +659,14 @@ describe('Integrations Component', () => {
       })
 
       // Dialog should close (Validate button no longer visible)
-      expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+      })
       expect(mockRefetch).toHaveBeenCalled()
     })
 
-    it('shows error alert on validation failure', () => {
+    it('shows error alert on validation failure', async () => {
+      const user = userEvent.setup()
       const mockValidateMutate = vi.fn()
 
       vi.mocked(toolManagerClient.useMutation).mockImplementation((_method: string, path: string) => {
@@ -666,11 +680,13 @@ describe('Integrations Component', () => {
 
       // Open validate dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
-      fireEvent.click(screen.getByRole('menuitem', { name: /validate connection/i }))
+      await user.click(actionButtons[0])
+      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      await user.click(validateOption)
 
       // Click Validate
-      fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
+      const validateButton = await screen.findByRole('button', { name: 'Validate' })
+      await user.click(validateButton)
 
       // Simulate failed mutation
       const callbacks = mockValidateMutate.mock.calls[0][1]
@@ -680,31 +696,40 @@ describe('Integrations Component', () => {
       })
 
       // Dialog should close
-      expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+      })
     })
 
-    it('closes validate dialog when Cancel button is clicked', () => {
+    it('closes validate dialog when Cancel button is clicked', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Open validate dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
-      fireEvent.click(screen.getByRole('menuitem', { name: /validate connection/i }))
+      await user.click(actionButtons[0])
+      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      await user.click(validateOption)
 
       // Verify dialog is open
-      expect(screen.getByText(/validate integration/i)).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText(/validate integration/i)).toBeInTheDocument()
+      })
 
       // Click Cancel
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
-      fireEvent.click(cancelButton)
+      await user.click(cancelButton)
 
       // Dialog should close
-      expect(screen.queryByText(/Are you sure you want to validate/)).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.queryByText(/Are you sure you want to validate/)).not.toBeInTheDocument()
+      })
     })
   })
 
   describe('Delete Dialog Flow', () => {
-    it('calls delete mutation when Delete button is clicked', () => {
+    it('calls delete mutation when Delete button is clicked', async () => {
+      const user = userEvent.setup()
       const mockValidateMutate = vi.fn()
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
@@ -728,13 +753,13 @@ describe('Integrations Component', () => {
 
       // Open actions menu and click uninstall (first row is ID 3 - Development Server)
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
-      const uninstallOption = screen.getByRole('menuitem', { name: /uninstall/i })
-      fireEvent.click(uninstallOption)
+      await user.click(actionButtons[0])
+      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
+      await user.click(uninstallOption)
 
       // Click Delete button in dialog
-      const deleteButton = screen.getByRole('button', { name: 'Delete' })
-      fireEvent.click(deleteButton)
+      const deleteButton = await screen.findByRole('button', { name: 'Delete' })
+      await user.click(deleteButton)
 
       // Verify mutation was called (first row is ID 3 due to alphabetical sort)
       expect(mockDeleteMutate).toHaveBeenCalled()
@@ -742,7 +767,8 @@ describe('Integrations Component', () => {
       expect(callArgs[0]).toEqual({ params: { path: { provider_id: '3' } } })
     })
 
-    it('shows success alert and closes dialog on successful delete', () => {
+    it('shows success alert and closes dialog on successful delete', async () => {
+      const user = userEvent.setup()
       const mockDeleteMutate = vi.fn()
       const mockRefetch = vi.fn()
 
@@ -765,11 +791,13 @@ describe('Integrations Component', () => {
 
       // Open delete dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
-      fireEvent.click(screen.getByRole('menuitem', { name: /uninstall/i }))
+      await user.click(actionButtons[0])
+      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
+      await user.click(uninstallOption)
 
       // Click Delete
-      fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+      const deleteButton = await screen.findByRole('button', { name: 'Delete' })
+      await user.click(deleteButton)
 
       // Simulate successful mutation
       const callbacks = mockDeleteMutate.mock.calls[0][1]
@@ -779,11 +807,14 @@ describe('Integrations Component', () => {
       })
 
       // Dialog should close
-      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+      })
       expect(mockRefetch).toHaveBeenCalled()
     })
 
-    it('shows error alert on delete failure', () => {
+    it('shows error alert on delete failure', async () => {
+      const user = userEvent.setup()
       const mockDeleteMutate = vi.fn()
 
       vi.mocked(toolManagerClient.useMutation).mockImplementation((method: string) => {
@@ -797,11 +828,13 @@ describe('Integrations Component', () => {
 
       // Open delete dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
-      fireEvent.click(screen.getByRole('menuitem', { name: /uninstall/i }))
+      await user.click(actionButtons[0])
+      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
+      await user.click(uninstallOption)
 
       // Click Delete
-      fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+      const deleteButton = await screen.findByRole('button', { name: 'Delete' })
+      await user.click(deleteButton)
 
       // Simulate failed mutation
       const callbacks = mockDeleteMutate.mock.calls[0][1]
@@ -811,40 +844,49 @@ describe('Integrations Component', () => {
       })
 
       // Dialog should close
-      expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+      })
     })
 
-    it('closes delete dialog when Cancel button is clicked', () => {
+    it('closes delete dialog when Cancel button is clicked', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Open delete dialog
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
-      fireEvent.click(screen.getByRole('menuitem', { name: /uninstall/i }))
+      await user.click(actionButtons[0])
+      const uninstallOption = await screen.findByRole('menuitem', { name: /uninstall/i })
+      await user.click(uninstallOption)
 
       // Verify dialog is open
-      expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText(/delete integration/i)).toBeInTheDocument()
+      })
 
       // Click Cancel
       const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
-      fireEvent.click(cancelButtons[cancelButtons.length - 1])
+      await user.click(cancelButtons[cancelButtons.length - 1])
 
       // Dialog should close
-      expect(screen.queryByText(/This action cannot be undone/)).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.queryByText(/This action cannot be undone/)).not.toBeInTheDocument()
+      })
     })
   })
 
   describe('Row Actions - View Tools', () => {
-    it('navigates to tools page when View tools action is clicked', () => {
+    it('navigates to tools page when View tools action is clicked', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
       // Open actions menu (first row is ID 3 - Development Server, alphabetically sorted)
       const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
-      fireEvent.click(actionButtons[0])
+      await user.click(actionButtons[0])
 
       // Click view tools option
-      const viewToolsOption = screen.getByRole('menuitem', { name: /view and enable\/disable tools/i })
-      fireEvent.click(viewToolsOption)
+      const viewToolsOption = await screen.findByRole('menuitem', { name: /view and enable\/disable tools/i })
+      await user.click(viewToolsOption)
 
       // Verify navigation - first row is ID 3 due to alphabetical sort
       expect(mockNavigate).toHaveBeenCalledWith('/configuration/integrations/3/tools')

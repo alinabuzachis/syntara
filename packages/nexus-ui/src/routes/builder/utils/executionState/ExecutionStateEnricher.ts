@@ -252,7 +252,7 @@ export class ExecutionStateEnricher {
 
     // For converge nodes, check if target has started (not source)
     // This shows when execution has actually moved past the converge point
-    let isSourceConverge = false
+    let isSourceConverge: boolean
     if (activities) {
       // Check activity type directly (most reliable)
       const sourceActivity = activities.find((a) => a.id === edge.source)

@@ -350,16 +350,6 @@ export const selectActivityError = (activityId: string) => (state: ExecutionStor
   state.activityErrors.get(activityId)
 
 /**
- * Select all activity states
- */
-const selectAllActivityStates = (state: ExecutionStore) => state.activityStates
-
-/**
- * Select all activity errors
- */
-const selectAllActivityErrors = (state: ExecutionStore) => state.activityErrors
-
-/**
  * Select connection state
  */
 export const selectConnectionState = (state: ExecutionStore) => ({
@@ -436,33 +426,3 @@ export type ExecutionStoreActionAccessors = ReturnType<typeof useExecutionStoreA
 // These hooks provide controlled access to specific state slices.
 // Prefer using these over direct store access for better encapsulation.
 // ============================================================================
-
-/** Hook to get execution ID (for visualization) */
-const useExecutionId = () => useExecutionStore(selectExecutionId)
-
-/** Hook to get visualization data */
-const useVisualization = () => useExecutionStore(selectVisualization)
-
-/** Hook to get all activity states */
-const useActivityStates = () => useExecutionStore(selectAllActivityStates)
-
-/** Hook to get all activity errors */
-const useActivityErrors = () => useExecutionStore(selectAllActivityErrors)
-
-/** Hook to get WebSocket connection state */
-const useConnectionState = () => useExecutionStore(selectConnectionState)
-
-/** Hook to check if execution is complete */
-const useIsComplete = () => useExecutionStore(selectIsComplete)
-
-/** Hook to get error state */
-const useExecutionError = () => useExecutionStore(selectError)
-
-/** Hook to check if execution is loaded */
-const useIsLoaded = () => useExecutionStore(selectIsLoaded)
-
-/** Hook to get activity status by ID */
-const useActivityStatus = (activityId: string) => useExecutionStore(selectActivityStatus(activityId))
-
-/** Hook to get activity error by ID */
-const useActivityError = (activityId: string) => useExecutionStore(selectActivityError(activityId))

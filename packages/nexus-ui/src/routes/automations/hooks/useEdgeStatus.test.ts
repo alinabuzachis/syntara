@@ -4,7 +4,7 @@
  * Tests for edge status derivation logic and React hooks
  */
 
-import { renderHook } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, beforeEach } from 'vitest'
 
 import type { Execution, ActivityStatus } from '../execution/types'
@@ -153,16 +153,18 @@ describe('useEdgeStatus', () => {
     expect(result.current).toBe('pending')
 
     // Update status to completed
-    useExecutionStore.getState().applyPatch(
-      [
-        {
-          op: 'replace',
-          path: '/activities/task1/status',
-          value: 'completed',
-        },
-      ],
-      '1691431234568-0'
-    )
+    act(() => {
+      useExecutionStore.getState().applyPatch(
+        [
+          {
+            op: 'replace',
+            path: '/activities/task1/status',
+            value: 'completed',
+          },
+        ],
+        '1691431234568-0'
+      )
+    })
 
     rerender()
     expect(result.current).toBe('passed')
@@ -176,16 +178,20 @@ describe('useEdgeStatus', () => {
     expect(result.current).toBe('pending')
 
     // Transition to running
-    useExecutionStore
-      .getState()
-      .applyPatch([{ op: 'replace', path: '/activities/task1/status', value: 'running' }], '1691431234568-0')
+    act(() => {
+      useExecutionStore
+        .getState()
+        .applyPatch([{ op: 'replace', path: '/activities/task1/status', value: 'running' }], '1691431234568-0')
+    })
     rerender()
     expect(result.current).toBe('pending')
 
     // Transition to completed
-    useExecutionStore
-      .getState()
-      .applyPatch([{ op: 'replace', path: '/activities/task1/status', value: 'completed' }], '1691431234568-1')
+    act(() => {
+      useExecutionStore
+        .getState()
+        .applyPatch([{ op: 'replace', path: '/activities/task1/status', value: 'completed' }], '1691431234568-1')
+    })
     rerender()
     expect(result.current).toBe('passed')
   })
@@ -261,13 +267,15 @@ describe('useEdgeStatuses', () => {
     expect(result.current.get('edge2')).toBe('pending')
 
     // Update both tasks
-    useExecutionStore.getState().applyPatch(
-      [
-        { op: 'replace', path: '/activities/task1/status', value: 'completed' },
-        { op: 'replace', path: '/activities/task2/status', value: 'running' },
-      ],
-      '1691431234568-0'
-    )
+    act(() => {
+      useExecutionStore.getState().applyPatch(
+        [
+          { op: 'replace', path: '/activities/task1/status', value: 'completed' },
+          { op: 'replace', path: '/activities/task2/status', value: 'running' },
+        ],
+        '1691431234568-0'
+      )
+    })
 
     rerender()
 
@@ -331,9 +339,11 @@ describe('useEdgeStatuses', () => {
     const firstResult = result.current
 
     // Change activity status
-    useExecutionStore
-      .getState()
-      .applyPatch([{ op: 'replace', path: '/activities/task1/status', value: 'completed' }], '1691431234568-0')
+    act(() => {
+      useExecutionStore
+        .getState()
+        .applyPatch([{ op: 'replace', path: '/activities/task1/status', value: 'completed' }], '1691431234568-0')
+    })
 
     rerender()
     const secondResult = result.current

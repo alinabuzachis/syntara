@@ -195,7 +195,9 @@ export function applyJsonPatch(
     } catch (error) {
       // Re-throw with context
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`Failed to apply operation ${operation.op} at ${operation.path}: ${message}`)
+      throw new Error(`Failed to apply operation ${operation.op} at ${operation.path}: ${message}`, {
+        cause: error,
+      })
     }
   }
 }

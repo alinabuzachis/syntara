@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -146,7 +146,6 @@ describe('ConvergeNodeForm', () => {
     // These tests are placeholders for when it's enabled
 
     it.skip('renders "any" fields when strategy is "any"', async () => {
-      const user = userEvent.setup()
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={{ strategy: 'any' }} />)
 
       expect(screen.getByLabelText(/Required path count/i)).toBeInTheDocument()

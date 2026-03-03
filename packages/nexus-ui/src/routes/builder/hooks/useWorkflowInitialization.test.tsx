@@ -105,8 +105,10 @@ describe('useWorkflowInitialization', () => {
       await Promise.resolve()
     })
 
-    // Change version
-    rerender({ workflowVersion: 2 })
+    // Change version - wrap in act to handle state updates
+    await act(async () => {
+      rerender({ workflowVersion: 2 })
+    })
 
     // The key behavior we're testing is that onVersionChange callback was invoked
     // The isInitialized state may immediately become true again if nodes remain measured

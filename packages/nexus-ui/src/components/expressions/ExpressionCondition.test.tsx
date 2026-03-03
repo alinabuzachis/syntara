@@ -1,10 +1,22 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createDefaultCondition } from '../../utils/expressions/defaults'
+import type { ExpressionCondition as ExpressionConditionType } from '../../utils/expressions/types'
 
 import { ExpressionCondition } from './ExpressionCondition'
+
+function ControlledExpressionCondition({ initialCondition }: { initialCondition: ExpressionConditionType }) {
+  const [condition, setCondition] = useState(initialCondition)
+  return (
+    <ExpressionCondition
+      condition={condition}
+      onChange={(updates) => setCondition((prev) => ({ ...prev, ...updates }))}
+    />
+  )
+}
 
 describe('ExpressionCondition', () => {
   const defaultProps = {
@@ -279,8 +291,7 @@ describe('ExpressionCondition', () => {
       expect(inputs).toHaveLength(2) // Field and Value
     })
 
-    it('hides value field for object operators - exists', async () => {
-      const user = userEvent.setup()
+    it('hides value field for object operators - exists', () => {
       const condition = { ...createDefaultCondition(), operator: 'exists' as const }
       render(<ExpressionCondition {...defaultProps} condition={condition} />)
 
@@ -346,7 +357,7 @@ describe('ExpressionCondition', () => {
     it('hides value field when switching to unary operator', async () => {
       const user = userEvent.setup()
       const condition = { ...createDefaultCondition(), operator: '==' as const }
-      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+      render(<ControlledExpressionCondition initialCondition={condition} />)
 
       // Initially, value field should be present
       let inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')
@@ -364,7 +375,7 @@ describe('ExpressionCondition', () => {
     it('shows value field when switching from unary to binary operator', async () => {
       const user = userEvent.setup()
       const condition = { ...createDefaultCondition(), operator: 'exists' as const }
-      render(<ExpressionCondition {...defaultProps} condition={condition} />)
+      render(<ControlledExpressionCondition initialCondition={condition} />)
 
       // Initially, value field should be hidden
       let inputs = screen.getAllByPlaceholderText('Enter or drag and drop value')

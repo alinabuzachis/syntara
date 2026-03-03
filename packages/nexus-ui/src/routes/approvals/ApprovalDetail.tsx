@@ -208,6 +208,7 @@ export default function ApprovalDetail() {
         </Split>
         <FormGroup isInline label={decisionCopy?.label ?? 'Notes'}>
           <TextInput
+            aria-label={decisionCopy?.label ?? 'Notes'}
             value={pendingReason}
             onChange={(_e, value: string) => setPendingReason(value)}
             placeholder={`Explain the reason for ${decisionCopy?.verb ?? 'updating'} this automation step.`}

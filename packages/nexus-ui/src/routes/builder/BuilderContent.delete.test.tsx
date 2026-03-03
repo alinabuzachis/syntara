@@ -1,13 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { ReactFlowProvider } from '@xyflow/react'
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
 
 import { BuilderContent } from './BuilderContent'
+
+type BuilderContentProps = ComponentProps<typeof BuilderContent>
 
 // Mock dependencies
 vi.mock('../../client', () => ({
@@ -49,6 +52,14 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     </AlertProvider>
   </QueryClientProvider>
 )
+
+async function renderBuilder(props: BuilderContentProps) {
+  let result: ReturnType<typeof render>
+  await act(async () => {
+    result = render(<BuilderContent {...props} />, { wrapper })
+  })
+  return result!
+}
 
 describe('BuilderContent - Delete Automation', () => {
   const mockWorkflow = {
@@ -96,6 +107,7 @@ describe('BuilderContent - Delete Automation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    queryClient.clear()
 
     vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
       if (method === 'get' && path === '/executions') {
@@ -119,34 +131,38 @@ describe('BuilderContent - Delete Automation', () => {
     vi.mocked(workflowClient.useMutation).mockReturnValue(createMockMutation())
   })
 
-  it('shows delete button in kebab menu for existing workflows', () => {
-    render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+  it('shows delete button in kebab menu for existing workflows', async () => {
+    const user = userEvent.setup()
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Find and click kebab menu
     const kebabButton = screen.getByLabelText('Automation actions')
-    fireEvent.click(kebabButton)
+    await user.click(kebabButton)
 
     // Verify delete option exists
-    expect(screen.getByText('Delete automation')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Delete automation')).toBeInTheDocument()
+    })
   })
 
-  it('does not show delete button for new workflows', () => {
-    render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+  it('does not show delete button for new workflows', async () => {
+    await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
     // Kebab menu should not exist for new workflows
     expect(screen.queryByLabelText('Automation actions')).not.toBeInTheDocument()
   })
 
   it('opens delete confirmation modal when delete is clicked', async () => {
-    render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+    const user = userEvent.setup()
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab menu
     const kebabButton = screen.getByLabelText('Automation actions')
-    fireEvent.click(kebabButton)
+    await user.click(kebabButton)
 
     // Click delete
-    const deleteItem = screen.getByText('Delete automation')
-    fireEvent.click(deleteItem)
+    const deleteItem = await screen.findByText('Delete automation')
+    await user.click(deleteItem)
 
     // Verify modal appears
     await waitFor(() => {
@@ -170,16 +186,17 @@ describe('BuilderContent - Delete Automation', () => {
       return createMockMutation()
     })
 
-    render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+    const user = userEvent.setup()
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab and click delete
     const kebabButton = screen.getByLabelText('Automation actions')
-    fireEvent.click(kebabButton)
-    fireEvent.click(screen.getByText('Delete automation'))
+    await user.click(kebabButton)
+    await user.click(await screen.findByText('Delete automation'))
 
     // Confirm deletion
-    await waitFor(() => screen.getByText('Delete automation?'))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await screen.findByText('Delete automation?')
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     // Verify deletion and navigation
     await waitFor(() => {
@@ -195,6 +212,7 @@ describe('BuilderContent - Delete Automation', () => {
   })
 
   it('handles delete error and shows error alert', async () => {
+    const user = userEvent.setup()
     const mockError = { message: 'Cannot delete workflow with active executions' }
     const mockDeleteMutate = vi.fn((params, callbacks) => {
       if (callbacks?.onError) {
@@ -209,15 +227,15 @@ describe('BuilderContent - Delete Automation', () => {
       return createMockMutation()
     })
 
-    render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab and click delete
-    fireEvent.click(screen.getByLabelText('Automation actions'))
-    fireEvent.click(screen.getByText('Delete automation'))
+    await user.click(screen.getByLabelText('Automation actions'))
+    await user.click(await screen.findByText('Delete automation'))
 
     // Confirm deletion
-    await waitFor(() => screen.getByText('Delete automation?'))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await screen.findByText('Delete automation?')
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     // Verify error alert
     await waitFor(() => {
@@ -228,15 +246,16 @@ describe('BuilderContent - Delete Automation', () => {
   })
 
   it('can cancel delete operation', async () => {
-    render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+    const user = userEvent.setup()
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab and click delete
-    fireEvent.click(screen.getByLabelText('Automation actions'))
-    fireEvent.click(screen.getByText('Delete automation'))
+    await user.click(screen.getByLabelText('Automation actions'))
+    await user.click(await screen.findByText('Delete automation'))
 
     // Modal appears, then cancel
-    await waitFor(() => screen.getByText('Delete automation?'))
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await screen.findByText('Delete automation?')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     // Modal closes
     await waitFor(() => {

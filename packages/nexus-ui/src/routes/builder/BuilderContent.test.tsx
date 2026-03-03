@@ -1,8 +1,8 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ReactFlowProvider } from '@xyflow/react'
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { workflowClient } from '../../client'
@@ -11,6 +11,19 @@ import { AlertProvider } from '../../components/alerts'
 import { BuilderContent } from './BuilderContent'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
+type BuilderContentProps = ComponentProps<typeof BuilderContent>
+
+/**
+ * Helper to render BuilderContent and wait for ReactFlow async updates to settle.
+ * ReactFlow has internal async updates (positioning, markers) that cause act() warnings.
+ */
+async function renderBuilder(props: BuilderContentProps) {
+  let result: ReturnType<typeof render>
+  await act(async () => {
+    result = render(<BuilderContent {...props} />, { wrapper })
+  })
+  return result!
+}
 
 // Mock dependencies
 vi.mock('../../client', () => ({
@@ -135,24 +148,24 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('New Workflow', () => {
-    it('renders new workflow with default name', () => {
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+    it('renders new workflow with default name', async () => {
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
       const nameInput = screen.getByPlaceholderText('Workflow name')
       expect(nameInput).toHaveValue('New workflow')
     })
 
-    it('does not show Run button for new workflows', () => {
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+    it('does not show Run button for new workflows', async () => {
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
       expect(screen.queryByText('Run')).not.toBeInTheDocument()
     })
 
-    it('does not show History button for new workflows', () => {
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+    it('does not show History button for new workflows', async () => {
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
       expect(screen.queryByLabelText('Run history')).not.toBeInTheDocument()
     })
 
-    it('does not show Enabled switch for new workflows', () => {
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+    it('does not show Enabled switch for new workflows', async () => {
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
       expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
       expect(screen.queryByText('Disabled')).not.toBeInTheDocument()
     })
@@ -160,25 +173,25 @@ describe('BuilderContent', () => {
 
   describe('Existing Workflow', () => {
     it('renders existing workflow name in input', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         const nameInput = screen.getByPlaceholderText('Workflow name')
         expect(nameInput).toHaveValue('Test Workflow')
       })
     })
 
-    it('shows Run button for existing workflows', () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+    it('shows Run button for existing workflows', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       expect(screen.getByText('Run')).toBeInTheDocument()
     })
 
-    it('shows History button for existing workflows', () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+    it('shows History button for existing workflows', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       expect(screen.getByLabelText('Run history')).toBeInTheDocument()
     })
 
     it('shows Enabled switch for existing workflows', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByText('Enabled')).toBeInTheDocument()
       })
@@ -186,7 +199,7 @@ describe('BuilderContent', () => {
 
     it('shows Disabled for disabled workflows', async () => {
       const disabledWorkflow = { ...mockWorkflow, is_enabled: false }
-      render(<BuilderContent workflow={disabledWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: disabledWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByText('Disabled')).toBeInTheDocument()
       })
@@ -199,14 +212,14 @@ describe('BuilderContent', () => {
 
   describe('Workflow Name Input', () => {
     it('updates name when typing', async () => {
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
       const nameInput = screen.getByPlaceholderText('Workflow name')
       fireEvent.change(nameInput, { target: { value: 'My New Workflow' } })
       expect(nameInput).toHaveValue('My New Workflow')
     })
 
     it('marks workflow dirty when name changes', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -222,7 +235,7 @@ describe('BuilderContent', () => {
 
   describe('Add Node Panel', () => {
     it('opens Add Node panel when Add Node button is clicked', async () => {
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
       const addNodeButton = screen.getByRole('button', { name: /add node/i })
       fireEvent.click(addNodeButton)
       await waitFor(() => {
@@ -253,7 +266,7 @@ describe('BuilderContent', () => {
           },
         },
       }
-      render(<BuilderContent workflow={workflowWithNodes} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
       // Open panel
       fireEvent.click(screen.getByRole('button', { name: /add node/i }))
@@ -273,7 +286,7 @@ describe('BuilderContent', () => {
     })
 
     it('opens node editor when selecting a node type from add panel', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -303,21 +316,21 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Workflow Details Panel', () => {
-    it('has details button visible', () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+    it('has details button visible', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       const detailsButton = screen.getByLabelText('Workflow details')
       expect(detailsButton).toBeInTheDocument()
     })
 
     it('toggles details panel open', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       const detailsButton = screen.getByLabelText('Workflow details')
       fireEvent.click(detailsButton)
       // Tests TOGGLE_DETAILS reducer action
     })
 
     it('toggles details panel closed', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       const detailsButton = screen.getByLabelText('Workflow details')
 
       // Open
@@ -328,7 +341,7 @@ describe('BuilderContent', () => {
     })
 
     it('updates workflow name via sidepanel input', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -350,7 +363,7 @@ describe('BuilderContent', () => {
     })
 
     it('updates workflow description via sidepanel textarea', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -372,7 +385,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes sidepanel via its close button', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -405,7 +418,7 @@ describe('BuilderContent', () => {
 
   describe('Run Automation', () => {
     it('opens run confirmation dialog when Run button is clicked', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -420,7 +433,7 @@ describe('BuilderContent', () => {
     })
 
     it('can cancel run dialog', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -451,7 +464,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -483,7 +496,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -501,7 +514,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes run modal via modal onClose', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -520,7 +533,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes run modal via X button', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -547,18 +560,18 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Save Workflow', () => {
-    it('shows Save button', () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+    it('shows Save button', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
     })
 
-    it('shows Saving... when pending', () => {
+    it('shows Saving... when pending', async () => {
       vi.mocked(workflowClient.useMutation).mockReturnValue({
         ...createMockMutation(),
         isPending: true,
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       expect(screen.getByText('Saving...')).toBeInTheDocument()
     })
 
@@ -573,7 +586,7 @@ describe('BuilderContent', () => {
       })
 
       // New workflow with no activities - component initializes default workflow
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       const saveButton = screen.getByRole('button', { name: /save/i })
       expect(saveButton).toBeInTheDocument()
@@ -600,7 +613,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -625,7 +638,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
@@ -647,7 +660,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -672,7 +685,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
@@ -687,7 +700,7 @@ describe('BuilderContent', () => {
 
   describe('Enabled Switch', () => {
     it('shows Enabled when workflow is enabled', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByText('Enabled')).toBeInTheDocument()
       })
@@ -695,14 +708,14 @@ describe('BuilderContent', () => {
 
     it('shows Disabled when workflow is disabled', async () => {
       const disabledWorkflow = { ...mockWorkflow, is_enabled: false }
-      render(<BuilderContent workflow={disabledWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: disabledWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByText('Disabled')).toBeInTheDocument()
       })
     })
 
     it('toggles enabled state when clicked', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByText('Enabled')).toBeInTheDocument()
       })
@@ -745,7 +758,7 @@ describe('BuilderContent', () => {
         }
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       const historyButton = screen.getByLabelText('Run history')
       fireEvent.click(historyButton)
@@ -776,7 +789,7 @@ describe('BuilderContent', () => {
         }
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       const historyButton = screen.getByLabelText('Run history')
 
@@ -810,7 +823,7 @@ describe('BuilderContent', () => {
         }
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       const historyButton = screen.getByLabelText('Run history')
       fireEvent.click(historyButton)
@@ -859,7 +872,7 @@ describe('BuilderContent', () => {
         }
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       const historyButton = screen.getByLabelText('Run history')
       fireEvent.click(historyButton)
@@ -890,7 +903,7 @@ describe('BuilderContent', () => {
 
   describe('Kebab Menu', () => {
     it('opens kebab menu when clicked', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       const kebabButton = screen.getByLabelText('Automation actions')
       fireEvent.click(kebabButton)
@@ -901,7 +914,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes kebab menu when item is selected', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       const kebabButton = screen.getByLabelText('Automation actions')
       fireEvent.click(kebabButton)
@@ -915,7 +928,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes kebab menu when clicking toggle again', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       const kebabButton = screen.getByLabelText('Automation actions')
 
@@ -936,7 +949,7 @@ describe('BuilderContent', () => {
 
   describe('Delete Modal', () => {
     it('opens delete modal when delete option is clicked', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       const kebabButton = screen.getByLabelText('Automation actions')
       fireEvent.click(kebabButton)
@@ -950,7 +963,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes delete modal when cancel is clicked', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       fireEvent.click(screen.getByLabelText('Automation actions'))
       await waitFor(() => screen.getByText('Delete automation'))
@@ -979,7 +992,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       fireEvent.click(screen.getByLabelText('Automation actions'))
       await waitFor(() => screen.getByText('Delete automation'))
@@ -1008,7 +1021,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       fireEvent.click(screen.getByLabelText('Automation actions'))
       await waitFor(() => screen.getByText('Delete automation'))
@@ -1023,7 +1036,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes delete modal via X button', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open kebab menu and click delete
       fireEvent.click(screen.getByLabelText('Automation actions'))
@@ -1077,7 +1090,7 @@ describe('BuilderContent', () => {
         },
       }
 
-      render(<BuilderContent workflow={workflowWithActivities} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: workflowWithActivities, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -1119,7 +1132,7 @@ describe('BuilderContent', () => {
         },
       }
 
-      render(<BuilderContent workflow={workflowWithParallel} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: workflowWithParallel, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Parallel Workflow')
@@ -1132,25 +1145,21 @@ describe('BuilderContent', () => {
         version: undefined,
       }
 
-      render(<BuilderContent workflow={workflowWithoutVersion as Workflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      await renderBuilder({ workflow: workflowWithoutVersion as Workflow, isNew: false, workflowId: 'workflow-1' })
 
       expect(screen.getByPlaceholderText('Workflow name')).toBeInTheDocument()
     })
 
     it('handles mismatched workflow ID', async () => {
       // Render with different workflowId than workflow object
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="different-id" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'different-id' })
 
       // Should render without crashing
       expect(screen.getByPlaceholderText('Workflow name')).toBeInTheDocument()
     })
 
     it('handles workflow ID change', async () => {
-      const { rerender } = render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      const { rerender } = await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -1174,9 +1183,7 @@ describe('BuilderContent', () => {
     })
 
     it('syncs state when workflow data changes', async () => {
-      const { rerender } = render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      const { rerender } = await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -1200,7 +1207,7 @@ describe('BuilderContent', () => {
     })
 
     it('handles transition from new to existing workflow', async () => {
-      const { rerender } = render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      const { rerender } = await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('New workflow')
@@ -1228,22 +1235,20 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Browser Navigation', () => {
-    it('registers beforeunload handler', () => {
+    it('registers beforeunload handler', async () => {
       const addEventListenerSpy = vi.spyOn(window, 'addEventListener')
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       expect(addEventListenerSpy).toHaveBeenCalledWith('beforeunload', expect.any(Function))
 
       addEventListenerSpy.mockRestore()
     })
 
-    it('unregisters beforeunload handler on unmount', () => {
+    it('unregisters beforeunload handler on unmount', async () => {
       const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener')
 
-      const { unmount } = render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      const { unmount } = await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       unmount()
 
@@ -1258,9 +1263,9 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Context Providers', () => {
-    it('provides NodeExpandedAllContext to children', () => {
+    it('provides NodeExpandedAllContext to children', async () => {
       // The component provides NodeExpandedAllContext
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       expect(screen.getByPlaceholderText('Workflow name')).toBeInTheDocument()
     })
   })
@@ -1276,7 +1281,7 @@ describe('BuilderContent', () => {
         description: 'Custom Description',
       }
 
-      render(<BuilderContent workflow={workflowWithDescription} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: workflowWithDescription, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -1289,9 +1294,7 @@ describe('BuilderContent', () => {
         description: null,
       }
 
-      render(<BuilderContent workflow={workflowNoDescription as Workflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      await renderBuilder({ workflow: workflowNoDescription as Workflow, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -1304,8 +1307,8 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Unsaved Changes', () => {
-    it('component mounts with unsaved changes hook', () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+    it('component mounts with unsaved changes hook', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       expect(screen.getByPlaceholderText('Workflow name')).toBeInTheDocument()
     })
   })
@@ -1340,7 +1343,7 @@ describe('BuilderContent', () => {
     }
 
     it('TOGGLE_DETAILS closes add node panel when opening details', async () => {
-      render(<BuilderContent workflow={workflowWithNodes} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
       // First open add node panel
       fireEvent.click(screen.getByRole('button', { name: /add node/i }))
@@ -1357,7 +1360,7 @@ describe('BuilderContent', () => {
     })
 
     it('TOGGLE_HISTORY closes add node panel when opening history', async () => {
-      render(<BuilderContent workflow={workflowWithNodes} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
       // First open add node panel
       fireEvent.click(screen.getByRole('button', { name: /add node/i }))
@@ -1374,7 +1377,7 @@ describe('BuilderContent', () => {
     })
 
     it('SET_DETAILS_OPEN via direct panel close', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open details panel
       fireEvent.click(screen.getByLabelText('Workflow details'))
@@ -1386,7 +1389,7 @@ describe('BuilderContent', () => {
     })
 
     it('SET_WORKFLOW_DESCRIPTION changes description', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open details panel to access description
       fireEvent.click(screen.getByLabelText('Workflow details'))
@@ -1402,7 +1405,7 @@ describe('BuilderContent', () => {
         is_enabled: false,
       }
 
-      render(<BuilderContent workflow={customWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: customWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Custom Init Name')
@@ -1447,7 +1450,7 @@ describe('BuilderContent', () => {
         },
       }
 
-      render(<BuilderContent workflow={workflowNoTrigger} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: workflowNoTrigger, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -1459,7 +1462,7 @@ describe('BuilderContent', () => {
     })
 
     it('shows validation error when workflow has dangling edge', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -1469,7 +1472,7 @@ describe('BuilderContent', () => {
     })
 
     it('getWorkflowDefinition returns empty workflow when no currentWorkflow', async () => {
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       // Change name to trigger the workflow definition getter
       const nameInput = screen.getByPlaceholderText('Workflow name')
@@ -1490,9 +1493,7 @@ describe('BuilderContent', () => {
       // Create workflow without id - cast through unknown for test purposes
       const noIdWorkflow = { ...mockWorkflow, id: undefined } as unknown as Workflow
 
-      const { container } = render(<BuilderContent workflow={noIdWorkflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      const { container } = await renderBuilder({ workflow: noIdWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Verify component renders without crashing
       expect(container).toBeInTheDocument()
@@ -1509,9 +1510,7 @@ describe('BuilderContent', () => {
       // Cast through unknown for test purposes
       const noIdWorkflow = { ...mockWorkflow, id: undefined } as unknown as Workflow
 
-      const { container } = render(<BuilderContent workflow={noIdWorkflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      const { container } = await renderBuilder({ workflow: noIdWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Verify component renders without crashing
       expect(container).toBeInTheDocument()
@@ -1524,7 +1523,7 @@ describe('BuilderContent', () => {
     })
 
     it('handleToggleDetails deselects nodes when opening', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Click details to trigger the reactFlowInstance.setNodes path
       const detailsButton = screen.getByLabelText('Workflow details')
@@ -1540,7 +1539,7 @@ describe('BuilderContent', () => {
 
   describe('Panel Interactions', () => {
     it('closes details panel when opening add node panel', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open details first
       fireEvent.click(screen.getByLabelText('Workflow details'))
@@ -1554,7 +1553,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes history panel when opening add node panel', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open history first
       fireEvent.click(screen.getByLabelText('Run history'))
@@ -1572,7 +1571,7 @@ describe('BuilderContent', () => {
     })
 
     it('closes details panel when opening history panel', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open details first
       fireEvent.click(screen.getByLabelText('Workflow details'))
@@ -1592,9 +1591,7 @@ describe('BuilderContent', () => {
 
   describe('Workflow ID Changes', () => {
     it('resets state when workflow ID changes from one to another', async () => {
-      const { rerender } = render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      const { rerender } = await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -1625,9 +1622,7 @@ describe('BuilderContent', () => {
     })
 
     it('does not reset when same workflow ID', async () => {
-      const { rerender } = render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      const { rerender } = await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -1672,7 +1667,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -1690,7 +1685,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       fireEvent.click(screen.getByRole('button', { name: /save/i }))
     })
@@ -1702,7 +1697,7 @@ describe('BuilderContent', () => {
 
   describe('Dropdown Callbacks', () => {
     it('closes kebab dropdown via external click', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open kebab
       fireEvent.click(screen.getByLabelText('Automation actions'))
@@ -1749,7 +1744,7 @@ describe('BuilderContent', () => {
         },
       }
 
-      render(<BuilderContent workflow={conditionWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: conditionWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Condition Workflow')
       })
@@ -1783,7 +1778,7 @@ describe('BuilderContent', () => {
         },
       }
 
-      render(<BuilderContent workflow={loopWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: loopWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Loop Workflow')
       })
@@ -1825,7 +1820,7 @@ describe('BuilderContent', () => {
         },
       }
 
-      render(<BuilderContent workflow={nestedWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: nestedWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Nested Workflow')
       })
@@ -1847,7 +1842,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       // Click save - validation may fail for empty workflow, but mutation hook is still registered
       fireEvent.click(screen.getByRole('button', { name: /save/i }))
@@ -1870,7 +1865,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -1897,7 +1892,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
@@ -1922,7 +1917,7 @@ describe('BuilderContent', () => {
   describe('Enabled Switch Additional', () => {
     it('toggles from disabled to enabled', async () => {
       const disabledWorkflow = { ...mockWorkflow, is_enabled: false }
-      render(<BuilderContent workflow={disabledWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: disabledWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByText('Disabled')).toBeInTheDocument()
@@ -1963,7 +1958,7 @@ describe('BuilderContent', () => {
         },
       }
 
-      render(<BuilderContent workflow={workflowWithMetadataDesc} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: workflowWithMetadataDesc, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Metadata Test')
@@ -1989,7 +1984,7 @@ describe('BuilderContent', () => {
         },
       }
 
-      render(<BuilderContent workflow={workflowBothDesc} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: workflowBothDesc, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Description Test')
@@ -2004,7 +1999,7 @@ describe('BuilderContent', () => {
   describe('Workflow Save Error Handling', () => {
     it('shows error when currentWorkflow is null during save', async () => {
       // New workflow with no activities - should show validation error
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
@@ -2020,9 +2015,7 @@ describe('BuilderContent', () => {
 
   describe('Workflow ID Reset', () => {
     it('clears workflow state when navigating to different workflow', async () => {
-      const { rerender } = render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      const { rerender } = await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -2053,7 +2046,7 @@ describe('BuilderContent', () => {
 
   describe('Panel State Management', () => {
     it('opens add node panel with source node context', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open add node panel
       const addNodeButton = screen.getByRole('button', { name: /add node/i })
@@ -2065,7 +2058,7 @@ describe('BuilderContent', () => {
     })
 
     it('maintains panel state across interactions', async () => {
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open history panel
       fireEvent.click(screen.getByLabelText('Run history'))
@@ -2084,13 +2077,11 @@ describe('BuilderContent', () => {
   })
 
   describe('beforeunload Event', () => {
-    it('adds and removes beforeunload listener', () => {
+    it('adds and removes beforeunload listener', async () => {
       const addSpy = vi.spyOn(window, 'addEventListener')
       const removeSpy = vi.spyOn(window, 'removeEventListener')
 
-      const { unmount } = render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, {
-        wrapper,
-      })
+      const { unmount } = await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Listener should be added
       expect(addSpy).toHaveBeenCalledWith('beforeunload', expect.any(Function))
@@ -2107,7 +2098,7 @@ describe('BuilderContent', () => {
 
   describe('Empty Workflow Definition', () => {
     it('handles getWorkflowDefinition when currentWorkflow is null', async () => {
-      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       // Modify workflow name
       const nameInput = screen.getByPlaceholderText('Workflow name')
@@ -2137,7 +2128,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open kebab menu
       fireEvent.click(screen.getByLabelText('Automation actions'))
@@ -2171,7 +2162,7 @@ describe('BuilderContent', () => {
         return createMockMutation()
       })
 
-      render(<BuilderContent workflow={mockWorkflow} isNew={false} workflowId="workflow-1" />, { wrapper })
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })

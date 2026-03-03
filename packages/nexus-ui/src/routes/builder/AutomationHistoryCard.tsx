@@ -27,10 +27,6 @@ interface AutomationHistoryCardProps {
 export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
   const executions = props.executions
 
-  // Debug log component render and data
-  // eslint-disable-next-line no-console
-  console.log('[DEBUG] AutomationHistoryCard rendered with', executions.length, 'executions')
-
   return (
     <CompassPanel
       style={{
@@ -96,11 +92,7 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
                   return (
                     <tr
                       key={execution.id}
-                      onClick={() => {
-                        // eslint-disable-next-line no-console
-                        console.log('[DEBUG] History card: Execution row clicked:', execution.id)
-                        props.onExecutionSelect(execution.id)
-                      }}
+                      onClick={() => props.onExecutionSelect(execution.id)}
                       style={{
                         borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
                         cursor: 'pointer',

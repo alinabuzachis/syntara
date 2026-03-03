@@ -28,7 +28,6 @@ vi.mock('../utils/timeUtils', async (importOriginal) => importOriginal())
 vi.mock('../node-forms/ConvergeNodeForm', () => ({
   ConvergeNodeForm: ({
     onSubmit,
-    onCancel,
     submitButtonText,
     initialData,
   }: {

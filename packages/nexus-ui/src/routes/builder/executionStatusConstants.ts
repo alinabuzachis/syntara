@@ -1,25 +1,8 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import {
-  RhUiCheckIcon,
-  RhUiErrorIcon,
-  RhUiHourglassIcon,
-  RhUiPauseIcon,
-  RhUiWarningIcon,
-  RhUiSyncIcon,
-} from '@patternfly/react-icons'
 
 import type { ActivityStatus } from '../automations/execution/types'
 
 type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
-
-const statusIcons: Record<ExecutionStatus, React.ComponentType<{ className?: string }>> = {
-  pending: RhUiHourglassIcon,
-  running: RhUiSyncIcon,
-  paused: RhUiPauseIcon,
-  completed: RhUiCheckIcon,
-  failed: RhUiErrorIcon,
-  cancelled: RhUiWarningIcon,
-}
 
 const statusColors: Record<ExecutionStatus, string> = {
   pending: 'var(--pf-t--global--color--nonstatus--gray--300)',
