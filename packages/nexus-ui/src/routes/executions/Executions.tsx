@@ -16,6 +16,7 @@ import { useFuse } from '../../hooks/useFuse'
 import { useTableSort } from '../../hooks/useTableSort'
 import { getDateField } from '../../utils/getDateField'
 import { StatusLabel } from '../builder/ExecutionStatus'
+import { getExecutionSortValue } from './getExecutionSortValue'
 
 export default function Executions() {
   const searchParams = useSearch()
@@ -50,28 +51,17 @@ export default function Executions() {
 
   const { search, setSearch, items: searchFilteredExecutions } = useFuse(executions, [{ name: 'workflow_id' }])
 
+  const showWorkflowColumn = !workflowIdFilter
+
   const { activeSortIndex, getSortParams, sortData } = useTableSort({
-    initialSortIndex: 3, // Default sort by Created at
+    initialSortIndex: showWorkflowColumn ? 3 : 2, // Default sort by Created at
     initialDirection: 'desc',
   })
 
   // Sort the filtered executions
-  const filteredExecutions = sortData(searchFilteredExecutions, (execution) => {
-    switch (activeSortIndex) {
-      case 0:
-        return execution.id ?? ''
-      case 1:
-        return execution.workflow_id ?? ''
-      case 2:
-        return execution.status ?? ''
-      case 3:
-        return getDateField(execution, 'createdAt') ? new Date(getDateField(execution, 'createdAt')!) : null
-      case 4:
-        return execution.completed_at ? new Date(execution.completed_at) : null
-      default:
-        return execution.id ?? ''
-    }
-  })
+  const filteredExecutions = sortData(searchFilteredExecutions, (execution) =>
+    getExecutionSortValue(execution, activeSortIndex, showWorkflowColumn)
+  )
 
   const queryState = useQueryState(executionsQuery, 'Error loading executions')
   if (queryState) {
@@ -137,12 +127,14 @@ export default function Executions() {
               <Th modifier="nowrap" style={{ minWidth: '250px', width: '250px' }} sort={getSortParams(0)}>
                 Execution ID
               </Th>
-              <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }} sort={getSortParams(1)}>
-                Workflow
-              </Th>
-              <Th sort={getSortParams(2)}>Status</Th>
-              <Th sort={getSortParams(3)}>Created at</Th>
-              <Th sort={getSortParams(4)}>Completed at</Th>
+              {showWorkflowColumn && (
+                <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }} sort={getSortParams(1)}>
+                  Workflow
+                </Th>
+              )}
+              <Th sort={getSortParams(showWorkflowColumn ? 2 : 1)}>Status</Th>
+              <Th sort={getSortParams(showWorkflowColumn ? 3 : 2)}>Created at</Th>
+              <Th sort={getSortParams(showWorkflowColumn ? 4 : 3)}>Completed at</Th>
             </Tr>
           </Thead>
           <Tbody>
@@ -153,9 +145,11 @@ export default function Executions() {
                     <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>{execution.id}</code>
                   </LinkCell>
                 </Td>
-                <Td dataLabel="Workflow" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
-                  <LinkCell href={`/automation-builder/${execution.workflow_id}`}>{execution.workflow_id}</LinkCell>
-                </Td>
+                {showWorkflowColumn && (
+                  <Td dataLabel="Workflow" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
+                    <LinkCell href={`/automation-builder/${execution.workflow_id}`}>{execution.workflow_id}</LinkCell>
+                  </Td>
+                )}
                 <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
                 <Td dataLabel="Created at">
                   <DateCell dateString={getDateField(execution, 'createdAt')} />

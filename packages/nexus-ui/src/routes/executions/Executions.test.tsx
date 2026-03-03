@@ -371,6 +371,56 @@ describe('Executions Component', () => {
       // All executions should still be visible after sorting
       expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
     })
+
+    it('can sort columns when filtering by workflow_id (hides Workflow column)', () => {
+      vi.mocked(useSearch).mockReturnValue('?workflow_id=workflow-1')
+
+      const filteredExecutions = [
+        { ...mockExecutions[0], workflow_id: 'workflow-1' },
+        { ...mockExecutions[1], workflow_id: 'workflow-1', id: '223e4567-e89b-12d3-a456-426614174001' },
+      ]
+
+      vi.mocked(workflowClient.useQuery).mockImplementation(((method: string, path: string) => {
+        if (path === '/executions') {
+          return {
+            data: { resources: filteredExecutions },
+            isPending: false,
+            error: null,
+          } as never
+        } else {
+          return {
+            data: { id: 'workflow-1', name: 'My Test Workflow' },
+            isPending: false,
+            error: null,
+          } as never
+        }
+      }) as never)
+
+      render(<Executions />)
+
+      // Workflow column should not be present when filtering
+      expect(screen.queryByRole('columnheader', { name: /^Workflow$/i })).not.toBeInTheDocument()
+
+      // Sort by Execution ID (index 0)
+      const execIdHeader = screen.getByRole('columnheader', { name: /Execution ID/i })
+      fireEvent.click(within(execIdHeader).getByRole('button'))
+
+      // Sort by Status column (index 1 when Workflow is hidden)
+      const statusHeader = screen.getByRole('columnheader', { name: /^Status$/i })
+      fireEvent.click(within(statusHeader).getByRole('button'))
+
+      // Sort by Created at column (index 2 when Workflow is hidden)
+      const createdAtHeader = screen.getByRole('columnheader', { name: /Created at/i })
+      fireEvent.click(within(createdAtHeader).getByRole('button'))
+
+      // Sort by Completed at column (index 3 when Workflow is hidden)
+      const completedAtHeader = screen.getByRole('columnheader', { name: /Completed at/i })
+      fireEvent.click(within(completedAtHeader).getByRole('button'))
+
+      // Executions should still be visible after all sorts
+      expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
+      expect(screen.getByText('223e4567-e89b-12d3-a456-426614174001')).toBeInTheDocument()
+    })
   })
 
   describe('Search Functionality', () => {

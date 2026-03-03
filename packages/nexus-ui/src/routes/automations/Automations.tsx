@@ -12,7 +12,7 @@ import {
   Stack,
   StackItem,
 } from '@patternfly/react-core'
-import { RhUiListIcon, RhUiEditFillIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { RhUiHistoryIcon, RhUiEditFillIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useReducer } from 'react'
@@ -202,7 +202,7 @@ export default function Automations() {
       },
     },
     {
-      title: <IconLabel icon={<RhUiListIcon />}>View run history</IconLabel>,
+      title: <IconLabel icon={<RhUiHistoryIcon />}>View run history</IconLabel>,
       onClick: () => {
         setLocation(`/executions?workflow_id=${workflow.id}`)
       },
