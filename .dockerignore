@@ -54,6 +54,5 @@ __tests__
 .temp
 tmp
 *.md
-LICENSE
 .editorconfig
 tsconfig.tsbuildinfo
