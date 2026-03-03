@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import type { FlowPosition } from '../types'
 import { useNodePositioning } from './useNodePositioning'
 
 describe('useNodePositioning', () => {
@@ -19,6 +20,8 @@ describe('useNodePositioning', () => {
     setNodes: mockSetNodes,
     getViewport: mockGetViewport,
     updateNode: mockUpdateNode,
+    desiredPosition: null as FlowPosition | null,
+    onClearDesiredPosition: undefined,
   }
 
   beforeEach(() => {
@@ -104,6 +107,43 @@ describe('useNodePositioning', () => {
     expect(mockSetNodes).toHaveBeenCalled()
   })
 
+  it('positions first loop node at desiredPosition and clears it (hasLoopBodyNodes path)', () => {
+    const nodes = [
+      { id: 'loop-1', type: 'loop', position: { x: 0, y: 0 }, measured: { width: 240, height: 100 } },
+      { id: 'body-1', type: 'task', position: { x: 340, y: 0 }, measured: { width: 100, height: 50 } },
+    ] as never[]
+    const edges = [{ id: 'e1', source: 'loop-1', target: 'body-1', sourceHandle: 'loop' }] as never[]
+    newlyAddedNodeIdsRef.current.add('loop-1')
+    newlyAddedNodeIdsRef.current.add('body-1')
+    const desiredPosition = { x: 200, y: 150 }
+    const mockOnClear = vi.fn()
+
+    let capturedNodes: unknown[] = []
+    mockSetNodes.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        capturedNodes = updater(nodes)
+      }
+    })
+
+    renderHook(() =>
+      useNodePositioning({
+        ...defaultParams,
+        nodes,
+        edges,
+        desiredPosition,
+        onClearDesiredPosition: mockOnClear,
+      })
+    )
+
+    expect(mockSetNodes).toHaveBeenCalled()
+    const positionedLoop = capturedNodes.find((n) => (n as { id: string }).id === 'loop-1') as {
+      position: { x: number; y: number }
+    }
+    // Loop height 100 → center at y+50; center at 150 so top-left y = 100
+    expect(positionedLoop?.position).toEqual({ x: 200, y: 100 })
+    expect(mockOnClear).toHaveBeenCalled()
+  })
+
   it('removes node from tracking after positioning', () => {
     const nodes = [
       { id: 'node-1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 100, height: 50 } },
@@ -156,6 +196,39 @@ describe('useNodePositioning', () => {
 
     // Should not be processed (already has position)
     expect(newlyAddedNodeIdsRef.current.has('node-1')).toBe(true)
+  })
+
+  it('positions new node so its center aligns with desiredPosition (handle at edge end)', () => {
+    const nodes = [
+      { id: 'node-1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 100, height: 50 } },
+    ] as never[]
+    newlyAddedNodeIdsRef.current.add('node-1')
+    const desiredPosition = { x: 200, y: 150 }
+    const mockOnClear = vi.fn()
+
+    let capturedNodes: unknown[] = []
+    mockSetNodes.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        capturedNodes = updater(nodes)
+      }
+    })
+
+    renderHook(() =>
+      useNodePositioning({
+        ...defaultParams,
+        nodes,
+        desiredPosition,
+        onClearDesiredPosition: mockOnClear,
+      })
+    )
+
+    expect(mockSetNodes).toHaveBeenCalled()
+    const positionedNode = capturedNodes.find((n) => (n as { id: string }).id === 'node-1') as {
+      position: { x: number; y: number }
+    }
+    // Node height 50 → center at y+25; we want center at 150 so top-left y = 125
+    expect(positionedNode?.position).toEqual({ x: 200, y: 125 })
+    expect(mockOnClear).toHaveBeenCalled()
   })
 
   it('uses window.innerWidth when container is not available', () => {

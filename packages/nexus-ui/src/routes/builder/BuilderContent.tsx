@@ -52,6 +52,7 @@ import type { NodeType } from '../automations/canvas/nodes/NodeType'
 import { AddNodePanel } from './AddNodePanel'
 import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
+import type { FlowPosition } from './types'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
 import { buildNestedConditionStructure } from './utils/buildNestedStructure'
 import { EdgeFactory } from './utils/EdgeFactory'
@@ -118,6 +119,7 @@ interface BuilderState {
   sourceHandle: string | undefined
   targetHandle: string | undefined
   replacementNodeId: string | null
+  newNodeDesiredPosition: FlowPosition | null
   workflowName: string
   workflowDescription: string
   isEnabled: boolean
@@ -147,8 +149,16 @@ type BuilderAction =
   | { type: 'SET_IS_ENABLED'; payload: boolean }
   | {
       type: 'OPEN_ADD_NODE_FROM_EDGE'
-      payload: { sourceId: string; targetId?: string; edgeId?: string; handle?: string; targetHandle?: string }
+      payload: {
+        sourceId: string
+        targetId?: string
+        edgeId?: string
+        handle?: string
+        targetHandle?: string
+        desiredPosition?: FlowPosition
+      }
     }
+  | { type: 'CLEAR_NEW_NODE_DESIRED_POSITION' }
   | { type: 'OPEN_ADD_NODE_PANEL'; payload: { sourceNodeId: string | null; replacementNodeId: string | null } }
   | { type: 'CLOSE_ADD_NODE_PANEL' }
   | { type: 'CLOSE_OTHER_PANELS' }
@@ -245,8 +255,11 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         sourceHandle: action.payload.handle || undefined,
         targetHandle: action.payload.targetHandle,
         replacementNodeId: null,
+        newNodeDesiredPosition: action.payload.desiredPosition ?? null,
         addNodePanelOpen: true,
       }
+    case 'CLEAR_NEW_NODE_DESIRED_POSITION':
+      return { ...state, newNodeDesiredPosition: null }
     case 'OPEN_ADD_NODE_PANEL':
       return {
         ...state,
@@ -262,6 +275,7 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         sourceHandle: undefined,
         targetHandle: undefined,
         replacementNodeId: action.payload.replacementNodeId,
+        newNodeDesiredPosition: null,
         addNodePanelOpen: true,
       }
     case 'CLOSE_ADD_NODE_PANEL':
@@ -277,6 +291,7 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         sourceHandle: undefined,
         targetHandle: undefined,
         replacementNodeId: null,
+        newNodeDesiredPosition: null,
       }
     case 'CLOSE_OTHER_PANELS':
       return {
@@ -297,6 +312,7 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
           historyCardOpen: false,
           sourceNodeId: null,
           replacementNodeId: action.payload.node.id,
+          newNodeDesiredPosition: null,
           addNodePanelOpen: true,
         }
       } else {
@@ -348,6 +364,7 @@ function getInitialState(): BuilderState {
     sourceHandle: undefined,
     targetHandle: undefined,
     replacementNodeId: null,
+    newNodeDesiredPosition: null,
     workflowName: 'New workflow',
     workflowDescription: 'New workflow',
     isEnabled: false,
@@ -778,8 +795,10 @@ export function BuilderContent(props: BuilderContentProps) {
     dispatch({ type: 'NODE_CLICK', payload: { node, isGeneric } })
   }, [])
 
+  const handleClearDesiredPosition = useCallback(() => dispatch({ type: 'CLEAR_NEW_NODE_DESIRED_POSITION' }), [])
+
   const handleAddNodeFromEdge = useCallback(
-    (sourceId: string, targetId?: string, edgeId?: string, handle?: string) => {
+    (sourceId: string, targetId?: string, edgeId?: string, handle?: string, desiredPosition?: FlowPosition) => {
       let edgeTargetHandle: string | undefined = undefined
       if (edgeId && reactFlowInstance) {
         const edge = reactFlowInstance.getEdge(edgeId)
@@ -787,7 +806,7 @@ export function BuilderContent(props: BuilderContentProps) {
       }
       dispatch({
         type: 'OPEN_ADD_NODE_FROM_EDGE',
-        payload: { sourceId, targetId, edgeId, handle, targetHandle: edgeTargetHandle },
+        payload: { sourceId, targetId, edgeId, handle, targetHandle: edgeTargetHandle, desiredPosition },
       })
     },
     [reactFlowInstance]
@@ -1110,6 +1129,8 @@ export function BuilderContent(props: BuilderContentProps) {
                         onNodeClick={handleNodeClick}
                         onAddNodeFromEdge={handleAddNodeFromEdge}
                         onNodesDeleted={handleNodesDeleted}
+                        newNodeDesiredPosition={state.newNodeDesiredPosition}
+                        onClearDesiredPosition={handleClearDesiredPosition}
                       />
                     </CompassPanel>
                   </StackItem>

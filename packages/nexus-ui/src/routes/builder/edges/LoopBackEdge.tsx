@@ -7,6 +7,10 @@ import { adjustSourceCoordinates } from './edgeUtils'
 import type { BaseEdgeProps } from './types'
 import { useEdgeHandlers } from './useEdgeHandlers'
 
+function getNodeBottom(node: { position: { y: number }; measured?: { height?: number } }): number {
+  return node.position.y + (node.measured?.height ?? 0)
+}
+
 /**
  * Loop-back edge component with custom path routing
  * This edge type is optimized for connections that loop back to a loop node's end handle
@@ -41,20 +45,21 @@ export function LoopBackEdge(props: BaseEdgeProps) {
   const targetNode = getNodes().find((n) => n.id === target)
   const sourceNode = getNodes().find((n) => n.id === source)
 
-  // Calculate the maximum bottom position of the source node and any nodes between source and target
-  // This ensures the edge goes below all loop body nodes
+  // Calculate the maximum bottom position so the edge's horizontal segment goes below the loop node and all loop body nodes
   let maxBottomY = sourceY
 
   if (targetNode && sourceNode) {
-    // Always include the source node itself (the last node in the loop body)
-    const sourceBottom = sourceNode.position.y + (sourceNode.measured?.height ?? 0)
-    maxBottomY = Math.max(maxBottomY, sourceBottom)
+    // Include the loop node (target) so the edge passes below it and isn't hidden underneath
+    maxBottomY = Math.max(maxBottomY, getNodeBottom(targetNode))
 
-    // Also check for any other nodes between target and source
+    // Include the source node (last node in the loop body)
+    maxBottomY = Math.max(maxBottomY, getNodeBottom(sourceNode))
+
+    // Also include any other nodes between target and source
     const allNodes = getNodes()
     const loopBodyNodes = allNodes.filter((node) => {
-      if (!node.position || !node.measured?.height) return false
-      if (node.id === source || node.id === target) return false // Already handled
+      if (!node.position || node.measured?.height == null) return false // Skip nodes without position or height (include height === 0)
+      if (node.id === source || node.id === target) return false // Already handled by target/source nodes
       const nodeY = node.position.y + node.measured.height / 2
       const nodeX = node.position.x
       // Nodes at similar Y level to target/source and between them horizontally
@@ -67,8 +72,7 @@ export function LoopBackEdge(props: BaseEdgeProps) {
 
     // Find the maximum bottom edge of these nodes
     loopBodyNodes.forEach((node) => {
-      const nodeBottom = node.position.y + (node.measured?.height ?? 0)
-      maxBottomY = Math.max(maxBottomY, nodeBottom)
+      maxBottomY = Math.max(maxBottomY, getNodeBottom(node))
     })
   }
 

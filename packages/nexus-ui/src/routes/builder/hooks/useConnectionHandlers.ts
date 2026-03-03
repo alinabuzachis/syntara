@@ -3,7 +3,7 @@ import type { Connection, OnConnect } from '@xyflow/react'
 import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 
 import { FlowNodeType } from '../../../constants'
-import type { ConnectionState, PendingEdge } from '../types'
+import type { ConnectionState, FlowPosition, PendingEdge } from '../types'
 import { EdgeFactory } from '../utils/EdgeFactory'
 import { getPlaceholderNodeId } from '../utils/edgeHelpers'
 import { consumePendingDragHandle } from '../utils/pendingDragHandle'
@@ -12,7 +12,13 @@ import type { EdgeType, NodeType } from '../utils/workflowToGraph'
 interface UseConnectionHandlersParams {
   nodes: NodeType[]
   edges: EdgeType[]
-  onAddNodeFromEdge?: (sourceNodeId: string, nodeType?: string, activityId?: string, sourceHandle?: string) => void
+  onAddNodeFromEdge?: (
+    sourceNodeId: string,
+    nodeType?: string,
+    activityId?: string,
+    sourceHandle?: string,
+    desiredPosition?: FlowPosition
+  ) => void
   setNodes: Dispatch<SetStateAction<NodeType[]>>
   setEdges: Dispatch<SetStateAction<EdgeType[]>>
   setPendingEdge: Dispatch<SetStateAction<PendingEdge | null>>
@@ -192,7 +198,7 @@ export function useConnectionHandlers({
           y: flowPosition.y,
         })
 
-        onAddNodeFromEdge?.(sourceNodeId, undefined, undefined, sourceHandleId ?? undefined)
+        onAddNodeFromEdge?.(sourceNodeId, undefined, undefined, sourceHandleId ?? undefined, flowPosition)
       }
     },
     [onAddNodeFromEdge, screenToFlowPosition, setPendingEdge]

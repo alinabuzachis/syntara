@@ -93,6 +93,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
     onNodesDeleted,
     disableDeleteKey,
     disableSpacePanning,
+    newNodeDesiredPosition,
+    onClearDesiredPosition,
   } = props
 
   // Use typed selectors for optimized subscriptions
@@ -587,6 +589,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
     setNodes,
     getViewport,
     updateNode,
+    desiredPosition: newNodeDesiredPosition ?? null,
+    onClearDesiredPosition,
   })
 
   useEffect(() => {

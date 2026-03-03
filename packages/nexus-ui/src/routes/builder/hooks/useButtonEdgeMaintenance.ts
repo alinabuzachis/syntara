@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom'
 
 import { FlowNodeType } from '../../../constants'
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { FlowPosition } from '../types'
 import { filterButtonEdges, filterRealNodes } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
@@ -68,7 +69,13 @@ interface UseButtonEdgeMaintenanceOptions {
   isInitialized: boolean
   activeEdgeButtonNodeId: string | null
   activeEdgeButtonHandle: string | null
-  onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string, sourceHandle?: string) => void
+  onAddNodeFromEdge?: (
+    sourceNodeId: string,
+    targetNodeId?: string,
+    edgeId?: string,
+    sourceHandle?: string,
+    desiredPosition?: FlowPosition
+  ) => void
   pendingEdge: { sourceNodeId: string; sourceHandle?: string; x: number; y: number } | null
   setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>
   setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
@@ -400,6 +407,9 @@ export function useButtonEdgeMaintenance({
           }
         })
 
+        const makeOnButtonClick = (nodeId: string, handleId: string) => (pos: FlowPosition | undefined) =>
+          onAddNodeFromEdge?.(nodeId, undefined, undefined, handleId, pos)
+
         // Add missing ButtonEdges for regular nodes
         nodesNeedingButtonEdgesRef.current.forEach((nodeId) => {
           if (!nodesWithButtonEdges.has(nodeId)) {
@@ -417,7 +427,7 @@ export function useButtonEdgeMaintenance({
               data: {
                 sourceNodeId: nodeId,
                 sourceHandle: EdgeHandleEnum.SOURCE,
-                onButtonClick: () => onAddNodeFromEdge?.(nodeId, undefined, undefined, EdgeHandleEnum.SOURCE),
+                onButtonClick: makeOnButtonClick(nodeId, EdgeHandleEnum.SOURCE),
                 // For regular nodes, active when nodeId matches and handle is 'source' or not specified
                 isActive:
                   activeEdgeButtonNodeId === nodeId &&
@@ -446,7 +456,7 @@ export function useButtonEdgeMaintenance({
               data: {
                 sourceNodeId: nodeId,
                 sourceHandle: handleId,
-                onButtonClick: () => onAddNodeFromEdge?.(nodeId, undefined, undefined, handleId),
+                onButtonClick: makeOnButtonClick(nodeId, handleId),
                 // For condition nodes, active only when both nodeId AND handleId match
                 isActive: activeEdgeButtonNodeId === nodeId && activeEdgeButtonHandle === handleId,
               },
@@ -473,7 +483,7 @@ export function useButtonEdgeMaintenance({
               data: {
                 sourceNodeId: nodeId,
                 sourceHandle: handleId,
-                onButtonClick: () => onAddNodeFromEdge?.(nodeId, undefined, undefined, handleId),
+                onButtonClick: makeOnButtonClick(nodeId, handleId),
                 // For loop nodes, active only when both nodeId AND handleId match
                 isActive: activeEdgeButtonNodeId === nodeId && activeEdgeButtonHandle === handleId,
               },
@@ -500,7 +510,7 @@ export function useButtonEdgeMaintenance({
               data: {
                 sourceNodeId: nodeId,
                 sourceHandle: handleId,
-                onButtonClick: () => onAddNodeFromEdge?.(nodeId, undefined, undefined, handleId),
+                onButtonClick: makeOnButtonClick(nodeId, handleId),
                 // For approval nodes, active only when both nodeId AND handleId match
                 isActive: activeEdgeButtonNodeId === nodeId && activeEdgeButtonHandle === handleId,
               },

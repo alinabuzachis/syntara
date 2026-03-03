@@ -1,5 +1,7 @@
 import type { EdgeProps } from '@xyflow/react'
 
+import type { FlowPosition } from '../types'
+
 /**
  * Shared edge data interface used by all edge types
  */
@@ -13,7 +15,8 @@ export interface EdgeData {
  * Button edge data interface (different from regular edges)
  */
 export interface ButtonEdgeData {
-  onButtonClick?: () => void
+  /** Called when [+] is clicked; optional position is the [+] location in flow coordinates (for placing the new node) */
+  onButtonClick?: (position?: FlowPosition) => void
   isActive?: boolean
   sourceHandle?: string
 }

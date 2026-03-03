@@ -59,7 +59,7 @@ export function ButtonEdge(props: ButtonEdgeProps) {
   const handleClick = (event: React.SyntheticEvent) => {
     event.stopPropagation()
     if (!isDragging) {
-      data?.onButtonClick?.()
+      data?.onButtonClick?.({ x: buttonX, y: buttonY })
     }
   }
 

@@ -2,6 +2,9 @@ import type { NodeMouseHandler } from '@xyflow/react'
 
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
+/** Flow coordinate (e.g. for node placement or edge end position) */
+export type FlowPosition = { x: number; y: number }
+
 /**
  * Props for the BuilderFlow component
  */
@@ -22,8 +25,18 @@ export interface BuilderFlowProps {
   executionStatus?: string | null
   /** Handler for node click events */
   onNodeClick?: NodeMouseHandler<NodeType>
-  /** Handler for adding a node from an edge */
-  onAddNodeFromEdge?: (sourceNodeId: string, targetNodeId?: string, edgeId?: string, sourceHandle?: string) => void
+  /** Handler for adding a node from an edge; desiredPosition places the new node's left edge at that flow coordinate */
+  onAddNodeFromEdge?: (
+    sourceNodeId: string,
+    targetNodeId?: string,
+    edgeId?: string,
+    sourceHandle?: string,
+    desiredPosition?: FlowPosition
+  ) => void
+  /** Desired position for the new node (e.g. from [+] click or pending edge drop); consumed by useNodePositioning */
+  newNodeDesiredPosition?: FlowPosition | null
+  /** Called when desired position has been applied so it can be cleared */
+  onClearDesiredPosition?: () => void
   /** Handler called after nodes are deleted */
   onNodesDeleted?: (deletedNodeIds: string[]) => void
   /** Disable keyboard delete shortcuts (e.g., while editor overlay is open) */

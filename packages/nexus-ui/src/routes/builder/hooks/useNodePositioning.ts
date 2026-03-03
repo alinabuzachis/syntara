@@ -2,6 +2,7 @@ import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { useEffect, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from 'react'
 
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { FlowPosition } from '../types'
 import type { EdgeType } from '../utils/workflowToGraph'
 
 interface UseNodePositioningParams {
@@ -13,6 +14,15 @@ interface UseNodePositioningParams {
   setNodes: Dispatch<SetStateAction<NodeType[]>>
   getViewport: () => { x: number; y: number; zoom: number }
   updateNode: (nodeId: string, updates: { position: { x: number; y: number } }) => void
+  /** When set, place the next new node's left edge at this position (e.g. from [+] click or pending edge drop) */
+  desiredPosition: FlowPosition | null
+  /** Called after desiredPosition has been applied so it can be cleared */
+  onClearDesiredPosition?: () => void
+}
+
+/** Returns top-left position so the node's vertical center is at desired.y */
+function positionWithCenterAt(desired: FlowPosition, height: number): FlowPosition {
+  return { x: desired.x, y: desired.y - height / 2 }
 }
 
 /**
@@ -29,8 +39,8 @@ function applyPositionedNodes(
 }
 
 /**
- * Processes a single node for loop-based positioning
- * Returns the updated node and whether it was positioned
+ * Processes a single node for loop-based positioning.
+ * When overridePosition is set for this node, use it (e.g. from desiredPosition); otherwise use viewport base.
  */
 function positionLoopNode(
   node: NodeType,
@@ -38,7 +48,8 @@ function positionLoopNode(
   baseX: number,
   baseY: number,
   loopPositions: Map<string, { x: number; y: number; width: number; height: number }>,
-  positionedNodes: Map<string, NodeType>
+  positionedNodes: Map<string, NodeType>,
+  overridePosition: FlowPosition | null
 ): NodeType {
   if (
     newlyAddedNodeIdsRef.current.has(node.id) &&
@@ -49,9 +60,10 @@ function positionLoopNode(
   ) {
     const loopWidth = node.measured?.width ?? 240
     const loopHeight = node.measured?.height ?? 0
-    loopPositions.set(node.id, { x: baseX, y: baseY, width: loopWidth, height: loopHeight })
+    const position = overridePosition ?? { x: baseX, y: baseY }
+    loopPositions.set(node.id, { x: position.x, y: position.y, width: loopWidth, height: loopHeight })
     newlyAddedNodeIdsRef.current.delete(node.id)
-    const updatedNode = { ...node, position: { x: baseX, y: baseY } }
+    const updatedNode = { ...node, position }
     positionedNodes.set(node.id, updatedNode)
     return updatedNode
   }
@@ -111,6 +123,8 @@ export function useNodePositioning({
   setNodes,
   getViewport,
   updateNode,
+  desiredPosition,
+  onClearDesiredPosition,
 }: UseNodePositioningParams) {
   useEffect(() => {
     if (newlyAddedNodeIdsRef.current.size > 0 && isInitialized) {
@@ -140,63 +154,85 @@ export function useNodePositioning({
         const hasLoopBodyNodes = nodesToPosition.some((n) => loopBodyNodeMap.has(n.id))
 
         if (hasLoopBodyNodes) {
-          // Two-pass positioning for loop nodes - place on left side of viewport
+          // Position loop(s) and body nodes. Use desiredPosition for first loop when set (e.g. from [+] or pending edge).
           const viewport = getViewport()
           const padding = 50
           const baseX = (-viewport.x + padding) / viewport.zoom
           const baseY = (-viewport.y + padding) / viewport.zoom
 
+          const firstLoopNode = nodesToPosition.find((n) => n.type === 'loop')
+          const desiredLoopPosition =
+            firstLoopNode && desiredPosition != null
+              ? positionWithCenterAt(desiredPosition, firstLoopNode.measured?.height ?? 0)
+              : null
+
           setNodes((currentNodes) => {
             const loopPositions = new Map<string, { x: number; y: number; width: number; height: number }>()
             const positionedNodes = new Map<string, NodeType>()
+            const overrideForFirstLoop =
+              firstLoopNode && desiredLoopPosition ? { nodeId: firstLoopNode.id, position: desiredLoopPosition } : null
 
-            // Single pass: position both loop nodes and body nodes
             const updatedNodes = currentNodes.map((node) => {
-              // First: position loop nodes
+              const overridePosition =
+                overrideForFirstLoop && node.id === overrideForFirstLoop.nodeId ? overrideForFirstLoop.position : null
               const loopPositioned = positionLoopNode(
                 node,
                 newlyAddedNodeIdsRef,
                 baseX,
                 baseY,
                 loopPositions,
-                positionedNodes
+                positionedNodes,
+                overridePosition
               )
               if (loopPositioned !== node) return loopPositioned
 
-              // Second: position body nodes if their loop was positioned
               return positionLoopBodyNode(node, newlyAddedNodeIdsRef, loopBodyNodeMap, loopPositions, positionedNodes)
             })
 
-            // Force ReactFlow to update the positioned nodes immediately
             if (positionedNodes.size > 0) {
               setTimeout(() => applyPositionedNodes(positionedNodes, updateNode), 100)
             }
 
             return updatedNodes
           })
+
+          // Clear desiredPosition when in loop branch so it's not reused (whether we consumed it for firstLoopNode or not)
+          if (desiredPosition != null) {
+            onClearDesiredPosition?.()
+          }
         } else {
-          // Standard viewport-based positioning for non-loop nodes
+          // Standard positioning: use desiredPosition (e.g. [+] or pending edge drop) or fallback to viewport top-right
           const viewport = getViewport()
           const viewportWidth = containerRef.current?.clientWidth ?? window.innerWidth
           const padding = 50
-          const newNodeX = (-viewport.x + viewportWidth - 350 - padding) / viewport.zoom
-          const newNodeY = (-viewport.y + padding) / viewport.zoom
+          const viewportX = (-viewport.x + viewportWidth - 350 - padding) / viewport.zoom
+          const viewportY = (-viewport.y + padding) / viewport.zoom
+          const useDesired = desiredPosition != null
+          const firstNodeId = nodesToPosition[0]?.id
 
           // Build a Set for O(1) lookup
           const nodesToPositionSet = new Set(nodesToPosition.map((n) => n.id))
 
           setNodes((currentNodes) =>
             currentNodes.map((node) => {
-              if (nodesToPositionSet.has(node.id)) {
-                newlyAddedNodeIdsRef.current.delete(node.id)
-                return { ...node, position: { x: newNodeX, y: newNodeY } }
+              if (!nodesToPositionSet.has(node.id)) return node
+              newlyAddedNodeIdsRef.current.delete(node.id)
+              let position: { x: number; y: number }
+              if (useDesired && node.id === firstNodeId) {
+                position = positionWithCenterAt(desiredPosition, node.measured?.height ?? 0)
+              } else {
+                position = { x: viewportX, y: viewportY }
               }
-              return node
+              return { ...node, position }
             })
           )
+
+          if (useDesired && firstNodeId) {
+            onClearDesiredPosition?.()
+          }
         }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, isInitialized, getViewport, setNodes])
+  }, [nodes, edges, isInitialized, getViewport, setNodes, desiredPosition, onClearDesiredPosition])
 }
