@@ -4,8 +4,8 @@
  * Validates expression structure and provides error messages for incomplete/invalid expressions
  */
 
-import type { ExpressionNode } from './types'
 import { isUnaryOperator } from './defaults'
+import type { ExpressionNode } from './types'
 
 /**
  * Validation error for a specific node/field

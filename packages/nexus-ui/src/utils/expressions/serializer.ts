@@ -5,8 +5,8 @@
  * that are compatible with the workflow engine backend.
  */
 
-import type { Expression, ExpressionNode, ExpressionCondition, ExpressionGroup } from './types'
 import { isUnaryOperator } from './defaults'
+import type { Expression, ExpressionNode, ExpressionCondition, ExpressionGroup } from './types'
 
 /**
  * Serialize an expression tree to a template string

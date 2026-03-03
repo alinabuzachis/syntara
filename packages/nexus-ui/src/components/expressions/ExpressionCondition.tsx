@@ -3,8 +3,6 @@
  * Renders a single condition row with variable, operator, value inputs
  */
 
-import { useState, useEffect } from 'react'
-
 import {
   Card,
   CardBody,
@@ -20,9 +18,10 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { TrashIcon } from '@patternfly/react-icons'
+import { useState, useEffect } from 'react'
 
-import type { ExpressionCondition as ExpressionConditionType, ComparisonOperator } from '../../utils/expressions/types'
 import { isUnaryOperator, OPERATOR_LABELS, OPERATOR_GROUPS } from '../../utils/expressions/defaults'
+import type { ExpressionCondition as ExpressionConditionType, ComparisonOperator } from '../../utils/expressions/types'
 
 import { HelpPopover } from './HelpPopover'
 

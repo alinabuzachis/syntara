@@ -1,4 +1,3 @@
-import type React from 'react'
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { Label } from '@patternfly/react-core'
 import {
@@ -9,6 +8,7 @@ import {
   RhUiStopCircleFillIcon,
   RhUiSyncIcon,
 } from '@patternfly/react-icons'
+import type React from 'react'
 
 type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
 

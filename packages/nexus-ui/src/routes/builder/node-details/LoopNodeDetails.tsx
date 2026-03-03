@@ -53,7 +53,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
       }
 
       // Build fresh loop object based on type to avoid stale fields
-      const loopType = data.type as 'forEach' | 'while'
+      const loopType = data.type
       const baseLoop = {
         type: loopType,
         do: loopData.loop.do,

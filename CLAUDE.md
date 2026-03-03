@@ -575,6 +575,29 @@ Before writing a string comparison or assignment:
 3. ✅ If enum exists → Use it instead of string literal
 4. ❌ If no enum exists → Consider creating one if the value is reused
 
+### Code Readability Enforcement
+
+ESLint enforces readability constraints that keep functions small, files focused, and logic simple. All are set to `warn` — they light up in the IDE and guide AI agents without blocking CI on existing code. **New code must respect these limits.**
+
+| Rule                     | Limit             | Purpose                                        |
+| ------------------------ | ----------------- | ---------------------------------------------- |
+| `max-lines`              | 300 lines/file    | One responsibility per file                    |
+| `max-lines-per-function` | 50 lines/function | Extract helpers, don't write monoliths         |
+| `complexity`             | 15 (cyclomatic)   | Break complex branching into smaller functions |
+| `max-depth`              | 4 levels          | Use early returns, not pyramids                |
+| `max-params`             | 4 parameters      | Use a typed options object for 5+ params       |
+| `max-nested-callbacks`   | 3 levels          | Flatten with named functions or async/await    |
+
+Blank lines and comments are excluded from counts. Test files are exempt from size limits.
+
+**Refactoring strategies when a limit is hit:**
+
+- **Long function** → Extract sub-components, custom hooks, or helper functions
+- **Deep nesting** → Early returns / guard clauses
+- **High complexity** → Split into predicate functions or lookup tables
+- **Many params** → Group into `{ options }` object with a TypeScript type
+- **Large file** → Split into co-located modules (e.g., `utils.ts`, `hooks.ts`, sub-components)
+
 ### Testing Guidelines
 
 #### Core Principle: Test Behavior, Not Implementation

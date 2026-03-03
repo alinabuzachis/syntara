@@ -4,7 +4,7 @@ import react from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
-import importPlugin from 'eslint-plugin-import'
+import importPlugin from 'eslint-plugin-import-x'
 import noOnlyTests from 'eslint-plugin-no-only-tests'
 import unicorn from 'eslint-plugin-unicorn'
 import tseslint from 'typescript-eslint'
@@ -34,7 +34,7 @@ export default tseslint.config(
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
       'jsx-a11y': jsxA11y,
-      import: importPlugin,
+      'import-x': importPlugin,
       'no-only-tests': noOnlyTests,
       unicorn,
     },
@@ -42,19 +42,22 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      // Essential bug prevention rules
-      '@typescript-eslint/no-floating-promises': 'error', // Catch unhandled promises
-      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }], // Allow promises in event handlers
-      '@typescript-eslint/no-explicit-any': 'error', // Enforce proper TypeScript typing
-      '@typescript-eslint/no-unused-private-class-members': 'error', // Catch unused private class members (v8.54+)
-      '@typescript-eslint/no-unnecessary-type-assertion': 'error', // Catch unnecessary type assertions (v8.54+)
-      'no-console': 'error', // No console.log in production
-      'no-only-tests/no-only-tests': 'error', // Prevent .only() in tests
-      // SonarCloud-aligned rules
-      'react/no-array-index-key': 'warn', // Avoid using array index as key
-      'unicorn/prefer-number-properties': 'error', // Use Number.parseInt instead of parseInt
-      // Import organization
-      'import/order': [
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }],
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-private-class-members': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+      'no-console': 'error',
+      'no-only-tests/no-only-tests': 'error',
+      'react/no-array-index-key': 'warn',
+      'unicorn/prefer-number-properties': 'error',
+      'max-lines': ['warn', { max: 300, skipBlankLines: true, skipComments: true }],
+      'max-lines-per-function': ['warn', { max: 50, skipBlankLines: true, skipComments: true, IIFEs: true }],
+      complexity: ['warn', 15],
+      'max-depth': ['warn', 4],
+      'max-params': ['warn', 4],
+      'max-nested-callbacks': ['warn', 3],
+      'import-x/order': [
         'error',
         {
           groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
@@ -62,14 +65,21 @@ export default tseslint.config(
           alphabetize: { order: 'asc', caseInsensitive: true },
         },
       ],
-      'import/no-duplicates': 'error',
+      'import-x/no-duplicates': 'error',
     },
   },
   {
-    // Allow console in entry files
     files: ['**/index.tsx', '**/main.tsx', '**/vite.config.ts', '**/vitest.config.ts', '**/vitest.browser.config.ts'],
     rules: {
       'no-console': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    rules: {
+      'max-lines': 'off',
+      'max-lines-per-function': 'off',
+      'max-nested-callbacks': 'off',
     },
   },
   eslintConfigPrettier

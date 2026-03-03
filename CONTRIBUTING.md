@@ -201,6 +201,27 @@ The application will be available at:
 - Maintainers will provide feedback
 - Be prepared to make requested changes
 
+## Code Readability Rules
+
+We enforce code readability through ESLint rules that keep functions small, files focused, and logic simple. These rules are set to `warn` — they won't block your PR, but new code should respect them.
+
+| Rule                     | Limit             | What it enforces                                             |
+| ------------------------ | ----------------- | ------------------------------------------------------------ |
+| `max-lines`              | 300 lines/file    | Keep files focused on a single responsibility                |
+| `max-lines-per-function` | 50 lines/function | Extract helpers instead of writing monoliths                 |
+| `complexity`             | 15 (cyclomatic)   | Break complex branching into smaller functions               |
+| `max-depth`              | 4 levels          | Use early returns instead of deep nesting                    |
+| `max-params`             | 4 parameters      | Use an options object for functions with many inputs         |
+| `max-nested-callbacks`   | 3 levels          | Flatten nested callbacks with named functions or async/await |
+
+Blank lines and comments are excluded from line counts. Test files (`*.test.*`, `*.spec.*`) are exempt from size limits.
+
+**If a rule blocks your work**, don't disable it inline. Instead, refactor:
+
+- Long component? Extract sub-components or custom hooks.
+- Deep nesting? Use early returns or guard clauses.
+- Many parameters? Group them into a typed options object.
+
 ## Testing
 
 ### Running Tests

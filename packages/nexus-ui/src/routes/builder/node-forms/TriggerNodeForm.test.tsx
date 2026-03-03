@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
-import { renderWithHeader } from './test-utils/renderWithHeader'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { renderWithHeader } from './test-utils/renderWithHeader'
 import { TriggerNodeForm } from './TriggerNodeForm'
 
 // Mock DateRangeCadencePicker

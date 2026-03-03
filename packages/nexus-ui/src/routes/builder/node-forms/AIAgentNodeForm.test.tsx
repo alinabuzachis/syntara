@@ -1,9 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { renderWithHeader } from './test-utils/renderWithHeader'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AIAgentNodeForm } from './AIAgentNodeForm'
+import { renderWithHeader } from './test-utils/renderWithHeader'
 
 // Mock file upload hook
 const mockUploadFiles = vi.fn()

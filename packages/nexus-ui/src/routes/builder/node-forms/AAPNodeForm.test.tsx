@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react'
-import { renderWithHeader } from './test-utils/renderWithHeader'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AAPNodeForm } from './AAPNodeForm'
+import { renderWithHeader } from './test-utils/renderWithHeader'
 
 // Mock ExpandableCodeEditor to use a simple textarea for testing
 vi.mock('../../../components/ExpandableCodeEditor', () => ({

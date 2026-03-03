@@ -299,7 +299,7 @@ describe('serializeExpression', () => {
 
     // Should maintain group structure (not collapse to single condition)
     expect(parsed.root?.type).toBe('group')
-    const group = parsed.root as typeof original.root
+    const group = parsed.root
     if (group?.type === 'group') {
       expect(group.negate).toBe(true)
       expect(group.children).toHaveLength(1)

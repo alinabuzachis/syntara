@@ -1,6 +1,6 @@
+import { ALL_OPERATORS } from '../../../../utils/expressions/defaults'
 import { parseExpression } from '../../../../utils/expressions/parser'
 import { hasValidationErrors } from '../../../../utils/expressions/validation'
-import { ALL_OPERATORS } from '../../../../utils/expressions/defaults'
 
 /**
  * Shared validation rules for conditional expression fields.
