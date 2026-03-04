@@ -28,7 +28,7 @@ COPY . .
 RUN npm run build
 
 # Production stage - use ubi9 nginx image
-FROM registry.redhat.io/ubi9/nginx-124:latest@sha256:78f418251736a947b35e8e8164eb2f5114c751fac764273c11eba601a249f9f7
+FROM registry.redhat.io/ubi9/nginx-124:latest@sha256:09b0ed759c163fed2883fb2d44cf39b0f5bef0dc1b3bc504c7c254d3647b4425
 
 USER 0
 
