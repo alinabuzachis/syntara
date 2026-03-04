@@ -8,26 +8,22 @@ import {
   SearchInput,
   StackItem,
 } from '@patternfly/react-core'
-import Fuse from 'fuse.js'
-import { useState } from 'react'
 
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
+import { useFuse } from '../../../hooks/useFuse'
 
 import { useGlossaryTerms } from './useGlossaryTerms'
 
+const GLOSSARY_SEARCH_KEYS = [
+  { name: 'term' as const, weight: 0.7 },
+  { name: 'definition' as const, weight: 0.3 },
+]
+
 export default function Glossary() {
   const glossaryTerms = useGlossaryTerms()
-  const [search, setSearch] = useState('')
-  const fuse = new Fuse(glossaryTerms, {
-    keys: [
-      { name: 'term', weight: 0.7 },
-      { name: 'definition', weight: 0.3 },
-    ],
-    threshold: 0.7,
-  })
-  const results = search ? fuse.search(search).map((result) => result.item) : glossaryTerms
+  const { search, setSearch, items: results } = useFuse(glossaryTerms, GLOSSARY_SEARCH_KEYS)
 
   return (
     <AppPage>

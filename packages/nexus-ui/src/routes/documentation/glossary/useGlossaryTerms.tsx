@@ -3,8 +3,8 @@ export interface GlossaryTerm {
   definition: string
 }
 
-export function useGlossaryTerms() {
-  const glossaryTerms: GlossaryTerm[] = [
+const GLOSSARY_TERMS: ReadonlyArray<Readonly<GlossaryTerm>> = Object.freeze(
+  [
     {
       term: 'MCP Server',
       definition:
@@ -35,7 +35,11 @@ export function useGlossaryTerms() {
       definition:
         'Ansible Automation Platform is an enterprise framework for building and operating IT automation at scale. It provides a consistent way to automate the provisioning, configuration, and management of IT infrastructure and applications across hybrid cloud environments.',
     },
-  ].sort((a, b) => a.term.localeCompare(b.term))
+  ]
+    .sort((a, b) => a.term.localeCompare(b.term))
+    .map((item) => Object.freeze(item))
+)
 
-  return glossaryTerms
+export function useGlossaryTerms(): ReadonlyArray<Readonly<GlossaryTerm>> {
+  return GLOSSARY_TERMS
 }
