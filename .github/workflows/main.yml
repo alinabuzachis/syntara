@@ -47,8 +47,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/nexus-ui:latest
             ghcr.io/${{ github.repository_owner }}/nexus-ui:${{ github.sha }}
-            quay.io/${{ github.repository_owner }}/nexus-ui:latest
-            quay.io/${{ github.repository_owner }}/nexus-ui:${{ github.sha }}
+            quay.io/ansible/nexus-ui:latest
+            quay.io/ansible/nexus-ui:${{ github.sha }}
 
       - name: Build and push nexus-mock-api image
         uses: docker/build-push-action@v6
@@ -60,5 +60,3 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/nexus-mock-api:latest
             ghcr.io/${{ github.repository_owner }}/nexus-mock-api:${{ github.sha }}
-            quay.io/${{ github.repository_owner }}/nexus-mock-api:latest
-            quay.io/${{ github.repository_owner }}/nexus-mock-api:${{ github.sha }}
