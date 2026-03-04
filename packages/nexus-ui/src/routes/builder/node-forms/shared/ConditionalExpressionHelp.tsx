@@ -1,4 +1,4 @@
-import { Popover } from '@patternfly/react-core'
+import { Popover, Stack, StackItem } from '@patternfly/react-core'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 
 /**
@@ -14,16 +14,19 @@ export function ConditionalExpressionHelp() {
       aria-label="Conditional expression help"
       headerContent="Conditional expression"
       bodyContent={
-        <div>
-          <p>
+        <Stack hasGutter>
+          <StackItem>
+            The condition that determines if the loop continues. The loop executes while this condition is true.
+          </StackItem>
+          <StackItem>
             <strong>Visual expression builder:</strong> Build conditions visually using a form interface with dropdowns
             and inputs.
-          </p>
-          <p style={{ marginTop: '8px' }}>
+          </StackItem>
+          <StackItem>
             <strong>Custom expression:</strong> Write conditions directly as template expressions in the format{' '}
             <code>{'${variable operator value}'}</code>
-          </p>
-        </div>
+          </StackItem>
+        </Stack>
       }
       triggerAction="click"
     >

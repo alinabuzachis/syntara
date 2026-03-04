@@ -25,7 +25,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
   }
 
   // Runtime guard: only allow valid loop types
-  const loopType = loopData.loop.type === 'forEach' || loopData.loop.type === 'while' ? loopData.loop.type : 'forEach'
+  const loopType = loopData.loop.type === 'forEach' || loopData.loop.type === 'while' ? loopData.loop.type : 'while'
 
   const initialData = {
     name: loopData.name,
@@ -33,6 +33,10 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
     items: loopType === 'forEach' && 'items' in loopData.loop ? loopData.loop.items : undefined,
     condition: loopType === 'while' && 'condition' in loopData.loop ? loopData.loop.condition : undefined,
     maxIterations: loopType === 'while' && 'maxIterations' in loopData.loop ? loopData.loop.maxIterations : undefined,
+    maxIterationsBehavior:
+      loopType === 'while' && 'maxIterationsBehavior' in loopData.loop
+        ? (loopData.loop.maxIterationsBehavior as 'continue' | 'fail')
+        : undefined,
     indexVariable: loopType === 'forEach' && 'indexVariable' in loopData.loop ? loopData.loop.indexVariable : undefined,
     itemVariable: loopType === 'forEach' && 'itemVariable' in loopData.loop ? loopData.loop.itemVariable : undefined,
   }
@@ -43,6 +47,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
     items?: string
     condition?: string
     maxIterations?: number
+    maxIterationsBehavior?: 'continue' | 'fail'
     indexVariable?: string
     itemVariable?: string
   }) => {
@@ -73,7 +78,10 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
               type: 'while' as const,
               condition: data.condition ?? '',
               maxIterations:
-                data.maxIterations !== undefined && !Number.isNaN(data.maxIterations) ? data.maxIterations : undefined,
+                typeof data.maxIterations === 'number' && Number.isInteger(data.maxIterations) && data.maxIterations > 0
+                  ? data.maxIterations
+                  : undefined,
+              maxIterationsBehavior: data.maxIterationsBehavior || 'continue',
             }
 
       const updatedActivity: LoopActivity = {

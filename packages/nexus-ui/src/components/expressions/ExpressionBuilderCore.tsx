@@ -172,19 +172,10 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
       role="group"
     >
       <StackItem>
-        <div
-          style={{
-            borderRadius: 'var(--pf-t--global--border-radius--default)',
-            paddingLeft: 'var(--pf-t--global--spacer--sm)',
-            paddingRight: 'var(--pf-t--global--spacer--sm)',
-            backgroundColor: 'var(--pf-t--global--color--surface--primary)',
-          }}
-        >
-          <FormSelect value={state.mode} onChange={handleModeChange} aria-label="Expression editor mode">
-            <FormSelectOption value="visual" label="Visual expression builder" />
-            <FormSelectOption value="raw" label="Custom expression" />
-          </FormSelect>
-        </div>
+        <FormSelect value={state.mode} onChange={handleModeChange} aria-label="Expression editor mode">
+          <FormSelectOption value="visual" label="Visual expression builder" />
+          <FormSelectOption value="raw" label="Custom expression" />
+        </FormSelect>
       </StackItem>
 
       <StackItem>
@@ -192,6 +183,7 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
           style={{
             borderRadius: 'var(--pf-t--global--border-radius--default)',
             backgroundColor: 'var(--pf-t--global--color--surface--primary)',
+            width: '100%',
           }}
         >
           {state.mode === 'visual' ? (

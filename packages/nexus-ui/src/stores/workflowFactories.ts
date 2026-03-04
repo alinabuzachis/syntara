@@ -325,6 +325,7 @@ export function createLoopActivity(
     items?: string
     condition?: string
     maxIterations?: number
+    maxIterationsBehavior?: 'continue' | 'fail'
     indexVariable?: string
     itemVariable?: string
   }
@@ -355,6 +356,7 @@ export function createLoopActivity(
       ...baseActivity.loop,
       type: 'while' as const,
       condition: config.condition,
+      maxIterationsBehavior: config.maxIterationsBehavior ?? 'continue',
     }
 
     // Only include maxIterations if it has a valid value

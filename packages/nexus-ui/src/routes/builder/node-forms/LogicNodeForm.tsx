@@ -86,7 +86,7 @@ export function LogicNodeForm({ onSubmit, submitButtonText, initialData, onHeade
   if (logicType === ActivityTypeEnum.LOOP) {
     const loopData: Partial<LoopFormData> = {
       name: initialData?.name,
-      type: (initialData?.type as 'forEach' | 'while') || 'forEach',
+      type: (initialData?.type as 'forEach' | 'while') || 'while',
       items: initialData?.items,
       condition: initialData?.condition,
       maxIterations: initialData?.maxIterations,

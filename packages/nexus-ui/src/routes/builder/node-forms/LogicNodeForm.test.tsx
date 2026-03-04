@@ -46,7 +46,7 @@ describe('LogicNodeForm', () => {
 
       // Verify LoopNodeForm is rendered by checking for its unique elements
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Test Loop')
-      expect(screen.getByLabelText(/^Type$/i)).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: /Type/i })).toBeInTheDocument()
     })
 
     it('renders ConvergeNodeForm when logicType is converge', () => {
@@ -178,7 +178,7 @@ describe('LogicNodeForm', () => {
       expect(submittedData.name).toBe('Updated Converge')
     })
 
-    it('defaults loop type to forEach when not provided', () => {
+    it('defaults loop type to while when not provided', () => {
       renderWithHeader(
         <LogicNodeForm
           onSubmit={mockOnSubmit}
@@ -189,8 +189,8 @@ describe('LogicNodeForm', () => {
         />
       )
 
-      // Verify forEach is selected by default
-      expect(screen.getByLabelText(/^Type$/i)).toHaveValue('forEach')
+      // Verify while is selected by default
+      expect(screen.getByRole('combobox', { name: /Type/i })).toHaveValue('while')
     })
   })
 
@@ -243,7 +243,7 @@ describe('LogicNodeForm', () => {
       )
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Loop Node')
-      expect(screen.getByLabelText(/^Type$/i)).toHaveValue('while')
+      expect(screen.getByRole('combobox', { name: /Type/i })).toHaveValue('while')
     })
 
     it('maps all converge fields from initialData', () => {

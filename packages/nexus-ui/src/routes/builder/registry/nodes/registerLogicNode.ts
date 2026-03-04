@@ -68,7 +68,7 @@ export default function registerLogicNode() {
             icon: RhUiLoopNodeIcon,
             description: 'Batch automation to repeat specific actions.',
             formTitle: 'Configure Loop Logic',
-            initialData: { logicType: ActivityTypeEnum.LOOP },
+            initialData: { logicType: ActivityTypeEnum.LOOP, type: 'while', maxIterationsBehavior: 'continue' },
           },
         ],
       },
@@ -114,6 +114,7 @@ export default function registerLogicNode() {
               items: data.items,
               condition: data.condition,
               maxIterations: data.maxIterations,
+              maxIterationsBehavior: data.maxIterationsBehavior,
               indexVariable: data.indexVariable,
               itemVariable: data.itemVariable,
             })

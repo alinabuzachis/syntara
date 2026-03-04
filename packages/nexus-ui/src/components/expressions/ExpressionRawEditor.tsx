@@ -35,6 +35,7 @@ export function ExpressionRawEditor(props: ExpressionRawEditorProps) {
       style={{
         fontFamily: 'monospace',
         fontSize: 'var(--pf-t--global--font--size--body--sm)',
+        width: '100%',
       }}
       validated={error ? 'error' : 'default'}
       aria-label="Raw expression"

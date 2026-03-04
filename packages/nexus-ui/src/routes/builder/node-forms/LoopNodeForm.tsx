@@ -16,8 +16,11 @@ import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'rea
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
 
 import { ActivityNameField } from './shared/ActivityNameField'
+import { BehaviorHelp } from './shared/BehaviorHelp'
 import { ConditionalExpressionHelp } from './shared/ConditionalExpressionHelp'
 import { conditionValidationRules } from './shared/conditionValidation'
+import { LoopTypeHelp } from './shared/LoopTypeHelp'
+import { MaxIterationsHelp } from './shared/MaxIterationsHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
@@ -29,6 +32,7 @@ export interface LoopFormData {
   itemVariable?: string
   condition?: string
   maxIterations?: number
+  maxIterationsBehavior?: 'continue' | 'fail'
 }
 
 interface LoopNodeFormProps {
@@ -65,7 +69,14 @@ function LoopFormFields({
       {!onHeaderContentChange && <ActivityNameField register={register} fieldId="loop-name" />}
 
       <StackItem>
-        <FormGroup label="Type" fieldId="loop-type">
+        <FormGroup
+          label={
+            <span>
+              Type <LoopTypeHelp />
+            </span>
+          }
+          fieldId="loop-type"
+        >
           <Controller
             control={control}
             name="type"
@@ -76,8 +87,8 @@ function LoopFormFields({
                 value={field.value}
                 onChange={(_event, value) => field.onChange(value)}
               >
-                <FormSelectOption value="forEach" label="For each" />
                 <FormSelectOption value="while" label="While" />
+                <FormSelectOption value="forEach" label="For each" />
               </FormSelect>
             )}
           />
@@ -130,6 +141,54 @@ function LoopFormFields({
             <FormGroup
               label={
                 <span>
+                  Max iterations <MaxIterationsHelp />
+                </span>
+              }
+              fieldId="loop-maxIterations"
+            >
+              <TextInput
+                {...register('maxIterations', { valueAsNumber: true })}
+                id="loop-maxIterations"
+                type="number"
+                min={1}
+                step={1}
+                placeholder="1000 (default)"
+                style={{ width: '100%' }}
+              />
+            </FormGroup>
+          </StackItem>
+
+          <StackItem>
+            <FormGroup
+              label={
+                <span>
+                  Behaviour when max iteration is reached <BehaviorHelp />
+                </span>
+              }
+              fieldId="loop-maxIterations-behavior"
+            >
+              <Controller
+                control={control}
+                name="maxIterationsBehavior"
+                render={({ field }) => (
+                  <FormSelect
+                    id="loop-maxIterations-behavior"
+                    aria-label="Behaviour when max iteration is reached"
+                    value={field.value || 'continue'}
+                    onChange={(_event, value) => field.onChange(value)}
+                  >
+                    <FormSelectOption value="continue" label="Continue to the done path" />
+                    <FormSelectOption value="fail" label="Fail" />
+                  </FormSelect>
+                )}
+              />
+            </FormGroup>
+          </StackItem>
+
+          <StackItem>
+            <FormGroup
+              label={
+                <span>
                   Conditional expression <ConditionalExpressionHelp />
                 </span>
               }
@@ -161,23 +220,6 @@ function LoopFormFields({
               />
             </FormGroup>
           </StackItem>
-
-          <StackItem>
-            <FormGroup label="Max iterations" fieldId="loop-maxIterations">
-              <TextInput
-                {...register('maxIterations', { valueAsNumber: true })}
-                id="loop-maxIterations"
-                type="number"
-                min={1}
-                placeholder="1000 (default)"
-              />
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem>Maximum iterations to prevent infinite loops (default: 1000)</HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            </FormGroup>
-          </StackItem>
         </>
       )}
     </Stack>
@@ -189,7 +231,8 @@ function LoopFormFields({
 export function LoopNodeForm(props: LoopNodeFormProps) {
   const defaultValues: LoopFormData = {
     name: '',
-    type: 'forEach',
+    type: 'while',
+    maxIterationsBehavior: 'continue',
     indexVariable: 'index',
     itemVariable: 'item',
     ...props.initialData,
@@ -207,7 +250,11 @@ export function LoopNodeForm(props: LoopNodeFormProps) {
       }),
       ...(data.type === 'while' && {
         condition: data.condition,
-        maxIterations: data.maxIterations && !Number.isNaN(data.maxIterations) ? data.maxIterations : undefined,
+        maxIterations:
+          typeof data.maxIterations === 'number' && Number.isInteger(data.maxIterations) && data.maxIterations > 0
+            ? data.maxIterations
+            : undefined,
+        maxIterationsBehavior: data.maxIterationsBehavior || 'continue',
       }),
     }
     props.onSubmit(cleanedData)

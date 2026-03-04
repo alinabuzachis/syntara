@@ -22,31 +22,40 @@ describe('LoopNodeForm', () => {
     it('renders type selector', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByLabelText(/Type/i)).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: /Type/i })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: /For each/i })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: /While/i })).toBeInTheDocument()
     })
 
-    it('renders forEach fields by default', () => {
+    it('renders while fields by default', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByLabelText(/Items expression/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Item variable/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Index variable/i)).toBeInTheDocument()
+      expect(screen.getByRole('spinbutton', { name: /Max iterations/i })).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: /Behaviour when max iteration is reached/i })).toBeInTheDocument()
+      expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
     })
 
     it('renders while fields when type is while', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
 
+      expect(screen.getByRole('spinbutton', { name: /Max iterations/i })).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: /Behaviour when max iteration is reached/i })).toBeInTheDocument()
       expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
-      expect(screen.getByLabelText(/Max iterations/i)).toBeInTheDocument()
+    })
+
+    it('renders help icons for while loop parameters', () => {
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
+
+      const helpButtons = screen.getAllByRole('button', { name: /help/i })
+      // Should have 4 help buttons: loop type, max iterations, behavior, conditional expression
+      expect(helpButtons.length).toBeGreaterThanOrEqual(4)
     })
   })
 
   describe('forEach Submission', () => {
     it('submits forEach loop data', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'forEach' }} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Loop')
       await user.type(screen.getByPlaceholderText(/input.item_list/i), 'myArray')
@@ -69,7 +78,7 @@ describe('LoopNodeForm', () => {
 
     it('submits without logicType field', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'forEach' }} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Another Loop')
       await user.type(screen.getByPlaceholderText(/input.item_list/i), 'items')
@@ -82,7 +91,7 @@ describe('LoopNodeForm', () => {
 
     it('cleans data for forEach (no condition or maxIterations)', async () => {
       const user = userEvent.setup()
-      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'forEach' }} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Clean Loop')
       await user.type(screen.getByPlaceholderText(/input.item_list/i), 'cleanItems')
@@ -96,11 +105,17 @@ describe('LoopNodeForm', () => {
   })
 
   describe('while Submission', () => {
-    it('submits while loop data with maxIterations', async () => {
+    it('submits while loop data with all optional parameters', async () => {
       const user = userEvent.setup()
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'While Loop')
+
+      await user.type(screen.getByRole('spinbutton', { name: /Max iterations/i }), '500')
+      await user.selectOptions(
+        screen.getByRole('combobox', { name: /Behaviour when max iteration is reached/i }),
+        'fail'
+      )
 
       // Switch to raw mode and enter expression
       await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
@@ -108,7 +123,6 @@ describe('LoopNodeForm', () => {
       await user.click(rawInput)
       await user.paste('${x < 100}')
 
-      await user.type(screen.getByLabelText(/Max iterations/i), '500')
       await user.click(screen.getByRole('button', { name: /Add node/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
@@ -117,6 +131,31 @@ describe('LoopNodeForm', () => {
           type: 'while',
           condition: '${x < 100}',
           maxIterations: 500,
+          maxIterationsBehavior: 'fail',
+        })
+      )
+    })
+
+    it('submits while loop data with only maxIterations', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
+
+      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Max Iterations Loop')
+
+      // Switch to raw mode and enter expression
+      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      const rawInput = screen.getByLabelText(/Raw expression/i)
+      await user.click(rawInput)
+      await user.paste('${x < 100}')
+
+      await user.type(screen.getByRole('spinbutton', { name: /Max iterations/i }), '60')
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'while',
+          condition: '${x < 100}',
+          maxIterations: 60,
         })
       )
     })
@@ -161,23 +200,100 @@ describe('LoopNodeForm', () => {
       expect(submittedData).not.toHaveProperty('itemVariable')
       expect(submittedData.condition).toBe('${done}')
     })
+
+    it('excludes undefined optional while parameters from submission', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
+
+      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Minimal While')
+      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      const rawInput = screen.getByLabelText(/Raw expression/i)
+      await user.click(rawInput)
+      await user.paste('${active}')
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      const submittedData = mockOnSubmit.mock.calls[0][0] as LoopFormData
+      expect(submittedData.maxIterations).toBeUndefined()
+      expect(submittedData.maxIterationsBehavior).toBe('continue') // Default value from UI
+    })
+
+    it('submits behavior selection', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
+
+      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Fail Behavior')
+      await user.selectOptions(
+        screen.getByRole('combobox', { name: /Behaviour when max iteration is reached/i }),
+        'fail'
+      )
+      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      const rawInput = screen.getByLabelText(/Raw expression/i)
+      await user.click(rawInput)
+      await user.paste('${running}')
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      const submittedData = mockOnSubmit.mock.calls[0][0] as LoopFormData
+      expect(submittedData.maxIterationsBehavior).toBe('fail')
+    })
+
+    it('rejects invalid maxIterations values (negative, zero, decimal)', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
+
+      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Invalid Max Loop')
+      await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
+      const rawInput = screen.getByLabelText(/Raw expression/i)
+      await user.click(rawInput)
+      await user.paste('${running}')
+
+      const maxIterationsInput = screen.getByRole('spinbutton', { name: /Max iterations/i })
+
+      // Test negative value
+      await user.clear(maxIterationsInput)
+      await user.type(maxIterationsInput, '-1')
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      const submittedDataNegative = mockOnSubmit.mock.calls[0][0] as LoopFormData
+      expect(submittedDataNegative.maxIterations).toBeUndefined()
+
+      mockOnSubmit.mockClear()
+
+      // Test zero value
+      await user.clear(maxIterationsInput)
+      await user.type(maxIterationsInput, '0')
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      const submittedDataZero = mockOnSubmit.mock.calls[0][0] as LoopFormData
+      expect(submittedDataZero.maxIterations).toBeUndefined()
+
+      mockOnSubmit.mockClear()
+
+      // Test decimal value (browser may prevent this with step=1, but test the validation logic)
+      await user.clear(maxIterationsInput)
+      await user.type(maxIterationsInput, '3.5')
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      const submittedDataDecimal = mockOnSubmit.mock.calls[0][0] as LoopFormData
+      expect(submittedDataDecimal.maxIterations).toBeUndefined()
+    })
   })
 
   describe('Type Switching', () => {
-    it('switches from forEach to while and updates fields', async () => {
+    it('switches from while to forEach and updates fields', async () => {
       const user = userEvent.setup()
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
 
-      // Initially forEach
-      expect(screen.getByLabelText(/Items expression/i)).toBeInTheDocument()
-
-      // Switch to while
-      await user.selectOptions(screen.getByLabelText(/Type/i), 'while')
-
-      // Now should show while fields
+      // Initially while
       expect(screen.getByRole('group', { name: /Expression builder/i })).toBeInTheDocument()
-      expect(screen.getByLabelText(/Max iterations/i)).toBeInTheDocument()
-      expect(screen.queryByLabelText(/Items expression/i)).not.toBeInTheDocument()
+
+      // Switch to forEach
+      await user.selectOptions(screen.getByRole('combobox', { name: /Type/i }), 'forEach')
+
+      // Now should show forEach fields
+      expect(screen.getByLabelText(/Items expression/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Item variable/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Index variable/i)).toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: /Expression builder/i })).not.toBeInTheDocument()
     })
   })
 
@@ -205,30 +321,32 @@ describe('LoopNodeForm', () => {
         type: 'while',
         condition: '${count < 10}',
         maxIterations: 999,
+        maxIterationsBehavior: 'fail',
       }
 
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={initialData} />)
 
       expect(screen.getByPlaceholderText(/Enter activity name/i)).toHaveValue('Existing While')
-      expect(screen.getByLabelText(/Max iterations/i)).toHaveValue(999)
+      expect(screen.getByRole('spinbutton', { name: /Max iterations/i })).toHaveValue(999)
+      expect(screen.getByRole('combobox', { name: /Behaviour when max iteration is reached/i })).toHaveValue('fail')
     })
   })
 
   describe('Default Values', () => {
-    it('defaults to forEach type', () => {
+    it('defaults to while type', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByLabelText(/Type/i)).toHaveValue('forEach')
+      expect(screen.getByRole('combobox', { name: /Type/i })).toHaveValue('while')
     })
 
-    it('defaults indexVariable to "index"', () => {
-      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
+    it('defaults indexVariable to "index" for forEach', () => {
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'forEach' }} />)
 
       expect(screen.getByPlaceholderText(/^index$/i)).toHaveValue('index')
     })
 
-    it('defaults itemVariable to "item"', () => {
-      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} />)
+    it('defaults itemVariable to "item" for forEach', () => {
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'forEach' }} />)
 
       expect(screen.getByPlaceholderText(/^item$/i)).toHaveValue('item')
     })
