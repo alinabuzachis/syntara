@@ -581,18 +581,35 @@ Before writing a string comparison or assignment:
 
 ### Code Readability Enforcement
 
-ESLint enforces readability constraints that keep functions small, files focused, and logic simple. All are set to `warn` — they light up in the IDE and guide AI agents without blocking CI on existing code. **New code must respect these limits.**
+ESLint enforces readability constraints that keep functions small, files focused, and logic simple. All are set to `warn` — they light up in the IDE and guide AI agents without blocking CI on existing code. **New code should respect these limits.**
 
-| Rule                     | Limit             | Purpose                                        |
-| ------------------------ | ----------------- | ---------------------------------------------- |
-| `max-lines`              | 300 lines/file    | One responsibility per file                    |
-| `max-lines-per-function` | 50 lines/function | Extract helpers, don't write monoliths         |
-| `complexity`             | 15 (cyclomatic)   | Break complex branching into smaller functions |
-| `max-depth`              | 4 levels          | Use early returns, not pyramids                |
-| `max-params`             | 4 parameters      | Use a typed options object for 5+ params       |
-| `max-nested-callbacks`   | 3 levels          | Flatten with named functions or async/await    |
+These thresholds are based on industry standards (Code Complete, SonarQube, BiomeJS):
 
-Blank lines and comments are excluded from counts. Test files are exempt from size limits.
+| Rule                     | Limit              | Purpose & Research Basis                                              |
+| ------------------------ | ------------------ | --------------------------------------------------------------------- |
+| `max-lines`              | 400 lines/file     | One responsibility per file                                           |
+| `max-lines-per-function` | 100 lines/function | Maintainability degrades beyond ~100 lines (Code Complete, SonarQube) |
+| `complexity`             | 15 (cyclomatic)    | Matches BiomeJS cognitive complexity & SonarQube defaults             |
+| `max-depth`              | 4 levels           | Use early returns, not pyramids                                       |
+| `max-params`             | 5 parameters       | Use a typed options object for 6+ params                              |
+| `max-nested-callbacks`   | 4 levels           | Flatten with named functions or async/await                           |
+
+Additional code quality rules (all set to `warn`):
+
+| Rule                                             | What it enforces                                             |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| `@typescript-eslint/prefer-optional-chain`       | Use `a?.b?.c` instead of `a && a.b && a.b.c`                 |
+| `@typescript-eslint/prefer-nullish-coalescing`   | Use `??` instead of `\|\|` to avoid bugs with `0`/`''`       |
+| `@typescript-eslint/require-array-sort-compare`  | Require a compare function for `Array.sort()`                |
+| `@typescript-eslint/switch-exhaustiveness-check` | Ensure all union/enum cases are handled in switch statements |
+| `@typescript-eslint/prefer-includes`             | Use `.includes()` instead of `.indexOf() !== -1`             |
+| `react/jsx-no-useless-fragment`                  | Remove unnecessary `<>{child}</>` wrappers                   |
+| `react/self-closing-comp`                        | Use `<Icon />` instead of `<Icon></Icon>`                    |
+| `unicorn/no-nested-ternary`                      | Prevent unreadable nested ternary expressions                |
+| `import-x/no-cycle`                              | Detect circular dependencies (max depth: 2)                  |
+| `import-x/no-self-import`                        | Catch accidental self-imports                                |
+
+Blank lines and comments are excluded from counts. Test files are exempt from size limits and complexity.
 
 **Refactoring strategies when a limit is hit:**
 

@@ -50,13 +50,22 @@ export default tseslint.config(
       'no-console': 'error',
       'no-only-tests/no-only-tests': 'error',
       'react/no-array-index-key': 'warn',
+      'react/jsx-no-useless-fragment': ['warn', { allowExpressions: true }],
+      'react/self-closing-comp': 'warn',
       'unicorn/prefer-number-properties': 'error',
-      'max-lines': ['warn', { max: 300, skipBlankLines: true, skipComments: true }],
-      'max-lines-per-function': ['warn', { max: 50, skipBlankLines: true, skipComments: true, IIFEs: true }],
+      'unicorn/no-nested-ternary': 'warn',
+      '@typescript-eslint/prefer-optional-chain': 'warn',
+      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+      '@typescript-eslint/require-array-sort-compare': 'warn',
+      '@typescript-eslint/switch-exhaustiveness-check': 'warn',
+      '@typescript-eslint/prefer-includes': 'warn',
+      // Readability rules — thresholds based on industry standards (Code Complete, SonarQube, BiomeJS)
+      'max-lines': ['warn', { max: 400, skipBlankLines: true, skipComments: true }],
+      'max-lines-per-function': ['warn', { max: 100, skipBlankLines: true, skipComments: true, IIFEs: true }],
       complexity: ['warn', 15],
       'max-depth': ['warn', 4],
-      'max-params': ['warn', 4],
-      'max-nested-callbacks': ['warn', 3],
+      'max-params': ['warn', 5],
+      'max-nested-callbacks': ['warn', 4],
       'import-x/order': [
         'error',
         {
@@ -66,6 +75,8 @@ export default tseslint.config(
         },
       ],
       'import-x/no-duplicates': 'error',
+      'import-x/no-cycle': ['warn', { maxDepth: 2 }],
+      'import-x/no-self-import': 'warn',
     },
   },
   {
@@ -80,6 +91,7 @@ export default tseslint.config(
       'max-lines': 'off',
       'max-lines-per-function': 'off',
       'max-nested-callbacks': 'off',
+      complexity: 'off',
     },
   },
   eslintConfigPrettier

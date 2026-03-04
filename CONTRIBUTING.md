@@ -205,16 +205,28 @@ The application will be available at:
 
 We enforce code readability through ESLint rules that keep functions small, files focused, and logic simple. These rules are set to `warn` — they won't block your PR, but new code should respect them.
 
-| Rule                     | Limit             | What it enforces                                             |
-| ------------------------ | ----------------- | ------------------------------------------------------------ |
-| `max-lines`              | 300 lines/file    | Keep files focused on a single responsibility                |
-| `max-lines-per-function` | 50 lines/function | Extract helpers instead of writing monoliths                 |
-| `complexity`             | 15 (cyclomatic)   | Break complex branching into smaller functions               |
-| `max-depth`              | 4 levels          | Use early returns instead of deep nesting                    |
-| `max-params`             | 4 parameters      | Use an options object for functions with many inputs         |
-| `max-nested-callbacks`   | 3 levels          | Flatten nested callbacks with named functions or async/await |
+These thresholds are based on industry standards (Code Complete, SonarQube, BiomeJS):
 
-Blank lines and comments are excluded from line counts. Test files (`*.test.*`, `*.spec.*`) are exempt from size limits.
+| Rule                     | Limit              | What it enforces                                             |
+| ------------------------ | ------------------ | ------------------------------------------------------------ |
+| `max-lines`              | 400 lines/file     | Keep files focused on a single responsibility                |
+| `max-lines-per-function` | 100 lines/function | Extract helpers instead of writing monoliths                 |
+| `complexity`             | 15 (cyclomatic)    | Break complex branching into smaller functions               |
+| `max-depth`              | 4 levels           | Use early returns instead of deep nesting                    |
+| `max-params`             | 5 parameters       | Use an options object for functions with many inputs         |
+| `max-nested-callbacks`   | 4 levels           | Flatten nested callbacks with named functions or async/await |
+
+We also enforce modern TypeScript, React, and import hygiene rules (all `warn`):
+
+- **`prefer-optional-chain`** / **`prefer-nullish-coalescing`** — Use `?.` and `??` for safer, cleaner code
+- **`require-array-sort-compare`** — Prevent subtle `Array.sort()` bugs
+- **`switch-exhaustiveness-check`** — Handle all enum/union cases
+- **`prefer-includes`** — Use `.includes()` instead of `.indexOf() !== -1`
+- **`jsx-no-useless-fragment`** / **`self-closing-comp`** — Cleaner JSX
+- **`no-nested-ternary`** — Prevent unreadable nested ternaries
+- **`no-cycle`** / **`no-self-import`** — Catch circular dependencies
+
+Blank lines and comments are excluded from line counts. Test files (`*.test.*`, `*.spec.*`) are exempt from size limits and complexity.
 
 **If a rule blocks your work**, don't disable it inline. Instead, refactor:
 
