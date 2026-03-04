@@ -150,12 +150,23 @@ export const handlers = [
     return HttpResponse.json({}, { status: 201 })
   }),
 
-  http.get('/api/v1/workflows', () => {
+  http.get('/api/v1/workflows', ({ request }) => {
+    const url = new URL(request.url)
+    const nameStartsWith = url.searchParams.get('name[starts_with]')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    let resources = workflows
+    if (nameStartsWith) {
+      const prefix = nameStartsWith.toLowerCase()
+      resources = workflows.filter((w) => (w.name ?? '').toLowerCase().startsWith(prefix))
+    }
+    const total = resources.length
+    const limited = resources.slice(0, limit)
     const body: WorkflowsResponse = {
-      resources: workflows,
+      resources: limited,
       next: null,
       prev: null,
-      total: workflows.length,
+      total,
     }
     return HttpResponse.json(body)
   }),
@@ -165,7 +176,7 @@ export const handlers = [
     const workflowId = uuidv4()
     const createdWorkflow: WorkflowWithVersion = {
       id: workflowId,
-      name: body.name ?? 'Untitled workflow',
+      name: body.name ?? 'new-workflow',
       description: body.description ?? body.name ?? 'New workflow',
       labels: body.labels ?? {},
       is_enabled: body.is_enabled ?? false,

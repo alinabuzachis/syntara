@@ -127,6 +127,15 @@ describe('BuilderContent', () => {
           refetch: vi.fn(),
         }
       }
+      if (method === 'get' && path === '/workflows') {
+        return {
+          data: { resources: [] },
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
       return {
         data: undefined,
         isPending: false,
@@ -151,7 +160,45 @@ describe('BuilderContent', () => {
     it('renders new workflow with default name', async () => {
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
       const nameInput = screen.getByPlaceholderText('Workflow name')
-      expect(nameInput).toHaveValue('New workflow')
+      await waitFor(() => {
+        expect(nameInput).toHaveValue('new-workflow')
+      })
+    })
+
+    it('uses next available default name when new-workflow exists', async () => {
+      vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+        if (method === 'get' && path === '/workflows') {
+          return {
+            data: {
+              resources: [{ name: 'new-workflow' }],
+            },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          }
+        }
+        if (method === 'get' && path === '/executions') {
+          return {
+            data: { resources: [] },
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          }
+        }
+        return {
+          data: undefined,
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      })
+      render(<BuilderContent workflow={undefined} isNew={true} workflowId={null} />, { wrapper })
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('new-workflow-1')
+      })
     })
 
     it('does not show Run button for new workflows', async () => {
@@ -1166,7 +1213,7 @@ describe('BuilderContent', () => {
       })
 
       // Rerender with different workflow ID (tests lines 373-376)
-      const newWorkflow = { ...mockWorkflow, id: 'workflow-2', name: 'New Workflow' }
+      const newWorkflow = { ...mockWorkflow, id: 'workflow-2', name: 'new-workflow' }
       rerender(
         <QueryClientProvider client={queryClient}>
           <AlertProvider>
@@ -1178,7 +1225,7 @@ describe('BuilderContent', () => {
       )
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('New Workflow')
+        expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('new-workflow')
       })
     })
 
@@ -1210,7 +1257,7 @@ describe('BuilderContent', () => {
       const { rerender } = await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('New workflow')
+        expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('new-workflow')
       })
 
       // Load existing workflow

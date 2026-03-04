@@ -58,6 +58,8 @@ import { buildNestedConditionStructure } from './utils/buildNestedStructure'
 import { EdgeFactory } from './utils/EdgeFactory'
 import { ACTIVITY_TYPES } from './utils/executionState/executionHelpers'
 import { loadWorkflow } from './utils/loadWorkflow'
+import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from './utils/workflowNaming'
+import { WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME } from './utils/workflowListQuery'
 import { validateRoundTrip, validateSavePath } from './utils/validateRoundTrip'
 import { validateWorkflow } from './utils/validation'
 import type { EdgeType } from './utils/workflowToGraph'
@@ -365,7 +367,7 @@ function getInitialState(): BuilderState {
     targetHandle: undefined,
     replacementNodeId: null,
     newNodeDesiredPosition: null,
-    workflowName: 'New workflow',
+    workflowName: DEFAULT_WORKFLOW_NAME,
     workflowDescription: 'New workflow',
     isEnabled: false,
   }
@@ -438,6 +440,11 @@ export function BuilderContent(props: BuilderContentProps) {
     }
   )
 
+  // Fetch workflows whose name starts with DEFAULT_WORKFLOW_NAME so we can pick the next available default name.
+  const workflowsListQuery = workflowClient.useQuery('get', '/workflows', WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME, {
+    enabled: isNew,
+  })
+
   // Track if we've loaded the workflow for the first time
   const hasLoadedRef = useRef(false)
 
@@ -452,13 +459,18 @@ export function BuilderContent(props: BuilderContentProps) {
     }
   }, [workflowId, setWorkflow, setStoredEdges])
 
+  const hasInitedNewWorkflowRef = useRef(false)
   useEffect(() => {
     if (isNew) {
+      if (hasInitedNewWorkflowRef.current) return
+      hasInitedNewWorkflowRef.current = true
+      const resources = workflowsListQuery.data?.resources ?? []
+      const defaultName = getNextDefaultWorkflowName(resources)
       const newWorkflow: WorkflowDefinition = {
         schemaVersion: '1.0.0',
         version: 1,
         metadata: {
-          name: 'New workflow',
+          name: defaultName,
           description: 'New workflow',
         },
         workflow: {
@@ -470,7 +482,7 @@ export function BuilderContent(props: BuilderContentProps) {
         loadWorkflowWithEdges(newWorkflow, [])
         dispatch({
           type: 'INIT_WORKFLOW',
-          payload: { name: 'New workflow', description: 'New workflow', isEnabled: false },
+          payload: { name: defaultName, description: 'New workflow', isEnabled: false },
         })
         // No need for markClean - loadWorkflowWithEdges sets isDirty: false
       })
@@ -548,14 +560,14 @@ export function BuilderContent(props: BuilderContentProps) {
           type: 'INIT_WORKFLOW',
           payload: {
             name: workflow.name,
-            description: workflow.description ?? workflow.name ?? 'New workflow',
+            description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,
             isEnabled: workflow.is_enabled ?? false,
           },
         })
         hasLoadedRef.current = true
       })
     }
-  }, [isNew, workflow, workflowId, loadWorkflowWithEdges])
+  }, [isNew, workflow, workflowId, loadWorkflowWithEdges, workflowsListQuery.data])
 
   // Sync state when workflow data changes (e.g., after refetch)
   useEffect(() => {
@@ -565,13 +577,40 @@ export function BuilderContent(props: BuilderContentProps) {
           type: 'INIT_WORKFLOW',
           payload: {
             name: workflow.name,
-            description: workflow.description ?? workflow.name ?? 'New workflow',
+            description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,
             isEnabled: workflow.is_enabled ?? false,
           },
         })
       })
     }
   }, [workflow, isNew])
+
+  // When creating a new workflow, set default name to next available (new-workflow, new-workflow-1, ...)
+  const hasAppliedDefaultNameRef = useRef(false)
+  useEffect(() => {
+    if (!isNew) return
+    const resources = workflowsListQuery.data?.resources
+    if (resources === undefined) return
+    if (workflowName !== DEFAULT_WORKFLOW_NAME) return
+    if (hasAppliedDefaultNameRef.current) return
+    const nextName = getNextDefaultWorkflowName(resources)
+    if (nextName === DEFAULT_WORKFLOW_NAME) return
+    hasAppliedDefaultNameRef.current = true
+    dispatch({ type: 'SET_WORKFLOW_NAME', payload: nextName })
+  }, [isNew, workflowsListQuery.data, workflowName])
+
+  // Ensure workflows list is fetched when on new workflow page (in case cache was empty)
+  const hasRefetchedWorkflowsOnceRef = useRef(false)
+  useEffect(() => {
+    if (!isNew) return
+    if (workflowsListQuery.data !== undefined) return
+    if (workflowsListQuery.isPending) return
+    if (workflowsListQuery.error) return
+    if (hasRefetchedWorkflowsOnceRef.current) return
+    hasRefetchedWorkflowsOnceRef.current = true
+    const refetch = (workflowsListQuery as { refetch?: () => void }).refetch
+    if (refetch) void refetch()
+  }, [isNew, workflowsListQuery.data, workflowsListQuery.isPending, workflowsListQuery.error])
 
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
@@ -650,8 +689,16 @@ export function BuilderContent(props: BuilderContentProps) {
 
       // Build the workflow definition (nesting loops, conditions, and parallels)
       const workflowDef = getWorkflowDefinition()
+      // Resolve default name at save time so we never POST a duplicate (e.g. if list loaded after init)
+      let nameToSave = workflowName
+      if (isNew && workflowName === DEFAULT_WORKFLOW_NAME && workflowsListQuery.data?.resources) {
+        nameToSave = getNextDefaultWorkflowName(workflowsListQuery.data.resources)
+      }
+      if (workflowDef.metadata.name !== nameToSave) {
+        workflowDef.metadata = { ...workflowDef.metadata, name: nameToSave }
+      }
       const workflowData = {
-        name: workflowName,
+        name: nameToSave,
         description: workflowDescription,
         is_enabled: isEnabled,
         labels: workflow?.labels ?? {},
@@ -715,6 +762,7 @@ export function BuilderContent(props: BuilderContentProps) {
     getWorkflowDefinition,
     workflowId,
     isNew,
+    workflowsListQuery.data,
     updateWorkflow,
     createWorkflow,
     showSuccess,

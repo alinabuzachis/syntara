@@ -139,6 +139,10 @@ See: [`docs/data-flow.md`](docs/data-flow.md) - "Type-Safe API Clients"
 2. Add navigation item to `packages/nexus-ui/src/app/navigationItems.tsx` with lazy-loaded component
 3. The router auto-discovers it from `navigationItems` - no manual route config needed
 
+#### What is the default workflow name for new workflows?
+
+New workflows use the default name **`new-workflow`**, defined as `DEFAULT_WORKFLOW_NAME` in `packages/nexus-ui/src/routes/builder/utils/workflowNaming.ts`. If that name already exists, the UI assigns `new-workflow-1`, `new-workflow-2`, and so on. Use the constant and `getNextDefaultWorkflowName()` when computing or displaying default names; the list query used to detect conflicts is in `workflowListQuery.ts`.
+
 #### How do I debug the workflow builder?
 
 - **React DevTools**: Use the React DevTools browser extension to inspect component props and Zustand state
