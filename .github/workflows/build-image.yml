@@ -29,11 +29,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Quay.io
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ansible+nexus_ci_bot
+          password: ${{ secrets.QUAY_TOKEN }}
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/nexus-api
+          images: |
+            ghcr.io/${{ github.repository_owner }}/nexus-api
+            quay.io/ansible/nexus
           tags: |
             type=ref,event=branch
             type=ref,event=tag

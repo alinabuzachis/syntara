@@ -88,12 +88,12 @@ This project uses `uv` for dependency management and provides a comprehensive Ma
 
 **Option 1: Full Stack with Containers (Recommended)**
 
-**NOTE**: The UI image is private and requires authentication to the GitHub Container Registry (ghcr.io). You need a [**classic Personal Access Token (PAT)**](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry) with `read:packages` scope to pull the image.
+**NOTE**: The UI image is private and requires authentication to the Quay Container Registry (quay.io) and read permissions.
 
 You can authenticate with:
 
 ```bash
-echo <your_PAT> | podman login ghcr.io -u <your_username> --password-stdin
+podman login quay.io -u <your_quay_username> -p <your_quay_password>
 ```
 
 **IMPORTANT**: Before starting the services for the first time, you must build the container images:
