@@ -9,6 +9,7 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.models.user import UserRole
 from nexus.core.utils.cursor import SortDirection
@@ -176,11 +177,11 @@ class TestApplySortingSQLAlchemy:
         assert len(active_users) == active_count
 
     async def test_apply_sorting_invalid_field_raises_error(self) -> None:
-        """Test that invalid field names raise ValueError."""
+        """Test that invalid field names raise SafeValueError."""
         query = select(User)
         sort_tuples = [("invalid_field", SortDirection.ASC)]
 
-        with pytest.raises(ValueError, match="Model User does not have a 'invalid_field' field"):
+        with pytest.raises(SafeValueError, match="Invalid sort field: invalid_field"):
             apply_sorting(query, sort_tuples, User)
 
     async def test_apply_sorting_mixed_valid_invalid_fields(self) -> None:
@@ -191,7 +192,7 @@ class TestApplySortingSQLAlchemy:
             ("invalid_field", SortDirection.DESC),  # Invalid field
         ]
 
-        with pytest.raises(ValueError, match="Model User does not have a 'invalid_field' field"):
+        with pytest.raises(SafeValueError, match="Invalid sort field: invalid_field"):
             apply_sorting(query, sort_tuples, User)
 
     async def test_apply_sorting_all_direction_combinations(

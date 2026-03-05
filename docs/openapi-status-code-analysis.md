@@ -185,8 +185,10 @@ content:
 The RFC 9457 compliant schema **already exists** as `ErrorData` in `nexus.core.models.base.error`.
 
 Our error handlers are already using this model:
+
 ```python
-from nexus.core.models.base.error import ErrorData
+from nexus.core.models.error import ErrorData
+
 
 def create_problem_details_response(...) -> JSONResponse:
     error_data = ErrorData(

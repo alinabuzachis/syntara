@@ -19,6 +19,7 @@ from sqlalchemy import Select
 from sqlmodel import SQLModel, asc, desc
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.utils.cursor import SortDirection
 
 # Type variable for generic Query/Select type
@@ -60,7 +61,7 @@ def parse_sort(
     if not sort_param:
         if default_field not in allowed_fields:
             msg = f"Default field '{default_field}' not in allowed_fields"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
         return default_field, default_direction
 
     # Check for descending prefix
@@ -74,7 +75,7 @@ def parse_sort(
     # Validate field name
     if field_name not in allowed_fields:
         msg = f"Invalid field: {field_name}"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     return field_name, direction
 
@@ -109,8 +110,8 @@ def apply_sorting(
     for field_name, direction in sort_tuples:
         # Get the field attribute from the model
         if not hasattr(model, field_name):
-            msg = f"Model {model.__name__} does not have a '{field_name}' field"
-            raise ValueError(msg)
+            msg = f"Invalid sort field: {field_name}"
+            raise SafeValueError(msg)
 
         field_attr = getattr(model, field_name)
 

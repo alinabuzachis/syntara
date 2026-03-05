@@ -20,6 +20,7 @@ import structlog
 import yaml
 from fastapi import WebSocket, WebSocketDisconnect
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.websocket.connection import get_connection_manager
 from nexus.core.websocket.hooks import WebSocketHooks, discover_hooks
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
@@ -143,8 +144,13 @@ def _spec_to_handler_path(spec_path: Path, project_root: Path) -> tuple[str, str
     filename = spec_path.stem  # websocket-example
 
     if not filename.startswith("websocket-"):
-        msg = f"Spec file {spec_path} doesn't follow websocket-*.{{yaml|yml|json}} convention"
-        raise ValueError(msg)
+        logger.error(
+            "Spec file doesn't follow websocket-*.{{yaml|yml|json}} convention",
+            component=component_name,
+            spec_path=spec_path,
+        )
+        msg = "Invalid WebSocket configuration. See server logs for details."
+        raise SafeValueError(msg)
 
     handler_stem = filename[len("websocket-") :]  # example
     handler_path = project_root / "src" / "nexus" / component_name / "ws" / f"{handler_stem}.py"
@@ -226,7 +232,7 @@ def _validate_no_duplicate_channels(
                     f"Duplicate channel '{channel_name}' in component '{component_name}' "
                     f"found in both {merged_channels[channel_name].name} and {py_file.name}"
                 )
-                raise ValueError(msg)
+                raise SafeValueError(msg)
             merged_channels[channel_name] = py_file
     return merged_channels
 
@@ -319,7 +325,7 @@ def _merge_component_specs(component_name: str, specs: dict[Path, tuple[Any, dic
     """
     if not specs:
         msg = f"No specs to merge for component '{component_name}'"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     if len(specs) == 1:
         _, spec = next(iter(specs.values()))
@@ -469,11 +475,11 @@ def _scan_ws_directory(component_name: str, ws_dir: Path, project_root: Path) ->
                 f"  Spec:    schemas/{{component}}/websocket-{{name}}.{{yaml|yml|json}}\n"
                 f"{'=' * 70}\n"
             )
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         if not expected_spec_path.is_file():
             msg = f"Expected spec path {expected_spec_path} exists but is not a file"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         module = _load_module_from_file(component_name, py_file)
         if module is None:
@@ -596,7 +602,7 @@ def scan_handler_specs() -> dict[str, dict[str, Any]]:
             f"  Spec:    schemas/{{component}}/websocket-{{name}}.{{yaml|yml|json}}\n"
             f"{'=' * 70}\n"
         )
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     component_specs: dict[str, dict[str, Any]] = {}
 
@@ -697,7 +703,7 @@ def _validate_handler_func(
                 f"Handler function '{handler_func_name}' not found for bidirectional "
                 f"channel '{channel_name}' in component '{component_name}'"
             )
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
 
 def _handler_accepts_connection_id(handler_func: Callable[..., Any] | None) -> bool:
@@ -739,14 +745,14 @@ def _validate_channel_and_get_request_type(
     channels = spec.get("channels", {})
     if channel_name not in channels:
         msg = f"Channel '{channel_name}' not found in spec"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     channel_def = channels[channel_name]
     request_msg_type = _find_request_message_type(channel_def)
 
     if not request_msg_type and not is_receive_only:
         msg = f"No request message type found for channel '{channel_name}'"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     if is_receive_only:
         if request_msg_type:
@@ -826,7 +832,7 @@ async def _handle_receive_only_channel(
             f"Receive-only channel '{channel_name}' requires on_connect_{normalized_channel_name} handler. "
             f"Receive-only channels must have a way to send events to clients."
         )
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     if background_task is not None:
         await background_task

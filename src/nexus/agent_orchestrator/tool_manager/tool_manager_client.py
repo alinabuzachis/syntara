@@ -8,6 +8,7 @@ from uuid import UUID
 import httpx
 import structlog
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.utils.retry import retry_with_backoff
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
 from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProviderWithConfiguration
@@ -21,42 +22,42 @@ def _validate_url(url: str) -> None:
         parsed = urlparse(url)
     except Exception as e:
         msg = "Invalid base URL"
-        raise ValueError(msg) from e
+        raise SafeValueError(msg) from e
 
     if not parsed.scheme or not parsed.netloc:
         msg = "Invalid base URL: must include scheme and host"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
 
 def _validate_timeout(timeout_val: float) -> None:
     """Validate timeout value."""
     if timeout_val <= 0:
         msg = "Timeout must be positive"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
 
 def _validate_limit(limit_val: int | None) -> None:
     """Validate limit value."""
     if limit_val is not None and limit_val <= 0:
         msg = "Limit must be positive"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
 
 def _validate_max_connections(max_conn: int) -> None:
     """Validate max_connections value."""
     if max_conn <= 0:
         msg = "max_connections must be positive"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
 
 def _validate_max_keepalive_connections(max_keepalive: int, max_conn: int) -> None:
     """Validate max_keepalive_connections value."""
     if max_keepalive < 0:
         msg = "max_keepalive_connections must be non-negative"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
     if max_keepalive > max_conn:
         msg = "max_keepalive_connections cannot exceed max_connections"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
 
 class ToolManagerClient:
@@ -287,7 +288,7 @@ class ToolManagerClient:
         """
         if not tool_id:
             msg = "Tool ID cannot be None"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Build request payload
         update_data: dict[str, str | None | bool] = {"status": status.value, "refresh_error": refresh_error}
@@ -337,7 +338,7 @@ class ToolManagerClient:
         """
         if not provider_id:
             msg = "Provider ID cannot be None"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Build request payload
         update_data: dict[str, str | None | bool] = {"status": status.value, "validation_error": validation_error}

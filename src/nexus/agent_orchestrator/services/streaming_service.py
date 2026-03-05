@@ -16,7 +16,7 @@ from starlette.websockets import WebSocket
 
 from nexus.agent_orchestrator.models.invocation import Invocation, InvocationStatus
 from nexus.core.database.session import AsyncSessionLocal
-from nexus.core.models.base.error import ErrorData
+from nexus.core.models.error import ErrorData
 from nexus.core.websocket.base_handler import BaseWebSocketStreamingHandler
 from nexus.core.websocket.close_codes import POLICY_VIOLATION
 from nexus.core.websocket.exceptions import EventsExpiredError, StreamingValidationError

@@ -71,7 +71,6 @@ class TestValueErrorHandler:
         data = json.loads(bytes(response.body).decode())
         assert data["type"] == PROBLEM_TYPES["validation_error"]
         assert data["title"] == "Validation Error"
-        # Check we don't leak the underlying cause, incase it includes sensitive information
         assert data["detail"] == "Invalid input value"
         assert data["code"] == "VALIDATION_ERROR"
         assert data["retryable"] is False

@@ -14,6 +14,7 @@ from uuid import UUID
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
 from nexus.tool_manager.lib.providers.mcp import MCPProvider
@@ -71,16 +72,16 @@ class TestProviderFactory:
         """Test provider type registration with invalid inputs."""
         factory = ProviderFactory()
 
-        # Empty provider type should raise ValueError
-        with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
+        # Empty provider type should raise SafeValueError
+        with pytest.raises(SafeValueError, match="Provider type must be a non-empty string"):
             factory.register_provider_type("", MCPProvider)
 
-        # None provider type should raise ValueError
-        with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
+        # None provider type should raise SafeValueError
+        with pytest.raises(SafeValueError, match="Provider type must be a non-empty string"):
             factory.register_provider_type(None, MCPProvider)  # type: ignore[arg-type]
 
-        # Non-string provider type should raise ValueError
-        with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
+        # Non-string provider type should raise SafeValueError
+        with pytest.raises(SafeValueError, match="Provider type must be a non-empty string"):
             factory.register_provider_type(123, MCPProvider)  # type: ignore[arg-type]
 
         # Non-callable provider class should raise TypeError
@@ -94,8 +95,8 @@ class TestProviderFactory:
         # Register once
         factory.register_provider_type("mcp", MCPProvider)
 
-        # Try to register again should raise ValueError
-        with pytest.raises(ValueError, match="Provider type 'mcp' is already registered"):
+        # Try to register again should raise SafeValueError
+        with pytest.raises(SafeValueError, match="Provider type 'mcp' is already registered"):
             factory.register_provider_type("mcp", MCPProvider)
 
     def test_create_provider_instance_success(self) -> None:
@@ -126,7 +127,7 @@ class TestProviderFactory:
         factory = ProviderFactory()
 
         # Try to create instance of unregistered type
-        with pytest.raises(ValueError, match="Unknown provider type 'nonexistent'"):
+        with pytest.raises(SafeValueError, match="Unknown provider type 'nonexistent'"):
             factory.create_provider_instance("nonexistent")
 
     def test_create_provider_instance_invalid_inputs(self) -> None:
@@ -134,12 +135,12 @@ class TestProviderFactory:
         factory = ProviderFactory()
         factory.register_provider_type("mcp", MCPProvider)
 
-        # Empty provider type should raise ValueError
-        with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
+        # Empty provider type should raise SafeValueError
+        with pytest.raises(SafeValueError, match="Provider type must be a non-empty string"):
             factory.create_provider_instance("")
 
-        # None provider type should raise ValueError
-        with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
+        # None provider type should raise SafeValueError
+        with pytest.raises(SafeValueError, match="Provider type must be a non-empty string"):
             factory.create_provider_instance(None)  # type: ignore[arg-type]
 
     def test_create_provider_instance_construction_failure(self) -> None:
@@ -163,7 +164,7 @@ class TestProviderFactory:
         factory.register_provider_type("failing", FailingProvider)
 
         # Should wrap construction errors
-        with pytest.raises(ValueError, match="Failed to create provider instance for type 'failing'"):
+        with pytest.raises(TypeError, match="Failed to create provider instance for type 'failing'"):
             factory.create_provider_instance("failing")
 
     def test_unregister_provider_type_success(self) -> None:
@@ -186,7 +187,7 @@ class TestProviderFactory:
         factory = ProviderFactory()
 
         # Try to unregister non-existent type
-        with pytest.raises(ValueError, match="Provider type 'nonexistent' is not registered"):
+        with pytest.raises(SafeValueError, match="Provider type 'nonexistent' is not registered"):
             factory.unregister_provider_type("nonexistent")
 
     def test_thread_safety_registration(self) -> None:
@@ -197,7 +198,7 @@ class TestProviderFactory:
         def register_provider(provider_type: str) -> None:
             try:
                 factory.register_provider_type(provider_type, MCPProvider)
-            except (ValueError, TypeError) as e:
+            except (SafeValueError, TypeError) as e:
                 registration_errors.append(e)
 
         # Register multiple providers concurrently
@@ -229,7 +230,7 @@ class TestProviderFactory:
             try:
                 factory.register_provider_type("duplicate", MCPProvider)
                 successful_registrations.append(True)
-            except ValueError as e:
+            except SafeValueError as e:
                 if "already registered" in str(e):
                     registration_errors.append(e)
                 else:
@@ -262,7 +263,7 @@ class TestProviderFactory:
             try:
                 instance = factory.create_provider_instance("mcp", base_url="http://localhost:8080", api_key="test-key")
                 created_instances.append(instance)
-            except (ValueError, TypeError) as e:
+            except (SafeValueError, TypeError) as e:
                 creation_errors.append(e)
 
         # Create multiple instances concurrently
@@ -329,7 +330,7 @@ class TestProviderFactory:
         factory.register_provider_type("provider_y", MCPProvider)
 
         # Error message should list available types
-        with pytest.raises(ValueError, match="Unknown provider type 'nonexistent'") as exc_info:
+        with pytest.raises(SafeValueError, match="Unknown provider type 'nonexistent'") as exc_info:
             factory.create_provider_instance("nonexistent")
 
         error_message = str(exc_info.value)

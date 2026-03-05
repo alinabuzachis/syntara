@@ -15,7 +15,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import CheckConstraint, Column, DateTime, Field, Index, Relationship, SQLModel
 
 from nexus.core.constants import FieldLimits
-from nexus.core.models.base import ResourcesResponse, SoftDeletableResource, UserOwnedResource
+from nexus.core.models.base import SoftDeletableResource, UserOwnedResource
+from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:

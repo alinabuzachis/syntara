@@ -14,7 +14,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from nexus.core.config.base import get_settings
-from nexus.core.models.base.pagination import ResourcesResponse
+from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.cursor import (
     PaginationDirection,
     create_cursor_data,

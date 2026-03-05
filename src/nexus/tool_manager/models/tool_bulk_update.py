@@ -6,6 +6,8 @@ from uuid import UUID
 from pydantic import ConfigDict, Field, field_validator
 from sqlmodel import SQLModel
 
+from nexus.core.exceptions import SafeValueError
+
 MAX_BULK_UPDATES: int = 50
 
 
@@ -30,10 +32,10 @@ class ToolBulkUpdate(SQLModel):
         """Validate tool_ids list is not empty and within limits."""
         if not v:
             msg = "tool_ids cannot be empty"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
         if len(v) > MAX_BULK_UPDATES:
             msg = f"Cannot update more than {MAX_BULK_UPDATES} tools at once"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
         return v
 
     model_config: ClassVar[ConfigDict] = ConfigDict(

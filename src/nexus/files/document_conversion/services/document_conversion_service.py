@@ -11,6 +11,7 @@ from uuid import uuid4
 
 import structlog
 
+from nexus.core.exceptions import SafeValueError
 from nexus.files import FileManager, FileMetadata, get_file_manager
 from nexus.files.document_conversion.registry import (
     ConverterRegistry,
@@ -76,7 +77,7 @@ class DocumentConversionService:
 
         if conversion_result.converted_content is None:
             msg = "Cannot store file: conversion result has no content"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Get retriever for saving converted file
         output_retriever = self.file_manager.get_retriever_for_file(

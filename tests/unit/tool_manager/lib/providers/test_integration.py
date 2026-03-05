@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.tool_manager.lib.providers.factory import ProviderFactory
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
 
@@ -145,7 +146,7 @@ class TestProviderIntegration:
         assert not factory.is_registered("lifecycle_test")
 
         # Can't create new instances after unregistering
-        with pytest.raises(ValueError, match="Unknown provider type"):
+        with pytest.raises(SafeValueError, match="Unknown provider type"):
             factory.create_provider_instance("lifecycle_test")
 
         # But existing instances still work (they're independent)
@@ -196,21 +197,21 @@ class TestProviderIntegration:
         factory = ProviderFactory()
 
         # Test provider registration error handling
-        with pytest.raises(ValueError, match="Provider type must be a non-empty string"):
+        with pytest.raises(SafeValueError, match="Provider type must be a non-empty string"):
             factory.register_provider_type("", MockMCPProvider)
 
         with pytest.raises(TypeError, match="Provider class must be callable"):
             factory.register_provider_type("test", "not_callable")  # type: ignore[arg-type]
 
         # Test provider creation error handling
-        with pytest.raises(ValueError, match="Unknown provider type"):
+        with pytest.raises(SafeValueError, match="Unknown provider type"):
             factory.create_provider_instance("nonexistent")
 
         # Register valid provider
         factory.register_provider_type("valid", MockMCPProvider)
 
         # Test duplicate registration
-        with pytest.raises(ValueError, match="already registered"):
+        with pytest.raises(SafeValueError, match="already registered"):
             factory.register_provider_type("valid", MockMCPProvider)
 
         # Test successful creation after registration
@@ -238,7 +239,7 @@ class TestProviderIntegration:
                     api_key="api-key",
                 )
                 created_providers.append(instance)
-            except (ValueError, TypeError) as e:
+            except (SafeValueError, TypeError) as e:
                 creation_errors.append(e)
 
         # Create providers from multiple threads

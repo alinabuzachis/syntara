@@ -12,6 +12,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import SQLModel, and_, cast
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.core.exceptions import SafeValueError
+
 # Type variable for generic Query/Select type
 TP = TypeVar("TP", bound=tuple[Any, ...])
 
@@ -155,8 +157,8 @@ def apply_label_filters(
 
     # Get the labels field attribute from the model
     if not hasattr(model, "labels"):
-        msg = f"Model {model.__name__} does not have a 'labels' field"
-        raise ValueError(msg)
+        msg = "Label filtering is not supported for this resource"
+        raise SafeValueError(msg)
 
     labels_field = model.labels
     conditions = []

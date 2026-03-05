@@ -7,6 +7,7 @@ import pytest
 from httpx import AsyncClient
 
 from nexus.tool_manager.models import ToolProvider
+from tests.helpers.error_data import assert_error_data
 
 
 class TestToolProvidersListContract:
@@ -521,11 +522,14 @@ class TestToolProvidersListContract:
 
         # Contract: Must return 422 Unprocessable Entity for invalid enum value
         assert response.status_code == 422
-
-        # Contract: Must return error details
-        data = response.json()
-        assert "detail" in data
-        assert "Invalid input value" in data["detail"]
+        assert_error_data(
+            response,
+            error_type="https://api.nexus.com/errors/validation-error",
+            title="Validation Error",
+            detail="Invalid value 'nonexistent' for field 'status'. Valid values are: available, error, validating",
+            code="VALIDATION_ERROR",
+            retryable=False,
+        )
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_providers")

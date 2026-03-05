@@ -16,6 +16,7 @@ from pydantic import ConfigDict, field_validator
 from sqlmodel import Field, SQLModel
 
 from nexus.core.constants import ValidationMessages
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models.base.query_params import BaseListParams
 
 
@@ -147,15 +148,15 @@ class MetricRecord(SQLModel):
             return {}
 
         if not isinstance(v, dict):
-            raise ValueError(ValidationMessages.LABELS_MUST_BE_DICT)  # noqa: TRY004
+            raise SafeValueError(ValidationMessages.LABELS_MUST_BE_DICT)
 
         for key, value in v.items():
             if not isinstance(key, str):
                 msg = ValidationMessages.LABELS_KEY_MUST_BE_STRING.format(key=key, type_name=type(key).__name__)  # type: ignore[unreachable]
-                raise ValueError(msg)  # noqa: TRY004
+                raise SafeValueError(msg)
             if not isinstance(value, str):
                 msg = ValidationMessages.LABELS_VALUE_MUST_BE_STRING.format(key=key, type_name=type(value).__name__)  # type: ignore[unreachable]
-                raise ValueError(msg)  # noqa: TRY004
+                raise SafeValueError(msg)
 
         return v
 

@@ -15,8 +15,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
 from nexus.core.constants import FieldLimits
-from nexus.core.models import Resource, ResourcesResponse
-from nexus.core.models.base import BaseResource
+from nexus.core.exceptions import SafeValueError
+from nexus.core.models.base import BaseResource, Resource
+from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:
@@ -223,7 +224,7 @@ class Tool(ToolBase, table=True):
         """Validate that namespaced_name is not empty."""
         if not v or not v.strip():
             msg = "namespaced_name cannot be empty"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
         return v.strip()
 
     model_config: ClassVar[ConfigDict] = ConfigDict(

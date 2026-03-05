@@ -14,6 +14,7 @@ from typing import Any
 
 from temporalio import activity
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.utils.template_resolution import resolve_config_templates
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import ScriptExecutorConfig
@@ -132,14 +133,14 @@ def _sanitize_env_value(value: object) -> str:
     # Check for null bytes (not allowed in environment variables)
     if "\0" in str_value:
         msg = "Environment variable values cannot contain null bytes"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     # Limit environment variable size to prevent resource exhaustion
     # Note: Systems have limits on total env size (all vars combined), typically 128-256KB
     # We limit individual vars to prevent resource exhaustion and leave room for system variables
     if len(str_value) > constants.MAX_ENV_VAR_LENGTH:
         msg = f"Environment variable value exceeds maximum length ({constants.MAX_ENV_VAR_LENGTH} bytes)"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     return str_value
 
@@ -258,7 +259,7 @@ async def _execute_script_common(
         )
         return _process_script_result(process.returncode, stdout_bytes, stderr_bytes)
 
-    except (ScriptExecutionError, RuntimeError):
+    except (ScriptExecutionError, RuntimeError, SafeValueError):
         # Re-raise these errors as-is
         raise
 

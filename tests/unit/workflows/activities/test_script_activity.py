@@ -2,6 +2,7 @@
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.workflow_engine.activities.script_activity import (
     ScriptExecutionError,
     execute_bash_script,
@@ -430,7 +431,7 @@ class TestInputValidation:
         """Test that null bytes in input values are rejected."""
         config = ScriptExecutorConfig(language=ScriptLanguage.BASH, code='echo "Test"')
 
-        with pytest.raises(ValueError, match="null bytes"):
+        with pytest.raises(SafeValueError, match="null bytes"):
             await execute_bash_script(config.model_dump(by_alias=True), inputs={"bad": "value\0with_null"})
 
     @pytest.mark.asyncio
@@ -440,7 +441,7 @@ class TestInputValidation:
         # Create a string larger than 32KB
         large_value = "x" * 40000
 
-        with pytest.raises(ValueError, match="maximum length"):
+        with pytest.raises(SafeValueError, match="maximum length"):
             await execute_bash_script(config.model_dump(by_alias=True), inputs={"large": large_value})
 
     @pytest.mark.asyncio

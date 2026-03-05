@@ -7,7 +7,8 @@ This module defines type variables used for generic type hints in service classe
 from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
-    from nexus.core.models import BaseResource, ResourcesResponse
+    from nexus.core.models.base import BaseResource
+    from nexus.core.models.pagination import ResourcesResponse
 
 TModel = TypeVar("TModel", bound="BaseResource")
 TResponse = TypeVar("TResponse", bound="ResourcesResponse[Any]")

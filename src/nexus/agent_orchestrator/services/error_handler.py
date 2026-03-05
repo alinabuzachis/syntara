@@ -6,7 +6,7 @@ RFC 9457 Problem Details format for WebSocket error events.
 
 from uuid import UUID
 
-from nexus.core.models.base.error import ErrorData
+from nexus.core.models.error import ErrorData
 
 # Base URI for error types
 ERROR_TYPE_BASE_URI = "https://api.nexus.com/errors"

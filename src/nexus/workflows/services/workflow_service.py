@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
@@ -260,7 +261,7 @@ class WorkflowService(BaseService):
         if name is not None:
             if not name:
                 msg = "Workflow name cannot be empty"
-                raise ValueError(msg)
+                raise SafeValueError(msg)
             workflow.name = name
 
         if description is not None:

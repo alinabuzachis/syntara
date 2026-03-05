@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
 from nexus.core.cache.stream import StreamClient
-from nexus.core.models.base.error import ErrorData
+from nexus.core.models.error import ErrorData
 from nexus.core.websocket.close_codes import INTERNAL_ERROR, NORMAL_CLOSURE
 from nexus.core.websocket.exceptions import StreamingValidationError, WaitForStreamTimeoutError
 from nexus.core.websocket.manager import get_connection_lifecycle_manager

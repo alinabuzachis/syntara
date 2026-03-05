@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
+from nexus.core.exceptions import SafeValueError
 
 
 class TestToolManagerClientInit:
@@ -26,32 +27,32 @@ class TestToolManagerClientInit:
 
     def test_client_init_invalid_url(self) -> None:
         """Test client initialization with invalid base URL."""
-        with pytest.raises(ValueError, match="Invalid base URL"):
+        with pytest.raises(SafeValueError, match="Invalid base URL"):
             ToolManagerClient(base_url="invalid-url")
 
     def test_client_init_negative_timeout(self) -> None:
         """Test client initialization with negative timeout."""
-        with pytest.raises(ValueError, match="Timeout must be positive"):
+        with pytest.raises(SafeValueError, match="Timeout must be positive"):
             ToolManagerClient(base_url="http://localhost:8000", timeout=-1.0)
 
     def test_client_init_invalid_limit(self) -> None:
         """Test client initialization with invalid limit values."""
         # Test negative limit
-        with pytest.raises(ValueError, match="Limit must be positive"):
+        with pytest.raises(SafeValueError, match="Limit must be positive"):
             ToolManagerClient(base_url="http://localhost:8000", limit=-1)
 
         # Test zero limit
-        with pytest.raises(ValueError, match="Limit must be positive"):
+        with pytest.raises(SafeValueError, match="Limit must be positive"):
             ToolManagerClient(base_url="http://localhost:8000", limit=0)
 
     def test_client_init_invalid_max_connections(self) -> None:
         """Test client initialization with invalid max_connections values."""
         # Test negative max_connections
-        with pytest.raises(ValueError, match="max_connections must be positive"):
+        with pytest.raises(SafeValueError, match="max_connections must be positive"):
             ToolManagerClient(base_url="http://localhost:8000", max_connections=-1)
 
         # Test zero max_connections
-        with pytest.raises(ValueError, match="max_connections must be positive"):
+        with pytest.raises(SafeValueError, match="max_connections must be positive"):
             ToolManagerClient(base_url="http://localhost:8000", max_connections=0)
 
     def test_client_init_valid_max_connections(self) -> None:
@@ -67,11 +68,11 @@ class TestToolManagerClientInit:
     def test_client_init_invalid_max_keepalive_connections(self) -> None:
         """Test client initialization with invalid max_keepalive_connections values."""
         # Test negative max_keepalive_connections
-        with pytest.raises(ValueError, match="max_keepalive_connections must be non-negative"):
+        with pytest.raises(SafeValueError, match="max_keepalive_connections must be non-negative"):
             ToolManagerClient(base_url="http://localhost:8000", max_keepalive_connections=-1)
 
         # Test max_keepalive_connections exceeding max_connections
-        with pytest.raises(ValueError, match="max_keepalive_connections cannot exceed max_connections"):
+        with pytest.raises(SafeValueError, match="max_keepalive_connections cannot exceed max_connections"):
             ToolManagerClient(base_url="http://localhost:8000", max_connections=5, max_keepalive_connections=10)
 
     def test_client_init_valid_max_keepalive_connections(self) -> None:

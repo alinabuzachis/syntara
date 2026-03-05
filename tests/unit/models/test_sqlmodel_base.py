@@ -13,14 +13,12 @@ from pydantic import ValidationError
 
 from nexus.core.models.base import (
     BaseResource,
-    Error,
     NamedResource,
     Resource,
-    ResourcesResponse,
-    ResourcesResponseBase,
     SoftDeletableResource,
     UserOwnedResource,
 )
+from nexus.core.models.pagination import ResourcesResponse, ResourcesResponseBase
 from tests.fixtures.mock_shared_resources import MockBaseResource, MockNamedResource, MockResource
 
 
@@ -172,14 +170,6 @@ class TestSQLModelBaseClasses:
         assert resource.deleted_by is None
         assert resource.created_by == user_id
         assert resource.updated_by == user_id
-
-    def test_error_model_structure(self) -> None:
-        """Test Error response model structure."""
-        error = Error(error="validation_error", message="The request is invalid", details="Field 'name' is required")
-
-        assert error.error == "validation_error"
-        assert error.message == "The request is invalid"
-        assert error.details == "Field 'name' is required"
 
     def test_pagination_models_structure(self) -> None:
         """Test pagination response models."""

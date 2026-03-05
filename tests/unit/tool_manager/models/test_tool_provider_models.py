@@ -119,7 +119,7 @@ def test_tool_provider_configuration_validation(test_user: User) -> None:
     assert provider.configuration.api_key == "test-key"
 
     # Missing base_url should raise ValueError
-    with pytest.raises(Exception, match=r"1 validation error for ToolProvider"):
+    with pytest.raises(ValueError, match=r"1 validation error for ToolProvider"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",
@@ -128,7 +128,7 @@ def test_tool_provider_configuration_validation(test_user: User) -> None:
         )
 
     # Empty provider_type and missing base_url should raise ValidationErrors
-    with pytest.raises(Exception, match="2 validation errors for ToolProvider"):
+    with pytest.raises(ValueError, match="2 validation errors for ToolProvider"):
         ToolProvider(
             id=uuid4(),
             name="Test Provider",

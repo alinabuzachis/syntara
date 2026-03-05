@@ -6,6 +6,7 @@ field name and direction tuples. Tests will fail until sort parsing functions ar
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.utils.cursor import CursorData, SortDirection, extract_sort_from_cursor
 from nexus.core.utils.sorting import apply_sorting, parse_sort
 
@@ -68,13 +69,13 @@ class TestSortParsing:
         assert direction == SortDirection.ASC
 
     def test_parse_invalid_field_raises_error(self) -> None:
-        """Test that invalid field names raise ValueError."""
-        with pytest.raises(ValueError, match="Invalid field"):
+        """Test that invalid field names raise SafeValueError."""
+        with pytest.raises(SafeValueError, match="Invalid field"):
             parse_sort(sort_param="invalid_field", allowed_fields=["name", "created_at"])
 
     def test_parse_invalid_field_with_prefix_raises_error(self) -> None:
-        """Test that invalid field names with prefix raise ValueError."""
-        with pytest.raises(ValueError, match="Invalid field"):
+        """Test that invalid field names with prefix raise SafeValueError."""
+        with pytest.raises(SafeValueError, match="Invalid field"):
             parse_sort(sort_param="-invalid_field", allowed_fields=["name", "created_at"])
 
     def test_parse_all_allowed_fields(self) -> None:
@@ -156,7 +157,7 @@ class TestSortParsing:
         assert field == "NAME"
 
         # Wrong case should fail
-        with pytest.raises(ValueError):
+        with pytest.raises(SafeValueError):
             parse_sort("nAmE", allowed_fields)
 
     def test_multiple_dash_prefix_handling(self) -> None:

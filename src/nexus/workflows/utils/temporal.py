@@ -10,6 +10,7 @@ import structlog
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 
 if TYPE_CHECKING:
@@ -152,7 +153,7 @@ async def sync_execution_status_from_temporal(
     # Validate persist requires session
     if persist and session is None:
         msg = "Cannot persist changes without a database session"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     # Terminal states that cannot be transitioned from
     terminal_states = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}

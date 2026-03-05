@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from temporalio.service import RPCError, RPCStatusCode
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.utils.temporal import (
     sync_execution_status_from_temporal,
@@ -169,13 +170,13 @@ class TestSyncExecutionStatusFromTemporal:
 
     @pytest.mark.asyncio
     async def test_persist_without_session_raises_error(self) -> None:
-        """Test persist=True without session raises ValueError."""
+        """Test persist=True without session raises SafeValueError."""
         execution = Mock(spec=Execution)
         execution.id = uuid4()
         execution.status = ExecutionStatus.RUNNING
         mock_temporal = Mock()
 
-        with pytest.raises(ValueError, match="Cannot persist changes without a database session"):
+        with pytest.raises(SafeValueError, match="Cannot persist changes without a database session"):
             await sync_execution_status_from_temporal(execution, mock_temporal, session=None, persist=True)
 
     @pytest.mark.asyncio

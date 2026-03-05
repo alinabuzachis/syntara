@@ -7,6 +7,7 @@ Tests MUST FAIL before implementation (TDD approach).
 import pytest
 from httpx import AsyncClient
 
+from tests.helpers.error_data import assert_error_data
 from tests.helpers.workflow import create_minimal_workflow_definition
 
 
@@ -109,8 +110,15 @@ async def test_get_workflows_filter_by_invalid_uuid(base_client: AsyncClient) ->
     """
     response = await base_client.get("/api/v1/workflows?created_by=invalid-uuid")
     assert response.status_code == 422
-    data = response.json()
-    assert "detail" in data
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Validation Error",
+        detail="Invalid value for field 'created_by': Input should be a valid UUID, invalid character: "
+        "expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `i` at 1",
+        code="VALIDATION_ERROR",
+        retryable=False,
+    )
 
 
 @pytest.mark.asyncio

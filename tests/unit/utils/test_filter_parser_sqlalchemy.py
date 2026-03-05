@@ -13,6 +13,7 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.utils.filters import Filter, FilterOperator, apply_filters, parse_filters
 
@@ -164,11 +165,11 @@ class TestFilterParserSQLAlchemy:
         assert usernames == expected_usernames
 
     async def test_apply_filters_invalid_field_raises_error(self) -> None:
-        """Test that invalid field name raises ValueError."""
+        """Test that invalid field name raises SafeValueError."""
         query = select(User)
         filters = [Filter(field="nonexistent_field", operator=FilterOperator.EQ, value="test")]
 
-        with pytest.raises(ValueError, match="Field 'nonexistent_field' not found on model User"):
+        with pytest.raises(SafeValueError, match="Invalid filter field: nonexistent_field"):
             apply_filters(query, filters, User)
 
     async def test_apply_filters_with_parsed_filters(
@@ -232,10 +233,10 @@ class TestFilterParserSQLAlchemy:
         mock_model = Mock(spec=[])  # Empty spec means hasattr returns False for everything
         mock_model.__name__ = "MockModel"
 
-        # Test with invalid field - should raise ValueError
+        # Test with invalid field - should raise SafeValueError
         filters = [Filter(field="nonexistent_field", operator=FilterOperator.EQ, value="test")]
 
-        with pytest.raises(ValueError, match="Field 'nonexistent_field' not found on model MockModel"):
+        with pytest.raises(SafeValueError, match="Invalid filter field: nonexistent_field"):
             apply_filters(mock_query, filters, mock_model)
 
         # Test with empty filters - should return original query
@@ -408,7 +409,7 @@ class TestFilterParserSQLAlchemy:
             assert usernames == expected_usernames
 
     async def test_boolean_invalid_string_raises_error(self) -> None:
-        """Test that invalid boolean strings raise ValueError."""
+        """Test that invalid boolean strings raise SafeValueError."""
         query = select(User)
 
         # Test invalid boolean strings
@@ -417,7 +418,7 @@ class TestFilterParserSQLAlchemy:
         for invalid_value in invalid_values:
             filters = [Filter(field="is_active", operator=FilterOperator.EQ, value=invalid_value)]
 
-            with pytest.raises(ValueError, match="Invalid boolean value"):
+            with pytest.raises(SafeValueError, match="Invalid boolean value"):
                 apply_filters(query, filters, User)
 
     async def test_end_to_end_boolean_filtering_from_query_params(

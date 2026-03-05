@@ -7,6 +7,8 @@ through various HTTP API endpoints, ensuring proper error responses.
 import pytest
 from httpx import AsyncClient
 
+from nexus.core.error_handlers import PROBLEM_TYPES
+
 
 class TestMalformedCursorHandling:
     """Integration tests for malformed cursor handling across API endpoints."""
@@ -38,5 +40,9 @@ class TestMalformedCursorHandling:
         assert response.status_code == 422
 
         data = response.json()
-        assert "detail" in data
-        assert "Invalid input value" in data["detail"]
+        assert data["type"] == PROBLEM_TYPES["validation_error"]
+        assert data["title"] == "Validation Error"
+        assert "Invalid cursor format: Invalid base64-encoded string" in data["detail"]
+        assert data["code"] == "VALIDATION_ERROR"
+        assert data["retryable"] is False
+        assert data["instance"] == f"http://test{endpoint}?cursor=invalid_base64%21%21%21%21"

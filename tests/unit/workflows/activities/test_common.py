@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.workflow_engine.activities.common import (
     DEFAULT_RETRYABLE_ERROR_CODES,
     ActivityExecutionError,
@@ -82,8 +83,8 @@ class TestBuildRetryPolicy:
         assert policy.backoff_coefficient == 1.0
 
     def test_invalid_strategy_raises_error(self) -> None:
-        """Test invalid backoff strategy raises ValueError."""
-        with pytest.raises(ValueError, match="Unsupported backoff strategy"):
+        """Test invalid backoff strategy raises SafeValueError."""
+        with pytest.raises(SafeValueError, match="Unsupported backoff strategy"):
             build_retry_policy(
                 {
                     "maxAttempts": 3,

@@ -15,6 +15,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Dialect
 from sqlalchemy.sql.elements import TextClause
 
+from nexus.core.exceptions import SafeValueError
+
 
 def postgres_enum_column(
     enum_type: type[Enum],
@@ -156,8 +158,9 @@ class DiscriminatedJSONB(TypeDecorator):  # type: ignore[type-arg]
         try:
             return json.loads(json.dumps(value))
         except (TypeError, ValueError) as e:
-            error_msg = f"Cannot serialize {type(value)} to JSON: {value}"
-            raise ValueError(error_msg) from e
+            type_name = type(value).__name__
+            error_msg = f"Cannot serialize value of type '{type_name}' to JSON"
+            raise SafeValueError(error_msg) from e
 
     def process_result_value(self, value: object, _dialect: Dialect) -> object:
         """Convert dict from database back to appropriate discriminated type."""

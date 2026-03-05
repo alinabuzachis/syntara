@@ -5,6 +5,7 @@ import re
 from pydantic import field_validator
 from sqlmodel import Field, SQLModel
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models.base import BaseListParams
 from nexus.workflows.models.execution import ExecutionInclude
 
@@ -47,7 +48,7 @@ class ExecutionIncludeParams(SQLModel):
         # Check for duplicate values before deduplication
         if len(requested_include_list) != len(requested_include_strings):
             msg = "Duplicate include values are not allowed"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Validate all requested includes are valid
         valid_values = {item.value for item in ExecutionInclude}
@@ -57,7 +58,7 @@ class ExecutionIncludeParams(SQLModel):
                 f"Invalid include values: {', '.join(invalid_includes)}. "
                 f"Valid values are: {', '.join(sorted(valid_values))}"
             )
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         return v
 
@@ -118,6 +119,6 @@ class ExecutionStreamingQueryParams(SQLModel):
                 f"replay must be '0' or Redis stream ID format 'timestamp-sequence' "
                 f"(e.g., '1691431234567-42'), got: {v}"
             )
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         return v

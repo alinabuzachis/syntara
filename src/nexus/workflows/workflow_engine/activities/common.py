@@ -12,6 +12,8 @@ from typing import Any
 
 from temporalio.common import RetryPolicy
 
+from nexus.core.exceptions import SafeValueError
+
 # Default retryable error codes (whitelist approach - aligned with Kubernetes retry patterns)
 # These are transient errors that typically resolve with retries
 # 408: Request Timeout - Client timeout, often transient
@@ -132,7 +134,7 @@ def build_retry_policy(retry_config: dict[str, Any] | None) -> RetryPolicy | Non
         backoff_coefficient = multiplier
     else:
         msg = f"Unsupported backoff strategy: {backoff_strategy}"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     # Build retry policy
     return RetryPolicy(

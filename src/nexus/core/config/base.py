@@ -25,6 +25,7 @@ from pydantic import Field, HttpUrl, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nexus.core.constants import RetrieverServiceDefaults
+from nexus.core.exceptions import SafeValueError
 
 # =============================================================================
 # LLM Provider Configuration
@@ -635,7 +636,7 @@ class RetrieverServiceSettings(BaseSettings):
                 f"Keyword ranking weights must sum to between 0.0 and 1.0, "
                 f"but sum to {total:.3f}. Affected fields: {', '.join(field_names)}"
             )
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         return self
 
@@ -697,7 +698,7 @@ class AdapterRetrySettings(BaseSettings):
                 f"adapter_max_backoff_seconds ({self.adapter_max_backoff_seconds}) "
                 f"must be >= adapter_initial_backoff_seconds ({self.adapter_initial_backoff_seconds})"
             )
-            raise ValueError(msg)
+            raise SafeValueError(msg)
         return self
 
 
@@ -1087,7 +1088,7 @@ class ToolManagerSettings(BaseSettings):
                 f"tool_manager_max_keepalive_connections ({self.tool_manager_max_keepalive_connections}) "
                 f"cannot exceed tool_manager_max_connections ({self.tool_manager_max_connections})"
             )
-            raise ValueError(msg)
+            raise SafeValueError(msg)
         return self
 
 
@@ -1184,7 +1185,7 @@ class WorkflowClientSettings(BaseSettings):
                 f"workflow_client_max_backoff_seconds ({self.workflow_client_max_backoff_seconds}) "
                 f"must be >= workflow_client_initial_backoff_seconds ({self.workflow_client_initial_backoff_seconds})"
             )
-            raise ValueError(msg)
+            raise SafeValueError(msg)
         return self
 
 

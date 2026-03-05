@@ -98,8 +98,10 @@ class TestWorkflowDefinitionValidator:
         with pytest.raises(WorkflowValidationError) as exc_info:
             WorkflowDefinitionValidator.validate(workflow_dict)
 
-        assert "Workflow definition validation failed" in str(exc_info.value.message)
-        assert "metadata" in str(exc_info.value.message).lower()
+        err_msg = str(exc_info.value.message)
+        assert "Workflow definition validation failed" in err_msg
+        assert "metadata: Field required" in err_msg
+        assert "workflow -> activities: List should have at least 1 item after validation, not 0" in err_msg
 
     def test_validate_invalid_schema_version(self) -> None:
         """Test validation with invalid schema version format."""
@@ -114,7 +116,10 @@ class TestWorkflowDefinitionValidator:
         with pytest.raises(WorkflowValidationError) as exc_info:
             WorkflowDefinitionValidator.validate(workflow_dict)
 
-        assert "Workflow definition validation failed" in str(exc_info.value.message)
+        err_msg = str(exc_info.value.message)
+        assert "Workflow definition validation failed" in err_msg
+        assert "schemaVersion: String should match pattern '^[0-9]+\\.[0-9]+\\.[0-9]+$'" in err_msg
+        assert "workflow -> activities: List should have at least 1 item after validation" in err_msg
 
     def test_validate_invalid_activity_type(self) -> None:
         """Test validation with invalid activity structure."""
@@ -141,7 +146,9 @@ class TestWorkflowDefinitionValidator:
         with pytest.raises(WorkflowValidationError) as exc_info:
             WorkflowDefinitionValidator.validate(workflow_dict)
 
-        assert "Workflow definition validation failed" in str(exc_info.value.message)
+        err_msg = str(exc_info.value.message)
+        assert "Workflow definition validation failed" in err_msg
+        assert "workflow -> activities -> 0 -> task -> config: Field required" in err_msg
 
     def test_validate_dict_is_jsonb_compatible(self) -> None:
         """Test that returned dict is compatible with PostgreSQL JSONB."""

@@ -29,11 +29,14 @@ logger = structlog.stdlib.get_logger(__name__)
 def validation_error_handler(request: Request, exc: "WorkflowValidationError") -> JSONResponse:
     """Handle core WorkflowValidationError with RFC 9457 format."""
     logger.error("Core validation error", exc_info=exc)
+
+    err_detail = exc.message
+    detail = "The provided data failed validation requirements" if len(err_detail) == 0 else err_detail
     return create_problem_details_response(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Validation Error",
-        detail="The provided data failed validation requirements",
+        detail=detail,
         code="VALIDATION_ERROR",
         retryable=False,
         instance=str(request.url),

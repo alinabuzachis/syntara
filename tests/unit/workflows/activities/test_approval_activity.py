@@ -14,6 +14,7 @@ from uuid import UUID
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.workflow_engine.activities.approval_activity import (
     create_approval_request_activity,
 )
@@ -142,7 +143,7 @@ async def test_create_approval_request_missing_context(
         # activity.info() raises RuntimeError
         (RuntimeError, "Not in activity context", lambda url: "unknown" in url),
         # URL generation fails
-        (ValueError, "Invalid execution ID", lambda url: url is None),
+        (SafeValueError, "Invalid execution ID", lambda url: url is None),
     ],
 )
 @pytest.mark.asyncio

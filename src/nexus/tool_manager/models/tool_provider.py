@@ -13,7 +13,8 @@ from sqlalchemy import Index, String, Text, text
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 
 from nexus.core.constants import FieldLimits
-from nexus.core.models import Resource, ResourcesResponse
+from nexus.core.models.base import Resource
+from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import DiscriminatedJSONB, postgres_enum_column
 from nexus.tool_manager.models.tool_provider_configuration import ProviderConfiguration, ProviderConfigurationTypes
 

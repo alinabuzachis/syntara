@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 import pytest
 from temporalio.api.enums.v1 import EventType
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.models.activity_execution import ActivityStatus
 from nexus.workflows.models.execution import Execution
 from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
@@ -757,11 +758,11 @@ class TestWorkflowEventExtraction:
         assert error_details == "Workflow execution timed out"
 
     def test_extract_execution_status_raises_on_invalid_event(self) -> None:
-        """Test extraction raises ValueError for non-completion events."""
+        """Test extraction raises SafeValueError for non-completion events."""
         # Use an activity event instead of a workflow event
         event = self._create_workflow_event(EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED)
 
-        with pytest.raises(ValueError, match="is not a workflow completion event"):
+        with pytest.raises(SafeValueError, match="is not a workflow completion event"):
             self.service._extract_execution_status_from_event(event)
 
 

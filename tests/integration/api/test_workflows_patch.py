@@ -7,6 +7,7 @@ Tests MUST FAIL before implementation (TDD approach).
 import pytest
 from httpx import AsyncClient
 
+from tests.helpers.error_data import assert_error_data
 from tests.helpers.workflow import create_minimal_workflow_definition, create_workflow_definition_with_activities
 
 
@@ -146,10 +147,14 @@ async def test_patch_workflow_labels_not_strings(base_client: AsyncClient) -> No
     response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data)
 
     assert response.status_code == 422
-    data = response.json()
-    assert "detail" in data
-    assert "Validation failed" in data["detail"]
-    assert "labels value for key 'env' must be a string" in data["detail"]
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Request Validation Error",
+        detail="Validation failed: labels: Value error, labels value for key 'env' must be a string, got int",
+        code="REQUEST_VALIDATION_ERROR",
+        retryable=False,
+    )
 
 
 @pytest.mark.asyncio
@@ -212,7 +217,15 @@ async def test_patch_workflow_validation_errors(base_client: AsyncClient) -> Non
     # Try to set name to empty string
     response = await base_client.patch(f"/api/v1/workflows/{workflow_id}", json={"name": ""})
 
-    assert response.status_code in [400, 422]
+    assert response.status_code == 422
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Request Validation Error",
+        detail="Validation failed: body -> name: String should have at least 1 character",
+        code="REQUEST_VALIDATION_ERROR",
+        retryable=False,
+    )
 
 
 @pytest.mark.asyncio

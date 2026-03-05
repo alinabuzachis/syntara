@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, SQLModel
 
 from nexus.core.constants import ValidationMessages
+from nexus.core.exceptions import SafeValueError
 
 
 def _utc_now() -> datetime:
@@ -86,15 +87,15 @@ class BaseResource(SQLModel, ABC):
             return v
 
         if not isinstance(v, dict):
-            raise ValueError(ValidationMessages.LABELS_MUST_BE_DICT)  # noqa: TRY004 [field_validator must raise ValueError]
+            raise SafeValueError(ValidationMessages.LABELS_MUST_BE_DICT)
 
         for key, value in v.items():
             if not isinstance(key, str):
                 msg = ValidationMessages.LABELS_KEY_MUST_BE_STRING.format(key=key, type_name=type(key).__name__)  # type: ignore[unreachable]
-                raise ValueError(msg)  # noqa: TRY004 [field_validator must raise ValueError]
+                raise SafeValueError(msg)
             if not isinstance(value, str):
                 msg = ValidationMessages.LABELS_VALUE_MUST_BE_STRING.format(key=key, type_name=type(value).__name__)  # type: ignore[unreachable]
-                raise ValueError(msg)  # noqa: TRY004 [field_validator must raise ValueError]
+                raise SafeValueError(msg)
 
         return v
 

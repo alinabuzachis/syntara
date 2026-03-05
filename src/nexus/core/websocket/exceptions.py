@@ -4,7 +4,7 @@ Provides base exceptions for WebSocket streaming error handling.
 """
 
 from nexus.core.exceptions import NexusError
-from nexus.core.models.base.error import ErrorData
+from nexus.core.models.error import ErrorData
 from nexus.core.websocket.close_codes import INTERNAL_ERROR, NORMAL_CLOSURE
 
 

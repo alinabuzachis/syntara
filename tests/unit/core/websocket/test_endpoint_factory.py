@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.websocket.endpoint_factory import (
     _HANDLER_MODULE_CACHE,
     _SPEC_CACHE,
@@ -110,7 +111,7 @@ class TestAutomaticPathMapping:
         assert "asyncapi" in result["test_component"]
 
     def test_handler_without_spec_raises_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Handler file without corresponding spec file raises ValueError."""
+        """Handler file without corresponding spec file raises SafeValueError."""
         core_websocket_dir = tmp_path / "src" / "nexus" / "core" / "websocket"
         core_websocket_dir.mkdir(parents=True)
 
@@ -133,11 +134,11 @@ class TestAutomaticPathMapping:
         # Mock importlib.resources.files
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
 
-        with pytest.raises(ValueError, match="Missing Spec File"):
+        with pytest.raises(SafeValueError, match="Missing Spec File"):
             scan_handler_specs()
 
     def test_spec_without_handler_raises_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Spec file without corresponding handler file raises ValueError."""
+        """Spec file without corresponding handler file raises SafeValueError."""
         core_websocket_dir = tmp_path / "src" / "nexus" / "core" / "websocket"
         core_websocket_dir.mkdir(parents=True)
 
@@ -158,7 +159,7 @@ class TestAutomaticPathMapping:
         # Mock importlib.resources.files
         monkeypatch.setattr("nexus.core.websocket.endpoint_factory.files", _create_mock_files_function(nexus_dir))
 
-        with pytest.raises(ValueError, match="Orphan Spec File"):
+        with pytest.raises(SafeValueError, match="Orphan Spec File"):
             scan_handler_specs()
 
     def test_component_without_ws_dir_skips_orphan_check(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -565,13 +566,13 @@ class TestReceiveOnlyChannels:
         mock_is_receive_only: MagicMock,
         mock_discover_hooks: MagicMock,
     ) -> None:
-        """Receive-only channel without Request message doesn't raise ValueError."""
+        """Receive-only channel without Request message doesn't raise SafeValueError."""
         mock_is_receive_only.return_value = True
         mock_discover_hooks.return_value = MagicMock()
 
         spec = _create_receive_only_spec()
 
-        # Should not raise ValueError even without Request message
+        # Should not raise SafeValueError even without Request message
         endpoint = create_websocket_endpoint("test", spec, "test_component")
         assert callable(endpoint)
 
@@ -592,7 +593,7 @@ class TestReceiveOnlyChannels:
 
         spec = _create_receive_only_spec()
 
-        # Should not raise ValueError even without handle_test function
+        # Should not raise SafeValueError even without handle_test function
         endpoint = create_websocket_endpoint("test", spec, "test_component")
         assert callable(endpoint)
 
@@ -607,9 +608,9 @@ class TestReceiveOnlyChannels:
         mock_is_receive_only: MagicMock,
         mock_discover_hooks: MagicMock,
     ) -> None:
-        """Receive-only channel without on_connect raises ValueError at runtime.
+        """Receive-only channel without on_connect raises SafeValueError at runtime.
 
-        Note: The ValueError is raised at runtime when the endpoint is called,
+        Note: The SafeValueError is raised at runtime when the endpoint is called,
         not at endpoint creation time. This test verifies the endpoint is created
         but will fail at runtime.
         """
@@ -640,8 +641,8 @@ class TestReceiveOnlyChannels:
         # Create spec WITHOUT Request message
         spec = _create_bidirectional_spec(has_request_message=False)
 
-        # Should raise ValueError for bidirectional channel without Request
-        with pytest.raises(ValueError, match="No request message type found"):
+        # Should raise SafeValueError for bidirectional channel without Request
+        with pytest.raises(SafeValueError, match="No request message type found"):
             create_websocket_endpoint("test", spec, "test_component")
 
     @patch(
@@ -661,8 +662,8 @@ class TestReceiveOnlyChannels:
 
         spec = _create_bidirectional_spec(has_request_message=True)
 
-        # Should raise ValueError for bidirectional channel without handler
-        with pytest.raises(ValueError, match=r"Handler function .* not found"):
+        # Should raise SafeValueError for bidirectional channel without handler
+        with pytest.raises(SafeValueError, match=r"Handler function .* not found"):
             create_websocket_endpoint("test", spec, "test_component")
 
 

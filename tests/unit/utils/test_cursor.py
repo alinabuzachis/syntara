@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.utils.cursor import (
     CursorData,
     PaginationDirection,
@@ -257,10 +258,10 @@ class TestDecodeCursor:
         assert decoded["sort_field"] == "name"  # String value preserved
 
     def test_decode_invalid_base64(self) -> None:
-        """Test decoding invalid base64 raises ValueError."""
+        """Test decoding invalid base64 raises SafeValueError."""
         invalid_cursor = "not-valid-base64!"
 
-        with pytest.raises(ValueError, match="Invalid cursor format"):
+        with pytest.raises(SafeValueError, match="Invalid cursor format"):
             decode_cursor(invalid_cursor)
 
     def test_decode_invalid_json(self) -> None:
@@ -274,14 +275,14 @@ class TestDecodeCursor:
             decode_cursor(encoded)
 
     def test_decode_cursor_too_large(self) -> None:
-        """Test that overly large cursor raises ValueError."""
+        """Test that overly large cursor raises SafeValueError."""
         # Create a cursor that exceeds the size limit
         large_data = {"id": "x" * 10000}  # Very large cursor
         cursor_json = json.dumps(large_data)
         cursor_bytes = cursor_json.encode("utf-8")
         encoded = base64.b64encode(cursor_bytes).decode("ascii")
 
-        with pytest.raises(ValueError, match=r"Cursor.*too large"):
+        with pytest.raises(SafeValueError, match=r"Cursor.*too large"):
             decode_cursor(encoded)
 
     def test_decode_deeply_nested_json(self) -> None:
@@ -298,7 +299,7 @@ class TestDecodeCursor:
         encoded = base64.b64encode(cursor_bytes).decode("ascii")
 
         # Size limit validation triggers before deep nesting validation
-        with pytest.raises(ValueError, match="Cursor too large"):
+        with pytest.raises(SafeValueError, match="Cursor too large"):
             decode_cursor(encoded)
 
     def test_decode_non_dict_json(self) -> None:
@@ -317,7 +318,7 @@ class TestDecodeCursor:
         # Test cursor with invalid characters that can't be base64 decoded
         malformed_cursor = "invalid_base64!!!!"
 
-        with pytest.raises(ValueError, match="Invalid cursor format"):
+        with pytest.raises(SafeValueError, match="Invalid cursor format"):
             decode_cursor(malformed_cursor)
 
 

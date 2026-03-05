@@ -15,6 +15,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import ResponseError
 
 from nexus.core.cache.stream import StreamClient
+from nexus.core.exceptions import SafeValueError
 
 pytestmark = pytest.mark.unit
 
@@ -35,7 +36,7 @@ async def test_events_input_validation(stream_id: str, replay: int | None, expec
     """Test input validation for events() method."""
     with patch("nexus.core.cache.stream.redis.Redis"):
         client = StreamClient()
-        with pytest.raises(ValueError, match=expected_error):
+        with pytest.raises(SafeValueError, match=expected_error):
             await anext(client.events(stream_id, replay=replay))
 
 
@@ -43,7 +44,7 @@ async def test_events_mutually_exclusive_params() -> None:
     """Test that start_id and replay parameters are mutually exclusive."""
     with patch("nexus.core.cache.stream.redis.Redis"):
         client = StreamClient()
-        with pytest.raises(ValueError, match="mutually exclusive"):
+        with pytest.raises(SafeValueError, match="mutually exclusive"):
             await anext(client.events("test_stream", start_id="123-0", replay=10))
 
 
@@ -186,7 +187,7 @@ async def test_publish_input_validation() -> None:
     """Test input validation for publish() method."""
     with patch("nexus.core.cache.stream.redis.Redis"):
         client = StreamClient()
-        with pytest.raises(ValueError, match="stream_id cannot be empty"):
+        with pytest.raises(SafeValueError, match="stream_id cannot be empty"):
             await client.publish("", {"key": "value"})
 
 

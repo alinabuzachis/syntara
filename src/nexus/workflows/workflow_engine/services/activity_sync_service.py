@@ -19,6 +19,7 @@ from temporalio.api.history.v1 import HistoryEvent
 from temporalio.client import Client, WorkflowHandle
 from temporalio.exceptions import TemporalError
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
@@ -467,7 +468,7 @@ class ActivitySyncService:
             error_details = "Workflow was forcibly terminated"
         else:
             msg = f"Event type {event_type} is not a workflow completion event"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         return status, completed_at, error_details
 

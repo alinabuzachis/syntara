@@ -46,6 +46,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import ResponseError
 
 from nexus.core.config.base import get_settings
+from nexus.core.exceptions import SafeValueError
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -169,7 +170,7 @@ class StreamClient:
         """
         if not stream_id:
             msg = _STREAM_ID_EMPTY_ERROR
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         if not self._client:
             self.connect()
@@ -225,15 +226,15 @@ class StreamClient:
         """
         if not stream_id:
             msg = _STREAM_ID_EMPTY_ERROR
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         if start_id is not None and replay is not None:
             msg = "Cannot specify both start_id and replay - they are mutually exclusive"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         if replay is not None and replay <= 0:
             msg = "replay must be a positive integer"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
     async def _determine_start_position(self, stream_id: str, start_id: str | None, replay: int | None) -> str:
         """Determine the starting position for reading events.
@@ -522,7 +523,7 @@ class StreamClient:
         """
         if not stream_id:
             msg = _STREAM_ID_EMPTY_ERROR
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         if not self._client:
             self.connect()
@@ -589,7 +590,7 @@ class StreamClient:
         """
         if not stream_id:
             msg = _STREAM_ID_EMPTY_ERROR
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         if not self._client:
             self.connect()

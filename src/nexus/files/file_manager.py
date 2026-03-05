@@ -17,6 +17,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.config.base import get_settings
+from nexus.core.exceptions import SafeValueError
 from nexus.files import storage, utils, validators
 from nexus.files.exceptions import FileValidationError
 from nexus.files.models import FileMetadata, FileStatus
@@ -261,7 +262,7 @@ class FileManager:
         file_metadata = await session.get(FileMetadata, file_id)
         if not file_metadata:
             msg = f"File not found: {file_id}"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Update fields
         file_metadata.status = status

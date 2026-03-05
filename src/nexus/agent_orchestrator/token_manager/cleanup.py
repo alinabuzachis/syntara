@@ -11,6 +11,7 @@ from sqlalchemy import delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
+from nexus.core.exceptions import SafeValueError
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -41,7 +42,7 @@ async def cleanup_old_usage_records(
     """
     if retention_days <= 0:
         msg = f"retention_days must be positive, got {retention_days}"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     # Calculate cutoff timestamp
     cutoff_timestamp = datetime.now(UTC) - timedelta(days=retention_days)

@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
+from pydantic import ValidationError
 
 from nexus.metrics.types import (
     METRIC_CATEGORIES,
@@ -148,9 +149,18 @@ class TestMetricRecord:
         )
         assert record.labels == {}
 
+    def test_labels_rejects_non_string_keys(self) -> None:
+        """Labels with non-string keys are rejected."""
+        with pytest.raises(ValidationError, match="Value error, labels key '1' must be a string, got int"):
+            MetricRecord(
+                metric_type=MetricType.LLM_DURATION,
+                value=1.0,
+                labels={1: 123},
+            )
+
     def test_labels_rejects_non_string_values(self) -> None:
         """Labels with non-string values are rejected."""
-        with pytest.raises(ValueError, match="string"):
+        with pytest.raises(ValidationError, match="Value error, labels value for key 'key' must be a string, got int"):
             MetricRecord(
                 metric_type=MetricType.LLM_DURATION,
                 value=1.0,

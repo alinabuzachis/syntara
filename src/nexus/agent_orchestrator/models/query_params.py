@@ -5,6 +5,7 @@ import re
 from pydantic import field_validator
 from sqlmodel import Field, SQLModel
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models.base import BaseListParams
 
 
@@ -61,11 +62,11 @@ class StreamingQueryParams(SQLModel):
             count = int(v)
         except ValueError as e:
             msg = f"replay_count must be 'all', '0', or a non-negative integer string, got: {v}"
-            raise ValueError(msg) from e
+            raise SafeValueError(msg) from e
 
         if count < 0:
             msg = "replay_count must be non-negative"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         return v
 
@@ -94,6 +95,6 @@ class StreamingQueryParams(SQLModel):
         # Validate stream ID format (timestamp-sequence like 1691431234567-42)
         if not re.match(r"^\d+-\d+$", v):
             msg = f"last_event_id must be in format 'timestamp-sequence' (e.g., '1691431234567-42'), got: {v}"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         return v

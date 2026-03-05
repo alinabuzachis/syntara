@@ -13,8 +13,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from nexus.core.models import (
-    Error,
+from nexus.core.models.pagination import (
     ResourcesResponse,
     ResourcesResponseBase,
 )
@@ -22,59 +21,6 @@ from nexus.core.models import (
 # Note: SQLModel base class tests are temporarily disabled due to
 # SQLModel/SQLAlchemy compatibility issues with JSON columns and multiple inheritance.
 # These will be re-enabled once the underlying SQLModel compatibility issues are resolved.
-
-
-class TestErrorValidation:
-    """Test validation rules for Error model."""
-
-    def test_valid_error(self) -> None:
-        """Test creation of valid Error."""
-        error = Error(error="validation_error", message="The request is invalid", details="Field 'name' is required")
-
-        assert error.error == "validation_error"
-        assert error.message == "The request is invalid"
-        assert error.details == "Field 'name' is required"
-
-    def test_error_none_details(self) -> None:
-        """Test Error with None details."""
-        error = Error(error="not_found", message="Resource not found", details=None)
-
-        assert error.details is None
-
-    def test_error_empty_fields(self) -> None:
-        """Test Error with empty required fields."""
-        with pytest.raises(ValidationError):
-            Error(
-                error="",  # Min length is 1
-                message="Valid message",
-            )
-
-        with pytest.raises(ValidationError):
-            Error(
-                error="valid_error",
-                message="",  # Min length is 1
-            )
-
-    def test_error_long_fields(self) -> None:
-        """Test Error with fields exceeding max length."""
-        with pytest.raises(ValidationError):
-            Error(
-                error="x" * 101,  # Max length is 100
-                message="Valid message",
-            )
-
-        with pytest.raises(ValidationError):
-            Error(
-                error="valid_error",
-                message="x" * 501,  # Max length is 500
-            )
-
-        with pytest.raises(ValidationError):
-            Error(
-                error="valid_error",
-                message="Valid message",
-                details="x" * 2001,  # Max length is 2000
-            )
 
 
 class TestPaginationValidation:

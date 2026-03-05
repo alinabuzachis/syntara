@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.utils.filters import (
     Filter,
     FilterOperator,
@@ -132,19 +133,19 @@ class TestFilterParser:
         assert operators_found == expected_operators
 
     def test_parse_invalid_field_raises_error(self) -> None:
-        """Test that invalid field names raise ValueError."""
+        """Test that invalid field names raise SafeValueError."""
         params = {"invalid_field": "value"}
         allowed_fields = ["name", "status"]
 
-        with pytest.raises(ValueError, match="Invalid field"):
+        with pytest.raises(SafeValueError, match="Invalid field"):
             parse_filters(params, allowed_fields)
 
     def test_parse_invalid_operator_raises_error(self) -> None:
-        """Test that invalid operators raise ValueError."""
+        """Test that invalid operators raise SafeValueError."""
         params = {"name[invalid_op]": "value"}
         allowed_fields = ["name"]
 
-        with pytest.raises(ValueError, match="Invalid operator"):
+        with pytest.raises(SafeValueError, match="Invalid operator"):
             parse_filters(params, allowed_fields)
 
     def test_parse_empty_params(self) -> None:
@@ -293,7 +294,7 @@ class TestFilterParser:
         params = {"name[CONTAINS]": "value"}  # Wrong case
         allowed_fields = ["name"]
 
-        with pytest.raises(ValueError, match="Invalid operator"):
+        with pytest.raises(SafeValueError, match="Invalid operator"):
             parse_filters(params, allowed_fields)
 
     def test_parse_field_validation(self) -> None:
@@ -307,7 +308,7 @@ class TestFilterParser:
 
         # Invalid field should raise error
         invalid_params = {"unauthorized_field": "value"}
-        with pytest.raises(ValueError, match="Invalid field: unauthorized_field"):
+        with pytest.raises(SafeValueError, match="Invalid field: unauthorized_field"):
             parse_filters(invalid_params, allowed_fields)
 
     def test_parse_special_characters_in_values(self) -> None:
@@ -409,14 +410,14 @@ class TestFilterValueConversion:
         assert isinstance(result, MockStatus)
 
     def test_convert_filter_value_enum_invalid(self) -> None:
-        """Test converting invalid enum values raises ValueError."""
+        """Test converting invalid enum values raises SafeValueError."""
         # Mock field attribute for enum field
         field_attr = MagicMock()
         field_attr.type.python_type = MockStatus
         field_attr.key = "status"
 
         # Test invalid enum value
-        with pytest.raises(ValueError, match="Invalid value 'nonexistent' for field 'status'") as exc_info:
+        with pytest.raises(SafeValueError, match="Invalid value 'nonexistent' for field 'status'") as exc_info:
             _convert_filter_value("nonexistent", field_attr)
 
         error_message = str(exc_info.value)
@@ -434,13 +435,13 @@ class TestFilterValueConversion:
         field_attr.key = "status"
 
         # Test case sensitivity - uppercase should fail
-        with pytest.raises(ValueError, match="Invalid value 'ACTIVE' for field 'status'") as exc_info:
+        with pytest.raises(SafeValueError, match="Invalid value 'ACTIVE' for field 'status'") as exc_info:
             _convert_filter_value("ACTIVE", field_attr)
 
         assert "Invalid value 'ACTIVE' for field 'status'" in str(exc_info.value)
 
         # Test case sensitivity - mixed case should fail
-        with pytest.raises(ValueError, match="Invalid value 'Active' for field 'status'"):
+        with pytest.raises(SafeValueError, match="Invalid value 'Active' for field 'status'"):
             _convert_filter_value("Active", field_attr)
 
     def test_convert_filter_value_non_enum_passthrough(self) -> None:
@@ -478,7 +479,7 @@ class TestFilterValueConversion:
         field_attr.type.python_type = MockStatus
         field_attr.key = "test_field"
 
-        with pytest.raises(ValueError, match="Invalid value 'invalid_value' for field 'test_field'") as exc_info:
+        with pytest.raises(SafeValueError, match="Invalid value 'invalid_value' for field 'test_field'") as exc_info:
             _convert_filter_value("invalid_value", field_attr)
 
         error_message = str(exc_info.value)
@@ -499,7 +500,7 @@ class TestFilterValueConversion:
         field_attr.type.python_type = MockStatus
         del field_attr.key  # Remove key attribute
 
-        with pytest.raises(ValueError, match="Invalid value 'invalid' for field 'unknown'") as exc_info:
+        with pytest.raises(SafeValueError, match="Invalid value 'invalid' for field 'unknown'") as exc_info:
             _convert_filter_value("invalid", field_attr)
 
         error_message = str(exc_info.value)
@@ -629,7 +630,7 @@ class TestMalformedFilterSyntax:
         allowed_fields = ["name"]
 
         # Should be treated as shorthand notation (field name is "name[contains")
-        with pytest.raises(ValueError, match="Invalid field"):
+        with pytest.raises(SafeValueError, match="Invalid field"):
             parse_filters(params, allowed_fields)
 
     def test_malformed_bracket_notation_missing_opening(self) -> None:
@@ -638,7 +639,7 @@ class TestMalformedFilterSyntax:
         allowed_fields = ["name"]
 
         # Should be treated as shorthand notation (field name is "namecontains]")
-        with pytest.raises(ValueError, match="Invalid field"):
+        with pytest.raises(SafeValueError, match="Invalid field"):
             parse_filters(params, allowed_fields)
 
     def test_malformed_bracket_notation_empty_operator(self) -> None:
@@ -647,7 +648,7 @@ class TestMalformedFilterSyntax:
         allowed_fields = ["name"]
 
         # Should fail due to empty operator
-        with pytest.raises(ValueError, match="Invalid operator"):
+        with pytest.raises(SafeValueError, match="Invalid operator"):
             parse_filters(params, allowed_fields)
 
     def test_malformed_bracket_notation_nested_brackets(self) -> None:
@@ -656,7 +657,7 @@ class TestMalformedFilterSyntax:
         allowed_fields = ["name"]
 
         # Should be treated as shorthand notation
-        with pytest.raises(ValueError, match="Invalid field"):
+        with pytest.raises(SafeValueError, match="Invalid field"):
             parse_filters(params, allowed_fields)
 
     def test_malformed_bracket_notation_multiple_brackets(self) -> None:
@@ -665,7 +666,7 @@ class TestMalformedFilterSyntax:
         allowed_fields = ["name"]
 
         # Should be treated as shorthand notation
-        with pytest.raises(ValueError, match="Invalid field"):
+        with pytest.raises(SafeValueError, match="Invalid field"):
             parse_filters(params, allowed_fields)
 
     def test_malformed_bracket_notation_spaces_in_operator(self) -> None:
@@ -674,7 +675,7 @@ class TestMalformedFilterSyntax:
         allowed_fields = ["name"]
 
         # Should fail due to invalid operator
-        with pytest.raises(ValueError, match="Invalid operator"):
+        with pytest.raises(SafeValueError, match="Invalid operator"):
             parse_filters(params, allowed_fields)
 
     def test_malformed_bracket_notation_special_chars_in_operator(self) -> None:
@@ -690,7 +691,7 @@ class TestMalformedFilterSyntax:
 
         for param_name in invalid_operators:
             params = {param_name: "value"}
-            with pytest.raises(ValueError, match="Invalid operator"):
+            with pytest.raises(SafeValueError, match="Invalid operator"):
                 parse_filters(params, allowed_fields)
 
     def test_malformed_field_name_patterns(self) -> None:
@@ -707,7 +708,7 @@ class TestMalformedFilterSyntax:
         for pattern in malformed_patterns:
             params = {pattern: "value"}
             # Should fail due to invalid field name
-            with pytest.raises(ValueError, match="Invalid field"):
+            with pytest.raises(SafeValueError, match="Invalid field"):
                 parse_filters(params, allowed_fields)
 
     def test_malformed_bracket_notation_unicode_operators(self) -> None:
@@ -715,7 +716,7 @@ class TestMalformedFilterSyntax:
         params = {"name[contáins]": "value"}  # Unicode in operator
         allowed_fields = ["name"]
 
-        with pytest.raises(ValueError, match="Invalid operator"):
+        with pytest.raises(SafeValueError, match="Invalid operator"):
             parse_filters(params, allowed_fields)
 
     def test_bracket_notation_regex_edge_cases(self) -> None:
@@ -749,5 +750,5 @@ class TestMalformedFilterSyntax:
             allowed_fields = ["field", "name"]
 
             # Should be treated as shorthand notation with invalid field
-            with pytest.raises(ValueError, match="Invalid field"):
+            with pytest.raises(SafeValueError, match="Invalid field"):
                 parse_filters(params, allowed_fields)

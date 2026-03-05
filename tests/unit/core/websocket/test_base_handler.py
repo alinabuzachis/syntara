@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from nexus.core.models.base.error import ErrorData
+from nexus.core.models.error import ErrorData
 from nexus.core.websocket.base_handler import BaseWebSocketStreamingHandler
 from nexus.core.websocket.close_codes import INTERNAL_ERROR, NORMAL_CLOSURE
 from nexus.core.websocket.exceptions import StreamingValidationError

@@ -13,12 +13,13 @@ from typing import Any, TypedDict
 from uuid import UUID
 
 from nexus.core.constants import FieldLimits, ValidationMessages
+from nexus.core.exceptions import SafeValueError
 
 
 def _raise_cursor_too_large() -> None:
-    """Raise ValueError for cursor size validation."""
+    """Raise SafeValueError for cursor size validation."""
     msg = ValidationMessages.CURSOR_TOO_LARGE.format(max_size=FieldLimits.MAX_CURSOR_SIZE)
-    raise ValueError(msg)
+    raise SafeValueError(msg)
 
 
 class PaginationDirection(str, Enum):
@@ -215,7 +216,7 @@ def decode_cursor(cursor: str) -> CursorData:
             return _filter_to_cursor_data(raw_data)
         except RecursionError:
             msg = "Cursor JSON too deeply nested"
-            raise ValueError(msg) from None
+            raise SafeValueError(msg) from None
 
     except json.JSONDecodeError:
         # Re-raise JSONDecodeError as-is for explicit handling
@@ -225,7 +226,7 @@ def decode_cursor(cursor: str) -> CursorData:
             # Re-raise our security-related errors as-is
             raise
         msg = ValidationMessages.CURSOR_INVALID_FORMAT.format(error=e)
-        raise ValueError(msg) from e
+        raise SafeValueError(msg) from e
 
 
 def get_pagination_direction(cursor: str | None) -> PaginationDirection:

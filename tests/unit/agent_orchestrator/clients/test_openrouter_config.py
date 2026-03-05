@@ -22,7 +22,7 @@ class TestGetOpenRouterLLM:
     """Tests for get_openrouter_llm function."""
 
     def test_raises_error_when_api_key_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that missing API key raises ValueError with helpful message."""
+        """Test that missing API key raises LLMConfigurationError with helpful message."""
         # Remove API key if it exists from environment
         monkeypatch.delenv("NEXUS_OPENROUTER_API_KEY", raising=False)
         # Also need to prevent .env file loading by temporarily removing all NEXUS_OPENROUTER env vars

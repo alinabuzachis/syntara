@@ -12,7 +12,8 @@ from pydantic import ConfigDict
 from sqlmodel import Field, Index, Relationship, SQLModel, text
 
 from nexus.core.constants import FieldLimits
-from nexus.core.models.base import Resource, ResourcesResponse
+from nexus.core.models.base import Resource
+from nexus.core.models.pagination import ResourcesResponse
 
 if TYPE_CHECKING:
     from nexus.workflows.models.execution import Execution

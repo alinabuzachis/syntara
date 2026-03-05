@@ -13,6 +13,7 @@ import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.models.user import UserRole
 from nexus.core.utils.labels import apply_label_filters, parse_label_filter
@@ -174,7 +175,7 @@ class TestLabelFilteringSQLAlchemy:
         query = Mock()
         label_filters = {"environment": "production"}
 
-        with pytest.raises(ValueError, match="Model MockModel does not have a 'labels' field"):
+        with pytest.raises(SafeValueError, match="Label filtering is not supported for this resource"):
             apply_label_filters(query, label_filters, mock_model)
 
     async def test_apply_label_filters_case_sensitive_matching(self, test_db_session: AsyncSession) -> None:
@@ -242,10 +243,10 @@ class TestLabelFilteringSQLAlchemy:
         mock_model = Mock(spec=[])  # Empty spec means hasattr returns False for everything
         mock_model.__name__ = "MockModel"
 
-        # Test with invalid model - should raise ValueError
+        # Test with invalid model - should raise SafeValueError
         label_filters = {"environment": "production"}
 
-        with pytest.raises(ValueError, match="Model MockModel does not have a 'labels' field"):
+        with pytest.raises(SafeValueError, match="Label filtering is not supported for this resource"):
             apply_label_filters(mock_query, label_filters, mock_model)
 
         # Test with empty filters - should return original query

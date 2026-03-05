@@ -4,6 +4,7 @@ import threading
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
+from nexus.core.exceptions import SafeValueError
 from nexus.tool_manager.lib.providers.base import ToolProviderAdapter
 from nexus.tool_manager.lib.providers.mcp import MCPProvider
 
@@ -38,7 +39,7 @@ class ProviderFactory:
         """
         if not provider_type or not isinstance(provider_type, str):
             msg = "Provider type must be a non-empty string"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         if not callable(provider_class):
             msg = "Provider class must be callable"  # type: ignore[unreachable]
@@ -47,7 +48,7 @@ class ProviderFactory:
         with self._lock:
             if provider_type in self._provider_types:
                 msg = f"Provider type '{provider_type}' is already registered"
-                raise ValueError(msg)
+                raise SafeValueError(msg)
 
             self._provider_types[provider_type] = provider_class
 
@@ -72,21 +73,21 @@ class ProviderFactory:
         """
         if not provider_type or not isinstance(provider_type, str):
             msg = "Provider type must be a non-empty string"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         with self._lock:
             if provider_type not in self._provider_types:
                 available = ", ".join(sorted(self._provider_types.keys()))
                 msg = f"Unknown provider type '{provider_type}'. Available types: {available}"
-                raise ValueError(msg)
+                raise SafeValueError(msg)
 
             provider_class = self._provider_types[provider_type]
 
         try:
             instance = provider_class(**kwargs)
         except Exception as e:
-            msg = f"Failed to create provider instance for type '{provider_type}': {e}"
-            raise ValueError(msg) from e
+            msg = f"Failed to create provider instance for type '{provider_type}'"
+            raise TypeError(msg) from e
 
         # Runtime validation for defense in depth (type system should guarantee this)
         if not isinstance(instance, ToolProviderAdapter):
@@ -133,7 +134,7 @@ class ProviderFactory:
         with self._lock:
             if provider_type not in self._provider_types:
                 msg = f"Provider type '{provider_type}' is not registered"
-                raise ValueError(msg)
+                raise SafeValueError(msg)
 
             del self._provider_types[provider_type]
 

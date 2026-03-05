@@ -4,6 +4,9 @@ This module contains the root exception hierarchy for all internal exceptions
 within the Nexus system. Exception boundaries stop at the FastAPI routers.
 """
 
+from nexus.core.error_handlers import safe_value_error_handler
+from nexus.core.exception_registry import fastapi_exception
+
 
 class NexusError(Exception):
     """Base exception for all Nexus internal errors.
@@ -21,4 +24,35 @@ class NexusError(Exception):
 
         """
         self.message = message
+        super().__init__(message)
+
+
+@fastapi_exception(handler=safe_value_error_handler)
+class SafeValueError(ValueError, NexusError):
+    """ValueError subclass for user-safe validation error messages.
+
+    Use this instead of ValueError when the error message is safe to expose
+    to end users and doesn't contain internal implementation details.
+
+    This extends both ValueError (for isinstance checks) and NexusError
+    (for consistent exception handling).
+
+    Examples:
+        # Safe - user validation messages
+        raise SafeValueError("Invalid cursor format")
+        raise SafeValueError("Field name must be a non-empty string")
+
+        # NOT safe - contains implementation details
+        raise ValueError(f"Database connection failed: {db_error}")
+        raise ValueError(f"Provider creation failed: {internal_error}")
+
+    """
+
+    def __init__(self, message: str) -> None:
+        """Initialize SafeValueError.
+
+        Args:
+            message: User-safe error message that can be exposed in API responses
+
+        """
         super().__init__(message)

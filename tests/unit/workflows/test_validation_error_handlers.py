@@ -28,18 +28,6 @@ class TestValidationErrorHandler:
         data = json.loads(bytes(response.body).decode())
         assert data["type"] == PROBLEM_TYPES["validation_error"]
         assert data["title"] == "Validation Error"
-        assert data["detail"] == "The provided data failed validation requirements"
+        assert data["detail"] == "Core validation error"
         assert data["code"] == "VALIDATION_ERROR"
         assert data["retryable"] is False
-
-    def test_ignores_exception_parameter(self) -> None:
-        """Test that the exception parameter is ignored."""
-        request = Mock(spec=Request)
-        request.url = "https://api.example.com/validate"
-
-        exc = WorkflowValidationError("Specific error details that should be ignored")
-        response = validation_error_handler(request, exc)
-
-        data = json.loads(bytes(response.body).decode())
-        # Should use the hardcoded message, not the exception message
-        assert data["detail"] == "The provided data failed validation requirements"

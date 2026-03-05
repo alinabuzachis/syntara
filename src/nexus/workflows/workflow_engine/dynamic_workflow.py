@@ -22,6 +22,8 @@ from temporalio import workflow
 with workflow.unsafe.imports_passed_through():
     import structlog  # noqa: F401 - Ensures structlog loads outside sandbox
 
+    from nexus.core.exceptions import SafeValueError
+
     from . import constants  # noqa: F401 - Ensures constants load outside sandbox
     from .activities.aap_job_template_activity import execute_aap_job_template_activity
     from .activities.agentic_activity import execute_agentic_activity
@@ -303,7 +305,7 @@ class DynamicWorkflow:
         """
         if not activity.task:
             msg = f"Activity {activity.id} has no task definition"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Ensure config is a ScriptExecutorConfig
         if not isinstance(activity.task.config, ScriptExecutorConfig):
@@ -320,7 +322,7 @@ class DynamicWorkflow:
             script_executor = execute_python_script
         else:
             msg = f"Unsupported script language: {language}"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Execute script activity
         # Serialize config to dict to avoid Pydantic V1 deprecation warnings in Temporal
@@ -369,7 +371,7 @@ class DynamicWorkflow:
         """
         if not activity.task:
             msg = f"Activity {activity.id} has no task definition"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Ensure config is an APIExecutorConfig
         if not isinstance(activity.task.config, APIExecutorConfig):
@@ -422,7 +424,7 @@ class DynamicWorkflow:
         """
         if not activity.task:
             msg = f"Activity {activity.id} has no task definition"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         try:
             # Prepare activity config with execution context for callback URL generation
@@ -489,7 +491,7 @@ class DynamicWorkflow:
             signal_results = self._activity_signals[activity.id]
             if not signal_results:
                 msg = f"No signal received for activity {activity.id}"
-                raise ValueError(msg)  # noqa: TRY301
+                raise SafeValueError(msg)  # noqa: TRY301
 
             # Get the most recent signal (in case multiple were sent)
             signal_data = signal_results[-1]
@@ -542,7 +544,7 @@ class DynamicWorkflow:
         """
         if not activity.task:
             msg = f"Activity {activity.id} has no task definition"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Ensure config is an AAPJobTemplateExecutorConfig
         if not isinstance(activity.task.config, AAPJobTemplateExecutorConfig):
@@ -896,7 +898,7 @@ class DynamicWorkflow:
         """
         if not activity.task:
             msg = f"Activity {activity.id} is type=task but has no task definition"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Prepare task inputs
         task_inputs = self._prepare_task_inputs(activity, workflow_state)
@@ -947,7 +949,7 @@ class DynamicWorkflow:
         """
         if not activity.branches:
             msg = f"Activity {activity.id} is type=parallel but has no branches"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         workflow.logger.info(
             f"Executing {len(activity.branches)} activities in parallel",
@@ -1042,7 +1044,7 @@ class DynamicWorkflow:
         """
         if not activity.steps:
             msg = f"Activity {activity.id} is type=sequence but has no steps"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         workflow.logger.info(
             f"Executing {len(activity.steps)} activities sequentially",
@@ -1076,10 +1078,10 @@ class DynamicWorkflow:
         """
         if not activity.condition:
             msg = f"Activity {activity.id} is type=condition but has no condition"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
         if not activity.then:
             msg = f"Activity {activity.id} is type=condition but has no then branch"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Evaluate condition
         condition_result = self.expression_resolver.evaluate_condition(activity.condition, workflow_state)
@@ -1127,7 +1129,7 @@ class DynamicWorkflow:
         """
         if not activity.loop:
             msg = f"Activity {activity.id} is type=loop but has no loop definition"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         loop_def = activity.loop
 
@@ -1137,7 +1139,7 @@ class DynamicWorkflow:
             return await self._execute_while_loop(loop_def, execution_id, workflow_state)
 
         msg = f"Unsupported loop type: {loop_def.type}"  # type: ignore[unreachable]
-        raise ValueError(msg)
+        raise SafeValueError(msg)
 
     async def _execute_foreach_loop(
         self,
@@ -1406,7 +1408,7 @@ class DynamicWorkflow:
         """
         if not activity.converge:
             msg = f"Activity {activity.id} is type=converge but has no converge definition"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         converge_def = activity.converge
         # Resolve template expression in timeout if present

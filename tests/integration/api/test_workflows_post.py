@@ -7,6 +7,7 @@ Tests MUST FAIL before implementation (TDD approach).
 import pytest
 from httpx import AsyncClient
 
+from tests.helpers.error_data import assert_error_data
 from tests.helpers.workflow import create_minimal_workflow_definition
 
 
@@ -55,8 +56,15 @@ async def test_post_workflow_invalid_definition(base_client: AsyncClient) -> Non
     response = await base_client.post("/api/v1/workflows", json=invalid_workflow)
 
     assert response.status_code == 422
-    data = response.json()
-    assert "detail" in data
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Validation Error",
+        detail="Workflow definition validation failed:\nmetadata: Field required\n"
+        "triggers: Field required\nworkflow: Field required",
+        code="VALIDATION_ERROR",
+        retryable=False,
+    )
 
 
 @pytest.mark.asyncio
@@ -75,8 +83,14 @@ async def test_post_workflow_missing_name(base_client: AsyncClient) -> None:
     response = await base_client.post("/api/v1/workflows", json=workflow_without_name)
 
     assert response.status_code == 422  # Pydantic validation errors return 422
-    data = response.json()
-    assert "detail" in data
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Request Validation Error",
+        detail="Validation failed: body -> name: Field required",
+        code="REQUEST_VALIDATION_ERROR",
+        retryable=False,
+    )
 
 
 @pytest.mark.asyncio
@@ -124,8 +138,15 @@ async def test_post_workflow_missing_required_fields(base_client: AsyncClient) -
     response = await base_client.post("/api/v1/workflows", json=workflow_missing_fields)
 
     assert response.status_code == 422
-    data = response.json()
-    assert "detail" in data
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Validation Error",
+        detail="Workflow definition validation failed:\nmetadata: Field required\n"
+        "triggers: Field required\nworkflow: Field required",
+        code="VALIDATION_ERROR",
+        retryable=False,
+    )
 
 
 @pytest.mark.asyncio
@@ -218,10 +239,14 @@ async def test_post_workflow_with_labels_not_strings(base_client: AsyncClient) -
     response = await base_client.post("/api/v1/workflows", json=workflow_with_labels)
 
     assert response.status_code == 422
-    data = response.json()
-    assert "detail" in data
-    assert "Validation failed" in data["detail"]
-    assert "labels value for key 'invalid' must be a string" in data["detail"]
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Request Validation Error",
+        detail="Validation failed: labels: Value error, labels value for key 'invalid' must be a string, got int",
+        code="REQUEST_VALIDATION_ERROR",
+        retryable=False,
+    )
 
 
 @pytest.mark.asyncio
@@ -242,14 +267,11 @@ async def ***REMOVED***(base_client: AsyncClient) -> None:
     response = await base_client.post("/api/v1/workflows", json=workflow_with_labels)
 
     assert response.status_code == 422
-    data = response.json()
-
-    # New RFC 9457 Problem Details format
-    assert "detail" in data
-    assert isinstance(data["detail"], str)
-    assert "body -> description: String should have at most 2000 characters" in data["detail"]
-
-    # Check RFC 9457 fields
-    assert "type" in data
-    assert "title" in data
-    assert "code" in data
+    assert_error_data(
+        response,
+        error_type="https://api.nexus.com/errors/validation-error",
+        title="Request Validation Error",
+        detail="Validation failed: body -> description: String should have at most 2000 characters",
+        code="REQUEST_VALIDATION_ERROR",
+        retryable=False,
+    )

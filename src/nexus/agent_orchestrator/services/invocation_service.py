@@ -27,6 +27,7 @@ from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, 
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.files import FileManager, FileMetadata, get_file_manager
@@ -109,8 +110,9 @@ class InvocationService(BaseService):
         found_ids = {str(f.id) for f in existing_files}
         missing = set(file_ids) - found_ids
         if missing:
-            msg = f"Files not found: {missing}"
-            raise ValueError(msg)
+            missing_ids = ", ".join(sorted(missing))
+            msg = f"Files not found: {missing_ids}"
+            raise SafeValueError(msg)
 
         return existing_files
 

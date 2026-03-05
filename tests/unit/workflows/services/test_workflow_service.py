@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
@@ -442,12 +443,12 @@ class TestWorkflowServiceUpdateMetadata(TestWorkflowServiceBase):
     async def test_update_workflow_metadata_empty_name_error(
         self, test_db_session: AsyncSession, test_user: User
     ) -> None:
-        """Test updating with empty name raises ValueError."""
+        """Test updating with empty name raises SafeValueError."""
         service = WorkflowService(test_db_session, test_user)
 
         workflow = self._create_test_workflow(created_by=test_user.id)
 
-        with pytest.raises(ValueError, match="Workflow name cannot be empty"):
+        with pytest.raises(SafeValueError, match="Workflow name cannot be empty"):
             await service.update_workflow_metadata(workflow, name="")
 
 

@@ -17,6 +17,8 @@ from sqlmodel import SQLModel, and_, or_
 # We need to import this protected type to pass mypy type-checking
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.core.exceptions import SafeValueError
+
 # Logger for this module
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -117,12 +119,12 @@ def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Fil
             # Validate field name
             if field_name not in allowed_fields:
                 msg = f"Invalid field: {field_name}"
-                raise ValueError(msg)
+                raise SafeValueError(msg)
 
             # Validate operator
             if operator_str not in FilterOperator.__members__.values():
                 msg = f"Invalid operator: {operator_str}"
-                raise ValueError(msg)
+                raise SafeValueError(msg)
 
             operator = FilterOperator(operator_str)
 
@@ -138,7 +140,7 @@ def parse_filters(params: dict[str, str], allowed_fields: list[str]) -> list[Fil
             # Validate field name
             if field_name not in allowed_fields:
                 msg = f"Invalid field: {field_name}"
-                raise ValueError(msg)
+                raise SafeValueError(msg)
 
             # Handle comma-separated values (OR logic)
             values = param_str.split(",")
@@ -197,7 +199,7 @@ def _convert_datetime_value(value: str, field_attr: Any) -> datetime:  # noqa: A
             error=str(e),
         )
         msg = f"Invalid datetime format: {value}. Expected ISO 8601 format (e.g., '2025-01-15T10:30:00Z')"
-        raise ValueError(msg) from e
+        raise SafeValueError(msg) from e
 
 
 def _convert_boolean_value(value: str) -> bool:
@@ -221,11 +223,11 @@ def _convert_boolean_value(value: str) -> bool:
         if lower_value in ("false", "0", "no", "off"):
             return False
         msg = f"Invalid boolean value: {value}. Expected 'true', 'false', '1', '0', 'yes', 'no', 'on', or 'off'"
-        raise ValueError(msg)
+        raise SafeValueError(msg)
     except AttributeError as e:
         # If value doesn't have lower() method, it's not a string
         msg = f"Invalid boolean value: {value}. Expected string representation of boolean"
-        raise ValueError(msg) from e
+        raise SafeValueError(msg) from e
 
 
 def _convert_numeric_value(value: str, python_type: type[int | float], field_attr: Any) -> int | float:  # noqa: ANN401
@@ -262,7 +264,7 @@ def _convert_numeric_value(value: str, python_type: type[int | float], field_att
             error=str(e),
         )
         msg = f"Invalid {python_type.__name__} value: {value}"
-        raise ValueError(msg) from e
+        raise SafeValueError(msg) from e
 
 
 def _convert_enum_value(value: str, python_type: type[Enum], field_attr: Any) -> Enum:  # noqa: ANN401
@@ -294,7 +296,7 @@ def _convert_enum_value(value: str, python_type: type[Enum], field_attr: Any) ->
             valid_values=valid_values,
         )
         msg = f"Invalid value '{value}' for field '{field_name}'. Valid values are: {', '.join(valid_values)}"
-        raise ValueError(msg) from e
+        raise SafeValueError(msg) from e
 
 
 def _convert_filter_value(value: FilterValue, field_attr: Any) -> FilterValue:  # noqa: ANN401, PLR0911
@@ -416,8 +418,8 @@ def apply_filters(
     for filter_obj in filters:
         # Validate field exists on model
         if not hasattr(model, filter_obj.field):
-            msg = f"Field '{filter_obj.field}' not found on model {model.__name__}"
-            raise ValueError(msg)
+            msg = f"Invalid filter field: {filter_obj.field}"
+            raise SafeValueError(msg)
 
         if filter_obj.field not in field_groups:
             field_groups[filter_obj.field] = []

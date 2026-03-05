@@ -4,15 +4,14 @@ This module provides centralized error handling utilities and framework-level
 error handlers that are shared across all domains.
 """
 
+from typing import TYPE_CHECKING
+
 import structlog
 from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.exc import IntegrityError
-
-from nexus.core.models.base.error import ErrorData
-from nexus.core.utils.retry import is_retryable_error
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -33,6 +32,10 @@ PROBLEM_TYPES = {
     "provider_error": "https://api.nexus.com/errors/provider-error",
     "internal_error": "https://api.nexus.com/errors/internal-error",
 }
+
+
+if TYPE_CHECKING:
+    from nexus.core.exceptions import SafeValueError
 
 
 def create_problem_details_response(
@@ -60,6 +63,8 @@ def create_problem_details_response(
         JSONResponse with RFC 9457 Problem Details format
 
     """
+    from nexus.core.models.error import ErrorData  # noqa: PLC0415
+
     error_data = ErrorData(
         type=problem_type,
         title=title,
@@ -89,6 +94,8 @@ def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse
         RFC 9457 compliant error response
 
     """
+    from nexus.core.utils.retry import is_retryable_error  # noqa: PLC0415
+
     # Extract detail from HTTPException
     detail_content = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
 
@@ -180,20 +187,46 @@ def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONRespon
     )
 
 
-def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
-    """Handle ValueError with RFC 9457 format.
+def safe_value_error_handler(request: Request, exc: "SafeValueError") -> JSONResponse:
+    """Handle SafeValueError with RFC 9457 format.
 
-    ValueError is commonly used for validation errors in the application,
-    particularly for cursor validation, UUID parsing, and other input validation.
-    This handler treats all ValueError instances as validation errors returning 422.
+    SafeValueError is designed to contain user-safe messages that can be
+    directly exposed in API responses without security concerns.
     """
-    logger.error("Value error", exc_info=exc)
+    logger.error("Safe value error", exc_info=exc)
+
+    detail = str(exc) if str(exc) else "Invalid input value"
 
     return create_problem_details_response(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Validation Error",
-        detail="Invalid input value",
+        detail=detail,
+        code="VALIDATION_ERROR",
+        retryable=False,
+        instance=str(request.url),
+    )
+
+
+def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    """Handle generic ValueError with RFC 9457 format.
+
+    Generic ValueError instances may contain internal implementation details,
+    so we return a safe generic message to prevent information leakage.
+
+    Note: SafeValueError instances are handled by safe_value_error_handler
+    via the @fastapi_exception decorator registration system.
+    """
+    logger.error("Value error", exc_info=exc)
+
+    # Use generic message to prevent exposing internal details
+    detail = "Invalid input value"
+
+    return create_problem_details_response(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        problem_type=PROBLEM_TYPES["validation_error"],
+        title="Validation Error",
+        detail=detail,
         code="VALIDATION_ERROR",
         retryable=False,
         instance=str(request.url),

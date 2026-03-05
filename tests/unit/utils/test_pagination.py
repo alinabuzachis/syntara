@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from nexus.core.constants import FieldLimits
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models.base import NamedResource
 from nexus.core.utils.cursor import (
     PaginationDirection,
@@ -338,8 +339,8 @@ class TestCursorSecurity:
         oversized_json = json.dumps(oversized_data)
         oversized_cursor = base64.b64encode(oversized_json.encode()).decode()
 
-        # Should raise ValueError for oversized cursor
-        with pytest.raises(ValueError, match=r"Cursor.*too large"):
+        # Should raise SafeValueError for oversized cursor
+        with pytest.raises(SafeValueError, match=r"Cursor.*too large"):
             decode_cursor(oversized_cursor)
 
     def test_cursor_json_size_limit_after_decoding(self) -> None:
@@ -351,8 +352,8 @@ class TestCursorSecurity:
         large_json = json.dumps(large_data)
         large_cursor = base64.b64encode(large_json.encode()).decode()
 
-        # Should raise ValueError for oversized JSON after decoding
-        with pytest.raises(ValueError, match=r"Cursor.*too large"):
+        # Should raise SafeValueError for oversized JSON after decoding
+        with pytest.raises(SafeValueError, match=r"Cursor.*too large"):
             decode_cursor(large_cursor)
 
     def test_cursor_json_depth_attack_protection(self) -> None:
@@ -376,7 +377,7 @@ class TestCursorSecurity:
             # If this creates JSON larger than cursor limit, it will be caught by size check
             if len(nested_json) > FieldLimits.MAX_CURSOR_SIZE:
                 nested_cursor = base64.b64encode(nested_json.encode()).decode()
-                with pytest.raises(ValueError, match=r"Cursor.*too large"):
+                with pytest.raises(SafeValueError, match=r"Cursor.*too large"):
                     decode_cursor(nested_cursor)
                 return  # Test passed via size limit
 
@@ -505,8 +506,8 @@ class TestCursorSecurity:
         # Try to create cursor with binary data encoded as base64
         binary_cursor = base64.b64encode(binary_data).decode()
 
-        # Should raise ValueError (UnicodeDecodeError gets converted by decode_cursor)
-        with pytest.raises(ValueError, match="Invalid cursor format"):
+        # Should raise SafeValueError (UnicodeDecodeError gets converted by decode_cursor)
+        with pytest.raises(SafeValueError, match="Invalid cursor format"):
             decode_cursor(binary_cursor)
 
     def test_cursor_empty_and_null_values(self) -> None:

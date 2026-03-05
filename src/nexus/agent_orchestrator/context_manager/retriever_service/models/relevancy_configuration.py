@@ -8,6 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from nexus.core.exceptions import SafeValueError
+
 
 class RelevancyConfiguration(BaseModel):
     """Configuration container for relevancy checker tuning parameters.
@@ -53,7 +55,7 @@ class RelevancyConfiguration(BaseModel):
                 error_msg = (
                     f"Ranking weights sum should be between {min_weights_sum} and {max_weights_sum}, got {weights_sum}"
                 )
-                raise ValueError(error_msg)
+                raise SafeValueError(error_msg)
         return v
 
     @field_validator("mmr_settings")
@@ -64,5 +66,5 @@ class RelevancyConfiguration(BaseModel):
             lambda_param = v.get("lambda_param", 0.5)
             if not isinstance(lambda_param, (int, float)) or not (0.0 <= lambda_param <= 1.0):
                 error_msg = f"MMR lambda_param must be between 0.0 and 1.0, got {lambda_param}"
-                raise ValueError(error_msg)
+                raise SafeValueError(error_msg)
         return v

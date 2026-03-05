@@ -14,7 +14,8 @@ from sqlmodel import DateTime, Field, Relationship
 
 from nexus.approvals.models.api_models import ApprovalRequestStatus, UserReference
 from nexus.core.constants import FieldLimits
-from nexus.core.models.base import BaseResource, ResourcesResponse
+from nexus.core.models.base import BaseResource
+from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
 if TYPE_CHECKING:

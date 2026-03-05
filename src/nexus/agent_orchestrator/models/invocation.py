@@ -10,7 +10,8 @@ from sqlalchemy.types import DateTime
 from sqlmodel import Field
 
 from nexus.core.constants import FieldLimits
-from nexus.core.models.base import ResourcesResponse, UserOwnedResource
+from nexus.core.models.base import UserOwnedResource
+from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.utils.sqlmodel import postgres_enum_column
 
 

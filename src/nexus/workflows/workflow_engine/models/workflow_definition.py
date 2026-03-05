@@ -13,6 +13,7 @@ from typing import Any, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import ModelWrapValidatorHandler
 
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.utils.activity_traversal import traverse_activities
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
@@ -282,7 +283,7 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
                 uuid.UUID(file_id)
             except ValueError as err:
                 msg = f"Invalid file_id format: '{file_id}'. Must be a valid UUID."
-                raise ValueError(msg) from err
+                raise SafeValueError(msg) from err
         return v
 
 
@@ -420,12 +421,12 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
         # Check that name requires organization (only when ID not provided)
         if not has_id and has_name and not org_value:
             msg = f"organization_name is required when using {resource_type}_name"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
         # Check that at least one is specified (if required)
         if required and not has_id and not has_name:
             msg = f"Must specify either {resource_type}_id or ({resource_type}_name + organization_name)"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
     @model_validator(mode="after")
     def validate_template_reference(self) -> Self:
@@ -603,7 +604,7 @@ class Activity(TemplateAwareBaseModel):
         """
         if field_value is None:
             msg = f"{field_name} field is required when type='{self.type.value}'"
-            raise ValueError(msg)
+            raise SafeValueError(msg)
 
     def _validate_task_type(self) -> None:
         """Validate task activity has required fields."""
@@ -695,7 +696,7 @@ class WorkflowSpec(TemplateAwareBaseModel):
                     f"Second occurrence: {path}. "
                     f"Activity IDs must be unique within a workflow."
                 )
-                raise ValueError(msg)
+                raise SafeValueError(msg)
             seen_ids[activity_id] = path
 
         return activities

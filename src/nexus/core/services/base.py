@@ -15,6 +15,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin, PostProcessingMixin
 from nexus.core.services.types import TModel, TResponse
@@ -517,7 +518,7 @@ class BaseService:
                     # Extract the first error message for cleaner output
                     error_detail = str(e.errors()[0]["msg"]) if e.errors() else str(e)
                     error_message = f"Invalid value for field '{field_name}': {error_detail}"
-                    raise ValueError(error_message) from e
+                    raise SafeValueError(error_message) from e
 
     async def list_resources(  # noqa: C901, PLR0912, PLR0915
         self,

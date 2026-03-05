@@ -11,8 +11,9 @@ from uuid import UUID, uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
-from nexus.core.models.base import ResourcesResponseBase
+from nexus.core.models.pagination import ResourcesResponseBase
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     WorkflowDisabledError,
@@ -743,8 +744,8 @@ class TestListExecutions(TestExecutionServiceBase):
         result = await service.list_executions(sort="created_at")
         assert isinstance(result, ResourcesResponseBase)
 
-        # Test with invalid sort field - should raise ValueError
-        with pytest.raises(ValueError, match="Invalid field: invalid_field"):
+        # Test with invalid sort field - should raise SafeValueError
+        with pytest.raises(SafeValueError, match="Invalid field: invalid_field"):
             await service.list_executions(sort="invalid_field")
 
 

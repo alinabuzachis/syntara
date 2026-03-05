@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import pytest
 
+from nexus.core.exceptions import SafeValueError
 from nexus.files import FileMetadata
 from nexus.files.document_conversion.models.conversion_result import (
     ConversionResult,
@@ -438,6 +439,6 @@ class TestDocumentConversionServiceStorageIntegration:
             converted_content=None,  # No content
         )
 
-        with pytest.raises(ValueError, match="Cannot store file: conversion result has no content"):
+        with pytest.raises(SafeValueError, match="Cannot store file: conversion result has no content"):
             # Access private method for testing purposes
             await conversion_helper.service._store_converted_file(file_metadata, conversion_result)
