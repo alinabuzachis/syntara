@@ -33,7 +33,7 @@ export function serializeExpression(expression: Expression): string {
   const inner = serializeNode(expression.root)
 
   // Return empty string if serialization results in empty content
-  if (!inner || !inner.trim()) {
+  if (!inner?.trim()) {
     return ''
   }
 

@@ -35,9 +35,9 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
 
   const initialData: AIAgentFormInitialData = {
     name: taskData.name,
-    model: agentConfig.model || defaultModel,
-    prompt: agentConfig.prompt || '',
-    tools: agentConfig.tools?.join(', ') || '',
+    model: agentConfig.model ?? defaultModel,
+    prompt: agentConfig.prompt ?? '',
+    tools: agentConfig.tools?.join(', ') ?? '',
   }
 
   const handleSubmit = (data: AIAgentFormSubmitData) => {
@@ -46,7 +46,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
       const toolsArray = parseToolsString(data.tools)
 
       // Merge existing file IDs with newly uploaded ones (Set removes any duplicates)
-      const existingFileIds = agentConfig.fileIds || []
+      const existingFileIds = agentConfig.fileIds ?? []
       const allFileIds = [...new Set([...existingFileIds, ...data.fileIds])]
 
       // Create updated agentic activity with merged file IDs
@@ -54,8 +54,8 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
         nodeId,
         data.name,
         toolsArray,
-        data.prompt || undefined,
-        data.model || undefined,
+        data.prompt ?? undefined,
+        data.model ?? undefined,
         taskData.task.inputs ? JSON.stringify(taskData.task.inputs) : undefined,
         allFileIds.length > 0 ? allFileIds : undefined
       )

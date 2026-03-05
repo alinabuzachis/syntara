@@ -64,7 +64,7 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
   }) => (
     <div data-testid="action-node-form">
       <button onClick={() => onSubmit({ name: 'Updated Task', executor: 'script' })} data-testid="submit-button">
-        {submitButtonText || 'Add node'}
+        {submitButtonText ?? 'Add node'}
       </button>
       <button
         onClick={() =>
@@ -131,7 +131,7 @@ vi.mock('../node-forms/AAPNodeForm', () => ({
         }
         data-testid="aap-submit-button"
       >
-        {submitButtonText || 'Add node'}
+        {submitButtonText ?? 'Add node'}
       </button>
       <button onClick={onCancel} data-testid="aap-cancel-button">
         Cancel

@@ -267,7 +267,7 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
       authentication: data.executor === 'api' && data.authentication ? data.authentication : undefined,
       headers: data.executor === 'api' ? data.headers : undefined,
       body: data.executor === 'api' ? data.body : undefined,
-      parameters: data.parameters || undefined,
+      parameters: data.parameters ?? undefined,
     }
     props.onSubmit(cleanedData)
   }

@@ -37,7 +37,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // Should create parallel container
       const parallel = activities.find((a) => a.id === 'parallel_for_J') as Extract<Activity, { type: 'parallel' }>
@@ -80,7 +80,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const parallel = activities.find((a) => a.id === 'parallel_for_J') as Extract<Activity, { type: 'parallel' }>
 
       expect(parallel.branches).toHaveLength(3)
@@ -116,7 +116,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
         currentWorkflow: {
           ...useWorkflowStore.getState().currentWorkflow!,
           workflow: {
-            activities: [...(useWorkflowStore.getState().currentWorkflow?.workflow.activities || []), activityD],
+            activities: [...(useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []), activityD],
           },
         },
         edges: [
@@ -128,7 +128,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const parallel = activities.find((a) => a.id === 'parallel_for_J') as Extract<Activity, { type: 'parallel' }>
 
       expect(parallel.branches).toHaveLength(3)
@@ -170,7 +170,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // Parallel should have only B and D
       const parallel = activities.find((a) => a.id === 'parallel_for_J') as Extract<Activity, { type: 'parallel' }>
@@ -200,7 +200,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // Should NOT create parallel container
       expect(activities.find((a) => a.id === 'parallel_for_J')).toBeUndefined()
@@ -237,7 +237,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
       // Verify parallel exists
-      let activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      let activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities.find((a) => a.id === 'parallel_for_J')).toBeDefined()
 
       // Remove one edge
@@ -247,7 +247,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
-      activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // Parallel should be removed
       expect(activities.find((a) => a.id === 'parallel_for_J')).toBeUndefined()
@@ -290,7 +290,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       useWorkflowStore.setState({ edges: [] })
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // Parallel should be removed
       expect(activities.find((a) => a.id === 'parallel_for_J')).toBeUndefined()
@@ -333,7 +333,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // Should have two parallel containers
       const parallel1 = activities.find((a) => a.id === 'parallel_for_J1') as Extract<Activity, { type: 'parallel' }>
@@ -380,7 +380,7 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities).toHaveLength(2)
       expect(activities.map((a) => a.id)).toEqual(['A', 'B'])
     })

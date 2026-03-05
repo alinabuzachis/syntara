@@ -136,7 +136,7 @@ class NodeRegistryClass {
     const lowerQuery = query.toLowerCase()
     return this.getAll().filter((node) => {
       const matchLabel = node.label.toLowerCase().includes(lowerQuery)
-      const matchKeywords = node.keywords?.some((k) => k.toLowerCase().includes(lowerQuery))
+      const matchKeywords = node.keywords?.some((k) => k.toLowerCase().includes(lowerQuery)) ?? false
       const matchId = node.id.toLowerCase().includes(lowerQuery)
       return matchLabel || matchKeywords || matchId
     })

@@ -58,7 +58,7 @@ export function validateLoopNodes(activities: Activity[], edges?: EdgeConnection
       hasBody = loopEdges.length > 0
     } else {
       // No edges provided - validating nested format, check the 'do' array
-      const loopActivities = loopNode.loop?.do || []
+      const loopActivities = loopNode.loop?.do ?? []
       hasBody = loopActivities.length > 0
     }
 

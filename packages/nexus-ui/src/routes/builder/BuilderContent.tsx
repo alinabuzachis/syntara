@@ -52,16 +52,16 @@ import type { NodeType } from '../automations/canvas/nodes/NodeType'
 import { AddNodePanel } from './AddNodePanel'
 import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
-import type { FlowPosition } from './types'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
+import type { FlowPosition } from './types'
 import { buildNestedConditionStructure } from './utils/buildNestedStructure'
 import { EdgeFactory } from './utils/EdgeFactory'
 import { ACTIVITY_TYPES } from './utils/executionState/executionHelpers'
 import { loadWorkflow } from './utils/loadWorkflow'
-import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from './utils/workflowNaming'
-import { WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME } from './utils/workflowListQuery'
 import { validateRoundTrip, validateSavePath } from './utils/validateRoundTrip'
 import { validateWorkflow } from './utils/validation'
+import { WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME } from './utils/workflowListQuery'
+import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from './utils/workflowNaming'
 import type { EdgeType } from './utils/workflowToGraph'
 import { WorkflowTransform } from './utils/workflowTransform'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
@@ -89,7 +89,7 @@ function hasLoopNodePlaceholders(nodes: Node[], sourceId: string): boolean {
 function removeButtonEdgeClass(nodes: Node[], sourceId: string): Node[] {
   return nodes.map((n) => {
     if (n.id === sourceId) {
-      const className = (n.className || '').replace('has-button-edge', '').trim()
+      const className = (n.className ?? '').replace('has-button-edge', '').trim()
       return { ...n, className }
     }
     return n
@@ -252,9 +252,9 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         detailsOpen: false,
         historyCardOpen: false,
         sourceNodeId: action.payload.sourceId,
-        targetNodeId: action.payload.targetId || null,
-        edgeIdToReplace: action.payload.edgeId || null,
-        sourceHandle: action.payload.handle || undefined,
+        targetNodeId: action.payload.targetId ?? null,
+        edgeIdToReplace: action.payload.edgeId ?? null,
+        sourceHandle: action.payload.handle ?? undefined,
         targetHandle: action.payload.targetHandle,
         replacementNodeId: null,
         newNodeDesiredPosition: action.payload.desiredPosition ?? null,
@@ -504,7 +504,7 @@ export function BuilderContent(props: BuilderContentProps) {
       const { activities: flattenedActivities, edges: generatedEdges } = loadWorkflow(workflowDef.workflow.activities)
 
       // Generate trigger edges (triggers connect to first activities)
-      const triggers = workflowDef.triggers || []
+      const triggers = workflowDef.triggers ?? []
       if (triggers.length > 0 && workflowDef.workflow.activities.length > 0) {
         const firstActivity = workflowDef.workflow.activities[0]
 
@@ -890,7 +890,7 @@ export function BuilderContent(props: BuilderContentProps) {
               source: targetId,
               target: capturedTargetNodeId,
               sourceHandle: 'source',
-              targetHandle: capturedTargetHandle || 'target',
+              targetHandle: capturedTargetHandle ?? 'target',
               onAddNode: handleAddNodeFromEdge,
             })
             reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(secondEdge, eds as EdgeType[]))

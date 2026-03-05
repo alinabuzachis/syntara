@@ -18,7 +18,7 @@ function isLegacyActivity(activity: Activity): boolean {
 function getNestedActivities(activity: Activity): Activity[][] {
   switch (activity.type) {
     case ActivityTypeEnum.CONDITION:
-      return [activity.then || [], activity.else || []]
+      return [activity.then ?? [], activity.else ?? []]
     case ActivityTypeEnum.PARALLEL:
       return activity.branches ? [activity.branches] : []
     case ActivityTypeEnum.SEQUENCE:
@@ -26,7 +26,7 @@ function getNestedActivities(activity: Activity): Activity[][] {
     case ActivityTypeEnum.LOOP:
       return activity.loop.do ? [activity.loop.do] : []
     case ActivityTypeEnum.APPROVAL:
-      return [activity.onApproved || [], activity.onRejected || []]
+      return [activity.onApproved ?? [], activity.onRejected ?? []]
     case ActivityTypeEnum.TASK:
     case ActivityTypeEnum.CONVERGE:
       return []
@@ -169,15 +169,15 @@ function activitiesEqual(a: Activity, b: Activity): boolean {
     }
 
     // Then branches must match
-    const aThen = a.then || []
-    const bThen = b.then || []
+    const aThen = a.then ?? []
+    const bThen = b.then ?? []
     if (!isStructurallyEqual(aThen, bThen)) {
       return false
     }
 
     // Else branches must match
-    const aElse = a.else || []
-    const bElse = b.else || []
+    const aElse = a.else ?? []
+    const bElse = b.else ?? []
     if (!isStructurallyEqual(aElse, bElse)) {
       return false
     }
@@ -185,8 +185,8 @@ function activitiesEqual(a: Activity, b: Activity): boolean {
 
   // Check parallel-specific fields
   if (a.type === 'parallel' && b.type === 'parallel') {
-    const aBranches = a.branches || []
-    const bBranches = b.branches || []
+    const aBranches = a.branches ?? []
+    const bBranches = b.branches ?? []
     if (!isStructurallyEqual(aBranches, bBranches)) {
       return false
     }
@@ -194,8 +194,8 @@ function activitiesEqual(a: Activity, b: Activity): boolean {
 
   // Check sequence-specific fields
   if (a.type === 'sequence' && b.type === 'sequence') {
-    const aSteps = a.steps || []
-    const bSteps = b.steps || []
+    const aSteps = a.steps ?? []
+    const bSteps = b.steps ?? []
     if (!isStructurallyEqual(aSteps, bSteps)) {
       return false
     }
@@ -203,8 +203,8 @@ function activitiesEqual(a: Activity, b: Activity): boolean {
 
   // Check loop-specific fields
   if (a.type === 'loop' && b.type === 'loop') {
-    const aDo = a.loop.do || []
-    const bDo = b.loop.do || []
+    const aDo = a.loop.do ?? []
+    const bDo = b.loop.do ?? []
     if (!isStructurallyEqual(aDo, bDo)) {
       return false
     }
@@ -244,8 +244,8 @@ export function validateSavePath(activities: Activity[], edges: EdgeConnection[]
           (e) => e.source === activity.id && (e.sourceHandle === 'true' || e.sourceHandle === 'false')
         )
         if (hasOutgoingEdges) {
-          const thenLength = activity.then?.length || 0
-          const elseLength = activity.else?.length || 0
+          const thenLength = activity.then?.length ?? 0
+          const elseLength = activity.else?.length ?? 0
           if (thenLength === 0 && elseLength === 0) {
             // eslint-disable-next-line no-console
             console.warn(

@@ -62,7 +62,7 @@ export function usePendingEdgeManagement({
             {
               id: pendingEdgeId,
               source: pendingEdge.sourceNodeId,
-              sourceHandle: pendingEdge.sourceHandle || 'source',
+              sourceHandle: pendingEdge.sourceHandle ?? 'source',
               target: pendingNodeId,
               targetHandle: 'target',
               type: 'default',

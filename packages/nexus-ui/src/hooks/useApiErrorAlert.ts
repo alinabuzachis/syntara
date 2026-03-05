@@ -33,7 +33,7 @@ export function useApiErrorAlert(error: unknown, options: UseApiErrorAlertOption
 
     const message = getErrorMessage(error)
     const status = getErrorStatus(error)
-    const errorTitle = title || getErrorTitle(error)
+    const errorTitle = title ?? getErrorTitle(error)
     const fullMessage = context ? `${context}: ${message}` : message
     const key = `${status ?? ''}::${errorTitle}::${fullMessage}`
 

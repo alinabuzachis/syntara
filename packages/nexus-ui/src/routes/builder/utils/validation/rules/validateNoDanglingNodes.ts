@@ -49,7 +49,7 @@ export function validateNoDanglingNodes(activities: Activity[], edges: EdgeConne
     visited.add(nodeId)
     reachable.add(nodeId)
 
-    const neighbors = adjacencyMap.get(nodeId) || new Set()
+    const neighbors = adjacencyMap.get(nodeId) ?? new Set()
     neighbors.forEach((neighbor) => {
       if (!visited.has(neighbor)) {
         queue.push(neighbor)

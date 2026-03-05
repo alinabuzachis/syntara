@@ -86,7 +86,7 @@ function TriggerFormFields({
                 control={control}
                 name="interval"
                 render={({ field }) => (
-                  <DateRangeCadencePicker value={field.value || ''} onChange={field.onChange} required showTime />
+                  <DateRangeCadencePicker value={field.value ?? ''} onChange={field.onChange} required showTime />
                 )}
               />
             </StackItem>

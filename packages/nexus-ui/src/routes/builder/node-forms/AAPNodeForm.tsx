@@ -187,7 +187,7 @@ function AAPFormFields({
             render={({ field }) => (
               <FormSelect
                 id="aap-verbosity"
-                value={field.value || ''}
+                value={field.value ?? ''}
                 onChange={(_event, value) => field.onChange(value)}
                 aria-label="Verbosity"
               >

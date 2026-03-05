@@ -54,7 +54,7 @@ const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => 
     // case 'approvalType': // Removed for RH1
     //   return approval.approvalType || ''
     case 'automationName':
-      return approval.automationName || ''
+      return approval.automationName ?? ''
     case 'requested_at':
       // Use createdAt from BaseResource (represents when approval was requested)
       return approval.createdAt ? new Date(approval.createdAt).getTime() : 0
@@ -63,7 +63,7 @@ const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => 
       return decidedAt ? new Date(decidedAt).getTime() : undefined
     }
     case 'status':
-      return approval.status || ''
+      return approval.status ?? ''
   }
 }
 

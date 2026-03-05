@@ -173,8 +173,7 @@ export function useNodePositioning({
               firstLoopNode && desiredLoopPosition ? { nodeId: firstLoopNode.id, position: desiredLoopPosition } : null
 
             const updatedNodes = currentNodes.map((node) => {
-              const overridePosition =
-                overrideForFirstLoop && node.id === overrideForFirstLoop.nodeId ? overrideForFirstLoop.position : null
+              const overridePosition = node.id === overrideForFirstLoop?.nodeId ? overrideForFirstLoop.position : null
               const loopPositioned = positionLoopNode(
                 node,
                 newlyAddedNodeIdsRef,

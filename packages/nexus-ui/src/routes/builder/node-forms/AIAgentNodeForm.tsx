@@ -96,7 +96,7 @@ function AIAgentFormFields({
         )
         return {
           ...f,
-          id: serverFile?.file_id || f.id,
+          id: serverFile?.file_id ?? f.id,
           progress: 100,
           status: 'success' as const,
         }

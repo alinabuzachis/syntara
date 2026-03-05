@@ -38,7 +38,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities.map((a) => a.id)).toEqual(['A', 'B', 'C'])
     })
 
@@ -69,7 +69,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const ids = activities.map((a) => a.id)
 
       // A should be first, D should be last
@@ -108,7 +108,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const ids = activities.map((a) => a.id)
 
       // Verify topological order
@@ -154,7 +154,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities.map((a) => a.id)).toEqual(['A', 'C', 'COND'])
 
       // B should still be nested in condition
@@ -194,7 +194,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const ids = activities.map((a) => a.id)
 
       // A should come before PAR, PAR before C
@@ -227,7 +227,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const ids = activities.map((a) => a.id)
 
       // Connected activities should be ordered
@@ -255,7 +255,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities).toHaveLength(2)
       expect(activities.map((a) => a.id).sort()).toEqual(['A', 'B'])
     })
@@ -282,7 +282,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const run1 = useWorkflowStore.getState().currentWorkflow?.workflow.activities.map((a) => a.id) || []
+      const run1 = useWorkflowStore.getState().currentWorkflow?.workflow.activities.map((a) => a.id) ?? []
 
       // Reset and run again
       useWorkflowStore.setState({
@@ -299,7 +299,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const run2 = useWorkflowStore.getState().currentWorkflow?.workflow.activities.map((a) => a.id) || []
+      const run2 = useWorkflowStore.getState().currentWorkflow?.workflow.activities.map((a) => a.id) ?? []
 
       // Should produce same sorted order (alphabetical due to sort in algorithm)
       expect(run1.sort()).toEqual(run2.sort())
@@ -329,7 +329,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities).toHaveLength(0)
     })
 
@@ -354,7 +354,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities.map((a) => a.id)).toEqual(['A', 'B'])
     })
 
@@ -379,7 +379,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities).toHaveLength(2)
       expect(activities.map((a) => a.id)).toEqual(['A', 'B'])
     })
@@ -408,7 +408,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // All three activities must be preserved
       expect(activities).toHaveLength(3)
@@ -459,7 +459,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // Should be reordered to: trigger, B, A (with C remaining in the list)
       const topLevelIds = activities.map((a) => a.id)

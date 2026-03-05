@@ -37,7 +37,7 @@ export function detectTaskNodeType(data: TaskActivity): DetectedNodeTypeResult {
   // This handles both cases: when metadata exists and when it's missing after save/load
   if (data.task.executor === ExecutorTypeEnum.AGENTIC) {
     try {
-      const parsed = JSON.parse(data.task.config.prompt || '{}')
+      const parsed = JSON.parse(data.task.config.prompt ?? '{}')
       if (parsed.__type === 'connector') {
         connectorData = {
           connectorId: parsed.connectorId,

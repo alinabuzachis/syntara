@@ -136,7 +136,7 @@ export function ExpressionCondition(props: ExpressionConditionProps) {
                 <Checkbox
                   id={`not-${condition.id}`}
                   label="Not"
-                  isChecked={condition.negate || false}
+                  isChecked={condition.negate ?? false}
                   onChange={(_event, checked) => onChange({ negate: checked })}
                   aria-label="Negate condition"
                 />

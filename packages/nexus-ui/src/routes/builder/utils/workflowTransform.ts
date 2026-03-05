@@ -166,13 +166,13 @@ export class WorkflowTransform {
           // Get last activity IDs from both then and else branches
           const allBranchEndpoints: string[] = []
 
-          const thenActivities = conditionActivity.then || []
+          const thenActivities = conditionActivity.then ?? []
           if (thenActivities.length > 0) {
             const thenEndpoints = this.getAllLastActivityIds(thenActivities[thenActivities.length - 1])
             allBranchEndpoints.push(...thenEndpoints)
           }
 
-          const elseActivities = conditionActivity.else || []
+          const elseActivities = conditionActivity.else ?? []
           if (elseActivities.length > 0) {
             const elseEndpoints = this.getAllLastActivityIds(elseActivities[elseActivities.length - 1])
             allBranchEndpoints.push(...elseEndpoints)
@@ -183,7 +183,7 @@ export class WorkflowTransform {
             if (convergeBranchSet.has(endpointId)) {
               // Find the source activity to get the correct source handle
               const sourceActivity =
-                this.searchInActivityList(thenActivities, endpointId) ||
+                this.searchInActivityList(thenActivities, endpointId) ??
                 this.searchInActivityList(elseActivities, endpointId)
 
               edges.push({
@@ -436,8 +436,8 @@ export class WorkflowTransform {
     flatActivities: Activity[],
     edges: EdgeConnection[]
   ): void {
-    const thenActivities = activity.then || []
-    const elseActivities = activity.else || []
+    const thenActivities = activity.then ?? []
+    const elseActivities = activity.else ?? []
 
     // Add condition with empty branches
     flatActivities.push({
@@ -577,8 +577,8 @@ export class WorkflowTransform {
     flatActivities: Activity[],
     edges: EdgeConnection[]
   ): void {
-    const onApprovedActivities = activity.onApproved || []
-    const onRejectedActivities = activity.onRejected || []
+    const onApprovedActivities = activity.onApproved ?? []
+    const onRejectedActivities = activity.onRejected ?? []
 
     // Add approval with empty branches
     flatActivities.push({
@@ -1617,7 +1617,7 @@ export class WorkflowTransform {
       // CRITICAL: Skip if divergence uses DIFFERENT structural handles (true vs false, or loop vs something else)
       // These represent condition/loop branches, not parallel execution
       // BUT: if multiple edges use the SAME structural handle (e.g., both true), that's a real parallel
-      const parallelHandleTypes = new Set(parallelHandles.map((e) => e.sourceHandle || 'source'))
+      const parallelHandleTypes = new Set(parallelHandles.map((e) => e.sourceHandle ?? 'source'))
       if (
         parallelHandleTypes.size > 1 &&
         (parallelHandleTypes.has('true') || parallelHandleTypes.has('false') || parallelHandleTypes.has('loop'))
@@ -1629,9 +1629,9 @@ export class WorkflowTransform {
       // CRITICAL: Check for converge nodes first (they explicitly define convergence points)
       const partialConvergeResult = this.findPartialConvergeNode(divergenceTargets, edges, activities)
       const convergencePoint =
-        partialConvergeResult?.convergencePoint || this.findConvergencePoint(divergenceTargets, edges, activities)
+        partialConvergeResult?.convergencePoint ?? this.findConvergencePoint(divergenceTargets, edges, activities)
       const convergeNode =
-        partialConvergeResult?.convergeNode ||
+        partialConvergeResult?.convergeNode ??
         (convergencePoint ? activities.find((a) => a.id === convergencePoint) : undefined)
 
       const branches = divergenceTargets.map((targetId) => {

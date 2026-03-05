@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Fragment, Suspense } from 'react'
 import { Redirect, Route, Switch } from 'wouter'
 
 import { ErrorBoundary } from '../components/ErrorBoundary'
@@ -12,27 +12,23 @@ export function AppRouter() {
       <Suspense fallback={<LoadingState />}>
         <Switch>
           {navigationItems.map((item) => (
-            <>
-              {item.children &&
-                item.children.map((child) => (
-                  <>
-                    {child.children &&
-                      child.children.map((child) => (
-                        <Route key={child.path} path={child.path}>
-                          {child.element}
-                        </Route>
-                      ))}
-                    <Route key={child.path} path={child.path}>
-                      {child.element}
+            <Fragment key={item.path}>
+              {item.children?.map((child) => (
+                <Fragment key={child.path}>
+                  {child.children?.map((grandchild) => (
+                    <Route key={grandchild.path} path={grandchild.path}>
+                      {grandchild.element}
                     </Route>
-                  </>
-                ))}
+                  ))}
+                  <Route path={child.path}>{child.element}</Route>
+                </Fragment>
+              ))}
               {item.element && (
                 <Route key={item.path} path={item.path}>
                   {item.element}
                 </Route>
               )}
-            </>
+            </Fragment>
           ))}
           <Route>
             <Redirect to="/automations" />

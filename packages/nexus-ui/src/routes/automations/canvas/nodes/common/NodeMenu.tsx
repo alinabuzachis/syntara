@@ -32,7 +32,7 @@ export function NodeMenu(props: Readonly<NodeMenuProps>) {
           e.stopPropagation()
         }
       }}
-      className={`nodrag nopan ${props.className || ''}`}
+      className={`nodrag nopan ${props.className ?? ''}`}
       role="button"
       tabIndex={0}
       style={props.style}

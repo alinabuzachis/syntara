@@ -8,11 +8,11 @@ function getExistingNodeNames(): string[] {
 
   const activityNames = activities
     .map((activity) => activity.name)
-    .filter((name): name is string => Boolean(name && name.trim()))
+    .filter((name): name is string => Boolean(name?.trim()))
 
   const triggerNames = triggers
     .map((trigger) => (trigger as { name?: string }).name)
-    .filter((name): name is string => Boolean(name && name.trim()))
+    .filter((name): name is string => Boolean(name?.trim()))
 
   return [...activityNames, ...triggerNames]
 }

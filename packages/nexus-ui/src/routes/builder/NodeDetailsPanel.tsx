@@ -86,16 +86,14 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
         ...(selectedSubtype?.initialData ?? {}),
       } as Record<string, unknown>
 
-      if (!initialData.name) {
-        initialData.name = getNodeDisplayName(
-          getDefaultNodeBaseName({
-            nodeTypeId: selectedNode.id,
-            nodeSubtypeId: selectedSubtype?.id,
-            initialData,
-            label: selectedSubtype?.label ?? selectedNode.label,
-          })
-        )
-      }
+      initialData.name ??= getNodeDisplayName(
+        getDefaultNodeBaseName({
+          nodeTypeId: selectedNode.id,
+          nodeSubtypeId: selectedSubtype?.id,
+          initialData,
+          label: selectedSubtype?.label ?? selectedNode.label,
+        })
+      )
 
       const FormComponent = selectedNode.formComponent
       const subtypeFormProps = selectedSubtype?.formProps ?? {}

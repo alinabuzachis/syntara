@@ -203,7 +203,7 @@ function LoopFormFields({
                   <>
                     <ExpressionBuilder
                       id="loop-condition-while"
-                      value={field.value || ''}
+                      value={field.value ?? ''}
                       onChange={field.onChange}
                       error={!!fieldState.error}
                       placeholder="Build your condition"

@@ -48,7 +48,7 @@ function traceToConditions(
       if (branch) {
         results.push({
           conditionId: sourceNode.id,
-          conditionName: sourceNode.name || sourceNode.id,
+          conditionName: sourceNode.name ?? sourceNode.id,
           branch,
         })
       }
@@ -129,13 +129,13 @@ export function validateConvergeInputs(activities: Activity[], edges: EdgeConnec
       if (branches.has('then') && branches.has('else')) {
         // Find the condition node to get its name
         const conditionNode = activities.find((a) => a.id === conditionId)
-        const conditionName = conditionNode?.name || conditionId
+        const conditionName = conditionNode?.name ?? conditionId
 
         errors.push({
           id: `converge-same-condition-${converge.id}-${conditionId}`,
           severity: 'error',
           rule: 'converge-inputs',
-          message: `Converge "${converge.name || converge.id}" receives inputs from both 'Then' and 'Else' branches of condition "${conditionName}". This creates ambiguous execution flow.`,
+          message: `Converge "${converge.name ?? converge.id}" receives inputs from both 'Then' and 'Else' branches of condition "${conditionName}". This creates ambiguous execution flow.`,
           nodeIds: [converge.id, conditionId],
           suggestion:
             'Restructure the workflow so that only one branch of the condition leads to this converge node. ' +

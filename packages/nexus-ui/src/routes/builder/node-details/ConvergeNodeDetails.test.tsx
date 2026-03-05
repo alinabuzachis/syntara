@@ -61,7 +61,7 @@ vi.mock('../node-forms/ConvergeNodeForm', () => ({
           }}
           data-testid="submit-button"
         >
-          {submitButtonText || 'Add node'}
+          {submitButtonText ?? 'Add node'}
         </button>
       </div>
     )

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from './workflowNaming'
 
 describe('getNextDefaultWorkflowName', () => {

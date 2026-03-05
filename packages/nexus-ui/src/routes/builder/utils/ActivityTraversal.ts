@@ -24,7 +24,7 @@ export class ActivityTraversal {
    */
   static getFirstActivityId(activity: Activity): string {
     if (activity.type === ActivityTypeEnum.SEQUENCE) {
-      const steps = activity.steps || []
+      const steps = activity.steps ?? []
       if (steps.length > 0) {
         return this.getFirstActivityId(steps[0])
       }
@@ -40,7 +40,7 @@ export class ActivityTraversal {
    */
   static getLastActivityId(activity: Activity): string {
     if (activity.type === ActivityTypeEnum.SEQUENCE) {
-      const steps = activity.steps || []
+      const steps = activity.steps ?? []
       if (steps.length > 0) {
         return this.getLastActivityId(steps[steps.length - 1])
       }
@@ -51,8 +51,8 @@ export class ActivityTraversal {
       // For conditions, we find the last activity in the then branch
       // (or else branch if then is empty). If both branches lead to the same converge point,
       // we can use either one.
-      const thenActivities = condActivity.then || []
-      const elseActivities = condActivity.else || []
+      const thenActivities = condActivity.then ?? []
+      const elseActivities = condActivity.else ?? []
 
       if (thenActivities.length > 0) {
         return this.getLastActivityId(thenActivities[thenActivities.length - 1])
@@ -75,7 +75,7 @@ export class ActivityTraversal {
    */
   static getAllLastActivityIds(activity: Activity): string[] {
     if (activity.type === ActivityTypeEnum.SEQUENCE) {
-      const steps = activity.steps || []
+      const steps = activity.steps ?? []
       if (steps.length > 0) {
         return this.getAllLastActivityIds(steps[steps.length - 1])
       }
@@ -83,7 +83,7 @@ export class ActivityTraversal {
 
     if (activity.type === ActivityTypeEnum.PARALLEL) {
       const parallelActivity = activity
-      const branches = parallelActivity.branches || []
+      const branches = parallelActivity.branches ?? []
       const lastIds: string[] = []
 
       // Get last IDs from all parallel branches
@@ -96,8 +96,8 @@ export class ActivityTraversal {
 
     if (activity.type === ActivityTypeEnum.CONDITION) {
       const condActivity = activity
-      const thenActivities = condActivity.then || []
-      const elseActivities = condActivity.else || []
+      const thenActivities = condActivity.then ?? []
+      const elseActivities = condActivity.else ?? []
       const lastIds: string[] = []
 
       // Get last IDs from both branches
@@ -128,15 +128,15 @@ export class ActivityTraversal {
   static getNestedActivities(activity: Activity): Activity[] {
     switch (activity.type) {
       case ActivityTypeEnum.SEQUENCE:
-        return activity.steps || []
+        return activity.steps ?? []
       case ActivityTypeEnum.PARALLEL:
-        return activity.branches || []
+        return activity.branches ?? []
       case ActivityTypeEnum.LOOP:
-        return activity.loop?.do || []
+        return activity.loop?.do ?? []
       case ActivityTypeEnum.CONDITION:
-        return [...(activity.then || []), ...(activity.else || [])]
+        return [...(activity.then ?? []), ...(activity.else ?? [])]
       case ActivityTypeEnum.APPROVAL:
-        return [...(activity.onApproved || []), ...(activity.onRejected || [])]
+        return [...(activity.onApproved ?? []), ...(activity.onRejected ?? [])]
       case ActivityTypeEnum.TASK:
       case ActivityTypeEnum.CONVERGE:
         return []

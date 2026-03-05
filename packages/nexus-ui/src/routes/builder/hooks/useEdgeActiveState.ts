@@ -37,7 +37,7 @@ export function useEdgeActiveState({
           edge.type === 'loopOutgoing' ||
           edge.type === 'loopDone'
         ) {
-          const needsData = !edge.data || !edge.data.onAddNode
+          const needsData = !edge.data?.onAddNode
           const needsMarker = !edge.markerEnd
           const needsActiveUpdate = edge.data?.isActive !== (activeEdgeId === edge.id || edge.data?.isPending)
 
@@ -45,10 +45,10 @@ export function useEdgeActiveState({
             updated = true
             return {
               ...edge,
-              markerEnd: edge.markerEnd || markerEnd,
+              markerEnd: edge.markerEnd ?? markerEnd,
               data: {
                 ...edge.data,
-                onAddNode: edge.data?.onAddNode || onAddNodeFromEdge,
+                onAddNode: edge.data?.onAddNode ?? onAddNodeFromEdge,
                 isActive: activeEdgeId === edge.id || edge.data?.isPending,
               },
             }
@@ -71,7 +71,7 @@ export function useEdgeActiveState({
         if (edge.type === 'buttonEdge' || edge.id.startsWith('button-')) {
           const nodeId = edge.source
           // Get the handle from the edge data or extract from edge ID
-          const edgeHandle = edge.data?.sourceHandle || edge.sourceHandle || 'source'
+          const edgeHandle = edge.data?.sourceHandle ?? edge.sourceHandle ?? 'source'
 
           // Determine if this button edge should be active
           // For nodes with specific handles (condition: true/false, loop: done/loop, approval: approved/rejected),

@@ -51,7 +51,7 @@ vi.mock('../node-forms/LoopNodeForm', () => ({
         }
         data-testid="submit-button"
       >
-        {submitButtonText || 'Add node'}
+        {submitButtonText ?? 'Add node'}
       </button>
     </div>
   ),

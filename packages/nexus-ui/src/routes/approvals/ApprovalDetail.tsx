@@ -138,7 +138,7 @@ export default function ApprovalDetail() {
   }
 
   const approvalName = approval?.name || approval?.id || approvalId || 'Approval'
-  const approvalStatus = approval?.status || 'pending'
+  const approvalStatus = approval?.status ?? 'pending'
   const isPending = approvalStatus === 'pending'
   const automationName = approval?.workflow_context?.workflow_name || 'Automation'
   const automationId = approval?.workflow_context?.workflow_version_id

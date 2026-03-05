@@ -166,7 +166,7 @@ export function ExpressionGroup(props: ExpressionGroupProps) {
                   <Checkbox
                     id={`not-${group.id}`}
                     label="Not"
-                    isChecked={group.negate || false}
+                    isChecked={group.negate ?? false}
                     onChange={(_event, checked) => onChange({ negate: checked })}
                     aria-label="Negate group"
                   />

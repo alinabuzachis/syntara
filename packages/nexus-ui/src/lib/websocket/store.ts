@@ -154,7 +154,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
         socket: null,
         url,
         state: 'connecting',
-        reconnectAttempts: existing?.reconnectAttempts || 0,
+        reconnectAttempts: existing?.reconnectAttempts ?? 0,
       }
 
       set((state) => {
@@ -196,7 +196,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
         socket.onmessage = (event) => {
           try {
             const message: WebSocketMessage = JSON.parse(event.data)
-            message.timestamp = message.timestamp || Date.now()
+            message.timestamp = message.timestamp ?? Date.now()
             message.channel = channelId
             notifyMessage(channelId, message)
           } catch {
@@ -236,12 +236,12 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
 
     send: (channelId, message) => {
       const channel = get().channels.get(channelId)
-      if (!channel || channel.state !== 'connected' || !channel.socket) {
+      if (channel?.state !== 'connected' || !channel.socket) {
         return false
       }
 
       try {
-        channel.socket.send(JSON.stringify({ ...message, timestamp: message.timestamp || Date.now() }))
+        channel.socket.send(JSON.stringify({ ...message, timestamp: message.timestamp ?? Date.now() }))
         return true
       } catch {
         return false
@@ -250,7 +250,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
 
     sendRaw: (channelId, data) => {
       const channel = get().channels.get(channelId)
-      if (!channel || channel.state !== 'connected' || !channel.socket) {
+      if (channel?.state !== 'connected' || !channel.socket) {
         return false
       }
 
@@ -276,7 +276,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
     },
 
     getConnectionState: (channelId) => {
-      return get().channels.get(channelId)?.state || 'disconnected'
+      return get().channels.get(channelId)?.state ?? 'disconnected'
     },
 
     isConnected: (channelId) => {
@@ -312,7 +312,7 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
 // ============================================================================
 
 export const selectConnectionState = (channelId: string) => (state: WebSocketStore) =>
-  state.channels.get(channelId)?.state || 'disconnected'
+  state.channels.get(channelId)?.state ?? 'disconnected'
 
 export const selectIsConnected = (channelId: string) => (state: WebSocketStore) =>
   state.channels.get(channelId)?.state === 'connected'

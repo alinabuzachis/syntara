@@ -140,7 +140,7 @@ describe('ButtonEdge', () => {
     })
 
     afterEach(() => {
-      if (mockHandleElement && mockHandleElement.parentNode) {
+      if (mockHandleElement?.parentNode) {
         mockHandleElement.parentNode.removeChild(mockHandleElement)
       }
     })

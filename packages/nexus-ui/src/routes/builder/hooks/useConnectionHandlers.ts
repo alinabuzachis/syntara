@@ -129,7 +129,7 @@ export function useConnectionHandlers({
         // Remove the has-button-edge class if no more button edges
         return filtered.map((n) => {
           if (n.id === connection.source) {
-            const className = (n.className || '').replace('has-button-edge', '').trim()
+            const className = (n.className ?? '').replace('has-button-edge', '').trim()
             return { ...n, className }
           }
           return n
@@ -146,8 +146,7 @@ export function useConnectionHandlers({
         // React Flow's handle detection can pick the wrong handle when handles overlap,
         // so we use the explicitly set handle ID if available.
         const pendingHandle = consumePendingDragHandle()
-        const handleId =
-          pendingHandle && pendingHandle.nodeId === params.nodeId ? pendingHandle.handleId : params.handleId
+        const handleId = pendingHandle?.nodeId === params.nodeId ? pendingHandle.handleId : params.handleId
 
         // Prevent starting a new connection from the loop handle if it already has a connection
         if (handleId === EdgeHandleEnum.LOOP) {

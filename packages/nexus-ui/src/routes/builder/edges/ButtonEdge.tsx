@@ -69,7 +69,7 @@ export function ButtonEdge(props: ButtonEdgeProps) {
     if (!sourceNode) return
 
     // Use the actual handle ID from the edge (could be "source", "true", or "false")
-    const handleId = fullEdge?.sourceHandle || 'source'
+    const handleId = fullEdge?.sourceHandle ?? 'source'
 
     // Find the source handle element on the source node
     const handleElement = document.querySelector(`[data-nodeid="${source}"][data-handleid="${handleId}"]`)

@@ -43,7 +43,7 @@ import type { Expression, ExpressionNode, ExpressionCondition, ComparisonOperato
  */
 export function parseExpression(templateString: string): Expression {
   // Handle empty input
-  if (!templateString || !templateString.trim()) {
+  if (!templateString?.trim()) {
     return { root: null }
   }
 

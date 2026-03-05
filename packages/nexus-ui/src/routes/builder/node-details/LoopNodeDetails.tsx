@@ -81,7 +81,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
                 typeof data.maxIterations === 'number' && Number.isInteger(data.maxIterations) && data.maxIterations > 0
                   ? data.maxIterations
                   : undefined,
-              maxIterationsBehavior: data.maxIterationsBehavior || 'continue',
+              maxIterationsBehavior: data.maxIterationsBehavior ?? 'continue',
             }
 
       const updatedActivity: LoopActivity = {

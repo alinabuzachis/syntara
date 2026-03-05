@@ -54,8 +54,11 @@ export default tseslint.config(
       'react/self-closing-comp': 'error',
       'unicorn/prefer-number-properties': 'error',
       'unicorn/no-nested-ternary': 'error',
-      '@typescript-eslint/prefer-optional-chain': 'warn',
-      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+      '@typescript-eslint/prefer-optional-chain': 'error',
+      '@typescript-eslint/prefer-nullish-coalescing': [
+        'error',
+        { ignorePrimitives: { string: true, boolean: true } },
+      ],
       '@typescript-eslint/require-array-sort-compare': 'warn',
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
       '@typescript-eslint/prefer-includes': 'warn',

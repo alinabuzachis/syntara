@@ -130,7 +130,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const edges: EdgeType[] = []
     const previousIds: string[] = []
 
-    const triggersList = triggers || []
+    const triggersList = triggers ?? []
     triggersList.forEach((trigger: Trigger, index: number) => {
       const triggerId = buildTriggerNodeId(index)
       const { name, details } = getTriggerDisplayData(trigger)
@@ -138,7 +138,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         name,
         details,
         triggerType: trigger.type,
-        inputs: currentWorkflow?.inputs || {},
+        inputs: currentWorkflow?.inputs ?? {},
       }
       // Enrich trigger with execution state
       const enrichedTriggerData = executionStateEnricher.enrichTriggerNode(
@@ -157,7 +157,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
       previousIds.push(triggerId)
     })
 
-    const activities = currentWorkflow?.workflow.activities || []
+    const activities = currentWorkflow?.workflow.activities ?? []
 
     // Create nodes for converge, condition, and loop activities first (needed for loop-back detection)
     activities.forEach((activity: Activity) => {
@@ -425,12 +425,16 @@ export function BuilderFlow(props: BuilderFlowProps) {
         activityIds.add(a.id)
         // Also add activities from parallel_for_* wrapper branches
         if (a.type === 'parallel' && a.id.startsWith('parallel_for_')) {
-          const branches = a.branches || []
-          branches.forEach((branch: Activity) => activityIds.add(branch.id))
+          const branches = a.branches ?? []
+          branches.forEach((branch: Activity) => {
+            activityIds.add(branch.id)
+          })
         }
       })
-      const triggers = currentWorkflow.triggers || []
-      triggers.forEach((_: unknown, index: number) => activityIds.add(buildTriggerNodeId(index)))
+      const triggers = currentWorkflow.triggers ?? []
+      triggers.forEach((_: unknown, index: number) => {
+        activityIds.add(buildTriggerNodeId(index))
+      })
 
       // CRITICAL: Check if ALL edges reference activities in this workflow
       // If ANY edge references an activity not in this workflow, edges are stale
@@ -533,7 +537,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
             hasChanges = true
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { __reverseHandles: _reverseHandles, ...restMetadata } =
-              (node.data as ActivityWithMetadata).metadata || {}
+              (node.data as ActivityWithMetadata).metadata ?? {}
             return {
               ...node,
               data: {
@@ -662,7 +666,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     if (!executionStatus || !isInitialized) return
 
     // Get current activities from workflow store
-    const activities = currentWorkflow?.workflow.activities || []
+    const activities = currentWorkflow?.workflow.activities ?? []
 
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {

@@ -200,5 +200,5 @@ export function useShouldStreamExecution(executionId: string): boolean {
   const terminalStatuses = ['completed', 'failed', 'cancelled']
 
   // Stream only if execution is in non-terminal state
-  return !terminalStatuses.includes(data.status || '')
+  return !terminalStatuses.includes(data.status ?? '')
 }

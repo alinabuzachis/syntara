@@ -72,7 +72,7 @@ export class EdgeFactory {
       source,
       target,
       ...(sourceHandle ? { sourceHandle } : {}),
-      targetHandle: targetHandle || EdgeHandleEnum.TARGET,
+      targetHandle: targetHandle ?? EdgeHandleEnum.TARGET,
       type: edgeType,
       markerEnd,
       ...(onAddNode ? { data: { onAddNode } } : {}),

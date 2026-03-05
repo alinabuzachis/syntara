@@ -62,14 +62,14 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
 
     const aapInitialData: Partial<AAPFormData> = {
       name: taskData.name,
-      jobTemplateId: aapConfig.jobTemplateId?.toString() || '',
-      inventory: aapConfig.inventory?.toString() || '',
-      credentials: aapConfig.credentials?.join(',') || '',
+      jobTemplateId: aapConfig.jobTemplateId?.toString() ?? '',
+      inventory: aapConfig.inventory?.toString() ?? '',
+      credentials: aapConfig.credentials?.join(',') ?? '',
       extraVars: aapConfig.extraVars ? JSON.stringify(aapConfig.extraVars, null, 2) : '',
-      limit: aapConfig.limit || '',
-      tags: aapConfig.tags || '',
-      skipTags: aapConfig.skipTags || '',
-      verbosity: aapConfig.verbosity?.toString() || '',
+      limit: aapConfig.limit ?? '',
+      tags: aapConfig.tags ?? '',
+      skipTags: aapConfig.skipTags ?? '',
+      verbosity: aapConfig.verbosity?.toString() ?? '',
     }
 
     const handleAAPSubmit = (data: AAPFormData) => {
@@ -153,7 +153,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
       const updatedActivity = {
         ...taskData,
         name: data.name,
-        requiresApproval: requiresApproval || undefined,
+        requiresApproval: requiresApproval ?? undefined,
         task: {
           executor: data.executor,
           config:

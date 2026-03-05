@@ -29,7 +29,7 @@ function processMultiHandleNode(
   placeholderNodesToAdd: NodeType[]
 ) {
   handles.forEach((handleId) => {
-    const handleConnected = connectedHandles.get(node.id)?.has(handleId) || false
+    const handleConnected = connectedHandles.get(node.id)?.has(handleId) ?? false
     // Only consider this handle as having a pending edge if both nodeId AND handleId match
     const hasPendingEdge = pendingEdge?.sourceNodeId === node.id && pendingEdge?.sourceHandle === handleId
 
@@ -263,7 +263,7 @@ export function useButtonEdgeMaintenance({
       const connectedHandles = new Map<string, Set<string>>()
       edges.forEach((edge) => {
         if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')) {
-          const handle = edge.sourceHandle || 'source'
+          const handle = edge.sourceHandle ?? 'source'
           if (!connectedHandles.has(edge.source)) {
             connectedHandles.set(edge.source, new Set())
           }
@@ -327,7 +327,7 @@ export function useButtonEdgeMaintenance({
           return
         }
 
-        const sourceHandleConnected = connectedHandles.get(node.id)?.has('source') || false
+        const sourceHandleConnected = connectedHandles.get(node.id)?.has('source') ?? false
         const hasPendingEdge = pendingEdge?.sourceNodeId === node.id
         const shouldHaveButtonEdge = !sourceHandleConnected && !hasPendingEdge
 
@@ -582,7 +582,7 @@ export function useButtonEdgeMaintenance({
             conditionHasButtonEdge ||
             loopHasButtonEdge ||
             approvalHasButtonEdge
-          const currentClassName = node.className || ''
+          const currentClassName = node.className ?? ''
 
           // Build new className with button edge class and connected handle classes
           let newClassName = currentClassName

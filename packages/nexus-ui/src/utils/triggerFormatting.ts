@@ -17,7 +17,7 @@ export interface ParsedRepeatingInterval {
  * Supports formats like: "R/2024-01-01T10:00:00Z/P1D" or "R/2024-01-01T10:00:00Z/P1D/2024-12-31T23:59:59Z"
  */
 export function parseRepeatingInterval(interval: string): ParsedRepeatingInterval {
-  if (!interval || !interval.startsWith('R/')) {
+  if (!interval?.startsWith('R/')) {
     return { start: '', cadence: '' }
   }
 

@@ -51,7 +51,7 @@ vi.mock('../node-forms/ApprovalNodeForm', () => ({
         }
         data-testid="submit-button"
       >
-        {submitButtonText || 'Add node'}
+        {submitButtonText ?? 'Add node'}
       </button>
       <button onClick={onCancel} data-testid="cancel-button">
         Cancel

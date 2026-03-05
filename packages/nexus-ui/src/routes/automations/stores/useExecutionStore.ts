@@ -212,7 +212,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
   setExecution: (execution: Execution) => {
     // Build activity state map from execution data
-    const activities = execution.activities || []
+    const activities = execution.activities ?? []
     const activityStateMap = buildActivityStateMap(activities)
 
     // Extract error map for fast lookups (activityStates will be the full map)
@@ -221,8 +221,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     // Build visualization object
     const visualization: ExecutionVisualization = {
       executionId: execution.id,
-      workflowId: execution.workflow_id || '',
-      status: execution.status || 'pending',
+      workflowId: execution.workflow_id ?? '',
+      status: execution.status ?? 'pending',
       workflowDefinition: execution.workflow_definition,
       activities: activityStateMap,
       createdAt: execution.created_at,

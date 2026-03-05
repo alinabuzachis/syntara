@@ -8,6 +8,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
 
+import { useWorkflowStore } from '../../stores/useWorkflowStore'
+
 import { BuilderContent } from './BuilderContent'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
@@ -2044,18 +2046,25 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Workflow Save Error Handling', () => {
-    it('shows error when currentWorkflow is null during save', async () => {
-      // New workflow with no activities - should show validation error
+    it('shows error alert when currentWorkflow is null during save', async () => {
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
-      const saveButton = screen.getByRole('button', { name: /save/i })
-      fireEvent.click(saveButton)
-
-      // Should trigger validation which fails for empty workflow
-      // This tests line 557-559 (validation error path)
+      // Wait for the new-workflow useEffect to finish initializing, then clear it
       await waitFor(() => {
-        // Alert should be shown or save should fail
-        expect(screen.queryByRole('alert') || screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
+        expect(useWorkflowStore.getState().currentWorkflow).not.toBeNull()
+      })
+
+      await act(async () => {
+        useWorkflowStore.setState({ currentWorkflow: null })
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /save/i }))
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('No workflow to save')).toBeInTheDocument()
+        expect(screen.getByText('Validation Failed')).toBeInTheDocument()
       })
     })
   })

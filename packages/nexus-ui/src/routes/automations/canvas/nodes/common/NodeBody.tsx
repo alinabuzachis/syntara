@@ -34,7 +34,7 @@ export function NodeBody(props: NodeBodyProps) {
     >
       {/* Content container */}
       <div
-        className={`nodrag nopan ${props.className || ''}`}
+        className={`nodrag nopan ${props.className ?? ''}`}
         style={{
           paddingLeft: 'var(--pf-t--global--spacer--md)',
           paddingRight: 'var(--pf-t--global--spacer--md)',

@@ -321,7 +321,7 @@ describe('parseExpression', () => {
     expect(nestedGroup.type).toBe('group')
     expect(nestedGroup.operator).toBe('OR')
     // Nested group should not have negate set (or be undefined/false)
-    expect(nestedGroup.negate || false).toBe(false)
+    expect(nestedGroup.negate ?? false).toBe(false)
   })
 
   it('parses AND group with two negated conditions', () => {

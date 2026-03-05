@@ -154,7 +154,7 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
 
   // Visual mode: render group or default empty group
   // If root is a single condition, wrap it in a group for consistent UI
-  const rawRoot = state.expression.root || createDefaultGroup()
+  const rawRoot = state.expression.root ?? createDefaultGroup()
   const rootNode: ExpressionGroupType =
     rawRoot.type === 'condition'
       ? {

@@ -36,7 +36,7 @@ export default function IntegrationTools() {
   const params = useParams()
   const [, navigate] = useLocation()
   const queryClient = useQueryClient()
-  const provider_id = params?.provider_id || ''
+  const provider_id = params?.provider_id ?? ''
   const { showAlert } = useAlerts()
   const [cursor, setCursor] = useState<string | null>(null)
 

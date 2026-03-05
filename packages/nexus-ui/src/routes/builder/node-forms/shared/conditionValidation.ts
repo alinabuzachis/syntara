@@ -17,7 +17,7 @@ import { hasValidationErrors } from '../../../../utils/expressions/validation'
 export const conditionValidationRules = {
   required: 'Condition is required',
   validate: (value: string | undefined) => {
-    if (!value || !value.trim()) return 'Condition cannot be empty'
+    if (!value?.trim()) return 'Condition cannot be empty'
     if (!value.startsWith('${') || !value.endsWith('}')) {
       return 'Condition must be in format: ${expression}'
     }

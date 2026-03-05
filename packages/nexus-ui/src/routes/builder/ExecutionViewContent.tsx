@@ -74,7 +74,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
     if (workflow && !hasLoadedRef.current && canLoadWorkflow) {
       // Extract workflow definition - handle both direct workflow and version.workflow_definition structures
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const workflowDef = (workflow as any).version?.workflow_definition || workflow
+      const workflowDef = (workflow as any).version?.workflow_definition ?? workflow
 
       // Safety check - ensure we have the workflow structure
       if (!workflowDef?.workflow?.activities) {
@@ -87,14 +87,14 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
       const { activities: flattenedActivities, edges: generatedEdges } = loadWorkflow(workflowDef.workflow.activities)
 
       // Generate trigger edges (triggers connect to first activities)
-      const triggers = workflowDef.triggers || []
+      const triggers = workflowDef.triggers ?? []
       if (triggers.length > 0 && workflowDef.workflow.activities.length > 0) {
         const firstActivity = workflowDef.workflow.activities[0]
 
         triggers.forEach((_: unknown, index: number) => {
           // If first activity is a parallel, connect to its branches
           if (firstActivity.type === ACTIVITY_TYPES.PARALLEL) {
-            const branches = firstActivity.branches || []
+            const branches = firstActivity.branches ?? []
             branches.forEach((branch: Activity) => {
               // Use getFirstActivityId to handle sequence wrappers that will be flattened away
               const targetId = WorkflowTransform.getFirstActivityId(branch)

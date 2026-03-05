@@ -38,7 +38,7 @@ vi.mock('../node-forms/ConditionNodeForm', () => ({
   }) => (
     <div data-testid="condition-node-form">
       <button onClick={() => onSubmit({ name: 'Updated Condition', condition: 'true' })} data-testid="submit-button">
-        {submitButtonText || 'Add node'}
+        {submitButtonText ?? 'Add node'}
       </button>
     </div>
   ),

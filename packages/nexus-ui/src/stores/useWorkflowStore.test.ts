@@ -264,7 +264,7 @@ describe('useWorkflowStore', () => {
         useWorkflowStore.getState().removeActivity('J')
 
         const state = useWorkflowStore.getState()
-        const activities = state.currentWorkflow?.workflow.activities || []
+        const activities = state.currentWorkflow?.workflow.activities ?? []
 
         // Parallel container should be removed
         expect(activities.find((a) => a.id === 'parallel_for_J')).toBeUndefined()
@@ -376,7 +376,7 @@ describe('useWorkflowStore', () => {
 
       useWorkflowStore.getState().moveActivityBefore('C', 'A')
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities.map((a) => a.id)).toEqual(['C', 'A', 'B'])
     })
 
@@ -398,7 +398,7 @@ describe('useWorkflowStore', () => {
 
       useWorkflowStore.getState().moveActivityBefore('A', 'B')
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities.map((a) => a.id)).toEqual(['A', 'B'])
     })
   })
@@ -423,7 +423,7 @@ describe('useWorkflowStore', () => {
 
       useWorkflowStore.getState().moveActivityAfter('A', 'C')
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities.map((a) => a.id)).toEqual(['B', 'C', 'A'])
     })
 
@@ -445,7 +445,7 @@ describe('useWorkflowStore', () => {
 
       useWorkflowStore.getState().moveActivityAfter('B', 'A')
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities.map((a) => a.id)).toEqual(['A', 'B'])
     })
   })

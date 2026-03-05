@@ -294,7 +294,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
     set((state) => {
       if (!state.currentWorkflow) return state
 
-      const triggers = state.currentWorkflow.triggers || []
+      const triggers = state.currentWorkflow.triggers ?? []
       return {
         currentWorkflow: {
           ...state.currentWorkflow,
@@ -371,7 +371,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           const parallelActivity = activities[parallelIndex] as Extract<Activity, { type: 'parallel' }>
 
           // Extract all activities from the parallel's branches
-          const branchActivities = parallelActivity.branches || []
+          const branchActivities = parallelActivity.branches ?? []
 
           // Remove the parallel activity
           activities = activities.filter((a) => a.id !== parallelId)
@@ -440,8 +440,8 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
               if (act.type === ActivityTypeEnum.SEQUENCE && act.steps) {
                 act.steps.forEach(collectActivityIds)
               } else if (act.type === ActivityTypeEnum.CONDITION) {
-                ;(act.then || []).forEach(collectActivityIds)
-                ;(act.else || []).forEach(collectActivityIds)
+                ;(act.then ?? []).forEach(collectActivityIds)
+                ;(act.else ?? []).forEach(collectActivityIds)
               } else if (act.type === ActivityTypeEnum.LOOP && act.loop.do) {
                 act.loop.do.forEach(collectActivityIds)
               }
@@ -657,8 +657,8 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
         }
 
         // Map source and target to top-level activities (or keep as-is if already top-level)
-        const mappedSource = activityToParentMap.get(edge.source) || edge.source
-        const mappedTarget = activityToParentMap.get(edge.target) || edge.target
+        const mappedSource = activityToParentMap.get(edge.source) ?? edge.source
+        const mappedTarget = activityToParentMap.get(edge.target) ?? edge.target
 
         // Only add edge if both source and target are top-level activities and they're different
         if (
@@ -666,12 +666,12 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           topLevelActivityIds.has(mappedTarget) &&
           mappedSource !== mappedTarget
         ) {
-          const neighbors = adjacencyList.get(mappedSource) || []
+          const neighbors = adjacencyList.get(mappedSource) ?? []
           // Avoid duplicate edges
           if (!neighbors.includes(mappedTarget)) {
             neighbors.push(mappedTarget)
             adjacencyList.set(mappedSource, neighbors)
-            inDegree.set(mappedTarget, (inDegree.get(mappedTarget) || 0) + 1)
+            inDegree.set(mappedTarget, (inDegree.get(mappedTarget) ?? 0) + 1)
           }
         }
       })
@@ -694,9 +694,9 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
         const current = queue.shift()!
         sortedIds.push(current)
 
-        const neighbors = adjacencyList.get(current) || []
+        const neighbors = adjacencyList.get(current) ?? []
         neighbors.forEach((neighbor) => {
-          const newDegree = (inDegree.get(neighbor) || 0) - 1
+          const newDegree = (inDegree.get(neighbor) ?? 0) - 1
           inDegree.set(neighbor, newDegree)
           if (newDegree === 0) {
             queue.push(neighbor)
@@ -777,7 +777,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
 
           if (parallelIndex !== -1) {
             const parallelActivity = activities[parallelIndex] as Extract<Activity, { type: 'parallel' }>
-            const branchActivities = parallelActivity.branches || []
+            const branchActivities = parallelActivity.branches ?? []
 
             // Remove the parallel activity
             activities = activities.filter((a) => a.id !== parallelId)

@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <CompassPanel isFullHeight>
               <ErrorState
                 title="Something went wrong"
-                message={this.state.error?.message || 'An unexpected error occurred'}
+                message={this.state.error?.message ?? 'An unexpected error occurred'}
               />
             </CompassPanel>
           </StackItem>

@@ -123,7 +123,7 @@ export function AddNodePanel(props: AddNodePanelProps) {
           }}
         >
           <Stack hasGutter>
-            {selectedNode && selectedNode.subtypes?.length ? (
+            {selectedNode?.subtypes?.length ? (
               <NodeTypeOptionsList
                 nodeTypes={selectedNode.subtypes
                   .map((subtype, index) => ({ subtype, index }))

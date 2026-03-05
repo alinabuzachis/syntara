@@ -50,7 +50,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       })
 
       const state = useWorkflowStore.getState()
-      const activities = state.currentWorkflow?.workflow.activities || []
+      const activities = state.currentWorkflow?.workflow.activities ?? []
 
       // B should be removed
       expect(activities).toHaveLength(2)
@@ -83,7 +83,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         edges: [],
       })
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities).toHaveLength(2)
       expect(activities.map((a) => a.id)).toEqual(['A', 'D'])
     })
@@ -121,7 +121,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         edges: [],
       })
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // Join should be removed
       expect(activities.find((a) => a.id === 'J')).toBeUndefined()
@@ -173,7 +173,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         edges: [],
       })
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
       // All joins and parallels should be removed
       expect(activities.find((a) => a.id === 'J1')).toBeUndefined()
@@ -210,7 +210,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         triggerIndices: [1], // Remove second trigger
       })
 
-      const triggers = useWorkflowStore.getState().currentWorkflow?.triggers || []
+      const triggers = useWorkflowStore.getState().currentWorkflow?.triggers ?? []
       expect(triggers).toHaveLength(2)
       expect(triggers).toEqual([trigger1, trigger3])
     })
@@ -238,7 +238,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         triggerIndices: [0, 2], // Remove first and third
       })
 
-      const triggers = useWorkflowStore.getState().currentWorkflow?.triggers || []
+      const triggers = useWorkflowStore.getState().currentWorkflow?.triggers ?? []
       expect(triggers).toHaveLength(1)
       expect(triggers).toEqual([trigger2])
     })
@@ -296,8 +296,8 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       })
 
       const state = useWorkflowStore.getState()
-      const activities = state.currentWorkflow?.workflow.activities || []
-      const triggers = state.currentWorkflow?.triggers || []
+      const activities = state.currentWorkflow?.workflow.activities ?? []
+      const triggers = state.currentWorkflow?.triggers ?? []
 
       expect(activities).toHaveLength(1)
       expect(activities[0].id).toBe('B')
@@ -347,7 +347,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       })
 
       const state = useWorkflowStore.getState()
-      const activities = state.currentWorkflow?.workflow.activities || []
+      const activities = state.currentWorkflow?.workflow.activities ?? []
 
       // Should have B and C (restored from parallel), no A, no J, no parallel
       expect(activities.map((a) => a.id).sort()).toEqual(['B', 'C'])
@@ -387,7 +387,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         edges: [],
       })
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const updatedCondition = activities[0] as Extract<Activity, { type: 'condition' }>
 
       expect(updatedCondition.then).toHaveLength(0)
@@ -424,7 +424,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         edges: [],
       })
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities).toHaveLength(0)
     })
   })
@@ -463,7 +463,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         edges: [],
       })
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities).toHaveLength(1)
       expect(activities[0].id).toBe('A')
     })
@@ -488,7 +488,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         edges: [],
       })
 
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities || []
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       expect(activities).toHaveLength(1)
       expect(activities[0].id).toBe('A')
     })
@@ -514,7 +514,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
         triggerIndices: [99], // Out of bounds
       })
 
-      const triggers = useWorkflowStore.getState().currentWorkflow?.triggers || []
+      const triggers = useWorkflowStore.getState().currentWorkflow?.triggers ?? []
       expect(triggers).toHaveLength(1)
     })
   })

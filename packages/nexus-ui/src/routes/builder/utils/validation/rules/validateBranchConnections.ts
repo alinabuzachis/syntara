@@ -46,7 +46,7 @@ export function validateBranchConnections(
         id: `${config.errorIdPrefix}-${node.id}`,
         severity: 'error',
         rule: config.ruleName,
-        message: `${config.nodeTypeName} "${node.name || node.id}" is missing a connection from the '${config.branchName}' branch`,
+        message: `${config.nodeTypeName} "${node.name ?? node.id}" is missing a connection from the '${config.branchName}' branch`,
         nodeId: node.id,
         suggestion: `Add a node and connect it from the "${config.branchName}" handle of this ${config.nodeTypeName.toLowerCase()} node`,
       })

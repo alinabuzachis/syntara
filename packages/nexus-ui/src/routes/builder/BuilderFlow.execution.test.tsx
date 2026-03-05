@@ -152,7 +152,7 @@ function shouldMarkAsCompleted(
   // Check if any target node has started (meaning this branch was taken)
   return outgoingBranchEdges.some((edge) => {
     const targetState = activityStates.get(edge.target)
-    return targetState && targetState.startedAt
+    return targetState?.startedAt
   })
 }
 
@@ -564,12 +564,12 @@ describe('BuilderFlow Execution Visualization', () => {
 
       // True branch was taken (task1 started)
       const targetState = activityStates.get(trueEdge.target)
-      const trueEdgeStatus = targetState && targetState.startedAt ? 'passed' : 'pending'
+      const trueEdgeStatus = targetState?.startedAt ? 'passed' : 'pending'
       expect(trueEdgeStatus).toBe('passed')
 
       // False branch was not taken (task2 never started)
       const falseTargetState = activityStates.get(falseEdge.target)
-      const falseEdgeStatus = falseTargetState && falseTargetState.startedAt ? 'passed' : 'pending'
+      const falseEdgeStatus = falseTargetState?.startedAt ? 'passed' : 'pending'
       expect(falseEdgeStatus).toBe('pending')
     })
   })

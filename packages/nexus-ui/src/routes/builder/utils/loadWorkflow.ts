@@ -19,7 +19,7 @@ function deduplicateEdges(edges: EdgeConnection[]): EdgeConnection[] {
 
   for (const edge of edges) {
     // Create unique key: source + target + sourceHandle (if any)
-    const key = `${edge.source}-${edge.target}-${edge.sourceHandle || 'default'}`
+    const key = `${edge.source}-${edge.target}-${edge.sourceHandle ?? 'default'}`
 
     // Keep first occurrence of each unique edge
     if (!seen.has(key)) {

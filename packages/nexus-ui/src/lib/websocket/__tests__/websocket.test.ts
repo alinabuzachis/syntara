@@ -43,7 +43,7 @@ class MockWebSocket {
   close(code?: number): void {
     this.readyState = MockWebSocket.CLOSED
     if (this.onclose) {
-      this.onclose({ code: code || 1000 } as CloseEvent)
+      this.onclose({ code: code ?? 1000 } as CloseEvent)
     }
   }
 
