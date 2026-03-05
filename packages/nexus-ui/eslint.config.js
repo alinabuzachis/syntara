@@ -65,7 +65,7 @@ export default tseslint.config(
       complexity: ['warn', 15],
       'max-depth': ['warn', 4],
       'max-params': ['warn', 5],
-      'max-nested-callbacks': ['warn', 4],
+      'max-nested-callbacks': ['error', 4],
       'import-x/order': [
         'error',
         {

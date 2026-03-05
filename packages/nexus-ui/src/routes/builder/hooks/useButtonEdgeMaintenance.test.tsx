@@ -735,6 +735,115 @@ describe('useButtonEdgeMaintenance', () => {
     expect(buttonEdge?.data?.isActive).toBe(true)
   })
 
+  it('returns updated edges when only isActive changes (no additions/removals)', () => {
+    const edgesCalls: unknown[][] = []
+    mockSetEdges.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        // Existing button edge with isActive: false — the hook should detect
+        // the active state change and return updated edges
+        const result = updater([
+          {
+            id: 'button-node-1',
+            type: 'buttonEdge',
+            source: 'node-1',
+            sourceHandle: 'source',
+            target: 'placeholder-node-1',
+            targetHandle: 'target',
+            data: { isActive: false },
+          },
+        ])
+        edgesCalls.push(result)
+        return result
+      }
+    })
+
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        nodes: [{ id: 'node-1', type: 'task', position: { x: 100, y: 100 } }] as never[],
+        edges: [
+          {
+            id: 'button-node-1',
+            type: 'buttonEdge',
+            source: 'node-1',
+            sourceHandle: 'source',
+            target: 'placeholder-node-1',
+            data: { isActive: false },
+          },
+        ] as never[],
+        activeEdgeButtonNodeId: 'node-1',
+        activeEdgeButtonHandle: 'source',
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    expect(mockSetEdges).toHaveBeenCalled()
+    const allEdges = edgesCalls.flat()
+    const buttonEdge = allEdges.find((e) => (e as { id: string }).id === 'button-node-1') as {
+      data: { isActive: boolean }
+    }
+    // isActive should be updated to true even though no edges were added/removed
+    expect(buttonEdge?.data?.isActive).toBe(true)
+  })
+
+  it('categorizes button edges by sourceHandle, not by parsing edge ID', () => {
+    const edgesCalls: unknown[][] = []
+    mockSetEdges.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        // Edge ID contains '-true' substring (from node ID) but sourceHandle is 'source'
+        // This should be treated as a regular node edge, not a condition handle
+        const result = updater([
+          {
+            id: 'button-node-with-true-in-name',
+            type: 'buttonEdge',
+            source: 'node-with-true-in-name',
+            sourceHandle: 'source',
+            target: 'placeholder-node-with-true-in-name',
+            targetHandle: 'target',
+            data: { isActive: false },
+          },
+        ])
+        edgesCalls.push(result)
+        return result
+      }
+    })
+
+    renderHook(() =>
+      useButtonEdgeMaintenance({
+        ...defaultOptions,
+        nodes: [{ id: 'node-with-true-in-name', type: 'task', position: { x: 100, y: 100 } }] as never[],
+        edges: [
+          {
+            id: 'button-node-with-true-in-name',
+            type: 'buttonEdge',
+            source: 'node-with-true-in-name',
+            sourceHandle: 'source',
+            target: 'placeholder-node-with-true-in-name',
+            data: { isActive: false },
+          },
+        ] as never[],
+        activeEdgeButtonNodeId: 'node-with-true-in-name',
+        activeEdgeButtonHandle: 'source',
+      })
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    expect(mockSetEdges).toHaveBeenCalled()
+    const allEdges = edgesCalls.flat()
+    const buttonEdge = allEdges.find((e) => (e as { id: string }).id === 'button-node-with-true-in-name') as {
+      data: { isActive: boolean }
+    }
+    // Should be kept as a regular node edge and marked active
+    expect(buttonEdge).toBeDefined()
+    expect(buttonEdge?.data?.isActive).toBe(true)
+  })
+
   it('removes button edge when node gets a real outgoing connection', () => {
     const edgesCalls: unknown[][] = []
     mockSetEdges.mockImplementation((updater) => {

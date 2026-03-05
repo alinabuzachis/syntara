@@ -8,11 +8,6 @@ import type { FlowPosition } from '../types'
 import { filterButtonEdges, filterRealNodes } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
-// Helper function to extract handle ID from loop node button edge ID
-function extractLoopHandleId(edgeId: string): 'done' | 'loop' {
-  return edgeId.includes('-done') ? 'done' : 'loop'
-}
-
 // Configuration for multi-handle node types (condition, loop, approval)
 interface HandlePositionConfig {
   yOffset: number
@@ -61,6 +56,81 @@ function processMultiHandleNode(
       }
     }
   })
+}
+
+/**
+ * Merges new placeholder nodes into the current nodes array,
+ * skipping any that already exist.
+ */
+function mergeNewPlaceholderNodes(placeholders: NodeType[], currentNodes: NodeType[]): NodeType[] {
+  const existingIds = new Set(currentNodes.map((n) => n.id))
+  const nodesToAdd = placeholders.filter((n) => !existingIds.has(n.id))
+  return nodesToAdd.length > 0 ? [...currentNodes, ...nodesToAdd] : currentNodes
+}
+
+interface ButtonEdgeFilterContext {
+  conditionHandles: { nodeId: string; handleId: string }[]
+  loopHandles: { nodeId: string; handleId: string }[]
+  approvalHandles: { nodeId: string; handleId: string }[]
+  regularNodeIds: string[]
+  activeNodeId: string | null
+  activeHandle: string | null
+}
+
+/**
+ * Determines whether an existing button edge should be kept, returning the
+ * edge with updated active state, or null if it should be removed.
+ */
+function getKeptButtonEdge(edge: EdgeType, ctx: ButtonEdgeFilterContext): EdgeType | null {
+  const handleId = edge.sourceHandle
+
+  if (handleId === 'true' || handleId === 'false') {
+    const isNeeded = ctx.conditionHandles.some((h) => h.nodeId === edge.source && h.handleId === handleId)
+    if (!isNeeded) return null
+    return {
+      ...edge,
+      data: {
+        ...edge.data,
+        isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === handleId,
+      },
+    }
+  }
+
+  if (handleId === 'done' || handleId === 'loop') {
+    const isNeeded = ctx.loopHandles.some((h) => h.nodeId === edge.source && h.handleId === handleId)
+    if (!isNeeded) return null
+    return {
+      ...edge,
+      data: {
+        ...edge.data,
+        isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === handleId,
+      },
+    }
+  }
+
+  if (handleId === EdgeHandleEnum.APPROVED || handleId === EdgeHandleEnum.REJECTED) {
+    const isNeeded = ctx.approvalHandles.some((h) => h.nodeId === edge.source && h.handleId === handleId)
+    if (!isNeeded) return null
+    return {
+      ...edge,
+      data: {
+        ...edge.data,
+        isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === handleId,
+      },
+    }
+  }
+
+  if ((handleId === EdgeHandleEnum.SOURCE || !handleId) && ctx.regularNodeIds.includes(edge.source)) {
+    return {
+      ...edge,
+      data: {
+        ...edge.data,
+        isActive: ctx.activeNodeId === edge.source && (ctx.activeHandle === 'source' || !ctx.activeHandle),
+      },
+    }
+  }
+
+  return null
 }
 
 interface UseButtonEdgeMaintenanceOptions {
@@ -287,15 +357,9 @@ export function useButtonEdgeMaintenance({
       // CRITICAL: flushSync forces React to process this state update immediately
       // This ensures placeholder nodes are in React Flow's internal state BEFORE we add edges
       if (placeholderNodesToAddRef.current.length > 0) {
+        const placeholders = placeholderNodesToAddRef.current
         flushSync(() => {
-          setNodes((currentNodes) => {
-            const existingIds = new Set(currentNodes.map((n) => n.id))
-            const nodesToAdd = placeholderNodesToAddRef.current.filter((n) => !existingIds.has(n.id))
-            if (nodesToAdd.length > 0) {
-              return [...currentNodes, ...nodesToAdd]
-            }
-            return currentNodes
-          })
+          setNodes((currentNodes) => mergeNewPlaceholderNodes(placeholders, currentNodes))
         })
       }
 
@@ -315,28 +379,24 @@ export function useButtonEdgeMaintenance({
         // Track which condition handles already have ButtonEdges (nodeId-handleId format)
         const conditionHandlesWithButtonEdges = new Set(
           existingButtonEdges
-            .filter((edge) => edge.id.includes('-true') || edge.id.includes('-false'))
-            .map((edge) => {
-              const handleId = edge.id.endsWith('-true') ? 'true' : 'false'
-              return `${edge.source}-${handleId}`
-            })
+            .filter((edge) => edge.sourceHandle === 'true' || edge.sourceHandle === 'false')
+            .map((edge) => `${edge.source}-${edge.sourceHandle}`)
         )
 
         // Track which loop handles (both 'done' and 'loop') already have ButtonEdges
         const loopHandlesWithButtonEdges = new Set(
           existingButtonEdges
-            .filter((edge) => edge.id.includes('-done') || edge.id.includes('-loop'))
-            .map((edge) => `${edge.source}-${extractLoopHandleId(edge.id)}`)
+            .filter((edge) => edge.sourceHandle === 'done' || edge.sourceHandle === 'loop')
+            .map((edge) => `${edge.source}-${edge.sourceHandle}`)
         )
 
         // Track which approval handles already have ButtonEdges (nodeId-handleId format)
         const approvalHandlesWithButtonEdges = new Set(
           existingButtonEdges
-            .filter((edge) => edge.id.includes('-approved') || edge.id.includes('-rejected'))
-            .map((edge) => {
-              const handleId = edge.id.endsWith('-approved') ? EdgeHandleEnum.APPROVED : EdgeHandleEnum.REJECTED
-              return `${edge.source}-${handleId}`
-            })
+            .filter(
+              (edge) => edge.sourceHandle === EdgeHandleEnum.APPROVED || edge.sourceHandle === EdgeHandleEnum.REJECTED
+            )
+            .map((edge) => `${edge.source}-${edge.sourceHandle}`)
         )
 
         // Determine which ButtonEdges to keep, remove, and add
@@ -344,66 +404,19 @@ export function useButtonEdgeMaintenance({
         const buttonEdgesToAdd: EdgeType[] = []
 
         // Keep ButtonEdges that are still needed and update their active state
+        const buttonEdgeCtx: ButtonEdgeFilterContext = {
+          conditionHandles: conditionHandlesNeedingButtonEdgesRef.current,
+          loopHandles: loopHandlesNeedingButtonEdgesRef.current,
+          approvalHandles: approvalHandlesNeedingButtonEdgesRef.current,
+          regularNodeIds: nodesNeedingButtonEdgesRef.current,
+          activeNodeId: activeEdgeButtonNodeId,
+          activeHandle: activeEdgeButtonHandle,
+        }
+
         existingButtonEdges.forEach((edge) => {
-          // Check if it's a condition handle button edge
-          if (edge.id.includes('-true') || edge.id.includes('-false')) {
-            const handleId = edge.id.endsWith('-true') ? 'true' : 'false'
-            const isNeeded = conditionHandlesNeedingButtonEdgesRef.current.some(
-              (h) => h.nodeId === edge.source && h.handleId === handleId
-            )
-            if (isNeeded) {
-              // Update active state for condition handles
-              buttonEdgesToKeep.push({
-                ...edge,
-                data: {
-                  ...edge.data,
-                  isActive: activeEdgeButtonNodeId === edge.source && activeEdgeButtonHandle === handleId,
-                },
-              })
-            }
-          } else if (edge.id.includes('-done') || edge.id.includes('-loop')) {
-            // Check if it's a loop handle button edge ('done' or 'loop')
-            const handleId = extractLoopHandleId(edge.id)
-            const isNeeded = loopHandlesNeedingButtonEdgesRef.current.some(
-              (h) => h.nodeId === edge.source && h.handleId === handleId
-            )
-            if (isNeeded) {
-              // Update active state for loop handles
-              buttonEdgesToKeep.push({
-                ...edge,
-                data: {
-                  ...edge.data,
-                  isActive: activeEdgeButtonNodeId === edge.source && activeEdgeButtonHandle === handleId,
-                },
-              })
-            }
-          } else if (edge.id.includes('-approved') || edge.id.includes('-rejected')) {
-            // Check if it's an approval handle button edge
-            const handleId = edge.id.endsWith('-approved') ? EdgeHandleEnum.APPROVED : EdgeHandleEnum.REJECTED
-            const isNeeded = approvalHandlesNeedingButtonEdgesRef.current.some(
-              (h) => h.nodeId === edge.source && h.handleId === handleId
-            )
-            if (isNeeded) {
-              // Update active state for approval handles
-              buttonEdgesToKeep.push({
-                ...edge,
-                data: {
-                  ...edge.data,
-                  isActive: activeEdgeButtonNodeId === edge.source && activeEdgeButtonHandle === handleId,
-                },
-              })
-            }
-          } else if (nodesNeedingButtonEdgesRef.current.includes(edge.source)) {
-            // Update active state for regular source handles
-            buttonEdgesToKeep.push({
-              ...edge,
-              data: {
-                ...edge.data,
-                isActive:
-                  activeEdgeButtonNodeId === edge.source &&
-                  (activeEdgeButtonHandle === 'source' || !activeEdgeButtonHandle),
-              },
-            })
+          const kept = getKeptButtonEdge(edge, buttonEdgeCtx)
+          if (kept) {
+            buttonEdgesToKeep.push(kept)
           }
         })
 
@@ -523,8 +536,17 @@ export function useButtonEdgeMaintenance({
         const allButtonEdges = [...buttonEdgesToKeep, ...buttonEdgesToAdd]
         const result = [...nonButtonEdges, ...allButtonEdges]
 
-        // Check if anything changed
-        if (result.length !== currentEdges.length || buttonEdgesToAdd.length > 0) {
+        // Detect active state changes on kept button edges
+        const existingById = new Map(existingButtonEdges.map((e) => [e.id, e]))
+        const activeStateChanged = buttonEdgesToKeep.some((edge) => {
+          const previous = existingById.get(edge.id)
+          return (
+            (previous?.data as { isActive?: boolean })?.isActive !== (edge.data as { isActive?: boolean })?.isActive
+          )
+        })
+
+        // Check if anything changed (length, additions, or active state)
+        if (result.length !== currentEdges.length || buttonEdgesToAdd.length > 0 || activeStateChanged) {
           return result
         }
 
