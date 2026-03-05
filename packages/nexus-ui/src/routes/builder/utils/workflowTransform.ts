@@ -421,8 +421,8 @@ export class WorkflowTransform {
       case ActivityTypeEnum.LOOP:
         this.flattenLoop(activity, flatActivities, edges)
         break
-      default:
-        // Regular activity (task, converge, etc.)
+      case ActivityTypeEnum.TASK:
+      case ActivityTypeEnum.CONVERGE:
         flatActivities.push(activity)
         break
     }

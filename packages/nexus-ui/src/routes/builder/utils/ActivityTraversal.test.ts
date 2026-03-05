@@ -334,9 +334,33 @@ describe('ActivityTraversal', () => {
       expect(ActivityTraversal.getNestedActivities(task)).toEqual([])
     })
 
-    it('returns empty array for approval', () => {
+    it('returns empty array for approval without branches', () => {
       const approval = { id: 'approval-1', type: 'approval', name: 'Approval' } as unknown as Activity
       expect(ActivityTraversal.getNestedActivities(approval)).toEqual([])
+    })
+
+    it('returns onApproved and onRejected from approval', () => {
+      const approvedTask = { id: 'task-approved', type: 'task', name: 'Approved', task: {} } as Activity
+      const rejectedTask = { id: 'task-rejected', type: 'task', name: 'Rejected', task: {} } as Activity
+      const approval = {
+        id: 'approval-1',
+        type: 'approval',
+        name: 'Approval',
+        onApproved: [approvedTask],
+        onRejected: [rejectedTask],
+      } as unknown as Activity
+      expect(ActivityTraversal.getNestedActivities(approval)).toEqual([approvedTask, rejectedTask])
+    })
+
+    it('returns only onApproved when onRejected is missing', () => {
+      const approvedTask = { id: 'task-approved', type: 'task', name: 'Approved', task: {} } as Activity
+      const approval = {
+        id: 'approval-1',
+        type: 'approval',
+        name: 'Approval',
+        onApproved: [approvedTask],
+      } as unknown as Activity
+      expect(ActivityTraversal.getNestedActivities(approval)).toEqual([approvedTask])
     })
   })
 
@@ -379,6 +403,30 @@ describe('ActivityTraversal', () => {
         else: [elseTask],
       })
       expect(ActivityTraversal.findActivityById(condition, 'else-task')).toEqual(elseTask)
+    })
+
+    it('finds activity nested in approval onApproved branch', () => {
+      const approvedTask = { id: 'approved-task', type: 'task', name: 'Approved Task', task: {} } as Activity
+      const approval = {
+        id: 'approval-1',
+        type: 'approval',
+        name: 'Approval',
+        onApproved: [approvedTask],
+        onRejected: [],
+      } as unknown as Activity
+      expect(ActivityTraversal.findActivityById(approval, 'approved-task')).toEqual(approvedTask)
+    })
+
+    it('finds activity nested in approval onRejected branch', () => {
+      const rejectedTask = { id: 'rejected-task', type: 'task', name: 'Rejected Task', task: {} } as Activity
+      const approval = {
+        id: 'approval-1',
+        type: 'approval',
+        name: 'Approval',
+        onApproved: [],
+        onRejected: [rejectedTask],
+      } as unknown as Activity
+      expect(ActivityTraversal.findActivityById(approval, 'rejected-task')).toEqual(rejectedTask)
     })
 
     it('returns null when activity not found', () => {
@@ -458,6 +506,21 @@ describe('ActivityTraversal', () => {
         else: [{ id: 'else-task', type: 'task', name: 'Else', task: {} }],
       })
       expect(ActivityTraversal.collectAllActivityIds(condition)).toEqual(['cond-1', 'then-task', 'else-task'])
+    })
+
+    it('collects all IDs from approval with both branches', () => {
+      const approval = {
+        id: 'approval-1',
+        type: 'approval',
+        name: 'Approval',
+        onApproved: [{ id: 'task-approved', type: 'task', name: 'Approved', task: {} }],
+        onRejected: [{ id: 'task-rejected', type: 'task', name: 'Rejected', task: {} }],
+      } as unknown as Activity
+      expect(ActivityTraversal.collectAllActivityIds(approval)).toEqual([
+        'approval-1',
+        'task-approved',
+        'task-rejected',
+      ])
     })
   })
 })

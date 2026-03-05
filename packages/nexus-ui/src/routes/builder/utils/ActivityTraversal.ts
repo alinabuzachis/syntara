@@ -135,7 +135,10 @@ export class ActivityTraversal {
         return activity.loop?.do || []
       case ActivityTypeEnum.CONDITION:
         return [...(activity.then || []), ...(activity.else || [])]
-      default:
+      case ActivityTypeEnum.APPROVAL:
+        return [...(activity.onApproved || []), ...(activity.onRejected || [])]
+      case ActivityTypeEnum.TASK:
+      case ActivityTypeEnum.CONVERGE:
         return []
     }
   }

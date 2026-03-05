@@ -25,7 +25,10 @@ function getNestedActivities(activity: Activity): Activity[][] {
       return activity.steps ? [activity.steps] : []
     case ActivityTypeEnum.LOOP:
       return activity.loop.do ? [activity.loop.do] : []
-    default:
+    case ActivityTypeEnum.APPROVAL:
+      return [activity.onApproved || [], activity.onRejected || []]
+    case ActivityTypeEnum.TASK:
+    case ActivityTypeEnum.CONVERGE:
       return []
   }
 }

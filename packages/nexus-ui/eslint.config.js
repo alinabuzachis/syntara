@@ -57,7 +57,7 @@ export default tseslint.config(
       '@typescript-eslint/prefer-optional-chain': 'warn',
       '@typescript-eslint/prefer-nullish-coalescing': 'warn',
       '@typescript-eslint/require-array-sort-compare': 'warn',
-      '@typescript-eslint/switch-exhaustiveness-check': 'warn',
+      '@typescript-eslint/switch-exhaustiveness-check': 'error',
       '@typescript-eslint/prefer-includes': 'warn',
       // Readability rules — thresholds based on industry standards (Code Complete, SonarQube, BiomeJS)
       'max-lines': ['warn', { max: 400, skipBlankLines: true, skipComments: true }],
