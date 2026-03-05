@@ -103,10 +103,9 @@ jobs:
           retention-days: 30
 
       - name: Upload coverage artifacts
-        if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: coverage-${{ matrix.python-version }}
           path: |
             coverage.xml
             htmlcov/
@@ -153,3 +152,30 @@ jobs:
         if: always()
         run: |
           uvx podman-compose -p nexus-ci down -v || true
+
+  combine:
+    runs-on: ubuntu-latest
+    needs:
+      - test
+
+    steps:
+      - name: Save off PR Number
+        if: github.event_name == 'pull_request'
+        run: echo "PR ${{ github.event.number }}" > pr_number.txt
+
+      - name: Upload PR Number
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v6
+        with:
+          name: pr_number
+          path: pr_number.txt
+
+      - name: Merge logs into a single archive
+        # Should do nothing if job is retried
+        uses: actions/upload-artifact/merge@v6
+        with:
+          name: coverage-report
+          pattern: coverage-*
+          delete-merged: true
+          include-hidden-files: true
+          separate-directories: true
