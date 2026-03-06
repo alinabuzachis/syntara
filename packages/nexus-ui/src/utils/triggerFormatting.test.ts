@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  parseRepeatingInterval,
-  durationToHumanReadableCadence,
-  formatDate,
-  formatTime,
-  formatIntervalDescription,
-} from './triggerFormatting'
+import { parseRepeatingInterval, durationToHumanReadableCadence, formatIntervalDescription } from './triggerFormatting'
 
 describe('parseRepeatingInterval', () => {
   it('parses interval with start and duration', () => {
@@ -76,42 +70,6 @@ describe('durationToHumanReadableCadence', () => {
 
   it('trims whitespace', () => {
     expect(durationToHumanReadableCadence('  P1D  ')).toBe('Daily')
-  })
-})
-
-describe('formatDate', () => {
-  it('formats ISO date string', () => {
-    const result = formatDate('2024-01-15T10:00:00Z')
-
-    // Should contain month, day, year
-    expect(result).toMatch(/Jan/)
-    expect(result).toMatch(/15/)
-    expect(result).toMatch(/2024/)
-  })
-
-  it('returns empty string for empty input', () => {
-    expect(formatDate('')).toBe('')
-  })
-
-  it('returns empty string for invalid date', () => {
-    expect(formatDate('not-a-date')).toBe('')
-  })
-})
-
-describe('formatTime', () => {
-  it('formats time in 12-hour format', () => {
-    const result = formatTime('2024-01-15T14:30:00Z')
-
-    // Result depends on local timezone, but should be in 12-hour format
-    expect(result).toMatch(/\d{1,2}:\d{2}\s*(AM|PM)/i)
-  })
-
-  it('returns empty string for empty input', () => {
-    expect(formatTime('')).toBe('')
-  })
-
-  it('returns empty string for invalid date', () => {
-    expect(formatTime('not-a-date')).toBe('')
   })
 })
 

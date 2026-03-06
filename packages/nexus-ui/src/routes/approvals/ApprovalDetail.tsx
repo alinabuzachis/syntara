@@ -25,16 +25,10 @@ import { useAlerts } from '../../components/alerts'
 import { CodeBlock } from '../../components/details/CodeBlock'
 import { ErrorState } from '../../components/states/ErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
+import { formatDateTime } from '../../utils/dateUtils'
 import { getDateField } from '../../utils/getDateField'
 
 import { ApprovalStatusBadges } from './approvalUtils'
-
-const formatDateTime = (dateString?: string | null) => {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  if (Number.isNaN(date.getTime())) return '-'
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
-}
 
 const getDecisionCopy = (decision: 'approved' | 'rejected') => ({
   label: decision === 'approved' ? 'Approval notes' : 'Rejection notes',

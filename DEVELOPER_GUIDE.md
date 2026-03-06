@@ -25,6 +25,7 @@ Nexus UI is a React-based application for building and managing complex automati
 - **Styling**: PatternFly 6
 - **State Management**: TanStack Query (server state), Zustand (client state)
 - **API Integration**: openapi-fetch, openapi-react-query
+- **Date formatting**: date-fns (`packages/nexus-ui/src/utils/dateUtils.ts`)
 - **Testing**: Vitest, React Testing Library
 - **Build**: Vite, npm workspaces
 

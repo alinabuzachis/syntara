@@ -19,29 +19,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { workflowClient } from '../../client'
 import { useQueryState } from '../../components/states/useQueryState'
+import { formatDateTime, formatElapsedTime } from '../../utils/dateUtils'
 import { useExecutionStoreActions } from '../automations/stores/useExecutionStore'
 
 import { StatusLabel } from './ExecutionStatus'
 
 type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
-
-function formatElapsedTime(elapsedMs: number) {
-  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000))
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-
-  const parts: string[] = []
-  if (hours > 0) {
-    parts.push(`${hours}h`)
-  }
-  if (minutes > 0 || hours > 0) {
-    parts.push(`${minutes}m`)
-  }
-  parts.push(`${seconds}s`)
-
-  return parts.join(' ')
-}
 
 interface ExecutionDetailsPanelProps {
   executionId: string
@@ -233,9 +216,7 @@ export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProp
                   <DescriptionListGroup>
                     <DescriptionListTerm>Started At</DescriptionListTerm>
                     <DescriptionListDescription>
-                      <Content component={ContentVariants.small}>
-                        {new Date(execution.started_at).toLocaleString()}
-                      </Content>
+                      <Content component={ContentVariants.small}>{formatDateTime(execution.started_at)}</Content>
                     </DescriptionListDescription>
                   </DescriptionListGroup>
                 )}
@@ -243,9 +224,7 @@ export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProp
                   <DescriptionListGroup>
                     <DescriptionListTerm>Completed At</DescriptionListTerm>
                     <DescriptionListDescription>
-                      <Content component={ContentVariants.small}>
-                        {new Date(execution.completed_at).toLocaleString()}
-                      </Content>
+                      <Content component={ContentVariants.small}>{formatDateTime(execution.completed_at)}</Content>
                     </DescriptionListDescription>
                   </DescriptionListGroup>
                 )}

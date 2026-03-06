@@ -3,6 +3,8 @@
  * Used for displaying human-readable trigger information in nodes and forms
  */
 
+import { formatDate, formatTime } from './dateUtils'
+
 /**
  * Parsed repeating interval structure
  */
@@ -56,46 +58,6 @@ export function durationToHumanReadableCadence(duration: string): string {
       return 'Annually'
     default:
       return 'Does not repeat'
-  }
-}
-
-/**
- * Format date to human-readable format (e.g., "Jan 1, 2026")
- */
-export function formatDate(isoString: string): string {
-  if (!isoString) return ''
-
-  try {
-    const date = new Date(isoString)
-    if (Number.isNaN(date.getTime())) return ''
-
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  } catch {
-    return ''
-  }
-}
-
-/**
- * Format time to 12-hour format (e.g., "12:00 AM")
- */
-export function formatTime(isoString: string): string {
-  if (!isoString) return ''
-
-  try {
-    const date = new Date(isoString)
-    if (Number.isNaN(date.getTime())) return ''
-
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    })
-  } catch {
-    return ''
   }
 }
 

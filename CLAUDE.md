@@ -172,6 +172,17 @@ mutate(data, {
 
 See: [`docs/error-handling.md`](docs/error-handling.md) for complete error handling patterns
 
+#### How do I format dates for display?
+
+Use the shared date utilities (date-fns) in `packages/nexus-ui/src/utils/dateUtils.ts`:
+
+- **formatDate(isoString)** — e.g. "Jan 15, 2024"
+- **formatTime(isoString)** — 12-hour time, e.g. "2:30 PM"
+- **formatDateTime(isoString?)** — medium date + short time (returns `'-'` for invalid/empty)
+- **formatElapsedTime(elapsedMs)** — e.g. "1h 2m 3s"
+
+Use for UI display only, not in logic (per i18n guidelines). Trigger-specific interval formatting stays in `utils/triggerFormatting.ts`.
+
 #### How do I run tests for my changes?
 
 ```bash
