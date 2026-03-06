@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { useNodeDeletion } from './useNodeDeletion'
+import { findLoopReconnections, useNodeDeletion } from './useNodeDeletion'
 
 // Mock dependencies
 const mockBatchRemoveNodesAndEdges = vi.fn()
@@ -27,6 +27,106 @@ vi.mock('../utils/EdgeFactory', () => ({
     })),
   },
 }))
+
+describe('findLoopReconnections', () => {
+  it('returns empty array when no loop-back edges exist', () => {
+    const storedEdges = [{ id: 'e1', source: 'a', target: 'b' }]
+    const deletedNodeIds = new Set(['a'])
+    const nodes: Array<{ id: string; type: string }> = []
+
+    const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
+
+    expect(result).toEqual([])
+  })
+
+  it('returns reconnection when last loop body node is deleted', () => {
+    const storedEdges = [
+      { id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'loop' },
+      { id: 'e2', source: 'task-1', target: 'task-2' },
+      { id: 'e3', source: 'task-2', target: 'loop-1', targetHandle: 'end' },
+    ]
+    const deletedNodeIds = new Set(['task-2'])
+    const nodes = [
+      { id: 'loop-1', type: 'loop' },
+      { id: 'task-1', type: 'task' },
+      { id: 'task-2', type: 'task' },
+    ] as never[]
+
+    const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
+
+    expect(result).toEqual([{ source: 'task-1', target: 'loop-1', targetHandle: 'end', sourceHandle: 'source' }])
+  })
+
+  it('does NOT create reconnection when the only body node is deleted', () => {
+    const storedEdges = [
+      { id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'loop' },
+      { id: 'e2', source: 'task-1', target: 'loop-1', targetHandle: 'end' },
+    ]
+    const deletedNodeIds = new Set(['task-1'])
+    const nodes = [
+      { id: 'loop-1', type: 'loop' },
+      { id: 'task-1', type: 'task' },
+    ] as never[]
+
+    const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
+
+    expect(result).toEqual([])
+  })
+
+  it('reconnects when multiple consecutive tail body nodes are deleted', () => {
+    const storedEdges = [
+      { id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'loop' },
+      { id: 'e2', source: 'task-1', target: 'task-2' },
+      { id: 'e3', source: 'task-2', target: 'task-3' },
+      { id: 'e4', source: 'task-3', target: 'loop-1', targetHandle: 'end' },
+    ]
+    const deletedNodeIds = new Set(['task-2', 'task-3'])
+    const nodes = [
+      { id: 'loop-1', type: 'loop' },
+      { id: 'task-1', type: 'task' },
+      { id: 'task-2', type: 'task' },
+      { id: 'task-3', type: 'task' },
+    ] as never[]
+
+    const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
+
+    expect(result).toEqual([{ source: 'task-1', target: 'loop-1', targetHandle: 'end', sourceHandle: 'source' }])
+  })
+
+  it('skips reconnection when the loop node itself is also deleted', () => {
+    const storedEdges = [
+      { id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'loop' },
+      { id: 'e2', source: 'task-1', target: 'loop-1', targetHandle: 'end' },
+    ]
+    const deletedNodeIds = new Set(['task-1', 'loop-1'])
+    const nodes = [
+      { id: 'loop-1', type: 'loop' },
+      { id: 'task-1', type: 'task' },
+    ] as never[]
+
+    const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
+
+    expect(result).toEqual([])
+  })
+
+  it('returns correct sourceHandle (done for loop nodes, source for others)', () => {
+    const storedEdges = [
+      { id: 'e1', source: 'loop-1', target: 'loop-2', sourceHandle: 'loop' },
+      { id: 'e2', source: 'loop-2', target: 'task-1', sourceHandle: 'loop' },
+      { id: 'e3', source: 'task-1', target: 'loop-1', targetHandle: 'end' },
+    ]
+    const deletedNodeIds = new Set(['task-1'])
+    const nodes = [
+      { id: 'loop-1', type: 'loop' },
+      { id: 'loop-2', type: 'loop' },
+      { id: 'task-1', type: 'task' },
+    ] as never[]
+
+    const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
+
+    expect(result).toEqual([{ source: 'loop-2', target: 'loop-1', targetHandle: 'end', sourceHandle: 'done' }])
+  })
+})
 
 describe('useNodeDeletion', () => {
   const mockSetNodes = vi.fn()

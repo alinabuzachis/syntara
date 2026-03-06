@@ -66,30 +66,28 @@ function formatAcceptedTypesForDisplay(acceptedMimeTypes?: string[]): string | n
     .join(', ')
 }
 
-export function FileUpload({
-  onFilesSelected,
-  onFileRemove,
-  maxFiles,
-  maxSizeBytes,
-  maxSizeMB,
-  acceptedMimeTypes,
-  files: controlledFiles,
-  titleText = 'Drag and drop files here',
-  infoText,
-  browseButtonText = 'Upload',
-  className,
-  'aria-label': ariaLabel,
-}: FileUploadProps) {
-  const [internalFiles, setInternalFiles] = useState<UploadedFile[]>([])
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+export function computeUploadStatusProps(files: UploadedFile[]): {
+  statusToggleText: string | undefined
+  statusToggleIcon: 'danger' | 'success' | 'inProgress'
+} {
+  const successCount = files.filter((f) => f.status === 'success').length
+  const hasErrors = files.some((f) => f.status === 'error')
+  const allSuccess = files.length > 0 && files.every((f) => f.status === 'success')
+  const statusToggleText = files.length > 0 ? `${successCount}/${files.length} files uploaded` : undefined
+  const statusToggleIcon = hasErrors ? 'danger' : allSuccess ? 'success' : 'inProgress'
+  return { statusToggleText, statusToggleIcon }
+}
 
-  const uploadedFiles = controlledFiles ?? internalFiles
-  const isControlled = controlledFiles !== undefined
-  const effectiveMaxSizeBytes = maxSizeMB ? maxSizeMB * 1024 * 1024 : maxSizeBytes
+type FileRejection = { file: File; errors: readonly { code: string; message: string }[] }
 
-  const handleDropRejected = (
-    fileRejections: { file: File; errors: readonly { code: string; message: string }[] }[]
-  ) => {
+function createDropRejectedHandler(options: {
+  setErrorMessage: (msg: string | null) => void
+  effectiveMaxSizeBytes: number | undefined
+  acceptedMimeTypes: string[] | undefined
+  maxFiles: number | undefined
+}): (fileRejections: FileRejection[]) => void {
+  const { setErrorMessage, effectiveMaxSizeBytes, acceptedMimeTypes, maxFiles } = options
+  return (fileRejections: FileRejection[]) => {
     if (fileRejections.length === 0) return
 
     const firstRejection = fileRejections[0]
@@ -115,6 +113,34 @@ export function FileUpload({
     }
     setErrorMessage(message)
   }
+}
+
+export function FileUpload({
+  onFilesSelected,
+  onFileRemove,
+  maxFiles,
+  maxSizeBytes,
+  maxSizeMB,
+  acceptedMimeTypes,
+  files: controlledFiles,
+  titleText = 'Drag and drop files here',
+  infoText,
+  browseButtonText = 'Upload',
+  className,
+  'aria-label': ariaLabel,
+}: FileUploadProps) {
+  const [internalFiles, setInternalFiles] = useState<UploadedFile[]>([])
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const uploadedFiles = controlledFiles ?? internalFiles
+  const isControlled = controlledFiles !== undefined
+  const effectiveMaxSizeBytes = maxSizeBytes ?? (maxSizeMB !== undefined ? maxSizeMB * 1024 * 1024 : undefined)
+  const handleDropRejected = createDropRejectedHandler({
+    setErrorMessage,
+    effectiveMaxSizeBytes,
+    acceptedMimeTypes,
+    maxFiles,
+  })
 
   const handleFileDrop = (_event: DropEvent, droppedFiles: File[]) => {
     setErrorMessage(null)
@@ -151,12 +177,7 @@ export function FileUpload({
     onDropRejected: handleDropRejected,
   }
 
-  const successCount = uploadedFiles.filter((f) => f.status === 'success').length
-  const hasErrors = uploadedFiles.some((f) => f.status === 'error')
-  const allSuccess = uploadedFiles.length > 0 && uploadedFiles.every((f) => f.status === 'success')
-  const statusToggleText =
-    uploadedFiles.length > 0 ? `${successCount}/${uploadedFiles.length} files uploaded` : undefined
-  const statusToggleIcon = hasErrors ? 'danger' : allSuccess ? 'success' : 'inProgress'
+  const { statusToggleText, statusToggleIcon } = computeUploadStatusProps(uploadedFiles)
   const acceptedTypesDisplay = formatAcceptedTypesForDisplay(acceptedMimeTypes)
   const resolvedInfoText =
     infoText ?? (acceptedTypesDisplay ? `Accepted file types: ${acceptedTypesDisplay}` : undefined)

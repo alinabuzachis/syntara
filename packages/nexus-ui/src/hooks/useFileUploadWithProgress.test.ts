@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { useFileUploadWithProgress } from './useFileUploadWithProgress'
+import { useFileUploadWithProgress, createUploadError, isFileUploadError } from './useFileUploadWithProgress'
 
 // Store instances for test access
 let mockXhrInstances: MockXMLHttpRequest[] = []
@@ -85,6 +85,31 @@ class MockXMLHttpRequest {
     this.listeners['load']?.forEach((h) => h({}))
   }
 }
+
+describe('createUploadError', () => {
+  it('returns correct error format with error and message properties', () => {
+    const result = createUploadError('validation_error', 'Invalid input')
+
+    expect(result).toHaveProperty('error')
+    expect(result).toHaveProperty('message')
+    expect(Object.keys(result)).toEqual(['error', 'message'])
+  })
+
+  it('preserves error code correctly', () => {
+    expect(createUploadError('parse_error', 'msg').error).toBe('parse_error')
+    expect(createUploadError('network_error', 'msg').error).toBe('network_error')
+    expect(createUploadError('upload_cancelled', 'msg').error).toBe('upload_cancelled')
+    expect(createUploadError('upload_failed', 'msg').error).toBe('upload_failed')
+  })
+
+  it('preserves message correctly', () => {
+    const msg = 'Failed to parse server response'
+    expect(createUploadError('parse_error', msg).message).toBe(msg)
+
+    const customMsg = 'Custom error message'
+    expect(createUploadError('custom_code', customMsg).message).toBe(customMsg)
+  })
+})
 
 describe('useFileUploadWithProgress', () => {
   beforeEach(() => {
@@ -330,6 +355,52 @@ describe('useFileUploadWithProgress', () => {
     })
   })
 
+  it('preserves each file total during progress updates with uneven sizes', async () => {
+    const { result } = renderHook(() => useFileUploadWithProgress())
+    const small = new File(['a'.repeat(10)], 'small.txt', { type: 'text/plain' })
+    const large = new File(['a'.repeat(100)], 'large.txt', { type: 'text/plain' })
+
+    act(() => {
+      void result.current.uploadFiles([small, large])
+    })
+
+    const xhr = getLastXhr()
+    act(() => {
+      xhr.simulateProgress(55, 110)
+    })
+
+    await waitFor(() => {
+      expect(result.current.progress[0].total).toBe(small.size)
+      expect(result.current.progress[1].total).toBe(large.size)
+      expect(result.current.progress[0].percentage).toBe(50)
+      expect(result.current.progress[1].percentage).toBe(50)
+      expect(result.current.progress[0].loaded).toBeLessThanOrEqual(small.size)
+      expect(result.current.progress[1].loaded).toBeLessThanOrEqual(large.size)
+    })
+  })
+
+  it('handles malformed JSON error response (missing required fields)', async () => {
+    const { result } = renderHook(() => useFileUploadWithProgress())
+    const file = new File(['content'], 'test.txt', { type: 'text/plain' })
+    const expectedError = {
+      error: 'upload_failed',
+      message: 'Upload failed with status 422',
+    }
+
+    let uploadPromise: Promise<unknown>
+    act(() => {
+      uploadPromise = result.current.uploadFiles([file])
+    })
+
+    const xhr = getLastXhr()
+    act(() => {
+      xhr.simulateLoadRaw(422, JSON.stringify({ code: 'INVALID', detail: 'bad request' }))
+    })
+
+    await expect(uploadPromise!).rejects.toEqual(expectedError)
+    expect(result.current.error).toEqual(expectedError)
+  })
+
   it('handles non-JSON error response', async () => {
     const { result } = renderHook(() => useFileUploadWithProgress())
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
@@ -352,5 +423,32 @@ describe('useFileUploadWithProgress', () => {
     await expect(uploadPromise!).rejects.toEqual(expectedError)
 
     expect(result.current.error).toEqual(expectedError)
+  })
+})
+
+describe('isFileUploadError', () => {
+  it('returns true for valid FileUploadError objects', () => {
+    expect(isFileUploadError({ error: 'upload_failed', message: 'Something went wrong' })).toBe(true)
+  })
+
+  it('returns false for null', () => {
+    expect(isFileUploadError(null)).toBe(false)
+  })
+
+  it('returns false for objects missing required fields', () => {
+    expect(isFileUploadError({ code: 'INVALID' })).toBe(false)
+    expect(isFileUploadError({ error: 'test' })).toBe(false)
+    expect(isFileUploadError({ message: 'test' })).toBe(false)
+  })
+
+  it('returns false for non-string fields', () => {
+    expect(isFileUploadError({ error: 123, message: 'test' })).toBe(false)
+    expect(isFileUploadError({ error: 'test', message: 456 })).toBe(false)
+  })
+
+  it('returns false for primitives', () => {
+    expect(isFileUploadError('string')).toBe(false)
+    expect(isFileUploadError(42)).toBe(false)
+    expect(isFileUploadError(undefined)).toBe(false)
   })
 })

@@ -1,8 +1,83 @@
 import type { FilesAPI } from '@ansible/nexus-contracts'
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useState, useCallback, useRef } from 'react'
 
 type FileUploadResponse = FilesAPI.components['schemas']['FileUploadResponse']
 type FileUploadError = FilesAPI.components['schemas']['Error']
+
+/** Creates a FileUploadError with the given code and message. */
+export function createUploadError(error: string, message: string): FileUploadError {
+  return { error, message }
+}
+
+function reportUploadError(
+  setError: Dispatch<SetStateAction<FileUploadError | null>>,
+  reject: (reason: FileUploadError) => void,
+  err: FileUploadError
+): void {
+  setError(err)
+  reject(err)
+}
+
+function createProgressHandler(setProgress: Dispatch<SetStateAction<FileProgress[]>>, fileCount: number) {
+  return (event: { lengthComputable?: boolean; loaded: number; total: number }) => {
+    if (event.lengthComputable && event.total > 0 && fileCount > 0) {
+      const totalPercentage = Math.min(100, Math.round((event.loaded / event.total) * 100))
+      setProgress((prev) =>
+        prev.map((p) => ({
+          ...p,
+          loaded: Math.min(p.total, Math.round((p.total * totalPercentage) / 100)),
+          percentage: totalPercentage,
+        }))
+      )
+    }
+  }
+}
+
+export function isFileUploadError(value: unknown): value is FileUploadError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { error?: unknown }).error === 'string' &&
+    typeof (value as { message?: unknown }).message === 'string'
+  )
+}
+
+function handleXhrLoad(
+  xhr: XMLHttpRequest,
+  xhrRef: MutableRefObject<XMLHttpRequest | null>,
+  setUploading: Dispatch<SetStateAction<boolean>>,
+  setError: Dispatch<SetStateAction<FileUploadError | null>>,
+  resolve: (value: FileUploadResponse) => void,
+  reject: (reason: FileUploadError) => void
+): void {
+  setUploading(false)
+  xhrRef.current = null
+
+  if (xhr.status >= 200 && xhr.status < 300) {
+    try {
+      const response: FileUploadResponse = JSON.parse(xhr.responseText)
+      resolve(response)
+    } catch {
+      reportUploadError(setError, reject, createUploadError('parse_error', 'Failed to parse server response'))
+    }
+  } else {
+    try {
+      const parsed: unknown = JSON.parse(xhr.responseText)
+      if (isFileUploadError(parsed)) {
+        reportUploadError(setError, reject, parsed)
+      } else {
+        reportUploadError(
+          setError,
+          reject,
+          createUploadError('upload_failed', `Upload failed with status ${xhr.status}`)
+        )
+      }
+    } catch {
+      reportUploadError(setError, reject, createUploadError('upload_failed', `Upload failed with status ${xhr.status}`))
+    }
+  }
+}
 
 /**
  * Progress information for individual files during upload
@@ -107,80 +182,17 @@ export function useFileUploadWithProgress(): UseFileUploadWithProgressResult {
       const xhr = new XMLHttpRequest()
       xhrRef.current = xhr
 
-      // Track upload progress
-      xhr.upload.addEventListener('progress', (event) => {
-        if (event.lengthComputable) {
-          const totalPercentage = Math.round((event.loaded / event.total) * 100)
-
-          // Distribute progress evenly across all files
-          // Note: XMLHttpRequest provides total upload progress, not per-file
-          setProgress((prev) =>
-            prev.map((p) => ({
-              ...p,
-              loaded: Math.floor(event.loaded / files.length),
-              total: Math.floor(event.total / files.length),
-              percentage: totalPercentage,
-            }))
-          )
-        }
-      })
-
-      // Handle successful upload
-      xhr.addEventListener('load', () => {
-        setUploading(false)
-        xhrRef.current = null
-
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const response: FileUploadResponse = JSON.parse(xhr.responseText)
-            resolve(response)
-          } catch {
-            const errorResponse: FileUploadError = {
-              error: 'parse_error',
-              message: 'Failed to parse server response',
-            }
-            setError(errorResponse)
-            reject(errorResponse)
-          }
-        } else {
-          // Handle error response
-          try {
-            const errorResponse: FileUploadError = JSON.parse(xhr.responseText)
-            setError(errorResponse)
-            reject(errorResponse)
-          } catch {
-            const errorResponse: FileUploadError = {
-              error: 'upload_failed',
-              message: `Upload failed with status ${xhr.status}`,
-            }
-            setError(errorResponse)
-            reject(errorResponse)
-          }
-        }
-      })
-
-      // Handle network errors
+      xhr.upload.addEventListener('progress', createProgressHandler(setProgress, files.length))
+      xhr.addEventListener('load', () => handleXhrLoad(xhr, xhrRef, setUploading, setError, resolve, reject))
       xhr.addEventListener('error', () => {
         setUploading(false)
         xhrRef.current = null
-        const errorResponse: FileUploadError = {
-          error: 'network_error',
-          message: 'Network error during upload',
-        }
-        setError(errorResponse)
-        reject(errorResponse)
+        reportUploadError(setError, reject, createUploadError('network_error', 'Network error during upload'))
       })
-
-      // Handle upload cancellation
       xhr.addEventListener('abort', () => {
         setUploading(false)
         xhrRef.current = null
-        const errorResponse: FileUploadError = {
-          error: 'upload_cancelled',
-          message: 'Upload was cancelled by user',
-        }
-        setError(errorResponse)
-        reject(errorResponse)
+        reportUploadError(setError, reject, createUploadError('upload_cancelled', 'Upload was cancelled by user'))
       })
 
       // Send the request

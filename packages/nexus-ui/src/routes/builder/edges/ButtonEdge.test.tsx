@@ -3,7 +3,7 @@ import { Position } from '@xyflow/react'
 import type React from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { ButtonEdge } from './ButtonEdge'
+import { ButtonEdge, calculateStubTarget } from './ButtonEdge'
 
 // Mock @xyflow/react
 const mockGetEdge = vi.fn()
@@ -34,6 +34,35 @@ const mockSetPendingDragHandle = vi.fn()
 vi.mock('../utils/pendingDragHandle', () => ({
   setPendingDragHandle: (...args: unknown[]) => mockSetPendingDragHandle(...args),
 }))
+
+describe('calculateStubTarget', () => {
+  const stubLength = 50
+
+  it('returns correct target for Position.Right (x + stubLength)', () => {
+    const result = calculateStubTarget(100, 50, Position.Right, stubLength)
+    expect(result).toEqual({ targetX: 150, targetY: 50 })
+  })
+
+  it('returns correct target for Position.Left (x - stubLength)', () => {
+    const result = calculateStubTarget(100, 50, Position.Left, stubLength)
+    expect(result).toEqual({ targetX: 50, targetY: 50 })
+  })
+
+  it('returns correct target for Position.Bottom (y + stubLength)', () => {
+    const result = calculateStubTarget(100, 50, Position.Bottom, stubLength)
+    expect(result).toEqual({ targetX: 100, targetY: 100 })
+  })
+
+  it('returns correct target for Position.Top (y - stubLength)', () => {
+    const result = calculateStubTarget(100, 50, Position.Top, stubLength)
+    expect(result).toEqual({ targetX: 100, targetY: 0 })
+  })
+
+  it('defaults to right for unknown position', () => {
+    const result = calculateStubTarget(100, 50, 'unknown' as Position, stubLength)
+    expect(result).toEqual({ targetX: 150, targetY: 50 })
+  })
+})
 
 describe('ButtonEdge', () => {
   const defaultProps = {
@@ -140,6 +169,7 @@ describe('ButtonEdge', () => {
     })
 
     afterEach(() => {
+      fireEvent.mouseUp(document)
       if (mockHandleElement?.parentNode) {
         mockHandleElement.parentNode.removeChild(mockHandleElement)
       }

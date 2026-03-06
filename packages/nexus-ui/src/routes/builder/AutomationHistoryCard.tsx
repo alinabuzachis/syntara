@@ -13,10 +13,70 @@ import {
   TitleSizes,
 } from '@patternfly/react-core'
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
+import { useState } from 'react'
 
 import { StatusLabel } from './ExecutionStatus'
 
 type Execution = WorkflowAPI.components['schemas']['Execution']
+
+interface ExecutionHistoryRowProps {
+  execution: Execution
+  onSelect: () => void
+}
+
+export function ExecutionHistoryRow({ execution, onSelect }: ExecutionHistoryRowProps) {
+  const date = execution.created_at ? new Date(execution.created_at) : null
+  const [isHovered, setIsHovered] = useState(false)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelect()
+    }
+  }
+  return (
+    <tr
+      onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      style={{
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        cursor: 'pointer',
+        backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <td
+        style={{
+          paddingTop: 'var(--pf-t--global--spacer--sm)',
+          paddingBottom: 'var(--pf-t--global--spacer--sm)',
+        }}
+      >
+        {date ? (
+          <Stack>
+            <StackItem>
+              <Content style={{ whiteSpace: 'nowrap' }}>{date.toLocaleDateString()}</Content>
+            </StackItem>
+            <StackItem>
+              <Content style={{ whiteSpace: 'nowrap', opacity: 0.6 }}>{date.toLocaleTimeString()}</Content>
+            </StackItem>
+          </Stack>
+        ) : (
+          <Content>Unknown</Content>
+        )}
+      </td>
+      <td
+        style={{
+          paddingTop: 'var(--pf-t--global--spacer--sm)',
+          paddingBottom: 'var(--pf-t--global--spacer--sm)',
+        }}
+      >
+        {execution.status ? <StatusLabel status={execution.status} /> : <Content>Unknown</Content>}
+      </td>
+    </tr>
+  )
+}
 
 interface AutomationHistoryCardProps {
   executions: Execution[]
@@ -87,55 +147,13 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
                 </tr>
               </thead>
               <tbody>
-                {executions.map((execution) => {
-                  const date = execution.created_at ? new Date(execution.created_at) : null
-                  return (
-                    <tr
-                      key={execution.id}
-                      onClick={() => props.onExecutionSelect(execution.id)}
-                      style={{
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                        cursor: 'pointer',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent'
-                      }}
-                    >
-                      <td
-                        style={{
-                          paddingTop: 'var(--pf-t--global--spacer--sm)',
-                          paddingBottom: 'var(--pf-t--global--spacer--sm)',
-                        }}
-                      >
-                        {date ? (
-                          <Stack>
-                            <StackItem>
-                              <Content style={{ whiteSpace: 'nowrap' }}>{date.toLocaleDateString()}</Content>
-                            </StackItem>
-                            <StackItem>
-                              <Content style={{ whiteSpace: 'nowrap', opacity: 0.6 }}>
-                                {date.toLocaleTimeString()}
-                              </Content>
-                            </StackItem>
-                          </Stack>
-                        ) : (
-                          <Content>Unknown</Content>
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          paddingTop: 'var(--pf-t--global--spacer--sm)',
-                          paddingBottom: 'var(--pf-t--global--spacer--sm)',
-                        }}
-                      >
-                        <StatusLabel status={execution.status!} />
-                      </td>
-                    </tr>
-                  )
-                })}
+                {executions.map((execution) => (
+                  <ExecutionHistoryRow
+                    key={execution.id}
+                    execution={execution}
+                    onSelect={() => props.onExecutionSelect(execution.id)}
+                  />
+                ))}
               </tbody>
             </table>
           )}

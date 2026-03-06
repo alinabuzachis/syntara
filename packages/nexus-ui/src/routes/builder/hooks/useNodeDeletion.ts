@@ -10,6 +10,69 @@ import type { EdgeConnection } from '../types/edge'
 import { EdgeFactory } from '../utils/EdgeFactory'
 import type { EdgeType } from '../utils/workflowToGraph'
 
+export type LoopReconnection = {
+  source: string
+  target: string
+  targetHandle: string
+  sourceHandle?: string
+}
+
+export function findLoopReconnections(
+  storedEdges: EdgeConnection[],
+  deletedNodeIds: Set<string>,
+  nodes: NodeType[]
+): LoopReconnection[] {
+  const loopReconnections: LoopReconnection[] = []
+
+  deletedNodeIds.forEach((deletedNodeId) => {
+    const loopBackEdge = storedEdges.find(
+      (edge) => edge.source === deletedNodeId && edge.targetHandle === EdgeHandleEnum.END
+    )
+
+    if (loopBackEdge && !deletedNodeIds.has(loopBackEdge.target)) {
+      const pickIncomingEdge = (targetId: string) => {
+        const candidates = storedEdges.filter((edge) => edge.target === targetId)
+        return (
+          candidates.find(
+            (edge) =>
+              !deletedNodeIds.has(edge.source) &&
+              !(edge.source === loopBackEdge.target && edge.sourceHandle === EdgeHandleEnum.LOOP)
+          ) ?? candidates.find((edge) => deletedNodeIds.has(edge.source))
+        )
+      }
+
+      let cursorTarget = deletedNodeId
+      const visited = new Set<string>()
+      let incomingEdge = pickIncomingEdge(cursorTarget)
+
+      while (incomingEdge && deletedNodeIds.has(incomingEdge.source) && !visited.has(cursorTarget)) {
+        visited.add(cursorTarget)
+        cursorTarget = incomingEdge.source
+        incomingEdge = pickIncomingEdge(cursorTarget)
+      }
+
+      if (incomingEdge && !deletedNodeIds.has(incomingEdge.source)) {
+        const isFromLoopNode =
+          incomingEdge.source === loopBackEdge.target && incomingEdge.sourceHandle === EdgeHandleEnum.LOOP
+
+        if (!isFromLoopNode) {
+          const newLastNode = nodes.find((n) => n.id === incomingEdge.source)
+          const sourceHandle = newLastNode?.type === FlowNodeType.LOOP ? EdgeHandleEnum.DONE : EdgeHandleEnum.SOURCE
+
+          loopReconnections.push({
+            source: incomingEdge.source,
+            target: loopBackEdge.target,
+            targetHandle: EdgeHandleEnum.END,
+            sourceHandle,
+          })
+        }
+      }
+    }
+  })
+
+  return loopReconnections
+}
+
 interface UseNodeDeletionParams {
   nodes: NodeType[]
   edges: EdgeConnection[]
@@ -51,45 +114,7 @@ export function useNodeDeletion({
         }
       })
 
-      // CRITICAL: Detect loop reconnection needs BEFORE filtering edges
-      // When the last activity in a loop is deleted, we need to reconnect the new last activity to the loop
-      const loopReconnections: Array<{ source: string; target: string; targetHandle: string; sourceHandle?: string }> =
-        []
-
-      deletedNodeIds.forEach((deletedNodeId) => {
-        // Find if this deleted node had an edge TO a loop's 'end' handle (was the last activity in a loop)
-        const loopBackEdge = storedEdges.find(
-          (edge) => edge.source === deletedNodeId && edge.targetHandle === EdgeHandleEnum.END
-        )
-
-        if (loopBackEdge) {
-          // Find the node that connects TO the deleted node (the new last activity)
-          const incomingEdge = storedEdges.find(
-            (edge) => edge.target === deletedNodeId && !deletedNodeIds.has(edge.source)
-          )
-
-          if (incomingEdge) {
-            // CRITICAL: Don't create a loop-back edge if the incoming edge is from the loop node itself
-            // This means the deleted node was the only activity in the loop, so no loop-back edge should exist
-            const isFromLoopNode =
-              incomingEdge.source === loopBackEdge.target && incomingEdge.sourceHandle === EdgeHandleEnum.LOOP
-
-            if (!isFromLoopNode) {
-              // Get the new last node to determine the correct source handle
-              const newLastNode = nodes.find((n) => n.id === incomingEdge.source)
-              const sourceHandle = newLastNode?.type === FlowNodeType.LOOP ? 'done' : 'source'
-
-              // Create a new loop-back edge from the new last activity to the loop node
-              loopReconnections.push({
-                source: incomingEdge.source,
-                target: loopBackEdge.target,
-                targetHandle: 'end',
-                sourceHandle,
-              })
-            }
-          }
-        }
-      })
+      const loopReconnections = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
 
       const filteredEdges = storedEdges.filter(
         (edge) => !deletedNodeIds.has(edge.source) && !deletedNodeIds.has(edge.target)

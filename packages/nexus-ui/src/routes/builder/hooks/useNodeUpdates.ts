@@ -1,7 +1,26 @@
 import { useEffect, useRef } from 'react'
 
+import { FlowNodeType } from '../../../constants'
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import type { EdgeType } from '../utils/workflowToGraph'
+
+/**
+ * Merges initialNodes with prevNodes, preserving position and measured dimensions
+ * for existing nodes and keeping nodes not in initialNodes (e.g. placeholders).
+ */
+export function mergeNodesPreservingPositions(prevNodes: NodeType[], initialNodes: NodeType[]): NodeType[] {
+  const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
+  const initialNodeIds = new Set(initialNodes.map((n) => n.id))
+  const updatedNodes = initialNodes.map((newNode) => {
+    const existingNode = prevNodeMap.get(newNode.id)
+    if (existingNode) {
+      return { ...newNode, position: existingNode.position, measured: existingNode.measured }
+    }
+    return newNode
+  })
+  const preservedNodes = prevNodes.filter((node) => !initialNodeIds.has(node.id))
+  return [...updatedNodes, ...preservedNodes]
+}
 
 interface UseNodeUpdatesOptions {
   initialNodes: NodeType[]
@@ -87,28 +106,14 @@ export function useNodeUpdates({
       // Notify parent of new nodes
       onNewNodesAdded?.(newNodeIds)
 
-      // Merge new nodes with existing positioned nodes
+      // Merge new nodes with existing positioned nodes, filtering stale nodes when deletions also occurred
       setNodes((prevNodes) => {
-        const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
-        const initialNodeIds = new Set(initialNodes.map((n) => n.id))
-
-        // Map over initialNodes to update their data while preserving positions
-        const updatedNodes = initialNodes.map((newNode) => {
-          const existingNode = prevNodeMap.get(newNode.id)
-          if (existingNode) {
-            // CRITICAL: Keep existing position and measured dimensions
-            // This preserves positions set by BuilderFlow's positioning effect
-            return { ...newNode, position: existingNode.position, measured: existingNode.measured }
-          } else {
-            // Truly new node - add it with default position from initialNodes
-            return newNode
-          }
-        })
-
-        // CRITICAL: Preserve nodes that aren't in initialNodes (like placeholder nodes for ButtonEdges)
-        const preservedNodes = prevNodes.filter((node) => !initialNodeIds.has(node.id))
-
-        return [...updatedNodes, ...preservedNodes]
+        const merged = mergeNodesPreservingPositions(prevNodes, initialNodes)
+        if (hasDeletedNodes) {
+          const validNodeIds = new Set(initialNodes.map((n) => n.id))
+          return merged.filter((node) => validNodeIds.has(node.id) || node.type === FlowNodeType.PLACEHOLDER)
+        }
+        return merged
       })
 
       // SPECIAL CASE: When new edges are added (e.g., loop node creation with edges)
@@ -127,24 +132,9 @@ export function useNodeUpdates({
     } else if (isInitialized && hasDeletedNodes) {
       // Only handle deletions (new nodes handled above)
       setNodes((prevNodes) => {
-        const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
+        const merged = mergeNodesPreservingPositions(prevNodes, initialNodes)
         const initialNodeIds = new Set(initialNodes.map((n) => n.id))
-
-        const updatedNodes = initialNodes.map((newNode) => {
-          const existingNode = prevNodeMap.get(newNode.id)
-          if (existingNode) {
-            // Keep existing position and measured dimensions
-            return { ...newNode, position: existingNode.position, measured: existingNode.measured }
-          } else {
-            // This shouldn't happen in this branch, but handle it anyway
-            return newNode
-          }
-        })
-
-        // CRITICAL: Preserve nodes that aren't in initialNodes (like placeholder nodes for ButtonEdges)
-        const preservedNodes = prevNodes.filter((node) => !initialNodeIds.has(node.id))
-
-        return [...updatedNodes, ...preservedNodes]
+        return merged.filter((node) => initialNodeIds.has(node.id) || node.type === FlowNodeType.PLACEHOLDER)
       })
 
       // DO NOT merge initialEdges after initialization
@@ -153,26 +143,7 @@ export function useNodeUpdates({
       previousNodeIdsRef.current = currentNodeIds
     } else if (isInitialized && nodesDataChanged) {
       // Handle data changes to existing nodes (no additions or deletions)
-      setNodes((prevNodes) => {
-        const prevNodeMap = new Map(prevNodes.map((n) => [n.id, n]))
-        const initialNodeIds = new Set(initialNodes.map((n) => n.id))
-
-        // Map over initialNodes to update their data while preserving positions
-        const updatedNodes = initialNodes.map((newNode) => {
-          const existingNode = prevNodeMap.get(newNode.id)
-          if (existingNode) {
-            // Update node data while keeping existing position and measured dimensions
-            return { ...newNode, position: existingNode.position, measured: existingNode.measured }
-          } else {
-            return newNode
-          }
-        })
-
-        // CRITICAL: Preserve nodes that aren't in initialNodes (like placeholder nodes for ButtonEdges)
-        const preservedNodes = prevNodes.filter((node) => !initialNodeIds.has(node.id))
-
-        return [...updatedNodes, ...preservedNodes]
-      })
+      setNodes((prevNodes) => mergeNodesPreservingPositions(prevNodes, initialNodes))
       // DO NOT reset edges when data changes
       // After initialization, React Flow edges are managed by user interactions (onConnect, onEdgesChange)
       // and synced to Zustand by useEdgeSynchronization

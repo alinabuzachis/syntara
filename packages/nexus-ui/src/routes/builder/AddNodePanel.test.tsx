@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AddNodePanel } from './AddNodePanel'
+import { AddNodePanel, AddNodePanelHeader } from './AddNodePanel'
 import { NodeRegistry } from './registry/NodeRegistry'
 
 vi.mock('./registry/NodeRegistry', () => ({
@@ -41,6 +41,119 @@ const mockNodeTypes = [
     ],
   },
 ]
+
+describe('AddNodePanelHeader', () => {
+  const mockOnBack = vi.fn()
+  const mockOnClose = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders the panel title', () => {
+    render(
+      <AddNodePanelHeader
+        panelTitle="Add node"
+        isShowingSubtypeList={false}
+        hasNoWorkflowNodes={false}
+        onBack={mockOnBack}
+        onClose={mockOnClose}
+      />
+    )
+
+    expect(screen.getByText('Add node')).toBeInTheDocument()
+  })
+
+  it('shows back button when showing subtypes and not hasNoWorkflowNodes', () => {
+    render(
+      <AddNodePanelHeader
+        panelTitle="Select a node"
+        isShowingSubtypeList
+        hasNoWorkflowNodes={false}
+        onBack={mockOnBack}
+        onClose={mockOnClose}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Back/i })).toBeInTheDocument()
+  })
+
+  it('does not show back button when hasNoWorkflowNodes', () => {
+    render(
+      <AddNodePanelHeader
+        panelTitle="Select a node"
+        isShowingSubtypeList
+        hasNoWorkflowNodes
+        onBack={mockOnBack}
+        onClose={mockOnClose}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /Back/i })).not.toBeInTheDocument()
+  })
+
+  it('shows close button when not hasNoWorkflowNodes', () => {
+    render(
+      <AddNodePanelHeader
+        panelTitle="Add node"
+        isShowingSubtypeList={false}
+        hasNoWorkflowNodes={false}
+        onBack={mockOnBack}
+        onClose={mockOnClose}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument()
+  })
+
+  it('hides close button when hasNoWorkflowNodes', () => {
+    render(
+      <AddNodePanelHeader
+        panelTitle="Add node"
+        isShowingSubtypeList={false}
+        hasNoWorkflowNodes
+        onBack={mockOnBack}
+        onClose={mockOnClose}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /Close/i })).not.toBeInTheDocument()
+  })
+
+  it('calls onBack when back button is clicked', async () => {
+    const user = userEvent.setup()
+    render(
+      <AddNodePanelHeader
+        panelTitle="Select a node"
+        isShowingSubtypeList
+        hasNoWorkflowNodes={false}
+        onBack={mockOnBack}
+        onClose={mockOnClose}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /Back/i }))
+
+    expect(mockOnBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onClose when close button is clicked', async () => {
+    const user = userEvent.setup()
+    render(
+      <AddNodePanelHeader
+        panelTitle="Add node"
+        isShowingSubtypeList={false}
+        hasNoWorkflowNodes={false}
+        onBack={mockOnBack}
+        onClose={mockOnClose}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: /Close/i }))
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe('AddNodePanel Component', () => {
   const mockOnClose = vi.fn()

@@ -2,7 +2,52 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 
-import { FileUpload, type UploadedFile } from './FileUpload'
+import { FileUpload, computeUploadStatusProps, type UploadedFile } from './FileUpload'
+
+describe('computeUploadStatusProps', () => {
+  const createFile = (name: string): File => new File(['x'], name, { type: 'image/png' })
+
+  it('returns undefined toggle text when no files', () => {
+    const result = computeUploadStatusProps([])
+    expect(result.statusToggleText).toBeUndefined()
+  })
+
+  it('returns correct count text for mixed status files', () => {
+    const files: UploadedFile[] = [
+      { id: '1', file: createFile('a.png'), progress: 100, status: 'success' },
+      { id: '2', file: createFile('b.png'), progress: 50, status: 'uploading' },
+    ]
+    const result = computeUploadStatusProps(files)
+    expect(result.statusToggleText).toBe('1/2 files uploaded')
+  })
+
+  it('returns danger icon when any file has error', () => {
+    const files: UploadedFile[] = [
+      { id: '1', file: createFile('a.png'), progress: 100, status: 'success' },
+      { id: '2', file: createFile('b.png'), progress: 30, status: 'error' },
+    ]
+    const result = computeUploadStatusProps(files)
+    expect(result.statusToggleIcon).toBe('danger')
+  })
+
+  it('returns success icon when all files succeeded', () => {
+    const files: UploadedFile[] = [
+      { id: '1', file: createFile('a.png'), progress: 100, status: 'success' },
+      { id: '2', file: createFile('b.png'), progress: 100, status: 'success' },
+    ]
+    const result = computeUploadStatusProps(files)
+    expect(result.statusToggleIcon).toBe('success')
+  })
+
+  it('returns inProgress icon when upload in progress', () => {
+    const files: UploadedFile[] = [
+      { id: '1', file: createFile('a.png'), progress: 0, status: 'pending' },
+      { id: '2', file: createFile('b.png'), progress: 50, status: 'uploading' },
+    ]
+    const result = computeUploadStatusProps(files)
+    expect(result.statusToggleIcon).toBe('inProgress')
+  })
+})
 
 describe('FileUpload', () => {
   describe('empty state', () => {

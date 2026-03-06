@@ -1,12 +1,100 @@
 import { Icon } from '@patternfly/react-core'
 import { RhUiAddSquareIcon } from '@patternfly/react-icons'
 import { BaseEdge, EdgeLabelRenderer, Position, useReactFlow } from '@xyflow/react'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { setPendingDragHandle } from '../utils/pendingDragHandle'
 
 import { adjustSourceCoordinates } from './edgeUtils'
 import type { ButtonEdgeProps } from './types'
+
+const STUB_LENGTH = 50
+
+/**
+ * Computes the target position of a stub edge from the source position and direction.
+ */
+export function calculateStubTarget(
+  sourceX: number,
+  sourceY: number,
+  sourcePosition: Position,
+  stubLength: number
+): { targetX: number; targetY: number } {
+  let targetX = sourceX
+  let targetY = sourceY
+  switch (sourcePosition) {
+    case Position.Right:
+      targetX = sourceX + stubLength
+      break
+    case Position.Left:
+      targetX = sourceX - stubLength
+      break
+    case Position.Bottom:
+      targetY = sourceY + stubLength
+      break
+    case Position.Top:
+      targetY = sourceY - stubLength
+      break
+    default:
+      targetX = sourceX + stubLength
+  }
+  return { targetX, targetY }
+}
+
+function useButtonEdgeDragHandler(params: { id: string; source: string; sourceX: number; sourceY: number }) {
+  const reactFlowInstance = useReactFlow()
+  const [isDragging, setIsDragging] = useState(false)
+  const mouseUpHandlerRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (mouseUpHandlerRef.current) {
+        document.removeEventListener('mouseup', mouseUpHandlerRef.current)
+      }
+    }
+  }, [])
+
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent) => {
+      const sourceNode = reactFlowInstance.getNode(params.source)
+      if (!sourceNode) return
+
+      const fullEdge = reactFlowInstance.getEdge(params.id)
+      const handleId = fullEdge?.sourceHandle || 'source'
+      const handleElement = document.querySelector(`[data-nodeid="${params.source}"][data-handleid="${handleId}"]`)
+      if (!handleElement) return
+
+      setPendingDragHandle(params.source, handleId)
+      const screenPosition = reactFlowInstance.flowToScreenPosition({
+        x: params.sourceX,
+        y: params.sourceY,
+      })
+      const syntheticEvent = new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: screenPosition.x,
+        clientY: screenPosition.y,
+        button: 0,
+      })
+
+      setIsDragging(true)
+      handleElement.dispatchEvent(syntheticEvent)
+
+      const handleMouseUp = () => {
+        setIsDragging(false)
+        mouseUpHandlerRef.current = null
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+      mouseUpHandlerRef.current = handleMouseUp
+      document.addEventListener('mouseup', handleMouseUp)
+
+      event.preventDefault()
+      event.stopPropagation()
+    },
+    [params.id, params.source, params.sourceX, params.sourceY, reactFlowInstance]
+  )
+
+  return { handleMouseDown, isDragging }
+}
 
 /**
  * Edge with a plus button that opens the add node panel
@@ -15,97 +103,23 @@ import type { ButtonEdgeProps } from './types'
  */
 export function ButtonEdge(props: ButtonEdgeProps) {
   const { sourceX, sourceY, sourcePosition, style, data, id, source } = props
-  const [isDragging, setIsDragging] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
-  const reactFlowInstance = useReactFlow()
+  const { handleMouseDown, isDragging } = useButtonEdgeDragHandler({ id, source, sourceX, sourceY })
 
-  // Get the full edge to access the sourceHandle (could be "source", "true", or "false" for condition nodes)
-  const fullEdge = reactFlowInstance.getEdge(id)
-
-  // Create a short stub edge extending from the source node
-  const stubLength = 50
-
-  // Adjust source coordinates to account for handle position at visual edge
   const { x: adjustedSourceX, y: adjustedSourceY } = adjustSourceCoordinates(sourceX, sourceY, sourcePosition)
-
-  // Calculate target position based on adjusted source and direction
-  let targetX = adjustedSourceX
-  let targetY = adjustedSourceY
-  switch (sourcePosition) {
-    case Position.Right:
-      targetX = adjustedSourceX + stubLength
-      break
-    case Position.Left:
-      targetX = adjustedSourceX - stubLength
-      break
-    case Position.Bottom:
-      targetY = adjustedSourceY + stubLength
-      break
-    case Position.Top:
-      targetY = adjustedSourceY - stubLength
-      break
-    default:
-      // Default to right
-      targetX = adjustedSourceX + stubLength
-  }
-
-  // Create a simple straight line path starting from adjusted source position
-  const edgePath = `M ${adjustedSourceX},${adjustedSourceY} L ${targetX},${targetY}`
-
-  // Button position at the end of the stub (calculated from adjusted source)
-  const buttonX = targetX
-  const buttonY = targetY
+  const { targetX: buttonX, targetY: buttonY } = calculateStubTarget(
+    adjustedSourceX,
+    adjustedSourceY,
+    sourcePosition,
+    STUB_LENGTH
+  )
+  const edgePath = `M ${adjustedSourceX},${adjustedSourceY} L ${buttonX},${buttonY}`
 
   const handleClick = (event: React.SyntheticEvent) => {
     event.stopPropagation()
     if (!isDragging) {
       data?.onButtonClick?.({ x: buttonX, y: buttonY })
     }
-  }
-
-  const handleMouseDown = (event: React.MouseEvent) => {
-    // Get the source node
-    const sourceNode = reactFlowInstance.getNode(source)
-    if (!sourceNode) return
-
-    // Use the actual handle ID from the edge (could be "source", "true", or "false")
-    const handleId = fullEdge?.sourceHandle ?? 'source'
-
-    // Find the source handle element on the source node
-    const handleElement = document.querySelector(`[data-nodeid="${source}"][data-handleid="${handleId}"]`)
-    if (!handleElement) return
-
-    // Set the intended handle ID BEFORE dispatching the event.
-    // This allows BuilderFlow's onConnectStart to override React Flow's detection
-    // which can pick the wrong handle when condition node handles have overlapping areas.
-    setPendingDragHandle(source, handleId)
-
-    // Convert the flow coordinates (sourceX, sourceY) to screen coordinates
-    // This gives us the exact position of this specific handle, avoiding issues with
-    // overlapping handle hit areas on condition nodes
-    const screenPosition = reactFlowInstance.flowToScreenPosition({ x: sourceX, y: sourceY })
-
-    // Create a synthetic mouse event on the handle to trigger connection
-    const syntheticEvent = new MouseEvent('mousedown', {
-      bubbles: true,
-      cancelable: true,
-      clientX: screenPosition.x,
-      clientY: screenPosition.y,
-      button: 0,
-    })
-
-    setIsDragging(true)
-    handleElement.dispatchEvent(syntheticEvent)
-
-    // Track drag state
-    const handleMouseUp = () => {
-      setIsDragging(false)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-    document.addEventListener('mouseup', handleMouseUp)
-
-    event.preventDefault()
-    event.stopPropagation()
   }
 
   const handleKeyDown = (event: React.KeyboardEvent) => {

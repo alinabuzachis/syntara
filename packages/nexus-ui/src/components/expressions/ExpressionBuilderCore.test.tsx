@@ -2,7 +2,43 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ExpressionBuilderCore } from './ExpressionBuilderCore'
+import { createDefaultCondition, createDefaultGroup } from '../../utils/expressions/defaults'
+
+import { ExpressionBuilderCore, prepareRootNode } from './ExpressionBuilderCore'
+
+describe('prepareRootNode', () => {
+  it('wraps a condition node in a group', () => {
+    const condition = createDefaultCondition()
+    const expression = { root: condition }
+
+    const result = prepareRootNode(expression)
+
+    expect(result.type).toBe('group')
+    expect(result.children).toHaveLength(1)
+    expect(result.children[0]).toBe(condition)
+    expect(result.operator).toBe('AND')
+  })
+
+  it('returns a group node as-is', () => {
+    const group = createDefaultGroup('OR')
+    const expression = { root: group }
+
+    const result = prepareRootNode(expression)
+
+    expect(result).toBe(group)
+    expect(result.type).toBe('group')
+    expect(result.operator).toBe('OR')
+  })
+
+  it('creates a default group when root is null', () => {
+    const result = prepareRootNode({ root: null })
+
+    expect(result.type).toBe('group')
+    expect(result.operator).toBe('AND')
+    expect(result.children).toHaveLength(1)
+    expect(result.children[0].type).toBe('condition')
+  })
+})
 
 describe('ExpressionBuilderCore', () => {
   it('renders with empty value in visual mode', () => {

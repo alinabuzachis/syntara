@@ -14,6 +14,56 @@ import type { Expression, ExpressionNode, ExpressionGroup as ExpressionGroupType
 import { ExpressionGroup } from './ExpressionGroup'
 import { ExpressionRawEditor } from './ExpressionRawEditor'
 
+/**
+ * Normalizes the root node for display in the visual editor.
+ * Wraps a single condition in a group, returns groups as-is, creates default group when root is null.
+ */
+export function prepareRootNode(expression: Expression): ExpressionGroupType {
+  const rawRoot = expression.root ?? createDefaultGroup()
+  if (rawRoot.type === 'condition') {
+    return {
+      ...createDefaultGroup('AND'),
+      children: [rawRoot],
+    }
+  }
+  return rawRoot
+}
+
+interface VisualExpressionEditorProps {
+  group: ExpressionGroupType
+  onUpdateRoot: (root: ExpressionGroupType) => void
+  error?: boolean
+}
+
+function VisualExpressionEditor({ group, onUpdateRoot, error }: VisualExpressionEditorProps) {
+  return (
+    <ExpressionGroup
+      group={group}
+      onChange={(updates) => onUpdateRoot({ ...group, ...updates })}
+      onUpdateChild={(index, node) => {
+        const updatedChildren = [...group.children]
+        updatedChildren[index] = node
+        onUpdateRoot({ ...group, children: updatedChildren })
+      }}
+      onRemoveChild={(index) => {
+        const updatedChildren = group.children.filter((_, i) => i !== index)
+        onUpdateRoot({
+          ...group,
+          children: updatedChildren.length > 0 ? updatedChildren : [createDefaultCondition()],
+        })
+      }}
+      onAddCondition={() => {
+        onUpdateRoot({ ...group, children: [...group.children, createDefaultCondition()] })
+      }}
+      onAddGroup={() => {
+        onUpdateRoot({ ...group, children: [...group.children, createDefaultGroup()] })
+      }}
+      level={0}
+      error={error}
+    />
+  )
+}
+
 interface ExpressionBuilderCoreProps {
   /** Current expression value (template string) */
   value: string
@@ -152,16 +202,7 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
     dispatch({ type: 'SET_RAW_VALUE', payload: rawValue })
   }
 
-  // Visual mode: render group or default empty group
-  // If root is a single condition, wrap it in a group for consistent UI
-  const rawRoot = state.expression.root ?? createDefaultGroup()
-  const rootNode: ExpressionGroupType =
-    rawRoot.type === 'condition'
-      ? {
-          ...createDefaultGroup('AND'),
-          children: [rawRoot],
-        }
-      : rawRoot
+  const rootNode = prepareRootNode(state.expression)
 
   return (
     <Stack
@@ -187,35 +228,9 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
           }}
         >
           {state.mode === 'visual' ? (
-            <ExpressionGroup
+            <VisualExpressionEditor
               group={rootNode}
-              onChange={(updates) => {
-                dispatch({ type: 'UPDATE_ROOT', payload: { ...rootNode, ...updates } })
-              }}
-              onUpdateChild={(index, node) => {
-                const updatedChildren = [...rootNode.children]
-                updatedChildren[index] = node
-                dispatch({ type: 'UPDATE_ROOT', payload: { ...rootNode, children: updatedChildren } })
-              }}
-              onRemoveChild={(index) => {
-                const updatedChildren = rootNode.children.filter((_, i) => i !== index)
-                dispatch({
-                  type: 'UPDATE_ROOT',
-                  payload: {
-                    ...rootNode,
-                    children: updatedChildren.length > 0 ? updatedChildren : [createDefaultCondition()],
-                  },
-                })
-              }}
-              onAddCondition={() => {
-                const updatedChildren = [...rootNode.children, createDefaultCondition()]
-                dispatch({ type: 'UPDATE_ROOT', payload: { ...rootNode, children: updatedChildren } })
-              }}
-              onAddGroup={() => {
-                const updatedChildren = [...rootNode.children, createDefaultGroup()]
-                dispatch({ type: 'UPDATE_ROOT', payload: { ...rootNode, children: updatedChildren } })
-              }}
-              level={0}
+              onUpdateRoot={(root) => dispatch({ type: 'UPDATE_ROOT', payload: root })}
               error={error}
             />
           ) : (

@@ -1,7 +1,64 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { useNodeUpdates } from './useNodeUpdates'
+import { mergeNodesPreservingPositions, useNodeUpdates } from './useNodeUpdates'
+
+describe('mergeNodesPreservingPositions', () => {
+  it('preserves positions from existing nodes', () => {
+    const prevNodes = [
+      { id: 'node-1', data: { old: true }, position: { x: 100, y: 200 }, measured: { width: 50 } },
+    ] as never[]
+    const initialNodes = [{ id: 'node-1', data: { new: true } }] as never[]
+
+    const result = mergeNodesPreservingPositions(prevNodes, initialNodes)
+
+    const node1 = result.find((n) => (n as { id: string }).id === 'node-1')
+    expect((node1 as { position: { x: number; y: number } }).position).toEqual({ x: 100, y: 200 })
+    expect((node1 as { measured: { width: number } }).measured).toEqual({ width: 50 })
+  })
+
+  it('adds new nodes that do not exist in previous list', () => {
+    const prevNodes = [{ id: 'node-1', data: {}, position: { x: 0, y: 0 } }] as never[]
+    const initialNodes = [
+      { id: 'node-1', data: {} },
+      { id: 'node-2', data: {}, position: { x: 10, y: 20 } },
+    ] as never[]
+
+    const result = mergeNodesPreservingPositions(prevNodes, initialNodes)
+
+    expect(result).toHaveLength(2)
+    const node2 = result.find((n) => (n as { id: string }).id === 'node-2')
+    expect(node2).toBeDefined()
+    expect((node2 as { position: { x: number; y: number } }).position).toEqual({ x: 10, y: 20 })
+  })
+
+  it('preserves non-initial nodes (like placeholder nodes)', () => {
+    const prevNodes = [
+      { id: 'node-1', data: {}, position: { x: 0, y: 0 } },
+      { id: 'placeholder-node-1', type: 'placeholder', position: { x: 100, y: 100 } },
+    ] as never[]
+    const initialNodes = [{ id: 'node-1', data: { updated: true } }] as never[]
+
+    const result = mergeNodesPreservingPositions(prevNodes, initialNodes)
+
+    expect(result).toHaveLength(2)
+    const placeholder = result.find((n) => (n as { id: string }).id === 'placeholder-node-1')
+    expect(placeholder).toBeDefined()
+    expect((placeholder as { position: { x: number; y: number } }).position).toEqual({ x: 100, y: 100 })
+  })
+
+  it('returns initialNodes as-is when prevNodes is empty', () => {
+    const prevNodes: never[] = []
+    const initialNodes = [
+      { id: 'node-1', data: {} },
+      { id: 'node-2', data: {} },
+    ] as never[]
+
+    const result = mergeNodesPreservingPositions(prevNodes, initialNodes)
+
+    expect(result).toEqual(initialNodes)
+  })
+})
 
 describe('useNodeUpdates', () => {
   const mockSetNodes = vi.fn()
@@ -295,6 +352,55 @@ describe('useNodeUpdates', () => {
     const remainingNode = capturedNodes.find((n) => (n as { id: string }).id === 'node-1')
     expect(remainingNode).toBeDefined()
     expect((remainingNode as { position: { x: number; y: number } }).position).toEqual({ x: 10, y: 20 })
+    // Verify deleted node is excluded
+    const deletedNode = capturedNodes.find((n) => (n as { id: string }).id === 'node-2')
+    expect(deletedNode).toBeUndefined()
+  })
+
+  it('filters out stale nodes during deletion, keeping only initial and placeholder nodes', () => {
+    let capturedNodes: unknown[] = []
+    mockSetNodes.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        capturedNodes = updater([
+          { id: 'node-1', data: {}, position: { x: 10, y: 20 }, measured: { width: 100 }, type: 'task' },
+          { id: 'node-2', data: {}, position: { x: 30, y: 40 }, measured: { width: 100 }, type: 'task' },
+          { id: 'placeholder-1', data: {}, position: { x: 0, y: 0 }, type: 'placeholder' },
+          { id: 'stale-node', data: {}, position: { x: 50, y: 60 }, type: 'task' },
+        ])
+      }
+      return capturedNodes
+    })
+
+    const { result, rerender } = renderHook(
+      ({ initialNodes }) =>
+        useNodeUpdates({
+          initialNodes,
+          initialEdges: [],
+          isInitialized: true,
+          setNodes: mockSetNodes,
+          setEdges: mockSetEdges,
+        }),
+      {
+        initialProps: {
+          initialNodes: [
+            { id: 'node-1', data: {} },
+            { id: 'node-2', data: {} },
+          ] as never[],
+        },
+      }
+    )
+
+    result.current.previousNodeIdsRef.current = new Set(['node-1', 'node-2'])
+
+    // Delete node-2: initialNodes now only has node-1
+    rerender({ initialNodes: [{ id: 'node-1', data: {} }] as never[] })
+
+    expect(mockSetNodes).toHaveBeenCalled()
+    const ids = capturedNodes.map((n) => (n as { id: string }).id)
+    expect(ids).toContain('node-1')
+    expect(ids).toContain('placeholder-1')
+    expect(ids).not.toContain('stale-node')
+    expect(ids).not.toContain('node-2')
   })
 
   it('handles data-only changes preserving positions', () => {

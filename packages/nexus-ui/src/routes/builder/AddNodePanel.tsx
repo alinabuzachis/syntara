@@ -5,6 +5,64 @@ import { useMemo, useState } from 'react'
 import { NodeTypeOptionsList } from './NodeTypeOptionsList'
 import { NodeRegistry } from './registry/NodeRegistry'
 
+interface AddNodePanelHeaderProps {
+  panelTitle: string
+  isShowingSubtypeList: boolean
+  hasNoWorkflowNodes?: boolean
+  onBack: () => void
+  onClose: () => void
+}
+
+export function AddNodePanelHeader({
+  panelTitle,
+  isShowingSubtypeList,
+  hasNoWorkflowNodes,
+  onBack,
+  onClose,
+}: AddNodePanelHeaderProps) {
+  return (
+    <StackItem>
+      <Flex
+        alignItems={{ default: 'alignItemsCenter' }}
+        justifyContent={{ default: 'justifyContentSpaceBetween' }}
+        style={{ padding: 'var(--pf-t--global--spacer--md)' }}
+      >
+        <FlexItem>
+          <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+            <FlexItem>
+              {isShowingSubtypeList && !hasNoWorkflowNodes ? (
+                <Button variant="plain" onClick={onBack} aria-label="Back">
+                  <Icon>
+                    <RhUiArrowLeftIcon />
+                  </Icon>
+                </Button>
+              ) : !isShowingSubtypeList ? (
+                <Icon>
+                  <RhUiAddSquareIcon />
+                </Icon>
+              ) : null}
+            </FlexItem>
+            <FlexItem>
+              <Title headingLevel="h2" size={TitleSizes.lg}>
+                {panelTitle}
+              </Title>
+            </FlexItem>
+          </Flex>
+        </FlexItem>
+        {!hasNoWorkflowNodes && (
+          <FlexItem>
+            <Button variant="plain" onClick={onClose} aria-label="Close">
+              <Icon>
+                <RhUiCloseIcon />
+              </Icon>
+            </Button>
+          </FlexItem>
+        )}
+      </Flex>
+    </StackItem>
+  )
+}
+
 interface AddNodePanelProps {
   onClose: () => void
   onSelectNode: (nodeTypeId: string, nodeSubtypeId?: string | null) => void
@@ -67,51 +125,13 @@ export function AddNodePanel(props: AddNodePanelProps) {
       }}
     >
       <Stack>
-        <StackItem>
-          <Flex
-            alignItems={{ default: 'alignItemsCenter' }}
-            justifyContent={{ default: 'justifyContentSpaceBetween' }}
-            style={{ padding: 'var(--pf-t--global--spacer--md)' }}
-          >
-            <FlexItem>
-              <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-                <FlexItem>
-                  {isShowingSubtypeList && !props.hasNoWorkflowNodes ? (
-                    <Button
-                      variant="plain"
-                      onClick={() => {
-                        setSelectedNodeType(null)
-                      }}
-                      aria-label="Back"
-                    >
-                      <Icon>
-                        <RhUiArrowLeftIcon />
-                      </Icon>
-                    </Button>
-                  ) : !isShowingSubtypeList ? (
-                    <Icon>
-                      <RhUiAddSquareIcon />
-                    </Icon>
-                  ) : null}
-                </FlexItem>
-                <FlexItem>
-                  <Title headingLevel="h2" size={TitleSizes.lg}>
-                    {panelTitle}
-                  </Title>
-                </FlexItem>
-              </Flex>
-            </FlexItem>
-            {!props.hasNoWorkflowNodes && (
-              <FlexItem>
-                <Button variant="plain" onClick={props.onClose} aria-label="Close">
-                  <Icon>
-                    <RhUiCloseIcon />
-                  </Icon>
-                </Button>
-              </FlexItem>
-            )}
-          </Flex>
-        </StackItem>
+        <AddNodePanelHeader
+          panelTitle={panelTitle}
+          isShowingSubtypeList={isShowingSubtypeList}
+          hasNoWorkflowNodes={props.hasNoWorkflowNodes}
+          onBack={() => setSelectedNodeType(null)}
+          onClose={props.onClose}
+        />
         <StackItem
           isFilled
           style={{
