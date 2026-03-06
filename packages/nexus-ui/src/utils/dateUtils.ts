@@ -68,3 +68,15 @@ export function formatElapsedTime(elapsedMs: number): string {
   parts.push(`${seconds}s`)
   return parts.join(' ')
 }
+
+/**
+ * Format a Date object to ISO 8601 string for API compatibility.
+ * Use this for sending dates to the API in filter parameters.
+ *
+ * @example
+ * formatDateForApi(new Date('2024-01-01T12:00:00Z'))
+ * // → '2024-01-01T12:00:00.000Z'
+ */
+export function formatDateForApi(date: Date): string {
+  return date.toISOString()
+}
