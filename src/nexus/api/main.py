@@ -185,13 +185,13 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
             db_status = "ok"
             break
     except Exception as e:
+        logger.debug("Health check failed: database connectivity error", error=str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
                 "status": "unhealthy",
                 "timestamp": timestamp,
                 "checks": {"database": "error"},
-                "error": str(e),
             },
         ) from e
 
