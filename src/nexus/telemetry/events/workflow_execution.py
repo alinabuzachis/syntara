@@ -6,14 +6,12 @@ plus builder classes for constructing events from workflow execution context.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from sqlmodel import Field
 
 from nexus.telemetry.events.base import BaseTelemetryEvent
-
-if TYPE_CHECKING:
-    from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
+from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus  # noqa: TC001
 
 
 class WorkflowExecutionStartEvent(BaseTelemetryEvent):

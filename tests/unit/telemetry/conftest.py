@@ -2,12 +2,6 @@
 
 import pytest
 
-from nexus.telemetry.events.workflow_execution import WorkflowExecutionCompletedEvent
-from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowTerminalStatus
-
-# Resolve forward references for models using TYPE_CHECKING imports
-WorkflowExecutionCompletedEvent.model_rebuild(_types_namespace={"WorkflowTerminalStatus": WorkflowTerminalStatus})
-
 # Common test data constants
 VALID_ENTITLEMENT_ID = "ent-550e8400-e29b-41d4-a716-446655440000"
 VALID_WORKFLOW_EXECUTION_ID = "550e8400-e29b-41d4-a716-446655440000"
