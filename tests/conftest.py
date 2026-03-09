@@ -60,7 +60,6 @@ from tests.helpers.approval import ApprovalsFactory
 from tests.helpers.tool_manager import ToolFactory
 from tests.helpers.workflow import ExecutionsFactory
 
-# Ensure models are registered with SQLModel metadata
 _ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata)
 
 # Configure structlog for consistent test logging

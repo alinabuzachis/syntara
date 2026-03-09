@@ -54,6 +54,7 @@ dependencies = [
     "rapidfuzz>=3.14.3",
     "spacy>=3.8.11",
     "structlog>=25.5.0",
+    "segment-analytics-python>=2.3.5",
     "prometheus-client>=0.19.0",
 ]
 
@@ -122,6 +123,8 @@ ignore = [
 "tests/**/*.py" = [
     "S101",     # Allow assert statements in tests
     "ANN001",   # Don't require type annotations for test function arguments (fixtures)
+    "ANN201",   # Don't require return type annotations for test functions
+    "D102",     # Don't require docstrings for test methods
     "PLR2004",  # Allow magic values in tests
     "TD002",    # TODO formatting
     "TD003",    # TODO formatting

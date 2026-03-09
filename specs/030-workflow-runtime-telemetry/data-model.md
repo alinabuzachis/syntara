@@ -26,8 +26,8 @@ All event fields must always be present in the payload, using explicit `null` fo
 
 **Schema Generation**:
 ```bash
-make generate-schemas  # Regenerate JSON schemas from Pydantic models
-make validate-schemas  # Verify schemas are in sync (runs in CI)
+make generate-telemetry-schemas  # Regenerate JSON schemas from Pydantic models
+make validate-telemetry-schemas  # Verify schemas are in sync (runs in `make lint`)
 ```
 
 **Implementation Location**:

@@ -102,6 +102,7 @@ services:
       - NEXUS_OPENROUTER_BASE_URL=${NEXUS_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
       - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
+      - NEXUS_SEGMENT_WRITE_KEY=${NEXUS_SEGMENT_WRITE_KEY}
     volumes:
       - ./src:/opt/app-root/src/src:z
     depends_on:
@@ -151,6 +152,8 @@ services:
       - NEXUS_AAP_TIMEOUT_SECONDS=${NEXUS_AAP_TIMEOUT_SECONDS:-3600}
       - NEXUS_AAP_POLL_INTERVAL_SECONDS=${NEXUS_AAP_POLL_INTERVAL_SECONDS:-5.0}
       - NEXUS_AAP_VERIFY_SSL=${NEXUS_AAP_VERIFY_SSL:-true}
+      - NEXUS_SEGMENT_WRITE_KEY=${NEXUS_SEGMENT_WRITE_KEY}
+      - NEXUS_ENTITLEMENT_ID=${NEXUS_ENTITLEMENT_ID}
     volumes:
       - ./src:/opt/app-root/src/src:z
     depends_on:

@@ -83,6 +83,23 @@ class ActivityType(str, Enum):
     APPROVAL = "approval"
 
 
+class ActivityTerminalStatus(str, Enum):
+    """Terminal activity execution statuses for telemetry events."""
+
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    CANCELLED = "cancelled"
+
+
+class WorkflowTerminalStatus(str, Enum):
+    """Terminal workflow execution statuses for telemetry events."""
+
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
 class LoopType(str, Enum):
     """Supported loop types."""
 

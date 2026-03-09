@@ -14,6 +14,7 @@ from temporalio.worker import Worker
 
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
+from nexus.telemetry.events.workflow_emitters import flush_telemetry, initialize_telemetry
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
     execute_aap_job_template_activity,
@@ -98,6 +99,9 @@ class TemporalWorkerService:
             # Register in global registry for access by internal activities
             set_activity_sync_service(self.activity_sync_service)
 
+            # Initialize telemetry
+            initialize_telemetry()
+
             # Create worker with workflows, activities, and interceptors
             self.worker = Worker(
                 self.client,
@@ -151,6 +155,9 @@ class TemporalWorkerService:
                 logger.info("Worker task cancelled successfully")
 
             self._worker_task = None
+
+        # Flush pending telemetry events after worker has fully stopped
+        flush_telemetry()
 
         # Client cleanup is handled automatically by Temporal SDK
         self.client = None

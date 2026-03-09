@@ -20,6 +20,7 @@ from temporalio.client import Client, WorkflowHandle
 from temporalio.exceptions import TemporalError
 
 from nexus.core.exceptions import SafeValueError
+from nexus.telemetry.events.workflow_emitters import emit_activities, emit_workflow_completed, emit_workflow_start
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
@@ -169,6 +170,9 @@ class ActivitySyncService:
                     execution.updated_at = datetime.now(UTC)
                     await session.commit()
                     logger.info("Updated execution to RUNNING status", execution_id=metadata.execution_id)
+
+                    # Emit workflow start telemetry
+                    emit_workflow_start(execution)
                 else:
                     logger.debug(
                         "Skipping RUNNING update for execution - already in state",
@@ -548,6 +552,14 @@ class ActivitySyncService:
                         "Failed to publish final snapshot for execution (non-fatal)", execution_id=metadata.execution_id
                     )
 
+                # Emit workflow completed telemetry (activity counts are now accurate)
+                emit_workflow_completed(
+                    execution=execution,
+                    status=status,
+                    completed_at=completed_at,
+                    error_details=error_details,
+                )
+
             except Exception:
                 await session.rollback()
                 logger.exception(
@@ -660,6 +672,21 @@ class ActivitySyncService:
                     # Track updated activity with old values for patch generation
                     updated_activities.append((existing, old_values))
 
+                # Clear terminal activities from pending to avoid re-processing
+                terminal_statuses = {
+                    ActivityStatus.COMPLETED,
+                    ActivityStatus.FAILED,
+                    ActivityStatus.SKIPPED,
+                    ActivityStatus.CANCELLED,
+                }
+                terminal_scheduled_ids = [
+                    scheduled_id
+                    for scheduled_id, data in metadata.pending_activity_updates.items()
+                    if data.get("status") in terminal_statuses
+                ]
+                for scheduled_id in terminal_scheduled_ids:
+                    del metadata.pending_activity_updates[scheduled_id]
+
                 # Update execution's last processed event ID
                 result = await session.exec(select(Execution).where(Execution.id == metadata.execution_id))
                 execution = result.one_or_none()
@@ -671,6 +698,13 @@ class ActivitySyncService:
                 # Publish activity patches after commit
                 if updated_activities:
                     await self._publish_activity_patches(metadata, updated_activities)
+
+                # Emit telemetry for activities that reached terminal states
+                emit_activities(
+                    execution_id=metadata.execution_id,
+                    activity_definitions_map=metadata.activity_definitions_map,
+                    updated_activities=updated_activities,
+                )
 
             except Exception:
                 await session.rollback()
@@ -824,6 +858,13 @@ class ActivitySyncService:
                 # Publish activity patches after commit
                 if updated_activities:
                     await self._publish_activity_patches(metadata, updated_activities)
+
+                # Emit telemetry for skipped activities
+                emit_activities(
+                    execution_id=metadata.execution_id,
+                    activity_definitions_map=metadata.activity_definitions_map,
+                    updated_activities=updated_activities,
+                )
 
             except Exception:
                 await session.rollback()

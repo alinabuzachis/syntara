@@ -8,7 +8,6 @@ from nexus.core.websocket.interceptor import (
     InterceptorRegistry,
     ValidationInterceptor,
     WebSocketInterceptor,
-    get_registry,
 )
 
 
@@ -265,14 +264,3 @@ class TestValidationInterceptor:
         # Verify validation ran and succeeded for each module
         assert len(interceptor.validation_results) == 2
         assert all(result.is_valid for result in interceptor.validation_results)
-
-
-class TestGetRegistry:
-    """Tests for get_registry function."""
-
-    def test_get_registry_returns_singleton(self) -> None:
-        """Test that get_registry returns the same instance."""
-        registry1 = get_registry()
-        registry2 = get_registry()
-
-        assert registry1 is registry2

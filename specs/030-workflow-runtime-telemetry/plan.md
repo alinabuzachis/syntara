@@ -349,10 +349,10 @@ For each research task, `research.md` will document:
 **Schema Generation Workflow**:
 ```bash
 # Regenerate schemas after Pydantic model changes
-make generate-schemas
+make generate-telemetry-schemas
 
-# CI validates schemas are in sync with Pydantic models
-make validate-schemas
+# Validates schemas are in sync with Pydantic models (runs in `make lint`)
+make validate-telemetry-schemas
 ```
 
 **Pydantic Model Example**:
@@ -379,7 +379,7 @@ class WorkflowExecutionStartEvent(BaseModel):
 
 **Validation Strategy**:
 - **Runtime**: Pydantic validates events when constructed (automatic)
-- **Build-time**: JSON schemas generated via `model.model_json_schema()` (see `scripts/generate_telemetry_schemas.py`)
+- **Build-time**: JSON schemas generated via `model.model_json_schema()` (see `tools/generate_telemetry_schemas.py`)
 - **Tests**: Contract tests verify Pydantic models produce valid JSON schemas
 - **CI**: Automated check ensures schemas stay synchronized with Pydantic models
 

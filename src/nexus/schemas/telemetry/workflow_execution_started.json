@@ -1,0 +1,21 @@
+{
+  "description": "Telemetry event emitted when workflow execution begins.\n\nAttributes:\n    entitlement_id: Unique Nexus installation identifier for anonymized tracking.\n    workflow_execution_id: Unique workflow execution identifier (UUID v4 format).",
+  "properties": {
+    "entitlement_id": {
+      "description": "Unique Nexus installation identifier",
+      "title": "Entitlement Id",
+      "type": "string"
+    },
+    "workflow_execution_id": {
+      "description": "Unique workflow execution identifier (UUID v4)",
+      "title": "Workflow Execution Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "entitlement_id",
+    "workflow_execution_id"
+  ],
+  "title": "WorkflowExecutionStartEvent",
+  "type": "object"
+}

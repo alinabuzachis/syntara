@@ -911,6 +911,36 @@ class ContextManagerSettings(BaseSettings):
 
 
 # =============================================================================
+# Telemetry Configuration
+# =============================================================================
+
+
+class TelemetrySettings(BaseSettings):
+    """Telemetry configuration settings for Segment.com integration.
+
+    Configures the Segment Analytics SDK for workflow runtime telemetry.
+    Telemetry is always enabled per specification (FR-014).
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    segment_write_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="Segment write API key for telemetry transmission",
+    )
+
+    segment_endpoint: HttpUrl = Field(  # type: ignore[assignment]
+        default="https://api.segment.io",
+        description="Segment API endpoint URL",
+    )
+
+    entitlement_id: str = Field(
+        default="",
+        description="Unique Nexus installation identifier for anonymized telemetry tracking",
+    )
+
+
+# =============================================================================
 # Workflow Engine Configuration
 # =============================================================================
 
@@ -1216,6 +1246,7 @@ class Settings(
     WorkflowEngineSettings,
     ToolManagerSettings,
     WorkflowClientSettings,
+    TelemetrySettings,
     MetricsSettings,
 ):
     """Application-wide settings.
