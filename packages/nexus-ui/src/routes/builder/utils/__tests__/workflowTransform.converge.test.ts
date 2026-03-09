@@ -15,7 +15,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             id: 'A',
             name: 'A',
             task: {
-              config: { code: 'a', language: 'python', environment: {}, timeout_seconds: 300 },
+              config: { code: 'a', language: 'python', environment: {} },
               executor: 'script',
             },
             type: 'task',
@@ -25,7 +25,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             id: 'B',
             name: 'B',
             task: {
-              config: { code: 'b', language: 'python', environment: {}, timeout_seconds: 300 },
+              config: { code: 'b', language: 'python', environment: {} },
               executor: 'script',
             },
             type: 'task',
@@ -33,7 +33,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
           },
         ],
         type: 'condition',
-        condition: { expression: 'c' },
+        condition: 'c',
         requiresApproval: false,
       },
       {
@@ -52,7 +52,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         id: 'M',
         name: 'M',
         task: {
-          config: { code: 'm', language: 'python', environment: {}, timeout_seconds: 300 },
+          config: { code: 'm', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -85,7 +85,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             id: 'A',
             name: 'A',
             task: {
-              config: { code: 'a', language: 'python', environment: {}, timeout_seconds: 300 },
+              config: { code: 'a', language: 'python', environment: {} },
               executor: 'script',
             },
             type: 'task',
@@ -95,7 +95,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             id: 'B',
             name: 'B',
             task: {
-              config: { code: 'b', language: 'python', environment: {}, timeout_seconds: 300 },
+              config: { code: 'b', language: 'python', environment: {} },
               executor: 'script',
             },
             type: 'task',
@@ -103,14 +103,14 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
           },
         ],
         type: 'condition',
-        condition: { expression: 'c' },
+        condition: 'c',
         requiresApproval: false,
       },
       {
         id: 'M',
         name: 'M',
         task: {
-          config: { code: 'm', language: 'python', environment: {}, timeout_seconds: 300 },
+          config: { code: 'm', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -163,7 +163,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
                       code: 'LD',
                       language: 'python',
                       environment: {},
-                      timeout_seconds: 300,
                     },
                     executor: 'script',
                   },
@@ -172,7 +171,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
                 },
               ],
               type: 'forEach',
-              items: { expression: 'a' },
+              items: '${a}',
               itemVariable: 'item',
               indexVariable: 'index',
             },
@@ -197,7 +196,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
                         code: 'a',
                         language: 'python',
                         environment: {},
-                        timeout_seconds: 300,
                       },
                       executor: 'script',
                     },
@@ -212,7 +210,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
                         code: 'm',
                         language: 'python',
                         environment: {},
-                        timeout_seconds: 300,
                       },
                       executor: 'script',
                     },
@@ -227,7 +224,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
                         code: 'C',
                         language: 'python',
                         environment: {},
-                        timeout_seconds: 300,
                       },
                       executor: 'script',
                     },
@@ -239,12 +235,12 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
               },
             ],
             type: 'condition',
-            condition: { expression: 'a' },
+            condition: 'a',
             requiresApproval: false,
           },
         ],
         type: 'condition',
-        condition: { expression: 'c' },
+        condition: 'c',
         requiresApproval: false,
       },
       {
@@ -255,7 +251,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             code: 'm',
             language: 'python',
             environment: {},
-            timeout_seconds: 300,
           },
           executor: 'script',
         },
@@ -270,7 +265,6 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             code: 'N',
             language: 'python',
             environment: {},
-            timeout_seconds: 300,
           },
           executor: 'script',
         },
@@ -345,7 +339,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         name: 'C',
         then: [],
         type: 'condition',
-        condition: { expression: 'c' },
+        condition: 'c',
         requiresApproval: false,
         else: [],
       },
@@ -353,7 +347,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         id: 'A',
         name: 'A',
         task: {
-          config: { code: 'a', language: 'python', environment: {}, timeout_seconds: 300 },
+          config: { code: 'a', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -363,7 +357,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         id: 'B',
         name: 'B',
         task: {
-          config: { code: 'b', language: 'python', environment: {}, timeout_seconds: 300 },
+          config: { code: 'b', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -385,7 +379,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         id: 'M',
         name: 'M',
         task: {
-          config: { code: 'm', language: 'python', environment: {}, timeout_seconds: 300 },
+          config: { code: 'm', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -429,7 +423,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             id: 'A',
             name: 'A',
             task: {
-              config: { code: 'a', language: 'python', environment: {}, timeout_seconds: 300 },
+              config: { code: 'a', language: 'python', environment: {} },
               executor: 'script',
             },
             type: 'task',
@@ -437,7 +431,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
           },
         ],
         type: 'condition',
-        condition: { expression: 'c' },
+        condition: 'c',
         requiresApproval: false,
       },
       {
@@ -476,7 +470,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             id: 'A',
             name: 'A',
             task: {
-              config: { code: 'a', language: 'python', environment: {}, timeout_seconds: 300 },
+              config: { code: 'a', language: 'python', environment: {} },
               executor: 'script',
             },
             type: 'task',
@@ -484,7 +478,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
           },
         ],
         type: 'condition',
-        condition: { expression: 'c' },
+        condition: 'c',
         requiresApproval: false,
       },
       {
@@ -503,7 +497,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         id: 'M',
         name: 'M',
         task: {
-          config: { code: 'm', language: 'python', environment: {}, timeout_seconds: 300 },
+          config: { code: 'm', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -513,7 +507,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         id: 'N',
         name: 'N',
         task: {
-          config: { code: 'n', language: 'python', environment: {}, timeout_seconds: 300 },
+          config: { code: 'n', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -541,7 +535,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         id: 'script1',
         name: 'Script',
         task: {
-          config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+          config: { code: 'import time\ntime.sleep(2)', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -556,7 +550,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             id: 'script2',
             name: 'Script2',
             task: {
-              config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+              config: { code: 'import time\ntime.sleep(2)', language: 'python', environment: {} },
               executor: 'script',
             },
             type: 'task',
@@ -566,7 +560,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
             id: 'script3',
             name: 'Script3',
             task: {
-              config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+              config: { code: 'import time\ntime.sleep(2)', language: 'python', environment: {} },
               executor: 'script',
             },
             type: 'task',
@@ -631,7 +625,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         id: 'activity_7cfa1bc4_f75d_4354_8e3a_f5f5cc22c47a',
         name: 'Script4',
         task: {
-          config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+          config: { code: 'import time\ntime.sleep(2)', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -641,7 +635,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         id: 'activity_a3e13810_784b_4cf9_a91b_b54370fcdb80',
         name: 'Script',
         task: {
-          config: { code: 'import time\ntime.sleep(2)', timeout: 300, language: 'python', environment: {} },
+          config: { code: 'import time\ntime.sleep(2)', language: 'python', environment: {} },
           executor: 'script',
         },
         type: 'task',
@@ -757,7 +751,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         type: 'condition',
         id: 'condition-1',
         name: 'Check',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
         then: [], // Empty then branch
         else: [
           {
@@ -798,7 +792,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         type: 'condition',
         id: 'condition-1',
         name: 'Check',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
         then: [
           {
             type: 'task',
@@ -839,7 +833,7 @@ describe('WorkflowTransform - Converge Edge Handling', () => {
         type: 'condition',
         id: 'condition-1',
         name: 'Check',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
         then: [
           {
             type: 'task',

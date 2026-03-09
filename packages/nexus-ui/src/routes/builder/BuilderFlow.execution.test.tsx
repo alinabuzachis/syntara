@@ -352,7 +352,9 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
+        then: [],
+        else: [],
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -380,7 +382,9 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
+        then: [],
+        else: [],
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -408,7 +412,9 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
+        then: [],
+        else: [],
       }
 
       const activityStates = new Map<string, ActivityState>()
@@ -427,7 +433,8 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'approval1',
         type: 'approval',
         name: 'Approve deployment',
-        approval: { approvers: ['user1'] },
+        onApproved: [],
+        onRejected: [],
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -456,7 +463,8 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'approval1',
         type: 'approval',
         name: 'Approve deployment',
-        approval: { approvers: ['user1'] },
+        onApproved: [],
+        onRejected: [],
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -487,7 +495,7 @@ describe('BuilderFlow Execution Visualization', () => {
         name: 'Run script',
         task: {
           executor: 'script',
-          script: { content: 'echo hello' },
+          config: { language: 'bash', code: 'echo hello' },
         },
       }
 
@@ -513,7 +521,9 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
+        then: [],
+        else: [],
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -777,7 +787,9 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
+        then: [],
+        else: [],
       }
 
       const activityStates = new Map<string, ActivityState>()
@@ -803,7 +815,8 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'approval1',
         type: 'approval',
         name: 'Approve deployment',
-        approval: { approvers: ['user1'] },
+        onApproved: [],
+        onRejected: [],
       }
 
       const activityStates = new Map<string, ActivityState>()
@@ -831,7 +844,7 @@ describe('BuilderFlow Execution Visualization', () => {
         name: 'Run script',
         task: {
           executor: 'script',
-          script: { content: 'echo hello' },
+          config: { language: 'bash', code: 'echo hello' },
         },
       }
 
@@ -848,7 +861,9 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
+        then: [],
+        else: [],
       }
 
       const activityStates = new Map<string, ActivityState>([
@@ -876,7 +891,9 @@ describe('BuilderFlow Execution Visualization', () => {
         id: 'condition1',
         type: 'condition',
         name: 'Check value',
-        condition: { expression: 'value > 10' },
+        condition: 'value > 10',
+        then: [],
+        else: [],
       }
 
       const activityStates = new Map<string, ActivityState>([

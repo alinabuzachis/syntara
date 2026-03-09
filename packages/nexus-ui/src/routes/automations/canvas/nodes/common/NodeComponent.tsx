@@ -4,6 +4,7 @@ import { Handle, type NodeProps, Position } from '@xyflow/react'
 import React, { useEffect, useState } from 'react'
 
 import { ExecutionStatusBadge } from '../../../../builder/components/ExecutionStatusBadge'
+import type { ActivityStatus } from '../../../execution/types'
 
 import { detectTaskNodeType } from './detectTaskNodeType'
 import { targetHandleStyle, sourceHandleStyle } from './handleStyle'
@@ -11,7 +12,7 @@ import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 import { NodeExpandedContext } from './NodeExpandedContext'
 
 interface ExecutionState {
-  status: string
+  status: ActivityStatus
   started_at?: string
   completed_at?: string
   error_details?: string

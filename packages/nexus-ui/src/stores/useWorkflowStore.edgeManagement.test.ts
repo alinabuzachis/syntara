@@ -94,7 +94,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [condition, taskB, taskC],
@@ -125,7 +127,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [conditionA, conditionB, taskC, taskD],
@@ -154,7 +158,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [taskA, taskB, taskC, joinJ],
@@ -183,7 +189,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [taskA, taskB, joinJ, taskC],
@@ -215,7 +223,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [taskA, taskB, joinJ],
@@ -266,7 +276,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [taskA, taskB, taskC],
@@ -301,7 +313,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [condition, taskB, taskC],
@@ -337,7 +351,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [taskA, taskB, taskC, taskD],
@@ -381,7 +397,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [taskA, taskB, taskC, convergeJ1, taskD, taskE, convergeJ2],
@@ -423,7 +441,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [condition, taskB, taskC, joinJ, taskD],
@@ -501,7 +521,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [taskA, taskB, taskC],
@@ -530,7 +552,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [taskC, taskA, taskB], // Wrong order
@@ -559,7 +583,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [taskA, taskB, joinJ],
@@ -599,7 +625,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [parallel, joinJ],
@@ -644,7 +672,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [parallel, joinJ],
@@ -689,7 +719,9 @@ describe('useWorkflowStore - Edge Management', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [parallel, taskC, joinJ],

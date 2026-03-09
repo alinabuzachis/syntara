@@ -40,6 +40,7 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      'react-hooks/exhaustive-deps': 'error',
       ...jsxA11y.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-floating-promises': 'error',
@@ -55,11 +56,8 @@ export default tseslint.config(
       'unicorn/prefer-number-properties': 'error',
       'unicorn/no-nested-ternary': 'error',
       '@typescript-eslint/prefer-optional-chain': 'error',
-      '@typescript-eslint/prefer-nullish-coalescing': [
-        'error',
-        { ignorePrimitives: { string: true, boolean: true } },
-      ],
-      '@typescript-eslint/require-array-sort-compare': 'warn',
+      '@typescript-eslint/prefer-nullish-coalescing': ['error', { ignorePrimitives: { string: true, boolean: true } }],
+      '@typescript-eslint/require-array-sort-compare': 'error',
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
       '@typescript-eslint/prefer-includes': 'warn',
       // Readability rules — thresholds based on industry standards (Code Complete, SonarQube, BiomeJS)

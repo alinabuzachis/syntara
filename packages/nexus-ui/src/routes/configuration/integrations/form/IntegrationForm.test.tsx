@@ -51,7 +51,7 @@ describe('IntegrationForm Component', () => {
     mockNavigate.mockImplementation(navigate)
 
     // Mock the mutation hooks - return different mutate functions for each endpoint
-    vi.mocked(toolManagerClient.useMutation).mockImplementation(((method: string, endpoint: string) => {
+    vi.mocked(toolManagerClient.useMutation).mockImplementation(((_method: string, endpoint: string) => {
       if (endpoint === '/tool_providers') {
         return {
           mutate: mockCreateMutate,
@@ -184,9 +184,9 @@ describe('IntegrationForm Component', () => {
       fireEvent.change(descriptionInput, { target: { value: 'Test Description' } })
       fireEvent.change(apiUrlInput, { target: { value: 'https://test.example.com' } })
 
-      expect(serverNameInput.value).toBe('Test Server')
-      expect(descriptionInput.value).toBe('Test Description')
-      expect(apiUrlInput.value).toBe('https://test.example.com')
+      expect((serverNameInput as HTMLInputElement).value).toBe('Test Server')
+      expect((descriptionInput as HTMLInputElement).value).toBe('Test Description')
+      expect((apiUrlInput as HTMLInputElement).value).toBe('https://test.example.com')
     })
 
     it('submits form data when Add integration button is clicked', async () => {
@@ -214,21 +214,21 @@ describe('IntegrationForm Component', () => {
       const mockProviderId = 'test-provider-123'
 
       // Setup create mutation to call onSuccess callback
-      mockCreateMutate.mockImplementation((variables, options) => {
+      mockCreateMutate.mockImplementation((_variables, options) => {
         if (options?.onSuccess) {
           options.onSuccess({ id: mockProviderId })
         }
       })
 
       // Setup validate mutation to call onSuccess callback
-      mockValidateMutate.mockImplementation((variables, options) => {
+      mockValidateMutate.mockImplementation((_variables, options) => {
         if (options?.onSuccess) {
           options.onSuccess()
         }
       })
 
       // Setup refresh mutation to call onSettled callback
-      mockRefreshMutate.mockImplementation((variables, options) => {
+      mockRefreshMutate.mockImplementation((_variables, options) => {
         if (options?.onSettled) {
           options.onSettled()
         }
@@ -268,19 +268,19 @@ describe('IntegrationForm Component', () => {
       const mockProviderId = 'test-provider-456'
 
       // Setup mutation chain
-      mockCreateMutate.mockImplementation((variables, options) => {
+      mockCreateMutate.mockImplementation((_variables, options) => {
         if (options?.onSuccess) {
           options.onSuccess({ id: mockProviderId })
         }
       })
 
-      mockValidateMutate.mockImplementation((variables, options) => {
+      mockValidateMutate.mockImplementation((_variables, options) => {
         if (options?.onSuccess) {
           options.onSuccess()
         }
       })
 
-      mockRefreshMutate.mockImplementation((variables, options) => {
+      mockRefreshMutate.mockImplementation((_variables, options) => {
         if (options?.onSettled) {
           options.onSettled()
         }

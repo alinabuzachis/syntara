@@ -21,6 +21,7 @@ export interface LogicFormData {
   type?: string
   items?: string
   maxIterations?: number
+  maxIterationsBehavior?: 'continue' | 'fail'
   indexVariable?: string
   itemVariable?: string
   // Converge fields

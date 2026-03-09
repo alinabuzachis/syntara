@@ -112,7 +112,7 @@ describe('TaskActivityDetails', () => {
         executor: 'aap_job_template',
         config: {
           jobTemplateId: 123,
-          inventory: 456,
+          inventoryId: 456,
         },
       },
     }

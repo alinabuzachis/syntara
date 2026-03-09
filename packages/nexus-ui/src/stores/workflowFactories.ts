@@ -352,14 +352,13 @@ export function createLoopActivity(
       },
     }
   } else if (loopType === 'while' && config.condition) {
-    const whileLoop: Extract<Activity, { type: 'loop' }>['loop'] = {
-      ...baseActivity.loop,
+    type WhileLoop = Extract<Extract<Activity, { type: 'loop' }>['loop'], { type: 'while' }>
+    const whileLoop: WhileLoop = {
+      ...(baseActivity.loop as unknown as WhileLoop),
       type: 'while' as const,
       condition: config.condition,
-      maxIterationsBehavior: config.maxIterationsBehavior ?? 'continue',
     }
 
-    // Only include maxIterations if it has a valid value
     if (config.maxIterations !== undefined && config.maxIterations !== null && !Number.isNaN(config.maxIterations)) {
       whileLoop.maxIterations = config.maxIterations
     }

@@ -1,4 +1,4 @@
-import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, ExecutorTypeEnum, type Activity, type TaskActivity } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
@@ -12,8 +12,12 @@ import { buildAAPConfig, parsePositiveInt } from '../utils/aapHelpers'
 
 import { AIAgentNodeDetails } from './AIAgentNodeDetails'
 
+type TaskOrApprovalActivity = (TaskActivity | Extract<Activity, { type: 'approval' }>) & {
+  task: { executor: string; config: unknown }
+}
+
 interface TaskNodeDetailsProps {
-  taskData: TaskActivity & { task: { executor: string; config: unknown } }
+  taskData: TaskOrApprovalActivity
   nodeId: string
   onClose: () => void
   onHeaderContentChange: (content: ReactNode | null) => void
@@ -25,7 +29,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
   const { updateActivity } = useWorkflowStoreActions()
 
   // Don't show action form for approval nodes - they have their own form
-  if (taskData.type === 'approval') {
+  if (taskData.type === ActivityTypeEnum.APPROVAL) {
     return null
   }
 
@@ -95,6 +99,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
         initialData={aapInitialData}
         submitButtonText="Update node"
         onSubmit={handleAAPSubmit}
+        onCancel={onClose}
         onHeaderContentChange={onHeaderContentChange}
       />
     )

@@ -33,7 +33,7 @@ describe('validateNoGenericNodes', () => {
   })
 
   it('returns error for generic node with __isGeneric metadata', () => {
-    const activities: Activity[] = [
+    const activities = [
       {
         type: 'task',
         id: 'generic-1',
@@ -42,10 +42,11 @@ describe('validateNoGenericNodes', () => {
           __isGeneric: true,
         },
         task: {
+          executor: 'script',
           config: {},
-        },
+        } as unknown as Extract<Activity, { type: 'task' }>['task'],
       },
-    ]
+    ] as unknown as Activity[]
 
     const errors = validateNoGenericNodes(activities)
     expect(errors).toHaveLength(1)
@@ -60,7 +61,7 @@ describe('validateNoGenericNodes', () => {
   })
 
   it('returns error for generic node without name', () => {
-    const activities: Activity[] = [
+    const activities = [
       {
         type: 'task',
         id: 'generic-1',
@@ -69,10 +70,11 @@ describe('validateNoGenericNodes', () => {
           __isGeneric: true,
         },
         task: {
+          executor: 'script',
           config: {},
-        },
+        } as unknown as Extract<Activity, { type: 'task' }>['task'],
       },
-    ]
+    ] as unknown as Activity[]
 
     const errors = validateNoGenericNodes(activities)
     expect(errors).toHaveLength(1)
@@ -80,7 +82,7 @@ describe('validateNoGenericNodes', () => {
   })
 
   it('returns multiple errors for multiple generic nodes', () => {
-    const activities: Activity[] = [
+    const activities = [
       {
         type: 'task',
         id: 'generic-1',
@@ -89,8 +91,9 @@ describe('validateNoGenericNodes', () => {
           __isGeneric: true,
         },
         task: {
+          executor: 'script',
           config: {},
-        },
+        } as unknown as Extract<Activity, { type: 'task' }>['task'],
       },
       {
         type: 'task',
@@ -112,10 +115,11 @@ describe('validateNoGenericNodes', () => {
           __isGeneric: true,
         },
         task: {
+          executor: 'script',
           config: {},
-        },
+        } as unknown as Extract<Activity, { type: 'task' }>['task'],
       },
-    ]
+    ] as unknown as Activity[]
 
     const errors = validateNoGenericNodes(activities)
     expect(errors).toHaveLength(2)
@@ -124,7 +128,7 @@ describe('validateNoGenericNodes', () => {
   })
 
   it('ignores nodes without __isGeneric metadata', () => {
-    const activities: Activity[] = [
+    const activities = [
       {
         type: 'task',
         id: 'task-1',
@@ -140,14 +144,14 @@ describe('validateNoGenericNodes', () => {
           },
         },
       },
-    ]
+    ] as unknown as Activity[]
 
     const errors = validateNoGenericNodes(activities)
     expect(errors).toEqual([])
   })
 
   it('ignores nodes with __isGeneric set to false', () => {
-    const activities: Activity[] = [
+    const activities = [
       {
         type: 'task',
         id: 'task-1',
@@ -163,7 +167,7 @@ describe('validateNoGenericNodes', () => {
           },
         },
       },
-    ]
+    ] as unknown as Activity[]
 
     const errors = validateNoGenericNodes(activities)
     expect(errors).toEqual([])
@@ -187,9 +191,10 @@ describe('validateNoGenericNodes', () => {
                 __isGeneric: true,
               },
               task: {
+                executor: 'script',
                 config: {},
               },
-            },
+            } as unknown as Activity,
           ],
         },
       },
@@ -217,9 +222,10 @@ describe('validateNoGenericNodes', () => {
               __isGeneric: true,
             },
             task: {
+              executor: 'script',
               config: {},
             },
-          },
+          } as unknown as Activity,
         ],
         else: [],
       },
@@ -231,7 +237,7 @@ describe('validateNoGenericNodes', () => {
   })
 
   it('detects generic node inside condition else branch', () => {
-    const activities: Activity[] = [
+    const activities = [
       {
         type: 'condition',
         id: 'condition-1',
@@ -247,12 +253,13 @@ describe('validateNoGenericNodes', () => {
               __isGeneric: true,
             },
             task: {
+              executor: 'script',
               config: {},
-            },
+            } as unknown as Extract<Activity, { type: 'task' }>['task'],
           },
         ],
       },
-    ]
+    ] as unknown as Activity[]
 
     const errors = validateNoGenericNodes(activities)
     expect(errors).toHaveLength(1)
@@ -260,7 +267,7 @@ describe('validateNoGenericNodes', () => {
   })
 
   it('detects generic node inside parallel branches', () => {
-    const activities: Activity[] = [
+    const activities = [
       {
         type: 'parallel',
         id: 'parallel-1',
@@ -286,12 +293,13 @@ describe('validateNoGenericNodes', () => {
               __isGeneric: true,
             },
             task: {
+              executor: 'script',
               config: {},
-            },
+            } as unknown as Extract<Activity, { type: 'task' }>['task'],
           },
         ],
       },
-    ]
+    ] as unknown as Activity[]
 
     const errors = validateNoGenericNodes(activities)
     expect(errors).toHaveLength(1)
@@ -299,7 +307,7 @@ describe('validateNoGenericNodes', () => {
   })
 
   it('detects multiple generic nodes in deeply nested structures', () => {
-    const activities: Activity[] = [
+    const activities = [
       {
         type: 'loop',
         id: 'loop-1',
@@ -322,8 +330,9 @@ describe('validateNoGenericNodes', () => {
                     __isGeneric: true,
                   },
                   task: {
+                    executor: 'script',
                     config: {},
-                  },
+                  } as unknown as Extract<Activity, { type: 'task' }>['task'],
                 },
               ],
               else: [
@@ -335,15 +344,16 @@ describe('validateNoGenericNodes', () => {
                     __isGeneric: true,
                   },
                   task: {
+                    executor: 'script',
                     config: {},
-                  },
+                  } as unknown as Extract<Activity, { type: 'task' }>['task'],
                 },
               ],
             },
           ],
         },
       },
-    ]
+    ] as unknown as Activity[]
 
     const errors = validateNoGenericNodes(activities)
     expect(errors).toHaveLength(2)

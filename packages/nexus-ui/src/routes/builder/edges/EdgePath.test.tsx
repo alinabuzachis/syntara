@@ -44,7 +44,7 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge?.getAttribute('style')
-      expectStroke(style, '#6b7280', 'rgb\\(107, 114, 128\\)')
+      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)')
       expect(style).toContain('stroke-opacity: 1')
       expect(style).toContain('stroke-dasharray: none')
     })
@@ -68,7 +68,7 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge?.getAttribute('style')
-      expectStroke(style, '#9ca3af', 'rgb\\(156, 163, 175\\)')
+      expectStroke(style ?? null, '#9ca3af', 'rgb\\(156, 163, 175\\)')
       expect(style).toContain('stroke-opacity: 0.4')
       expect(style).toContain('stroke-dasharray: 5,5')
     })
@@ -92,7 +92,7 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge?.getAttribute('style')
-      expectStroke(style, '#6b7280', 'rgb\\(107, 114, 128\\)') // default
+      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)') // default
       expect(style).toContain('stroke-opacity: 1')
       expect(style).toContain('stroke-dasharray: none')
     })
@@ -116,7 +116,7 @@ describe('EdgePath', () => {
 
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
-      expectStroke(style, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
+      expectStroke(style ?? null, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
     })
 
@@ -137,7 +137,7 @@ describe('EdgePath', () => {
 
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
-      expectStroke(style, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
+      expectStroke(style ?? null, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
     })
 
@@ -158,7 +158,7 @@ describe('EdgePath', () => {
 
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
-      expectStroke(style, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
+      expectStroke(style ?? null, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
     })
   })
@@ -182,7 +182,7 @@ describe('EdgePath', () => {
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
       // Execution status takes precedence
-      expectStroke(style, '#6b7280', 'rgb\\(107, 114, 128\\)') // passed
+      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)') // passed
       expect(style).toContain('stroke-dasharray: none')
       // But still applies hover filter
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
@@ -206,7 +206,7 @@ describe('EdgePath', () => {
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
       // Execution status takes precedence
-      expectStroke(style, '#6b7280', 'rgb\\(107, 114, 128\\)') // passed
+      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)') // passed
       expect(style).toContain('stroke-dasharray: none')
       // But still applies selected filter
       expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
@@ -230,7 +230,7 @@ describe('EdgePath', () => {
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
       // Execution status takes precedence
-      expectStroke(style, '#9ca3af', 'rgb\\(156, 163, 175\\)') // pending
+      expectStroke(style ?? null, '#9ca3af', 'rgb\\(156, 163, 175\\)') // pending
       expect(style).toContain('stroke-opacity: 0.4')
       expect(style).toContain('stroke-dasharray: 5,5')
       // But still applies active filter

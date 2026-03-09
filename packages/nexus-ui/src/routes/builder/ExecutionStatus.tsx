@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { Label } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
@@ -10,7 +10,7 @@ import {
 } from '@patternfly/react-icons'
 import type React from 'react'
 
-type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
+type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 
 const statusMap: Record<ExecutionStatus, 'success' | 'danger' | 'warning' | 'info' | 'custom'> = {
   pending: 'custom',

@@ -1,6 +1,8 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
+import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+
 import { findLoopReconnections, useNodeDeletion } from './useNodeDeletion'
 
 // Mock dependencies
@@ -32,7 +34,7 @@ describe('findLoopReconnections', () => {
   it('returns empty array when no loop-back edges exist', () => {
     const storedEdges = [{ id: 'e1', source: 'a', target: 'b' }]
     const deletedNodeIds = new Set(['a'])
-    const nodes: Array<{ id: string; type: string }> = []
+    const nodes: NodeType[] = []
 
     const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
 
@@ -50,7 +52,7 @@ describe('findLoopReconnections', () => {
       { id: 'loop-1', type: 'loop' },
       { id: 'task-1', type: 'task' },
       { id: 'task-2', type: 'task' },
-    ] as never[]
+    ] as NodeType[]
 
     const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
 
@@ -66,7 +68,7 @@ describe('findLoopReconnections', () => {
     const nodes = [
       { id: 'loop-1', type: 'loop' },
       { id: 'task-1', type: 'task' },
-    ] as never[]
+    ] as NodeType[]
 
     const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
 
@@ -86,7 +88,7 @@ describe('findLoopReconnections', () => {
       { id: 'task-1', type: 'task' },
       { id: 'task-2', type: 'task' },
       { id: 'task-3', type: 'task' },
-    ] as never[]
+    ] as NodeType[]
 
     const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
 
@@ -102,7 +104,7 @@ describe('findLoopReconnections', () => {
     const nodes = [
       { id: 'loop-1', type: 'loop' },
       { id: 'task-1', type: 'task' },
-    ] as never[]
+    ] as NodeType[]
 
     const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
 
@@ -120,7 +122,7 @@ describe('findLoopReconnections', () => {
       { id: 'loop-1', type: 'loop' },
       { id: 'loop-2', type: 'loop' },
       { id: 'task-1', type: 'task' },
-    ] as never[]
+    ] as NodeType[]
 
     const result = findLoopReconnections(storedEdges, deletedNodeIds, nodes)
 
@@ -172,7 +174,7 @@ describe('useNodeDeletion', () => {
   it('sets isDeletingRef to true during deletion', () => {
     const { result } = renderHook(() =>
       useNodeDeletion({
-        nodes: [{ id: 'node-1', type: 'task' }] as never[],
+        nodes: [{ id: 'node-1', type: 'task' }] as NodeType[],
         edges: [],
         setNodes: mockSetNodes,
         setEdges: mockSetEdges,
@@ -181,7 +183,7 @@ describe('useNodeDeletion', () => {
     )
 
     act(() => {
-      result.current.onNodesDelete([{ id: 'node-1', type: 'task' }] as never[])
+      result.current.onNodesDelete([{ id: 'node-1', type: 'task' }] as NodeType[])
     })
 
     expect(mockIsDeletingRef.current).toBe(true)
@@ -190,7 +192,7 @@ describe('useNodeDeletion', () => {
   it('calls batchRemoveNodesAndEdges with node IDs', () => {
     const { result } = renderHook(() =>
       useNodeDeletion({
-        nodes: [{ id: 'node-1', type: 'task' }] as never[],
+        nodes: [{ id: 'node-1', type: 'task' }] as NodeType[],
         edges: [],
         setNodes: mockSetNodes,
         setEdges: mockSetEdges,
@@ -199,7 +201,7 @@ describe('useNodeDeletion', () => {
     )
 
     act(() => {
-      result.current.onNodesDelete([{ id: 'node-1', type: 'task' }] as never[])
+      result.current.onNodesDelete([{ id: 'node-1', type: 'task' }] as NodeType[])
     })
 
     expect(mockBatchRemoveNodesAndEdges).toHaveBeenCalledWith(
@@ -212,7 +214,7 @@ describe('useNodeDeletion', () => {
   it('handles trigger node deletion', () => {
     const { result } = renderHook(() =>
       useNodeDeletion({
-        nodes: [{ id: 'trigger-0', type: 'trigger' }] as never[],
+        nodes: [{ id: 'trigger-0', type: 'trigger' }] as NodeType[],
         edges: [],
         setNodes: mockSetNodes,
         setEdges: mockSetEdges,
@@ -221,7 +223,7 @@ describe('useNodeDeletion', () => {
     )
 
     act(() => {
-      result.current.onNodesDelete([{ id: 'trigger-0', type: 'trigger' }] as never[])
+      result.current.onNodesDelete([{ id: 'trigger-0', type: 'trigger' }] as NodeType[])
     })
 
     expect(mockBatchRemoveNodesAndEdges).toHaveBeenCalledWith(
@@ -234,7 +236,7 @@ describe('useNodeDeletion', () => {
   it('notifies parent of deleted nodes', () => {
     const { result } = renderHook(() =>
       useNodeDeletion({
-        nodes: [{ id: 'node-1', type: 'task' }] as never[],
+        nodes: [{ id: 'node-1', type: 'task' }] as NodeType[],
         edges: [],
         setNodes: mockSetNodes,
         setEdges: mockSetEdges,
@@ -244,7 +246,7 @@ describe('useNodeDeletion', () => {
     )
 
     act(() => {
-      result.current.onNodesDelete([{ id: 'node-1', type: 'task' }] as never[])
+      result.current.onNodesDelete([{ id: 'node-1', type: 'task' }] as NodeType[])
     })
 
     expect(mockOnNodesDeleted).toHaveBeenCalledWith(['node-1'])
@@ -253,7 +255,7 @@ describe('useNodeDeletion', () => {
   it('resets isDeletingRef after timeout', () => {
     const { result } = renderHook(() =>
       useNodeDeletion({
-        nodes: [{ id: 'node-1', type: 'task' }] as never[],
+        nodes: [{ id: 'node-1', type: 'task' }] as NodeType[],
         edges: [],
         setNodes: mockSetNodes,
         setEdges: mockSetEdges,
@@ -262,7 +264,7 @@ describe('useNodeDeletion', () => {
     )
 
     act(() => {
-      result.current.onNodesDelete([{ id: 'node-1', type: 'task' }] as never[])
+      result.current.onNodesDelete([{ id: 'node-1', type: 'task' }] as NodeType[])
     })
 
     expect(mockIsDeletingRef.current).toBe(true)
@@ -277,7 +279,7 @@ describe('useNodeDeletion', () => {
   it('excludes placeholder nodes from activity IDs', () => {
     const { result } = renderHook(() =>
       useNodeDeletion({
-        nodes: [{ id: 'placeholder-1', type: 'placeholder' }] as never[],
+        nodes: [{ id: 'placeholder-1', type: 'placeholder' }] as unknown as NodeType[],
         edges: [],
         setNodes: mockSetNodes,
         setEdges: mockSetEdges,
@@ -286,7 +288,7 @@ describe('useNodeDeletion', () => {
     )
 
     act(() => {
-      result.current.onNodesDelete([{ id: 'placeholder-1', type: 'placeholder' }] as never[])
+      result.current.onNodesDelete([{ id: 'placeholder-1', type: 'placeholder' }] as unknown as NodeType[])
     })
 
     expect(mockBatchRemoveNodesAndEdges).toHaveBeenCalledWith(
@@ -301,7 +303,7 @@ describe('useNodeDeletion', () => {
       { id: 'loop-1', type: 'loop' },
       { id: 'task-1', type: 'task' },
       { id: 'task-2', type: 'task' },
-    ] as never[]
+    ] as NodeType[]
 
     const edges = [
       { id: 'e1', source: 'loop-1', target: 'task-1', sourceHandle: 'loop' },
@@ -321,7 +323,7 @@ describe('useNodeDeletion', () => {
     )
 
     act(() => {
-      result.current.onNodesDelete([{ id: 'task-2', type: 'task' }] as never[])
+      result.current.onNodesDelete([{ id: 'task-2', type: 'task' }] as NodeType[])
     })
 
     // Should create reconnection edge from task-1 back to loop-1

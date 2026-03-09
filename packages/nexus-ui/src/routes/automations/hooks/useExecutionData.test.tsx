@@ -9,7 +9,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-import { workflowClient } from '../../../client'
+import { executionsClient } from '../../../client'
 import type { Execution } from '../execution/types'
 import { useExecutionStore } from '../stores/useExecutionStore'
 
@@ -20,7 +20,7 @@ import { useExecutionData, useShouldStreamExecution } from './useExecutionData'
 // ============================================================================
 
 vi.mock('../../../client', () => ({
-  workflowClient: {
+  executionsClient: {
     useQuery: vi.fn(),
   },
 }))
@@ -78,7 +78,7 @@ describe('useExecutionData', () => {
   it('fetches execution data successfully', async () => {
     const mockExecution = createMockExecution()
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -98,7 +98,7 @@ describe('useExecutionData', () => {
   })
 
   it('requests correct API endpoint with includes', () => {
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: null,
       isLoading: true,
       isSuccess: false,
@@ -108,16 +108,16 @@ describe('useExecutionData', () => {
 
     renderHook(() => useExecutionData('exec-123'), { wrapper })
 
-    expect(workflowClient.useQuery).toHaveBeenCalledWith(
+    expect(executionsClient.useQuery).toHaveBeenCalledWith(
       'get',
-      '/executions/{executionId}',
+      '/executions/{execution_id}',
       {
         params: {
           path: {
-            executionId: 'exec-123',
+            execution_id: 'exec-123',
           },
           query: {
-            include: ['workflow_definition', 'activities'],
+            include: 'workflow_definition,activities',
           },
         },
       },
@@ -130,7 +130,7 @@ describe('useExecutionData', () => {
   it('auto-loads data into store by default', async () => {
     const mockExecution = createMockExecution()
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -150,7 +150,7 @@ describe('useExecutionData', () => {
   it('does not auto-load when autoLoad is false', async () => {
     const mockExecution = createMockExecution()
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -168,7 +168,7 @@ describe('useExecutionData', () => {
   })
 
   it('does not fetch when enabled is false', () => {
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: null,
       isLoading: false,
       isSuccess: false,
@@ -178,9 +178,9 @@ describe('useExecutionData', () => {
 
     renderHook(() => useExecutionData('exec-123', { enabled: false }), { wrapper })
 
-    expect(workflowClient.useQuery).toHaveBeenCalledWith(
+    expect(executionsClient.useQuery).toHaveBeenCalledWith(
       'get',
-      '/executions/{executionId}',
+      '/executions/{execution_id}',
       expect.anything(),
       expect.objectContaining({
         enabled: false,
@@ -189,7 +189,7 @@ describe('useExecutionData', () => {
   })
 
   it('handles loading state', () => {
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: null,
       isLoading: true,
       isSuccess: false,
@@ -206,7 +206,7 @@ describe('useExecutionData', () => {
   it('handles error state', async () => {
     const mockError = new Error('Failed to fetch execution')
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: null,
       isLoading: false,
       isSuccess: false,
@@ -228,7 +228,7 @@ describe('useExecutionData', () => {
   it('provides refetch function', () => {
     const mockRefetch = vi.fn()
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: null,
       isLoading: false,
       isSuccess: false,
@@ -249,7 +249,7 @@ describe('useExecutionData', () => {
 
     const mockExecution = createMockExecution()
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -277,7 +277,7 @@ describe('useExecutionData', () => {
       },
     } as unknown as Partial<Execution>)
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -320,7 +320,7 @@ describe('useExecutionData', () => {
       ],
     } as Partial<Execution>)
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -350,7 +350,7 @@ describe('useShouldStreamExecution', () => {
   })
 
   it('returns false when data not loaded', () => {
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: null,
       isLoading: true,
       isSuccess: false,
@@ -366,7 +366,7 @@ describe('useShouldStreamExecution', () => {
   it('returns true for running execution', () => {
     const mockExecution = createMockExecution({ status: 'running' } as Partial<Execution>)
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -382,7 +382,7 @@ describe('useShouldStreamExecution', () => {
   it('returns true for pending execution', () => {
     const mockExecution = createMockExecution({ status: 'pending' } as Partial<Execution>)
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -398,7 +398,7 @@ describe('useShouldStreamExecution', () => {
   it('returns true for paused execution', () => {
     const mockExecution = createMockExecution({ status: 'paused' } as Partial<Execution>)
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -414,7 +414,7 @@ describe('useShouldStreamExecution', () => {
   it('returns false for completed execution', () => {
     const mockExecution = createMockExecution({ status: 'completed' } as Partial<Execution>)
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -430,7 +430,7 @@ describe('useShouldStreamExecution', () => {
   it('returns false for failed execution', () => {
     const mockExecution = createMockExecution({ status: 'failed' } as Partial<Execution>)
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,
@@ -446,7 +446,7 @@ describe('useShouldStreamExecution', () => {
   it('returns false for cancelled execution', () => {
     const mockExecution = createMockExecution({ status: 'cancelled' } as Partial<Execution>)
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: mockExecution,
       isLoading: false,
       isSuccess: true,

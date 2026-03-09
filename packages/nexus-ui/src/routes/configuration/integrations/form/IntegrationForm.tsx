@@ -1,4 +1,4 @@
-import type { ToolProvider } from '@ansible/nexus-contracts'
+import type { ToolProviderCreate } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
@@ -23,6 +23,16 @@ import { AppRoute } from '../../../../app/AppRoute'
 import { toolManagerClient } from '../../../../client'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 
+interface IntegrationFormData {
+  name: string
+  description?: string | null
+  configuration: {
+    provider_type: string
+    base_url: string
+    api_key?: string
+  }
+}
+
 export function IntegrationForm() {
   const { mutate: createIntegration } = toolManagerClient.useMutation('post', '/tool_providers')
   const { mutate: validateIntegration } = toolManagerClient.useMutation(
@@ -31,16 +41,16 @@ export function IntegrationForm() {
   )
   const { mutate: refreshTools } = toolManagerClient.useMutation('post', '/tool_providers/{provider_id}/refresh_tools')
 
-  const { control, handleSubmit, setError } = useForm<ToolProvider>({
+  const { control, handleSubmit, setError } = useForm<IntegrationFormData>({
     defaultValues: {
       configuration: { provider_type: 'mcp' },
     },
   })
-  const handleError = useFormMutationErrorHandler<ToolProvider>(setError)
+  const handleError = useFormMutationErrorHandler<IntegrationFormData>(setError)
 
-  const onSubmit = (toolProvider: ToolProvider) => {
+  const onSubmit = (formData: IntegrationFormData) => {
     createIntegration(
-      { body: toolProvider },
+      { body: formData as ToolProviderCreate },
       {
         onSuccess: (data) => {
           const providerId = data.id
@@ -50,7 +60,7 @@ export function IntegrationForm() {
               onError: (error) => {
                 handleError({
                   title: 'Integration created, but validation failed',
-                  context: toolProvider.name ? `Integration "${toolProvider.name}"` : undefined,
+                  context: formData.name ? `Integration "${formData.name}"` : undefined,
                 })(error)
                 navigate(AppRoute.Configuration.Integrations.Root)
               },
@@ -60,7 +70,7 @@ export function IntegrationForm() {
                   {
                     onError: handleError({
                       title: 'Integration created, but refreshing tools failed',
-                      context: toolProvider.name ? `Integration "${toolProvider.name}"` : undefined,
+                      context: formData.name ? `Integration "${formData.name}"` : undefined,
                     }),
                     onSettled: () => navigate(AppRoute.Configuration.Integrations.Root),
                   }
@@ -71,7 +81,7 @@ export function IntegrationForm() {
         },
         onError: handleError({
           title: 'Failed to add integration',
-          context: toolProvider.name ? `Integration "${toolProvider.name}"` : undefined,
+          context: formData.name ? `Integration "${formData.name}"` : undefined,
         }),
       }
     )

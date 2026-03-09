@@ -2,6 +2,7 @@ import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
+import type { ActivityStatus } from '../../execution/types'
 
 import { renderCondition, renderJson, renderObject, renderText } from './common/detailRenderers'
 import { detectTaskNodeType, type TaskActivityWithMetadata } from './common/detectTaskNodeType'
@@ -42,7 +43,7 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
     | {
-        status: string
+        status: ActivityStatus
         started_at?: string
         completed_at?: string
         error_details?: string
@@ -50,8 +51,8 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
       }
     | undefined
 
-  const showExecutionBadge = !!(props.data as { metadata?: { __showExecutionBadge?: boolean } }).metadata
-    ?.__showExecutionBadge
+  const showExecutionBadge =
+    (props.data as { metadata?: { __showExecutionBadge?: boolean } }).metadata?.__showExecutionBadge === true
 
   return (
     <NodeComponent
@@ -102,11 +103,13 @@ export function TaskActivityDetails(
       <NodeBody>
         <Details>
           {renderCondition(dataWithMetadata.condition)}
-          {taskExecutor === ExecutorTypeEnum.SCRIPT && <>{renderText('Language', props.data.task.config.language)}</>}
+          {taskExecutor === ExecutorTypeEnum.SCRIPT && (
+            <>{renderText('Language', (props.data.task.config as { language: string }).language)}</>
+          )}
           {taskExecutor === ExecutorTypeEnum.API && (
             <>
-              {renderText('Method', props.data.task.config.method)}
-              {renderText('URL', props.data.task.config.url)}
+              {renderText('Method', (props.data.task.config as { method: string }).method)}
+              {renderText('URL', (props.data.task.config as { url: string }).url)}
             </>
           )}
           {aapTask && (
@@ -117,15 +120,18 @@ export function TaskActivityDetails(
           )}
           {taskExecutor === ExecutorTypeEnum.CONNECTOR && (
             <>
-              {renderText('Connector', props.data.task.config.connectorId)}
-              {renderText('Operation', props.data.task.config.operation)}
-              {renderObject('Parameters', props.data.task.config.parameters)}
+              {renderText('Connector', (props.data.task.config as { connectorId: string }).connectorId)}
+              {renderText('Operation', (props.data.task.config as { operation: string }).operation)}
+              {renderObject(
+                'Parameters',
+                (props.data.task.config as { parameters?: Record<string, unknown> }).parameters
+              )}
             </>
           )}
           {/* Render agentic task details */}
           {taskExecutor === ExecutorTypeEnum.AGENTIC && !connectorData && (
             <>
-              {renderText('Model', props.data.task.config.model)}
+              {renderText('Model', (props.data.task.config as { model?: string }).model)}
               {renderText('Tools', toolsText)}
               {(() => {
                 const fileIds = (props.data.task.config as { fileIds?: string[] }).fileIds

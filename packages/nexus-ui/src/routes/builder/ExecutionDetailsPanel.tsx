@@ -1,4 +1,3 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   CompassPanel,
   Content,
@@ -17,14 +16,12 @@ import {
 import { RhUiPlayFillIcon } from '@patternfly/react-icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { workflowClient } from '../../client'
+import { executionsClient } from '../../client'
 import { useQueryState } from '../../components/states/useQueryState'
 import { formatDateTime, formatElapsedTime } from '../../utils/dateUtils'
 import { useExecutionStoreActions } from '../automations/stores/useExecutionStore'
 
 import { StatusLabel } from './ExecutionStatus'
-
-type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
 
 interface ExecutionDetailsPanelProps {
   executionId: string
@@ -39,7 +36,7 @@ export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProp
   const [now, setNow] = useState(() => Date.now())
 
   // Fetch execution details with activities included
-  const executionQuery = workflowClient.useQuery('get', '/executions/{execution_id}', {
+  const executionQuery = executionsClient.useQuery('get', '/executions/{execution_id}', {
     params: {
       path: { execution_id: executionId },
       query: {
@@ -84,7 +81,7 @@ export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProp
 
   // Update execution store when activities load
   useEffect(() => {
-    const executionActivities = (execution?.activities as unknown as ActivityExecution[]) ?? []
+    const executionActivities = execution?.activities ?? []
     if (executionActivities.length > 0) {
       setActivityExecutions(executionActivities)
     }

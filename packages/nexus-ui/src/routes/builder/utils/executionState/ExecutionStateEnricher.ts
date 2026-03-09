@@ -1,5 +1,6 @@
-import { ActivityTypeEnum, type Activity, type ActivityState } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
+import type { ActivityState } from '../../../automations/execution/types'
 import type { EdgeConnection } from '../../types/edge'
 
 import { ACTIVITY_STATUS, TERMINAL_ACTIVITY_STATUSES, isBranchHandle } from './executionHelpers'
@@ -15,8 +16,7 @@ import { WorkflowTraversal } from './traversal'
 /**
  * Activity with execution metadata attached.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface ActivityWithMetadata<T extends Activity = Activity> extends Activity {
+export type ActivityWithMetadata = Activity & {
   metadata?: {
     __showExecutionBadge?: boolean
     [key: string]: unknown
@@ -74,23 +74,23 @@ export class ExecutionStateEnricher {
    * @param edges - All edges in the workflow
    * @returns Activity enriched with execution metadata
    */
-  enrichActivity<T extends Activity>(
-    activity: T,
+  enrichActivity(
+    activity: Activity,
     executionStatus: string | null | undefined,
     activityStates: Map<string, ActivityState>,
     edges: EdgeConnection[]
-  ): ActivityWithMetadata<T> {
+  ): ActivityWithMetadata {
     // If not in execution view, return as-is
     if (!executionStatus) {
-      return activity as ActivityWithMetadata<T>
+      return activity as ActivityWithMetadata
     }
 
     // Add execution badge flag to metadata
     const baseMetadata = (activity as ActivityWithMetadata).metadata ?? {}
-    let enrichedActivity: ActivityWithMetadata<T> = {
+    let enrichedActivity: ActivityWithMetadata = {
       ...activity,
       metadata: { ...baseMetadata, __showExecutionBadge: true },
-    } as ActivityWithMetadata<T>
+    }
 
     // Step 1: Add direct backend state if available
     const activityState = activityStates.get(activity.id)
@@ -103,7 +103,7 @@ export class ExecutionStateEnricher {
           completed_at: activityState.completedAt ?? undefined,
           error_details: activityState.errorDetails ?? undefined,
         },
-      } as ActivityWithMetadata<T>
+      }
 
       return enrichedActivity
     }
@@ -117,7 +117,7 @@ export class ExecutionStateEnricher {
         enrichedActivity = {
           ...enrichedActivity,
           __executionState: inferredState,
-        } as ActivityWithMetadata<T>
+        }
 
         return enrichedActivity
       }
@@ -133,7 +133,7 @@ export class ExecutionStateEnricher {
           completed_at: undefined,
           error_details: undefined,
         },
-      } as ActivityWithMetadata<T>
+      }
 
       return enrichedActivity
     }
@@ -149,7 +149,7 @@ export class ExecutionStateEnricher {
           completed_at: undefined,
           error_details: undefined,
         },
-      } as ActivityWithMetadata<T>
+      }
     }
 
     return enrichedActivity

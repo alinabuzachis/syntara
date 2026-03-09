@@ -4,48 +4,6 @@
  */
 
 export interface paths {
-  '/activity-types': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List available activity types
-     * @description Retrieve all available activity executor types that can be used in workflow definitions.
-     *     This endpoint is used for workflow validation, UI tooling, and documentation.
-     */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of available activity types with their configuration schemas */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': {
-              activity_types?: components['schemas']['ActivityType'][]
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
   '/workflows': {
     parameters: {
       query?: never
@@ -57,122 +15,13 @@ export interface paths {
      * List workflows
      * @description Retrieve a list of workflows with filtering, sorting, and cursor-based pagination.
      */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Filter by creator user ID */
-          created_by?: string
-          /** @description Filter by enabled status */
-          is_enabled?: boolean
-          /**
-           * @description Number of resources to return per page
-           * @example 20
-           */
-          limit?: components['parameters']['limitParam']
-          /**
-           * @description Opaque cursor for pagination (from previous response)
-           * @example eyJpZCI6InV1aWQifQ
-           */
-          cursor?: components['parameters']['cursorParam']
-          /**
-           * @description Whether to include total count in response (may impact performance)
-           * @example true
-           */
-          include_total?: components['parameters']['includeTotalParam']
-          /**
-           * @description Sort order for resources.
-           *     - Ascending: `field` (e.g., `name`)
-           *     - Descending: `-field` (e.g., `-created_at`)
-           * @example -created_at
-           */
-          sort?: components['parameters']['sortParam']
-          /**
-           * @description Filter resources by name.
-           *     - Exact match: `name=value`
-           *     - Contains: `name[contains]=value`
-           * @example auth
-           */
-          name?: components['parameters']['nameFilterParam']
-          created_at?: components['parameters']['createdAtFilterParam']
-          updated_at?: components['parameters']['updatedAtFilterParam']
-          /**
-           * @description Filter resources by label key-value pairs.
-           *     - Single label: `labels[environment]=production`
-           *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-           *     All specified labels must match (AND logic).
-           * @example {
-           *       "environment": "production",
-           *       "region": "us-east-1"
-           *     }
-           */
-          labels?: components['parameters']['labelsFilterParam']
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of workflows */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['ResourcesResponseBase'] & {
-              resources: components['schemas']['Workflow'][]
-            }
-          }
-        }
-      }
-    }
+    get: operations['list_workflows']
     put?: never
     /**
      * Create workflow
      * @description Create a new workflow entity with its initial version. The workflow definition is validated and stored as version 1.
      */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['CreateWorkflowRequest']
-        }
-      }
-      responses: {
-        /** @description Workflow created successfully */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Workflow']
-          }
-        }
-        /** @description Invalid workflow definition */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-        /** @description Validation error (e.g., invalid label types) */
-        422: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
+    post: operations['create_workflow']
     delete?: never
     options?: never
     head?: never
@@ -190,81 +39,14 @@ export interface paths {
      * Get workflow
      * @description Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field.
      */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          workflow_id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Workflow details including current version information */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['WorkflowWithVersion']
-          }
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
+    get: operations['get_workflow']
     put?: never
     post?: never
     /**
      * Delete workflow (soft delete)
      * @description Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
      */
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          workflow_id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Workflow soft deleted successfully */
-        204: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-        /** @description Workflow cannot be deleted (has running executions) */
-        409: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
+    delete: operations['delete_workflow']
     options?: never
     head?: never
     /**
@@ -273,59 +55,7 @@ export interface paths {
      *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
      *     - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
      */
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          workflow_id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['PatchWorkflowRequest']
-        }
-      }
-      responses: {
-        /** @description Workflow updated successfully (may include new version if workflow_definition changed) */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['WorkflowWithVersion']
-          }
-        }
-        /** @description Invalid workflow definition or validation error */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-        /** @description Validation error (e.g., invalid label types) */
-        422: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
+    patch: operations['update_workflow']
     trace?: never
   }
   '/workflows/{workflow_id}/versions': {
@@ -341,63 +71,7 @@ export interface paths {
      *     WorkflowVersion entities are read-only and managed automatically by the system.
      *     Versions are ordered by version number descending (newest first) by default.
      */
-    get: {
-      parameters: {
-        query?: {
-          /**
-           * @description Number of resources to return per page
-           * @example 20
-           */
-          limit?: components['parameters']['limitParam']
-          /**
-           * @description Opaque cursor for pagination (from previous response)
-           * @example eyJpZCI6InV1aWQifQ
-           */
-          cursor?: components['parameters']['cursorParam']
-          /**
-           * @description Whether to include total count in response (may impact performance)
-           * @example true
-           */
-          include_total?: components['parameters']['includeTotalParam']
-          /**
-           * @description Sort order for resources.
-           *     - Ascending: `field` (e.g., `name`)
-           *     - Descending: `-field` (e.g., `-created_at`)
-           * @example -created_at
-           */
-          sort?: components['parameters']['sortParam']
-          created_at?: components['parameters']['createdAtFilterParam']
-        }
-        header?: never
-        path: {
-          workflow_id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of workflow versions */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['ResourcesResponseBase'] & {
-              resources: components['schemas']['WorkflowVersionResponse'][]
-            }
-          }
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
+    get: operations['list_workflow_versions']
     put?: never
     post?: never
     delete?: never
@@ -417,401 +91,9 @@ export interface paths {
      * Get workflow version
      * @description Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
      */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          workflow_id: string
-          /** @description Version number to retrieve */
-          version: number
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Workflow version details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['WorkflowVersionResponse']
-          }
-        }
-        /** @description Workflow or version not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
+    get: operations['get_workflow_version']
     put?: never
     post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/executions': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List executions
-     * @description Retrieve executions with filtering, sorting, and cursor-based pagination.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /** @description Filter by workflow ID */
-          workflow_id?: string
-          /** @description Filter by user who created the execution */
-          created_by?: string
-          /**
-           * @description Filter executions by status.
-           *     - Exact match: `status=running`
-           *     - Multiple values: `status[in]=running,pending`
-           */
-          status?: components['schemas']['ExecutionStatus'] & {
-            /** @description Match any of the comma-separated values. ?status[in]=<val1,val2> */
-            in?: string
-          }
-          /**
-           * @description Number of resources to return per page
-           * @example 20
-           */
-          limit?: components['parameters']['limitParam']
-          /**
-           * @description Opaque cursor for pagination (from previous response)
-           * @example eyJpZCI6InV1aWQifQ
-           */
-          cursor?: components['parameters']['cursorParam']
-          /**
-           * @description Whether to include total count in response (may impact performance)
-           * @example true
-           */
-          include_total?: components['parameters']['includeTotalParam']
-          /**
-           * @description Sort order for resources.
-           *     - Ascending: `field` (e.g., `name`)
-           *     - Descending: `-field` (e.g., `-created_at`)
-           * @example -created_at
-           */
-          sort?: components['parameters']['sortParam']
-          created_at?: components['parameters']['createdAtFilterParam']
-          updated_at?: components['parameters']['updatedAtFilterParam']
-          /**
-           * @description Filter resources by label key-value pairs.
-           *     - Single label: `labels[environment]=production`
-           *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-           *     All specified labels must match (AND logic).
-           * @example {
-           *       "environment": "production",
-           *       "region": "us-east-1"
-           *     }
-           */
-          labels?: components['parameters']['labelsFilterParam']
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of executions */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['ResourcesResponseBase'] & {
-              resources: components['schemas']['Execution'][]
-            }
-          }
-        }
-      }
-    }
-    put?: never
-    /**
-     * Create execution
-     * @description Start a new workflow execution
-     */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['CreateExecutionRequest']
-        }
-      }
-      responses: {
-        /** @description Execution started */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Execution']
-          }
-        }
-        /** @description Workflow not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/executions/{execution_id}': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Get execution
-     * @description Retrieve details of a specific execution with optional includes.
-     *
-     *     **Include Parameters**:
-     *     - `workflow_definition`: Include the workflow definition from the executed version (for building visualization graph)
-     *     - `activities`: Include the list of activities with their current status (for completed executions or fallback)
-     *
-     *     **Usage**:
-     *     - Normal request: `GET /executions/{id}` - returns execution without optional fields
-     *     - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
-     */
-    get: {
-      parameters: {
-        query?: {
-          /**
-           * @description Comma-separated list of related data to include in the response.
-           *     Valid values: workflow_definition, activities
-           * @example workflow_definition,activities
-           */
-          include?: string
-        }
-        header?: never
-        path: {
-          execution_id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Execution details with optional includes */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Execution']
-          }
-        }
-        /** @description Execution not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    /**
-     * Control execution
-     * @description Pause, resume, or cancel a workflow execution
-     */
-    patch: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          execution_id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['ExecutionControlRequest']
-        }
-      }
-      responses: {
-        /** @description Execution control applied */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Execution']
-          }
-        }
-        /** @description Execution not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    trace?: never
-  }
-  '/executions/{execution_id}/activities': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * List activity executions
-     * @description Retrieve activity executions for a workflow execution with cursor-based pagination.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /**
-           * @description Number of resources to return per page
-           * @example 20
-           */
-          limit?: components['parameters']['limitParam']
-          /**
-           * @description Opaque cursor for pagination (from previous response)
-           * @example eyJpZCI6InV1aWQifQ
-           */
-          cursor?: components['parameters']['cursorParam']
-          /**
-           * @description Whether to include total count in response (may impact performance)
-           * @example true
-           */
-          include_total?: components['parameters']['includeTotalParam']
-          /**
-           * @description Sort order for resources.
-           *     - Ascending: `field` (e.g., `name`)
-           *     - Descending: `-field` (e.g., `-created_at`)
-           * @example -created_at
-           */
-          sort?: components['parameters']['sortParam']
-          created_at?: components['parameters']['createdAtFilterParam']
-        }
-        header?: never
-        path: {
-          execution_id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description List of activity executions */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['ResourcesResponseBase'] & {
-              resources: components['schemas']['ActivityExecution'][]
-            }
-          }
-        }
-        /** @description Execution not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['Error']
-          }
-        }
-      }
-    }
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/executions/{execution_id}/signals/approval-decision': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Signal approval decision to workflow
-     * @description Send an approval decision signal to a running workflow execution.
-     *
-     *     This endpoint is called by the approvals component (via WorkflowAPIClient)
-     *     to notify a paused workflow that an approval decision has been made.
-     *     The workflow will resume on either the approved or rejected path based
-     *     on the decision.
-     *
-     *     The signal is durable - if the workflow is temporarily unavailable,
-     *     the signal will be delivered when it becomes available again.
-     */
-    post: operations['signalApprovalDecision']
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  '/executions/{execution_id}/activities/{activity_id}/signal': {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    get?: never
-    put?: never
-    /**
-     * Send signal to activity in workflow
-     * @description Send a signal to a specific activity within a running workflow execution.
-     *
-     *     This endpoint allows external systems to send arbitrary signals to
-     *     activities that are waiting for external events. The activity must be
-     *     designed to handle signals via the workflow's signal handler.
-     *
-     *     The signal is durable - if the workflow is temporarily unavailable,
-     *     the signal will be delivered when it becomes available again.
-     */
-    post: operations['signalActivity']
     delete?: never
     options?: never
     head?: never
@@ -986,104 +268,6 @@ export interface components {
       /** @description Array of workflow versions */
       versions: components['schemas']['WorkflowVersionResponse'][]
     }
-    Execution: components['schemas']['BaseResource'] & {
-      /**
-       * Format: uuid
-       * @description ID of the workflow being executed
-       */
-      workflow_id?: string
-      /**
-       * Format: uuid
-       * @description ID of the workflow version being executed
-       */
-      workflow_version_id?: string
-      /** @description Temporal workflow execution ID */
-      temporal_workflow_id?: string
-      status?: components['schemas']['ExecutionStatus']
-      /**
-       * Format: uuid
-       * @description User who started the execution
-       */
-      started_by?: string
-      /**
-       * Format: date-time
-       * @description When execution transitioned from pending to running status (null if still pending)
-       */
-      started_at?: string | null
-      /**
-       * Format: date-time
-       * @description When execution reached terminal state (completed, failed, or cancelled)
-       */
-      completed_at?: string | null
-      /** @description Input parameters for the execution */
-      input_data?: Record<string, never>
-      /** @description Error information if execution failed */
-      error_details?: string | null
-      /** @description Currently executing activities */
-      current_activities?: {
-        activity_name?: string
-        temporal_activity_id?: string
-        iteration?: number | null
-      }[]
-      /**
-       * @description Workflow definition from the executed version.
-       *     Only included when requested via ?include=workflow_definition query parameter.
-       *     Used for building visualization graph.
-       */
-      workflow_definition?: Record<string, never> | null
-      /**
-       * @description List of activities with their current status.
-       *     Only included when requested via ?include=activities query parameter.
-       *     Used for visualization of completed executions or as fallback.
-       */
-      activities?: components['schemas']['ActivityData'][] | null
-    }
-    ActivityExecution: components['schemas']['BaseResource'] & {
-      /**
-       * Format: uuid
-       * @description Parent execution ID
-       */
-      execution_id?: string
-      /** @description Activity ID from workflow definition */
-      activity_name?: string
-      /** @description Snapshot of the activity configuration from workflow definition at execution time, including executor, config, retry policy, timeout, approval settings */
-      activity_definition?: Record<string, never>
-      /** @description Temporal activity execution ID */
-      temporal_activity_id?: string
-      status?: components['schemas']['ActivityStatus']
-      /**
-       * Format: date-time
-       * @description When activity transitioned from pending to running status (null if still pending)
-       */
-      started_at?: string | null
-      /**
-       * Format: date-time
-       * @description When activity reached terminal state (completed, failed)
-       */
-      completed_at?: string | null
-      /** @description Runtime input parameters */
-      input_data?: Record<string, never>
-      /** @description Activity results */
-      output_data?: Record<string, never> | null
-      /** @description Error information if failed */
-      error_details?: string | null
-      /** @description Number of retry attempts */
-      retry_count?: number
-      /** @description Iteration number if activity is within a loop (0-indexed) */
-      iteration?: number | null
-    }
-    /**
-     * Execution Status
-     * @description Current state of a workflow execution lifecycle
-     * @enum {string}
-     */
-    ExecutionStatus: 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
-    /**
-     * Activity Status
-     * @description Current state of an individual activity execution
-     * @enum {string}
-     */
-    ActivityStatus: 'pending' | 'running' | 'completed' | 'failed' | 'retrying' | 'skipped' | 'cancelled'
     /**
      * Create Workflow Request
      * @description Request payload for creating a new workflow from workflow definition
@@ -1122,189 +306,6 @@ export interface components {
       workflow_definition?: components['schemas']['workflow-definition.schema']
       /** @description Description of changes (used when creating new version via workflow_definition) */
       change_description?: string
-    }
-    /**
-     * Create Execution Request
-     * @description Request payload for starting a new workflow execution with optional input parameters
-     */
-    CreateExecutionRequest: {
-      /**
-       * Format: uuid
-       * @description ID of the workflow to execute
-       */
-      workflow_id: string
-      /** @description Input parameters for the workflow execution */
-      input_data?: Record<string, never>
-    }
-    /**
-     * Execution Control Request
-     * @description Request payload for controlling workflow execution state (pause, resume, cancel)
-     */
-    ExecutionControlRequest: {
-      /** @enum {string} */
-      action: 'pause' | 'resume' | 'cancel'
-    }
-    /**
-     * Activity Type
-     * @description Definition of an available activity executor type with its configuration schema
-     */
-    ActivityType: {
-      /**
-       * @description Unique identifier for the executor type
-       * @example agentic
-       * @enum {string}
-       */
-      type: 'agentic' | 'connector' | 'script' | 'api' | 'approval'
-      /**
-       * @description Human-readable name of the executor type
-       * @example Agentic Tool Execution
-       */
-      name: string
-      /**
-       * @description Detailed description of what this executor type does
-       * @example Execute tasks using external agentic tool servers (MCP) with AI model integration
-       */
-      description: string
-      /**
-       * @description JSON Schema defining the valid configuration structure for this executor type
-       * @example {
-       *       "type": "object",
-       *       "required": [
-       *         "agent",
-       *         "tools",
-       *         "model"
-       *       ],
-       *       "properties": {
-       *         "agent": {
-       *           "type": "string",
-       *           "description": "MCP server URI",
-       *           "pattern": "^mcp://.+"
-       *         },
-       *         "tools": {
-       *           "type": "array",
-       *           "description": "List of tool names to invoke",
-       *           "items": {
-       *             "type": "string"
-       *           }
-       *         },
-       *         "model": {
-       *           "type": "string",
-       *           "description": "AI model to use",
-       *           "enum": [
-       *             "claude-3-opus",
-       *             "claude-3-sonnet",
-       *             "gpt-4",
-       *             "gpt-4-turbo"
-       *           ]
-       *         }
-       *       }
-       *     }
-       */
-      config_schema: Record<string, never>
-      /**
-       * @description Example configurations for this executor type
-       * @example [
-       *       {
-       *         "name": "Sentiment Analysis",
-       *         "description": "Analyze text sentiment using MCP tool",
-       *         "config": {
-       *           "agent": "mcp://sentiment-server",
-       *           "tools": [
-       *             "analyze_sentiment"
-       *           ],
-       *           "model": "claude-3-opus",
-       *           "prompt": "Analyze the sentiment of the following text"
-       *         }
-       *       }
-       *     ]
-       */
-      examples?: {
-        /** @description Name of the example */
-        name?: string
-        /** @description What this example demonstrates */
-        description?: string
-        /** @description Example configuration object */
-        config?: Record<string, never>
-      }[]
-    }
-    /**
-     * Approval Decision Signal
-     * @description Signal payload for notifying a workflow of an approval decision.
-     *     Sent by the approvals component when a user approves or rejects a request.
-     */
-    ApprovalDecisionSignal: {
-      /**
-       * Format: uuid
-       * @description ID of the approval request that was decided
-       */
-      approval_id: string
-      /** @description Activity ID of the approval node in the workflow definition */
-      approval_node_id: string
-      /**
-       * @description Decision status from the approvals component.
-       * @enum {string}
-       */
-      status: 'approved' | 'rejected'
-      /** @description Optional notes provided with the decision */
-      notes?: string | null
-    }
-    /**
-     * Signal Response
-     * @description Response confirming a signal was sent to a workflow
-     */
-    SignalResponse: {
-      /**
-       * @description Confirmation that the signal was successfully sent
-       * @enum {string}
-       */
-      status: 'signal_sent'
-      /** @description Human-readable confirmation message */
-      message?: string
-    }
-    /**
-     * Activity Signal Payload
-     * @description Generic signal payload for sending arbitrary data to a specific activity
-     *     within a running workflow execution.
-     */
-    ActivitySignalPayload: {
-      /**
-       * @description Arbitrary JSON data to send to the activity. The structure depends
-       *     on what the activity expects to receive.
-       * @example {
-       *       "action": "resume",
-       *       "status": "completed",
-       *       "result": {
-       *         "value": 42
-       *       }
-       *     }
-       */
-      signal_data: {
-        [key: string]: unknown
-      }
-    }
-    /**
-     * Error Response
-     * @description Standardized error response structure
-     */
-    Error: {
-      /**
-       * Error Code
-       * @description Error category/code in snake_case format
-       * @example validation_error
-       */
-      error: string
-      /**
-       * Error Message
-       * @description Human-readable error message
-       * @example The 'name' field is required
-       */
-      message: string
-      /**
-       * Error Details
-       * @description Additional error details or context
-       * @example Field 'name' must be between 1 and 255 characters
-       */
-      details?: string | null
     }
     /**
      * Paginated Response Base
@@ -1614,16 +615,18 @@ export interface components {
        * @constant
        */
       executor: 'aap_job_template'
-      /** @description Configuration for AAP job template execution. Must specify either jobTemplateId OR both jobTemplateName and organizationName. */
+      /** @description Configuration for AAP job template execution. Job template must be specified by ID or name. When both are provided, ID takes precedence. Inventory can be specified by ID or name; when both are provided, ID takes precedence. */
       config: {
-        /** @description AAP job template ID to launch (mutually exclusive with jobTemplateName/organizationName) */
+        /** @description AAP job template ID to launch. Takes precedence over jobTemplateName if both are provided. */
         jobTemplateId?: number
-        /** @description AAP job template name (requires organizationName, mutually exclusive with jobTemplateId) */
+        /** @description AAP job template name. Requires organizationName. Ignored if jobTemplateId is also provided. */
         jobTemplateName?: string
-        /** @description AAP organization name (requires jobTemplateName, mutually exclusive with jobTemplateId) */
+        /** @description AAP organization name. Required when using jobTemplateName or inventoryName for name-based lookups. */
         organizationName?: string
-        /** @description Override default inventory (ID only) */
-        inventory?: number
+        /** @description Override default inventory by ID. Takes precedence over inventoryName if both are provided. */
+        inventoryId?: number
+        /** @description Override default inventory by name. Requires organizationName. Ignored if inventoryId is also provided. */
+        inventoryName?: string
         /** @description List of credential IDs to use */
         credentials?: number[]
         /** @description Extra variables to pass to the job (can use expressions like ${input.version}) */
@@ -1641,7 +644,7 @@ export interface components {
          * @default 0
          */
         verbosity?: number
-      } & (unknown | unknown)
+      } & ((unknown | unknown) & unknown & unknown)
     } & (components['schemas']['baseTaskDefinition'] & {
       /**
        * @description discriminator enum property added by openapi-typescript
@@ -1829,8 +832,6 @@ export interface components {
     approvalActivity: {
       /** @constant */
       type: 'approval'
-      /** @description Detailed context/prompt for approvers explaining what they are approving */
-      description?: string
       /** @description Activities to execute when approval is granted */
       onApproved: components['schemas']['activity'][]
       /** @description Activities to execute when approval is rejected or expires */
@@ -1883,7 +884,7 @@ export interface components {
       triggers?: components['schemas']['manualTrigger'][]
       /** @description Input parameter definitions for the workflow */
       inputs?: {
-        [key: string]: definitions['parameter']
+        [key: string]: unknown
       }
       /** @description Workflow-level variables that can be referenced throughout the workflow */
       variables?: {
@@ -1909,33 +910,48 @@ export interface components {
       }
     }
     /**
-     * Activity Data
-     * @description Activity data for execution response when include=activities is requested
+     * RFC 9457 Problem Details
+     * @description RFC 9457 Problem Details format for error responses.
+     *     This format provides machine-readable and human-readable error information
+     *     with consistent structure for all API error responses.
      */
-    ActivityData: {
+    ErrorData: {
       /**
-       * @description Activity ID from workflow definition
-       * @example process_data
+       * Problem Type URI
+       * @description URI reference identifying the problem type
+       * @example https://api.nexus.com/errors/validation-error
        */
-      activity_id: string
-      status: components['schemas']['ActivityStatus']
+      type: string
       /**
-       * @description Error message if status is failed
-       * @example Connection timeout to external service
+       * Problem Title
+       * @description Short, human-readable summary of the problem
+       * @example Validation Error
        */
-      error_details?: string | null
+      title: string
       /**
-       * Format: date-time
-       * @description When activity started execution
-       * @example 2025-12-10T15:00:10Z
+       * Problem Detail
+       * @description Human-readable explanation specific to this occurrence
+       * @example Field 'name' must be between 1 and 255 characters
        */
-      started_at?: string | null
+      detail: string
       /**
-       * Format: date-time
-       * @description When activity completed
-       * @example 2025-12-10T15:00:15Z
+       * Error Code
+       * @description Machine-readable error code for programmatic handling
+       * @example VALIDATION_ERROR
        */
-      completed_at?: string | null
+      code: string
+      /**
+       * Retryable Flag
+       * @description Whether this error can be retried
+       * @example false
+       */
+      retryable: boolean
+      /**
+       * Problem Instance
+       * @description URI reference identifying the specific occurrence
+       * @example /api/v1/workflows
+       */
+      instance?: string | null
     }
   }
   responses: never
@@ -2089,106 +1105,373 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
-  signalApprovalDecision: {
+  list_workflows: {
     parameters: {
-      query?: never
-      header?: never
-      path: {
-        /** @description Execution ID of the workflow awaiting approval */
-        execution_id: string
+      query?: {
+        /** @description Filter by creator user ID */
+        created_by?: string
+        /** @description Filter by enabled status */
+        is_enabled?: boolean
+        /**
+         * @description Number of resources to return per page
+         * @example 20
+         */
+        limit?: components['parameters']['limitParam']
+        /**
+         * @description Opaque cursor for pagination (from previous response)
+         * @example eyJpZCI6InV1aWQifQ
+         */
+        cursor?: components['parameters']['cursorParam']
+        /**
+         * @description Whether to include total count in response (may impact performance)
+         * @example true
+         */
+        include_total?: components['parameters']['includeTotalParam']
+        /**
+         * @description Sort order for resources.
+         *     - Ascending: `field` (e.g., `name`)
+         *     - Descending: `-field` (e.g., `-created_at`)
+         * @example -created_at
+         */
+        sort?: components['parameters']['sortParam']
+        /**
+         * @description Filter resources by name.
+         *     - Exact match: `name=value`
+         *     - Contains: `name[contains]=value`
+         * @example auth
+         */
+        name?: components['parameters']['nameFilterParam']
+        created_at?: components['parameters']['createdAtFilterParam']
+        updated_at?: components['parameters']['updatedAtFilterParam']
+        /**
+         * @description Filter resources by label key-value pairs.
+         *     - Single label: `labels[environment]=production`
+         *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
+         *     All specified labels must match (AND logic).
+         * @example {
+         *       "environment": "production",
+         *       "region": "us-east-1"
+         *     }
+         */
+        labels?: components['parameters']['labelsFilterParam']
       }
+      header?: never
+      path?: never
       cookie?: never
     }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ApprovalDecisionSignal']
-      }
-    }
+    requestBody?: never
     responses: {
-      /** @description Signal sent successfully */
+      /** @description List of workflows */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['SignalResponse']
+          'application/json': components['schemas']['ResourcesResponseBase'] & {
+            resources: components['schemas']['Workflow'][]
+          }
         }
       }
-      /** @description Execution not found */
-      404: {
+    }
+  }
+  create_workflow: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateWorkflowRequest']
+      }
+    }
+    responses: {
+      /** @description Workflow created successfully */
+      201: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/json': components['schemas']['Workflow']
         }
       }
-      /**
-       * @description Execution is not in a state that can receive approval signals
-       *     (e.g., already completed, cancelled, or not waiting for approval)
-       */
+      /** @description Invalid workflow definition */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          /**
+           * @example {
+           *       "type": "https://api.nexus.com/errors/validation-error",
+           *       "title": "Validation Error",
+           *       "detail": "Invalid workflow definition",
+           *       "code": "VALIDATION_ERROR",
+           *       "retryable": false,
+           *       "instance": "/api/v1/workflows"
+           *     }
+           */
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Name conflict - workflow with this name already exists */
       409: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          /**
+           * @example {
+           *       "type": "https://api.nexus.com/errors/name-conflict",
+           *       "title": "Workflow Name Conflict",
+           *       "detail": "A workflow with this name already exists",
+           *       "code": "WORKFLOW_NAME_CONFLICT",
+           *       "retryable": false,
+           *       "instance": "/api/v1/workflows"
+           *     }
+           */
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Validation error (e.g., invalid label types) */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          /**
+           * @example {
+           *       "type": "https://api.nexus.com/errors/validation-error",
+           *       "title": "Validation Error",
+           *       "detail": "Field validation failed",
+           *       "code": "VALIDATION_ERROR",
+           *       "retryable": false,
+           *       "instance": "/api/v1/workflows"
+           *     }
+           */
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }
   }
-  signalActivity: {
+  get_workflow: {
     parameters: {
       query?: never
       header?: never
       path: {
-        /** @description Execution ID of the running workflow */
-        execution_id: string
-        /** @description Activity ID from the workflow definition */
-        activity_id: string
+        workflow_id: string
       }
       cookie?: never
     }
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ActivitySignalPayload']
-      }
-    }
+    requestBody?: never
     responses: {
-      /** @description Signal sent successfully */
+      /** @description Workflow details including current version information */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['SignalResponse']
+          'application/json': components['schemas']['WorkflowWithVersion']
         }
       }
-      /** @description Execution not found */
+      /** @description Workflow not found */
       404: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
-      /** @description Failed to send signal */
-      500: {
+    }
+  }
+  delete_workflow: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Workflow soft deleted successfully */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Workflow not found */
+      404: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
-      /** @description Temporal workflow engine unavailable */
-      503: {
+      /** @description Workflow cannot be deleted (has running executions) */
+      409: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['Error']
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  update_workflow: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PatchWorkflowRequest']
+      }
+    }
+    responses: {
+      /** @description Workflow updated successfully (may include new version if workflow_definition changed) */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkflowWithVersion']
+        }
+      }
+      /** @description Invalid workflow definition or validation error */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Workflow not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Name conflict - workflow with this name already exists */
+      409: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Validation error (e.g., invalid label types) */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  list_workflow_versions: {
+    parameters: {
+      query?: {
+        /**
+         * @description Number of resources to return per page
+         * @example 20
+         */
+        limit?: components['parameters']['limitParam']
+        /**
+         * @description Opaque cursor for pagination (from previous response)
+         * @example eyJpZCI6InV1aWQifQ
+         */
+        cursor?: components['parameters']['cursorParam']
+        /**
+         * @description Whether to include total count in response (may impact performance)
+         * @example true
+         */
+        include_total?: components['parameters']['includeTotalParam']
+        /**
+         * @description Sort order for resources.
+         *     - Ascending: `field` (e.g., `name`)
+         *     - Descending: `-field` (e.g., `-created_at`)
+         * @example -created_at
+         */
+        sort?: components['parameters']['sortParam']
+        created_at?: components['parameters']['createdAtFilterParam']
+      }
+      header?: never
+      path: {
+        workflow_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description List of workflow versions */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ResourcesResponseBase'] & {
+            resources: components['schemas']['WorkflowVersionResponse'][]
+          }
+        }
+      }
+      /** @description Workflow not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  get_workflow_version: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        workflow_id: string
+        /** @description Version number to retrieve */
+        version: number
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Workflow version details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['WorkflowVersionResponse']
+        }
+      }
+      /** @description Workflow or version not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
         }
       }
     }

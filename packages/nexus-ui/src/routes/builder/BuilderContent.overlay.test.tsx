@@ -5,7 +5,7 @@ import type { ComponentProps, ReactNode } from 'react'
 import * as React from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { workflowClient } from '../../client'
+import { executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
 
 import { BuilderContent } from './BuilderContent'
@@ -33,6 +33,10 @@ vi.mock('./AddNodePanel', () => {
 
 vi.mock('../../client', () => ({
   workflowClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+  executionsClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
@@ -75,14 +79,60 @@ describe('BuilderContent overlay', () => {
     queryClient.clear()
     shouldAutoSelectNode = false
 
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
-      data: undefined,
-      isPending: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
+    vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
+      if (method === 'get' && path === '/executions') {
+        return {
+          data: { resources: [] },
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
+      return {
+        data: undefined,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      }
+    })
+    vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+      if (method === 'get' && path === '/workflows') {
+        return {
+          data: { resources: [] },
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
+      return {
+        data: undefined,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      }
     })
     vi.mocked(workflowClient.useMutation).mockReturnValue({
+      mutate: vi.fn(),
+      mutateAsync: vi.fn(),
+      reset: vi.fn(),
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      isIdle: true,
+      error: null,
+      data: undefined,
+      variables: undefined,
+      context: undefined,
+      failureCount: 0,
+      failureReason: null,
+      status: 'idle' as const,
+      submittedAt: 0,
+    })
+    vi.mocked(executionsClient.useMutation).mockReturnValue({
       mutate: vi.fn(),
       mutateAsync: vi.fn(),
       reset: vi.fn(),

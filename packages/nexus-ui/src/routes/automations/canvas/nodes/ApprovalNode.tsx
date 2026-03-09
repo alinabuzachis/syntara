@@ -3,6 +3,7 @@ import { Flex, FlexItem } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
+import type { ActivityStatus } from '../../execution/types'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { renderText } from './common/detailRenderers'
@@ -29,7 +30,7 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
     | {
-        status: string
+        status: ActivityStatus
         started_at?: string
         completed_at?: string
         error_details?: string
@@ -37,7 +38,9 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
       }
     | undefined
 
-  const showExecutionBadge = !!(props.data as Record<string, unknown>).metadata?.__showExecutionBadge
+  const showExecutionBadge =
+    ((props.data as Record<string, unknown>).metadata as { __showExecutionBadge?: boolean } | undefined)
+      ?.__showExecutionBadge === true
 
   return (
     <NodeComponent

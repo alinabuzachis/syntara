@@ -1,8 +1,10 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import Dagre from '@dagrejs/dagre'
 
+import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+
 import { filterRealEdges, filterRealNodes } from './filterHelpers'
-import type { EdgeType, NodeType } from './workflowToGraph'
+import type { EdgeType } from './workflowToGraph'
 
 const markerEnd = { type: 'arrowclosed' as const }
 

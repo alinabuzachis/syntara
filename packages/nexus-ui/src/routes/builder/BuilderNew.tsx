@@ -11,7 +11,9 @@ import { WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME } from './utils/workflowListQuer
 export default function BuilderNew() {
   const queryClient = useQueryClient()
   useEffect(() => {
-    queryClient.prefetchQuery(workflowClient.queryOptions('get', '/workflows', WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME))
+    void queryClient.prefetchQuery(
+      workflowClient.queryOptions('get', '/workflows', WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME)
+    )
   }, [queryClient])
 
   return (

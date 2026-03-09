@@ -1,6 +1,8 @@
 import type { ParallelActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
+import type { ActivityStatus } from '../../execution/types'
+
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
 import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
@@ -18,7 +20,7 @@ export function ParallelNodeComponent(props: NodeProps<ParallelNode>) {
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
     | {
-        status: string
+        status: ActivityStatus
         started_at?: string
         completed_at?: string
         error_details?: string

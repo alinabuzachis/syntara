@@ -27,7 +27,9 @@ describe('useWorkflowStore', () => {
   describe('setWorkflow', () => {
     it('sets workflow and increments version', () => {
       const workflow: WorkflowDefinition = {
-        name: 'Test Workflow',
+        schemaVersion: '1.0',
+        version: 1,
+        metadata: { name: 'Test Workflow', description: '' },
         triggers: [],
         workflow: {
           activities: [],
@@ -45,7 +47,9 @@ describe('useWorkflowStore', () => {
 
     it('increments version on each call', () => {
       const workflow: WorkflowDefinition = {
-        name: 'Test Workflow',
+        schemaVersion: '1.0',
+        version: 1,
+        metadata: { name: 'Test Workflow', description: '' },
         triggers: [],
         workflow: {
           activities: [],
@@ -64,7 +68,9 @@ describe('useWorkflowStore', () => {
 
     it('allows setting workflow to null', () => {
       const workflow: WorkflowDefinition = {
-        name: 'Test Workflow',
+        schemaVersion: '1.0',
+        version: 1,
+        metadata: { name: 'Test Workflow', description: '' },
         triggers: [],
         workflow: {
           activities: [],
@@ -110,7 +116,9 @@ describe('useWorkflowStore', () => {
   describe('Trigger management', () => {
     beforeEach(() => {
       const workflow: WorkflowDefinition = {
-        name: 'Test Workflow',
+        schemaVersion: '1.0',
+        version: 1,
+        metadata: { name: 'Test Workflow', description: '' },
         triggers: [],
         workflow: {
           activities: [],
@@ -190,7 +198,9 @@ describe('useWorkflowStore', () => {
   describe('Activity management', () => {
     beforeEach(() => {
       const workflow: WorkflowDefinition = {
-        name: 'Test Workflow',
+        schemaVersion: '1.0',
+        version: 1,
+        metadata: { name: 'Test Workflow', description: '' },
         triggers: [],
         workflow: {
           activities: [],
@@ -251,7 +261,9 @@ describe('useWorkflowStore', () => {
 
         useWorkflowStore.setState({
           currentWorkflow: {
-            name: 'Test',
+            schemaVersion: '1.0',
+            version: 1,
+            metadata: { name: 'Test', description: '' },
             triggers: [],
             workflow: {
               activities: [parallelActivity, convergeActivity],
@@ -287,7 +299,9 @@ describe('useWorkflowStore', () => {
 
         useWorkflowStore.setState({
           currentWorkflow: {
-            name: 'Test',
+            schemaVersion: '1.0',
+            version: 1,
+            metadata: { name: 'Test', description: '' },
             triggers: [],
             workflow: {
               activities: [condition],
@@ -333,7 +347,9 @@ describe('useWorkflowStore', () => {
 
         useWorkflowStore.setState({
           currentWorkflow: {
-            name: 'Test',
+            schemaVersion: '1.0',
+            version: 1,
+            metadata: { name: 'Test', description: '' },
             triggers: [],
             workflow: {
               activities: [condition],
@@ -364,7 +380,9 @@ describe('useWorkflowStore', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activity1, activity2, activity3],
@@ -386,7 +404,9 @@ describe('useWorkflowStore', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activity1, activity2],
@@ -411,7 +431,9 @@ describe('useWorkflowStore', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activity1, activity2, activity3],
@@ -433,7 +455,9 @@ describe('useWorkflowStore', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activity1, activity2],
@@ -458,12 +482,12 @@ describe('useWorkflowStore', () => {
         type: 'task',
         id: 'generic-1',
         name: 'Placeholder',
-        metadata: {
-          __isGeneric: true,
-        },
         task: {
           config: {},
         },
+      })
+      expect((activity as Record<string, unknown>).metadata).toMatchObject({
+        __isGeneric: true,
       })
     })
 
@@ -485,7 +509,7 @@ describe('useWorkflowStore', () => {
     it('includes custom message in metadata when provided', () => {
       const activity = createGenericActivity('generic-1', 'Test', 'Custom message here')
 
-      expect(activity.metadata).toMatchObject({
+      expect((activity as Record<string, unknown>).metadata).toMatchObject({
         __isGeneric: true,
         __customMessage: 'Custom message here',
       })
@@ -494,7 +518,7 @@ describe('useWorkflowStore', () => {
     it('does not include custom message when not provided', () => {
       const activity = createGenericActivity('generic-1', 'Test')
 
-      expect(activity.metadata).toEqual({
+      expect((activity as Record<string, unknown>).metadata).toEqual({
         __isGeneric: true,
       })
     })
@@ -502,7 +526,10 @@ describe('useWorkflowStore', () => {
     it('always sets __isGeneric to true', () => {
       const activity = createGenericActivity('generic-1', 'Test')
 
-      expect(activity.metadata?.__isGeneric).toBe(true)
+      expect((activity as Record<string, unknown>).metadata as Record<string, unknown>).toHaveProperty(
+        '__isGeneric',
+        true
+      )
     })
   })
 })

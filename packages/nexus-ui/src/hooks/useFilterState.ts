@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { useSearchParams } from 'wouter/use-browser-location'
+import { useSearchParams } from 'wouter'
 
 import type { FilterConfig } from '../types/filters'
 import { buildFilterParams, parseFiltersFromUrl } from '../utils/filterUtils'

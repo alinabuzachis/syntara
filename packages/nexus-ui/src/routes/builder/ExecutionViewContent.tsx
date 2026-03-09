@@ -1,4 +1,4 @@
-import type { Activity, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { Activity, ExecutionsAPI } from '@ansible/nexus-contracts'
 import { CompassPanel } from '@patternfly/react-core'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -14,13 +14,25 @@ import { ACTIVITY_TYPES } from './utils/executionState/executionHelpers'
 import { loadWorkflow } from './utils/loadWorkflow'
 import { WorkflowTransform } from './utils/workflowTransform'
 
-type Workflow = WorkflowAPI.components['schemas']['Workflow']
-type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
+type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
+type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
+
+/** Activity data from Execution.activities (ActivityData) or list endpoint (ActivityExecution) */
+type ActivityInput = ActivityData | ActivityExecution
+
+/** Accepts both full Workflow objects and execution-derived workflow data with version.workflow_definition */
+interface ExecutionWorkflow {
+  id: string
+  name?: string
+  version?: { workflow_definition?: unknown }
+  workflow?: { activities?: Activity[] }
+  triggers?: unknown[]
+}
 
 interface ExecutionViewContentProps {
-  workflow?: Workflow
+  workflow?: ExecutionWorkflow
   executionStatus?: string | null
-  executionActivities?: ActivityExecution[]
+  executionActivities?: ActivityInput[]
   executionId: string
 }
 
@@ -73,8 +85,7 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
     // Load the workflow if we have one and haven't loaded it yet
     if (workflow && !hasLoadedRef.current && canLoadWorkflow) {
       // Extract workflow definition - handle both direct workflow and version.workflow_definition structures
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const workflowDef = (workflow as any).version?.workflow_definition ?? workflow
+      const workflowDef = (workflow.version?.workflow_definition ?? workflow) as ExecutionWorkflow
 
       // Safety check - ensure we have the workflow structure
       if (!workflowDef?.workflow?.activities) {
@@ -134,8 +145,9 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
       }
 
       // Load workflow and edges into store
+      // Execution-derived workflows may not have all WorkflowDefinition fields (schemaVersion, metadata)
       queueMicrotask(() => {
-        loadWorkflowWithEdges(flattenedWorkflow, allEdges)
+        loadWorkflowWithEdges(flattenedWorkflow as unknown as Parameters<typeof loadWorkflowWithEdges>[0], allEdges)
         hasLoadedRef.current = true
       })
     }

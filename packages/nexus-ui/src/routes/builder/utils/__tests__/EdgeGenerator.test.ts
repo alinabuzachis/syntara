@@ -12,9 +12,10 @@ describe('EdgeGenerator', () => {
         id: 'loop-1',
         name: 'Loop',
         loop: {
+          type: 'forEach',
           items: '{{items}}',
+          do: [],
         },
-        do: [],
       }
 
       expect(EdgeGenerator.getSourceHandle(loopActivity)).toBe('done')
@@ -512,9 +513,7 @@ describe('EdgeGenerator', () => {
           type: ActivityTypeEnum.CONDITION,
           id: 'condition-1',
           name: 'Condition',
-          condition: {
-            expression: '{{value}} > 10',
-          },
+          condition: '{{value}} > 10',
           then: [],
           else: [],
         },

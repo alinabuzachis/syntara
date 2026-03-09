@@ -1,16 +1,19 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { useLocation, useSearch } from 'wouter'
 
-import { workflowClient } from '../../client'
+import { executionsClient, workflowClient } from '../../client'
 
 import Executions from './Executions'
 
-// Mock the workflowClient
+// Mock the client module
 vi.mock('../../client', () => ({
   workflowClient: {
+    useQuery: vi.fn(),
+  },
+  executionsClient: {
     useQuery: vi.fn(),
   },
 }))
@@ -26,7 +29,7 @@ vi.mock('wouter', async (importOriginal) => {
 })
 
 describe('Executions Component', () => {
-  const mockExecutions: WorkflowAPI.components['schemas']['Execution'][] = [
+  const mockExecutions: ExecutionsAPI.components['schemas']['Execution'][] = [
     {
       id: '123e4567-e89b-12d3-a456-426614174000',
       workflow_id: 'workflow-1',
@@ -72,11 +75,11 @@ describe('Executions Component', () => {
   })
 
   const mockExecutionsQuery = (
-    data: WorkflowAPI.components['schemas']['Execution'][],
+    data: ExecutionsAPI.components['schemas']['Execution'][],
     isPending = false,
     error: unknown = null
   ) => {
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
       data: { resources: data },
       isPending,
       error,
@@ -176,25 +179,16 @@ describe('Executions Component', () => {
   it('displays workflow name in title when filtering by workflow_id', () => {
     vi.mocked(useSearch).mockReturnValue('?workflow_id=workflow-1')
 
-    let callIndex = 0
-    vi.mocked(workflowClient.useQuery).mockImplementation((() => {
-      callIndex++
-      if (callIndex === 1) {
-        // First call is for executions
-        return {
-          data: { resources: mockExecutions.filter((e) => e.workflow_id === 'workflow-1') },
-          isPending: false,
-          error: null,
-        } as never
-      } else {
-        // Second call is for workflow
-        return {
-          data: { id: 'workflow-1', name: 'My Test Workflow' },
-          isPending: false,
-          error: null,
-        } as never
-      }
-    }) as never)
+    vi.mocked(executionsClient.useQuery).mockReturnValue({
+      data: { resources: mockExecutions.filter((e) => e.workflow_id === 'workflow-1') },
+      isPending: false,
+      error: null,
+    } as never)
+    vi.mocked(workflowClient.useQuery).mockReturnValue({
+      data: { id: 'workflow-1', name: 'My Test Workflow' },
+      isPending: false,
+      error: null,
+    } as never)
 
     render(<Executions />)
 
@@ -380,21 +374,16 @@ describe('Executions Component', () => {
         { ...mockExecutions[1], workflow_id: 'workflow-1', id: '223e4567-e89b-12d3-a456-426614174001' },
       ]
 
-      vi.mocked(workflowClient.useQuery).mockImplementation(((method: string, path: string) => {
-        if (path === '/executions') {
-          return {
-            data: { resources: filteredExecutions },
-            isPending: false,
-            error: null,
-          } as never
-        } else {
-          return {
-            data: { id: 'workflow-1', name: 'My Test Workflow' },
-            isPending: false,
-            error: null,
-          } as never
-        }
-      }) as never)
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
+        data: { resources: filteredExecutions },
+        isPending: false,
+        error: null,
+      } as never)
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: { id: 'workflow-1', name: 'My Test Workflow' },
+        isPending: false,
+        error: null,
+      } as never)
 
       render(<Executions />)
 
@@ -468,23 +457,16 @@ describe('Executions Component', () => {
     it('shows empty state with workflow-specific message when filtering by workflow_id', () => {
       vi.mocked(useSearch).mockReturnValue('?workflow_id=workflow-1')
 
-      let callIndex = 0
-      vi.mocked(workflowClient.useQuery).mockImplementation((() => {
-        callIndex++
-        if (callIndex === 1) {
-          return {
-            data: { resources: [] },
-            isPending: false,
-            error: null,
-          } as never
-        } else {
-          return {
-            data: { id: 'workflow-1', name: 'My Test Workflow' },
-            isPending: false,
-            error: null,
-          } as never
-        }
-      }) as never)
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
+        data: { resources: [] },
+        isPending: false,
+        error: null,
+      } as never)
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: { id: 'workflow-1', name: 'My Test Workflow' },
+        isPending: false,
+        error: null,
+      } as never)
 
       render(<Executions />)
 
@@ -493,7 +475,7 @@ describe('Executions Component', () => {
 
     it('shows filter empty state when search returns no results', async () => {
       // Start with data, then search will filter to empty
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
         data: { resources: [] },
         isPending: false,
         error: null,
@@ -524,7 +506,7 @@ describe('Executions Component', () => {
     })
 
     it('displays total count when more executions exist', () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
         data: {
           resources: mockExecutions,
           total: 50,
@@ -540,7 +522,7 @@ describe('Executions Component', () => {
     })
 
     it('handles next page navigation', async () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
         data: {
           resources: mockExecutions,
           total: 50,
@@ -564,7 +546,7 @@ describe('Executions Component', () => {
     })
 
     it('handles previous page navigation', async () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
         data: {
           resources: mockExecutions,
           total: 50,

@@ -31,7 +31,7 @@ const mockExecutionQuery = {
 }
 
 vi.mock('../../client', () => ({
-  workflowClient: {
+  executionsClient: {
     useQuery: vi.fn(() => mockExecutionQuery),
   },
 }))

@@ -1,6 +1,7 @@
-import type { Activity, ActivityState } from '@ansible/nexus-contracts'
+import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
+import type { ActivityState } from '../../../../automations/execution/types'
 import type { EdgeConnection } from '../../../types/edge'
 import { ConditionalNodeStateInferrer } from '../nodeStateInference'
 
@@ -12,7 +13,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: { expression: 'x > 5' },
+      condition: 'x > 5',
       then: [],
       else: [],
     }
@@ -21,8 +22,11 @@ describe('ConditionalNodeStateInferrer', () => {
       { id: '2', source: 'cond-1', target: 'task-false', sourceHandle: 'false', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-true', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
-      ['task-false', { status: 'pending', startedAt: null, completedAt: null }],
+      [
+        'task-true',
+        { activityId: 'task-true', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
+      ],
+      ['task-false', { activityId: 'task-false', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -35,7 +39,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: { expression: 'x > 5' },
+      condition: 'x > 5',
       then: [],
       else: [],
     }
@@ -44,8 +48,16 @@ describe('ConditionalNodeStateInferrer', () => {
       { id: '2', source: 'cond-1', target: 'task-false', sourceHandle: 'false', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-true', { status: 'pending', startedAt: null, completedAt: null }],
-      ['task-false', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
+      ['task-true', { activityId: 'task-true', status: 'pending', startedAt: null, completedAt: null }],
+      [
+        'task-false',
+        {
+          activityId: 'task-false',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -58,7 +70,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: { expression: 'x > 5' },
+      condition: 'x > 5',
       then: [],
       else: [],
     }
@@ -67,8 +79,8 @@ describe('ConditionalNodeStateInferrer', () => {
       { id: '2', source: 'cond-1', target: 'task-false', sourceHandle: 'false', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-true', { status: 'pending', startedAt: null, completedAt: null }],
-      ['task-false', { status: 'pending', startedAt: null, completedAt: null }],
+      ['task-true', { activityId: 'task-true', status: 'pending', startedAt: null, completedAt: null }],
+      ['task-false', { activityId: 'task-false', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -81,7 +93,8 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'approval-1',
       name: 'Approval',
       type: 'approval',
-      approval: { approvers: { expression: '["user1"]' } },
+      onApproved: [],
+      onRejected: [],
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'approval-1', target: 'task-approved', sourceHandle: 'approved', targetHandle: 'target' },
@@ -90,9 +103,14 @@ describe('ConditionalNodeStateInferrer', () => {
     const activityStates = new Map<string, ActivityState>([
       [
         'task-approved',
-        { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' },
+        {
+          activityId: 'task-approved',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
       ],
-      ['task-rejected', { status: 'pending', startedAt: null, completedAt: null }],
+      ['task-rejected', { activityId: 'task-rejected', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -105,15 +123,19 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'approval-1',
       name: 'Approval',
       type: 'approval',
-      approval: { approvers: { expression: '["user1"]' } },
+      onApproved: [],
+      onRejected: [],
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'approval-1', target: 'task-approved', sourceHandle: 'approved', targetHandle: 'target' },
       { id: '2', source: 'approval-1', target: 'task-rejected', sourceHandle: 'rejected', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-approved', { status: 'pending', startedAt: null, completedAt: null }],
-      ['task-rejected', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+      ['task-approved', { activityId: 'task-approved', status: 'pending', startedAt: null, completedAt: null }],
+      [
+        'task-rejected',
+        { activityId: 'task-rejected', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
+      ],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -126,7 +148,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: { expression: 'x > 5' },
+      condition: 'x > 5',
       then: [],
       else: [],
     }
@@ -136,9 +158,17 @@ describe('ConditionalNodeStateInferrer', () => {
       { id: '3', source: 'task-other', target: 'cond-1', sourceHandle: 'source', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-true', { status: 'pending', startedAt: null, completedAt: null }],
-      ['task-false', { status: 'pending', startedAt: null, completedAt: null }],
-      ['task-other', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
+      ['task-true', { activityId: 'task-true', status: 'pending', startedAt: null, completedAt: null }],
+      ['task-false', { activityId: 'task-false', status: 'pending', startedAt: null, completedAt: null }],
+      [
+        'task-other',
+        {
+          activityId: 'task-other',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -152,7 +182,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: { expression: 'x > 5' },
+      condition: 'x > 5',
       then: [],
       else: [],
     }
@@ -162,9 +192,9 @@ describe('ConditionalNodeStateInferrer', () => {
       { id: '3', source: 'cond-1', target: 'task-c', sourceHandle: 'false', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-a', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
-      ['task-b', { status: 'pending', startedAt: null, completedAt: null }],
-      ['task-c', { status: 'pending', startedAt: null, completedAt: null }],
+      ['task-a', { activityId: 'task-a', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+      ['task-b', { activityId: 'task-b', status: 'pending', startedAt: null, completedAt: null }],
+      ['task-c', { activityId: 'task-c', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)

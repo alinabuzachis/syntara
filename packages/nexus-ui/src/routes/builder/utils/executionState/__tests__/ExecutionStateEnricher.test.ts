@@ -1,6 +1,7 @@
-import type { Activity, ActivityState } from '@ansible/nexus-contracts'
+import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
+import type { ActivityState } from '../../../../automations/execution/types'
 import type { EdgeConnection } from '../../../types/edge'
 import { ExecutionStateEnricher } from '../ExecutionStateEnricher'
 
@@ -13,7 +14,7 @@ describe('ExecutionStateEnricher', () => {
         id: 'task-1',
         name: 'Task 1',
         type: 'task',
-        task: { executor: 'script', config: {} },
+        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
       }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
@@ -29,14 +30,16 @@ describe('ExecutionStateEnricher', () => {
         id: 'task-1',
         name: 'Task 1',
         type: 'task',
-        task: { executor: 'script', config: {} },
+        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
       }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
 
-      expect(result.metadata?.__showExecutionBadge).toBe(true)
+      expect(
+        ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
+      ).toBe(true)
     })
 
     it('preserves existing metadata when adding badge flag', () => {
@@ -44,9 +47,9 @@ describe('ExecutionStateEnricher', () => {
         id: 'task-1',
         name: 'Task 1',
         type: 'task',
-        task: { executor: 'script', config: {} },
+        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
         metadata: { customProp: 'value' },
-      }
+      } as unknown as Activity
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
 
@@ -63,11 +66,11 @@ describe('ExecutionStateEnricher', () => {
         id: 'task-1',
         name: 'Task 1',
         type: 'task',
-        task: { executor: 'script', config: {} },
+        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
       }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
@@ -85,14 +88,17 @@ describe('ExecutionStateEnricher', () => {
         id: 'loop-1',
         name: 'Loop',
         type: 'loop',
-        loop: { type: 'forEach', items: { expression: '[1,2,3]' }, do: [] },
+        loop: { type: 'forEach', items: '[1,2,3]', do: [] },
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'loop-1', target: 'task-body', sourceHandle: 'loop', targetHandle: 'target' },
         { id: '2', source: 'loop-1', target: 'task-after', sourceHandle: 'done', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-body', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        [
+          'task-body',
+          { activityId: 'task-body', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
+        ],
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
@@ -112,8 +118,16 @@ describe('ExecutionStateEnricher', () => {
         { id: '2', source: 'task-b', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-a', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-b', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        [
+          'task-a',
+          {
+            activityId: 'task-a',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        ['task-b', { activityId: 'task-b', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
@@ -126,7 +140,7 @@ describe('ExecutionStateEnricher', () => {
         id: 'cond-1',
         name: 'Conditional',
         type: 'condition',
-        condition: { expression: 'x > 5' },
+        condition: 'x > 5',
         then: [],
         else: [],
       }
@@ -135,7 +149,10 @@ describe('ExecutionStateEnricher', () => {
         { id: '2', source: 'cond-1', target: 'task-false', sourceHandle: 'false', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-true', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        [
+          'task-true',
+          { activityId: 'task-true', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
+        ],
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
@@ -148,15 +165,31 @@ describe('ExecutionStateEnricher', () => {
         id: 'task-false',
         name: 'Task False',
         type: 'task',
-        task: { executor: 'script', config: {} },
+        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'cond-1', target: 'task-true', sourceHandle: 'true', targetHandle: 'target' },
         { id: '2', source: 'cond-1', target: 'task-false', sourceHandle: 'false', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['cond-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-true', { status: 'completed', startedAt: '2024-01-01T00:01:00Z', completedAt: '2024-01-01T00:02:00Z' }],
+        [
+          'cond-1',
+          {
+            activityId: 'cond-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        [
+          'task-true',
+          {
+            activityId: 'task-true',
+            status: 'completed',
+            startedAt: '2024-01-01T00:01:00Z',
+            completedAt: '2024-01-01T00:02:00Z',
+          },
+        ],
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
@@ -169,7 +202,7 @@ describe('ExecutionStateEnricher', () => {
         id: 'loop-1',
         name: 'Loop',
         type: 'loop',
-        loop: { type: 'forEach', items: { expression: '[1,2,3]' }, do: [] },
+        loop: { type: 'forEach', items: '[1,2,3]', do: [] },
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'loop-1', target: 'task-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -187,7 +220,7 @@ describe('ExecutionStateEnricher', () => {
         id: 'task-1',
         name: 'Task 1',
         type: 'task',
-        task: { executor: 'script', config: {} },
+        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
       }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
@@ -203,14 +236,18 @@ describe('ExecutionStateEnricher', () => {
         id: 'approval-1',
         name: 'Approval',
         type: 'approval',
-        approval: { approvers: { expression: '["user1"]' } },
+        onApproved: [],
+        onRejected: [],
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'approval-1', target: 'task-approved', sourceHandle: 'approved', targetHandle: 'target' },
         { id: '2', source: 'approval-1', target: 'task-rejected', sourceHandle: 'rejected', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-approved', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        [
+          'task-approved',
+          { activityId: 'task-approved', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
+        ],
       ])
 
       const result = enricher.enrichActivity(activity, 'running', activityStates, edges)
@@ -223,7 +260,7 @@ describe('ExecutionStateEnricher', () => {
     it('returns pending when source is running (not terminal)', () => {
       const edge = { source: 'task-1', target: 'task-2' }
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
@@ -234,7 +271,15 @@ describe('ExecutionStateEnricher', () => {
     it('returns passed when source has completed', () => {
       const edge = { source: 'task-1', target: 'task-2' }
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
@@ -245,7 +290,7 @@ describe('ExecutionStateEnricher', () => {
     it('returns pending when source has not started', () => {
       const edge = { source: 'task-1', target: 'task-2' }
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'pending', startedAt: null, completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
@@ -265,8 +310,19 @@ describe('ExecutionStateEnricher', () => {
     it('returns passed for branching edge when target has started', () => {
       const edge = { source: 'cond-1', target: 'task-true', sourceHandle: 'true' }
       const activityStates = new Map<string, ActivityState>([
-        ['cond-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-true', { status: 'running', startedAt: '2024-01-01T00:01:00Z', completedAt: null }],
+        [
+          'cond-1',
+          {
+            activityId: 'cond-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        [
+          'task-true',
+          { activityId: 'task-true', status: 'running', startedAt: '2024-01-01T00:01:00Z', completedAt: null },
+        ],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
@@ -277,8 +333,16 @@ describe('ExecutionStateEnricher', () => {
     it('returns pending for branching edge when target has not started', () => {
       const edge = { source: 'cond-1', target: 'task-true', sourceHandle: 'true' }
       const activityStates = new Map<string, ActivityState>([
-        ['cond-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-true', { status: 'pending', startedAt: null, completedAt: null }],
+        [
+          'cond-1',
+          {
+            activityId: 'cond-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        ['task-true', { activityId: 'task-true', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
@@ -289,7 +353,7 @@ describe('ExecutionStateEnricher', () => {
     it('returns passed for trigger edges when target has started', () => {
       const edge = { source: 'trigger-0', target: 'task-1', sourceHandle: null }
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
@@ -300,7 +364,7 @@ describe('ExecutionStateEnricher', () => {
     it('returns pending for trigger edges when target is pending', () => {
       const edge = { source: 'trigger-0', target: 'task-1', sourceHandle: null }
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'pending', startedAt: null, completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
@@ -320,7 +384,10 @@ describe('ExecutionStateEnricher', () => {
     it('returns passed for converge outgoing edge when target has started', () => {
       const edge = { source: 'converge-1', target: 'task-after', sourceHandle: null }
       const activityStates = new Map<string, ActivityState>([
-        ['task-after', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        [
+          'task-after',
+          { activityId: 'task-after', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
+        ],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
@@ -331,7 +398,7 @@ describe('ExecutionStateEnricher', () => {
     it('returns pending for converge outgoing edge when target is pending', () => {
       const edge = { source: 'converge-1', target: 'task-after', sourceHandle: null }
       const activityStates = new Map<string, ActivityState>([
-        ['task-after', { status: 'pending', startedAt: null, completedAt: null }],
+        ['task-after', { activityId: 'task-after', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = enricher.determineEdgeStatus(edge, activityStates)
@@ -359,14 +426,16 @@ describe('ExecutionStateEnricher', () => {
         { id: '2', source: 'trigger-0', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
-        ['task-2', { status: 'pending', startedAt: null, completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        ['task-2', { activityId: 'task-2', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
 
       expect(result.__executionState?.status).toBe('completed')
-      expect(result.metadata?.__showExecutionBadge).toBe(true)
+      expect(
+        ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
+      ).toBe(true)
     })
 
     it('marks trigger as pending when all connected nodes are pending', () => {
@@ -376,14 +445,16 @@ describe('ExecutionStateEnricher', () => {
         { id: '2', source: 'trigger-0', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'pending', startedAt: null, completedAt: null }],
-        ['task-2', { status: 'pending', startedAt: null, completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'pending', startedAt: null, completedAt: null }],
+        ['task-2', { activityId: 'task-2', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
 
       expect(result.__executionState?.status).toBe('pending')
-      expect(result.metadata?.__showExecutionBadge).toBe(true)
+      expect(
+        ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
+      ).toBe(true)
     })
 
     it('marks trigger as pending when no connected nodes have state', () => {
@@ -396,7 +467,9 @@ describe('ExecutionStateEnricher', () => {
       const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
 
       expect(result.__executionState?.status).toBe('pending')
-      expect(result.metadata?.__showExecutionBadge).toBe(true)
+      expect(
+        ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
+      ).toBe(true)
     })
 
     it('marks trigger as pending when trigger has no outgoing edges', () => {
@@ -407,7 +480,9 @@ describe('ExecutionStateEnricher', () => {
       const result = enricher.enrichTriggerNode('trigger-0', triggerData, 'running', edges, activityStates)
 
       expect(result.__executionState?.status).toBe('pending')
-      expect(result.metadata?.__showExecutionBadge).toBe(true)
+      expect(
+        ((result as Record<string, unknown>).metadata as Record<string, unknown> | undefined)?.__showExecutionBadge
+      ).toBe(true)
     })
 
     it('preserves existing metadata when adding execution badge', () => {

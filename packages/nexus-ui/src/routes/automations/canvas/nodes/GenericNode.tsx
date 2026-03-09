@@ -3,6 +3,8 @@ import { Content, ContentVariants, Flex, FlexItem } from '@patternfly/react-core
 import { RhUiSettingsIcon } from '@patternfly/react-icons'
 import { type Node, type NodeProps } from '@xyflow/react'
 
+import type { ActivityStatus } from '../../execution/types'
+
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
@@ -30,7 +32,7 @@ export function GenericNodeComponent(props: NodeProps<GenericNode>) {
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
     | {
-        status: string
+        status: ActivityStatus
         started_at?: string
         completed_at?: string
         error_details?: string

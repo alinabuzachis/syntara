@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react'
 
 import { parseTriggerIndex } from '../../../../utils/triggerNodeIds'
 import { useIsExecutionView } from '../../../builder/ExecutionViewContext'
+import type { ActivityStatus } from '../../execution/types'
 
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -45,7 +46,7 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
     | {
-        status: string
+        status: ActivityStatus
         started_at?: string
         completed_at?: string
         error_details?: string

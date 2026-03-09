@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import type { Trigger } from '../utils/workflowToGraph'
+
 import { TriggerNodeDetails } from './TriggerNodeDetails'
 
 // Mock the workflow store
@@ -16,7 +18,7 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
   useWorkflowStoreActions: vi.fn(() => ({
     updateTrigger: mockUpdateTrigger,
   })),
-  createManualTrigger: vi.fn((requiresApproval?: boolean, name?: string) => ({
+  createManualTrigger: vi.fn((_requiresApproval?: boolean, name?: string) => ({
     type: 'manual',
     requiresApproval: false,
     ...(name ? { name } : {}),
@@ -177,7 +179,7 @@ describe('TriggerNodeDetails Component', () => {
           scheduleType: 'continuous' as const,
         },
         name: 'Trigger',
-      }
+      } as unknown as Trigger
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
 
@@ -198,7 +200,7 @@ describe('TriggerNodeDetails Component', () => {
           scheduleType: 'continuous' as const,
         },
         name: 'Trigger',
-      }
+      } as unknown as Trigger
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={2} onClose={mockOnClose} />)
 
@@ -252,10 +254,7 @@ describe('TriggerNodeDetails Component', () => {
       const trigger = {
         type: 'event' as const,
         name: 'Trigger',
-      } as {
-        type: 'event'
-        name?: string
-      }
+      } as unknown as Trigger
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
 

@@ -199,15 +199,21 @@ describe('useExecutionStore', () => {
     it('converts ActivityExecution array to ActivityState map', () => {
       useExecutionStore.getState().setActivityExecutions([
         {
-          activity_id: 'task1',
-          status: 'completed',
+          id: 'task1-exec',
+          created_at: '2025-12-10T15:00:05Z',
+          updated_at: '2025-12-10T15:00:05Z',
+          activity_name: 'task1',
+          status: 'completed' as const,
           error_details: null,
           started_at: '2025-12-10T15:00:05Z',
           completed_at: '2025-12-10T15:00:10Z',
         },
         {
-          activity_id: 'task2',
-          status: 'running',
+          id: 'task2-exec',
+          created_at: '2025-12-10T15:00:10Z',
+          updated_at: '2025-12-10T15:00:10Z',
+          activity_name: 'task2',
+          status: 'running' as const,
           error_details: null,
           started_at: '2025-12-10T15:00:10Z',
           completed_at: null,
@@ -223,8 +229,11 @@ describe('useExecutionStore', () => {
     it('preserves original ActivityStatus from backend', () => {
       useExecutionStore.getState().setActivityExecutions([
         {
-          activity_id: 'task1',
-          status: 'completed',
+          id: 'task1-exec',
+          created_at: '2025-12-10T15:00:05Z',
+          updated_at: '2025-12-10T15:00:05Z',
+          activity_name: 'task1',
+          status: 'completed' as const,
           error_details: null,
           started_at: '2025-12-10T15:00:05Z',
           completed_at: '2025-12-10T15:00:10Z',
@@ -239,8 +248,11 @@ describe('useExecutionStore', () => {
     it('extracts errors from activity executions', () => {
       useExecutionStore.getState().setActivityExecutions([
         {
-          activity_id: 'failed_task',
-          status: 'failed',
+          id: 'failed_task-exec',
+          created_at: '2025-12-10T15:00:05Z',
+          updated_at: '2025-12-10T15:00:05Z',
+          activity_name: 'failed_task',
+          status: 'failed' as const,
           error_details: 'Connection timeout',
           started_at: '2025-12-10T15:00:05Z',
           completed_at: '2025-12-10T15:00:10Z',
@@ -249,6 +261,30 @@ describe('useExecutionStore', () => {
 
       const state = useExecutionStore.getState()
       expect(state.activityErrors.get('failed_task')).toBe('Connection timeout')
+    })
+
+    it('handles ActivityData from Execution.activities (activity_id shape)', () => {
+      useExecutionStore.getState().setActivityExecutions([
+        {
+          activity_id: 'fetch_data',
+          status: 'completed' as const,
+          error_details: null,
+          started_at: '2025-12-10T15:00:05Z',
+          completed_at: '2025-12-10T15:00:10Z',
+        },
+        {
+          activity_id: 'process_data',
+          status: 'running' as const,
+          error_details: null,
+          started_at: '2025-12-10T15:00:10Z',
+          completed_at: null,
+        },
+      ])
+
+      const state = useExecutionStore.getState()
+      expect(state.activityStates.size).toBe(2)
+      expect(state.activityStates.get('fetch_data')?.status).toBe('completed')
+      expect(state.activityStates.get('process_data')?.status).toBe('running')
     })
   })
 

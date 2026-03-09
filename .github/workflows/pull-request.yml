@@ -28,6 +28,14 @@ jobs:
 
       - run: npm ci
 
+      - name: TypeScript type check
+        run: npm run tsc
+        working-directory: packages/nexus-ui
+
+      - name: ESLint
+        run: npm run eslint
+        working-directory: packages/nexus-ui
+
       - name: Check for dead code with knip
         run: npm run knip -- --reporter compact
         working-directory: packages/nexus-ui

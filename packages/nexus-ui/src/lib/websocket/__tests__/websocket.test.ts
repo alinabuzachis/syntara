@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 
-import { WebSocketChannel } from '../channels'
+import { WebSocketChannel, type WebSocketChannelConfig } from '../channels'
 import { useWebSocket, useWebSocketState, useIsWebSocketConnected } from '../hooks'
 import { useWebSocketStore } from '../store'
 import { getConnectionStateLabel, getConnectionStateColor } from '../utils'
@@ -455,7 +455,7 @@ describe('useWebSocket hook', () => {
   })
 
   it('works with custom channel config', () => {
-    const customChannel = { id: 'custom', path: '/ws/custom/endpoint' }
+    const customChannel = { id: 'custom', path: '/ws/custom/endpoint' } as unknown as WebSocketChannelConfig
     renderHook(() => useWebSocket(customChannel))
 
     expect(mockWebSocketInstances).toHaveLength(1)

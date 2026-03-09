@@ -111,7 +111,9 @@ export function useNodeUpdates({
         const merged = mergeNodesPreservingPositions(prevNodes, initialNodes)
         if (hasDeletedNodes) {
           const validNodeIds = new Set(initialNodes.map((n) => n.id))
-          return merged.filter((node) => validNodeIds.has(node.id) || node.type === FlowNodeType.PLACEHOLDER)
+          return merged.filter(
+            (node) => validNodeIds.has(node.id) || (node.type as string) === FlowNodeType.PLACEHOLDER
+          )
         }
         return merged
       })
@@ -134,7 +136,9 @@ export function useNodeUpdates({
       setNodes((prevNodes) => {
         const merged = mergeNodesPreservingPositions(prevNodes, initialNodes)
         const initialNodeIds = new Set(initialNodes.map((n) => n.id))
-        return merged.filter((node) => initialNodeIds.has(node.id) || node.type === FlowNodeType.PLACEHOLDER)
+        return merged.filter(
+          (node) => initialNodeIds.has(node.id) || (node.type as string) === FlowNodeType.PLACEHOLDER
+        )
       })
 
       // DO NOT merge initialEdges after initialization

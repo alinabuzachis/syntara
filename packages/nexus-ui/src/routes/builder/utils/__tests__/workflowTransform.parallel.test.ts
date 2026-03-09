@@ -9,7 +9,12 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Workflow structure: Manual → A → (P1 || L where L contains D)
     // This matches the user's screenshot where A splits to both P1 and L
     const activities: Activity[] = [
-      { type: 'task', id: 'trigger', name: 'Manual', task: { executor: 'manual', config: {} } },
+      {
+        type: 'task',
+        id: 'trigger',
+        name: 'Manual',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
       { type: 'task', id: 'A', name: 'Task A', task: { executor: 'script', config: { language: 'python', code: '' } } },
       {
         type: 'task',
@@ -21,7 +26,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
         type: 'loop',
         id: 'L',
         name: 'Loop L',
-        loop: { over: '${items}', item: 'item', do: [] },
+        loop: { type: 'forEach', items: '${items}', itemVariable: 'item', do: [] },
       },
       { type: 'task', id: 'D', name: 'Task D', task: { executor: 'script', config: { language: 'python', code: '' } } },
     ]
@@ -217,13 +222,18 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Test the complete nest → flatten round-trip to ensure edges are correctly regenerated
     // This matches the user's exact workflow: trigger → A → (L || P1) where L contains D → C → D1
     const flatActivities: Activity[] = [
-      { type: 'task', id: 'trigger', name: 'Manual', task: { executor: 'manual', config: {} } },
+      {
+        type: 'task',
+        id: 'trigger',
+        name: 'Manual',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
       { type: 'task', id: 'A', name: 'Task A', task: { executor: 'script', config: { language: 'python', code: '' } } },
       {
         type: 'loop',
         id: 'L',
         name: 'Loop L',
-        loop: { over: '${items}', item: 'item', do: [] },
+        loop: { type: 'forEach', items: '${items}', itemVariable: 'item', do: [] },
       },
       { type: 'task', id: 'D', name: 'Task D', task: { executor: 'script', config: { language: 'python', code: '' } } },
       {
@@ -408,7 +418,12 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Workflow structure: trigger → P (condition) → true → (A1 || A2)
     // When a condition's true handle connects to multiple targets, they execute in parallel
     const activities: Activity[] = [
-      { type: 'task', id: 'trigger', name: 'Manual', task: { executor: 'manual', config: {} } },
+      {
+        type: 'task',
+        id: 'trigger',
+        name: 'Manual',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
       {
         type: 'condition',
         id: 'P',
@@ -463,7 +478,12 @@ describe('WorkflowTransform - Parallel Detection', () => {
   it('detects parallel branches from condition false handle', () => {
     // Test that false handle also supports parallel branching
     const activities: Activity[] = [
-      { type: 'task', id: 'trigger', name: 'Manual', task: { executor: 'manual', config: {} } },
+      {
+        type: 'task',
+        id: 'trigger',
+        name: 'Manual',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
       {
         type: 'condition',
         id: 'P',
@@ -513,7 +533,12 @@ describe('WorkflowTransform - Parallel Detection', () => {
   it('round-trip: condition with parallel branches (true handle)', () => {
     // Test the complete nest → flatten → nest round-trip for condition with parallel branches
     const flatActivities: Activity[] = [
-      { type: 'task', id: 'trigger', name: 'Manual', task: { executor: 'manual', config: {} } },
+      {
+        type: 'task',
+        id: 'trigger',
+        name: 'Manual',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
       {
         type: 'condition',
         id: 'P',
@@ -583,7 +608,12 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // Regression test for: "Maximum call stack size exceeded" error
     // Workflow: trigger → P (condition) → true → (A1 || A2) → J (converge)
     const flatActivities: Activity[] = [
-      { type: 'task', id: 'trigger', name: 'Manual', task: { executor: 'manual', config: {} } },
+      {
+        type: 'task',
+        id: 'trigger',
+        name: 'Manual',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
       {
         type: 'condition',
         id: 'P',
@@ -647,7 +677,12 @@ describe('WorkflowTransform - Parallel Detection', () => {
     // This test verifies the fix for: "the join nodes is not there when the workflow is reloaded"
     // Workflow: trigger → P (condition) → true → (A1 || A2) → J (converge) → K (task after converge)
     const flatActivities: Activity[] = [
-      { type: 'task', id: 'trigger', name: 'Manual', task: { executor: 'manual', config: {} } },
+      {
+        type: 'task',
+        id: 'trigger',
+        name: 'Manual',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
       {
         type: 'condition',
         id: 'P',
@@ -2007,16 +2042,14 @@ describe('WorkflowTransform - Parallel Detection', () => {
               {
                 type: 'loop',
                 id: 'loop1',
-                loop: { max: 10 },
-                do: [],
+                loop: { type: 'while', condition: 'true', maxIterations: 10, do: [] },
               },
               {
                 type: 'task',
                 id: 'D',
                 task: {
-                  'agentic-connector': {
-                    input: {},
-                  },
+                  executor: 'script',
+                  config: { language: 'python', code: '' },
                 },
               },
             ],
@@ -2177,8 +2210,8 @@ describe('WorkflowTransform - Parallel Detection', () => {
           }
         } else if (activity.type === 'loop') {
           const loop = activity
-          if (loop.do) {
-            occurrences.push(...findAllOccurrences(loop.do, targetId, `${currentPath}.do`))
+          if (loop.loop.do) {
+            occurrences.push(...findAllOccurrences(loop.loop.do, targetId, `${currentPath}.do`))
           }
         } else if (activity.type === 'parallel') {
           const parallel = activity
@@ -2385,7 +2418,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
                 type: 'task',
                 id: 'AAP1',
                 name: 'AAP1',
-                task: { executor: 'aap_job_template', config: { jobTemplateId: 1, timeout: 3600 } },
+                task: { executor: 'aap_job_template', config: { jobTemplateId: 1 } },
               },
               {
                 type: 'parallel',
@@ -2411,7 +2444,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
                     type: 'task',
                     id: 'AAP2',
                     name: 'AAP2',
-                    task: { executor: 'aap_job_template', config: { jobTemplateId: 22, timeout: 3600 } },
+                    task: { executor: 'aap_job_template', config: { jobTemplateId: 22 } },
                   },
                 ],
               },
@@ -2469,7 +2502,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
                 type: 'task',
                 id: 'AAP1',
                 name: 'AAP1',
-                task: { executor: 'aap_job_template', config: { jobTemplateId: 1, timeout: 3600 } },
+                task: { executor: 'aap_job_template', config: { jobTemplateId: 1 } },
               },
               {
                 type: 'parallel',
@@ -2508,7 +2541,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
                     type: 'task',
                     id: 'AAP2',
                     name: 'AAP2',
-                    task: { executor: 'aap_job_template', config: { jobTemplateId: 22, timeout: 3600 } },
+                    task: { executor: 'aap_job_template', config: { jobTemplateId: 22 } },
                   },
                 ],
               },
@@ -2630,7 +2663,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
                 type: 'task',
                 id: 'AAP1',
                 name: 'AAP1',
-                task: { executor: 'aap_job_template', config: { jobTemplateId: 1, timeout: 3600 } },
+                task: { executor: 'aap_job_template', config: { jobTemplateId: 1 } },
               },
               {
                 type: 'parallel',
@@ -2669,7 +2702,7 @@ describe('WorkflowTransform - Parallel Detection', () => {
                     type: 'task',
                     id: 'AAP2',
                     name: 'AAP2',
-                    task: { executor: 'aap_job_template', config: { jobTemplateId: 22, timeout: 3600 } },
+                    task: { executor: 'aap_job_template', config: { jobTemplateId: 22 } },
                   },
                 ],
               },

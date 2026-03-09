@@ -56,8 +56,8 @@ const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => 
     case 'automationName':
       return approval.automationName ?? ''
     case 'requested_at':
-      // Use createdAt from BaseResource (represents when approval was requested)
-      return approval.createdAt ? new Date(approval.createdAt).getTime() : 0
+      // Use created_at from BaseResource (represents when approval was requested)
+      return approval.created_at ? new Date(approval.created_at).getTime() : 0
     case 'decided_at': {
       const { decidedAt } = getDecidedInfo(approval)
       return decidedAt ? new Date(decidedAt).getTime() : undefined
@@ -289,8 +289,8 @@ export default function Approvals() {
                       )}
                     </Td>
                     <Td dataLabel="Approval initiated">
-                      {/* Use createdAt from BaseResource (represents when approval was requested) */}
-                      <DateCell dateString={approval.createdAt} />
+                      {/* Use created_at from BaseResource (represents when approval was requested) */}
+                      <DateCell dateString={approval.created_at} />
                     </Td>
                     <Td dataLabel="Actioned on">
                       <DecidedCell approval={approval} />

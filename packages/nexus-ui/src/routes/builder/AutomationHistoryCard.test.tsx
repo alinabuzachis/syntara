@@ -1,10 +1,10 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AutomationHistoryCard, ExecutionHistoryRow } from './AutomationHistoryCard'
 
-type Execution = WorkflowAPI.components['schemas']['Execution']
+type Execution = ExecutionsAPI.components['schemas']['Execution']
 
 // Mock StatusLabel component
 vi.mock('./ExecutionStatus', () => ({

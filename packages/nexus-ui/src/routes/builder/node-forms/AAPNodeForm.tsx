@@ -34,9 +34,10 @@ export interface AAPFormData {
 
 interface AAPNodeFormProps {
   onSubmit: (data: AAPFormData) => void
+  onCancel?: () => void
   initialData?: Partial<AAPFormData>
   submitButtonText?: string
-  onHeaderContentChange: (content: ReactNode | null) => void
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
 function AAPFormFields({
@@ -44,7 +45,7 @@ function AAPFormFields({
   onHeaderContentChange,
 }: {
   submitButtonText?: string
-  onHeaderContentChange: (content: ReactNode | null) => void
+  onHeaderContentChange?: (content: ReactNode | null) => void
 }) {
   const { register, control } = useFormContext<AAPFormData>()
   const [jsonError, setJsonError] = useState<string | null>(null)
@@ -73,9 +74,9 @@ function AAPFormFields({
   )
 
   useEffect(() => {
-    onHeaderContentChange(nameField)
+    onHeaderContentChange?.(nameField)
     return () => {
-      onHeaderContentChange(null)
+      onHeaderContentChange?.(null)
     }
   }, [nameField, onHeaderContentChange])
 

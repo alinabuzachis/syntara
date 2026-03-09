@@ -3,6 +3,7 @@ import { Flex, FlexItem } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
+import type { ActivityStatus } from '../../execution/types'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { renderJson, renderOutputs } from './common/detailRenderers'
@@ -26,7 +27,7 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
     | {
-        status: string
+        status: ActivityStatus
         started_at?: string
         completed_at?: string
         error_details?: string

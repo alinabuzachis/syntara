@@ -22,7 +22,9 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityC, convergeActivity],
@@ -64,7 +66,9 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityC, activityD, convergeActivity],
@@ -96,7 +100,9 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       // Start with B and C
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityC, convergeActivity],
@@ -144,7 +150,9 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       // Start with B, C, D
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityC, activityD, convergeActivity],
@@ -188,7 +196,9 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, convergeActivity],
@@ -221,7 +231,9 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       // Start with 2 branches
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityC, convergeActivity],
@@ -271,7 +283,9 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
       // Start with 2 branches
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityC, convergeActivity],
@@ -316,7 +330,9 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityC, activityD, activityE, convergeJ1, convergeJ2],
@@ -368,7 +384,9 @@ describe.skip('useWorkflowStore - syncConvergeNodeBranches (OLD architecture - n
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityA, activityB],

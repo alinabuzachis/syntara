@@ -20,7 +20,7 @@ export interface paths {
      *     - Review historical approval decisions
      *     - Filter by execution, status, or date range
      */
-    get: operations['listApprovals']
+    get: operations['list_approvals']
     put?: never
     /**
      * Create approval request
@@ -30,7 +30,7 @@ export interface paths {
      *     a workflow execution reaches an approval node. It should not be called
      *     directly by end users.
      */
-    post: operations['createApproval']
+    post: operations['create_approval']
     delete?: never
     options?: never
     head?: never
@@ -53,7 +53,7 @@ export interface paths {
      *     - Next steps for both approval and rejection paths
      *     - Decision history if already decided
      */
-    get: operations['getApproval']
+    get: operations['get_approval']
     put?: never
     post?: never
     delete?: never
@@ -71,7 +71,7 @@ export interface paths {
      *     2. The decided_by, decided_at, and decision_notes fields are populated
      *     3. A signal is sent to the workflow to resume execution on the appropriate path
      */
-    patch: operations['decideApproval']
+    patch: operations['decide_approval']
     trace?: never
   }
   '/approvals/batch': {
@@ -95,7 +95,7 @@ export interface paths {
      *     - Approving multiple related requests at once
      *     - Bulk rejection of stale or irrelevant requests
      */
-    post: operations['batchDecideApprovals']
+    post: operations['batch_decide_approvals']
     delete?: never
     options?: never
     head?: never
@@ -359,7 +359,6 @@ export interface components {
       /** @description User's display name at time of action */
       name: string
     }
-    Error: components['schemas']['ErrorData']
     /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
@@ -527,7 +526,7 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
-  listApprovals: {
+  list_approvals: {
     parameters: {
       query?: {
         /**
@@ -581,7 +580,7 @@ export interface operations {
       }
     }
   }
-  createApproval: {
+  create_approval: {
     parameters: {
       query?: never
       header?: never
@@ -623,7 +622,7 @@ export interface operations {
       }
     }
   }
-  getApproval: {
+  get_approval: {
     parameters: {
       query?: never
       header?: never
@@ -655,7 +654,7 @@ export interface operations {
       }
     }
   }
-  decideApproval: {
+  decide_approval: {
     parameters: {
       query?: never
       header?: never
@@ -709,7 +708,7 @@ export interface operations {
       }
     }
   }
-  batchDecideApprovals: {
+  batch_decide_approvals: {
     parameters: {
       query?: never
       header?: never

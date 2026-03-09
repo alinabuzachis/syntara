@@ -1,6 +1,6 @@
-import type { ActivityState } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
+import type { ActivityState } from '../../../../automations/execution/types'
 import type { EdgeConnection } from '../../../types/edge'
 import { WorkflowTraversal } from '../traversal'
 
@@ -11,7 +11,7 @@ describe('WorkflowTraversal', () => {
         { id: '1', source: 'task-1', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-2', { status: 'pending', startedAt: null, completedAt: null }],
+        ['task-2', { activityId: 'task-2', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = WorkflowTraversal.hasDownstreamPendingNodes('task-1', activityStates, edges)
@@ -24,7 +24,7 @@ describe('WorkflowTraversal', () => {
         { id: '1', source: 'task-1', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-2', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        ['task-2', { activityId: 'task-2', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
       const result = WorkflowTraversal.hasDownstreamPendingNodes('task-1', activityStates, edges)
@@ -39,9 +39,25 @@ describe('WorkflowTraversal', () => {
         { id: '3', source: 'task-3', target: 'task-4', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-2', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-3', { status: 'completed', startedAt: '2024-01-01T00:01:00Z', completedAt: '2024-01-01T00:02:00Z' }],
-        ['task-4', { status: 'pending', startedAt: null, completedAt: null }],
+        [
+          'task-2',
+          {
+            activityId: 'task-2',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        [
+          'task-3',
+          {
+            activityId: 'task-3',
+            status: 'completed',
+            startedAt: '2024-01-01T00:01:00Z',
+            completedAt: '2024-01-01T00:02:00Z',
+          },
+        ],
+        ['task-4', { activityId: 'task-4', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = WorkflowTraversal.hasDownstreamPendingNodes('task-1', activityStates, edges)
@@ -55,8 +71,24 @@ describe('WorkflowTraversal', () => {
         { id: '2', source: 'task-2', target: 'task-3', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-2', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-3', { status: 'completed', startedAt: '2024-01-01T00:01:00Z', completedAt: '2024-01-01T00:02:00Z' }],
+        [
+          'task-2',
+          {
+            activityId: 'task-2',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        [
+          'task-3',
+          {
+            activityId: 'task-3',
+            status: 'completed',
+            startedAt: '2024-01-01T00:01:00Z',
+            completedAt: '2024-01-01T00:02:00Z',
+          },
+        ],
       ])
 
       const result = WorkflowTraversal.hasDownstreamPendingNodes('task-1', activityStates, edges)
@@ -79,7 +111,15 @@ describe('WorkflowTraversal', () => {
         { id: '2', source: 'task-1', target: 'loop-1', sourceHandle: 'source', targetHandle: 'end' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
       ])
 
       // Should not throw or hang
@@ -94,8 +134,16 @@ describe('WorkflowTraversal', () => {
         { id: '2', source: 'cond-1', target: 'task-b', sourceHandle: 'false', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-a', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-b', { status: 'pending', startedAt: null, completedAt: null }],
+        [
+          'task-a',
+          {
+            activityId: 'task-a',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        ['task-b', { activityId: 'task-b', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = WorkflowTraversal.hasDownstreamPendingNodes('cond-1', activityStates, edges)
@@ -108,7 +156,15 @@ describe('WorkflowTraversal', () => {
     it('returns false when node has execution state', () => {
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
       ])
 
       const result = WorkflowTraversal.shouldMarkAsSkipped('task-1', activityStates, edges)
@@ -133,7 +189,7 @@ describe('WorkflowTraversal', () => {
         { id: '2', source: 'task-2', target: 'task-3', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-3', { status: 'pending', startedAt: null, completedAt: null }],
+        ['task-3', { activityId: 'task-3', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = WorkflowTraversal.shouldMarkAsSkipped('task-2', activityStates, edges)
@@ -147,8 +203,24 @@ describe('WorkflowTraversal', () => {
         { id: '2', source: 'cond-1', target: 'task-false', sourceHandle: 'false', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['cond-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-true', { status: 'completed', startedAt: '2024-01-01T00:01:00Z', completedAt: '2024-01-01T00:02:00Z' }],
+        [
+          'cond-1',
+          {
+            activityId: 'cond-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        [
+          'task-true',
+          {
+            activityId: 'task-true',
+            status: 'completed',
+            startedAt: '2024-01-01T00:01:00Z',
+            completedAt: '2024-01-01T00:02:00Z',
+          },
+        ],
         // task-false never started - it's on the non-taken branch
       ])
 
@@ -163,10 +235,23 @@ describe('WorkflowTraversal', () => {
         { id: '2', source: 'approval-1', target: 'task-rejected', sourceHandle: 'rejected', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['approval-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
+        [
+          'approval-1',
+          {
+            activityId: 'approval-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
         [
           'task-rejected',
-          { status: 'completed', startedAt: '2024-01-01T00:01:00Z', completedAt: '2024-01-01T00:02:00Z' },
+          {
+            activityId: 'task-rejected',
+            status: 'completed',
+            startedAt: '2024-01-01T00:01:00Z',
+            completedAt: '2024-01-01T00:02:00Z',
+          },
         ],
         // task-approved never started - it's on the non-taken branch
       ])
@@ -183,8 +268,24 @@ describe('WorkflowTraversal', () => {
         { id: '3', source: 'task-a', target: 'task-c', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['cond-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-b', { status: 'completed', startedAt: '2024-01-01T00:01:00Z', completedAt: '2024-01-01T00:02:00Z' }],
+        [
+          'cond-1',
+          {
+            activityId: 'cond-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        [
+          'task-b',
+          {
+            activityId: 'task-b',
+            status: 'completed',
+            startedAt: '2024-01-01T00:01:00Z',
+            completedAt: '2024-01-01T00:02:00Z',
+          },
+        ],
         // task-a is skipped (non-taken branch)
         // task-c should also be skipped (parent is skipped)
       ])
@@ -204,8 +305,24 @@ describe('WorkflowTraversal', () => {
         { id: '2', source: 'task-2', target: 'task-3', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-        ['task-2', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        [
+          'task-2',
+          {
+            activityId: 'task-2',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
         // task-3 never started - both parents completed but didn't reach it
       ])
 
@@ -232,7 +349,7 @@ describe('WorkflowTraversal', () => {
         { id: '1', source: 'task-1', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
       const result = WorkflowTraversal.shouldMarkAsSkipped('task-2', activityStates, edges)
@@ -245,7 +362,7 @@ describe('WorkflowTraversal', () => {
         { id: '1', source: 'task-1', target: 'task-2', sourceHandle: 'source', targetHandle: 'target' },
       ]
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'pending', startedAt: null, completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = WorkflowTraversal.shouldMarkAsSkipped('task-2', activityStates, edges)

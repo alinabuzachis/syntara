@@ -1,11 +1,12 @@
-import { EdgeHandleEnum, type Activity, type ActivityState, type WorkflowAPI } from '@ansible/nexus-contracts'
+import { EdgeHandleEnum, type Activity, type ExecutionsAPI } from '@ansible/nexus-contracts'
 
+import type { ActivityState } from '../../../automations/execution/types'
 import type { EdgeConnection } from '../../types/edge'
 
 import { EdgeHelpers } from './edgeHelpers'
 import { isTerminalState } from './executionHelpers'
 
-type ActivityStatus = WorkflowAPI.components['schemas']['ActivityStatus']
+type ActivityStatus = ExecutionsAPI.components['schemas']['ActivityStatus']
 
 /**
  * Execution state that can be inferred from workflow structure.
@@ -186,7 +187,7 @@ export class ConditionalNodeStateInferrer implements NodeStateInferrer {
     // Check if any target node has started (meaning this branch was taken)
     const anyBranchTaken = outgoingBranchEdges.some((edge) => {
       const targetState = activityStates.get(edge.target)
-      return targetState && targetState.startedAt !== null
+      return targetState?.startedAt != null
     })
 
     if (anyBranchTaken) {

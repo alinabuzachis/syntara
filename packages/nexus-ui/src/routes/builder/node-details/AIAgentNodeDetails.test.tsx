@@ -16,7 +16,7 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
   useWorkflowStoreActions: vi.fn(() => ({
     updateActivity: mockUpdateActivity,
   })),
-  createAgenticActivity: vi.fn((id, name, tools, prompt, model, inputs, fileIds) => ({
+  createAgenticActivity: vi.fn((id, name, tools, prompt, model, _inputs, fileIds) => ({
     type: 'task',
     id,
     name,

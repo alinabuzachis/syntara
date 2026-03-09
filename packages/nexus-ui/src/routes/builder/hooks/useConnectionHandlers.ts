@@ -3,11 +3,12 @@ import type { Connection, OnConnect } from '@xyflow/react'
 import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 
 import { FlowNodeType } from '../../../constants'
+import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import type { ConnectionState, FlowPosition, PendingEdge } from '../types'
 import { EdgeFactory } from '../utils/EdgeFactory'
 import { getPlaceholderNodeId } from '../utils/edgeHelpers'
 import { consumePendingDragHandle } from '../utils/pendingDragHandle'
-import type { EdgeType, NodeType } from '../utils/workflowToGraph'
+import type { EdgeType } from '../utils/workflowToGraph'
 
 interface UseConnectionHandlersParams {
   nodes: NodeType[]

@@ -29,7 +29,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityA, activityB, activityC],
@@ -68,7 +70,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityA, activityB, activityC, activityD],
@@ -103,7 +107,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [parallelActivity, convergeActivity],
@@ -158,7 +164,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [parallel1, convergeJ1, parallel2, convergeJ2],
@@ -194,7 +202,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [trigger1, trigger2, trigger3],
           workflow: {
             activities: [],
@@ -222,7 +232,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [trigger1, trigger2, trigger3],
           workflow: {
             activities: [],
@@ -249,7 +261,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [trigger1, trigger2],
           workflow: {
             activities: [],
@@ -279,7 +293,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [trigger1, trigger2],
           workflow: {
             activities: [activityA, activityB],
@@ -324,7 +340,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [trigger],
           workflow: {
             activities: [activityA, parallel, convergeActivity],
@@ -372,7 +390,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [condition],
@@ -409,7 +429,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [condition],
@@ -448,7 +470,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityA],
@@ -473,7 +497,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityA],
@@ -498,7 +524,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [trigger],
           workflow: {
             activities: [],
@@ -526,7 +554,9 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test Workflow',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test Workflow', description: '' },
           triggers: [],
           workflow: {
             activities: [activityA, activityB],
@@ -545,7 +575,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       // Workflow structure should be intact
       expect(workflow).toBeDefined()
-      expect(workflow?.name).toBe('Test Workflow')
+      expect(workflow?.metadata?.name).toBe('Test Workflow')
       expect(workflow?.workflow).toBeDefined()
       expect(workflow?.workflow.activities).toBeDefined()
     })

@@ -7,8 +7,9 @@
 
 import { useEffect } from 'react'
 
-import { workflowClient } from '../../../client'
+import { executionsClient } from '../../../client'
 import type { ApiError } from '../../../utils/apiErrors'
+import { getErrorMessage } from '../../../utils/apiErrors'
 import type { Execution } from '../execution/types'
 import { useExecutionStore } from '../stores/useExecutionStore'
 
@@ -101,18 +102,16 @@ export function useExecutionData(executionId: string, options: UseExecutionDataO
   const setError = useExecutionStore((state) => state.setError)
 
   // Fetch execution with includes
-  const query = workflowClient.useQuery(
+  const query = executionsClient.useQuery(
     'get',
-    '/executions/{executionId}',
+    '/executions/{execution_id}',
     {
       params: {
         path: {
-          executionId,
+          execution_id: executionId,
         },
         query: {
-          // Include workflow definition for graph building
-          // Include activities for initial state
-          include: ['workflow_definition', 'activities'],
+          include: 'workflow_definition,activities',
         },
       },
     },
@@ -127,11 +126,10 @@ export function useExecutionData(executionId: string, options: UseExecutionDataO
   useEffect(() => {
     if (autoLoad && isSuccess && data) {
       try {
-        setExecution(data)
+        setExecution(data as Execution)
         setError(null)
       } catch (err) {
-        // console.error('Failed to load execution into store:', err)
-        setError(err instanceof Error ? err : new Error(String(err)))
+        setError(err instanceof Error ? err : new Error(getErrorMessage(err)))
       }
     }
   }, [autoLoad, isSuccess, data, setExecution, setError])
@@ -139,15 +137,15 @@ export function useExecutionData(executionId: string, options: UseExecutionDataO
   // Set error in store if fetch fails
   useEffect(() => {
     if (error) {
-      setError(error instanceof Error ? error : new Error(String(error)))
+      setError(error instanceof Error ? error : new Error(getErrorMessage(error)))
     }
   }, [error, setError])
 
   return {
-    data,
+    data: data as Execution | undefined,
     isLoading,
     isSuccess,
-    error: (error as ApiError) ?? null,
+    error: (error as ApiError | null) ?? null,
     refetch,
   }
 }
@@ -176,13 +174,13 @@ export function useExecutionData(executionId: string, options: UseExecutionDataO
  * ```
  */
 export function useShouldStreamExecution(executionId: string): boolean {
-  const { data, isSuccess } = workflowClient.useQuery(
+  const { data, isSuccess } = executionsClient.useQuery(
     'get',
-    '/executions/{executionId}',
+    '/executions/{execution_id}',
     {
       params: {
         path: {
-          executionId: executionId || '',
+          execution_id: executionId || '',
         },
       },
     },
@@ -196,9 +194,7 @@ export function useShouldStreamExecution(executionId: string): boolean {
     return false
   }
 
-  // Terminal execution statuses (don't stream)
+  const execution = data as Execution
   const terminalStatuses = ['completed', 'failed', 'cancelled']
-
-  // Stream only if execution is in non-terminal state
-  return !terminalStatuses.includes(data.status ?? '')
+  return !terminalStatuses.includes(execution.status ?? '')
 }

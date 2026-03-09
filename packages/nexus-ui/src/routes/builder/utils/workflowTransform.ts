@@ -15,7 +15,7 @@ export interface FlatWorkflow {
 interface ParallelGroup {
   divergenceSource: string
   divergenceTargets: string[]
-  convergeNode: Activity
+  convergeNode?: Activity
   branches: Activity[][]
 }
 

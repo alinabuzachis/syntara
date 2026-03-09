@@ -5,7 +5,7 @@ import { ReactFlowProvider } from '@xyflow/react'
 import type { ComponentProps, ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { workflowClient } from '../../client'
+import { executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
 
 import { BuilderContent } from './BuilderContent'
@@ -18,12 +18,16 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  executionsClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
 }))
 
 const mockSetLocation = vi.fn()
 
 vi.mock('wouter', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual: Record<string, unknown> = await importOriginal()
   return {
     ...actual,
     useLocation: () => ['/automation-builder/workflow-1', mockSetLocation],
@@ -67,9 +71,9 @@ describe('BuilderContent - Delete Automation', () => {
     name: 'Test Workflow',
     description: 'Test Description',
     is_enabled: true,
-    createdAt: '2023-01-01T00:00:00Z',
-    updatedAt: '2023-01-02T00:00:00Z',
-    createdBy: 'user-1',
+    created_at: '2023-01-01T00:00:00Z',
+    updated_at: '2023-01-02T00:00:00Z',
+    created_by: 'user-1',
     current_version: 1,
     version: {
       workflow_definition: {
@@ -109,7 +113,7 @@ describe('BuilderContent - Delete Automation', () => {
     vi.clearAllMocks()
     queryClient.clear()
 
-    vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+    vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
       if (method === 'get' && path === '/executions') {
         return {
           data: { resources: [] },
@@ -128,7 +132,27 @@ describe('BuilderContent - Delete Automation', () => {
       }
     })
 
+    vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+      if (method === 'get' && path === '/workflows') {
+        return {
+          data: { resources: [] },
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      }
+      return {
+        data: undefined,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      }
+    })
+
     vi.mocked(workflowClient.useMutation).mockReturnValue(createMockMutation())
+    vi.mocked(executionsClient.useMutation).mockReturnValue(createMockMutation())
   })
 
   it('shows delete button in kebab menu for existing workflows', async () => {

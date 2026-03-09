@@ -5,7 +5,7 @@ import { useSearch } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
-import { workflowClient } from '../../client'
+import { executionsClient, workflowClient } from '../../client'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { useQueryState } from '../../components/states/useQueryState'
@@ -25,7 +25,7 @@ export default function Executions() {
   const workflowIdFilter = urlParams.get('workflow_id')
   const [cursor, setCursor] = useState<string | null>(null)
 
-  const executionsQuery = workflowClient.useQuery('get', '/executions', {
+  const executionsQuery = executionsClient.useQuery('get', '/executions', {
     params: {
       query: {
         ...(workflowIdFilter ? { workflow_id: workflowIdFilter } : {}),
@@ -39,10 +39,10 @@ export default function Executions() {
 
   const workflowQuery = workflowClient.useQuery(
     'get',
-    '/workflows/{workflowId}',
+    '/workflows/{workflow_id}',
     {
       params: {
-        path: { workflowId: workflowIdFilter! },
+        path: { workflow_id: workflowIdFilter! },
       },
     },
     {
@@ -69,7 +69,11 @@ export default function Executions() {
     return (
       <AppPage>
         <AppPageHeader
-          title={workflowIdFilter && workflowQuery.data ? `Run history for ${workflowQuery.data?.name}` : 'Run history'}
+          title={
+            workflowIdFilter && workflowQuery.data
+              ? `Run history for ${(workflowQuery.data as { name?: string }).name ?? 'Workflow'}`
+              : 'Run history'
+          }
         />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>{queryState}</CompassPanel>
@@ -79,7 +83,9 @@ export default function Executions() {
   }
 
   const pageTitle =
-    workflowIdFilter && workflowQuery.data ? `Run history for ${workflowQuery.data.name}` : 'Run history'
+    workflowIdFilter && workflowQuery.data
+      ? `Run history for ${(workflowQuery.data as { name?: string }).name ?? 'Workflow'}`
+      : 'Run history'
 
   return (
     <AppPage>

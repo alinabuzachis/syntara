@@ -23,7 +23,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       // Activities in wrong order
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityC, activityA, activityB],
@@ -52,7 +54,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       // A -> C -> D
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityD, activityC, activityB, activityA],
@@ -90,7 +94,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       //  \\-> C -/
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityE, activityD, activityC, activityB, activityA],
@@ -139,7 +145,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       // A -> C
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [condition, activityC, activityA],
@@ -179,7 +187,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       // Should reorder based on A -> PAR
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [parallel, activityC, activityA],
@@ -212,7 +222,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityOrphan, activityC, activityA, activityB],
@@ -243,7 +255,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityA],
@@ -270,7 +284,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       // B and C have no ordering constraint (both depend on nothing)
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityC, activityA, activityB],
@@ -287,7 +303,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       // Reset and run again
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityC, activityA],
@@ -317,7 +335,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
     it('handles empty activities array', () => {
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [],
@@ -339,7 +359,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityA],
@@ -364,7 +386,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityB, activityA],
@@ -393,7 +417,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
             activities: [activityA, activityB, activityC],
@@ -416,13 +442,9 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
     })
 
     it('reorders activities with loop nodes using done handle', () => {
-      const trigger: Activity = {
-        type: 'trigger',
-        id: 'trigger',
-        name: 'Manual Trigger',
-        trigger: { type: 'manual' },
-      }
+      const startActivity = createScriptActivity('START', 'Start', 'python', 'print("start")')
       const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
+      const loopBodyC = createScriptActivity('C', 'Loop Body C', 'python', 'print("C")')
       const loopB: Activity = {
         type: 'loop',
         id: 'B',
@@ -430,26 +452,27 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
         loop: {
           type: 'forEach',
           items: 'input.items',
-          do: [],
+          do: [loopBodyC],
         },
       }
-      const loopBodyC = createScriptActivity('C', 'Loop Body C', 'python', 'print("C")')
 
-      // Initial order: trigger->A->B with C in loop body
-      // Change to: trigger->B->A (reconnect edges)
+      // Initial order: START->A->B with C inside loop body
+      // Change to: START->B->A (reconnect edges)
       useWorkflowStore.setState({
         currentWorkflow: {
-          name: 'Test',
+          schemaVersion: '1.0',
+          version: 1,
+          metadata: { name: 'Test', description: '' },
           triggers: [],
           workflow: {
-            // Activities in OLD order (A before B)
-            activities: [trigger, activityA, loopB, loopBodyC],
+            // Activities in OLD order (A before B), C is inside loop B
+            activities: [startActivity, activityA, loopB],
           },
         },
         workflowVersion: 1,
         edges: [
-          // NEW edge configuration: trigger->B->A
-          { id: 'trigger-B', source: 'trigger', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
+          // NEW edge configuration: START->B->A
+          { id: 'START-B', source: 'START', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
           { id: 'B-A', source: 'B', target: 'A', sourceHandle: 'done', targetHandle: 'target' },
           // Loop internal edges (should be ignored for ordering)
           { id: 'B-C', source: 'B', target: 'C', sourceHandle: 'loop', targetHandle: 'target' },
@@ -461,15 +484,21 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
-      // Should be reordered to: trigger, B, A (with C remaining in the list)
+      // Should be reordered to: START, B, A (C stays inside loop B's do array)
+      expect(activities).toHaveLength(3)
       const topLevelIds = activities.map((a) => a.id)
-      const triggerIndex = topLevelIds.indexOf('trigger')
+      const startIndex = topLevelIds.indexOf('START')
       const bIndex = topLevelIds.indexOf('B')
       const aIndex = topLevelIds.indexOf('A')
 
-      // Verify correct ordering: trigger < B < A
-      expect(triggerIndex).toBeLessThan(bIndex)
+      // Verify correct ordering: START < B < A
+      expect(startIndex).toBeLessThan(bIndex)
       expect(bIndex).toBeLessThan(aIndex)
+
+      // Verify C is still inside loop B's body
+      const reorderedLoop = activities.find((a) => a.id === 'B') as Activity & { loop: { do: Activity[] } }
+      expect(reorderedLoop.loop.do).toHaveLength(1)
+      expect(reorderedLoop.loop.do[0].id).toBe('C')
     })
   })
 })

@@ -1,14 +1,15 @@
+import * as ActivityTypesAPI from './activity-types-api.js'
 import * as ApprovalsAPI from './approvals-api.js'
-import * as ToolProvidersAPI from './tool-providers.js'
-import * as ToolsAPI from './tools.js'
+import * as ExecutionsAPI from './executions-api.js'
+import * as ToolManagerAPI from './tool-manager.js'
 import * as WorkflowAPI from './workflow-api.js'
 
-export type Execution = WorkflowAPI.components['schemas']['Execution']
-export type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
+export type Execution = ExecutionsAPI.components['schemas']['Execution']
+export type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
 export type Approval = ApprovalsAPI.components['schemas']['ApprovalRequest']
-export type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
+export type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 export type ApprovalStatus = ApprovalsAPI.components['schemas']['ApprovalStatus']
-export type ActivityType = WorkflowAPI.components['schemas']['ActivityType']
+export type ActivityType = ActivityTypesAPI.components['schemas']['ActivityType']
 export type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
 /**
@@ -68,13 +69,14 @@ export type WorkflowsResponse =
   WorkflowAPI.paths['/workflows']['get']['responses']['200']['content']['application/json']
 export type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 export type WorkflowWithVersionResponse =
-  WorkflowAPI.paths['/workflows/{workflowId}']['get']['responses']['200']['content']['application/json']
+  WorkflowAPI.paths['/workflows/{workflow_id}']['get']['responses']['200']['content']['application/json']
 
-export type Tool = ToolsAPI.components['schemas']['Tool']
+export type Tool = ToolManagerAPI.components['schemas']['ToolWithParameters']
 
-export type ToolProvider = ToolProvidersAPI.components['schemas']['ToolProvider']
+export type ToolProvider = ToolManagerAPI.components['schemas']['ToolProviderWithConfiguration']
+export type ToolProviderCreate = ToolManagerAPI.components['schemas']['ToolProviderCreate']
 export type ToolProvidersResponse =
-  ToolProvidersAPI.paths['/tool-providers']['get']['responses']['200']['content']['application/json']
+  ToolManagerAPI.paths['/tool_providers']['get']['responses']['200']['content']['application/json']
 
 export type Activity = WorkflowAPI.components['schemas']['activity']
 export type ConditionActivity = WorkflowAPI.components['schemas']['conditionActivity']

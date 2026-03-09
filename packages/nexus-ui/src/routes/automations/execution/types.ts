@@ -5,23 +5,23 @@
  * edges, and WebSocket messages for real-time activity streaming.
  */
 
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 
 // ============================================================================
 // API Type Imports
 // ============================================================================
 
 /** Execution schema from REST API */
-export type Execution = WorkflowAPI.components['schemas']['Execution']
+export type Execution = ExecutionsAPI.components['schemas']['Execution']
 
 /** Activity data from REST API */
-export type ActivityData = WorkflowAPI.components['schemas']['ActivityData']
+export type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 
 /** Activity status from API */
-export type ActivityStatus = WorkflowAPI.components['schemas']['ActivityStatus']
+export type ActivityStatus = ExecutionsAPI.components['schemas']['ActivityStatus']
 
 /** Execution status from API */
-export type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
+export type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 
 // ============================================================================
 // UI Status Types

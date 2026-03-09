@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
@@ -17,7 +17,7 @@ import { useState } from 'react'
 
 import { StatusLabel } from './ExecutionStatus'
 
-type Execution = WorkflowAPI.components['schemas']['Execution']
+type Execution = ExecutionsAPI.components['schemas']['Execution']
 
 interface ExecutionHistoryRowProps {
   execution: Execution

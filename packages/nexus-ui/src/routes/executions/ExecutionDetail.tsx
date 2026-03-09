@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
@@ -19,7 +19,7 @@ import { useLocation, useParams, useSearch } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
-import { workflowClient } from '../../client'
+import { executionsClient } from '../../client'
 import { ConnectionBanner } from '../../components/ConnectionBanner'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
@@ -30,8 +30,14 @@ import { ExecutionDetailsPanel } from '../builder/ExecutionDetailsPanel'
 import { StatusLabel } from '../builder/ExecutionStatus'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
 
-type Execution = WorkflowAPI.components['schemas']['Execution']
-type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
+type Execution = ExecutionsAPI.components['schemas']['Execution']
+type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
+type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
+
+type WorkflowDefinition = {
+  metadata?: { name?: string; description?: string }
+  workflow?: { activities?: Array<{ id: string }> }
+}
 
 // Inner component that has access to React Flow context
 function ExecutionDetailContent({
@@ -47,9 +53,9 @@ function ExecutionDetailContent({
   historyCardOpen: boolean
   workflow: { id: string; name: string; description?: string; version: { workflow_definition: unknown } } | undefined
   execution: Execution | undefined
-  activities: ActivityExecution[]
+  activities: (ActivityData | ActivityExecution)[]
   executionId: string
-  executionsQuery: { data?: { resources?: unknown[] }; isLoading: boolean; error: unknown }
+  executionsQuery: { data?: { resources?: Execution[] }; isLoading: boolean; error: unknown }
   searchParams: string
   setLocation: (path: string) => void
 }) {
@@ -121,7 +127,6 @@ function ExecutionDetailContent({
         <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
           <AutomationHistoryCard
             executions={executionsQuery.data?.resources ?? []}
-            selectedExecutionId={executionId}
             onClose={() => {
               const params = new URLSearchParams(searchParams)
               params.delete('history')
@@ -160,7 +165,7 @@ export default function ExecutionDetail() {
   }, [executionId, reset])
 
   // Fetch execution with workflow_definition and activities included
-  const executionQuery = workflowClient.useQuery('get', '/executions/{execution_id}', {
+  const executionQuery = executionsClient.useQuery('get', '/executions/{execution_id}', {
     params: {
       path: { execution_id: executionId ?? '' },
       query: {
@@ -197,7 +202,7 @@ export default function ExecutionDetail() {
   }, [searchParams])
 
   // Fetch executions for this workflow
-  const executionsQuery = workflowClient.useQuery(
+  const executionsQuery = executionsClient.useQuery(
     'get',
     '/executions',
     {
@@ -212,36 +217,45 @@ export default function ExecutionDetail() {
     }
   )
 
-  const activities = useMemo(() => {
-    return (execution?.activities as ActivityExecution[]) ?? []
+  const activities = useMemo((): (ActivityData | ActivityExecution)[] => {
+    return execution?.activities ?? []
   }, [execution])
 
   // Update execution store when activities change
   useEffect(() => {
     if (activities.length > 0) {
       setActivityExecutions(activities)
-    } else if (execution?.workflow_definition?.workflow?.activities) {
-      // If no activity executions yet, create pending states for all activities in the workflow
-      const workflowActivities = execution.workflow_definition.workflow.activities as Array<{ id: string }>
-      const pendingActivities: ActivityExecution[] = workflowActivities.map((activity) => ({
-        activity_id: activity.id,
-        status: 'pending' as const,
-        error_details: null,
-        started_at: null,
-        completed_at: null,
-      }))
-      setActivityExecutions(pendingActivities)
+    } else if (execution?.status === 'pending' || execution?.status === 'running') {
+      const wfDef = execution?.workflow_definition as WorkflowDefinition | undefined
+      const workflowActivities = wfDef?.workflow?.activities
+      if (workflowActivities) {
+        const pendingActivities = workflowActivities.map((activity) => ({
+          id: activity.id,
+          created_at: '',
+          updated_at: '',
+          activity_name: activity.id,
+          status: 'pending' as const,
+          error_details: null,
+          started_at: null,
+          completed_at: null,
+        })) as ActivityExecution[]
+        setActivityExecutions(pendingActivities)
+      }
+    } else {
+      setActivityExecutions([])
     }
-  }, [activities, execution?.workflow_definition, setActivityExecutions])
+  }, [activities, execution?.status, execution?.workflow_definition, setActivityExecutions])
 
   // Build a workflow object from the execution's workflow_definition
   const workflow = useMemo(() => {
-    if (!execution?.workflow_definition) return undefined
+    if (!execution) return undefined
+    const wfDef = execution.workflow_definition as WorkflowDefinition | undefined
+    if (!wfDef) return undefined
 
     return {
-      id: execution.workflow_id,
-      name: execution.workflow_definition.metadata?.name ?? 'Workflow',
-      description: execution.workflow_definition.metadata?.description,
+      id: execution.workflow_id ?? '',
+      name: wfDef.metadata?.name ?? 'Workflow',
+      description: wfDef.metadata?.description,
       version: {
         workflow_definition: execution.workflow_definition,
       },
@@ -301,11 +315,12 @@ export default function ExecutionDetail() {
     setLocation(`/executions/${executionId}${newSearch ? `?${newSearch}` : ''}`)
   }
 
+  const wfDefMeta = (execution?.workflow_definition as WorkflowDefinition | undefined)?.metadata
   const pageTitle = (
     <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
       <FlexItem>
         <Title headingLevel="h1" size={TitleSizes['2xl']}>
-          {execution?.workflow_definition?.metadata?.name ?? `Execution ${executionId.slice(0, 8)}...`}
+          {wfDefMeta?.name ?? `Execution ${executionId.slice(0, 8)}...`}
         </Title>
       </FlexItem>
       {execution?.status && (
@@ -334,7 +349,7 @@ export default function ExecutionDetail() {
         <Tooltip content="Close and open in automation builder">
           <Button
             variant="plain"
-            onClick={() => setLocation(`/automation-builder/${execution?.workflow_id}`)}
+            onClick={() => execution?.workflow_id && setLocation(`/automation-builder/${execution.workflow_id}`)}
             icon={
               <Icon isInline>
                 <RhUiCloseIcon />

@@ -9,6 +9,7 @@ export interface EdgeData {
   onAddNode?: (sourceNodeId: string, targetNodeId: string, edgeId: string, sourceHandle?: string) => void
   isActive?: boolean
   isPending?: boolean
+  executionStatus?: 'passed' | 'pending'
 }
 
 /**

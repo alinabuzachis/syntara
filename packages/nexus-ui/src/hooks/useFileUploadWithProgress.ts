@@ -3,7 +3,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useState, useCallback, useRef } from 'react'
 
 type FileUploadResponse = FilesAPI.components['schemas']['FileUploadResponse']
-type FileUploadError = FilesAPI.components['schemas']['Error']
+type FileUploadError = { error: string; message: string }
 
 /** Creates a FileUploadError with the given code and message. */
 export function createUploadError(error: string, message: string): FileUploadError {

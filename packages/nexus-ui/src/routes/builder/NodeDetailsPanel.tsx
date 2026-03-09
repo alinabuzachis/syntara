@@ -173,6 +173,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           {...subtypeFormProps}
           initialData={initialData}
           submitButtonText={submitButtonText}
+          onCancel={onClose}
           onSubmit={(data) => handleCreate(data as Record<string, unknown>)}
           onHeaderContentChange={setHeaderContent}
         />

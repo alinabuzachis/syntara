@@ -1,8 +1,8 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 
 import type { ActivityStatus } from '../automations/execution/types'
 
-type ExecutionStatus = WorkflowAPI.components['schemas']['ExecutionStatus']
+type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 
 const statusColors: Record<ExecutionStatus, string> = {
   pending: 'var(--pf-t--global--color--nonstatus--gray--300)',

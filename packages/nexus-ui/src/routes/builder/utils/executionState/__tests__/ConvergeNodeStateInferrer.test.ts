@@ -1,6 +1,7 @@
-import type { Activity, ActivityState } from '@ansible/nexus-contracts'
+import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
+import type { ActivityState } from '../../../../automations/execution/types'
 import type { EdgeConnection } from '../../../types/edge'
 import { ConvergeNodeStateInferrer } from '../nodeStateInference'
 
@@ -20,9 +21,17 @@ describe('ConvergeNodeStateInferrer', () => {
       { id: '3', source: 'converge-1', target: 'task-after', sourceHandle: 'source', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-a', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-      ['task-b', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
-      ['task-after', { status: 'pending', startedAt: null, completedAt: null }],
+      [
+        'task-a',
+        {
+          activityId: 'task-a',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
+      ['task-b', { activityId: 'task-b', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+      ['task-after', { activityId: 'task-after', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -43,9 +52,25 @@ describe('ConvergeNodeStateInferrer', () => {
       { id: '3', source: 'converge-1', target: 'task-after', sourceHandle: 'source', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-a', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-      ['task-b', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-      ['task-after', { status: 'pending', startedAt: null, completedAt: null }],
+      [
+        'task-a',
+        {
+          activityId: 'task-a',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
+      [
+        'task-b',
+        {
+          activityId: 'task-b',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
+      ['task-after', { activityId: 'task-after', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -66,9 +91,20 @@ describe('ConvergeNodeStateInferrer', () => {
       { id: '3', source: 'converge-1', target: 'task-after', sourceHandle: 'source', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-a', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-      ['task-b', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
-      ['task-after', { status: 'running', startedAt: '2024-01-01T00:02:00Z', completedAt: null }],
+      [
+        'task-a',
+        {
+          activityId: 'task-a',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
+      ['task-b', { activityId: 'task-b', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+      [
+        'task-after',
+        { activityId: 'task-after', status: 'running', startedAt: '2024-01-01T00:02:00Z', completedAt: null },
+      ],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -89,9 +125,9 @@ describe('ConvergeNodeStateInferrer', () => {
       { id: '3', source: 'converge-1', target: 'task-after', sourceHandle: 'source', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-a', { status: 'pending', startedAt: null, completedAt: null }],
-      ['task-b', { status: 'pending', startedAt: null, completedAt: null }],
-      ['task-after', { status: 'pending', startedAt: null, completedAt: null }],
+      ['task-a', { activityId: 'task-a', status: 'pending', startedAt: null, completedAt: null }],
+      ['task-b', { activityId: 'task-b', status: 'pending', startedAt: null, completedAt: null }],
+      ['task-after', { activityId: 'task-after', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -111,8 +147,24 @@ describe('ConvergeNodeStateInferrer', () => {
       { id: '2', source: 'task-b', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-a', { status: 'failed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-      ['task-b', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
+      [
+        'task-a',
+        {
+          activityId: 'task-a',
+          status: 'failed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
+      [
+        'task-b',
+        {
+          activityId: 'task-b',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -132,8 +184,16 @@ describe('ConvergeNodeStateInferrer', () => {
       { id: '2', source: 'task-b', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-a', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-      ['task-b', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+      [
+        'task-a',
+        {
+          activityId: 'task-a',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
+      ['task-b', { activityId: 'task-b', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -154,9 +214,25 @@ describe('ConvergeNodeStateInferrer', () => {
       { id: '3', source: 'task-c', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-a', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-      ['task-b', { status: 'failed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
-      ['task-c', { status: 'pending', startedAt: null, completedAt: null }],
+      [
+        'task-a',
+        {
+          activityId: 'task-a',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
+      [
+        'task-b',
+        {
+          activityId: 'task-b',
+          status: 'failed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
+      ],
+      ['task-c', { activityId: 'task-c', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)

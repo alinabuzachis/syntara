@@ -11,7 +11,7 @@
  * details with real-time updates via WebSocket or REST API fallback.
  */
 
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { create } from 'zustand'
 
 import type { Execution, ExecutionVisualization, JsonPatchOperation, ActivityState } from '../execution/types'
@@ -21,7 +21,11 @@ import { applyJsonPatch, buildActivityStateMap, extractActivityMaps } from '../e
 // Type Imports
 // ============================================================================
 
-type ActivityExecution = WorkflowAPI.components['schemas']['ActivityExecution']
+type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
+type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
+
+/** Activity input from REST API: Execution.activities (ActivityData) or list endpoint (ActivityExecution) */
+type ActivityInput = ActivityData | ActivityExecution
 
 // ============================================================================
 // Store State
@@ -95,10 +99,10 @@ interface ExecutionStoreActions {
   // === ExecutionDetail Page Actions ===
   /**
    * Set activity executions for ExecutionDetail page (auto-converts to ActivityState)
-   * Converts ActivityExecution from API to internal ActivityState model
+   * Accepts ActivityData[] (from Execution.activities) or ActivityExecution[] (from list endpoint)
    * Used by ExecutionDetailsPanel when loading execution data via REST API
    */
-  setActivityExecutions: (activities: ActivityExecution[]) => void
+  setActivityExecutions: (activities: ActivityInput[]) => void
 
   // === Reset ===
   /**
@@ -119,38 +123,50 @@ type ExecutionStore = ExecutionStoreState & ExecutionStoreActions
 // ============================================================================
 
 /**
- * Convert API ActivityExecution to internal ActivityState
+ * Get activity ID from ActivityData or ActivityExecution
+ * ActivityData uses activity_id; ActivityExecution uses activity_name or id
+ */
+function getActivityId(activity: ActivityInput): string | undefined {
+  if ('activity_id' in activity) {
+    return activity.activity_id
+  }
+  return activity.activity_name ?? activity.id
+}
+
+/**
+ * Convert API ActivityData or ActivityExecution to internal ActivityState
  * Used by ExecutionDetailsPanel when loading execution data via REST API
  */
-function activityExecutionToState(exec: ActivityExecution): ActivityState {
+function activityInputToState(activity: ActivityInput): ActivityState {
+  const activityId = getActivityId(activity)
+  if (!activityId) {
+    throw new Error('Activity must have activity_id (ActivityData) or activity_name/id (ActivityExecution)')
+  }
   return {
-    activityId: exec.activity_id,
-    status: exec.status ?? 'pending',
-    errorDetails: exec.error_details,
-    startedAt: exec.started_at,
-    completedAt: exec.completed_at,
+    activityId,
+    status: activity.status ?? 'pending',
+    errorDetails: activity.error_details,
+    startedAt: activity.started_at,
+    completedAt: activity.completed_at,
   }
 }
 
 /**
- * Convert array of ActivityExecution to maps for fast lookup
+ * Convert array of ActivityData or ActivityExecution to maps for fast lookup
  * Used by ExecutionDetailsPanel's setActivityExecutions action
  */
-function buildActivityMapsFromExecutions(
-  activities: ActivityExecution[]
-): [Map<string, ActivityState>, Map<string, string>] {
+function buildActivityMapsFromInput(activities: ActivityInput[]): [Map<string, ActivityState>, Map<string, string>] {
   const activityStates = new Map<string, ActivityState>()
   const activityErrors = new Map<string, string>()
 
   activities.forEach((activity) => {
-    if (activity.activity_id) {
-      // Convert to full ActivityState
-      const activityState = activityExecutionToState(activity)
-      activityStates.set(activity.activity_id, activityState)
+    const activityKey = getActivityId(activity)
+    if (activityKey) {
+      const activityState = activityInputToState(activity)
+      activityStates.set(activityKey, activityState)
 
-      // Store error if present
       if (activity.error_details) {
-        activityErrors.set(activity.activity_id, activity.error_details)
+        activityErrors.set(activityKey, activity.error_details)
       }
     }
   })
@@ -301,9 +317,9 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
   // === ExecutionDetail Page Actions ===
 
-  setActivityExecutions: (activities: ActivityExecution[]) => {
-    // Convert ActivityExecution[] to activity state maps
-    const [activityStates, activityErrors] = buildActivityMapsFromExecutions(activities)
+  setActivityExecutions: (activities: ActivityInput[]) => {
+    // Convert ActivityData[] or ActivityExecution[] to activity state maps
+    const [activityStates, activityErrors] = buildActivityMapsFromInput(activities)
 
     set({
       activityStates,

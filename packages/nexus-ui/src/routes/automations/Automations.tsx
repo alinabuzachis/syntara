@@ -20,7 +20,7 @@ import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
-import { workflowClient } from '../../client'
+import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
@@ -105,8 +105,8 @@ export default function Automations() {
     },
   })
   const workflows = workflowsQuery.data?.resources ?? []
-  const { mutate: executeAutomation } = workflowClient.useMutation('post', '/executions')
-  const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflowId}')
+  const { mutate: executeAutomation } = executionsClient.useMutation('post', '/executions')
+  const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
   const { showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
 
@@ -152,7 +152,7 @@ export default function Automations() {
     if (!workflowToDelete) return
 
     deleteWorkflow(
-      { params: { path: { workflowId: workflowToDelete.id } } },
+      { params: { path: { workflow_id: workflowToDelete.id } } },
       {
         onSuccess: () => {
           showSuccess(`Successfully deleted automation "${workflowToDelete.name}"`, 'Automation Deleted')

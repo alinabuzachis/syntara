@@ -29,7 +29,7 @@ describe('createConnectorActivity', () => {
     const params = JSON.stringify({ job_template_id: '42', extra_vars: { env: 'prod' } })
     const activity = createConnectorActivity('id', 'name', 'connector', 'operation', params)
 
-    expect(activity.task.config.parameters).toEqual({
+    expect((activity.task.config as { parameters?: unknown }).parameters).toEqual({
       job_template_id: '42',
       extra_vars: { env: 'prod' },
     })
@@ -48,7 +48,7 @@ describe('createConnectorActivity', () => {
 
     operations.forEach((op) => {
       const activity = createConnectorActivity('id', 'name', 'ansible-automation-platform', op)
-      expect(activity.task.config.operation).toBe(op)
+      expect((activity.task.config as { operation: string }).operation).toBe(op)
     })
   })
 

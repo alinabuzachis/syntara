@@ -4,21 +4,21 @@ import { EdgeHandleEnum } from '@ansible/nexus-contracts'
  * Checks if a handle is a conditional branch handle (true/false).
  */
 export function isConditionalHandle(handle: string | undefined): boolean {
-  return !!handle && [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE].includes(handle)
+  return !!handle && ([EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE] as string[]).includes(handle)
 }
 
 /**
  * Checks if a handle is an approval branch handle (approved/rejected).
  */
 export function isApprovalHandle(handle: string | undefined): boolean {
-  return !!handle && [EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED].includes(handle)
+  return !!handle && ([EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED] as string[]).includes(handle)
 }
 
 /**
  * Checks if a handle is a loop handle (loop/done).
  */
 export function isLoopHandle(handle: string | undefined): boolean {
-  return !!handle && [EdgeHandleEnum.LOOP, EdgeHandleEnum.DONE].includes(handle)
+  return !!handle && ([EdgeHandleEnum.LOOP, EdgeHandleEnum.DONE] as string[]).includes(handle)
 }
 
 /**

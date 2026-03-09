@@ -2,6 +2,7 @@ import type { Connection } from '@xyflow/react'
 import { describe, expect, it } from 'vitest'
 
 import { validateConnection } from './validateConnection'
+import type { EdgeType } from './workflowToGraph'
 
 describe('validateConnection', () => {
   // Valid connections
@@ -175,7 +176,7 @@ describe('validateConnection', () => {
       sourceHandle: 'loop',
       targetHandle: null,
     }
-    const existingEdges = []
+    const existingEdges: EdgeType[] = []
     expect(validateConnection(connection, existingEdges)).toBe(true)
   })
 
@@ -186,7 +187,7 @@ describe('validateConnection', () => {
       sourceHandle: 'loop',
       targetHandle: null,
     }
-    const existingEdges = [
+    const existingEdges: EdgeType[] = [
       {
         id: 'loop-1-loop-task-1',
         source: 'loop-1',
@@ -208,7 +209,7 @@ describe('validateConnection', () => {
       sourceHandle: 'loop',
       targetHandle: null,
     }
-    const existingEdges = [
+    const existingEdges: EdgeType[] = [
       {
         id: existingEdgeId,
         source: 'loop-1',
@@ -228,7 +229,7 @@ describe('validateConnection', () => {
       sourceHandle: 'done',
       targetHandle: null,
     }
-    const existingEdges = [
+    const existingEdges: EdgeType[] = [
       {
         id: 'loop-1-loop-task-1',
         source: 'loop-1',
@@ -248,7 +249,7 @@ describe('validateConnection', () => {
       sourceHandle: 'loop',
       targetHandle: null,
     }
-    const existingEdges = [
+    const existingEdges: EdgeType[] = [
       {
         id: 'button-loop-1-loop',
         source: 'loop-1',
@@ -271,7 +272,7 @@ describe('validateConnection', () => {
       sourceHandle: 'loop',
       targetHandle: null,
     }
-    const existingEdges = [
+    const existingEdges: EdgeType[] = [
       {
         id: 'loop-1-loop-task-1',
         source: 'loop-1',
@@ -299,7 +300,7 @@ describe('validateConnection', () => {
       sourceHandle: 'done',
       targetHandle: null,
     }
-    const existingEdges = [
+    const existingEdges: EdgeType[] = [
       {
         id: 'loop-1-done-task-1',
         source: 'loop-1',
@@ -323,7 +324,7 @@ describe('validateConnection', () => {
       sourceHandle: 'loop',
       targetHandle: null,
     }
-    const existingEdges = [
+    const existingEdges: EdgeType[] = [
       {
         id: 'loop-1-done-task-1',
         source: 'loop-1',

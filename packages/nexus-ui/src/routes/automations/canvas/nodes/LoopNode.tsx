@@ -2,6 +2,8 @@ import type { LoopActivity } from '@ansible/nexus-contracts'
 import { Flex } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
+import type { ActivityStatus } from '../../execution/types'
+
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
@@ -22,7 +24,7 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
     | {
-        status: string
+        status: ActivityStatus
         started_at?: string
         completed_at?: string
         error_details?: string

@@ -3,7 +3,7 @@ import { render, screen, fireEvent, within, waitFor } from '@testing-library/rea
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { workflowClient } from '../../client'
+import { executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
 
 import Automations from './Automations'
@@ -14,12 +14,16 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  executionsClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
 }))
 
 const mockSetLocation = vi.fn()
 
 vi.mock('wouter', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual: Record<string, unknown> = await importOriginal()
   return {
     ...actual,
     useLocation: () => ['/automations', mockSetLocation],
@@ -84,13 +88,7 @@ describe('Automations Component', () => {
       refetch: vi.fn(),
     })
 
-    // Mock mutation for execute automation
-    vi.mocked(workflowClient.useMutation).mockReturnValue({
-      mutate: vi.fn((body, callbacks) => {
-        if (callbacks?.onSuccess) {
-          callbacks.onSuccess({}, body, undefined)
-        }
-      }),
+    const defaultMutationReturn = {
       mutateAsync: vi.fn(),
       reset: vi.fn(),
       isPending: false,
@@ -103,8 +101,24 @@ describe('Automations Component', () => {
       context: undefined,
       failureCount: 0,
       failureReason: null,
-      status: 'idle',
+      status: 'idle' as const,
       submittedAt: 0,
+    }
+
+    // Mock executionsClient.useMutation for execute automation
+    vi.mocked(executionsClient.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: vi.fn((body, callbacks) => {
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess({}, body, undefined)
+        }
+      }),
+    })
+
+    // Mock workflowClient.useMutation for delete automation
+    vi.mocked(workflowClient.useMutation).mockReturnValue({
+      ...defaultMutationReturn,
+      mutate: vi.fn(),
     })
   })
 
@@ -146,7 +160,7 @@ describe('Automations Component', () => {
       fireEvent.change(searchInput, { target: { value: searchTerm } })
 
       // Verify the input value is updated
-      expect(searchInput.value).toBe(searchTerm)
+      expect((searchInput as HTMLInputElement).value).toBe(searchTerm)
     })
 
     it('filters workflows with fuzzy search, prioritizing most relevant', async () => {
@@ -308,7 +322,7 @@ describe('Automations Component', () => {
         }
       })
 
-      vi.mocked(workflowClient.useMutation).mockReturnValue({
+      vi.mocked(executionsClient.useMutation).mockReturnValue({
         mutate: mockMutate,
         mutateAsync: vi.fn(),
         reset: vi.fn(),
@@ -378,7 +392,7 @@ describe('Automations Component', () => {
         }
       })
 
-      vi.mocked(workflowClient.useMutation).mockReturnValue({
+      vi.mocked(executionsClient.useMutation).mockReturnValue({
         mutate: mockMutate,
         mutateAsync: vi.fn(),
         reset: vi.fn(),
@@ -444,7 +458,7 @@ describe('Automations Component', () => {
         }
       })
 
-      vi.mocked(workflowClient.useMutation).mockReturnValue({
+      vi.mocked(executionsClient.useMutation).mockReturnValue({
         mutate: mockMutate,
         mutateAsync: vi.fn(),
         reset: vi.fn(),
@@ -538,7 +552,7 @@ describe('Automations Component', () => {
     it('cancels automation run when cancel button is clicked', async () => {
       const mockMutate = vi.fn()
 
-      vi.mocked(workflowClient.useMutation).mockReturnValue({
+      vi.mocked(executionsClient.useMutation).mockReturnValue({
         mutate: mockMutate,
         mutateAsync: vi.fn(),
         reset: vi.fn(),
@@ -820,43 +834,22 @@ describe('Automations Component', () => {
         refetch: mockRefetch,
       })
 
-      vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
-        if (method === 'delete') {
-          return {
-            mutate: mockDeleteMutate,
-            mutateAsync: vi.fn(),
-            reset: vi.fn(),
-            isPending: false,
-            isError: false,
-            isSuccess: false,
-            isIdle: true,
-            error: null,
-            data: undefined,
-            variables: undefined,
-            context: undefined,
-            failureCount: 0,
-            failureReason: null,
-            status: 'idle',
-            submittedAt: 0,
-          }
-        }
-        return {
-          mutate: vi.fn(),
-          mutateAsync: vi.fn(),
-          reset: vi.fn(),
-          isPending: false,
-          isError: false,
-          isSuccess: false,
-          isIdle: true,
-          error: null,
-          data: undefined,
-          variables: undefined,
-          context: undefined,
-          failureCount: 0,
-          failureReason: null,
-          status: 'idle',
-          submittedAt: 0,
-        }
+      vi.mocked(workflowClient.useMutation).mockReturnValue({
+        mutate: mockDeleteMutate,
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle',
+        submittedAt: 0,
       })
 
       render(<Automations />, { wrapper })
@@ -901,43 +894,22 @@ describe('Automations Component', () => {
         }
       })
 
-      vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
-        if (method === 'delete') {
-          return {
-            mutate: mockDeleteMutate,
-            mutateAsync: vi.fn(),
-            reset: vi.fn(),
-            isPending: false,
-            isError: false,
-            isSuccess: false,
-            isIdle: true,
-            error: null,
-            data: undefined,
-            variables: undefined,
-            context: undefined,
-            failureCount: 0,
-            failureReason: null,
-            status: 'idle',
-            submittedAt: 0,
-          }
-        }
-        return {
-          mutate: vi.fn(),
-          mutateAsync: vi.fn(),
-          reset: vi.fn(),
-          isPending: false,
-          isError: false,
-          isSuccess: false,
-          isIdle: true,
-          error: null,
-          data: undefined,
-          variables: undefined,
-          context: undefined,
-          failureCount: 0,
-          failureReason: null,
-          status: 'idle',
-          submittedAt: 0,
-        }
+      vi.mocked(workflowClient.useMutation).mockReturnValue({
+        mutate: mockDeleteMutate,
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle',
+        submittedAt: 0,
       })
 
       render(<Automations />, { wrapper })

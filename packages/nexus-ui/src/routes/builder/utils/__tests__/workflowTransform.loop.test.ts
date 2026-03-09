@@ -7,13 +7,18 @@ import { WorkflowTransform } from '../workflowTransform'
 describe('WorkflowTransform - Loop Nesting', () => {
   it('nests simple loop with single activity in body', () => {
     const activities: Activity[] = [
-      { type: 'task', id: 'trigger', name: 'Trigger', task: { executor: 'manual', config: {} } },
+      {
+        type: 'task',
+        id: 'trigger',
+        name: 'Trigger',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
       { type: 'task', id: 'A', name: 'Task A', task: { executor: 'script', config: { language: 'python', code: '' } } },
       {
         type: 'loop',
         id: 'L',
         name: 'Loop L',
-        loop: { over: '${items}', item: 'item', do: [] },
+        loop: { type: 'forEach', items: '${items}', itemVariable: 'item', do: [] },
       },
       { type: 'task', id: 'B', name: 'Task B', task: { executor: 'script', config: { language: 'python', code: '' } } },
     ]
@@ -46,7 +51,7 @@ describe('WorkflowTransform - Loop Nesting', () => {
         type: 'loop',
         id: 'L',
         name: 'Loop L',
-        loop: { over: '${items}', item: 'item', do: [] },
+        loop: { type: 'forEach', items: '${items}', itemVariable: 'item', do: [] },
       },
       { type: 'task', id: 'B', name: 'Task B', task: { executor: 'script', config: { language: 'python', code: '' } } },
       { type: 'task', id: 'C', name: 'Task C', task: { executor: 'script', config: { language: 'python', code: '' } } },
@@ -79,7 +84,7 @@ describe('WorkflowTransform - Loop Nesting', () => {
         type: 'loop',
         id: 'L',
         name: 'Loop L',
-        loop: { over: '${items}', item: 'item', do: [] },
+        loop: { type: 'forEach', items: '${items}', itemVariable: 'item', do: [] },
       },
     ]
 
@@ -102,13 +107,13 @@ describe('WorkflowTransform - Loop Nesting', () => {
         type: 'loop',
         id: 'L1',
         name: 'Outer Loop',
-        loop: { over: '${items}', item: 'item', do: [] },
+        loop: { type: 'forEach', items: '${items}', itemVariable: 'item', do: [] },
       },
       {
         type: 'loop',
         id: 'L2',
         name: 'Inner Loop',
-        loop: { over: '${subitems}', item: 'subitem', do: [] },
+        loop: { type: 'forEach', items: '${subitems}', itemVariable: 'subitem', do: [] },
       },
       { type: 'task', id: 'B', name: 'Task B', task: { executor: 'script', config: { language: 'python', code: '' } } },
     ]
@@ -144,8 +149,9 @@ describe('WorkflowTransform - Loop Nesting', () => {
         id: 'L',
         name: 'Loop L',
         loop: {
-          over: '${items}',
-          item: 'item',
+          type: 'forEach',
+          items: '${items}',
+          itemVariable: 'item',
           do: [
             {
               type: 'task',
@@ -199,7 +205,7 @@ describe('WorkflowTransform - Loop Nesting', () => {
         type: 'loop',
         id: 'L',
         name: 'Loop L',
-        loop: { over: '${items}', item: 'item', do: [] },
+        loop: { type: 'forEach', items: '${items}', itemVariable: 'item', do: [] },
       },
       {
         type: 'condition',
@@ -365,7 +371,9 @@ describe('WorkflowTransform - Loop Nesting', () => {
         id: 'loop-1',
         name: 'Empty Loop',
         loop: {
-          items: '{{items}}',
+          type: 'forEach',
+          items: '${items}',
+          itemVariable: 'item',
           do: [], // Empty body
         },
       },

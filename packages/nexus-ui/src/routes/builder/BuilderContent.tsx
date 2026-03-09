@@ -40,7 +40,7 @@ import { useLocation } from 'wouter'
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
-import { workflowClient } from '../../client'
+import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
@@ -67,12 +67,12 @@ import { WorkflowTransform } from './utils/workflowTransform'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
 // Type aliases from API contracts
-type Workflow = WorkflowAPI.components['schemas']['Workflow']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 type WorkflowInput = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
 type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
 
 interface BuilderContentProps {
-  workflow?: Workflow
+  workflow?: WorkflowWithVersion
   isNew: boolean
   workflowId: string | null
 }
@@ -427,7 +427,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const isNodeEditorOpen = nodeEditorMode !== null
 
   // Fetch executions for history panel (only if not new workflow)
-  const executionsQuery = workflowClient.useQuery(
+  const executionsQuery = executionsClient.useQuery(
     'get',
     '/executions',
     {
@@ -488,16 +488,14 @@ export function BuilderContent(props: BuilderContentProps) {
       })
     } else if (
       workflow &&
-      (workflow as unknown as { version?: { workflow_definition?: WorkflowDefinition } }).version
-        ?.workflow_definition &&
+      workflow.version?.workflow_definition &&
       !hasLoadedRef.current &&
       workflow.id === workflowId
     ) {
       // Load existing workflow - ONLY on first load, not during refetch after save
       // This prevents overwriting user-created edges (including ButtonEdges) with saved edges
       // CRITICAL: Only load if workflow.id matches workflowId (prevents loading stale cached workflow)
-      const workflowDef = (workflow as unknown as { version: { workflow_definition: WorkflowDefinition } }).version
-        .workflow_definition
+      const workflowDef = workflow.version.workflow_definition
 
       // Use combined load function - performs edge generation AND flattening in single pass
       // This is more efficient than calling generateEdgesFromStructure + flattenConditionStructure separately
@@ -601,6 +599,7 @@ export function BuilderContent(props: BuilderContentProps) {
 
   // Ensure workflows list is fetched when on new workflow page (in case cache was empty)
   const hasRefetchedWorkflowsOnceRef = useRef(false)
+  const workflowsListRefetch = (workflowsListQuery as { refetch?: () => void }).refetch
   useEffect(() => {
     if (!isNew) return
     if (workflowsListQuery.data !== undefined) return
@@ -608,16 +607,15 @@ export function BuilderContent(props: BuilderContentProps) {
     if (workflowsListQuery.error) return
     if (hasRefetchedWorkflowsOnceRef.current) return
     hasRefetchedWorkflowsOnceRef.current = true
-    const refetch = (workflowsListQuery as { refetch?: () => void }).refetch
-    if (refetch) void refetch()
-  }, [isNew, workflowsListQuery.data, workflowsListQuery.isPending, workflowsListQuery.error])
+    if (workflowsListRefetch) void workflowsListRefetch()
+  }, [isNew, workflowsListQuery.data, workflowsListQuery.isPending, workflowsListQuery.error, workflowsListRefetch])
 
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
     'patch',
     '/workflows/{workflow_id}'
   )
-  const { mutate: executeAutomation } = workflowClient.useMutation('post', '/executions')
+  const { mutate: executeAutomation } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
 
   const isPending = isCreating || isUpdating

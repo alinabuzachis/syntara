@@ -1,5 +1,4 @@
-import type { ActivityState } from '@ansible/nexus-contracts'
-
+import type { ActivityState } from '../../../automations/execution/types'
 import type { EdgeConnection } from '../../types/edge'
 
 /**

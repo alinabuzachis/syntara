@@ -114,7 +114,7 @@ export default function IntegrationTools() {
     search,
     setSearch,
     items: filteredResults,
-  } = useFuse(query.data?.resources ?? [], [{ name: 'namespaced_name' }])
+  } = useFuse<Tool>(query.data?.resources ?? [], [{ name: 'namespaced_name' }])
 
   const { getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,

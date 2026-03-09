@@ -8,6 +8,7 @@ import {
   SearchInput,
   StackItem,
 } from '@patternfly/react-core'
+import { useMemo } from 'react'
 
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
@@ -23,7 +24,8 @@ const GLOSSARY_SEARCH_KEYS = [
 
 export default function Glossary() {
   const glossaryTerms = useGlossaryTerms()
-  const { search, setSearch, items: results } = useFuse(glossaryTerms, GLOSSARY_SEARCH_KEYS)
+  const memoizedTerms = useMemo(() => [...glossaryTerms], [glossaryTerms])
+  const { search, setSearch, items: results } = useFuse(memoizedTerms, GLOSSARY_SEARCH_KEYS)
 
   return (
     <AppPage>

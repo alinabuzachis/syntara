@@ -1,9 +1,12 @@
-import type { ApprovalsAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ApprovalsAPI, ExecutionsAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
 const workflowFetchClient = createFetchClient<WorkflowAPI.paths>({ baseUrl: '/api/v1/' })
 export const workflowClient = createClient(workflowFetchClient)
+
+const executionsFetchClient = createFetchClient<ExecutionsAPI.paths>({ baseUrl: '/api/v1/' })
+export const executionsClient = createClient(executionsFetchClient)
 
 const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({ baseUrl: '/api/v1/tool_manager/' })
 export const toolManagerClient = createClient(toolManagerFetchClient)

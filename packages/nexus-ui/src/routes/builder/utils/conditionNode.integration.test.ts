@@ -715,14 +715,14 @@ describe('Condition Node Integration', () => {
           id: 'A',
           name: 'Condition A',
           condition: 'input.value > 10',
-          outputs: { result: 'string' },
+          outputs: { result: { type: 'string' } },
           then: [
             {
               type: 'task',
               id: 'B',
               name: 'Task B',
               task: { executor: 'script', config: { language: 'python', code: 'print("B")' } },
-              outputs: { value: 'number' },
+              outputs: { value: { type: 'number' } },
             },
           ],
           else: [],
@@ -735,8 +735,8 @@ describe('Condition Node Integration', () => {
       const rebuiltNested = buildNestedConditionStructure(flatActivities, edges)
 
       const condition = rebuiltNested[0] as Extract<Activity, { type: 'condition' }>
-      expect(condition.outputs).toEqual({ result: 'string' })
-      expect(condition.then[0].outputs).toEqual({ value: 'number' })
+      expect(condition.outputs).toEqual({ result: { type: 'string' } })
+      expect(condition.then[0].outputs).toEqual({ value: { type: 'number' } })
     })
   })
 })

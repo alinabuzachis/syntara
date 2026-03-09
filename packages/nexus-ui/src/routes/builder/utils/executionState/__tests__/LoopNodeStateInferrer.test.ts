@@ -1,6 +1,7 @@
-import type { Activity, ActivityState } from '@ansible/nexus-contracts'
+import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
+import type { ActivityState } from '../../../../automations/execution/types'
 import type { EdgeConnection } from '../../../types/edge'
 import { LoopNodeStateInferrer } from '../nodeStateInference'
 
@@ -12,7 +13,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: { expression: '[1,2,3]' }, do: [] },
+      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -21,9 +22,17 @@ describe('LoopNodeStateInferrer', () => {
     const activityStates = new Map<string, ActivityState>([
       [
         'task-loop-body',
-        { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' },
+        {
+          activityId: 'task-loop-body',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
       ],
-      ['task-after-loop', { status: 'running', startedAt: '2024-01-01T00:02:00Z', completedAt: null }],
+      [
+        'task-after-loop',
+        { activityId: 'task-after-loop', status: 'running', startedAt: '2024-01-01T00:02:00Z', completedAt: null },
+      ],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -36,15 +45,18 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: { expression: '[1,2,3]' }, do: [] },
+      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },
       { id: '2', source: 'loop-1', target: 'task-after-loop', sourceHandle: 'done', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-loop-body', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
-      ['task-after-loop', { status: 'pending', startedAt: null, completedAt: null }],
+      [
+        'task-loop-body',
+        { activityId: 'task-loop-body', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
+      ],
+      ['task-after-loop', { activityId: 'task-after-loop', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -57,15 +69,15 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: { expression: '[1,2,3]' }, do: [] },
+      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },
       { id: '2', source: 'loop-1', target: 'task-after-loop', sourceHandle: 'done', targetHandle: 'target' },
     ]
     const activityStates = new Map<string, ActivityState>([
-      ['task-loop-body', { status: 'pending', startedAt: null, completedAt: null }],
-      ['task-after-loop', { status: 'pending', startedAt: null, completedAt: null }],
+      ['task-loop-body', { activityId: 'task-loop-body', status: 'pending', startedAt: null, completedAt: null }],
+      ['task-after-loop', { activityId: 'task-after-loop', status: 'pending', startedAt: null, completedAt: null }],
     ])
 
     const result = inferrer.inferState(activity, edges, activityStates)
@@ -78,7 +90,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: { expression: '[1,2,3]' }, do: [] },
+      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
     }
     const edges: EdgeConnection[] = []
     const activityStates = new Map<string, ActivityState>()
@@ -93,7 +105,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: { expression: '[1,2,3]' }, do: [] },
+      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -111,7 +123,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: { expression: '[1,2,3]' }, do: [] },
+      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -120,11 +132,21 @@ describe('LoopNodeStateInferrer', () => {
     const activityStates = new Map<string, ActivityState>([
       [
         'task-loop-body',
-        { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' },
+        {
+          activityId: 'task-loop-body',
+          status: 'completed',
+          startedAt: '2024-01-01T00:00:00Z',
+          completedAt: '2024-01-01T00:01:00Z',
+        },
       ],
       [
         'task-after-loop',
-        { status: 'completed', startedAt: '2024-01-01T00:02:00Z', completedAt: '2024-01-01T00:03:00Z' },
+        {
+          activityId: 'task-after-loop',
+          status: 'completed',
+          startedAt: '2024-01-01T00:02:00Z',
+          completedAt: '2024-01-01T00:03:00Z',
+        },
       ],
     ])
 

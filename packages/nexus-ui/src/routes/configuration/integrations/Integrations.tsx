@@ -133,7 +133,7 @@ export default function Integrations() {
     search,
     setSearch,
     items: filteredResults,
-  } = useFuse<ToolProvider>(query.data?.resources ?? [], [{ name: 'name' }])
+  } = useFuse<ToolProvider>((query.data?.resources ?? []) as unknown as ToolProvider[], [{ name: 'name' }])
   const { showAlert } = useAlerts()
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({

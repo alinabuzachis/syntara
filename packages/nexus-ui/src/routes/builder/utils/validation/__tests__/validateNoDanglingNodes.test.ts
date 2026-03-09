@@ -70,7 +70,7 @@ describe('validateNoDanglingNodes', () => {
     const result = validateNoDanglingNodes(activities, edges)
     // Both tasks are dangling with no edges
     expect(result).toHaveLength(2)
-    expect(result.map((r) => r.nodeId).sort()).toEqual(['A', 'B'])
+    expect(result.map((r) => r.nodeId).sort((a, b) => (a ?? '').localeCompare(b ?? ''))).toEqual(['A', 'B'])
   })
 
   it('handles complex graph with branches', () => {

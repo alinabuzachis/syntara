@@ -32,8 +32,8 @@ describe('Builder Workflow Store Helpers', () => {
 
       expect(trigger.type).toBe('scheduled')
       expect(trigger.schedule.scheduleType).toBe('cron')
-      expect(trigger.schedule.cron).toBe('0 0 * * *')
-      expect(trigger.schedule.timezone).toBe('UTC')
+      expect((trigger.schedule as { cron?: string; timezone?: string }).cron).toBe('0 0 * * *')
+      expect((trigger.schedule as { cron?: string; timezone?: string }).timezone).toBe('UTC')
     })
 
     it('creates interval-based scheduled trigger', async () => {
@@ -44,7 +44,7 @@ describe('Builder Workflow Store Helpers', () => {
 
       expect(trigger.type).toBe('scheduled')
       expect(trigger.schedule.scheduleType).toBe('interval')
-      expect(trigger.schedule.interval).toBe('PT1H')
+      expect((trigger.schedule as { interval?: string }).interval).toBe('PT1H')
     })
 
     it('creates continuous scheduled trigger', async () => {
@@ -87,16 +87,16 @@ describe('Builder Workflow Store Helpers', () => {
       expect(activity.id).toBe('task-1')
       expect(activity.name).toBe('My Script')
       expect(activity.task.executor).toBe('script')
-      expect(activity.task.config.language).toBe('python')
-      expect(activity.task.config.code).toBe('print("Hello")')
+      expect((activity.task.config as { language?: string; code?: string }).language).toBe('python')
+      expect((activity.task.config as { language?: string; code?: string }).code).toBe('print("Hello")')
     })
 
     it('creates javascript script activity', async () => {
       const { createScriptActivity } = await import('../../stores/useWorkflowStore')
       const activity = createScriptActivity('task-2', 'JS Script', 'javascript', 'console.log("Hi")')
 
-      expect(activity.task.config.language).toBe('javascript')
-      expect(activity.task.config.code).toBe('console.log("Hi")')
+      expect((activity.task.config as { language?: string; code?: string }).language).toBe('javascript')
+      expect((activity.task.config as { language?: string; code?: string }).code).toBe('console.log("Hi")')
     })
   })
 
@@ -109,10 +109,10 @@ describe('Builder Workflow Store Helpers', () => {
       expect(activity.id).toBe('api-1')
       expect(activity.name).toBe('GET Users')
       expect(activity.task.executor).toBe('api')
-      expect(activity.task.config.method).toBe('GET')
-      expect(activity.task.config.url).toBe('https://api.example.com/users')
-      expect(activity.task.config.headers).toBeUndefined()
-      expect(activity.task.config.body).toBeUndefined()
+      expect((activity.task.config as { method?: string }).method).toBe('GET')
+      expect((activity.task.config as { url?: string }).url).toBe('https://api.example.com/users')
+      expect((activity.task.config as { headers?: unknown }).headers).toBeUndefined()
+      expect((activity.task.config as { body?: unknown }).body).toBeUndefined()
     })
 
     it('creates API activity with valid JSON headers', async () => {
@@ -120,7 +120,7 @@ describe('Builder Workflow Store Helpers', () => {
       const headers = JSON.stringify({ 'Content-Type': 'application/json' })
       const activity = createApiActivity('api-2', 'POST Data', 'POST', 'https://api.example.com/data', headers)
 
-      expect(activity.task.config.headers).toEqual({ 'Content-Type': 'application/json' })
+      expect((activity.task.config as { headers?: unknown }).headers).toEqual({ 'Content-Type': 'application/json' })
     })
 
     it('creates API activity with valid JSON body', async () => {
@@ -128,14 +128,14 @@ describe('Builder Workflow Store Helpers', () => {
       const body = JSON.stringify({ name: 'Test' })
       const activity = createApiActivity('api-3', 'POST User', 'POST', 'https://api.example.com/users', undefined, body)
 
-      expect(activity.task.config.body).toEqual({ name: 'Test' })
+      expect((activity.task.config as { body?: unknown }).body).toEqual({ name: 'Test' })
     })
 
     it('handles invalid JSON headers gracefully', async () => {
       const { createApiActivity } = await import('../../stores/useWorkflowStore')
       const activity = createApiActivity('api-4', 'POST Data', 'POST', 'https://api.example.com/data', 'invalid-json')
 
-      expect(activity.task.config.headers).toBeUndefined()
+      expect((activity.task.config as { headers?: unknown }).headers).toBeUndefined()
     })
 
     it('uses string body when JSON parsing fails', async () => {
@@ -149,7 +149,7 @@ describe('Builder Workflow Store Helpers', () => {
         'plain text'
       )
 
-      expect(activity.task.config.body).toBe('plain text')
+      expect((activity.task.config as { body?: unknown }).body).toBe('plain text')
     })
   })
 

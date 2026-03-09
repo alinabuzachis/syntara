@@ -57,6 +57,8 @@ describe('ConditionNodeDetails Component', () => {
       id: 'condition-1',
       name: 'Test Condition',
       condition: 'input.value > 10',
+      then: [],
+      else: [],
     }
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
@@ -71,6 +73,8 @@ describe('ConditionNodeDetails Component', () => {
       id: 'condition-1',
       name: 'Original Condition',
       condition: 'input.value > 5',
+      then: [],
+      else: [],
     }
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
@@ -92,6 +96,8 @@ describe('ConditionNodeDetails Component', () => {
       id: 'condition-1',
       name: 'Condition',
       condition: 'test',
+      then: [],
+      else: [],
     }
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
@@ -109,6 +115,8 @@ describe('ConditionNodeDetails Component', () => {
       id: 'condition-1',
       name: 'Condition',
       condition: 'test',
+      then: [],
+      else: [],
     }
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)

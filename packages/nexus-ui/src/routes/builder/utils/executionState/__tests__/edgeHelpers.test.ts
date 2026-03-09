@@ -1,6 +1,6 @@
-import type { ActivityState } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
+import type { ActivityState } from '../../../../automations/execution/types'
 import type { EdgeConnection } from '../../../types/edge'
 import { EdgeHelpers } from '../edgeHelpers'
 
@@ -68,7 +68,7 @@ describe('EdgeHelpers', () => {
         targetHandle: 'target',
       }
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'pending', startedAt: null, completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'pending', startedAt: null, completedAt: null }],
       ])
 
       const result = EdgeHelpers.hasTargetStarted(edge, activityStates)
@@ -100,7 +100,7 @@ describe('EdgeHelpers', () => {
         targetHandle: 'target',
       }
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
+        ['task-1', { activityId: 'task-1', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null }],
       ])
 
       const result = EdgeHelpers.hasTargetStarted(edge, activityStates)
@@ -117,7 +117,15 @@ describe('EdgeHelpers', () => {
         targetHandle: 'target',
       }
       const activityStates = new Map<string, ActivityState>([
-        ['task-1', { status: 'completed', startedAt: '2024-01-01T00:00:00Z', completedAt: '2024-01-01T00:01:00Z' }],
+        [
+          'task-1',
+          {
+            activityId: 'task-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
       ])
 
       const result = EdgeHelpers.hasTargetStarted(edge, activityStates)
@@ -137,6 +145,7 @@ describe('EdgeHelpers', () => {
         [
           'task-1',
           {
+            activityId: 'task-1',
             status: 'failed',
             startedAt: '2024-01-01T00:00:00Z',
             completedAt: '2024-01-01T00:01:00Z',

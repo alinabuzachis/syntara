@@ -21,7 +21,7 @@ export default function registerGenericNode() {
     order: 1000, // High order to appear last in lists
     enabled: false, // Hide from AddNodePanel - only used programmatically
     formComponent: GenericNodeForm,
-    onSubmit: (data, onSuccess, onError) => {
+    onSubmit: (_data, onSuccess, onError) => {
       try {
         // Create generic placeholder activity
         const { activityId, activity } = buildNamedActivity('Generic Node', undefined, (id, name) =>

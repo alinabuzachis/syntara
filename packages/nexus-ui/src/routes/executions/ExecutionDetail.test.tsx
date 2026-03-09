@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { workflowClient } from '../../client'
+import { executionsClient } from '../../client'
 
 import ExecutionDetail from './ExecutionDetail'
 
@@ -74,8 +74,8 @@ const mockExecutionsQuery = {
 }
 
 vi.mock('../../client', () => ({
-  workflowClient: {
-    useQuery: vi.fn((method: string, endpoint: string) => {
+  executionsClient: {
+    useQuery: vi.fn((_method: string, endpoint: string) => {
       if (endpoint === '/executions/{execution_id}') {
         return mockExecutionQuery
       }
@@ -218,7 +218,7 @@ describe('ExecutionDetail', () => {
       </QueryClientProvider>
     )
 
-    expect(vi.mocked(workflowClient.useQuery)).toHaveBeenCalledWith(
+    expect(vi.mocked(executionsClient.useQuery)).toHaveBeenCalledWith(
       'get',
       '/executions/{execution_id}',
       expect.objectContaining({
@@ -356,7 +356,7 @@ describe('ExecutionDetail', () => {
         error: null,
       }
 
-      vi.mocked(workflowClient.useQuery).mockImplementation((method: string, endpoint: string) => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
         if (endpoint === '/executions/{execution_id}') {
           return mockNewExecutionQuery
         }
@@ -400,7 +400,7 @@ describe('ExecutionDetail', () => {
         error: null,
       }
 
-      vi.mocked(workflowClient.useQuery).mockImplementation((method: string, endpoint: string) => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((_method: string, endpoint: string) => {
         if (endpoint === '/executions/{execution_id}') {
           return mockMinimalExecution
         }

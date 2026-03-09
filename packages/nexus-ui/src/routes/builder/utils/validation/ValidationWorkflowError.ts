@@ -7,11 +7,13 @@ import type { ValidationResult } from './types'
  * to display validation errors to the user.
  */
 export class ValidationWorkflowError extends Error {
-  constructor(public result: ValidationResult) {
+  result: ValidationResult
+
+  constructor(result: ValidationResult) {
     super('Workflow validation failed')
     this.name = 'ValidationWorkflowError'
+    this.result = result
 
-    // Maintain proper prototype chain for instanceof checks
     Object.setPrototypeOf(this, ValidationWorkflowError.prototype)
   }
 }

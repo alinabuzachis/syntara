@@ -395,7 +395,7 @@ describe('TaskNodeDetails Component', () => {
   })
 
   it('returns null for approval node (type approval)', () => {
-    const taskData: Extract<Activity, { type: 'approval' }> = {
+    const taskData = {
       type: 'approval' as const,
       id: 'task-approval',
       name: 'Approval Task',
@@ -405,7 +405,7 @@ describe('TaskNodeDetails Component', () => {
         approvers: ['admin'],
         prompt: 'Please approve',
       },
-    }
+    } as unknown as TaskActivity
 
     const { container } = renderTaskNodeDetails(taskData, 'task-approval')
 

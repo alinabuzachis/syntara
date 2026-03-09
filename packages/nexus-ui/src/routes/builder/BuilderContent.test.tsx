@@ -5,14 +5,13 @@ import { ReactFlowProvider } from '@xyflow/react'
 import type { ComponentProps, ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { workflowClient } from '../../client'
+import { executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
-
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 
 import { BuilderContent } from './BuilderContent'
 
-type Workflow = WorkflowAPI.components['schemas']['Workflow']
+type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 type BuilderContentProps = ComponentProps<typeof BuilderContent>
 
 /**
@@ -30,6 +29,10 @@ async function renderBuilder(props: BuilderContentProps) {
 // Mock dependencies
 vi.mock('../../client', () => ({
   workflowClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+  executionsClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
@@ -70,7 +73,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 )
 
 describe('BuilderContent', () => {
-  // Using 'as Workflow' cast since test mocks don't need all optional fields
+  // Using 'as WorkflowWithVersion' cast since test mocks don't need all optional fields
   const mockWorkflow = {
     id: 'workflow-1',
     name: 'Test Workflow',
@@ -95,7 +98,7 @@ describe('BuilderContent', () => {
         },
       },
     },
-  } as Workflow
+  } as WorkflowWithVersion
 
   const createMockMutation = (mutate = vi.fn()) => ({
     mutate,
@@ -119,7 +122,7 @@ describe('BuilderContent', () => {
     vi.clearAllMocks()
     queryClient.clear()
 
-    vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+    vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
       if (method === 'get' && path === '/executions') {
         return {
           data: { resources: [] },
@@ -129,6 +132,16 @@ describe('BuilderContent', () => {
           refetch: vi.fn(),
         }
       }
+      return {
+        data: undefined,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      }
+    })
+
+    vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
       if (method === 'get' && path === '/workflows') {
         return {
           data: { resources: [] },
@@ -148,6 +161,7 @@ describe('BuilderContent', () => {
     })
 
     vi.mocked(workflowClient.useMutation).mockReturnValue(createMockMutation())
+    vi.mocked(executionsClient.useMutation).mockReturnValue(createMockMutation())
   })
 
   afterEach(() => {
@@ -180,6 +194,15 @@ describe('BuilderContent', () => {
             refetch: vi.fn(),
           }
         }
+        return {
+          data: undefined,
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      })
+      vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
         if (method === 'get' && path === '/executions') {
           return {
             data: { resources: [] },
@@ -301,20 +324,20 @@ describe('BuilderContent', () => {
             schemaVersion: '1.0.0',
             version: 1,
             metadata: { name: 'Test', description: '' },
-            triggers: [{ type: 'manual' }],
+            triggers: [{ type: 'manual' as const }],
             workflow: {
               activities: [
                 {
-                  type: 'task',
+                  type: 'task' as const,
                   id: 'task-1',
                   name: 'Task',
-                  task: { executor: 'script', config: { language: 'python', code: '' } },
+                  task: { executor: 'script' as const, config: { language: 'python', code: '' } },
                 },
               ],
             },
           },
         },
-      }
+      } as WorkflowWithVersion
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
       // Open panel
@@ -506,7 +529,7 @@ describe('BuilderContent', () => {
         }
       })
 
-      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
+      vi.mocked(executionsClient.useMutation).mockImplementation((method, path) => {
         if (method === 'post' && path === '/executions') {
           return createMockMutation(mockExecuteMutate)
         }
@@ -538,7 +561,7 @@ describe('BuilderContent', () => {
         }
       })
 
-      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
+      vi.mocked(executionsClient.useMutation).mockImplementation((method, path) => {
         if (method === 'post' && path === '/executions') {
           return createMockMutation(mockExecuteMutate)
         }
@@ -788,7 +811,7 @@ describe('BuilderContent', () => {
   describe('History Panel', () => {
     it('opens history panel when history button is clicked', async () => {
       const mockRefetch = vi.fn()
-      vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
         if (method === 'get' && path === '/executions') {
           return {
             data: { resources: [] },
@@ -819,7 +842,7 @@ describe('BuilderContent', () => {
 
     it('toggles history panel closed', async () => {
       const mockRefetch = vi.fn()
-      vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
         if (method === 'get' && path === '/executions') {
           return {
             data: { resources: [] },
@@ -853,7 +876,7 @@ describe('BuilderContent', () => {
     })
 
     it('shows history card with close button', async () => {
-      vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
         if (method === 'get' && path === '/executions') {
           return {
             data: { resources: [] },
@@ -893,7 +916,7 @@ describe('BuilderContent', () => {
     })
 
     it('handles execution selection', async () => {
-      vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+      vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
         if (method === 'get' && path === '/executions') {
           return {
             data: {
@@ -1124,20 +1147,20 @@ describe('BuilderContent', () => {
               name: 'Test Workflow',
               description: 'Test Description',
             },
-            triggers: [{ type: 'manual' }],
+            triggers: [{ type: 'manual' as const }],
             workflow: {
               activities: [
                 {
-                  type: 'task',
+                  type: 'task' as const,
                   id: 'task-1',
                   name: 'Task 1',
-                  task: { executor: 'script', config: { language: 'python', code: '' } },
+                  task: { executor: 'script' as const, config: { language: 'python', code: '' } },
                 },
               ],
             },
           },
         },
-      }
+      } as WorkflowWithVersion
 
       await renderBuilder({ workflow: workflowWithActivities, isNew: false, workflowId: 'workflow-1' })
 
@@ -1159,19 +1182,19 @@ describe('BuilderContent', () => {
               name: 'Parallel Workflow',
               description: 'Test parallel',
             },
-            triggers: [{ type: 'manual' }],
+            triggers: [{ type: 'manual' as const }],
             workflow: {
               activities: [
                 {
-                  type: 'parallel',
+                  type: 'parallel' as const,
                   id: 'parallel-1',
                   name: 'Parallel',
                   branches: [
                     {
-                      type: 'task',
+                      type: 'task' as const,
                       id: 'branch-task-1',
                       name: 'Branch Task',
-                      task: { executor: 'script', config: { language: 'python', code: '' } },
+                      task: { executor: 'script' as const, config: { language: 'python', code: '' } },
                     },
                   ],
                 },
@@ -1179,7 +1202,7 @@ describe('BuilderContent', () => {
             },
           },
         },
-      }
+      } as WorkflowWithVersion
 
       await renderBuilder({ workflow: workflowWithParallel, isNew: false, workflowId: 'workflow-1' })
 
@@ -1194,7 +1217,11 @@ describe('BuilderContent', () => {
         version: undefined,
       }
 
-      await renderBuilder({ workflow: workflowWithoutVersion as Workflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({
+        workflow: workflowWithoutVersion as WorkflowWithVersion,
+        isNew: false,
+        workflowId: 'workflow-1',
+      })
 
       expect(screen.getByPlaceholderText('Workflow name')).toBeInTheDocument()
     })
@@ -1343,7 +1370,11 @@ describe('BuilderContent', () => {
         description: null,
       }
 
-      await renderBuilder({ workflow: workflowNoDescription as Workflow, isNew: false, workflowId: 'workflow-1' })
+      await renderBuilder({
+        workflow: workflowNoDescription as WorkflowWithVersion,
+        isNew: false,
+        workflowId: 'workflow-1',
+      })
 
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -1376,20 +1407,20 @@ describe('BuilderContent', () => {
           schemaVersion: '1.0.0',
           version: 1,
           metadata: { name: 'Test Workflow', description: 'Test Description' },
-          triggers: [{ type: 'manual' }],
+          triggers: [{ type: 'manual' as const }],
           workflow: {
             activities: [
               {
-                type: 'task',
+                type: 'task' as const,
                 id: 'task-1',
                 name: 'Task 1',
-                task: { executor: 'script', config: { language: 'python', code: '' } },
+                task: { executor: 'script' as const, config: { language: 'python', code: '' } },
               },
             ],
           },
         },
       },
-    }
+    } as WorkflowWithVersion
 
     it('TOGGLE_DETAILS closes add node panel when opening details', async () => {
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
@@ -1452,7 +1483,7 @@ describe('BuilderContent', () => {
         name: 'Custom Init Name',
         description: 'Custom Init Description',
         is_enabled: false,
-      }
+      } as WorkflowWithVersion
 
       await renderBuilder({ workflow: customWorkflow, isNew: false, workflowId: 'workflow-1' })
 
@@ -1488,16 +1519,16 @@ describe('BuilderContent', () => {
             workflow: {
               activities: [
                 {
-                  type: 'task',
+                  type: 'task' as const,
                   id: 'task-1',
                   name: 'Task 1',
-                  task: { executor: 'script', config: { language: 'python', code: '' } },
+                  task: { executor: 'script' as const, config: { language: 'python', code: '' } },
                 },
               ],
             },
           },
         },
-      }
+      } as WorkflowWithVersion
 
       await renderBuilder({ workflow: workflowNoTrigger, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
@@ -1540,7 +1571,7 @@ describe('BuilderContent', () => {
   describe('Guard Clauses', () => {
     it('handleRunAutomation guards when no workflow id', async () => {
       // Create workflow without id - cast through unknown for test purposes
-      const noIdWorkflow = { ...mockWorkflow, id: undefined } as unknown as Workflow
+      const noIdWorkflow = { ...mockWorkflow, id: undefined } as unknown as WorkflowWithVersion
 
       const { container } = await renderBuilder({ workflow: noIdWorkflow, isNew: false, workflowId: 'workflow-1' })
 
@@ -1557,7 +1588,7 @@ describe('BuilderContent', () => {
 
     it('handleDeleteAutomation guards when no workflow id', async () => {
       // Cast through unknown for test purposes
-      const noIdWorkflow = { ...mockWorkflow, id: undefined } as unknown as Workflow
+      const noIdWorkflow = { ...mockWorkflow, id: undefined } as unknown as WorkflowWithVersion
 
       const { container } = await renderBuilder({ workflow: noIdWorkflow, isNew: false, workflowId: 'workflow-1' })
 
@@ -1776,11 +1807,11 @@ describe('BuilderContent', () => {
               name: 'Condition Workflow',
               description: '',
             },
-            triggers: [{ type: 'manual' }],
+            triggers: [{ type: 'manual' as const }],
             workflow: {
               activities: [
                 {
-                  type: 'condition',
+                  type: 'condition' as const,
                   id: 'cond-1',
                   name: 'Condition',
                   condition: { expression: 'true' },
@@ -1791,7 +1822,7 @@ describe('BuilderContent', () => {
             },
           },
         },
-      }
+      } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: conditionWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
@@ -1811,11 +1842,11 @@ describe('BuilderContent', () => {
               name: 'Loop Workflow',
               description: '',
             },
-            triggers: [{ type: 'manual' }],
+            triggers: [{ type: 'manual' as const }],
             workflow: {
               activities: [
                 {
-                  type: 'loop',
+                  type: 'loop' as const,
                   id: 'loop-1',
                   name: 'Loop',
                   loop: { collection: '[]', iterator: 'item' },
@@ -1825,7 +1856,7 @@ describe('BuilderContent', () => {
             },
           },
         },
-      }
+      } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: loopWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
@@ -1845,20 +1876,20 @@ describe('BuilderContent', () => {
               name: 'Nested Workflow',
               description: '',
             },
-            triggers: [{ type: 'manual' }],
+            triggers: [{ type: 'manual' as const }],
             workflow: {
               activities: [
                 {
-                  type: 'condition',
+                  type: 'condition' as const,
                   id: 'cond-1',
                   name: 'Outer Condition',
                   condition: { expression: 'true' },
                   onTrue: [
                     {
-                      type: 'task',
+                      type: 'task' as const,
                       id: 'task-inner',
                       name: 'Inner Task',
-                      task: { executor: 'script', config: { language: 'python', code: '' } },
+                      task: { executor: 'script' as const, config: { language: 'python', code: '' } },
                     },
                   ],
                   onFalse: [],
@@ -1867,7 +1898,7 @@ describe('BuilderContent', () => {
             },
           },
         },
-      }
+      } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: nestedWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
@@ -1934,7 +1965,7 @@ describe('BuilderContent', () => {
         }
       })
 
-      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
+      vi.mocked(executionsClient.useMutation).mockImplementation((method, path) => {
         if (method === 'post' && path === '/executions') {
           return createMockMutation(mockExecuteMutate)
         }
@@ -2211,7 +2242,7 @@ describe('BuilderContent', () => {
         }
       })
 
-      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
+      vi.mocked(executionsClient.useMutation).mockImplementation((method, path) => {
         if (method === 'post' && path === '/executions') {
           return createMockMutation(mockExecuteMutate)
         }
