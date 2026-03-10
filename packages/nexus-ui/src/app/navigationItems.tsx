@@ -1,6 +1,18 @@
-import { lazy } from 'react'
-
 import { AppRoute } from './AppRoute'
+import {
+  ApprovalDetail,
+  Approvals,
+  Automations,
+  BuilderEdit,
+  BuilderNew,
+  DemoWebSocket,
+  ExecutionDetail,
+  Executions,
+  Glossary,
+  IntegrationForm,
+  IntegrationTools,
+  Integrations,
+} from './lazyRoutes'
 
 export type INavigationItem = {
   label: string
@@ -11,26 +23,7 @@ export type INavigationItem = {
   matchPattern?: string // Optional pattern to match for active state (e.g., "/automation-builder/:workflowId")
 }
 
-const Automations = lazy(() => import('../routes/automations/Automations'))
-const BuilderNew = lazy(() => import('../routes/builder/BuilderNew'))
-const BuilderEdit = lazy(() => import('../routes/builder/BuilderEdit'))
-const Executions = lazy(() => import('../routes/executions/Executions'))
-const ExecutionDetail = lazy(() => import('../routes/executions/ExecutionDetail'))
-const IntegrationForm = lazy(() =>
-  import('../routes/configuration/integrations/form/IntegrationForm').then((m) => ({ default: m.IntegrationForm }))
-)
-const Integrations = lazy(() => import('../routes/configuration/integrations/Integrations'))
-const IntegrationTools = lazy(() => import('../routes/configuration/integrations/IntegrationTools'))
-const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
-const DemoWebSocket = lazy(() => import('../routes/demo-ws/DemoWebSocket'))
-const Approvals = lazy(() => import('../routes/approvals/Approvals'))
-const ApprovalDetail = lazy(() => import('../routes/approvals/ApprovalDetail'))
-
 export const navigationItems: INavigationItem[] = [
-  {
-    label: 'Dashboard',
-    path: AppRoute.Dashboard,
-  },
   {
     label: 'Builder',
     path: AppRoute.AutomationBuilder.New,
@@ -119,11 +112,12 @@ export const navigationItems: INavigationItem[] = [
       },
     ],
   },
-  // Demo Routes
+  // Demo route — hidden from nav, accessible via URL for development
   {
     label: 'WebSocket Demo',
     path: AppRoute.DemoWebSocket,
     element: <DemoWebSocket />,
+    hidden: true,
   },
   // Hidden routes (not shown in navigation, but needed for routing)
   {

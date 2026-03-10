@@ -107,12 +107,6 @@ describe('AppDockedNav', () => {
     expect(nav).toBeInTheDocument()
   })
 
-  it('renders notifications nav item', () => {
-    render(<AppDockedNav />)
-    // Check for notifications element by aria-label
-    expect(screen.getByLabelText('Notifications')).toBeInTheDocument()
-  })
-
   it('renders Red Hat icon in masthead', () => {
     const { container } = render(<AppDockedNav />)
     expect(container.querySelector('#docked-masthead')).toBeInTheDocument()

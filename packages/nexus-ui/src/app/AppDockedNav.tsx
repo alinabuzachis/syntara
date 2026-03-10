@@ -23,12 +23,10 @@ import type { MenuToggleElement } from '@patternfly/react-core'
 import {
   RedhatIcon,
   RhUiDarkModeIcon,
-  RhUiIncreasingIcon,
   RhUiInfrastructureIcon,
   RhUiLikeIcon,
   RhUiListIcon,
   RhUiMenuBarsIcon,
-  RhUiNotificationIcon,
   RhUiProfileFillIcon,
   RhUiQuestionMarkCircleIcon,
   RhUiSettingsIcon,
@@ -36,91 +34,59 @@ import {
 import { useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
 
+import type { INavigationItem } from './navigationItems'
 import { navigationItems } from './navigationItems'
 import { useUnsavedChanges } from './useUnsavedChanges'
 
-// Map navigation paths to their icons
 const navIconMap: Record<string, React.ComponentType> = {
-  '/dashboard': RhUiIncreasingIcon,
   '/automation-builder': RhUiInfrastructureIcon,
   '/automations': RhUiListIcon,
   '/approvals': RhUiLikeIcon,
   '/configuration': RhUiSettingsIcon,
 }
 
-export function AppDockedNav() {
-  const [location] = useLocation()
-  const { requestNavigation } = useUnsavedChanges()
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+function getNavIcon(path: string) {
+  return navIconMap['/' + path.split('/')[1]]
+}
 
-  // Filter out hidden navigation items and Support (accessed via Help button)
-  const visibleItems = navigationItems.filter((item) => !item.hidden && !item.path.startsWith('/support'))
-
-  // Determine active nav item based on current location
-  const activeTopLevel = '/' + location.split('/')[1]
-
-  // Refs for tooltips
-  const menuToggleRef = useRef<HTMLButtonElement>(null)
-  const darkModeRef = useRef<HTMLButtonElement>(null)
-  const helpRef = useRef<HTMLButtonElement>(null)
-  const notificationsRef = useRef<HTMLAnchorElement>(null)
-
-  // Create stable refs for each nav item
-  const navItemRefs = useMemo(() => {
-    const refs: Record<string, React.RefObject<HTMLAnchorElement | null>> = {}
-    visibleItems.forEach((item) => {
-      refs[item.path] = { current: null }
-    })
-    return refs
-  }, [visibleItems])
-
-  const handleNavSelect = (
-    _event: React.FormEvent<HTMLInputElement>,
-    selectedItem: { groupId: string | number; itemId: string | number; to: string }
-  ) => {
-    const item = visibleItems.find((navItem) => navItem.path === selectedItem.itemId)
-    if (item) {
-      // If item has children, navigate to first enabled child
-      if (item.children?.length) {
-        const firstEnabledChild = item.children.find((child) => !!child.element)
-        if (firstEnabledChild) {
-          requestNavigation(firstEnabledChild.path)
-        } else if (item.path) {
-          requestNavigation(item.path)
-        }
-      } else if (item.path) {
-        requestNavigation(item.path)
-      }
-    }
+function findFirstEnabledPath(item: INavigationItem): string {
+  if (item.children?.length) {
+    const firstEnabled = item.children.find((child) => !!child.element)
+    return firstEnabled?.path ?? item.path
   }
+  return item.path
+}
 
-  const handleHelpClick = () => {
-    const supportItem = navigationItems.find((item) => item.path.startsWith('/support'))
-    if (supportItem) {
-      if (supportItem.children?.length) {
-        const firstEnabledChild = supportItem.children.find((child) => !!child.element)
-        if (firstEnabledChild) {
-          requestNavigation(firstEnabledChild.path)
-        } else {
-          requestNavigation(supportItem.path)
-        }
-      } else {
-        requestNavigation(supportItem.path)
-      }
-    }
-  }
+function createNavItemRefs(items: INavigationItem[]) {
+  const refs: Record<string, React.RefObject<HTMLAnchorElement | null>> = {}
+  items.forEach((item) => {
+    refs[item.path] = { current: null }
+  })
+  return refs
+}
 
-  // Get icon for a navigation path
-  const getNavIcon = (path: string) => {
-    const topLevelPath = '/' + path.split('/')[1]
-    return navIconMap[topLevelPath]
-  }
+function navigateToNavItem(
+  itemId: string | number,
+  visibleItems: INavigationItem[],
+  requestNavigation: (path: string) => void
+) {
+  const item = visibleItems.find((navItem) => navItem.path === itemId)
+  if (item) requestNavigation(findFirstEnabledPath(item))
+}
 
-  const userMenuToggle = (toggleRef: React.Ref<MenuToggleElement>) => (
+function navigateToHelp(requestNavigation: (path: string) => void) {
+  const target = navigationItems.find((item) => item.path.startsWith('/support'))
+  if (target) requestNavigation(findFirstEnabledPath(target))
+}
+
+function UserMenuDropdown() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
     <MenuToggle
       ref={toggleRef}
-      onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-      isExpanded={isUserMenuOpen}
+      onClick={() => setIsOpen(!isOpen)}
+      isExpanded={isOpen}
       variant="plain"
       aria-label="User menu"
       style={{ padding: 0 }}
@@ -128,6 +94,39 @@ export function AppDockedNav() {
       <RhUiProfileFillIcon />
     </MenuToggle>
   )
+
+  return (
+    <Tooltip aria="none" aria-live="off" content="User profile (coming soon)" position="right">
+      <Dropdown
+        isOpen={isOpen}
+        onOpenChange={setIsOpen}
+        toggle={toggle}
+        popperProps={{ position: 'right', preventOverflow: true }}
+      >
+        <DropdownList>
+          <DropdownItem key="profile">My Profile</DropdownItem>
+          <DropdownItem key="settings">Settings</DropdownItem>
+          <DropdownItem key="logout">Logout</DropdownItem>
+        </DropdownList>
+      </Dropdown>
+    </Tooltip>
+  )
+}
+
+export function AppDockedNav() {
+  const [location] = useLocation()
+  const { requestNavigation } = useUnsavedChanges()
+
+  const visibleItems = useMemo(
+    () => navigationItems.filter((item) => !item.hidden && !item.path.startsWith('/support')),
+    []
+  )
+  const activeTopLevel = '/' + location.split('/')[1]
+
+  const menuToggleRef = useRef<HTMLButtonElement>(null)
+  const darkModeRef = useRef<HTMLButtonElement>(null)
+  const helpRef = useRef<HTMLButtonElement>(null)
+  const navItemRefs = useMemo(() => createNavItemRefs(visibleItems), [visibleItems])
 
   return (
     <Masthead id="docked-masthead" variant="docked">
@@ -141,16 +140,20 @@ export function AppDockedNav() {
       <MastheadContent>
         <Toolbar id="docked-toolbar" isVertical>
           <ToolbarContent>
-            {/* Menu Toggle */}
             <ToolbarItem>
               <Button variant="plain" aria-label="Toggle menu" ref={menuToggleRef}>
                 <RhUiMenuBarsIcon />
               </Button>
             </ToolbarItem>
             <Divider />
-            {/* Main Navigation */}
             <ToolbarItem>
-              <Nav onSelect={handleNavSelect} variant="docked" aria-label="Main navigation">
+              <Nav
+                onSelect={(_event, selectedItem) =>
+                  navigateToNavItem(selectedItem.itemId, visibleItems, requestNavigation)
+                }
+                variant="docked"
+                aria-label="Main navigation"
+              >
                 <NavList>
                   {visibleItems.map((item) => {
                     const itemTopLevel = '/' + item.path.split('/')[1]
@@ -169,57 +172,35 @@ export function AppDockedNav() {
                       />
                     )
                   })}
-                  {/* Notifications */}
-                  <NavItem
-                    key="notifications"
-                    preventDefault
-                    id="nav-notifications"
-                    itemId="notifications"
-                    isActive={false}
-                    icon={<RhUiNotificationIcon />}
-                    aria-label="Notifications"
-                    anchorRef={notificationsRef}
-                  />
                 </NavList>
               </Nav>
             </ToolbarItem>
-            {/* Bottom Section - pushed to end */}
             <ToolbarGroup variant="action-group-plain" align={{ default: 'alignEnd' }}>
               <ToolbarGroup variant="action-group-plain">
-                {/* Dark Mode Toggle */}
                 <ToolbarItem>
                   <Button variant="plain" aria-label="Toggle dark mode" ref={darkModeRef}>
                     <RhUiDarkModeIcon />
                   </Button>
                 </ToolbarItem>
-                {/* Help */}
                 <ToolbarItem>
-                  <Button variant="plain" aria-label="Help" ref={helpRef} onClick={handleHelpClick}>
+                  <Button
+                    variant="plain"
+                    aria-label="Help"
+                    ref={helpRef}
+                    onClick={() => navigateToHelp(requestNavigation)}
+                  >
                     <RhUiQuestionMarkCircleIcon />
                   </Button>
                 </ToolbarItem>
-                {/* User Menu */}
                 <ToolbarItem>
-                  <Dropdown
-                    isOpen={isUserMenuOpen}
-                    onOpenChange={(isOpen) => setIsUserMenuOpen(isOpen)}
-                    toggle={userMenuToggle}
-                    popperProps={{ position: 'right', preventOverflow: true }}
-                  >
-                    <DropdownList>
-                      <DropdownItem key="profile">My Profile</DropdownItem>
-                      <DropdownItem key="settings">Settings</DropdownItem>
-                      <DropdownItem key="logout">Logout</DropdownItem>
-                    </DropdownList>
-                  </Dropdown>
+                  <UserMenuDropdown />
                 </ToolbarItem>
               </ToolbarGroup>
             </ToolbarGroup>
           </ToolbarContent>
         </Toolbar>
       </MastheadContent>
-      {/* Tooltips using refs */}
-      <Tooltip aria="none" aria-live="off" triggerRef={menuToggleRef} content="Menu" position="right" />
+      <Tooltip aria="none" aria-live="off" triggerRef={menuToggleRef} content="Menu (coming soon)" position="right" />
       {visibleItems.map((item) => (
         <Tooltip
           key={`tooltip-${item.path}`}
@@ -230,9 +211,8 @@ export function AppDockedNav() {
           position="right"
         />
       ))}
-      <Tooltip aria="none" aria-live="off" triggerRef={notificationsRef} content="Notifications" position="right" />
       <Tooltip aria="none" aria-live="off" triggerRef={darkModeRef} content="Dark mode" position="right" />
-      <Tooltip aria="none" aria-live="off" triggerRef={helpRef} content="Help" position="right" />
+      <Tooltip aria="none" aria-live="off" triggerRef={helpRef} content="Documentation" position="right" />
     </Masthead>
   )
 }
