@@ -93,7 +93,7 @@ class TelemetryClientRegistry:
             )
 
             client.track(
-                user_id=segment_event["userId"],
+                user_id=self._entitlement_id,
                 event=segment_event["event"],
                 properties=segment_event.get("properties", {}),
             )

@@ -17,7 +17,6 @@ from nexus.telemetry.events.workflow_execution import (
 # Import shared test data from conftest
 from tests.unit.telemetry.conftest import (
     VALID_ACTIVITY_HASH,
-    VALID_ENTITLEMENT_ID,
     VALID_WORKFLOW_EXECUTION_ID,
 )
 
@@ -56,23 +55,18 @@ class TestWorkflowExecutionStartEvent:
 
     def test_valid_event_creation(self):
         event = WorkflowExecutionStartEvent(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
         )
-        assert event.entitlement_id == VALID_ENTITLEMENT_ID
         assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
 
     def test_to_segment_event(self):
         event = WorkflowExecutionStartEvent(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
         )
         segment_event = event.to_segment_event()
-        assert segment_event["userId"] == VALID_ENTITLEMENT_ID
         assert segment_event["event"] == "workflow_execution_start"
         assert "properties" in segment_event
         props = segment_event["properties"]
-        assert "entitlement_id" not in props
         assert props["workflow_execution_id"] == VALID_WORKFLOW_EXECUTION_ID
 
 
@@ -93,7 +87,6 @@ class TestWorkflowExecutionCompletedEvent:
     )
     def test_event_creation(self, status, error_count, error_type):
         event = WorkflowExecutionCompletedEvent(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status=status,
             duration_ms=12500,
@@ -110,7 +103,6 @@ class TestWorkflowExecutionCompletedEvent:
     def test_invalid_status(self):
         with pytest.raises(ValidationError):
             WorkflowExecutionCompletedEvent(
-                entitlement_id=VALID_ENTITLEMENT_ID,
                 workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
                 status="unknown",
                 duration_ms=100,
@@ -120,7 +112,6 @@ class TestWorkflowExecutionCompletedEvent:
 
     def test_to_segment_event(self):
         event = WorkflowExecutionCompletedEvent(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status="completed",
             duration_ms=12500,
@@ -128,7 +119,6 @@ class TestWorkflowExecutionCompletedEvent:
             error_count=0,
         )
         segment_event = event.to_segment_event()
-        assert segment_event["userId"] == VALID_ENTITLEMENT_ID
         assert segment_event["event"] == "workflow_execution_completed"
         props = segment_event["properties"]
         assert props["status"] == "completed"
@@ -147,7 +137,6 @@ class TestActivityExecutionEvent:
 
     def test_valid_success_event(self):
         event = ActivityExecutionEvent(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             activity_type="task",
             activity_hash=VALID_ACTIVITY_HASH,
@@ -161,7 +150,6 @@ class TestActivityExecutionEvent:
     def test_invalid_activity_type(self):
         with pytest.raises(ValidationError):
             ActivityExecutionEvent(
-                entitlement_id=VALID_ENTITLEMENT_ID,
                 workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
                 activity_type="invalid",
                 activity_hash=VALID_ACTIVITY_HASH,
@@ -170,7 +158,6 @@ class TestActivityExecutionEvent:
 
     def test_to_segment_event(self):
         event = ActivityExecutionEvent(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             activity_type="task",
             activity_hash=VALID_ACTIVITY_HASH,
@@ -178,7 +165,6 @@ class TestActivityExecutionEvent:
             action_type="api_call",
         )
         segment_event = event.to_segment_event()
-        assert segment_event["userId"] == VALID_ENTITLEMENT_ID
         assert segment_event["event"] == "activity_execution"
         props = segment_event["properties"]
         assert props["activity_type"] == "task"
@@ -194,16 +180,15 @@ class TestWorkflowExecutionEventBuilder:
     """Tests for WorkflowExecutionEventBuilder."""
 
     def test_build_start_event(self):
-        builder = WorkflowExecutionEventBuilder(entitlement_id=VALID_ENTITLEMENT_ID)
+        builder = WorkflowExecutionEventBuilder()
         event = builder.build_start_event(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
         )
         assert isinstance(event, WorkflowExecutionStartEvent)
-        assert event.entitlement_id == VALID_ENTITLEMENT_ID
         assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
 
     def test_build_completed_event_success(self):
-        builder = WorkflowExecutionEventBuilder(entitlement_id=VALID_ENTITLEMENT_ID)
+        builder = WorkflowExecutionEventBuilder()
         event = builder.build_completed_event(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status="completed",
@@ -226,7 +211,7 @@ class TestActivityExecutionEventBuilder:
     """Tests for ActivityExecutionEventBuilder."""
 
     def test_build_event(self):
-        builder = ActivityExecutionEventBuilder(entitlement_id=VALID_ENTITLEMENT_ID)
+        builder = ActivityExecutionEventBuilder()
 
         # Build event and verify basic properties
         event = builder.build_event(

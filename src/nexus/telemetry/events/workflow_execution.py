@@ -18,7 +18,6 @@ class WorkflowExecutionStartEvent(BaseTelemetryEvent):
     """Telemetry event emitted when workflow execution begins.
 
     Attributes:
-        entitlement_id: Unique Nexus installation identifier for anonymized tracking.
         workflow_execution_id: Unique workflow execution identifier (UUID v4 format).
 
     """
@@ -28,7 +27,6 @@ class WorkflowExecutionCompletedEvent(BaseTelemetryEvent):
     """Telemetry event emitted when workflow execution finishes.
 
     Attributes:
-        entitlement_id: Unique Nexus installation identifier.
         workflow_execution_id: Unique workflow execution identifier (UUID v4 format).
         status: Final execution status.
         duration_ms: Duration in milliseconds.
@@ -52,20 +50,7 @@ class WorkflowExecutionEventBuilder:
     """Builder for constructing workflow execution telemetry events.
 
     Constructs both start and completion events from workflow execution context.
-
-    Attributes:
-        entitlement_id: Nexus installation identifier.
-
     """
-
-    def __init__(self, entitlement_id: str) -> None:
-        """Initialize the builder.
-
-        Args:
-            entitlement_id: Nexus installation identifier.
-
-        """
-        self.entitlement_id = entitlement_id
 
     def build_start_event(
         self,
@@ -81,7 +66,6 @@ class WorkflowExecutionEventBuilder:
 
         """
         return WorkflowExecutionStartEvent(
-            entitlement_id=self.entitlement_id,
             workflow_execution_id=workflow_execution_id,
         )
 
@@ -109,7 +93,6 @@ class WorkflowExecutionEventBuilder:
 
         """
         return WorkflowExecutionCompletedEvent(
-            entitlement_id=self.entitlement_id,
             workflow_execution_id=workflow_execution_id,
             status=status,
             duration_ms=duration_ms,

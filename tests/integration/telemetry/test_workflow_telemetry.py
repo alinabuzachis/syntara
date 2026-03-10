@@ -27,7 +27,7 @@ class TestEndToEndWorkflowTelemetry:
         registry._client = mock_client
         registry._entitlement_id = "test-install-001"
 
-        collector = TelemetryCollector(entitlement_id="test-install-001", registry=registry)
+        collector = TelemetryCollector(registry=registry)
 
         workflow_execution_id = "test-correlation-id"
 
@@ -69,7 +69,7 @@ class TestEndToEndWorkflowTelemetry:
         registry._client = mock_client
         registry._entitlement_id = "test-install-001"
 
-        collector = TelemetryCollector(entitlement_id="test-install-001", registry=registry)
+        collector = TelemetryCollector(registry=registry)
 
         workflow_execution_id = "parent-workflow-correlation"
         activity_def: dict[str, object] = {"activity_name": "execute_api_request"}
@@ -90,10 +90,10 @@ class TestEndToEndWorkflowTelemetry:
 
 
 class TestEntitlementIdPropagation:
-    """Integration test: entitlement_id flows from registry to events."""
+    """Integration test: entitlement_id flows from registry to Segment track calls."""
 
     def test_entitlement_id_from_registry_to_events(self) -> None:
-        """Verify entitlement_id set on registry appears in emitted events."""
+        """Verify entitlement_id set on registry appears as user_id in track calls."""
         registry = TelemetryClientRegistry()
         mock_client = MagicMock()
         registry._client = mock_client
@@ -101,10 +101,7 @@ class TestEntitlementIdPropagation:
 
         assert registry.entitlement_id == "prod-install-xyz"
 
-        collector = TelemetryCollector(
-            entitlement_id=registry.entitlement_id,
-            registry=registry,
-        )
+        collector = TelemetryCollector(registry=registry)
 
         collector.capture_workflow_start(
             workflow_execution_id="test-id",

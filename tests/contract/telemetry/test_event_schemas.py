@@ -16,7 +16,6 @@ from nexus.telemetry.events.workflow_execution import (
 # Import shared test data from unit telemetry conftest
 from tests.unit.telemetry.conftest import (
     VALID_ACTIVITY_HASH,
-    VALID_ENTITLEMENT_ID,
     VALID_WORKFLOW_EXECUTION_ID,
 )
 
@@ -27,13 +26,11 @@ class TestWorkflowExecutionStartEventSchema:
     def test_model_generates_valid_json_schema(self):
         schema = WorkflowExecutionStartEvent.model_json_schema()
         assert schema["type"] == "object"
-        assert "entitlement_id" in schema["properties"]
         assert "workflow_execution_id" in schema["properties"]
 
     def test_valid_event_conforms_to_schema(self):
         schema = WorkflowExecutionStartEvent.model_json_schema()
         event = WorkflowExecutionStartEvent(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
         )
         event_dict = event.model_dump()
@@ -56,7 +53,6 @@ class TestWorkflowExecutionCompletedEventSchema:
     def test_valid_event_conforms_to_schema(self):
         schema = WorkflowExecutionCompletedEvent.model_json_schema()
         event = WorkflowExecutionCompletedEvent(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status="completed",
             duration_ms=12500,
@@ -83,7 +79,6 @@ class TestActivityExecutionEventSchema:
     def test_valid_event_conforms_to_schema(self):
         schema = ActivityExecutionEvent.model_json_schema()
         event = ActivityExecutionEvent(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             activity_type="task",
             activity_hash=VALID_ACTIVITY_HASH,
@@ -99,7 +94,6 @@ class TestActivityExecutionEventSchema:
         schema = ActivityExecutionEvent.model_json_schema()
         for activity_type in ["task", "parallel", "sequence", "condition", "loop", "converge", "approval"]:
             event = ActivityExecutionEvent(
-                entitlement_id=VALID_ENTITLEMENT_ID,
                 workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
                 activity_type=activity_type,
                 activity_hash=VALID_ACTIVITY_HASH,

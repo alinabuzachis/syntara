@@ -32,7 +32,7 @@ def _make_collector(mock_registry: MagicMock) -> TelemetryCollector:
     """Create a TelemetryCollector with a mocked registry."""
     from nexus.telemetry.collector import TelemetryCollector
 
-    return TelemetryCollector(entitlement_id="test-entitlement", registry=mock_registry)
+    return TelemetryCollector(registry=mock_registry)
 
 
 class TestEmitActivityTelemetry:

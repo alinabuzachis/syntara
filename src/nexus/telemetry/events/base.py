@@ -18,14 +18,12 @@ class BaseTelemetryEvent(SQLModel):
     snake_case and removing the "Event" suffix.
 
     Attributes:
-        entitlement_id: Unique Nexus installation identifier for anonymized tracking.
         workflow_execution_id: Unique workflow execution identifier (UUID v4 format).
 
     """
 
     model_config = {"frozen": True}
 
-    entitlement_id: str = Field(description="Unique Nexus installation identifier")
     workflow_execution_id: str = Field(description="Unique workflow execution identifier (UUID v4)")
 
     @classmethod
@@ -46,11 +44,10 @@ class BaseTelemetryEvent(SQLModel):
         """Convert to Segment Track API format.
 
         Returns:
-            Dictionary with userId, event name, and properties for Segment Track API.
+            Dictionary with event name and properties for Segment Track API.
 
         """
         return {
-            "userId": self.entitlement_id,
             "event": self._get_event_name(),
-            "properties": self.model_dump(exclude={"entitlement_id"}),
+            "properties": self.model_dump(),
         }

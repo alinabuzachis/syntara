@@ -28,7 +28,6 @@ class ActivityExecutionEvent(BaseTelemetryEvent):
     """Telemetry event emitted when an activity executes within a workflow.
 
     Attributes:
-        entitlement_id: Nexus installation identifier.
         workflow_execution_id: Links to parent workflow execution (UUID v4).
         activity_type: Type of activity executed.
         activity_hash: SHA-256 hash of activity definition.
@@ -75,21 +74,7 @@ class ActivityExecutionEvent(BaseTelemetryEvent):
 
 
 class ActivityExecutionEventBuilder:
-    """Builder for constructing activity execution telemetry events.
-
-    Attributes:
-        entitlement_id: Nexus installation identifier.
-
-    """
-
-    def __init__(self, entitlement_id: str) -> None:
-        """Initialize the builder.
-
-        Args:
-            entitlement_id: Nexus installation identifier.
-
-        """
-        self.entitlement_id = entitlement_id
+    """Builder for constructing activity execution telemetry events."""
 
     @staticmethod
     @lru_cache(maxsize=256)
@@ -137,7 +122,6 @@ class ActivityExecutionEventBuilder:
         canonical_json = json.dumps(activity_def, sort_keys=True)
         activity_hash = self._calculate_definition_hash(canonical_json)
         return ActivityExecutionEvent(
-            entitlement_id=self.entitlement_id,
             workflow_execution_id=workflow_execution_id,
             activity_type=activity_type,
             activity_hash=activity_hash,

@@ -17,7 +17,6 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
 # Import shared test data from conftest
 from tests.unit.telemetry.conftest import (
     SAMPLE_ACTIVITY_DEF,
-    VALID_ENTITLEMENT_ID,
     VALID_WORKFLOW_EXECUTION_ID,
 )
 
@@ -30,7 +29,6 @@ class TestTelemetryCollector:
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = True
         collector = TelemetryCollector(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             registry=mock_registry,
         )
         return collector, mock_registry
@@ -43,7 +41,6 @@ class TestTelemetryCollector:
         mock_registry.send_event.assert_called_once()
         sent_event = mock_registry.send_event.call_args[0][0]
         assert isinstance(sent_event, WorkflowExecutionStartEvent)
-        assert sent_event.entitlement_id == VALID_ENTITLEMENT_ID
         assert sent_event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
 
     def test_capture_workflow_completed_success(self):
@@ -113,7 +110,6 @@ class TestTelemetryCollector:
         mock_registry = MagicMock()
         mock_registry.send_event.side_effect = RuntimeError("Send failed")
         collector = TelemetryCollector(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             registry=mock_registry,
         )
         # Should not raise
@@ -128,7 +124,6 @@ class TestTelemetryCollector:
         mock_registry = MagicMock()
         mock_registry.send_event.side_effect = RuntimeError("Send failed")
         collector = TelemetryCollector(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             registry=mock_registry,
         )
         collector.capture_workflow_completed(
@@ -146,7 +141,6 @@ class TestTelemetryCollector:
         mock_registry = MagicMock()
         mock_registry.send_event.side_effect = RuntimeError("Send failed")
         collector = TelemetryCollector(
-            entitlement_id=VALID_ENTITLEMENT_ID,
             registry=mock_registry,
         )
         collector.capture_activity_executed(

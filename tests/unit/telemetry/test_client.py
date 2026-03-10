@@ -63,10 +63,9 @@ class TestTelemetryClientRegistry:
         mock_segment.Client.return_value = mock_client
 
         registry = TelemetryClientRegistry()
-        registry.initialize(write_key="test-key")
+        registry.initialize(write_key="test-key", entitlement_id="test-user")
 
         event = WorkflowExecutionStartEvent(
-            entitlement_id="test-user",
             workflow_execution_id="test-correlation-id",
         )
 
@@ -88,7 +87,6 @@ class TestTelemetryClientRegistry:
         registry.initialize(write_key="test-key")
 
         event = WorkflowExecutionStartEvent(
-            entitlement_id="test-user",
             workflow_execution_id="test-id",
         )
 

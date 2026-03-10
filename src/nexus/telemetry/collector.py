@@ -63,28 +63,21 @@ class TelemetryCollector:
 
     Coordinates event building and transmission for workflow and activity
     execution telemetry. All operations are fire-and-forget.
-
-    Attributes:
-        entitlement_id: Nexus installation identifier.
-
     """
 
     def __init__(
         self,
-        entitlement_id: str | None = None,
         registry: TelemetryClientRegistry | None = None,
     ) -> None:
         """Initialize the telemetry collector.
 
         Args:
-            entitlement_id: Nexus installation identifier. Defaults to registry.entitlement_id.
             registry: Optional registry override (for testing).
 
         """
         self._registry = registry or get_telemetry_registry()
-        self.entitlement_id = entitlement_id or self._registry.entitlement_id
-        self._workflow_builder = WorkflowExecutionEventBuilder(self.entitlement_id)
-        self._activity_builder = ActivityExecutionEventBuilder(self.entitlement_id)
+        self._workflow_builder = WorkflowExecutionEventBuilder()
+        self._activity_builder = ActivityExecutionEventBuilder()
 
     def capture_workflow_start(
         self,

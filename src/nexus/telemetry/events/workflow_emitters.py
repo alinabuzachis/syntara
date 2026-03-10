@@ -76,9 +76,7 @@ def emit_workflow_start(execution: Execution) -> None:
             return
 
         collector = TelemetryCollector(registry=registry)
-        collector.capture_workflow_start(
-            workflow_execution_id=str(execution.id),
-        )
+        collector.capture_workflow_start(workflow_execution_id=str(execution.id))
 
         logger.debug(
             "Emitted workflow start telemetry",

@@ -3,16 +3,9 @@
 import pytest
 
 # Common test data constants
-VALID_ENTITLEMENT_ID = "ent-550e8400-e29b-41d4-a716-446655440000"
 VALID_WORKFLOW_EXECUTION_ID = "550e8400-e29b-41d4-a716-446655440000"
 VALID_ACTIVITY_HASH = "b" * 64
 SAMPLE_ACTIVITY_DEF = {"name": "test-activity", "type": "task"}
-
-
-@pytest.fixture
-def valid_entitlement_id() -> str:
-    """Return a valid entitlement ID for telemetry tests."""
-    return VALID_ENTITLEMENT_ID
 
 
 @pytest.fixture
