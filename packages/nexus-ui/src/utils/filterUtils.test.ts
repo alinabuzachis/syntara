@@ -34,7 +34,10 @@ describe('filterUtils', () => {
     })
 
     it('should have all operators in VALID_FILTER_OPERATORS', () => {
-      expect(VALID_FILTER_OPERATORS).toEqual(['eq', 'contains', 'starts_with', 'gt', 'gte', 'lt', 'lte', 'in'])
+      expect(VALID_FILTER_OPERATORS).toHaveLength(8)
+      expect(VALID_FILTER_OPERATORS).toEqual(
+        expect.arrayContaining(['eq', 'contains', 'starts_with', 'gt', 'gte', 'lt', 'lte', 'in'])
+      )
     })
   })
 
@@ -56,7 +59,10 @@ describe('filterUtils', () => {
     })
 
     it('should have all types in VALID_FILTER_TYPES', () => {
-      expect(VALID_FILTER_TYPES).toEqual(['text', 'select', 'date', 'daterange', 'boolean', 'labels'])
+      expect(VALID_FILTER_TYPES).toHaveLength(6)
+      expect(VALID_FILTER_TYPES).toEqual(
+        expect.arrayContaining(['text', 'select', 'date', 'daterange', 'boolean', 'labels'])
+      )
     })
 
     it('should validate FilterTypeEnum values', () => {

@@ -79,26 +79,49 @@ export function useFilterState(defaultFilters: FilterConfig[] = []): UseFilterSt
 
   /**
    * Add or update a filter
-   * If a filter with the same key exists, it will be replaced
+   * Only replaces filters with the same key AND operator to preserve sibling operators
+   * (e.g., created_at >= and created_at <= can coexist)
    */
   const setFilter = useCallback(
     (newFilter: FilterConfig) => {
-      // Get current filters from URL
-      const currentFilters = parseFiltersFromUrl(searchParams)
+      // Work from canonical filters (includes defaults)
+      const currentFilters = filters
 
-      // Remove any existing filter with the same key
-      const updatedFilters = currentFilters.filter((f) => f.key !== newFilter.key)
+      // Remove only filters matching both key and operator
+      const updatedFilters = currentFilters.filter(
+        (f) => !(f.key === newFilter.key && (f.operator ?? 'eq') === (newFilter.operator ?? 'eq'))
+      )
 
       // Add the new filter
       updatedFilters.push(newFilter)
 
-      // Convert to URL params and update
+      // Convert to URL params - preserve non-filter params
+      const newSearchParams = new URLSearchParams(searchParams)
       const filterParams = buildFilterParams(updatedFilters)
-      const newSearchParams = new URLSearchParams(filterParams as Record<string, string>)
+
+      // Remove existing filter params
+      const filterKeys = new Set(
+        updatedFilters.map((f) => {
+          const operator = f.operator ?? 'eq'
+          return operator === 'eq' ? f.key : `${f.key}[${operator}]`
+        })
+      )
+
+      // Clean up old filter params
+      Array.from(newSearchParams.keys()).forEach((key) => {
+        if (key.startsWith('labels[') || key.includes('[') || filterKeys.has(key)) {
+          newSearchParams.delete(key)
+        }
+      })
+
+      // Add new filter params
+      Object.entries(filterParams).forEach(([key, value]) => {
+        newSearchParams.set(key, String(value))
+      })
 
       setSearchParams(newSearchParams)
     },
-    [searchParams, setSearchParams]
+    [filters, searchParams, setSearchParams]
   )
 
   /**
@@ -106,31 +129,52 @@ export function useFilterState(defaultFilters: FilterConfig[] = []): UseFilterSt
    */
   const removeFilter = useCallback(
     (key: string) => {
-      // Get current filters from URL
-      const currentFilters = parseFiltersFromUrl(searchParams)
+      // Work from canonical filters (includes defaults)
+      const currentFilters = filters
 
       // Remove the filter with the matching key
       const updatedFilters = currentFilters.filter((f) => f.key !== key)
 
-      // Convert to URL params and update
-      if (updatedFilters.length === 0) {
-        // Clear all search params if no filters remain
-        setSearchParams(new URLSearchParams())
-      } else {
+      // Preserve non-filter params
+      const newSearchParams = new URLSearchParams(searchParams)
+
+      // Remove filter-specific keys
+      Array.from(newSearchParams.keys()).forEach((paramKey) => {
+        if (paramKey === key || paramKey.startsWith(`${key}[`)) {
+          newSearchParams.delete(paramKey)
+        }
+      })
+
+      // If there are remaining filters, add them back
+      if (updatedFilters.length > 0) {
         const filterParams = buildFilterParams(updatedFilters)
-        const newSearchParams = new URLSearchParams(filterParams as Record<string, string>)
-        setSearchParams(newSearchParams)
+        Object.entries(filterParams).forEach(([k, v]) => {
+          newSearchParams.set(k, String(v))
+        })
       }
+
+      setSearchParams(newSearchParams)
     },
-    [searchParams, setSearchParams]
+    [filters, searchParams, setSearchParams]
   )
 
   /**
-   * Clear all filters from URL
+   * Clear all filters from URL (preserves non-filter params)
    */
   const clearAllFilters = useCallback(() => {
-    setSearchParams(new URLSearchParams())
-  }, [setSearchParams])
+    // Preserve non-filter params (like pagination, sort, tabs)
+    const newSearchParams = new URLSearchParams(searchParams)
+
+    // Remove all filter-related keys
+    Array.from(newSearchParams.keys()).forEach((key) => {
+      // Remove if it's a filter key (contains brackets or is a known filter field)
+      if (key.includes('[') || filters.some((f) => f.key === key)) {
+        newSearchParams.delete(key)
+      }
+    })
+
+    setSearchParams(newSearchParams)
+  }, [filters, searchParams, setSearchParams])
 
   return {
     filters,

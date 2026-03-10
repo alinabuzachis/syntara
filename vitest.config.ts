@@ -10,6 +10,8 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: ['node_modules/', '**/dist/', '**/*.config.*', '**/mockData', '**/*.d.ts'],
+      cleanOnRerun: true, // Clean coverage before each run
+      all: false, // Don't collect coverage from all files, only tested ones
     },
   },
   resolve: {

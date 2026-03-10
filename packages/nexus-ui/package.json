@@ -8,7 +8,7 @@
     "start": "vite --open",
     "build": "vite build",
     "test": "concurrently npm:eslint npm:tsc npm:vitest",
-    "test:coverage": "vitest --coverage",
+    "test:coverage": "vitest run --coverage",
     "test:coverage:check": "node scripts/check-pr-coverage.js",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
