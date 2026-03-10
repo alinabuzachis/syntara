@@ -353,6 +353,12 @@ check-path-sequence: ## Validate numbering sequence under specs/
 	@echo "🔢 Validating numbered entries in specs/..."
 	uv run python tools/ci/check_path_sequence.py specs/ --strict
 
+.PHONY: sync-requirements
+sync-requirements: ## Check/sync requirements.txt with uv.lock
+	@echo "🔍 Syncing requirements.txt with uv.lock..."
+	uv export --frozen --python=3.12 --no-dev --no-editable --no-emit-workspace --output-file requirements.txt
+	@echo "✅ requirements.txt is in sync"
+
 .PHONY: format
 format: ## Format code with ruff and pre-commit formatters
 	@echo "🎨 Formatting code..."

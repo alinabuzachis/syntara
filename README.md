@@ -84,6 +84,24 @@ This project uses `uv` for dependency management and provides a comprehensive Ma
    make install
    ```
 
+### Dependency Management
+
+This project uses `uv` for dependency management with two key files:
+
+- **`uv.lock`** - The source of truth for exact dependency versions (managed by uv)
+- **`requirements.txt`** - Production dependencies exported from `uv.lock` (for Konflux hermetic builds)
+
+**Keeping files in sync:**
+
+The `requirements.txt` file **must always be in sync** with `uv.lock`. This is enforced automatically:
+
+```bash
+# Manually sync requirements.txt (if needed)
+make sync-requirements
+
+# Pre-commit hook automatically does the sync when uv.lock changes and CI will fail if requirements.txt is out of sync
+```
+
 ### Quick Start
 
 **Option 1: Full Stack with Containers (Recommended)**
