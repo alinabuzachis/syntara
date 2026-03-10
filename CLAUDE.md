@@ -605,7 +605,7 @@ These thresholds are based on industry standards (Code Complete, SonarQube, Biom
 | `max-params`             | 5 parameters       | Use a typed options object for 6+ params                              |
 | `max-nested-callbacks`   | 4 levels           | Flatten with named functions or async/await                           |
 
-Additional code quality rules (all set to `warn`):
+Additional code quality rules (enforced as `error` — CI will block violations):
 
 | Rule                                             | What it enforces                                             |
 | ------------------------------------------------ | ------------------------------------------------------------ |
@@ -614,7 +614,9 @@ Additional code quality rules (all set to `warn`):
 | `@typescript-eslint/require-array-sort-compare`  | Require a compare function for `Array.sort()`                |
 | `@typescript-eslint/switch-exhaustiveness-check` | Ensure all union/enum cases are handled in switch statements |
 | `@typescript-eslint/prefer-includes`             | Use `.includes()` instead of `.indexOf() !== -1`             |
+| `react-hooks/exhaustive-deps`                    | Require all dependencies in React hook dependency arrays     |
 | `react/jsx-no-useless-fragment`                  | Remove unnecessary `<>{child}</>` wrappers                   |
+| `react/no-array-index-key`                       | Avoid using array index as React `key` prop                  |
 | `react/self-closing-comp`                        | Use `<Icon />` instead of `<Icon></Icon>`                    |
 | `unicorn/no-nested-ternary`                      | Prevent unreadable nested ternary expressions                |
 | `import-x/no-cycle`                              | Detect circular dependencies (max depth: 2)                  |
