@@ -92,8 +92,8 @@ class TestEndToEndWorkflowTelemetry:
 class TestEntitlementIdPropagation:
     """Integration test: entitlement_id flows from registry to Segment track calls."""
 
-    def test_entitlement_id_from_registry_to_events(self) -> None:
-        """Verify entitlement_id set on registry appears as user_id in track calls."""
+    def test_entitlement_id_from_registry_to_track_call(self) -> None:
+        """Verify entitlement_id set on registry is used as user_id in track calls."""
         registry = TelemetryClientRegistry()
         mock_client = MagicMock()
         registry._client = mock_client

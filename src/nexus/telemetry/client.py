@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Any
 import segment.analytics as segment_analytics  # type: ignore[import-untyped]
 import structlog
 
+from nexus.core.config.base import get_settings
+
 if TYPE_CHECKING:
     from nexus.telemetry.events.base import BaseTelemetryEvent
 
@@ -78,6 +80,9 @@ class TelemetryClientRegistry:
     def send_event(self, event: BaseTelemetryEvent) -> None:
         """Send a telemetry event to Segment (fire-and-forget).
 
+        The registry's configured ``entitlement_id`` is used as the Segment
+        ``userId`` for all events.
+
         Args:
             event: Telemetry event to send.
 
@@ -89,7 +94,6 @@ class TelemetryClientRegistry:
             logger.info(
                 "Sending telemetry event",
                 event_name=segment_event.get("event"),
-                workflow_execution_id=getattr(event, "workflow_execution_id", None),
             )
 
             client.track(
@@ -166,3 +170,38 @@ def get_telemetry_registry() -> TelemetryClientRegistry:
 
     """
     return _get_telemetry_registry()
+
+
+def initialize_telemetry() -> bool:
+    """Initialize the telemetry client from application settings.
+
+    Reads the Segment write key and endpoint from settings and initializes the
+    singleton registry. Safe to call multiple times — subsequent calls are no-ops.
+
+    Returns:
+        True if telemetry was initialized, False if disabled (no write key).
+
+    """
+    settings = get_settings()
+    segment_key = settings.segment_write_key.get_secret_value()
+    if not segment_key:
+        logger.info("Telemetry disabled: no Segment write key configured")
+        return False
+
+    registry = get_telemetry_registry()
+    registry.initialize(
+        write_key=segment_key,
+        host=str(settings.segment_endpoint),
+        entitlement_id=settings.entitlement_id,
+    )
+    return True
+
+
+def flush_telemetry() -> None:
+    """Flush pending telemetry events.
+
+    Should be called during shutdown to ensure all events are sent.
+    """
+    registry = get_telemetry_registry()
+    if registry.is_initialized():
+        registry.flush()

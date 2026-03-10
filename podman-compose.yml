@@ -103,6 +103,7 @@ services:
       - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
       - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
       - NEXUS_SEGMENT_WRITE_KEY=${NEXUS_SEGMENT_WRITE_KEY}
+      - NEXUS_ENTITLEMENT_ID=${NEXUS_ENTITLEMENT_ID}
     volumes:
       - ./src:/opt/app-root/src/src:z
     depends_on:

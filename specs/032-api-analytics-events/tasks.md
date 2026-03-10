@@ -23,8 +23,8 @@
 
 **Purpose**: Create the directory structure and module scaffolding required by all user stories
 
-- [ ] T001 Create telemetry events package directory with `src/nexus/telemetry/__init__.py` and `src/nexus/telemetry/events/__init__.py`
-- [ ] T002 [P] Create test directory structure with `tests/unit/telemetry/__init__.py` and `tests/integration/telemetry/__init__.py`
+- [X] T001 Create telemetry events package directory with `src/nexus/telemetry/__init__.py` and `src/nexus/telemetry/events/__init__.py`
+- [X] T002 [P] Create test directory structure with `tests/unit/telemetry/__init__.py` and `tests/integration/telemetry/__init__.py`
 
 ---
 
@@ -34,8 +34,8 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Implement `APICallEvent` Pydantic model in `src/nexus/telemetry/events/api_call.py` with all 5 fields (endpoint, http_method, status_code, response_time_ms, request_payload_size), frozen config, Field validators, and `to_segment_properties()` method per data-model.md
-- [ ] T004 Define `EXCLUDED_PATHS` constant (`{"/health", "/", "/docs", "/redoc", "/openapi.json"}`) in `src/nexus/telemetry/middleware.py` (file created with constant only; middleware class added in US1)
+- [X] T003 Implement `APICallEvent` Pydantic model in `src/nexus/telemetry/events/api_call.py` with all 5 fields (endpoint, http_method, status_code, response_time_ms, request_payload_size), frozen config, Field validators, and `to_segment_properties()` method per data-model.md
+- [X] T004 Define `EXCLUDED_PATHS` constant (`{"/health", "/", "/docs", "/redoc", "/openapi.json"}`) in `src/nexus/telemetry/middleware.py` (file created with constant only; middleware class added in US1)
 
 **Checkpoint**: Foundation ready — event model importable and tested, excluded paths defined
 
@@ -51,15 +51,15 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T005 [P] [US1] Unit tests for `APICallEvent` model validation (valid construction, field constraints, frozen immutability, to_segment_properties output) in `tests/unit/telemetry/test_api_call_event.py`
-- [ ] T006 [P] [US1] Unit tests for `AnalyticsMiddleware` (event emission on normal request, status code capture from `http.response.start`, response time measurement via `time.monotonic`, request payload size from content-length header, excluded path skipping) in `tests/unit/telemetry/test_analytics_middleware.py`
-- [ ] T007 [P] [US1] Integration test for end-to-end middleware behavior with a real FastAPI test app: make requests, verify events emitted with correct fields, verify excluded paths produce no events, in `tests/integration/telemetry/test_api_analytics.py`
+- [X] T005 [P] [US1] Unit tests for `APICallEvent` model validation (valid construction, field constraints, frozen immutability, to_segment_properties output) in `tests/unit/telemetry/test_api_call_event.py`
+- [X] T006 [P] [US1] Unit tests for `AnalyticsMiddleware` (event emission on normal request, status code capture from `http.response.start`, response time measurement via `time.monotonic`, request payload size from content-length header, excluded path skipping) in `tests/unit/telemetry/test_analytics_middleware.py`
+- [X] T007 [P] [US1] Integration test for end-to-end middleware behavior with a real FastAPI test app: make requests, verify events emitted with correct fields, verify excluded paths produce no events, in `tests/integration/telemetry/test_api_analytics.py`
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Implement `AnalyticsMiddleware` ASGI middleware class in `src/nexus/telemetry/middleware.py`: constructor accepts `ASGIApp` and `AnalyticsClient`, `__call__` checks excluded paths, records `time.monotonic()` start, wraps `send` to capture status code from `http.response.start`, computes duration, reads content-length header, builds `APICallEvent`, calls `AnalyticsClient.track()` fire-and-forget after response
-- [ ] T009 [US1] Register `AnalyticsMiddleware` in `src/nexus/api/main.py` via `app.add_middleware()` after CORS middleware registration, passing the `AnalyticsClient` instance
-- [ ] T010 [US1] Add structlog logging in `src/nexus/telemetry/middleware.py`: debug log on successful event emission (`analytics_event_sent`), warning log on event emission failure (`analytics_event_failed`)
+- [X] T008 [US1] Implement `AnalyticsMiddleware` ASGI middleware class in `src/nexus/telemetry/middleware.py`: constructor accepts `ASGIApp` and `AnalyticsClient`, `__call__` checks excluded paths, records `time.monotonic()` start, wraps `send` to capture status code from `http.response.start`, computes duration, reads content-length header, builds `APICallEvent`, calls `AnalyticsClient.track()` fire-and-forget after response
+- [X] T009 [US1] Register `AnalyticsMiddleware` in `src/nexus/api/main.py` via `app.add_middleware()` after CORS middleware registration, passing the `AnalyticsClient` instance
+- [X] T010 [US1] Add structlog logging in `src/nexus/telemetry/middleware.py`: debug log on successful event emission (`analytics_event_sent`), warning log on event emission failure (`analytics_event_failed`)
 
 **Checkpoint**: At this point, every API request (except excluded paths) generates a complete analytics event. User Story 1 is fully functional and testable independently.
 
@@ -75,12 +75,12 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T011 [P] [US2] Privacy unit tests in `tests/unit/telemetry/test_analytics_middleware.py`: verify events from requests with Authorization headers, query parameters, and JSON bodies contain only the 5 allowed fields (endpoint, http_method, status_code, response_time_ms, request_payload_size) and no header values, body content, or query parameter values
-- [ ] T012 [P] [US2] Privacy integration test in `tests/integration/telemetry/test_api_analytics.py`: end-to-end verification that requests with sensitive data produce events with only safe metadata
+- [X] T011 [P] [US2] Privacy unit tests in `tests/unit/telemetry/test_analytics_middleware.py`: verify events from requests with Authorization headers, query parameters, and JSON bodies contain only the 5 allowed fields (endpoint, http_method, status_code, response_time_ms, request_payload_size) and no header values, body content, or query parameter values
+- [X] T012 [P] [US2] Privacy integration test in `tests/integration/telemetry/test_api_analytics.py`: end-to-end verification that requests with sensitive data produce events with only safe metadata
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Verify and enforce in `src/nexus/telemetry/middleware.py` that `scope["query_string"]` is never read, request body is never consumed, and only `scope["path"]`, `scope["method"]`, content-length header, and intercepted status code are used — add code comments documenting the privacy boundary
+- [X] T013 [US2] Verify and enforce in `src/nexus/telemetry/middleware.py` that `scope["query_string"]` is never read, request body is never consumed, and only `scope["path"]`, `scope["method"]`, content-length header, and intercepted status code are used — add code comments documenting the privacy boundary
 
 **Checkpoint**: Privacy guarantees verified. Events never leak sensitive data regardless of request content.
 
@@ -96,12 +96,12 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T014 [P] [US3] Unit tests for fire-and-forget behavior in `tests/unit/telemetry/test_analytics_middleware.py`: verify that when `AnalyticsClient.track()` raises an exception, the API response is unaffected and the failure is logged as a warning
-- [ ] T015 [P] [US3] Integration test for error resilience in `tests/integration/telemetry/test_api_analytics.py`: use a failing mock AnalyticsClient, make API requests, assert responses are normal (correct status codes, normal response times)
+- [X] T014 [P] [US3] Unit tests for fire-and-forget behavior in `tests/unit/telemetry/test_analytics_middleware.py`: verify that when `AnalyticsClient.track()` raises an exception, the API response is unaffected and the failure is logged as a warning
+- [X] T015 [P] [US3] Integration test for error resilience in `tests/integration/telemetry/test_api_analytics.py`: use a failing mock AnalyticsClient, make API requests, assert responses are normal (correct status codes, normal response times)
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Wrap `AnalyticsClient.track()` call in `src/nexus/telemetry/middleware.py` with try/except that catches all exceptions, logs the failure via structlog warning (`analytics_event_failed`), and never re-raises — ensuring FR-004 (no API impact) and FR-007 (log failures)
+- [X] T016 [US3] Wrap `AnalyticsClient.track()` call in `src/nexus/telemetry/middleware.py` with try/except that catches all exceptions, logs the failure via structlog warning (`analytics_event_failed`), and never re-raises — ensuring FR-004 (no API impact) and FR-007 (log failures)
 
 **Checkpoint**: All user stories are independently functional. Analytics events are collected, privacy-safe, and transmitted with zero API impact.
 
@@ -111,10 +111,10 @@
 
 **Purpose**: Quality checks and validation across all user stories
 
-- [ ] T017 Run `make format` and `make lint` to verify code formatting and linting pass for all new files
-- [ ] T018 Run `make typecheck` to verify mypy strict mode passes for all new files in `src/nexus/telemetry/`
-- [ ] T019 Run `make test-all` to verify all existing and new tests pass
-- [ ] T020 Run quickstart.md validation scenarios (Scenarios 1-7) against the running dev server
+- [X] T017 Run `make format` and `make lint` to verify code formatting and linting pass for all new files
+- [X] T018 Run `make typecheck` to verify mypy strict mode passes for all new files in `src/nexus/telemetry/`
+- [X] T019 Run `make test-all` to verify all existing and new tests pass
+- [X] T020 Run quickstart.md validation scenarios (Scenarios 1-7) against the running dev server
 
 ---
 

@@ -39,6 +39,7 @@ class ActivityExecutionEvent(BaseTelemetryEvent):
 
     """
 
+    workflow_execution_id: str = Field(description="Unique workflow execution identifier (UUID v4)")
     activity_type: ActivityType
     activity_hash: str = Field(description="SHA-256 hash of activity definition")
     status: ActivityTerminalStatus

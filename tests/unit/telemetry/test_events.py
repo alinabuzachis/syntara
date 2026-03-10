@@ -44,6 +44,30 @@ class TestBaseTelemetryEventName:
 
         assert SomeActionEvent._get_event_name() == "some_action"
 
+    def test_get_event_name_handles_acronyms(self):
+        """Test that consecutive uppercase letters (acronyms) are kept together."""
+
+        class APICallEvent(BaseTelemetryEvent):
+            pass
+
+        assert APICallEvent._get_event_name() == "api_call"
+
+    def test_get_event_name_handles_acronym_at_end(self):
+        """Test acronym at the end of the class name."""
+
+        class CallAPIEvent(BaseTelemetryEvent):
+            pass
+
+        assert CallAPIEvent._get_event_name() == "call_api"
+
+    def test_get_event_name_handles_acronym_before_regular_word(self):
+        """Test acronym followed by a regular CamelCase word."""
+
+        class HTMLParserEvent(BaseTelemetryEvent):
+            pass
+
+        assert HTMLParserEvent._get_event_name() == "html_parser"
+
 
 # =============================================================================
 # WorkflowExecutionStartEvent Tests (T019-TEST)

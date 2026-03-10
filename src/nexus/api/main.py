@@ -35,6 +35,8 @@ from nexus.core.logging.logging import configure_structlog
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
+from nexus.telemetry.client import get_telemetry_registry, initialize_telemetry
+from nexus.telemetry.middleware import AnalyticsMiddleware
 from nexus.workflows.error_handlers import (
     temporal_rpc_error_handler,
 )
@@ -128,6 +130,11 @@ app.add_middleware(
     allow_methods=_cors_settings.cors_allow_methods,
     allow_headers=_cors_settings.cors_allow_headers,
 )
+
+# Register analytics middleware (outermost = first to execute).
+# Added after CORS so it wraps the entire request lifecycle.
+initialize_telemetry()
+app.add_middleware(AnalyticsMiddleware, registry=get_telemetry_registry())
 
 # RFC 9457 compliant error handlers
 # Register decorated exceptions automatically

@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import structlog
 
-from nexus.core.config.base import get_settings
 from nexus.telemetry.client import get_telemetry_registry
 from nexus.telemetry.collector import _TERMINAL_STATUSES, TelemetryCollector
 from nexus.workflows.models.activity_execution import ActivityStatus
@@ -26,39 +25,6 @@ if TYPE_CHECKING:
     from nexus.workflows.models.execution import Execution
 
 logger = structlog.stdlib.get_logger(__name__)
-
-
-def initialize_telemetry() -> bool:
-    """Initialize telemetry client for workflow telemetry.
-
-    Returns:
-        True if telemetry was initialized, False if disabled (no write key).
-
-    """
-    settings = get_settings()
-    segment_key = settings.segment_write_key.get_secret_value()
-    if not segment_key:
-        logger.info("Telemetry disabled: no Segment write key configured")
-        return False
-
-    registry = get_telemetry_registry()
-    registry.initialize(
-        write_key=segment_key,
-        host=str(settings.segment_endpoint),
-        entitlement_id=settings.entitlement_id,
-    )
-    logger.info("Telemetry client initialized for workflow telemetry")
-    return True
-
-
-def flush_telemetry() -> None:
-    """Flush pending telemetry events.
-
-    Should be called during shutdown to ensure all events are sent.
-    """
-    registry = get_telemetry_registry()
-    if registry.is_initialized():
-        registry.flush()
 
 
 def emit_workflow_start(execution: Execution) -> None:

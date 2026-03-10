@@ -22,6 +22,8 @@ class WorkflowExecutionStartEvent(BaseTelemetryEvent):
 
     """
 
+    workflow_execution_id: str = Field(description="Unique workflow execution identifier (UUID v4)")
+
 
 class WorkflowExecutionCompletedEvent(BaseTelemetryEvent):
     """Telemetry event emitted when workflow execution finishes.
@@ -36,6 +38,7 @@ class WorkflowExecutionCompletedEvent(BaseTelemetryEvent):
 
     """
 
+    workflow_execution_id: str = Field(description="Unique workflow execution identifier (UUID v4)")
     status: WorkflowTerminalStatus
     duration_ms: int = Field(ge=0, description="Duration in milliseconds")
     activity_count: int = Field(ge=0, description="Total number of activities executed")

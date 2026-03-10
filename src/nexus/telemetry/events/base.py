@@ -5,7 +5,7 @@ Provides the abstract base for all telemetry events transmitted to Segment.com.
 
 import re
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import SQLModel
 
 
 class BaseTelemetryEvent(SQLModel):
@@ -17,14 +17,9 @@ class BaseTelemetryEvent(SQLModel):
     The event name is derived from the class name by converting CamelCase to
     snake_case and removing the "Event" suffix.
 
-    Attributes:
-        workflow_execution_id: Unique workflow execution identifier (UUID v4 format).
-
     """
 
     model_config = {"frozen": True}
-
-    workflow_execution_id: str = Field(description="Unique workflow execution identifier (UUID v4)")
 
     @classmethod
     def _get_event_name(cls) -> str:
@@ -38,7 +33,9 @@ class BaseTelemetryEvent(SQLModel):
 
         """
         name = cls.__name__.removesuffix("Event")
-        return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+        name = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+        name = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
+        return name.lower()
 
     def to_segment_event(self) -> dict[str, object]:
         """Convert to Segment Track API format.

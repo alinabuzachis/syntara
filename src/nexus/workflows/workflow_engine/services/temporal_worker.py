@@ -14,7 +14,7 @@ from temporalio.worker import Worker
 
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
-from nexus.telemetry.events.workflow_emitters import flush_telemetry, initialize_telemetry
+from nexus.telemetry.client import flush_telemetry, initialize_telemetry
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
     execute_aap_job_template_activity,

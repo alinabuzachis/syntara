@@ -11,13 +11,8 @@
       "type": "string"
     }
   },
-  "description": "Telemetry event emitted when workflow execution finishes.\n\nAttributes:\n    entitlement_id: Unique Nexus installation identifier.\n    workflow_execution_id: Unique workflow execution identifier (UUID v4 format).\n    status: Final execution status.\n    duration_ms: Duration in milliseconds.\n    activity_count: Total number of activities executed.\n    error_count: Number of activities that failed.\n    error_type: Categorized error type if workflow failed, null otherwise.",
+  "description": "Telemetry event emitted when workflow execution finishes.\n\nAttributes:\n    workflow_execution_id: Unique workflow execution identifier (UUID v4 format).\n    status: Final execution status.\n    duration_ms: Duration in milliseconds.\n    activity_count: Total number of activities executed.\n    error_count: Number of activities that failed.\n    error_type: Categorized error type if workflow failed, null otherwise.",
   "properties": {
-    "entitlement_id": {
-      "description": "Unique Nexus installation identifier",
-      "title": "Entitlement Id",
-      "type": "string"
-    },
     "workflow_execution_id": {
       "description": "Unique workflow execution identifier (UUID v4)",
       "title": "Workflow Execution Id",
@@ -60,7 +55,6 @@
     }
   },
   "required": [
-    "entitlement_id",
     "workflow_execution_id",
     "status",
     "duration_ms",
