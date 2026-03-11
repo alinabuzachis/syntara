@@ -42,7 +42,7 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       'react-hooks/exhaustive-deps': 'error',
       ...jsxA11y.configs.recommended.rules,
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }],
       '@typescript-eslint/no-explicit-any': 'error',

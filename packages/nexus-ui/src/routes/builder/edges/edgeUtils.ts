@@ -71,3 +71,33 @@ export function adjustEdgeCoordinates(options: AdjustEdgeOptions): {
     targetY,
   }
 }
+
+/**
+ * Computes the target position of a stub edge from the source position and direction.
+ */
+export function calculateStubTarget(
+  sourceX: number,
+  sourceY: number,
+  sourcePosition: Position,
+  stubLength: number
+): { targetX: number; targetY: number } {
+  let targetX = sourceX
+  let targetY = sourceY
+  switch (sourcePosition) {
+    case Position.Right:
+      targetX = sourceX + stubLength
+      break
+    case Position.Left:
+      targetX = sourceX - stubLength
+      break
+    case Position.Bottom:
+      targetY = sourceY + stubLength
+      break
+    case Position.Top:
+      targetY = sourceY - stubLength
+      break
+    default:
+      targetX = sourceX + stubLength
+  }
+  return { targetX, targetY }
+}

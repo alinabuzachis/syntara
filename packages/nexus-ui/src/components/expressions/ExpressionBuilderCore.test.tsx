@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createDefaultCondition, createDefaultGroup } from '../../utils/expressions/defaults'
 
-import { ExpressionBuilderCore, prepareRootNode } from './ExpressionBuilderCore'
+import { ExpressionBuilderCore } from './ExpressionBuilderCore'
+import { prepareRootNode } from './prepareRootNode'
 
 describe('prepareRootNode', () => {
   it('wraps a condition node in a group', () => {

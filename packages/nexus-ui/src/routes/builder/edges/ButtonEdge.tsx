@@ -1,44 +1,14 @@
 import { Icon } from '@patternfly/react-core'
 import { RhUiAddSquareIcon } from '@patternfly/react-icons'
-import { BaseEdge, EdgeLabelRenderer, Position, useReactFlow } from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, useReactFlow } from '@xyflow/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { setPendingDragHandle } from '../utils/pendingDragHandle'
 
-import { adjustSourceCoordinates } from './edgeUtils'
+import { adjustSourceCoordinates, calculateStubTarget } from './edgeUtils'
 import type { ButtonEdgeProps } from './types'
 
 const STUB_LENGTH = 50
-
-/**
- * Computes the target position of a stub edge from the source position and direction.
- */
-export function calculateStubTarget(
-  sourceX: number,
-  sourceY: number,
-  sourcePosition: Position,
-  stubLength: number
-): { targetX: number; targetY: number } {
-  let targetX = sourceX
-  let targetY = sourceY
-  switch (sourcePosition) {
-    case Position.Right:
-      targetX = sourceX + stubLength
-      break
-    case Position.Left:
-      targetX = sourceX - stubLength
-      break
-    case Position.Bottom:
-      targetY = sourceY + stubLength
-      break
-    case Position.Top:
-      targetY = sourceY - stubLength
-      break
-    default:
-      targetX = sourceX + stubLength
-  }
-  return { targetX, targetY }
-}
 
 function useButtonEdgeDragHandler(params: { id: string; source: string; sourceX: number; sourceY: number }) {
   const reactFlowInstance = useReactFlow()

@@ -1,8 +1,15 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 
-import { FileUpload, computeUploadStatusProps, type UploadedFile } from './FileUpload'
+import { FileUpload } from './FileUpload'
+import {
+  computeUploadStatusProps,
+  createDropRejectedHandler,
+  formatAcceptedTypesForDisplay,
+  type FileRejection,
+  type UploadedFile,
+} from './fileUploadUtils'
 
 describe('computeUploadStatusProps', () => {
   const createFile = (name: string): File => new File(['x'], name, { type: 'image/png' })
@@ -301,5 +308,152 @@ describe('FileUpload', () => {
       render(<FileUpload files={files} />)
       expect(screen.getByText('0/2 files uploaded')).toBeInTheDocument()
     })
+  })
+})
+
+describe('formatAcceptedTypesForDisplay', () => {
+  it('returns null for undefined or empty array', () => {
+    expect(formatAcceptedTypesForDisplay(undefined)).toBeNull()
+    expect(formatAcceptedTypesForDisplay([])).toBeNull()
+  })
+
+  it('formats file extensions', () => {
+    expect(formatAcceptedTypesForDisplay(['.pdf', '.docx'])).toBe('PDF, DOCX')
+  })
+
+  it('formats wildcard mime types', () => {
+    expect(formatAcceptedTypesForDisplay(['image/*', 'video/*'])).toBe('image, video')
+  })
+
+  it('formats specific mime types', () => {
+    expect(formatAcceptedTypesForDisplay(['application/json'])).toBe('JSON')
+  })
+
+  it('handles mime types without subtype', () => {
+    expect(formatAcceptedTypesForDisplay(['text/plain'])).toBe('PLAIN')
+  })
+})
+
+describe('createDropRejectedHandler', () => {
+  const setErrorMessage = vi.fn()
+
+  beforeEach(() => {
+    setErrorMessage.mockClear()
+  })
+
+  it('does nothing for empty rejections', () => {
+    const handler = createDropRejectedHandler({
+      setErrorMessage,
+      effectiveMaxSizeBytes: undefined,
+      acceptedMimeTypes: undefined,
+      maxFiles: undefined,
+    })
+    handler([])
+    expect(setErrorMessage).not.toHaveBeenCalled()
+  })
+
+  it('handles file-too-large error', () => {
+    const handler = createDropRejectedHandler({
+      setErrorMessage,
+      effectiveMaxSizeBytes: 5 * 1024 * 1024,
+      acceptedMimeTypes: undefined,
+      maxFiles: undefined,
+    })
+    const rejection: FileRejection = {
+      file: new File([''], 'big.pdf'),
+      errors: [{ code: 'file-too-large', message: 'File is too large' }],
+    }
+    handler([rejection])
+    expect(setErrorMessage).toHaveBeenCalledWith('"big.pdf" exceeds 5.0MB limit')
+  })
+
+  it('handles file-too-large without known max size', () => {
+    const handler = createDropRejectedHandler({
+      setErrorMessage,
+      effectiveMaxSizeBytes: undefined,
+      acceptedMimeTypes: undefined,
+      maxFiles: undefined,
+    })
+    const rejection: FileRejection = {
+      file: new File([''], 'big.pdf'),
+      errors: [{ code: 'file-too-large', message: 'File is too large' }],
+    }
+    handler([rejection])
+    expect(setErrorMessage).toHaveBeenCalledWith('"big.pdf" exceeds ?MB limit')
+  })
+
+  it('handles file-invalid-type error with accepted types', () => {
+    const handler = createDropRejectedHandler({
+      setErrorMessage,
+      effectiveMaxSizeBytes: undefined,
+      acceptedMimeTypes: ['.pdf', '.docx'],
+      maxFiles: undefined,
+    })
+    const rejection: FileRejection = {
+      file: new File([''], 'bad.exe'),
+      errors: [{ code: 'file-invalid-type', message: 'Invalid type' }],
+    }
+    handler([rejection])
+    expect(setErrorMessage).toHaveBeenCalledWith('Only PDF, DOCX files are allowed')
+  })
+
+  it('handles file-invalid-type error without accepted types', () => {
+    const handler = createDropRejectedHandler({
+      setErrorMessage,
+      effectiveMaxSizeBytes: undefined,
+      acceptedMimeTypes: undefined,
+      maxFiles: undefined,
+    })
+    const rejection: FileRejection = {
+      file: new File([''], 'bad.exe'),
+      errors: [{ code: 'file-invalid-type', message: 'Invalid type' }],
+    }
+    handler([rejection])
+    expect(setErrorMessage).toHaveBeenCalledWith('Only accepted types files are allowed')
+  })
+
+  it('handles too-many-files error with plural', () => {
+    const handler = createDropRejectedHandler({
+      setErrorMessage,
+      effectiveMaxSizeBytes: undefined,
+      acceptedMimeTypes: undefined,
+      maxFiles: 3,
+    })
+    const rejection: FileRejection = {
+      file: new File([''], 'extra.txt'),
+      errors: [{ code: 'too-many-files', message: 'Too many' }],
+    }
+    handler([rejection])
+    expect(setErrorMessage).toHaveBeenCalledWith('Only 3 files allowed')
+  })
+
+  it('handles too-many-files error with singular', () => {
+    const handler = createDropRejectedHandler({
+      setErrorMessage,
+      effectiveMaxSizeBytes: undefined,
+      acceptedMimeTypes: undefined,
+      maxFiles: 1,
+    })
+    const rejection: FileRejection = {
+      file: new File([''], 'extra.txt'),
+      errors: [{ code: 'too-many-files', message: 'Too many' }],
+    }
+    handler([rejection])
+    expect(setErrorMessage).toHaveBeenCalledWith('Only 1 file allowed')
+  })
+
+  it('handles unknown error codes with default message', () => {
+    const handler = createDropRejectedHandler({
+      setErrorMessage,
+      effectiveMaxSizeBytes: undefined,
+      acceptedMimeTypes: undefined,
+      maxFiles: undefined,
+    })
+    const rejection: FileRejection = {
+      file: new File([''], 'bad.txt'),
+      errors: [{ code: 'unknown-error', message: 'Something went wrong' }],
+    }
+    handler([rejection])
+    expect(setErrorMessage).toHaveBeenCalledWith('Something went wrong')
   })
 })

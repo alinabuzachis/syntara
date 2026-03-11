@@ -10,6 +10,7 @@ import './index.css'
 // Register all workflow node types before app initialization
 registerAllNodes()
 
+// eslint-disable-next-line react-refresh/only-export-components -- entry point, not a component module
 const App = lazy(() => import('./app/App.js'))
 
 createRoot(document.getElementById('root')!).render(

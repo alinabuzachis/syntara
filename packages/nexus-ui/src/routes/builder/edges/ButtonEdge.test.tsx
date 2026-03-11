@@ -3,7 +3,8 @@ import { Position } from '@xyflow/react'
 import type React from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
-import { ButtonEdge, calculateStubTarget } from './ButtonEdge'
+import { ButtonEdge } from './ButtonEdge'
+import { calculateStubTarget } from './edgeUtils'
 
 // Mock @xyflow/react
 const mockGetEdge = vi.fn()
@@ -26,9 +27,13 @@ vi.mock('@xyflow/react', async (importOriginal) => {
   }
 })
 
-vi.mock('./edgeUtils', () => ({
-  adjustSourceCoordinates: (x: number, y: number) => ({ x, y }),
-}))
+vi.mock('./edgeUtils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./edgeUtils')>()
+  return {
+    ...actual,
+    adjustSourceCoordinates: (x: number, y: number) => ({ x, y }),
+  }
+})
 
 const mockSetPendingDragHandle = vi.fn()
 vi.mock('../utils/pendingDragHandle', () => ({
