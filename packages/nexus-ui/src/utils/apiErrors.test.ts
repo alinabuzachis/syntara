@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getErrorCode,
   getErrorMessage,
+  getErrorStatus,
   getErrorTitle,
   getValidationFieldErrors,
   isAdminConfigurationError,
@@ -13,6 +14,41 @@ import {
 } from './apiErrors'
 
 describe('apiErrors', () => {
+  describe('getErrorStatus', () => {
+    it('extracts status from direct status field', () => {
+      expect(getErrorStatus({ status: 404 })).toBe(404)
+    })
+
+    it('extracts status from statusCode field', () => {
+      expect(getErrorStatus({ statusCode: 422 })).toBe(422)
+    })
+
+    it('extracts status from response.status (openapi-fetch)', () => {
+      expect(getErrorStatus({ response: { status: 503 } })).toBe(503)
+    })
+
+    it('extracts status from cause wrapper', () => {
+      expect(getErrorStatus({ cause: { status: 500 } })).toBe(500)
+      expect(getErrorStatus({ cause: { statusCode: 502 } })).toBe(502)
+    })
+
+    it('extracts status from data wrapper', () => {
+      expect(getErrorStatus({ data: { status: 401 } })).toBe(401)
+      expect(getErrorStatus({ data: { statusCode: 403 } })).toBe(403)
+    })
+
+    it('returns undefined for non-objects', () => {
+      expect(getErrorStatus(null)).toBeUndefined()
+      expect(getErrorStatus(undefined)).toBeUndefined()
+      expect(getErrorStatus('string')).toBeUndefined()
+      expect(getErrorStatus(123)).toBeUndefined()
+    })
+
+    it('returns undefined when no status found', () => {
+      expect(getErrorStatus({ detail: 'no status here' })).toBeUndefined()
+    })
+  })
+
   describe('isServiceUnavailableError', () => {
     it('returns true for status 503', () => {
       expect(isServiceUnavailableError({ status: 503 })).toBe(true)
@@ -120,6 +156,46 @@ describe('apiErrors', () => {
       // Should return fallback without infinite loop
       expect(getErrorMessage(circular)).toBe('An unexpected error occurred')
     })
+
+    it('extracts message from native Error instances', () => {
+      expect(getErrorMessage(new Error('Native error message'))).toBe('Native error message')
+    })
+
+    it('extracts message from data wrapper (WebSocket format)', () => {
+      expect(getErrorMessage({ data: { detail: 'WS error detail' } })).toBe('WS error detail')
+    })
+
+    it('extracts message from validation items with message field', () => {
+      expect(getErrorMessage({ detail: [{ message: 'field is invalid' }] })).toBe('field is invalid')
+    })
+
+    it('extracts message from validation items with detail field', () => {
+      expect(getErrorMessage({ detail: [{ detail: 'item detail' }] })).toBe('item detail')
+    })
+
+    it('truncates many validation errors with count', () => {
+      const manyErrors = {
+        detail: [{ msg: 'Error 1' }, { msg: 'Error 2' }, { msg: 'Error 3' }, { msg: 'Error 4' }, { msg: 'Error 5' }],
+      }
+      expect(getErrorMessage(manyErrors)).toBe('Error 1; Error 2; Error 3 (+2 more)')
+    })
+
+    it('skips non-object and null items in validation detail array', () => {
+      expect(getErrorMessage({ detail: [null, 42, 'text', { msg: 'valid' }] })).toBe('text; valid')
+    })
+
+    it('drops non-string/number loc parts', () => {
+      const error = { detail: [{ loc: ['body', null, 'field'], msg: 'required' }] }
+      expect(getErrorMessage(error)).toBe('field: required')
+    })
+
+    it('returns fallback for empty validation detail array', () => {
+      expect(getErrorMessage({ detail: [] })).toBe('An unexpected error occurred')
+    })
+
+    it('returns fallback for validation items without extractable message', () => {
+      expect(getErrorMessage({ detail: [{ loc: ['body', 'name'] }] })).toBe('An unexpected error occurred')
+    })
   })
 
   describe('getValidationFieldErrors', () => {
@@ -177,6 +253,14 @@ describe('apiErrors', () => {
       expect(getErrorTitle({ title: 'Custom Title', code: 'VALIDATION_ERROR' })).toBe('Custom Title')
     })
 
+    it('extracts title from data wrapper', () => {
+      expect(getErrorTitle({ data: { title: 'Data Title' } })).toBe('Data Title')
+    })
+
+    it('extracts title from cause wrapper', () => {
+      expect(getErrorTitle({ cause: { title: 'Cause Title' } })).toBe('Cause Title')
+    })
+
     it('returns "Error" for unknown error codes', () => {
       expect(getErrorTitle({ code: 'UNKNOWN_CODE' })).toBe('Error')
       expect(getErrorTitle({ detail: 'No code' })).toBe('Error')
@@ -230,6 +314,12 @@ describe('apiErrors', () => {
     it('checks retryable in nested wrappers', () => {
       expect(isRetryableError({ data: { retryable: true } })).toBe(true)
       expect(isRetryableError({ cause: { retryable: false } })).toBe(false)
+    })
+
+    it('returns false for null/undefined/non-objects', () => {
+      expect(isRetryableError(null)).toBe(false)
+      expect(isRetryableError(undefined)).toBe(false)
+      expect(isRetryableError('string')).toBe(false)
     })
   })
 

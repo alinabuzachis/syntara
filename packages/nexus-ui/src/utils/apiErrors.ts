@@ -81,6 +81,12 @@ export interface ApiValidationFieldError {
  * @param error - The error object to extract status from
  * @returns HTTP status code if available
  */
+function extractNumericStatus(obj: Record<string, unknown>): number | undefined {
+  if (typeof obj.status === 'number') return obj.status
+  if (typeof obj.statusCode === 'number') return obj.statusCode
+  return undefined
+}
+
 export function getErrorStatus(error: unknown): number | undefined {
   if (!error || typeof error !== 'object') {
     return undefined
@@ -88,40 +94,25 @@ export function getErrorStatus(error: unknown): number | undefined {
 
   const err = error as ApiError
 
-  if (typeof err.status === 'number') {
-    return err.status
-  }
-  if (typeof err.statusCode === 'number') {
-    return err.statusCode
-  }
+  const direct = extractNumericStatus(err as unknown as Record<string, unknown>)
+  if (direct !== undefined) return direct
 
   // openapi-fetch/openapi-react-query stores status in response.status
   if (err.response && typeof err.response === 'object') {
-    const response = err.response as { status?: number }
-    if (typeof response.status === 'number') {
-      return response.status
-    }
+    const responseStatus = extractNumericStatus(err.response as Record<string, unknown>)
+    if (responseStatus !== undefined) return responseStatus
   }
 
+  // openapi-fetch nested cause wrapper
   if (err.cause && typeof err.cause === 'object') {
-    const cause = err.cause as { status?: number; statusCode?: number }
-    if (typeof cause.status === 'number') {
-      return cause.status
-    }
-    if (typeof cause.statusCode === 'number') {
-      return cause.statusCode
-    }
+    const causeStatus = extractNumericStatus(err.cause as Record<string, unknown>)
+    if (causeStatus !== undefined) return causeStatus
   }
 
   // Some wrappers store the response body under `data` (which may include status fields)
   if (err.data && typeof err.data === 'object') {
-    const data = err.data as { status?: number; statusCode?: number }
-    if (typeof data.status === 'number') {
-      return data.status
-    }
-    if (typeof data.statusCode === 'number') {
-      return data.statusCode
-    }
+    const dataStatus = extractNumericStatus(err.data as Record<string, unknown>)
+    if (dataStatus !== undefined) return dataStatus
   }
 
   return undefined
@@ -198,91 +189,96 @@ export function getErrorMessage(error: unknown): string {
     return error.message
   }
 
-  // Track visited objects to prevent infinite recursion from circular references
-  const visited = new WeakSet<object>()
+  return extractErrorMessage(error, fallback, new WeakSet<object>())
+}
 
-  const extractMessage = (value: unknown): string => {
-    if (!value) return fallback
-    if (typeof value === 'string') return value
-    if (typeof value !== 'object') return fallback
-    if (value instanceof Error && typeof value.message === 'string' && value.message) return value.message
+/** Extracts the first non-empty string message from an object's msg/message/detail fields. */
+function extractItemMessage(item: { msg?: unknown; message?: unknown; detail?: unknown }): string | null {
+  return (
+    (typeof item.msg === 'string' && item.msg) ||
+    (typeof item.message === 'string' && item.message) ||
+    (typeof item.detail === 'string' && item.detail) ||
+    null
+  )
+}
 
-    // Prevent circular reference infinite loops
-    if (visited.has(value)) return fallback
-    visited.add(value)
+const LOC_CONTEXT_TOKENS = new Set(['body', 'query', 'path', 'header'])
 
-    const err = value as ApiError
+/** Parses FastAPI `loc` array into a dot-separated field path, stripping common context tokens. */
+function parseLocPath(loc: unknown[]): string | null {
+  const parts = loc
+    .map((p) => (typeof p === 'string' || typeof p === 'number' ? String(p) : null))
+    .filter((p): p is string => !!p)
+    .filter((p) => !LOC_CONTEXT_TOKENS.has(p))
+  return parts.length > 0 ? parts.join('.') : null
+}
 
-    // Check data wrapper first (WS error events: { event_type, data: { title, detail, ... } })
-    if (err.data) {
-      const dataMessage = extractMessage(err.data)
-      if (dataMessage !== fallback) {
-        return dataMessage
-      }
-    }
+/** Formats a single FastAPI validation detail item into a displayable string. */
+function formatValidationItem(item: unknown): string | null {
+  if (!item) return null
+  if (typeof item === 'string') return item
+  if (typeof item !== 'object') return null
 
-    // RFC 9457 detail (string)
-    if (typeof err.detail === 'string' && err.detail) {
-      return err.detail
-    }
+  const it = item as { msg?: unknown; message?: unknown; detail?: unknown; loc?: unknown }
+  const message = extractItemMessage(it)
+  if (!message) return null
 
-    // FastAPI validation errors: detail array [{ msg, loc, ... }, ...]
-    if (Array.isArray(err.detail)) {
-      const msgs = err.detail
-        .map((item) => {
-          if (!item) return null
-          if (typeof item === 'string') return item
-          if (typeof item !== 'object') return null
-          const it = item as { msg?: unknown; message?: unknown; detail?: unknown; loc?: unknown }
-
-          const message =
-            (typeof it.msg === 'string' && it.msg) ||
-            (typeof it.message === 'string' && it.message) ||
-            (typeof it.detail === 'string' && it.detail) ||
-            null
-
-          if (!message) return null
-
-          // Include field path if present
-          if (Array.isArray(it.loc) && it.loc.length > 0) {
-            const locParts = it.loc
-              .map((p) => (typeof p === 'string' || typeof p === 'number' ? String(p) : null))
-              .filter((p): p is string => !!p)
-              // Drop common leading context tokens
-              .filter((p) => p !== 'body' && p !== 'query' && p !== 'path' && p !== 'header')
-
-            if (locParts.length > 0) {
-              const fieldPath = locParts.join('.')
-              return `${fieldPath}: ${message}`
-            }
-          }
-
-          return message
-        })
-        .filter((m): m is string => !!m)
-      if (msgs.length > 0) {
-        // Avoid massive alerts if there are many fields
-        return msgs.slice(0, 3).join('; ') + (msgs.length > 3 ? ` (+${msgs.length - 3} more)` : '')
-      }
-    }
-
-    // RFC 9457 title as fallback (if no detail found)
-    if (err.title && typeof err.title === 'string') {
-      return err.title
-    }
-
-    // openapi-fetch cause wrapper
-    if (err.cause && typeof err.cause === 'object') {
-      const causeMessage = extractMessage(err.cause)
-      if (causeMessage !== fallback) {
-        return causeMessage
-      }
-    }
-
-    return fallback
+  if (Array.isArray(it.loc) && it.loc.length > 0) {
+    const fieldPath = parseLocPath(it.loc)
+    if (fieldPath) return `${fieldPath}: ${message}`
   }
 
-  return extractMessage(error)
+  return message
+}
+
+/** Formats an array of FastAPI validation detail items into a summary string. */
+function formatValidationDetailArray(detail: unknown[]): string | null {
+  const msgs = detail.map(formatValidationItem).filter((m): m is string => !!m)
+  if (msgs.length === 0) return null
+  return msgs.slice(0, 3).join('; ') + (msgs.length > 3 ? ` (+${msgs.length - 3} more)` : '')
+}
+
+/** Extracts direct string fields from an error object (detail, message, title). */
+function extractDirectMessage(err: ApiError): string | null {
+  if (typeof err.detail === 'string' && err.detail) return err.detail
+  if (Array.isArray(err.detail)) {
+    const formatted = formatValidationDetailArray(err.detail)
+    if (formatted) return formatted
+  }
+  const msg = (err as unknown as Record<string, unknown>).message
+  if (typeof msg === 'string' && msg) return msg
+  if (typeof err.title === 'string' && err.title) return err.title
+  return null
+}
+
+/** Recursively unwraps nested error wrappers (data, cause) looking for a message. */
+function unwrapNestedMessage(err: ApiError, fallback: string, visited: WeakSet<object>): string | null {
+  if (err.data && typeof err.data === 'object') {
+    const dataMessage = extractErrorMessage(err.data, fallback, visited)
+    if (dataMessage !== fallback) return dataMessage
+  }
+  if (err.cause && typeof err.cause === 'object') {
+    const causeMessage = extractErrorMessage(err.cause, fallback, visited)
+    if (causeMessage !== fallback) return causeMessage
+  }
+  return null
+}
+
+function extractErrorMessage(value: unknown, fallback: string, visited: WeakSet<object>): string {
+  if (!value) return fallback
+  if (typeof value === 'string') return value
+  if (typeof value !== 'object') return fallback
+  if (value instanceof Error && typeof value.message === 'string' && value.message) return value.message
+
+  if (visited.has(value)) return fallback
+  visited.add(value)
+
+  const err = value as ApiError
+
+  const direct = extractDirectMessage(err)
+  if (direct) return direct
+
+  return unwrapNestedMessage(err, fallback, visited) ?? fallback
 }
 
 function extractValidationDetailArray(error: unknown): unknown[] | undefined {
@@ -360,24 +356,15 @@ export function getValidationFieldErrors(error: unknown): ApiValidationFieldErro
     if (!item || typeof item !== 'object') continue
 
     const it = item as { msg?: unknown; message?: unknown; detail?: unknown; loc?: unknown }
-    const message =
-      (typeof it.msg === 'string' && it.msg) ||
-      (typeof it.message === 'string' && it.message) ||
-      (typeof it.detail === 'string' && it.detail) ||
-      null
-
+    const message = extractItemMessage(it)
     if (!message) continue
 
     if (!Array.isArray(it.loc) || it.loc.length === 0) continue
 
-    const locParts = it.loc
-      .map((p) => (typeof p === 'string' || typeof p === 'number' ? String(p) : null))
-      .filter((p): p is string => !!p)
-      .filter((p) => p !== 'body' && p !== 'query' && p !== 'path' && p !== 'header')
+    const field = parseLocPath(it.loc)
+    if (!field) continue
 
-    if (locParts.length === 0) continue
-
-    out.push({ field: locParts.join('.'), message })
+    out.push({ field, message })
   }
 
   return out

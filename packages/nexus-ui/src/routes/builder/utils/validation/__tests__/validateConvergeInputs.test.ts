@@ -230,6 +230,65 @@ describe('validateConvergeInputs', () => {
     expect(result).toEqual([])
   })
 
+  it('handles cycles in graph without infinite loop', () => {
+    const activities: Activity[] = [
+      { type: 'condition', id: 'C1', name: 'Condition 1', condition: 'x > 10', then: [], else: [] },
+      {
+        type: 'task',
+        id: 'T1',
+        name: 'Task 1',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
+      {
+        type: 'task',
+        id: 'T2',
+        name: 'Task 2',
+        task: { executor: 'script', config: { language: 'python', code: '' } },
+      },
+      { type: 'converge', id: 'J1', name: 'Join 1', converge: { strategy: 'all', branches: [] } },
+    ]
+
+    const edges: EdgeConnection[] = [
+      { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'true', targetHandle: 'target' },
+      { id: 'T1-T2', source: 'T1', target: 'T2', sourceHandle: 'source', targetHandle: 'target' },
+      { id: 'T2-T1', source: 'T2', target: 'T1', sourceHandle: 'source', targetHandle: 'target' },
+      { id: 'T2-J1', source: 'T2', target: 'J1', sourceHandle: 'source', targetHandle: 'target' },
+    ]
+
+    const result = validateConvergeInputs(activities, edges)
+    expect(result).toEqual([])
+  })
+
+  it('ignores condition edges with non-true/false handles', () => {
+    const activities: Activity[] = [
+      { type: 'condition', id: 'C1', name: 'Condition 1', condition: 'x > 10', then: [], else: [] },
+      { type: 'converge', id: 'J1', name: 'Join 1', converge: { strategy: 'all', branches: [] } },
+    ]
+
+    const edges: EdgeConnection[] = [
+      { id: 'C1-J1', source: 'C1', target: 'J1', sourceHandle: 'source', targetHandle: 'target' },
+    ]
+
+    const result = validateConvergeInputs(activities, edges)
+    expect(result).toEqual([])
+  })
+
+  it('uses condition ID as name when name is missing', () => {
+    const activities: Activity[] = [
+      { type: 'condition', id: 'C1', condition: 'x > 10', then: [], else: [] } as Activity,
+      { type: 'converge', id: 'J1', converge: { strategy: 'all', branches: [] } } as Activity,
+    ]
+
+    const edges: EdgeConnection[] = [
+      { id: 'C1-J1-then', source: 'C1', target: 'J1', sourceHandle: 'true', targetHandle: 'target' },
+      { id: 'C1-J1-else', source: 'C1', target: 'J1', sourceHandle: 'false', targetHandle: 'target' },
+    ]
+
+    const result = validateConvergeInputs(activities, edges)
+    expect(result).toHaveLength(1)
+    expect(result[0].message).toContain('C1')
+  })
+
   it('ignores converge nodes with no condition ancestors', () => {
     const activities: Activity[] = [
       {

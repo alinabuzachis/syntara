@@ -53,20 +53,56 @@ export function parseActivityPath(path: string): ActivityPathInfo {
     throw new Error(`Invalid activity path: ${path}. Missing activity ID or field`)
   }
 
-  // Check if it's a numeric index
-  const arrayIndex = Number.parseInt(idOrIndex, 10)
-  const isArrayIndex = !Number.isNaN(arrayIndex)
+  const isArrayIndex = /^(0|[1-9]\d*)$/.test(idOrIndex)
+  const arrayIndex = isArrayIndex ? Number(idOrIndex) : undefined
 
   return {
     activityId: idOrIndex,
     field,
-    arrayIndex: isArrayIndex ? arrayIndex : undefined,
+    arrayIndex,
   }
 }
 
 // ============================================================================
 // JSON Patch Operations
 // ============================================================================
+
+function applyFieldUpdate(activity: ActivityState, field: string, value: unknown): ActivityState {
+  const updated = { ...activity }
+  switch (field) {
+    case 'status':
+      updated.status = value as ActivityStatus
+      break
+    case 'error_details':
+      updated.errorDetails = value as string | null
+      break
+    case 'started_at':
+      updated.startedAt = value as string | null
+      break
+    case 'completed_at':
+      updated.completedAt = value as string | null
+      break
+    default:
+      throw new Error(`Unsupported field for activity update: ${field}`)
+  }
+  return updated
+}
+
+function resolveActivityId(
+  activityId: string,
+  arrayIndex: number | undefined,
+  activityArray?: ActivityState[]
+): string {
+  if (arrayIndex === undefined) return activityId
+  if (!activityArray) {
+    throw new Error(`Cannot resolve array index ${arrayIndex} without activityArray`)
+  }
+  const activity = activityArray[arrayIndex]
+  if (!activity) {
+    throw new Error(`Activity not found at index ${arrayIndex}`)
+  }
+  return activity.activityId
+}
 
 /**
  * Apply a single JSON Patch operation to activity state
@@ -82,81 +118,47 @@ export function applyOperation(
   activityArray?: ActivityState[]
 ): void {
   const { op, path, value } = operation
-
-  // Parse the path
-  const pathInfo = parseActivityPath(path)
-  const { activityId, field, arrayIndex } = pathInfo
-
-  // Resolve activity ID from array index if needed
-  let resolvedActivityId = activityId
-  if (arrayIndex !== undefined && activityArray) {
-    const activity = activityArray[arrayIndex]
-    if (!activity) {
-      throw new Error(`Activity not found at index ${arrayIndex}`)
-    }
-    resolvedActivityId = activity.activityId
-  }
-
-  // Get existing activity state
-  const existingActivity = activities.get(resolvedActivityId)
+  const { activityId, field, arrayIndex } = parseActivityPath(path)
+  const resolvedId = resolveActivityId(activityId, arrayIndex, activityArray)
+  const existing = activities.get(resolvedId)
 
   switch (op) {
-    case 'add':
-    case 'replace': {
-      // For add/replace, value is required
+    case 'add': {
       if (value === undefined) {
-        throw new Error(`Operation '${op}' requires a value`)
+        throw new Error(`Operation 'add' requires a value`)
       }
 
-      // If activity doesn't exist, create it
-      if (!existingActivity) {
-        if (field === 'status') {
-          activities.set(resolvedActivityId, {
-            activityId: resolvedActivityId,
-            status: value as ActivityStatus,
-          })
-        } else {
+      if (!existing) {
+        if (field !== 'status') {
           throw new Error(`Cannot create activity with field '${field}'. 'status' is required first.`)
         }
+        activities.set(resolvedId, { activityId: resolvedId, status: value as ActivityStatus })
         return
       }
 
-      // Update existing activity
-      const updatedActivity = { ...existingActivity }
+      activities.set(resolvedId, applyFieldUpdate(existing, field, value))
+      break
+    }
 
-      switch (field) {
-        case 'status':
-          updatedActivity.status = value as ActivityStatus
-          break
-        case 'error_details':
-          updatedActivity.errorDetails = value as string | null
-          break
-        case 'started_at':
-          updatedActivity.startedAt = value as string | null
-          break
-        case 'completed_at':
-          updatedActivity.completedAt = value as string | null
-          break
-        default:
-          throw new Error(`Unsupported field for activity update: ${field}`)
+    case 'replace': {
+      if (value === undefined) {
+        throw new Error(`Operation 'replace' requires a value`)
       }
-
-      activities.set(resolvedActivityId, updatedActivity)
+      if (!existing) {
+        throw new Error(`Cannot replace field '${field}' on non-existent activity '${resolvedId}'`)
+      }
+      activities.set(resolvedId, applyFieldUpdate(existing, field, value))
       break
     }
 
     case 'remove': {
-      if (field === 'error_details') {
-        // Allow removing error_details
-        if (existingActivity) {
-          activities.set(resolvedActivityId, {
-            ...existingActivity,
-            errorDetails: null,
-          })
-        }
-      } else {
+      if (field !== 'error_details') {
         throw new Error(`Cannot remove field '${field}' from activity. Only 'error_details' can be removed.`)
       }
+      if (!existing) {
+        throw new Error(`Cannot remove field '${field}' from non-existent activity '${resolvedId}'`)
+      }
+      activities.set(resolvedId, { ...existing, errorDetails: null })
       break
     }
 
@@ -166,7 +168,6 @@ export function applyOperation(
       throw new Error(`Operation '${op}' is not supported for activity updates`)
 
     default: {
-      // Exhaustive check
       const _exhaustive: never = op
       throw new Error(`Unknown operation: ${_exhaustive}`)
     }

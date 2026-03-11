@@ -39,13 +39,20 @@ import { buildPanelMenuActions } from './utils/panelMenuActions'
  * closes automatically after modifications.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function cleanActivityMetadata(activity: any): any {
-  const metadata = activity?.metadata
-  if (!metadata) return undefined
+function cleanMetadata(metadata: unknown): unknown {
+  if (metadata == null) return undefined
+  if (typeof metadata !== 'object' || Array.isArray(metadata)) return metadata
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { __isGeneric: _isGeneric, ...restMetadata } = metadata
-  return Object.keys(restMetadata).length > 0 ? restMetadata : undefined
+  const { __isGeneric: _isGeneric, ...rest } = metadata as Record<string, unknown>
+  return Object.keys(rest).length > 0 ? rest : undefined
+}
+
+/** Top-level search is correct: the builder store always holds a flat activity list (see WorkflowTransform). */
+function findActivityInCurrentWorkflow(activityId: string): WorkflowAPI.components['schemas']['activity'] | undefined {
+  const current = useWorkflowStore.getState().currentWorkflow
+  return current?.workflow.activities.find(
+    (activity: WorkflowAPI.components['schemas']['activity']) => activity.id === activityId
+  )
 }
 
 interface NodeDetailsPanelProps {
@@ -108,36 +115,43 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       const subtypeFormProps = selectedSubtype?.formProps ?? {}
       const submitButtonText = replacementNodeId ? 'Update node' : 'Add node'
 
+      /** Returns true if replacement succeeded, false if lookup failed. */
+      const handleReplacement = (newNodeId: string | undefined): boolean => {
+        if (!replacementNodeId) return false
+
+        if (newNodeId) {
+          const newActivity = findActivityInCurrentWorkflow(newNodeId)
+          if (!newActivity) return false
+
+          removeActivity(newNodeId)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cleaned = cleanMetadata((newActivity as any).metadata)
+          updateActivity(replacementNodeId, {
+            ...newActivity,
+            id: replacementNodeId,
+            metadata: cleaned,
+          } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
+        } else {
+          const genericActivity = findActivityInCurrentWorkflow(replacementNodeId)
+          if (!genericActivity) return false
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cleaned = cleanMetadata((genericActivity as any).metadata)
+          updateActivity(replacementNodeId, {
+            metadata: cleaned,
+          } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
+        }
+        return true
+      }
+
       const handleCreate = (data: Record<string, unknown>) => {
         selectedNode.onSubmit(
           data,
           (newNodeId?: string) => {
             if (replacementNodeId) {
-              if (newNodeId) {
-                const current = useWorkflowStore.getState().currentWorkflow
-                const newActivity = current?.workflow.activities.find(
-                  (activity: WorkflowAPI.components['schemas']['activity']) => activity.id === newNodeId
-                )
-                if (newActivity) {
-                  removeActivity(newNodeId)
-                  const cleanedMetadata = cleanActivityMetadata(newActivity)
-                  updateActivity(replacementNodeId, {
-                    ...newActivity,
-                    id: replacementNodeId,
-                    metadata: cleanedMetadata,
-                  } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
-                }
-              } else {
-                const current = useWorkflowStore.getState().currentWorkflow
-                const genericActivity = current?.workflow.activities.find(
-                  (activity: WorkflowAPI.components['schemas']['activity']) => activity.id === replacementNodeId
-                )
-                if (genericActivity) {
-                  const cleanedMetadata = cleanActivityMetadata(genericActivity)
-                  updateActivity(replacementNodeId, {
-                    metadata: cleanedMetadata ?? undefined,
-                  } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
-                }
+              if (!handleReplacement(newNodeId)) {
+                showError('Failed to replace node — activity not found', 'Replacement failed')
+                return
               }
             } else if (sourceNodeId && newNodeId) {
               moveActivityAfter(newNodeId, sourceNodeId)

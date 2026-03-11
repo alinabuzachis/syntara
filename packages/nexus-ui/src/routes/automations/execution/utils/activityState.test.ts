@@ -239,6 +239,17 @@ describe('applyOperation', () => {
 
       expect(() => applyOperation(activities, operation)).toThrow('Unsupported field')
     })
+
+    it('throws when replacing on non-existent activity', () => {
+      const activities = new Map<string, ActivityState>()
+      const operation: JsonPatchOperation = {
+        op: 'replace',
+        path: '/activities/missing/status',
+        value: 'running',
+      }
+
+      expect(() => applyOperation(activities, operation)).toThrow('non-existent activity')
+    })
   })
 
   describe('remove operation', () => {
@@ -256,15 +267,14 @@ describe('applyOperation', () => {
       expect(activities.get('task')?.errorDetails).toBeNull()
     })
 
-    it('handles remove when activity does not exist', () => {
+    it('throws when removing from non-existent activity', () => {
       const activities = new Map<string, ActivityState>()
       const operation: JsonPatchOperation = {
         op: 'remove',
         path: '/activities/nonexistent/error_details',
       }
 
-      // Should not throw, just no-op
-      expect(() => applyOperation(activities, operation)).not.toThrow()
+      expect(() => applyOperation(activities, operation)).toThrow('non-existent activity')
     })
 
     it('throws error when removing unsupported field', () => {
@@ -309,6 +319,17 @@ describe('applyOperation', () => {
       }
 
       expect(() => applyOperation(activities, operation, activityArray)).toThrow('Activity not found at index')
+    })
+
+    it('throws when array index given but no activityArray provided', () => {
+      const activities = new Map<string, ActivityState>()
+      const operation: JsonPatchOperation = {
+        op: 'add',
+        path: '/activities/0/status',
+        value: 'running',
+      }
+
+      expect(() => applyOperation(activities, operation)).toThrow('Cannot resolve array index')
     })
   })
 

@@ -1,4 +1,4 @@
-import { EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../../workflowTransform'
 import type { ValidationError } from '../types'
@@ -10,17 +10,6 @@ interface ConditionBranchInfo {
   conditionId: string
   conditionName: string
   branch: 'then' | 'else'
-}
-
-function addConditionBranch(
-  conditionBranches: Map<string, Set<'then' | 'else'>>,
-  conditionId: string,
-  branch: 'then' | 'else'
-): void {
-  if (!conditionBranches.has(conditionId)) {
-    conditionBranches.set(conditionId, new Set())
-  }
-  conditionBranches.get(conditionId)!.add(branch)
 }
 
 /**
@@ -53,7 +42,7 @@ function traceToConditions(
     if (!sourceNode) continue
 
     // If source is a condition node, record which branch we came from
-    if (sourceNode.type === 'condition') {
+    if (sourceNode.type === ActivityTypeEnum.CONDITION) {
       const branch =
         edge.sourceHandle === EdgeHandleEnum.TRUE ? 'then' : edge.sourceHandle === EdgeHandleEnum.FALSE ? 'else' : null
       if (branch) {
@@ -92,62 +81,73 @@ function traceToConditions(
  *   Task E ──┐
  *   Task F ──┴─→ Converge G  ✅ Valid (different conditions)
  */
-export function validateConvergeInputs(activities: Activity[], edges: EdgeConnection[]): ValidationError[] {
-  const errors: ValidationError[] = []
+function resolveConditionBranch(sourceHandle: string | null | undefined): 'then' | 'else' | null {
+  if (sourceHandle === EdgeHandleEnum.TRUE) return 'then'
+  if (sourceHandle === EdgeHandleEnum.FALSE) return 'else'
+  return null
+}
 
-  // Find all converge nodes
-  const convergeNodes = activities.filter((a) => a.type === 'converge')
+function addConditionBranch(
+  branches: Map<string, Set<'then' | 'else'>>,
+  conditionId: string,
+  branch: 'then' | 'else'
+): void {
+  if (!branches.has(conditionId)) {
+    branches.set(conditionId, new Set())
+  }
+  branches.get(conditionId)!.add(branch)
+}
 
-  for (const converge of convergeNodes) {
-    // Find all incoming edges to this converge
-    const incomingEdges = edges.filter((e) => e.target === converge.id)
+function collectConditionBranches(
+  convergeId: string,
+  edges: EdgeConnection[],
+  activities: Activity[]
+): Map<string, Set<'then' | 'else'>> {
+  const conditionBranches = new Map<string, Set<'then' | 'else'>>()
+  const incomingEdges = edges.filter((e) => e.target === convergeId)
 
-    // For each incoming edge, trace back to find condition branches
-    const conditionBranches = new Map<string, Set<'then' | 'else'>>()
-
-    for (const edge of incomingEdges) {
-      // First check if the direct source is a condition node
-      const sourceNode = activities.find((a) => a.id === edge.source)
-      if (sourceNode?.type === 'condition') {
-        const branch =
-          edge.sourceHandle === EdgeHandleEnum.TRUE
-            ? 'then'
-            : edge.sourceHandle === EdgeHandleEnum.FALSE
-              ? 'else'
-              : null
-        if (branch) {
-          addConditionBranch(conditionBranches, sourceNode.id, branch)
-        }
-      }
-
-      // Then trace backwards to find upstream conditions
-      const conditions = traceToConditions(edge.source, edges, activities)
-
-      // Group by condition ID
-      for (const condInfo of conditions) {
-        addConditionBranch(conditionBranches, condInfo.conditionId, condInfo.branch)
+  for (const edge of incomingEdges) {
+    const sourceNode = activities.find((a) => a.id === edge.source)
+    if (sourceNode?.type === ActivityTypeEnum.CONDITION) {
+      const branch = resolveConditionBranch(edge.sourceHandle)
+      if (branch) {
+        addConditionBranch(conditionBranches, sourceNode.id, branch)
       }
     }
 
-    // Check if any condition has both 'then' and 'else' branches converging
-    for (const [conditionId, branches] of conditionBranches.entries()) {
-      if (branches.has('then') && branches.has('else')) {
-        // Find the condition node to get its name
-        const conditionNode = activities.find((a) => a.id === conditionId)
-        const conditionName = conditionNode?.name ?? conditionId
+    const conditions = traceToConditions(edge.source, edges, activities)
+    for (const condInfo of conditions) {
+      addConditionBranch(conditionBranches, condInfo.conditionId, condInfo.branch)
+    }
+  }
 
-        errors.push({
-          id: `converge-same-condition-${converge.id}-${conditionId}`,
-          severity: 'error',
-          rule: 'converge-inputs',
-          message: `Converge "${converge.name ?? converge.id}" receives inputs from both 'Then' and 'Else' branches of condition "${conditionName}". This creates ambiguous execution flow.`,
-          nodeIds: [converge.id, conditionId],
-          suggestion:
-            'Restructure the workflow so that only one branch of the condition leads to this converge node. ' +
-            'If you need both branches to eventually meet, add intermediate nodes and converge at a point ' +
-            'where the branches come from different conditions.',
-        })
-      }
+  return conditionBranches
+}
+
+export function validateConvergeInputs(activities: Activity[], edges: EdgeConnection[]): ValidationError[] {
+  const errors: ValidationError[] = []
+  const convergeNodes = activities.filter((a) => a.type === ActivityTypeEnum.CONVERGE)
+
+  for (const converge of convergeNodes) {
+    const conditionBranches = collectConditionBranches(converge.id, edges, activities)
+
+    for (const [conditionId, branches] of conditionBranches.entries()) {
+      if (!branches.has('then') || !branches.has('else')) continue
+
+      const conditionNode = activities.find((a) => a.id === conditionId)
+      const conditionName = conditionNode?.name ?? conditionId
+
+      errors.push({
+        id: `converge-same-condition-${converge.id}-${conditionId}`,
+        severity: 'error',
+        rule: 'converge-inputs',
+        message: `Converge "${converge.name ?? converge.id}" receives inputs from both 'Then' and 'Else' branches of condition "${conditionName}". This creates ambiguous execution flow.`,
+        nodeIds: [converge.id, conditionId],
+        suggestion:
+          'Restructure the workflow so that only one branch of the condition leads to this converge node. ' +
+          'If you need both branches to eventually meet, add intermediate nodes and converge at a point ' +
+          'where the branches come from different conditions.',
+      })
     }
   }
 
