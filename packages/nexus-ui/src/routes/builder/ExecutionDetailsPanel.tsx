@@ -2,99 +2,131 @@ import {
   CompassPanel,
   Content,
   ContentVariants,
-  DescriptionList,
-  DescriptionListDescription,
-  DescriptionListGroup,
-  DescriptionListTerm,
   Flex,
-  Icon,
+  FlexItem,
   Stack,
   StackItem,
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
-import { RhUiPlayFillIcon } from '@patternfly/react-icons'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { executionsClient } from '../../client'
 import { useQueryState } from '../../components/states/useQueryState'
-import { formatDateTime, formatElapsedTime } from '../../utils/dateUtils'
-import { useExecutionStoreActions } from '../automations/stores/useExecutionStore'
+import { useElapsedTime } from '../../hooks/useElapsedTime'
+import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
+import { useExecutionStore, useExecutionStoreActions } from '../automations/stores/useExecutionStore'
 
+import { ExecutionActivityTable } from './ExecutionActivityTable'
+import type { ActivityOrderItem, TriggerItem } from './ExecutionActivityTable'
 import { StatusLabel } from './ExecutionStatus'
+
+interface ActivityLike {
+  id?: string
+  name?: string
+  branches?: ActivityLike[][]
+  steps?: ActivityLike[]
+  then?: ActivityLike[]
+  else?: ActivityLike[]
+  loop?: { do?: ActivityLike[] }
+}
+
+interface TriggerLike {
+  type?: string
+  name?: string
+}
+
+export interface WorkflowDefShape {
+  triggers?: TriggerLike[]
+  workflow?: { activities?: ActivityLike[] }
+}
 
 interface ExecutionDetailsPanelProps {
   executionId: string
+  /** Workflow definition used to look up human-readable activity names. */
+  workflowDefinition?: WorkflowDefShape | null
+}
+
+const CHILD_KEYS: (keyof ActivityLike)[] = ['steps', 'then', 'else']
+
+function buildNameMap(activities: ActivityLike[] | undefined): Map<string, string> {
+  const map = new Map<string, string>()
+  if (!activities) return map
+
+  function traverse(acts: ActivityLike[]) {
+    for (const act of acts) {
+      if (act.id && act.name) map.set(act.id, act.name)
+
+      if (act.branches) {
+        for (const branch of act.branches) traverse(branch)
+      }
+
+      for (const key of CHILD_KEYS) {
+        const children = act[key]
+        if (Array.isArray(children)) traverse(children as ActivityLike[])
+      }
+
+      if (act.loop?.do) traverse(act.loop.do)
+    }
+  }
+
+  traverse(activities)
+  return map
 }
 
 /**
- * Panel displaying detailed execution information including execution metadata.
+ * Panel displaying per-activity execution state as a table, with
+ * overall execution metadata (start time, elapsed, status) in the header.
  */
-export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
+export function ExecutionDetailsPanel({ executionId, workflowDefinition }: ExecutionDetailsPanelProps) {
   const { setActivityExecutions } = useExecutionStoreActions()
-  const [now, setNow] = useState(() => Date.now())
+  const activityStates = useExecutionStore((s) => s.activityStates)
 
   // Fetch execution details with activities included
   const executionQuery = executionsClient.useQuery('get', '/executions/{execution_id}', {
     params: {
       path: { execution_id: executionId },
-      query: {
-        include: 'activities',
-      },
+      query: { include: 'activities' },
     },
   })
 
   const execution = executionQuery.data
   const isRunning = execution?.status === 'running' || execution?.status === 'pending'
   const startedAtValue = execution?.started_at ?? execution?.created_at ?? null
-  const startedAtMs = startedAtValue ? Date.parse(startedAtValue) : null
-  const completedAtMs = execution?.completed_at ? Date.parse(execution.completed_at) : null
 
-  useEffect(() => {
-    if (!startedAtMs || !isRunning || completedAtMs) {
-      return
-    }
-
-    const interval = setInterval(() => {
-      setNow(Date.now())
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [startedAtMs, isRunning, completedAtMs])
-
-  const elapsedMs = useMemo(() => {
-    if (!startedAtMs || Number.isNaN(startedAtMs)) {
-      return undefined
-    }
-
-    const endMs = completedAtMs && !Number.isNaN(completedAtMs) ? completedAtMs : isRunning ? now : undefined
-
-    if (!endMs) {
-      return undefined
-    }
-
-    return Math.max(0, endMs - startedAtMs)
-  }, [startedAtMs, completedAtMs, isRunning, now])
-
+  // Shared 1-second ticker for header elapsed time and per-row elapsed
+  const { elapsedMs, now } = useElapsedTime(startedAtValue, execution?.completed_at, isRunning ?? false)
   const elapsedLabel = elapsedMs !== undefined ? formatElapsedTime(elapsedMs) : undefined
 
-  // Update execution store when activities load
+  // Sync activities into the execution store (always call to clear stale rows on execution change)
   useEffect(() => {
-    const executionActivities = execution?.activities ?? []
-    if (executionActivities.length > 0) {
-      setActivityExecutions(executionActivities)
-    }
+    setActivityExecutions(execution?.activities ?? [])
   }, [execution?.activities, setActivityExecutions])
 
-  // Auto-scroll to top when execution changes
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0
-    }
-  }, [executionId])
+  // Build activity name map and trigger list from workflow definition
+  const nameMap = useMemo(
+    () => buildNameMap(workflowDefinition?.workflow?.activities),
+    [workflowDefinition?.workflow?.activities]
+  )
+
+  const triggers = useMemo<TriggerItem[]>(
+    () =>
+      (workflowDefinition?.triggers ?? []).map((t, i) => ({
+        index: i,
+        type: t.type ?? 'manual',
+        name: t.name,
+      })),
+    [workflowDefinition?.triggers]
+  )
+
+  // Ordered activity list derived from store insertion order (= API/WebSocket order)
+  const activityOrder = useMemo<ActivityOrderItem[]>(
+    () => Array.from(activityStates.keys()).map((id) => ({ id, name: nameMap.get(id) })),
+    [activityStates, nameMap]
+  )
 
   const queryState = useQueryState(executionQuery, 'Error loading execution')
+
   if (queryState || !execution) {
     return (
       <CompassPanel
@@ -109,14 +141,9 @@ export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProp
       >
         <Stack>
           <StackItem style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
-            <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-              <Icon>
-                <RhUiPlayFillIcon />
-              </Icon>
-              <Title headingLevel="h2" size={TitleSizes.lg}>
-                Execution View
-              </Title>
-            </Flex>
+            <Title headingLevel="h2" size={TitleSizes.lg}>
+              Current run details
+            </Title>
           </StackItem>
           <StackItem isFilled style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
             {queryState}
@@ -139,108 +166,53 @@ export function ExecutionDetailsPanel({ executionId }: ExecutionDetailsPanelProp
       }}
     >
       <Stack style={{ height: '100%', overflow: 'hidden' }}>
-        {/* Header */}
-        <StackItem style={{ flexShrink: 0, padding: 'var(--pf-t--global--spacer--lg)' }}>
-          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-            <Icon>
-              <RhUiPlayFillIcon />
-            </Icon>
-            <Title headingLevel="h2" size={TitleSizes.lg}>
-              Execution View
-            </Title>
+        {/* Header: title left, execution metadata right */}
+        <StackItem
+          style={{ flexShrink: 0, padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)' }}
+        >
+          <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
+            <FlexItem>
+              <Title headingLevel="h2" size={TitleSizes.lg}>
+                Current run details
+              </Title>
+            </FlexItem>
+            <FlexItem>
+              <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
+                {execution.started_at && (
+                  <Content
+                    component={ContentVariants.small}
+                    style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
+                  >
+                    {formatExecutionDateTime(execution.started_at)} - {execution.status}
+                  </Content>
+                )}
+                {elapsedLabel && (
+                  <Content
+                    component={ContentVariants.small}
+                    style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
+                  >
+                    Elapsed time: {elapsedLabel}
+                  </Content>
+                )}
+                {execution.status && (
+                  <FlexItem style={{ display: 'flex', alignItems: 'center' }}>
+                    <StatusLabel status={execution.status} />
+                  </FlexItem>
+                )}
+              </Flex>
+            </FlexItem>
           </Flex>
         </StackItem>
 
-        {/* Scrollable content */}
-        <StackItem
-          ref={scrollRef}
-          isFilled
-          style={{
-            minHeight: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            paddingLeft: 'var(--pf-t--global--spacer--lg)',
-            paddingRight: 'var(--pf-t--global--spacer--lg)',
-            paddingBottom: 'var(--pf-t--global--spacer--lg)',
-          }}
-        >
-          <Stack hasGutter>
-            {/* Execution metadata */}
-            <StackItem>
-              <Content component={ContentVariants.h3}>Execution Details</Content>
-              <DescriptionList isCompact>
-                <DescriptionListGroup>
-                  <DescriptionListTerm>Status</DescriptionListTerm>
-                  <DescriptionListDescription>
-                    <StatusLabel status={execution.status!} />
-                  </DescriptionListDescription>
-                </DescriptionListGroup>
-                <DescriptionListGroup>
-                  <DescriptionListTerm>Elapsed time</DescriptionListTerm>
-                  <DescriptionListDescription>
-                    {elapsedLabel ? (
-                      <Content
-                        component={ContentVariants.small}
-                        style={{ color: 'var(--pf-t--global--text--color--subtle)' }}
-                      >
-                        {elapsedLabel}
-                      </Content>
-                    ) : (
-                      <Content
-                        component={ContentVariants.small}
-                        style={{ color: 'var(--pf-t--global--text--color--subtle)' }}
-                      >
-                        —
-                      </Content>
-                    )}
-                  </DescriptionListDescription>
-                </DescriptionListGroup>
-                <DescriptionListGroup>
-                  <DescriptionListTerm>Execution ID</DescriptionListTerm>
-                  <DescriptionListDescription>
-                    <Content component={ContentVariants.small}>{execution.id}</Content>
-                  </DescriptionListDescription>
-                </DescriptionListGroup>
-                {execution?.temporal_workflow_id && (
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Temporal Workflow ID</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      <Content component={ContentVariants.small}>{execution.temporal_workflow_id}</Content>
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                )}
-                {execution?.started_at && (
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Started At</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      <Content component={ContentVariants.small}>{formatDateTime(execution.started_at)}</Content>
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                )}
-                {execution?.completed_at && (
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Completed At</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      <Content component={ContentVariants.small}>{formatDateTime(execution.completed_at)}</Content>
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                )}
-                {execution?.error_details && (
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Error</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      <Content
-                        component={ContentVariants.small}
-                        style={{ color: 'var(--pf-t--global--color--status--danger--default)' }}
-                      >
-                        {execution.error_details}
-                      </Content>
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                )}
-              </DescriptionList>
-            </StackItem>
-          </Stack>
+        {/* Scrollable activity table */}
+        <StackItem isFilled style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+          <ExecutionActivityTable
+            triggers={triggers}
+            activityStates={activityStates}
+            activityOrder={activityOrder}
+            executionStartedAt={startedAtValue}
+            now={now}
+          />
         </StackItem>
       </Stack>
     </CompassPanel>

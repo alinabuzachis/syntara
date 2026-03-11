@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDate, formatDateTime, formatElapsedTime, formatTime } from './dateUtils'
+import { formatDate, formatDateTime, formatElapsedTime, formatExecutionDateTime, formatTime } from './dateUtils'
 
 describe('formatDate', () => {
   it('formats ISO date string as MMM d, yyyy', () => {
@@ -52,6 +52,24 @@ describe('formatDateTime', () => {
 
   it('returns "-" for invalid date', () => {
     expect(formatDateTime('not-a-date')).toBe('-')
+  })
+})
+
+describe('formatExecutionDateTime', () => {
+  it('produces "HH:MM:SS AM/PM, D Mon YYYY" format', () => {
+    expect(formatExecutionDateTime('2026-01-26T15:30:45Z')).toMatch(/\d{2}:\d{2}:\d{2}\s[AP]M,\s\d+\s\w{3}\s2026/)
+  })
+
+  it('includes abbreviated month and full year', () => {
+    expect(formatExecutionDateTime('2025-12-25T10:00:00Z')).toMatch(/Dec.*2025/)
+  })
+
+  it('returns "-" for empty string', () => {
+    expect(formatExecutionDateTime('')).toBe('-')
+  })
+
+  it('returns "-" for invalid date', () => {
+    expect(formatExecutionDateTime('not-a-date')).toBe('-')
   })
 })
 

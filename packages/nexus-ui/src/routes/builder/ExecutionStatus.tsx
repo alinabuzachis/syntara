@@ -3,7 +3,9 @@ import { Label } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
   RhUiCloseCircleIcon,
+  RhUiEllipsisHorizontalFillIcon,
   RhUiHourglassIcon,
+  RhUiMinusCircleFillIcon,
   RhUiPauseCircleFillIcon,
   RhUiStopCircleFillIcon,
   RhUiSyncIcon,
@@ -11,6 +13,7 @@ import {
 import type React from 'react'
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
+type ActivityStatus = ExecutionsAPI.components['schemas']['ActivityStatus']
 
 const statusMap: Record<ExecutionStatus, 'success' | 'danger' | 'warning' | 'info' | 'custom'> = {
   pending: 'custom',
@@ -37,6 +40,45 @@ export function StatusLabel({ status }: { status: ExecutionStatus }) {
   return (
     <Label variant="outline" status={statusMap[status]} icon={<IconComponent />}>
       {capitalizedStatus}
+    </Label>
+  )
+}
+
+const activityStatusVariant: Record<ActivityStatus, 'success' | 'danger' | 'warning' | 'info' | 'custom'> = {
+  pending: 'custom',
+  running: 'custom',
+  completed: 'success',
+  failed: 'danger',
+  retrying: 'warning',
+  skipped: 'custom',
+  cancelled: 'custom',
+}
+
+const activityStatusIcons: Record<ActivityStatus, React.ComponentType<{ className?: string }>> = {
+  pending: RhUiEllipsisHorizontalFillIcon,
+  running: RhUiSyncIcon,
+  completed: RhUiCheckCircleIcon,
+  failed: RhUiCloseCircleIcon,
+  retrying: RhUiSyncIcon,
+  skipped: RhUiMinusCircleFillIcon,
+  cancelled: RhUiStopCircleFillIcon,
+}
+
+const activityStatusDisplayLabels: Record<ActivityStatus, string> = {
+  pending: 'Pending',
+  running: 'Running',
+  completed: 'Successful',
+  failed: 'Failed',
+  retrying: 'Retrying',
+  skipped: 'Skipped',
+  cancelled: 'Cancelled',
+}
+
+export function ActivityStatusLabel({ status }: { status: ActivityStatus }) {
+  const IconComponent = activityStatusIcons[status]
+  return (
+    <Label variant="outline" status={activityStatusVariant[status]} icon={<IconComponent />}>
+      {activityStatusDisplayLabels[status]}
     </Label>
   )
 }

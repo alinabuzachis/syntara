@@ -51,6 +51,28 @@ export function formatDateTime(isoString?: string | null): string {
 }
 
 /**
+ * Format an ISO date string as "10:00:00 AM, 26 Jan 2026" (with seconds).
+ * Used in execution detail tables where seconds precision is needed.
+ * Returns '-' for invalid or empty input.
+ */
+export function formatExecutionDateTime(isoString: string): string {
+  if (!isoString) return '-'
+  try {
+    const date = parseISO(isoString)
+    if (Number.isNaN(date.getTime())) return '-'
+    const time = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    })
+    return `${time}, ${date.getDate()} ${format(date, 'MMM')} ${date.getFullYear()}`
+  } catch {
+    return '-'
+  }
+}
+
+/**
  * Format an elapsed duration in milliseconds as "Xh Ym Zs" (e.g. "1h 2m 3s").
  * Always includes seconds; includes minutes/hours when non-zero.
  * Durations >= 24h are shown as total hours (e.g. 25h 0m 0s).

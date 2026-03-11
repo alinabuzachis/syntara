@@ -26,7 +26,7 @@ import { LoadingState } from '../../components/states/LoadingState'
 import { useExecutionWebSocket } from '../automations/hooks/useExecutionWebSocket'
 import { useExecutionStore } from '../automations/stores/useExecutionStore'
 import { AutomationHistoryCard } from '../builder/AutomationHistoryCard'
-import { ExecutionDetailsPanel } from '../builder/ExecutionDetailsPanel'
+import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
 import { StatusLabel } from '../builder/ExecutionStatus'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
 
@@ -34,9 +34,17 @@ type Execution = ExecutionsAPI.components['schemas']['Execution']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
 
-type WorkflowDefinition = {
+interface WorkflowDefinitionLike {
   metadata?: { name?: string; description?: string }
   workflow?: { activities?: Array<{ id: string }> }
+  triggers?: unknown[]
+}
+
+interface ExecutionWorkflow {
+  id: string
+  name: string
+  description?: string
+  version: { workflow_definition: WorkflowDefShape | null }
 }
 
 // Inner component that has access to React Flow context
@@ -51,7 +59,7 @@ function ExecutionDetailContent({
   setLocation,
 }: {
   historyCardOpen: boolean
-  workflow: { id: string; name: string; description?: string; version: { workflow_definition: unknown } } | undefined
+  workflow?: ExecutionWorkflow
   execution: Execution | undefined
   activities: (ActivityData | ActivityExecution)[]
   executionId: string
@@ -117,7 +125,10 @@ function ExecutionDetailContent({
 
           {/* Execution Details Panel */}
           <StackItem style={{ flexShrink: 0, height: '300px' }}>
-            <ExecutionDetailsPanel executionId={executionId} />
+            <ExecutionDetailsPanel
+              executionId={executionId}
+              workflowDefinition={workflow?.version.workflow_definition}
+            />
           </StackItem>
         </Stack>
       </FlexItem>
@@ -226,7 +237,7 @@ export default function ExecutionDetail() {
     if (activities.length > 0) {
       setActivityExecutions(activities)
     } else if (execution?.status === 'pending' || execution?.status === 'running') {
-      const wfDef = execution?.workflow_definition as WorkflowDefinition | undefined
+      const wfDef = execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined
       const workflowActivities = wfDef?.workflow?.activities
       if (workflowActivities) {
         const pendingActivities = workflowActivities.map((activity) => ({
@@ -234,6 +245,7 @@ export default function ExecutionDetail() {
           created_at: '',
           updated_at: '',
           activity_name: activity.id,
+          activity_id: activity.id,
           status: 'pending' as const,
           error_details: null,
           started_at: null,
@@ -248,12 +260,11 @@ export default function ExecutionDetail() {
 
   // Build a workflow object from the execution's workflow_definition
   const workflow = useMemo(() => {
-    if (!execution) return undefined
-    const wfDef = execution.workflow_definition as WorkflowDefinition | undefined
-    if (!wfDef) return undefined
+    if (!execution?.workflow_definition || !execution.workflow_id) return undefined
 
+    const wfDef = execution.workflow_definition as unknown as WorkflowDefinitionLike
     return {
-      id: execution.workflow_id ?? '',
+      id: execution.workflow_id,
       name: wfDef.metadata?.name ?? 'Workflow',
       description: wfDef.metadata?.description,
       version: {
@@ -315,7 +326,7 @@ export default function ExecutionDetail() {
     setLocation(`/executions/${executionId}${newSearch ? `?${newSearch}` : ''}`)
   }
 
-  const wfDefMeta = (execution?.workflow_definition as WorkflowDefinition | undefined)?.metadata
+  const wfDefMeta = (execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined)?.metadata
   const pageTitle = (
     <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
       <FlexItem>
