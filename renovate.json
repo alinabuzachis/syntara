@@ -1,10 +1,9 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "pip_requirements": {
+    "enabled": false
+  },
   "packageRules": [
-    {
-      "matchManagers": ["pip-requirements"],
-      "enabled": false
-    },
     {
       "matchManagers": ["pep621"],
       "groupName": "python dependencies",
