@@ -2,6 +2,10 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "packageRules": [
     {
+      "matchManagers": ["pip-requirements"],
+      "enabled": false
+    },
+    {
       "matchManagers": ["pep621"],
       "groupName": "python dependencies",
       "schedule": ["before 6am on Monday"]
@@ -10,6 +14,5 @@
       "matchPackageNames": ["quay.io/aap-ci/*"],
       "automerge": true
     }
-
   ]
 }

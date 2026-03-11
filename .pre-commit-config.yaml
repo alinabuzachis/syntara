@@ -61,7 +61,7 @@ repos:
         args: [sync-requirements]
         language: system
         pass_filenames: false
-        files: ^(uv\.lock|pyproject\.toml)$
+        files: ^(uv\.lock|pyproject\.toml|requirements\.txt)$
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0
