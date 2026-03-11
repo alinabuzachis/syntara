@@ -577,6 +577,48 @@ make install
 
 For more information, run `make help` to see all available commands.
 
+## Telemetry
+
+Telemetry is always enabled and collects workflow execution metrics transmitted to Red Hat via Segment.com for product improvement. No PII or credentials are collected.
+
+### Collected Data
+
+**Workflow execution events:**
+
+- `workflow_execution_id` -- unique execution identifier (UUID v4)
+- `status` -- final execution status (completed, failed, cancelled)
+- `duration_ms` -- execution duration in milliseconds
+- `activity_count` -- total number of activities executed
+- `error_count` -- number of activities that failed
+- `error_type` -- categorized error type (if failed)
+
+**Activity execution events:**
+
+- `workflow_execution_id` -- parent workflow execution identifier
+- `activity_type` -- type of activity (task, parallel, sequence, condition, loop, converge, approval)
+- `activity_hash` -- SHA-256 hash of the activity definition (anonymized)
+- `status` -- execution outcome (completed, failed, skipped, cancelled)
+- `duration_ms` -- activity duration in milliseconds
+- `action_type` -- action type for task activities
+- `inbound_activities` -- hashes of preceding activities in the execution graph
+- `outbound_activities` -- hashes of following activities in the execution graph
+- `error_type` -- categorized error type (if failed)
+
+**API call events:**
+
+- `endpoint` -- request path
+- `http_method` -- HTTP request method
+- `status_code` -- HTTP response status code
+- `response_time_ms` -- response time in milliseconds
+- `request_payload_size` -- request body size in bytes
+
+### Configuration
+
+Telemetry is configured via environment variables:
+
+- `NEXUS_SEGMENT_WRITE_KEY` -- Segment.com write key for event transmission
+- `NEXUS_SEGMENT_ENDPOINT` -- Segment.com endpoint URL
+
 ## Further reading
 
 - 📖 **[Developer Getting Started Guide](docs/developer-getting-started.md)** - Architecture deep dive with examples
