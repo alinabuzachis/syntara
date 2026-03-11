@@ -237,23 +237,19 @@ export function validateSavePath(activities: Activity[], edges: EdgeConnection[]
 
     // Verify all condition nodes have been processed
     for (const activity of nested) {
-      if (activity.type === ActivityTypeEnum.CONDITION) {
-        // Nested conditions should have non-empty then/else arrays
-        // (unless the condition truly has no branches)
-        const hasOutgoingEdges = edges.some(
-          (e) => e.source === activity.id && (e.sourceHandle === 'true' || e.sourceHandle === 'false')
+      if (activity.type !== ActivityTypeEnum.CONDITION) continue
+      const hasOutgoingEdges = edges.some(
+        (e) => e.source === activity.id && (e.sourceHandle === 'true' || e.sourceHandle === 'false')
+      )
+      if (!hasOutgoingEdges) continue
+      const thenLength = activity.then?.length ?? 0
+      const elseLength = activity.else?.length ?? 0
+      if (thenLength === 0 && elseLength === 0) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `Condition node ${activity.id} has outgoing edges but empty then/else arrays. ` +
+            `This may indicate a conversion bug.`
         )
-        if (hasOutgoingEdges) {
-          const thenLength = activity.then?.length ?? 0
-          const elseLength = activity.else?.length ?? 0
-          if (thenLength === 0 && elseLength === 0) {
-            // eslint-disable-next-line no-console
-            console.warn(
-              `Condition node ${activity.id} has outgoing edges but empty then/else arrays. ` +
-                `This may indicate a conversion bug.`
-            )
-          }
-        }
       }
     }
   } catch (error) {

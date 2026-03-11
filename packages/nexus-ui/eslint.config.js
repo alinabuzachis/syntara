@@ -84,6 +84,7 @@ export default tseslint.config(
     files: ['**/index.tsx', '**/main.tsx', '**/vite.config.ts', '**/vitest.config.ts', '**/vitest.browser.config.ts'],
     rules: {
       'no-console': 'off',
+      'react-refresh/only-export-components': 'off',
     },
   },
   {

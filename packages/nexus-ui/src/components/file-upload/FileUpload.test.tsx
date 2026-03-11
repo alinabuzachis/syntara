@@ -279,6 +279,99 @@ describe('FileUpload', () => {
     })
   })
 
+  describe('file rejection errors', () => {
+    it('shows error when file exceeds size limit', async () => {
+      const user = userEvent.setup()
+      render(<FileUpload maxSizeBytes={10} />)
+
+      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
+      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+
+      const largeFile = new File(['x'.repeat(100)], 'large-file.png', { type: 'image/png' })
+      await user.upload(input, largeFile)
+
+      expect(screen.getByText(/"large-file.png" exceeds.*limit/)).toBeInTheDocument()
+    })
+
+    it('shows error when file type is not accepted', () => {
+      const setErrorMessage = vi.fn()
+      const handler = createDropRejectedHandler({
+        setErrorMessage,
+        effectiveMaxSizeBytes: undefined,
+        acceptedMimeTypes: ['image/png', '.yml'],
+        maxFiles: undefined,
+      })
+
+      const rejections: FileRejection[] = [
+        { file: new File([''], 'doc.txt'), errors: [{ code: 'file-invalid-type', message: 'Invalid type' }] },
+      ]
+      handler(rejections)
+
+      expect(setErrorMessage).toHaveBeenCalledWith('Only PNG, YML files are allowed')
+    })
+
+    it('shows generic message for unknown rejection code', () => {
+      const setErrorMessage = vi.fn()
+      const handler = createDropRejectedHandler({
+        setErrorMessage,
+        effectiveMaxSizeBytes: undefined,
+        acceptedMimeTypes: undefined,
+        maxFiles: undefined,
+      })
+
+      const rejections: FileRejection[] = [
+        { file: new File([''], 'file.bin'), errors: [{ code: 'unknown-error', message: 'Something went wrong' }] },
+      ]
+      handler(rejections)
+
+      expect(setErrorMessage).toHaveBeenCalledWith('Something went wrong')
+    })
+
+    it('does nothing when rejections array is empty', () => {
+      const setErrorMessage = vi.fn()
+      const handler = createDropRejectedHandler({
+        setErrorMessage,
+        effectiveMaxSizeBytes: undefined,
+        acceptedMimeTypes: undefined,
+        maxFiles: undefined,
+      })
+
+      handler([])
+
+      expect(setErrorMessage).not.toHaveBeenCalled()
+    })
+
+    it('shows error when too many files are uploaded', async () => {
+      const user = userEvent.setup()
+      render(<FileUpload maxFiles={1} />)
+
+      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
+      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+
+      const file1 = new File(['a'], 'file1.png', { type: 'image/png' })
+      const file2 = new File(['b'], 'file2.png', { type: 'image/png' })
+      await user.upload(input, [file1, file2])
+
+      expect(screen.getByText(/only 1 file allowed/i)).toBeInTheDocument()
+    })
+
+    it('clears rejection error when new valid files are dropped', async () => {
+      const user = userEvent.setup()
+      render(<FileUpload maxSizeBytes={10} />)
+
+      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
+      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+
+      const largeFile = new File(['x'.repeat(100)], 'large.png', { type: 'image/png' })
+      await user.upload(input, largeFile)
+      expect(screen.getByText(/"large.png" exceeds.*limit/)).toBeInTheDocument()
+
+      const smallFile = new File(['ok'], 'small.png', { type: 'image/png' })
+      await user.upload(input, smallFile)
+      expect(screen.queryByText(/"large.png" exceeds.*limit/)).not.toBeInTheDocument()
+    })
+  })
+
   describe('maxSizeMB prop', () => {
     it('uses maxSizeMB when provided', () => {
       // maxSizeMB is converted to bytes internally for dropzone

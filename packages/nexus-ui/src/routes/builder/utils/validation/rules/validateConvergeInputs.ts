@@ -12,6 +12,17 @@ interface ConditionBranchInfo {
   branch: 'then' | 'else'
 }
 
+function addConditionBranch(
+  conditionBranches: Map<string, Set<'then' | 'else'>>,
+  conditionId: string,
+  branch: 'then' | 'else'
+): void {
+  if (!conditionBranches.has(conditionId)) {
+    conditionBranches.set(conditionId, new Set())
+  }
+  conditionBranches.get(conditionId)!.add(branch)
+}
+
 /**
  * Traces backwards from a node to find all condition branches it originates from.
  *
@@ -105,10 +116,7 @@ export function validateConvergeInputs(activities: Activity[], edges: EdgeConnec
               ? 'else'
               : null
         if (branch) {
-          if (!conditionBranches.has(sourceNode.id)) {
-            conditionBranches.set(sourceNode.id, new Set())
-          }
-          conditionBranches.get(sourceNode.id)!.add(branch)
+          addConditionBranch(conditionBranches, sourceNode.id, branch)
         }
       }
 
@@ -117,10 +125,7 @@ export function validateConvergeInputs(activities: Activity[], edges: EdgeConnec
 
       // Group by condition ID
       for (const condInfo of conditions) {
-        if (!conditionBranches.has(condInfo.conditionId)) {
-          conditionBranches.set(condInfo.conditionId, new Set())
-        }
-        conditionBranches.get(condInfo.conditionId)!.add(condInfo.branch)
+        addConditionBranch(conditionBranches, condInfo.conditionId, condInfo.branch)
       }
     }
 

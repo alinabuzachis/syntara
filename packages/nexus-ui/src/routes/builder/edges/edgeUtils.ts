@@ -52,27 +52,6 @@ export interface AdjustEdgeOptions {
 }
 
 /**
- * Adjusts both source and target coordinates.
- * Only source coordinates are currently adjusted (target handles don't need offset - they're positioned at edge).
- */
-export function adjustEdgeCoordinates(options: AdjustEdgeOptions): {
-  sourceX: number
-  sourceY: number
-  targetX: number
-  targetY: number
-} {
-  const { sourceX, sourceY, sourcePosition, targetX, targetY, offset = SOURCE_EDGE_OFFSET } = options
-  const adjustedSource = adjustSourceCoordinates(sourceX, sourceY, sourcePosition, offset)
-  // Target handles are positioned at the edge without offset, so no adjustment needed
-  return {
-    sourceX: adjustedSource.x,
-    sourceY: adjustedSource.y,
-    targetX,
-    targetY,
-  }
-}
-
-/**
  * Computes the target position of a stub edge from the source position and direction.
  */
 export function calculateStubTarget(
@@ -100,4 +79,25 @@ export function calculateStubTarget(
       targetX = sourceX + stubLength
   }
   return { targetX, targetY }
+}
+
+/**
+ * Adjusts both source and target coordinates.
+ * Only source coordinates are currently adjusted (target handles don't need offset - they're positioned at edge).
+ */
+export function adjustEdgeCoordinates(options: AdjustEdgeOptions): {
+  sourceX: number
+  sourceY: number
+  targetX: number
+  targetY: number
+} {
+  const { sourceX, sourceY, sourcePosition, targetX, targetY, offset = SOURCE_EDGE_OFFSET } = options
+  const adjustedSource = adjustSourceCoordinates(sourceX, sourceY, sourcePosition, offset)
+  // Target handles are positioned at the edge without offset, so no adjustment needed
+  return {
+    sourceX: adjustedSource.x,
+    sourceY: adjustedSource.y,
+    targetX,
+    targetY,
+  }
 }

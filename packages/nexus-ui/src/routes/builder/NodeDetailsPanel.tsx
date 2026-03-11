@@ -39,6 +39,15 @@ import { buildPanelMenuActions } from './utils/panelMenuActions'
  * closes automatically after modifications.
  */
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cleanActivityMetadata(activity: any): any {
+  const metadata = activity?.metadata
+  if (!metadata) return undefined
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { __isGeneric: _isGeneric, ...restMetadata } = metadata
+  return Object.keys(restMetadata).length > 0 ? restMetadata : undefined
+}
+
 interface NodeDetailsPanelProps {
   mode: 'add' | 'edit'
   node?: Node<NodeType['data']>
@@ -109,21 +118,9 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
                 const newActivity = current?.workflow.activities.find(
                   (activity: WorkflowAPI.components['schemas']['activity']) => activity.id === newNodeId
                 )
-
                 if (newActivity) {
                   removeActivity(newNodeId)
-
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  let cleanedMetadata: any = undefined
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  if ((newActivity as any).metadata) {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-                    const { __isGeneric: _isGeneric, ...restMetadata } = (newActivity as any).metadata
-                    if (Object.keys(restMetadata).length > 0) {
-                      cleanedMetadata = restMetadata
-                    }
-                  }
-
+                  const cleanedMetadata = cleanActivityMetadata(newActivity)
                   updateActivity(replacementNodeId, {
                     ...newActivity,
                     id: replacementNodeId,
@@ -135,22 +132,11 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
                 const genericActivity = current?.workflow.activities.find(
                   (activity: WorkflowAPI.components['schemas']['activity']) => activity.id === replacementNodeId
                 )
-
                 if (genericActivity) {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const currentMetadata = (genericActivity as any).metadata
-                  if (currentMetadata) {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const { __isGeneric: _isGeneric, ...restMetadata } = currentMetadata
-                    const newMetadata = Object.keys(restMetadata).length > 0 ? restMetadata : undefined
-                    updateActivity(replacementNodeId, {
-                      metadata: newMetadata,
-                    } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
-                  } else {
-                    updateActivity(replacementNodeId, {
-                      metadata: undefined,
-                    } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
-                  }
+                  const cleanedMetadata = cleanActivityMetadata(genericActivity)
+                  updateActivity(replacementNodeId, {
+                    metadata: cleanedMetadata ?? undefined,
+                  } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
                 }
               }
             } else if (sourceNodeId && newNodeId) {
