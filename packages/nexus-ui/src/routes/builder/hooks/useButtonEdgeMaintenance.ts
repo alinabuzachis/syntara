@@ -148,7 +148,7 @@ export function useButtonEdgeMaintenance({
       const connectedHandles = new Map<string, Set<string>>()
       edges.forEach((edge) => {
         if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')) {
-          const handle = edge.sourceHandle ?? 'source'
+          const handle = edge.sourceHandle ?? EdgeHandleEnum.SOURCE
           if (!connectedHandles.has(edge.source)) {
             connectedHandles.set(edge.source, new Set())
           }
@@ -173,8 +173,11 @@ export function useButtonEdgeMaintenance({
         if (isConditionNode) {
           processMultiHandleNode({
             node,
-            handles: ['true', 'false'] as const,
-            handlePositions: { true: { yOffset: -30 }, false: { yOffset: 30 } },
+            handles: [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE] as const,
+            handlePositions: {
+              [EdgeHandleEnum.TRUE]: { yOffset: -30 },
+              [EdgeHandleEnum.FALSE]: { yOffset: 30 },
+            },
             connectedHandles,
             pendingEdge,
             nodes,
@@ -188,7 +191,10 @@ export function useButtonEdgeMaintenance({
           processMultiHandleNode({
             node,
             handles: [EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED] as const,
-            handlePositions: { approved: { yOffset: -30 }, rejected: { yOffset: 30 } },
+            handlePositions: {
+              [EdgeHandleEnum.APPROVED]: { yOffset: -30 },
+              [EdgeHandleEnum.REJECTED]: { yOffset: 30 },
+            },
             connectedHandles,
             pendingEdge,
             nodes,
@@ -201,8 +207,11 @@ export function useButtonEdgeMaintenance({
         if (isLoopNode) {
           processMultiHandleNode({
             node,
-            handles: ['done', 'loop'] as const,
-            handlePositions: { done: { yOffset: -30 }, loop: { yOffset: 0 } },
+            handles: [EdgeHandleEnum.DONE, EdgeHandleEnum.LOOP] as const,
+            handlePositions: {
+              [EdgeHandleEnum.DONE]: { yOffset: -30 },
+              [EdgeHandleEnum.LOOP]: { yOffset: 0 },
+            },
             connectedHandles,
             pendingEdge,
             nodes,
@@ -212,7 +221,7 @@ export function useButtonEdgeMaintenance({
           return
         }
 
-        const sourceHandleConnected = connectedHandles.get(node.id)?.has('source') ?? false
+        const sourceHandleConnected = connectedHandles.get(node.id)?.has(EdgeHandleEnum.SOURCE) ?? false
         const hasPendingEdge = pendingEdge?.sourceNodeId === node.id
         const shouldHaveButtonEdge = !sourceHandleConnected && !hasPendingEdge
 
@@ -264,14 +273,14 @@ export function useButtonEdgeMaintenance({
         // Track which condition handles already have ButtonEdges (nodeId-handleId format)
         const conditionHandlesWithButtonEdges = new Set(
           existingButtonEdges
-            .filter((edge) => edge.sourceHandle === 'true' || edge.sourceHandle === 'false')
+            .filter((edge) => edge.sourceHandle === EdgeHandleEnum.TRUE || edge.sourceHandle === EdgeHandleEnum.FALSE)
             .map((edge) => `${edge.source}-${edge.sourceHandle}`)
         )
 
         // Track which loop handles (both 'done' and 'loop') already have ButtonEdges
         const loopHandlesWithButtonEdges = new Set(
           existingButtonEdges
-            .filter((edge) => edge.sourceHandle === 'done' || edge.sourceHandle === 'loop')
+            .filter((edge) => edge.sourceHandle === EdgeHandleEnum.DONE || edge.sourceHandle === EdgeHandleEnum.LOOP)
             .map((edge) => `${edge.source}-${edge.sourceHandle}`)
         )
 
@@ -348,7 +357,7 @@ export function useButtonEdgeMaintenance({
               source: nodeId,
               sourceHandle: handleId,
               target: placeholderId,
-              targetHandle: 'target',
+              targetHandle: EdgeHandleEnum.TARGET,
               type: 'buttonEdge',
               selectable: false,
               data: {
@@ -375,7 +384,7 @@ export function useButtonEdgeMaintenance({
               source: nodeId,
               sourceHandle: handleId,
               target: placeholderId,
-              targetHandle: 'target',
+              targetHandle: EdgeHandleEnum.TARGET,
               type: 'buttonEdge',
               selectable: false,
               data: {
@@ -402,7 +411,7 @@ export function useButtonEdgeMaintenance({
               source: nodeId,
               sourceHandle: handleId,
               target: placeholderId,
-              targetHandle: 'target',
+              targetHandle: EdgeHandleEnum.TARGET,
               type: 'buttonEdge',
               selectable: false,
               data: {
