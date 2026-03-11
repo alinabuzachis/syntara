@@ -45,6 +45,11 @@ spec:
     - name: kind
       value: pipeline
     resolver: bundles
+  taskRunSpecs:
+  - pipelineTaskName: prefetch-dependencies
+    params:
+    - name: mode
+      value: 'permissive'
   taskRunTemplate:
     serviceAccountName: build-pipeline-ansible-automation-orchestrator-backend-main
   workspaces:
