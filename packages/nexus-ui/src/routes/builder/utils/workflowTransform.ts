@@ -19,6 +19,13 @@ interface ParallelGroup {
   branches: Activity[][]
 }
 
+interface NestingContext {
+  edges: EdgeConnection[]
+  rootActivities: Activity[]
+  usedRootActivityIds?: Set<string>
+  isRecursiveCall: boolean
+}
+
 /**
  * Generate a valid activity ID that matches the API schema pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
  * Uses a counter to ensure uniqueness within the current session.
@@ -359,13 +366,24 @@ export class WorkflowTransform {
     // 2. No more parallels - nest loops (they can contain conditions and approvals)
     result = this.nestLoops(result, edges)
 
-    // 3. Nest approvals (they can contain conditions)
-    result = this.nestApprovals(result, edges)
-
-    // 4. Finally, nest conditions
     // Track activities pulled from root level that should be removed from top level
     const usedRootActivityIds = new Set<string>()
-    result = this.nestConditions(result, edges, result, usedRootActivityIds, false, new Set<string>())
+
+    // 3. Nest approvals (they can contain conditions)
+    result = this.nestApprovals(result, {
+      edges,
+      rootActivities: result,
+      usedRootActivityIds,
+      isRecursiveCall: false,
+    })
+
+    // 4. Finally, nest conditions
+    result = this.nestConditions(result, {
+      edges,
+      rootActivities: result,
+      usedRootActivityIds,
+      isRecursiveCall: false,
+    })
 
     // Remove activities that have been nested inside condition branches (pulled from root)
     result = result.filter((a) => !usedRootActivityIds.has(a.id))
@@ -715,13 +733,8 @@ export class WorkflowTransform {
   /**
    * Nest approval nodes based on edges
    */
-  private static nestApprovals(
-    flatActivities: Activity[],
-    edges: EdgeConnection[],
-    rootActivities: Activity[] = flatActivities,
-    usedRootActivityIds?: Set<string>,
-    isRecursiveCall: boolean = false
-  ): Activity[] {
+  private static nestApprovals(flatActivities: Activity[], context: NestingContext): Activity[] {
+    const { edges, rootActivities, usedRootActivityIds } = context
     let result = [...flatActivities]
     const approvalActivities = result.filter((a) => a.type === ActivityTypeEnum.APPROVAL)
 
@@ -744,22 +757,8 @@ export class WorkflowTransform {
 
       // Find all activities belonging to each branch
       // CRITICAL: Use flatActivities (not result) to search for activities, as result gets modified during loop
-      const onApprovedActivities = this.findBranchActivities(
-        approvedStartIds,
-        edges,
-        flatActivities,
-        rootActivities,
-        usedRootActivityIds,
-        isRecursiveCall
-      )
-      const onRejectedActivities = this.findBranchActivities(
-        rejectedStartIds,
-        edges,
-        flatActivities,
-        rootActivities,
-        usedRootActivityIds,
-        isRecursiveCall
-      )
+      const onApprovedActivities = this.findBranchActivities(approvedStartIds, flatActivities, context)
+      const onRejectedActivities = this.findBranchActivities(rejectedStartIds, flatActivities, context)
 
       // Remove branch activities from top level
       const allBranchActivityIds = new Set([
@@ -770,25 +769,17 @@ export class WorkflowTransform {
 
       // Recursively process nested nodes
       // First nest any approvals, then nest conditions (approvals can contain conditions)
-      let processedApproved = this.nestApprovals(onApprovedActivities, edges, rootActivities, usedRootActivityIds, true)
-      processedApproved = this.nestConditions(
-        processedApproved,
+      const recursiveCtx: NestingContext = {
         edges,
         rootActivities,
         usedRootActivityIds,
-        true,
-        new Set<string>()
-      )
+        isRecursiveCall: true,
+      }
+      let processedApproved = this.nestApprovals(onApprovedActivities, recursiveCtx)
+      processedApproved = this.nestConditions(processedApproved, recursiveCtx)
 
-      let processedRejected = this.nestApprovals(onRejectedActivities, edges, rootActivities, usedRootActivityIds, true)
-      processedRejected = this.nestConditions(
-        processedRejected,
-        edges,
-        rootActivities,
-        usedRootActivityIds,
-        true,
-        new Set<string>()
-      )
+      let processedRejected = this.nestApprovals(onRejectedActivities, recursiveCtx)
+      processedRejected = this.nestConditions(processedRejected, recursiveCtx)
 
       // Update approval with nested branches
       const approvalIndex = result.findIndex((a) => a.id === approvalActivity.id)
@@ -809,12 +800,10 @@ export class WorkflowTransform {
    */
   private static nestConditions(
     flatActivities: Activity[],
-    edges: EdgeConnection[],
-    rootActivities: Activity[] = flatActivities,
-    usedRootActivityIds?: Set<string>,
-    isRecursiveCall: boolean = false,
+    context: NestingContext,
     processedConditionIds: Set<string> = new Set()
   ): Activity[] {
+    const { edges, rootActivities, usedRootActivityIds } = context
     let result = [...flatActivities]
     const conditionActivities = result.filter((a) => a.type === ActivityTypeEnum.CONDITION)
 
@@ -868,22 +857,8 @@ export class WorkflowTransform {
       // CRITICAL: Use flatActivities (not result) to search for activities, as result gets modified during loop
       // Use rootActivities to find parallel containers that might be at top level
       // Pass isRecursiveCall flag to track whether we're in a recursive call
-      const thenActivities = this.findBranchActivities(
-        trueStartIds,
-        edges,
-        flatActivities,
-        rootActivities,
-        usedRootActivityIds,
-        isRecursiveCall
-      )
-      const elseActivities = this.findBranchActivities(
-        falseStartIds,
-        edges,
-        flatActivities,
-        rootActivities,
-        usedRootActivityIds,
-        isRecursiveCall
-      )
+      const thenActivities = this.findBranchActivities(trueStartIds, flatActivities, context)
+      const elseActivities = this.findBranchActivities(falseStartIds, flatActivities, context)
 
       // Remove branch activities from top level
       const allBranchActivityIds = new Set([...thenActivities.map((a) => a.id), ...elseActivities.map((a) => a.id)])
@@ -893,22 +868,14 @@ export class WorkflowTransform {
       // Mark recursive calls as recursive (true)
       // CRITICAL: Use a NEW processedConditionIds set for each branch to allow conditions to be
       // processed again if they appear in different branches (e.g., condition in approval's onApproved)
-      const processedThen = this.nestConditions(
-        thenActivities,
+      const recursiveContext: NestingContext = {
         edges,
         rootActivities,
         usedRootActivityIds,
-        true,
-        new Set<string>()
-      )
-      const processedElse = this.nestConditions(
-        elseActivities,
-        edges,
-        rootActivities,
-        usedRootActivityIds,
-        true,
-        new Set<string>()
-      )
+        isRecursiveCall: true,
+      }
+      const processedThen = this.nestConditions(thenActivities, recursiveContext, new Set<string>())
+      const processedElse = this.nestConditions(elseActivities, recursiveContext, new Set<string>())
 
       // Update condition with nested branches
       const conditionIndex = result.findIndex((a) => a.id === conditionActivity.id)
@@ -978,12 +945,10 @@ export class WorkflowTransform {
    */
   private static collectActivitiesAfterParallel(
     parallelContainer: Activity,
-    edges: EdgeConnection[],
     allActivities: Activity[],
-    rootActivities: Activity[],
-    usedRootActivityIds: Set<string> | undefined,
-    isRecursiveCall: boolean
+    context: NestingContext
   ): Activity[] {
+    const { edges, rootActivities, usedRootActivityIds, isRecursiveCall } = context
     const result: Activity[] = []
     const visited = new Set<string>()
 
@@ -1016,12 +981,10 @@ export class WorkflowTransform {
    */
   private static handleParallelContainerCase(
     startIds: string[],
-    edges: EdgeConnection[],
     allActivities: Activity[],
-    rootActivities: Activity[],
-    usedRootActivityIds: Set<string> | undefined,
-    isRecursiveCall: boolean
+    context: NestingContext
   ): Activity[] | null {
+    const { rootActivities, usedRootActivityIds } = context
     const foundStartIds = startIds.filter((id) => allActivities.some((a) => a.id === id))
 
     // If multiple startIds but none exist in allActivities, they may be wrapped in a parallel container
@@ -1042,14 +1005,7 @@ export class WorkflowTransform {
     }
 
     // Collect activities that follow the parallel container
-    const afterActivities = this.collectActivitiesAfterParallel(
-      parallelContainer,
-      edges,
-      allActivities,
-      rootActivities,
-      usedRootActivityIds,
-      isRecursiveCall
-    )
+    const afterActivities = this.collectActivitiesAfterParallel(parallelContainer, allActivities, context)
 
     result.push(...afterActivities)
     return result
@@ -1063,29 +1019,18 @@ export class WorkflowTransform {
    * return that parallel container instead.
    *
    * @param startIds - Activity IDs to start collecting from
-   * @param edges - All edges in the workflow
    * @param allActivities - Activities in the current scope (may be nested)
-   * @param rootActivities - Top-level activities (used to find parallel containers)
-   * @param usedRootActivityIds - Set to track activity IDs used from rootActivities (should be removed from top level)
-   * @param isRecursiveCall - Whether we're in a recursive call to nestConditions
+   * @param context - Nesting context (edges, rootActivities, usedRootActivityIds, isRecursiveCall)
    */
   private static findBranchActivities(
     startIds: string[],
-    edges: EdgeConnection[],
     allActivities: Activity[],
-    rootActivities: Activity[] = allActivities,
-    usedRootActivityIds?: Set<string>,
-    isRecursiveCall: boolean = false
+    context: NestingContext
   ): Activity[] {
+    const { edges } = context
+
     // Try to handle parallel container case
-    const parallelResult = this.handleParallelContainerCase(
-      startIds,
-      edges,
-      allActivities,
-      rootActivities,
-      usedRootActivityIds,
-      isRecursiveCall
-    )
+    const parallelResult = this.handleParallelContainerCase(startIds, allActivities, context)
 
     if (parallelResult) {
       return parallelResult

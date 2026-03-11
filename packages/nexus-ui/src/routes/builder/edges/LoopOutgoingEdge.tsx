@@ -53,7 +53,7 @@ export function LoopOutgoingEdge(props: BaseEdgeProps) {
     sourceY: adjustedSourceY,
     targetX: adjustedTargetX,
     targetY: adjustedTargetY,
-  } = adjustEdgeCoordinates(sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition)
+  } = adjustEdgeCoordinates({ sourceX, sourceY, sourcePosition, targetX, targetY })
 
   // Use smooth step path for loop outgoing routing with rounded corners
   // Increase offset to provide more spacing between loop handle and first node in loop body

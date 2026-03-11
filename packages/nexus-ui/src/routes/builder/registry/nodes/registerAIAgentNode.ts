@@ -29,15 +29,14 @@ export default function registerAIAgentNode() {
         const toolsArray = parseToolsString(data.tools)
         const baseName = getDefaultNodeBaseName({ nodeTypeId: 'agent', label: 'AI Agent' })
         const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
-          createAgenticActivity(
+          createAgenticActivity({
             id,
             name,
-            toolsArray,
-            data.prompt || undefined,
-            data.model || undefined,
-            undefined, // inputs
-            data.fileIds.length > 0 ? data.fileIds : undefined
-          )
+            tools: toolsArray,
+            prompt: data.prompt || undefined,
+            model: data.model || undefined,
+            fileIds: data.fileIds.length > 0 ? data.fileIds : undefined,
+          })
         )
 
         if (activity) {

@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { createAgenticActivity } from '../../../stores/useWorkflowStore'
+
 import { AIAgentNodeDetails } from './AIAgentNodeDetails'
 
 // Mock the workflow store
@@ -16,21 +18,32 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
   useWorkflowStoreActions: vi.fn(() => ({
     updateActivity: mockUpdateActivity,
   })),
-  createAgenticActivity: vi.fn((id, name, tools, prompt, model, _inputs, fileIds) => ({
-    type: 'task',
-    id,
-    name,
-    task: {
-      executor: 'agentic',
-      config: {
-        agent: '',
-        ...(tools && { tools }),
-        ...(prompt && { prompt }),
-        ...(model && { model }),
-        ...(fileIds && { fileIds }),
+  createAgenticActivity: vi.fn(
+    (options: {
+      id: string
+      name: string
+      tools?: string[]
+      prompt?: string
+      model?: string
+      inputs?: string
+      fileIds?: string[]
+    }) => ({
+      type: 'task',
+      id: options.id,
+      name: options.name,
+      task: {
+        executor: 'agentic',
+        config: {
+          agent: '',
+          ...(options.tools && { tools: options.tools }),
+          ...(options.prompt && { prompt: options.prompt }),
+          ...(options.model && { model: options.model }),
+          ...(options.fileIds && { fileIds: options.fileIds }),
+        },
+        ...(options.inputs && { inputs: JSON.parse(options.inputs) }),
       },
-    },
-  })),
+    })
+  ),
 }))
 
 // Mock the alerts hook
@@ -184,6 +197,12 @@ describe('AIAgentNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('submit-button'))
 
+    expect(createAgenticActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'agent-1',
+        inputs: JSON.stringify({ key: 'value' }),
+      })
+    )
     expect(mockUpdateActivity).toHaveBeenCalled()
   })
 })

@@ -1028,3 +1028,8 @@ export {
   createGenericActivity,
   createApprovalActivity,
 } from './workflowFactories'
+export type {
+  CreateApiActivityOptions,
+  CreateAgenticActivityOptions,
+  CreateApprovalActivityOptions,
+} from './workflowFactories'

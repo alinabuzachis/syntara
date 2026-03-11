@@ -50,15 +50,15 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
       const allFileIds = [...new Set([...existingFileIds, ...data.fileIds])]
 
       // Create updated agentic activity with merged file IDs
-      const updatedActivity = createAgenticActivity(
-        nodeId,
-        data.name,
-        toolsArray,
-        data.prompt ?? undefined,
-        data.model ?? undefined,
-        taskData.task.inputs ? JSON.stringify(taskData.task.inputs) : undefined,
-        allFileIds.length > 0 ? allFileIds : undefined
-      )
+      const updatedActivity = createAgenticActivity({
+        id: nodeId,
+        name: data.name,
+        tools: toolsArray,
+        prompt: data.prompt ?? undefined,
+        model: data.model ?? undefined,
+        inputs: taskData.task.inputs ? JSON.stringify(taskData.task.inputs) : undefined,
+        fileIds: allFileIds.length > 0 ? allFileIds : undefined,
+      })
 
       updateActivity(nodeId, updatedActivity)
       onClose()

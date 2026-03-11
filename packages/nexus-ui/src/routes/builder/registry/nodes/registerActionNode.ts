@@ -55,16 +55,16 @@ export default function registerActionNode() {
               return createScriptActivity(id, name, data.language, data.code, data.parameters)
             }
             if (data.executor === 'api' && data.method && data.url) {
-              return createApiActivity(
+              return createApiActivity({
                 id,
                 name,
-                data.method,
-                data.url,
-                data.headers,
-                data.body,
-                data.parameters,
-                data.authentication
-              )
+                method: data.method,
+                url: data.url,
+                headers: data.headers,
+                body: data.body,
+                inputs: data.parameters,
+                authentication: data.authentication,
+              })
             }
             return null
           })

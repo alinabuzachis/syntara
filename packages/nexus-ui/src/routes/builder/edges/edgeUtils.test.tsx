@@ -42,7 +42,13 @@ describe('adjustSourceCoordinates', () => {
 
 describe('adjustEdgeCoordinates', () => {
   it('adjusts source coordinates and keeps target unchanged', () => {
-    const result = adjustEdgeCoordinates(100, 50, Position.Right, 200, 150, Position.Left)
+    const result = adjustEdgeCoordinates({
+      sourceX: 100,
+      sourceY: 50,
+      sourcePosition: Position.Right,
+      targetX: 200,
+      targetY: 150,
+    })
     expect(result.sourceX).toBe(95) // adjusted
     expect(result.sourceY).toBe(50) // unchanged
     expect(result.targetX).toBe(200) // unchanged
@@ -50,7 +56,14 @@ describe('adjustEdgeCoordinates', () => {
   })
 
   it('uses custom offset', () => {
-    const result = adjustEdgeCoordinates(100, 50, Position.Right, 200, 150, Position.Left, 10)
+    const result = adjustEdgeCoordinates({
+      sourceX: 100,
+      sourceY: 50,
+      sourcePosition: Position.Right,
+      targetX: 200,
+      targetY: 150,
+      offset: 10,
+    })
     expect(result.sourceX).toBe(90) // 100 - 10
   })
 })

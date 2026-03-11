@@ -53,7 +53,7 @@ export function DefaultEdge(props: BaseEdgeProps) {
     sourceY: adjustedSourceY,
     targetX: adjustedTargetX,
     targetY: adjustedTargetY,
-  } = adjustEdgeCoordinates(sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition)
+  } = adjustEdgeCoordinates({ sourceX, sourceY, sourcePosition, targetX, targetY })
 
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX: adjustedSourceX,

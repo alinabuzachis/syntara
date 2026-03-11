@@ -8,130 +8,12 @@ import type { FlowPosition } from '../types'
 import { filterButtonEdges, filterRealNodes } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
-// Configuration for multi-handle node types (condition, loop, approval)
-interface HandlePositionConfig {
-  yOffset: number
-  xOffset?: number
-}
-
-/**
- * Generic helper function to process multi-handle nodes (condition, loop, approval)
- * and create placeholders and button edges as needed
- */
-function processMultiHandleNode(
-  node: NodeType,
-  handles: readonly string[],
-  handlePositions: Record<string, HandlePositionConfig>,
-  connectedHandles: Map<string, Set<string>>,
-  pendingEdge: { sourceNodeId: string; sourceHandle?: string } | null,
-  nodes: NodeType[],
-  handlesNeedingButtonEdges: { nodeId: string; handleId: string }[],
-  placeholderNodesToAdd: NodeType[]
-) {
-  handles.forEach((handleId) => {
-    const handleConnected = connectedHandles.get(node.id)?.has(handleId) ?? false
-    // Only consider this handle as having a pending edge if both nodeId AND handleId match
-    const hasPendingEdge = pendingEdge?.sourceNodeId === node.id && pendingEdge?.sourceHandle === handleId
-
-    if (!handleConnected && !hasPendingEdge) {
-      handlesNeedingButtonEdges.push({ nodeId: node.id, handleId })
-
-      // Create placeholder for this handle
-      const placeholderId = `placeholder-${node.id}-${handleId}`
-      const placeholderExists = nodes.some((n) => n.id === placeholderId)
-
-      if (!placeholderExists) {
-        const positionConfig = handlePositions[handleId]
-        const yOffset = positionConfig.yOffset
-        const xOffset = positionConfig.xOffset ?? 200
-        placeholderNodesToAdd.push({
-          id: placeholderId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          type: 'placeholder' as any,
-          position: { x: node.position.x + xOffset, y: node.position.y + yOffset },
-          data: {},
-          draggable: false,
-          selectable: false,
-        } as NodeType)
-      }
-    }
-  })
-}
-
-/**
- * Merges new placeholder nodes into the current nodes array,
- * skipping any that already exist.
- */
-function mergeNewPlaceholderNodes(placeholders: NodeType[], currentNodes: NodeType[]): NodeType[] {
-  const existingIds = new Set(currentNodes.map((n) => n.id))
-  const nodesToAdd = placeholders.filter((n) => !existingIds.has(n.id))
-  return nodesToAdd.length > 0 ? [...currentNodes, ...nodesToAdd] : currentNodes
-}
-
-interface ButtonEdgeFilterContext {
-  conditionHandles: { nodeId: string; handleId: string }[]
-  loopHandles: { nodeId: string; handleId: string }[]
-  approvalHandles: { nodeId: string; handleId: string }[]
-  regularNodeIds: string[]
-  activeNodeId: string | null
-  activeHandle: string | null
-}
-
-/**
- * Determines whether an existing button edge should be kept, returning the
- * edge with updated active state, or null if it should be removed.
- */
-function getKeptButtonEdge(edge: EdgeType, ctx: ButtonEdgeFilterContext): EdgeType | null {
-  const handleId = edge.sourceHandle
-
-  if (handleId === 'true' || handleId === 'false') {
-    const isNeeded = ctx.conditionHandles.some((h) => h.nodeId === edge.source && h.handleId === handleId)
-    if (!isNeeded) return null
-    return {
-      ...edge,
-      data: {
-        ...edge.data,
-        isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === handleId,
-      },
-    }
-  }
-
-  if (handleId === 'done' || handleId === 'loop') {
-    const isNeeded = ctx.loopHandles.some((h) => h.nodeId === edge.source && h.handleId === handleId)
-    if (!isNeeded) return null
-    return {
-      ...edge,
-      data: {
-        ...edge.data,
-        isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === handleId,
-      },
-    }
-  }
-
-  if (handleId === EdgeHandleEnum.APPROVED || handleId === EdgeHandleEnum.REJECTED) {
-    const isNeeded = ctx.approvalHandles.some((h) => h.nodeId === edge.source && h.handleId === handleId)
-    if (!isNeeded) return null
-    return {
-      ...edge,
-      data: {
-        ...edge.data,
-        isActive: ctx.activeNodeId === edge.source && ctx.activeHandle === handleId,
-      },
-    }
-  }
-
-  if ((handleId === EdgeHandleEnum.SOURCE || !handleId) && ctx.regularNodeIds.includes(edge.source)) {
-    return {
-      ...edge,
-      data: {
-        ...edge.data,
-        isActive: ctx.activeNodeId === edge.source && (ctx.activeHandle === 'source' || !ctx.activeHandle),
-      },
-    }
-  }
-
-  return null
-}
+import {
+  type ButtonEdgeFilterContext,
+  getKeptButtonEdge,
+  mergeNewPlaceholderNodes,
+  processMultiHandleNode,
+} from './buttonEdgeMaintenanceHelpers'
 
 interface UseButtonEdgeMaintenanceOptions {
   nodes: NodeType[]
@@ -222,8 +104,11 @@ export function useButtonEdgeMaintenance({
     // CRITICAL: Include buttonEdgesSignature to allow effect to run again when ButtonEdges are added one-at-a-time
     // CRITICAL: Include pendingEdge to allow effect to run when pending edge is cleared (panel closed)
     // CRITICAL: Use '::' as separator instead of '|' because signature values contain '|' characters
-    const pendingEdgeSignature = pendingEdge ? `pending:${pendingEdge.sourceNodeId}` : 'no-pending'
-    const currentSignature = `${realNodeIds}::${realEdgesSignature}::${buttonEdgesSignature}::${pendingEdgeSignature}::${isInitialized}`
+    const pendingEdgeSignature = pendingEdge
+      ? `pending:${pendingEdge.sourceNodeId}:${pendingEdge.sourceHandle ?? EdgeHandleEnum.SOURCE}`
+      : 'no-pending'
+    const activeButtonSignature = `${activeEdgeButtonNodeId ?? 'none'}:${activeEdgeButtonHandle ?? 'none'}`
+    const currentSignature = `${realNodeIds}::${realEdgesSignature}::${buttonEdgesSignature}::${pendingEdgeSignature}::${activeButtonSignature}::${isInitialized}`
 
     // CRITICAL: Check signature BEFORE starting timeout to prevent race conditions in Strict Mode
     // In Strict Mode, effects run twice rapidly - both would start timeouts before either updates the ref
@@ -286,44 +171,44 @@ export function useButtonEdgeMaintenance({
 
         // Handle multi-handle nodes (condition, approval, loop) using the reusable helper
         if (isConditionNode) {
-          processMultiHandleNode(
+          processMultiHandleNode({
             node,
-            ['true', 'false'] as const,
-            { true: { yOffset: -30 }, false: { yOffset: 30 } },
+            handles: ['true', 'false'] as const,
+            handlePositions: { true: { yOffset: -30 }, false: { yOffset: 30 } },
             connectedHandles,
             pendingEdge,
             nodes,
-            conditionHandlesNeedingButtonEdgesRef.current,
-            placeholderNodesToAddRef.current
-          )
+            handlesNeedingButtonEdges: conditionHandlesNeedingButtonEdgesRef.current,
+            placeholderNodesToAdd: placeholderNodesToAddRef.current,
+          })
           return
         }
 
         if (isApprovalNode) {
-          processMultiHandleNode(
+          processMultiHandleNode({
             node,
-            [EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED] as const,
-            { approved: { yOffset: -30 }, rejected: { yOffset: 30 } },
+            handles: [EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED] as const,
+            handlePositions: { approved: { yOffset: -30 }, rejected: { yOffset: 30 } },
             connectedHandles,
             pendingEdge,
             nodes,
-            approvalHandlesNeedingButtonEdgesRef.current,
-            placeholderNodesToAddRef.current
-          )
+            handlesNeedingButtonEdges: approvalHandlesNeedingButtonEdgesRef.current,
+            placeholderNodesToAdd: placeholderNodesToAddRef.current,
+          })
           return
         }
 
         if (isLoopNode) {
-          processMultiHandleNode(
+          processMultiHandleNode({
             node,
-            ['done', 'loop'] as const,
-            { done: { yOffset: -30 }, loop: { yOffset: 0 } },
+            handles: ['done', 'loop'] as const,
+            handlePositions: { done: { yOffset: -30 }, loop: { yOffset: 0 } },
             connectedHandles,
             pendingEdge,
             nodes,
-            loopHandlesNeedingButtonEdgesRef.current,
-            placeholderNodesToAddRef.current
-          )
+            handlesNeedingButtonEdges: loopHandlesNeedingButtonEdgesRef.current,
+            placeholderNodesToAdd: placeholderNodesToAddRef.current,
+          })
           return
         }
 

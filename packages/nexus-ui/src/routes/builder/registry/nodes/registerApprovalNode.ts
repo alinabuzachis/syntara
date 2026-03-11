@@ -27,7 +27,14 @@ export default function registerApprovalNode() {
         // Create approval activity with workflow store helper
         const baseName = getDefaultNodeBaseName({ nodeTypeId: 'approval', label: 'Approval' })
         const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
-          createApprovalActivity(id, name, data.approvers, data.prompt, data.timeout, data.onTimeout)
+          createApprovalActivity({
+            id,
+            name,
+            approvers: data.approvers,
+            prompt: data.prompt,
+            timeout: data.timeout,
+            onTimeout: data.onTimeout,
+          })
         )
 
         // Add to workflow store

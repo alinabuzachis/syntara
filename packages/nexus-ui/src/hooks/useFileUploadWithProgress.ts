@@ -43,14 +43,17 @@ export function isFileUploadError(value: unknown): value is FileUploadError {
   )
 }
 
-function handleXhrLoad(
-  xhr: XMLHttpRequest,
-  xhrRef: MutableRefObject<XMLHttpRequest | null>,
-  setUploading: Dispatch<SetStateAction<boolean>>,
-  setError: Dispatch<SetStateAction<FileUploadError | null>>,
-  resolve: (value: FileUploadResponse) => void,
+interface HandleXhrLoadOptions {
+  xhr: XMLHttpRequest
+  xhrRef: MutableRefObject<XMLHttpRequest | null>
+  setUploading: Dispatch<SetStateAction<boolean>>
+  setError: Dispatch<SetStateAction<FileUploadError | null>>
+  resolve: (value: FileUploadResponse) => void
   reject: (reason: FileUploadError) => void
-): void {
+}
+
+function handleXhrLoad(options: HandleXhrLoadOptions): void {
+  const { xhr, xhrRef, setUploading, setError, resolve, reject } = options
   setUploading(false)
   xhrRef.current = null
 
@@ -183,7 +186,7 @@ export function useFileUploadWithProgress(): UseFileUploadWithProgressResult {
       xhrRef.current = xhr
 
       xhr.upload.addEventListener('progress', createProgressHandler(setProgress, files.length))
-      xhr.addEventListener('load', () => handleXhrLoad(xhr, xhrRef, setUploading, setError, resolve, reject))
+      xhr.addEventListener('load', () => handleXhrLoad({ xhr, xhrRef, setUploading, setError, resolve, reject }))
       xhr.addEventListener('error', () => {
         setUploading(false)
         xhrRef.current = null

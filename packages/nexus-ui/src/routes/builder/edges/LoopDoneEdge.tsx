@@ -54,7 +54,7 @@ export function LoopDoneEdge(props: BaseEdgeProps) {
     sourceY: adjustedSourceY,
     targetX: adjustedTargetX,
     targetY: adjustedTargetY,
-  } = adjustEdgeCoordinates(sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition)
+  } = adjustEdgeCoordinates({ sourceX, sourceY, sourcePosition, targetX, targetY })
 
   // Use bezier path for smooth curved routing
   const [edgePath, labelX, labelY] = getBezierPath({

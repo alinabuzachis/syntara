@@ -144,6 +144,17 @@ export function createScriptActivity(
   return activity
 }
 
+export interface CreateApiActivityOptions {
+  id: string
+  name: string
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  url: string
+  headers?: string
+  body?: string
+  inputs?: string
+  authentication?: string
+}
+
 /**
  * Create an API activity.
  * @param id - Unique activity identifier
@@ -155,16 +166,8 @@ export function createScriptActivity(
  * @param inputs - Optional JSON string of input parameters
  * @param authentication - Optional authentication value (merged into headers)
  */
-export function createApiActivity(
-  id: string,
-  name: string,
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  url: string,
-  headers?: string,
-  body?: string,
-  inputs?: string,
-  authentication?: string
-): TaskActivity {
+export function createApiActivity(options: CreateApiActivityOptions): TaskActivity {
+  const { id, name, method, url, headers, body, inputs, authentication } = options
   const config: {
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
     url: string
@@ -220,6 +223,16 @@ export function createApiActivity(
   return activity
 }
 
+export interface CreateAgenticActivityOptions {
+  id: string
+  name: string
+  tools?: string[]
+  prompt?: string
+  model?: string
+  inputs?: string
+  fileIds?: string[]
+}
+
 /**
  * Create an agentic activity (AI agent with MCP server integration).
  * @param id - Unique activity identifier
@@ -230,15 +243,8 @@ export function createApiActivity(
  * @param inputs - Optional JSON string of input parameters
  * @param fileIds - Optional array of uploaded file IDs
  */
-export function createAgenticActivity(
-  id: string,
-  name: string,
-  tools?: string[],
-  prompt?: string,
-  model?: string,
-  inputs?: string,
-  fileIds?: string[]
-): TaskActivity {
+export function createAgenticActivity(options: CreateAgenticActivityOptions): TaskActivity {
+  const { id, name, tools, prompt, model, inputs, fileIds } = options
   const config: {
     agent: string
     tools?: string[]
@@ -527,6 +533,15 @@ export function createGenericActivity(id: string, name: string = 'New Node', cus
   return activity as TaskActivity
 }
 
+export interface CreateApprovalActivityOptions {
+  id: string
+  name: string
+  approvers: string[]
+  prompt: string
+  timeout?: number
+  onTimeout?: 'fail' | 'approve' | 'reject'
+}
+
 /**
  * Create an approval activity - a task that requires human approval before execution.
  * @param id - Unique activity identifier
@@ -537,13 +552,9 @@ export function createGenericActivity(id: string, name: string = 'New Node', cus
  * @param onTimeout - Action to take when timeout expires: 'fail', 'approve', or 'reject'
  */
 export function createApprovalActivity(
-  id: string,
-  name: string,
-  approvers: string[],
-  prompt: string,
-  timeout?: number,
-  onTimeout?: 'fail' | 'approve' | 'reject'
+  options: CreateApprovalActivityOptions
 ): Extract<Activity, { type: 'approval' }> {
+  const { id, name, approvers, prompt, timeout, onTimeout } = options
   // Approval nodes match the workflow schema with onApproved/onRejected branches
   // Pattern: Same as condition nodes, but with approval-specific fields
   return {

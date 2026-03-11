@@ -161,7 +161,12 @@ describe('workflowFactories', () => {
 
     describe('createApiActivity', () => {
       it('creates an API activity', () => {
-        const activity = createApiActivity('api-1', 'API Call', 'GET', 'https://api.example.com') as any
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'GET',
+          url: 'https://api.example.com',
+        }) as any
 
         expect(activity.type).toBe('task')
         expect(activity.id).toBe('api-1')
@@ -171,28 +176,26 @@ describe('workflowFactories', () => {
       })
 
       it('creates an API activity with headers', () => {
-        const activity = createApiActivity(
-          'api-1',
-          'API Call',
-          'POST',
-          'https://api.example.com',
-          '{"Authorization": "Bearer token"}'
-        ) as any
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'POST',
+          url: 'https://api.example.com',
+          headers: '{"Authorization": "Bearer token"}',
+        }) as any
 
         expect(activity.task.config.headers).toEqual({ Authorization: 'Bearer token' })
       })
 
       it('merges authentication into headers when provided', () => {
-        const activity = createApiActivity(
-          'api-1',
-          'API Call',
-          'GET',
-          'https://api.example.com',
-          '{"Content-Type": "application/json"}',
-          undefined,
-          undefined,
-          'Bearer token'
-        ) as any
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'GET',
+          url: 'https://api.example.com',
+          headers: '{"Content-Type": "application/json"}',
+          authentication: 'Bearer token',
+        }) as any
 
         expect(activity.task.config.headers).toEqual({
           'Content-Type': 'application/json',
@@ -201,47 +204,49 @@ describe('workflowFactories', () => {
       })
 
       it('creates an API activity with body', () => {
-        const activity = createApiActivity(
-          'api-1',
-          'API Call',
-          'POST',
-          'https://api.example.com',
-          undefined,
-          '{"data": "value"}'
-        ) as any
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'POST',
+          url: 'https://api.example.com',
+          body: '{"data": "value"}',
+        }) as any
 
         expect(activity.task.config.body).toEqual({ data: 'value' })
       })
 
       it('uses string body when JSON parsing fails', () => {
-        const activity = createApiActivity(
-          'api-1',
-          'API Call',
-          'POST',
-          'https://api.example.com',
-          undefined,
-          'plain text body'
-        ) as any
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'POST',
+          url: 'https://api.example.com',
+          body: 'plain text body',
+        }) as any
 
         expect(activity.task.config.body).toBe('plain text body')
       })
 
       it('ignores invalid JSON headers', () => {
-        const activity = createApiActivity('api-1', 'API Call', 'GET', 'https://api.example.com', 'invalid json') as any
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'GET',
+          url: 'https://api.example.com',
+          headers: 'invalid json',
+        }) as any
 
         expect(activity.task.config.headers).toBeUndefined()
       })
 
       it('parses valid JSON inputs', () => {
-        const activity = createApiActivity(
-          'api-1',
-          'API Call',
-          'GET',
-          'https://api.example.com',
-          undefined,
-          undefined,
-          '{"param": "value"}'
-        )
+        const activity = createApiActivity({
+          id: 'api-1',
+          name: 'API Call',
+          method: 'GET',
+          url: 'https://api.example.com',
+          inputs: '{"param": "value"}',
+        })
 
         expect(activity.task.inputs).toEqual({ param: 'value' })
       })
@@ -249,7 +254,7 @@ describe('workflowFactories', () => {
 
     describe('createAgenticActivity', () => {
       it('creates an agentic activity', () => {
-        const activity = createAgenticActivity('agent-1', 'AI Agent') as any
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent' }) as any
 
         expect(activity.type).toBe('task')
         expect(activity.id).toBe('agent-1')
@@ -258,40 +263,57 @@ describe('workflowFactories', () => {
       })
 
       it('creates an agentic activity with tools', () => {
-        const activity = createAgenticActivity('agent-1', 'AI Agent', ['tool1', 'tool2']) as any
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          tools: ['tool1', 'tool2'],
+        }) as any
 
         expect(activity.task.config.tools).toEqual(['tool1', 'tool2'])
       })
 
       it('creates an agentic activity with prompt', () => {
-        const activity = createAgenticActivity('agent-1', 'AI Agent', undefined, 'Do something') as any
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          prompt: 'Do something',
+        }) as any
 
         expect(activity.task.config.prompt).toBe('Do something')
       })
 
       it('creates an agentic activity with model', () => {
-        const activity = createAgenticActivity('agent-1', 'AI Agent', undefined, undefined, 'gpt-4') as any
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          model: 'gpt-4',
+        }) as any
 
         expect(activity.task.config.model).toBe('gpt-4')
       })
 
       it('creates an agentic activity with fileIds', () => {
-        const activity = createAgenticActivity('agent-1', 'AI Agent', undefined, undefined, undefined, undefined, [
-          'file-1',
-          'file-2',
-        ]) as any
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          fileIds: ['file-1', 'file-2'],
+        }) as any
 
         expect(activity.task.config.fileIds).toEqual(['file-1', 'file-2'])
       })
 
       it('does not include empty tools array', () => {
-        const activity = createAgenticActivity('agent-1', 'AI Agent', []) as any
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent', tools: [] }) as any
 
         expect(activity.task.config.tools).toBeUndefined()
       })
 
       it('parses valid JSON inputs', () => {
-        const activity = createAgenticActivity('agent-1', 'AI Agent', undefined, undefined, undefined, '{"key": "val"}')
+        const activity = createAgenticActivity({
+          id: 'agent-1',
+          name: 'AI Agent',
+          inputs: '{"key": "val"}',
+        })
 
         expect(activity.task.inputs).toEqual({ key: 'val' })
       })
@@ -493,12 +515,12 @@ describe('workflowFactories', () => {
 
     describe('createApprovalActivity', () => {
       it('creates an approval activity', () => {
-        const activity = createApprovalActivity(
-          'appr-1',
-          'Approval Gate',
-          ['admin@example.com'],
-          'Please approve'
-        ) as any
+        const activity = createApprovalActivity({
+          id: 'appr-1',
+          name: 'Approval Gate',
+          approvers: ['admin@example.com'],
+          prompt: 'Please approve',
+        }) as any
 
         expect(activity.type).toBe('approval')
         expect(activity.id).toBe('appr-1')
@@ -510,20 +532,26 @@ describe('workflowFactories', () => {
       })
 
       it('creates an approval activity with timeout', () => {
-        const activity = createApprovalActivity('appr-1', 'Approval', ['admin@example.com'], 'Approve?', 3600) as any
+        const activity = createApprovalActivity({
+          id: 'appr-1',
+          name: 'Approval',
+          approvers: ['admin@example.com'],
+          prompt: 'Approve?',
+          timeout: 3600,
+        }) as any
 
         expect(activity.approval.timeout).toBe(3600)
       })
 
       it('creates an approval activity with onTimeout action', () => {
-        const activity = createApprovalActivity(
-          'appr-1',
-          'Approval',
-          ['admin@example.com'],
-          'Approve?',
-          3600,
-          'reject'
-        ) as any
+        const activity = createApprovalActivity({
+          id: 'appr-1',
+          name: 'Approval',
+          approvers: ['admin@example.com'],
+          prompt: 'Approve?',
+          timeout: 3600,
+          onTimeout: 'reject',
+        }) as any
 
         expect(activity.approval.onTimeout).toBe('reject')
       })

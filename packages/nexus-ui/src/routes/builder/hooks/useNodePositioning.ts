@@ -38,19 +38,18 @@ function applyPositionedNodes(
   })
 }
 
-/**
- * Processes a single node for loop-based positioning.
- * When overridePosition is set for this node, use it (e.g. from desiredPosition); otherwise use viewport base.
- */
-function positionLoopNode(
-  node: NodeType,
-  newlyAddedNodeIdsRef: MutableRefObject<Set<string>>,
-  baseX: number,
-  baseY: number,
-  loopPositions: Map<string, { x: number; y: number; width: number; height: number }>,
-  positionedNodes: Map<string, NodeType>,
+interface PositionLoopNodeOptions {
+  node: NodeType
+  newlyAddedNodeIdsRef: MutableRefObject<Set<string>>
+  baseX: number
+  baseY: number
+  loopPositions: Map<string, { x: number; y: number; width: number; height: number }>
+  positionedNodes: Map<string, NodeType>
   overridePosition: FlowPosition | null
-): NodeType {
+}
+
+function positionLoopNode(options: PositionLoopNodeOptions): NodeType {
+  const { node, newlyAddedNodeIdsRef, baseX, baseY, loopPositions, positionedNodes, overridePosition } = options
   if (
     newlyAddedNodeIdsRef.current.has(node.id) &&
     node.measured &&
@@ -174,15 +173,15 @@ export function useNodePositioning({
 
             const updatedNodes = currentNodes.map((node) => {
               const overridePosition = node.id === overrideForFirstLoop?.nodeId ? overrideForFirstLoop.position : null
-              const loopPositioned = positionLoopNode(
+              const loopPositioned = positionLoopNode({
                 node,
                 newlyAddedNodeIdsRef,
                 baseX,
                 baseY,
                 loopPositions,
                 positionedNodes,
-                overridePosition
-              )
+                overridePosition,
+              })
               if (loopPositioned !== node) return loopPositioned
 
               return positionLoopBodyNode(node, newlyAddedNodeIdsRef, loopBodyNodeMap, loopPositions, positionedNodes)

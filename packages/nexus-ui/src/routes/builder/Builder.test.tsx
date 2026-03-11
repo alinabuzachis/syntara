@@ -103,7 +103,12 @@ describe('Builder Workflow Store Helpers', () => {
   describe('createApiActivity', () => {
     it('creates API activity without headers or body', async () => {
       const { createApiActivity } = await import('../../stores/useWorkflowStore')
-      const activity = createApiActivity('api-1', 'GET Users', 'GET', 'https://api.example.com/users')
+      const activity = createApiActivity({
+        id: 'api-1',
+        name: 'GET Users',
+        method: 'GET',
+        url: 'https://api.example.com/users',
+      })
 
       expect(activity.type).toBe('task')
       expect(activity.id).toBe('api-1')
@@ -118,7 +123,13 @@ describe('Builder Workflow Store Helpers', () => {
     it('creates API activity with valid JSON headers', async () => {
       const { createApiActivity } = await import('../../stores/useWorkflowStore')
       const headers = JSON.stringify({ 'Content-Type': 'application/json' })
-      const activity = createApiActivity('api-2', 'POST Data', 'POST', 'https://api.example.com/data', headers)
+      const activity = createApiActivity({
+        id: 'api-2',
+        name: 'POST Data',
+        method: 'POST',
+        url: 'https://api.example.com/data',
+        headers,
+      })
 
       expect((activity.task.config as { headers?: unknown }).headers).toEqual({ 'Content-Type': 'application/json' })
     })
@@ -126,28 +137,39 @@ describe('Builder Workflow Store Helpers', () => {
     it('creates API activity with valid JSON body', async () => {
       const { createApiActivity } = await import('../../stores/useWorkflowStore')
       const body = JSON.stringify({ name: 'Test' })
-      const activity = createApiActivity('api-3', 'POST User', 'POST', 'https://api.example.com/users', undefined, body)
+      const activity = createApiActivity({
+        id: 'api-3',
+        name: 'POST User',
+        method: 'POST',
+        url: 'https://api.example.com/users',
+        body,
+      })
 
       expect((activity.task.config as { body?: unknown }).body).toEqual({ name: 'Test' })
     })
 
     it('handles invalid JSON headers gracefully', async () => {
       const { createApiActivity } = await import('../../stores/useWorkflowStore')
-      const activity = createApiActivity('api-4', 'POST Data', 'POST', 'https://api.example.com/data', 'invalid-json')
+      const activity = createApiActivity({
+        id: 'api-4',
+        name: 'POST Data',
+        method: 'POST',
+        url: 'https://api.example.com/data',
+        headers: 'invalid-json',
+      })
 
       expect((activity.task.config as { headers?: unknown }).headers).toBeUndefined()
     })
 
     it('uses string body when JSON parsing fails', async () => {
       const { createApiActivity } = await import('../../stores/useWorkflowStore')
-      const activity = createApiActivity(
-        'api-5',
-        'POST Text',
-        'POST',
-        'https://api.example.com/text',
-        undefined,
-        'plain text'
-      )
+      const activity = createApiActivity({
+        id: 'api-5',
+        name: 'POST Text',
+        method: 'POST',
+        url: 'https://api.example.com/text',
+        body: 'plain text',
+      })
 
       expect((activity.task.config as { body?: unknown }).body).toBe('plain text')
     })

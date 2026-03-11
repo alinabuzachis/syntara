@@ -42,24 +42,26 @@ export function adjustSourceCoordinates(
   }
 }
 
+export interface AdjustEdgeOptions {
+  sourceX: number
+  sourceY: number
+  sourcePosition: Position
+  targetX: number
+  targetY: number
+  offset?: number
+}
+
 /**
  * Adjusts both source and target coordinates.
  * Only source coordinates are currently adjusted (target handles don't need offset - they're positioned at edge).
  */
-export function adjustEdgeCoordinates(
-  sourceX: number,
-  sourceY: number,
-  sourcePosition: Position,
-  targetX: number,
-  targetY: number,
-  _targetPosition: Position,
-  offset: number = SOURCE_EDGE_OFFSET
-): {
+export function adjustEdgeCoordinates(options: AdjustEdgeOptions): {
   sourceX: number
   sourceY: number
   targetX: number
   targetY: number
 } {
+  const { sourceX, sourceY, sourcePosition, targetX, targetY, offset = SOURCE_EDGE_OFFSET } = options
   const adjustedSource = adjustSourceCoordinates(sourceX, sourceY, sourcePosition, offset)
   // Target handles are positioned at the edge without offset, so no adjustment needed
   return {
