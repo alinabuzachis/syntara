@@ -5,6 +5,11 @@
       "matchManagers": ["pep621"],
       "groupName": "python dependencies",
       "schedule": ["before 6am on Monday"]
+    },
+    {
+      "matchPackageNames": ["quay.io/aap-ci/*"],
+      "automerge": true
     }
+
   ]
 }
