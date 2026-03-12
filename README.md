@@ -35,6 +35,7 @@ src/
     ├── files/                 # File management and document processing
     ├── invocations/           # Agent invocation tracking and execution
     ├── schemas/               # OpenAPI schema definitions for all domains
+    ├── telemetry/             # Telemetry event collection and transmission
     ├── tool_manager/          # Tool provider interfaces and configuration
     ├── workflows/             # Temporal workflow definitions and engine
     └── ws/                    # WebSocket connection handling

@@ -335,15 +335,6 @@ $(WORKTREE_ARGS):
 	@:
 endif
 
-
-# Telemetry schemas
-# ========================================================
-.PHONY: generate-telemetry-schemas
-generate-telemetry-schemas: check-deps ## Generate telemetry JSON schemas from Pydantic models
-	@echo "📐 Generating telemetry schemas..."
-	uv run python tools/generate_telemetry_schemas.py
-	@echo "✅ Schema generation complete"
-
 # Code quality
 # ========================================================
 FORMAT_PATHS := src/ tools/ tests/
@@ -380,8 +371,6 @@ lint: ## Run linters and type checking (no file modifications)
 	uv run ruff check $(FORMAT_PATHS)
 	@echo "📝 Running ruff format check..."
 	uv run ruff format --check $(FORMAT_PATHS)
-	@echo "📝 Validating telemetry schemas..."
-	uv run python tools/generate_telemetry_schemas.py --validate
 	@echo "📝 Checking file formatting..."
 	uv run python tools/ci/check_file_formatting.py
 	@echo "📝 Checking YAML formatting..."
