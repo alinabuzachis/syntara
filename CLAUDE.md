@@ -846,10 +846,6 @@ describe('Button', () => {
 - Mock API: <http://localhost:3000>
 - WebSocket: `ws://localhost:8000` (real backend) or via mock API
 
-### Demo Pages
-
-- **WebSocket Demo**: <http://localhost:5173/demo-ws> — Test WebSocket channels (Coffee, Chat, Agent Events, Tokens)
-
 ## Deployment Considerations
 
 - **Containerization**: Podman (local), Docker Buildx (CI/CD)

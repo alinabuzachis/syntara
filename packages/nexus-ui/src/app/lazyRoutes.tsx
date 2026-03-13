@@ -11,6 +11,5 @@ export const IntegrationForm = lazy(() =>
 export const Integrations = lazy(() => import('../routes/configuration/integrations/Integrations'))
 export const IntegrationTools = lazy(() => import('../routes/configuration/integrations/IntegrationTools'))
 export const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
-export const DemoWebSocket = lazy(() => import('../routes/demo-ws/DemoWebSocket'))
 export const Approvals = lazy(() => import('../routes/approvals/Approvals'))
 export const ApprovalDetail = lazy(() => import('../routes/approvals/ApprovalDetail'))

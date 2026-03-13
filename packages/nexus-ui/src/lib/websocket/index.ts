@@ -4,15 +4,14 @@
  * Pure Zustand architecture - single source of truth.
  *
  * @example
- * import { useWebSocket, WebSocketChannel } from '../lib/websocket'
+ * import { useWebSocket } from '../lib/websocket'
  *
- * const { sendRaw, isConnected } = useWebSocket(WebSocketChannel.Chat, {
+ * const executionChannel = { id: 'execution_123', path: '/ws/workflows/v1/executions/123' }
+ *
+ * const { sendRaw, isConnected } = useWebSocket(executionChannel, {
  *   onMessage: (msg) => console.log(msg),
  * })
  */
-
-// Channels
-export { WebSocketChannel, type WebSocketChannelConfig, type WebSocketChannelId } from './channels'
 
 // Types
 export type {
@@ -28,6 +27,3 @@ export type {
 
 // Hooks (Primary API)
 export { useWebSocket, type UseWebSocketOptions, type UseWebSocketReturn } from './hooks'
-
-// Utilities
-export { getConnectionStateLabel, getConnectionStateColor } from './utils'

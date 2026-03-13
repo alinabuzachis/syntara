@@ -423,19 +423,6 @@ useWebSocketStore.getState().updateConfig({
 
 ---
 
-## Demo Page
-
-Visit `/demo-ws` to see WebSocket channels in action:
-
-- **Coffee Channel:** Send text, receive coffee words
-- **Chat Channel:** Bidirectional chat with echo + random server messages
-- **Agent Events:** Subscribe to log/progress event groups
-- **Tokens:** Receive-only streaming tokens
-
-> ⚠️ **Note:** The mock API does not support WebSocket connections. You must run the real backend server to use the demo page.
-
----
-
 ## Configuration
 
 Default WebSocket base URL is `ws://localhost:8000`. Override via environment variable:

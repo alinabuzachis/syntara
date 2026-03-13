@@ -59,10 +59,10 @@ export interface UseWebSocketReturn {
 /**
  * Main hook for WebSocket connections.
  *
- * @example Using predefined channel
- * import { WebSocketChannel } from '../lib/websocket'
+ * @example Using a channel config
+ * const chatChannel = { id: 'chat', path: '/ws/example/v1/chat' }
  *
- * const { sendRaw, isConnected } = useWebSocket(WebSocketChannel.Chat, {
+ * const { sendRaw, isConnected } = useWebSocket(chatChannel, {
  *   onMessage: (msg) => console.log(msg),
  * })
  *

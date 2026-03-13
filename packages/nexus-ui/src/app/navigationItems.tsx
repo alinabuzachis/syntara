@@ -5,7 +5,6 @@ import {
   Automations,
   BuilderEdit,
   BuilderNew,
-  DemoWebSocket,
   ExecutionDetail,
   Executions,
   Glossary,
@@ -111,13 +110,6 @@ export const navigationItems: INavigationItem[] = [
         element: <Glossary />,
       },
     ],
-  },
-  // Demo route — hidden from nav, accessible via URL for development
-  {
-    label: 'WebSocket Demo',
-    path: AppRoute.DemoWebSocket,
-    element: <DemoWebSocket />,
-    hidden: true,
   },
   // Hidden routes (not shown in navigation, but needed for routing)
   {
