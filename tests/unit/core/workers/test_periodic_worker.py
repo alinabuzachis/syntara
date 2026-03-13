@@ -1,0 +1,458 @@
+"""Unit tests for PeriodicWorker lifecycle, error resilience, coordination, and cleanup.
+
+Tests are written TDD-first against the PeriodicWorker contract defined in
+specs/034-periodic-worker/spec.md and data-model.md.
+"""
+
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+import structlog.testing
+
+from nexus.core.workers.periodic import PeriodicWorker
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+ADVISORY_LOCK_PATH = "nexus.core.workers.periodic._try_advisory_xact_lock"
+
+
+def _mock_session_factory() -> MagicMock:
+    """Create a mock async_sessionmaker that returns an async-context session."""
+    session = AsyncMock()
+    factory = MagicMock()
+    factory.return_value.__aenter__ = AsyncMock(return_value=session)
+    factory.return_value.__aexit__ = AsyncMock(return_value=None)
+    return factory
+
+
+# =============================================================================
+# T003: Lifecycle tests
+# =============================================================================
+
+
+class TestPeriodicWorkerLifecycle:
+    """Start, stop, idempotent start, restart, no-overlap."""
+
+    @pytest.mark.asyncio
+    async def test_start_creates_background_task(self) -> None:
+        """start() creates an asyncio task that runs the callback."""
+        call_count = 0
+
+        async def counting_cb(_sf: object) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        worker = PeriodicWorker(
+            name="test-start",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=counting_cb,
+            coordinate=False,
+        )
+        worker.start()
+        await asyncio.sleep(0.06)
+        await worker.stop()
+
+        assert call_count >= 2, f"Expected callback to run at least twice, got {call_count}"
+
+    @pytest.mark.asyncio
+    async def test_stop_cancels_task(self) -> None:
+        """stop() cancels the background task and awaits completion."""
+        call_count = 0
+
+        async def counting_cb(_sf: object) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        worker = PeriodicWorker(
+            name="test-stop",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=counting_cb,
+            coordinate=False,
+        )
+        worker.start()
+        await asyncio.sleep(0.04)
+        await worker.stop()
+
+        count_at_stop = call_count
+        await asyncio.sleep(0.04)
+        assert call_count == count_at_stop, "Callback should not run after stop()"
+
+    @pytest.mark.asyncio
+    async def test_idempotent_start(self) -> None:
+        """Calling start() multiple times creates only one task."""
+        call_count = 0
+
+        async def counting_cb(_sf: object) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        worker = PeriodicWorker(
+            name="test-idempotent",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=counting_cb,
+            coordinate=False,
+        )
+        worker.start()
+        worker.start()
+        worker.start()
+        await asyncio.sleep(0.05)
+        await worker.stop()
+
+        # If multiple tasks were created, call_count would be much higher
+        assert call_count >= 2
+        assert call_count < 20, "Too many calls — multiple tasks likely created"
+
+    @pytest.mark.asyncio
+    async def test_restart_after_stop(self) -> None:
+        """start() after stop() creates a new task."""
+        call_count = 0
+
+        async def counting_cb(_sf: object) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        worker = PeriodicWorker(
+            name="test-restart",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=counting_cb,
+            coordinate=False,
+        )
+        worker.start()
+        await asyncio.sleep(0.03)
+        await worker.stop()
+
+        count_after_first = call_count
+        assert count_after_first >= 1
+
+        worker.start()
+        await asyncio.sleep(0.03)
+        await worker.stop()
+
+        assert call_count > count_after_first, "Callback should run again after restart"
+
+    @pytest.mark.asyncio
+    async def test_no_concurrent_callback_overlap(self) -> None:
+        """A slow callback blocks the next cycle (no overlap)."""
+        running = 0
+        max_concurrent = 0
+
+        async def slow_cb(_sf: object) -> None:
+            nonlocal running, max_concurrent
+            running += 1
+            max_concurrent = max(max_concurrent, running)
+            await asyncio.sleep(0.03)
+            running -= 1
+
+        worker = PeriodicWorker(
+            name="test-no-overlap",
+            interval_seconds=0.005,
+            session_factory=_mock_session_factory(),
+            callback=slow_cb,
+            coordinate=False,
+        )
+        worker.start()
+        await asyncio.sleep(0.12)
+        await worker.stop()
+
+        assert max_concurrent == 1, f"Expected max 1 concurrent, got {max_concurrent}"
+
+
+# =============================================================================
+# T004: Error resilience + structured logging
+# =============================================================================
+
+
+class TestPeriodicWorkerErrorResilience:
+    """Callback exceptions don't kill the loop; lifecycle events are logged."""
+
+    @pytest.mark.asyncio
+    async def test_callback_exception_does_not_stop_loop(self) -> None:
+        """An exception in the callback is caught; next cycle still runs."""
+        call_count = 0
+
+        async def failing_cb(_sf: object) -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                msg = "deliberate test failure"
+                raise RuntimeError(msg)
+
+        worker = PeriodicWorker(
+            name="test-resilience",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=failing_cb,
+            coordinate=False,
+        )
+        worker.start()
+        await asyncio.sleep(0.06)
+        await worker.stop()
+
+        assert call_count >= 2, f"Loop should continue after error, got {call_count} calls"
+
+    @pytest.mark.asyncio
+    async def test_lifecycle_logging_contains_worker_name(self) -> None:
+        """Structured log events include the worker name."""
+
+        async def noop_cb(_sf: object) -> None:
+            pass
+
+        worker = PeriodicWorker(
+            name="log-test-worker",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=noop_cb,
+            coordinate=False,
+        )
+
+        with structlog.testing.capture_logs() as captured:
+            worker.start()
+            await asyncio.sleep(0.03)
+            await worker.stop()
+
+        # Find events containing our worker name
+        worker_events = [log for log in captured if log.get("worker_name") == "log-test-worker"]
+        event_names = {log.get("event") for log in worker_events}
+        assert "periodic_worker_started" in event_names, (
+            f"Expected 'periodic_worker_started' in logs, got events: {event_names}"
+        )
+        assert "periodic_worker_stopped" in event_names, (
+            f"Expected 'periodic_worker_stopped' in logs, got events: {event_names}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_callback_error_is_logged(self) -> None:
+        """When callback raises, the error is logged with worker name."""
+
+        async def failing_cb(_sf: object) -> None:
+            msg = "boom"
+            raise RuntimeError(msg)
+
+        worker = PeriodicWorker(
+            name="error-log-test",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=failing_cb,
+            coordinate=False,
+        )
+
+        with structlog.testing.capture_logs() as captured:
+            worker.start()
+            await asyncio.sleep(0.04)
+            await worker.stop()
+
+        error_events = [
+            log
+            for log in captured
+            if log.get("event") == "periodic_worker_cycle_error" and log.get("worker_name") == "error-log-test"
+        ]
+        assert len(error_events) >= 1, (
+            f"Expected at least one cycle error log, got: {[entry.get('event') for entry in captured]}"
+        )
+
+
+# =============================================================================
+# T005: Coordination tests (mocked advisory locks)
+# =============================================================================
+
+
+class TestPeriodicWorkerCoordination:
+    """Advisory lock coordination: acquire/skip/disabled."""
+
+    @pytest.mark.asyncio
+    async def test_skips_cycle_when_lock_not_acquired(self) -> None:
+        """When advisory lock returns False, callback is not called."""
+        call_count = 0
+
+        async def counting_cb(_sf: object) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        worker = PeriodicWorker(
+            name="test-lock-skip",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=counting_cb,
+            coordinate=True,
+        )
+
+        with patch(ADVISORY_LOCK_PATH, return_value=False):
+            worker.start()
+            await asyncio.sleep(0.06)
+            await worker.stop()
+
+        assert call_count == 0, f"Callback should not run when lock not acquired, got {call_count}"
+
+    @pytest.mark.asyncio
+    async def test_runs_callback_when_lock_acquired(self) -> None:
+        """When advisory lock returns True, callback is called."""
+        call_count = 0
+
+        async def counting_cb(_sf: object) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        worker = PeriodicWorker(
+            name="test-lock-acquired",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=counting_cb,
+            coordinate=True,
+        )
+
+        with patch(ADVISORY_LOCK_PATH, return_value=True):
+            worker.start()
+            await asyncio.sleep(0.06)
+            await worker.stop()
+
+        assert call_count >= 2, f"Callback should run when lock acquired, got {call_count}"
+
+    @pytest.mark.asyncio
+    async def test_coordinate_false_skips_lock(self) -> None:
+        """coordinate=False runs callback without attempting lock."""
+        call_count = 0
+
+        async def counting_cb(_sf: object) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        worker = PeriodicWorker(
+            name="test-no-coordinate",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=counting_cb,
+            coordinate=False,
+        )
+
+        with patch(ADVISORY_LOCK_PATH) as mock_lock:
+            worker.start()
+            await asyncio.sleep(0.05)
+            await worker.stop()
+
+        mock_lock.assert_not_called()
+        assert call_count >= 2
+
+    @pytest.mark.asyncio
+    async def test_lock_acquisition_failure_skips_cycle(self) -> None:
+        """If lock acquisition raises an exception, cycle is skipped gracefully."""
+        call_count = 0
+
+        async def counting_cb(_sf: object) -> None:
+            nonlocal call_count
+            call_count += 1
+
+        worker = PeriodicWorker(
+            name="test-lock-failure",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=counting_cb,
+            coordinate=True,
+        )
+
+        with patch(ADVISORY_LOCK_PATH, side_effect=RuntimeError("db down")):
+            worker.start()
+            await asyncio.sleep(0.05)
+            await worker.stop()
+
+        assert call_count == 0, "Callback should not run when lock acquisition fails"
+
+
+# =============================================================================
+# T006: Cleanup callback tests
+# =============================================================================
+
+
+class TestPeriodicWorkerCleanup:
+    """Cleanup callback on stop, including error handling."""
+
+    @pytest.mark.asyncio
+    async def test_cleanup_callback_runs_on_stop(self) -> None:
+        """Optional cleanup callback is called during stop()."""
+        cleanup_called = False
+
+        async def noop_cb(_sf: object) -> None:
+            pass
+
+        async def cleanup() -> None:
+            nonlocal cleanup_called
+            cleanup_called = True
+
+        worker = PeriodicWorker(
+            name="test-cleanup",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=noop_cb,
+            cleanup_callback=cleanup,
+            coordinate=False,
+        )
+        worker.start()
+        await asyncio.sleep(0.02)
+        await worker.stop()
+
+        assert cleanup_called, "Cleanup callback should be called on stop()"
+
+    @pytest.mark.asyncio
+    async def test_cleanup_error_does_not_prevent_shutdown(self) -> None:
+        """Cleanup callback error is logged but stop() completes."""
+
+        async def noop_cb(_sf: object) -> None:
+            pass
+
+        async def failing_cleanup() -> None:
+            msg = "cleanup explosion"
+            raise RuntimeError(msg)
+
+        worker = PeriodicWorker(
+            name="test-cleanup-error",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=noop_cb,
+            cleanup_callback=failing_cleanup,
+            coordinate=False,
+        )
+        worker.start()
+        await asyncio.sleep(0.02)
+
+        # Should not raise
+        await worker.stop()
+
+    @pytest.mark.asyncio
+    async def test_no_cleanup_callback_is_fine(self) -> None:
+        """Worker without cleanup_callback stops cleanly."""
+
+        async def noop_cb(_sf: object) -> None:
+            pass
+
+        worker = PeriodicWorker(
+            name="test-no-cleanup",
+            interval_seconds=0.01,
+            session_factory=_mock_session_factory(),
+            callback=noop_cb,
+            coordinate=False,
+        )
+        worker.start()
+        await asyncio.sleep(0.02)
+        await worker.stop()
+
+    @pytest.mark.asyncio
+    async def test_stop_without_start_is_noop(self) -> None:
+        """Calling stop() without start() should not raise."""
+
+        async def noop_cb(_sf: object) -> None:
+            pass
+
+        worker = PeriodicWorker(
+            name="test-stop-noop",
+            interval_seconds=1.0,
+            session_factory=_mock_session_factory(),
+            callback=noop_cb,
+            coordinate=False,
+        )
+        await worker.stop()  # Should not raise
