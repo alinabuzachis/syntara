@@ -64,7 +64,7 @@ export default tseslint.config(
       'max-lines': ['warn', { max: 400, skipBlankLines: true, skipComments: true }],
       'max-lines-per-function': ['warn', { max: 100, skipBlankLines: true, skipComments: true, IIFEs: true }],
       complexity: ['warn', 15],
-      'max-depth': ['warn', 4],
+      'max-depth': ['error', 4],
       'max-params': ['error', 5],
       'max-nested-callbacks': ['error', 4],
       'import-x/order': [

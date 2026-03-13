@@ -71,90 +71,19 @@ export class WorkflowTransform {
     // 2. Is NOT referenced by the converge's branches AND not a parent/ancestor of the converge (if converge is last in array)
     for (let i = 0; i < nestedActivities.length; i++) {
       const current = nestedActivities[i]
-      if (current.type === ActivityTypeEnum.CONVERGE) {
-        const convergeBranches = new Set(current.converge?.branches || [])
+      if (current.type !== ActivityTypeEnum.CONVERGE) continue
 
-        // Find the next activity that should follow this converge
-        let nextActivity: Activity | null = null
+      const convergeBranches = new Set(current.converge?.branches || [])
+      const nextActivity = this.findNextActivityAfterConverge(nestedActivities, i, convergeBranches)
+      if (!nextActivity) continue
 
-        // First, try the activity immediately after in the array
-        if (i < nestedActivities.length - 1) {
-          nextActivity = nestedActivities[i + 1]
-        } else {
-          // Converge is last in array - check if previous node is a parallel
-          // If so, don't create any outgoing edge (converge is the end of the parallel)
-          const previousActivity = i > 0 ? nestedActivities[i - 1] : null
-          if (previousActivity && previousActivity.type === ActivityTypeEnum.PARALLEL) {
-            // Converge immediately follows parallel - no outgoing edge needed
-            nextActivity = null
-          } else {
-            // Look BACKWARDS for an activity not in branches
-            // This handles the case where backend reordered to [C, M, J] instead of [C, J, M]
-            // BUT: exclude activities that are parents/ancestors of the converge branches
-            for (let j = 0; j < i; j++) {
-              const candidate = nestedActivities[j]
-              // Skip if this candidate is a condition/loop/parallel (structural nodes)
-              if (
-                candidate.type === ActivityTypeEnum.CONDITION ||
-                candidate.type === ActivityTypeEnum.LOOP ||
-                candidate.type === ActivityTypeEnum.PARALLEL
-              ) {
-                continue
-              }
-              // Skip if this candidate is in the converge's branches
-              if (convergeBranches.has(candidate.id)) {
-                continue
-              }
-
-              // CRITICAL: Check if there's a path FROM this candidate TO the converge via the branches
-              // This prevents creating backward edges from converge to nodes that feed INTO it
-              let feedsIntoConverge = false
-
-              // Simple heuristic: if the candidate appears BEFORE any branch activity in the array,
-              // it might feed into the converge (either directly or through the branch)
-              for (const branchId of convergeBranches) {
-                // Check if branch is a top-level activity that appears after the candidate
-                const branchIndex = nestedActivities.findIndex((a) => a.id === branchId)
-                if (branchIndex !== -1 && branchIndex > j) {
-                  // Branch appears after candidate - candidate likely feeds into converge
-                  feedsIntoConverge = true
-                  break
-                }
-
-                // Check if branch is nested inside a structural node that appears after the candidate
-                for (let k = j + 1; k < nestedActivities.length; k++) {
-                  const laterActivity = nestedActivities[k]
-                  const nestedIds = this.collectAllActivityIds(laterActivity)
-                  if (nestedIds.includes(branchId)) {
-                    // Branch is nested inside an activity that appears after candidate
-                    feedsIntoConverge = true
-                    break
-                  }
-                }
-                if (feedsIntoConverge) break
-              }
-
-              if (feedsIntoConverge) {
-                continue
-              }
-
-              // Found a candidate - this is likely what should come after the converge
-              nextActivity = candidate
-              break
-            }
-          }
-        }
-
-        if (nextActivity) {
-          edges.push({
-            id: `${current.id}-${nextActivity.id}`,
-            source: current.id,
-            target: nextActivity.id,
-            sourceHandle: 'source',
-            targetHandle: 'target',
-          })
-        }
-      }
+      edges.push({
+        id: `${current.id}-${nextActivity.id}`,
+        source: current.id,
+        target: nextActivity.id,
+        sourceHandle: EdgeHandleEnum.SOURCE,
+        targetHandle: EdgeHandleEnum.TARGET,
+      })
     }
 
     // Generate sequential edges between top-level activities
@@ -185,23 +114,14 @@ export class WorkflowTransform {
             allBranchEndpoints.push(...elseEndpoints)
           }
 
-          // Create edges from branch endpoints to converge node if they're in the converge set
-          for (const endpointId of allBranchEndpoints) {
-            if (convergeBranchSet.has(endpointId)) {
-              // Find the source activity to get the correct source handle
-              const sourceActivity =
-                this.searchInActivityList(thenActivities, endpointId) ??
-                this.searchInActivityList(elseActivities, endpointId)
-
-              edges.push({
-                id: `${endpointId}-${next.id}`,
-                source: endpointId,
-                target: next.id,
-                sourceHandle: sourceActivity ? EdgeGenerator.getSourceHandle(sourceActivity) : 'source',
-                targetHandle: 'target',
-              })
-            }
-          }
+          this.addConditionBranchEndpointEdges({
+            allBranchEndpoints,
+            convergeBranchSet,
+            thenActivities,
+            elseActivities,
+            convergeActivityId: next.id,
+            edges,
+          })
         }
         // Skip regular sequential edge for conditions (they have explicit branch edges)
         continue
@@ -229,7 +149,7 @@ export class WorkflowTransform {
             source: current.id,
             target: firstActivityId,
             sourceHandle: EdgeGenerator.getSourceHandle(current),
-            targetHandle: 'target',
+            targetHandle: EdgeHandleEnum.TARGET,
           })
         }
         continue
@@ -253,7 +173,7 @@ export class WorkflowTransform {
         source: current.id,
         target: next.id,
         sourceHandle: EdgeGenerator.getSourceHandle(current),
-        targetHandle: 'target',
+        targetHandle: EdgeHandleEnum.TARGET,
       })
     }
 
@@ -262,77 +182,14 @@ export class WorkflowTransform {
       this.flattenActivity(activity, activities, edges)
     }
 
-    // CRITICAL: Handle converge nodes that reference activities inside parallel containers
-    // When we have: parallel(A,B) → converge(J) where J.converge.branches=['A','B'],
-    // we need to create edge: parallel → J (not A→J and B→J since A and B are nested)
-    // ALSO handle mixed cases: converge(J) where J.converge.branches=['A','C'] and A is in parallel but C is not
-    // Process ALL flattened activities (not just top-level) to find converge nodes at any nesting level
+    // Create edges from each converge node's branch sources to the converge node.
+    // Parallel containers are removed during flattening (flattenParallel does not keep them),
+    // so every converge branch connects directly to its individual source activity.
     for (const activity of activities) {
-      if (activity.type === ActivityTypeEnum.CONVERGE) {
-        const convergeBranches = activity.converge?.branches || []
+      if (activity.type !== ActivityTypeEnum.CONVERGE) continue
 
-        // Build a map of which parallel containers contain which branches
-        const branchToParallelMap = new Map<string, Activity>()
-
-        for (const parallelActivity of activities.filter((a) => a.type === ActivityTypeEnum.PARALLEL)) {
-          const parallelBranches = parallelActivity.branches || []
-          const parallelBranchIds = new Set<string>()
-
-          // Collect all activity IDs inside this parallel container (including nested)
-          for (const branch of parallelBranches) {
-            parallelBranchIds.add(branch.id)
-            const nestedIds = this.collectAllActivityIds(branch)
-            nestedIds.forEach((id) => parallelBranchIds.add(id))
-          }
-
-          // Map each converge branch to its parallel container (if any)
-          for (const branchId of convergeBranches) {
-            if (parallelBranchIds.has(branchId)) {
-              branchToParallelMap.set(branchId, parallelActivity)
-            }
-          }
-        }
-
-        // Process each branch: create edge from parallel container OR from individual branch
-        const processedParallels = new Set<string>()
-
-        for (const branchId of convergeBranches) {
-          const parallelContainer = branchToParallelMap.get(branchId)
-
-          if (parallelContainer) {
-            // Branch is inside a parallel - create edge from parallel container
-            if (!processedParallels.has(parallelContainer.id)) {
-              const edgeExists = edges.some((e) => e.source === parallelContainer.id && e.target === activity.id)
-              if (!edgeExists) {
-                edges.push({
-                  id: `${parallelContainer.id}-${activity.id}`,
-                  source: parallelContainer.id,
-                  target: activity.id,
-                  sourceHandle: 'source',
-                  targetHandle: 'target',
-                })
-              }
-              processedParallels.add(parallelContainer.id)
-            }
-          } else {
-            // Branch is NOT inside a parallel - create edge from individual branch
-            const edgeExists = edges.some((e) => e.source === branchId && e.target === activity.id)
-
-            if (!edgeExists) {
-              const branchActivity = activities.find((a) => a.id === branchId)
-
-              if (branchActivity) {
-                edges.push({
-                  id: `${branchId}-${activity.id}`,
-                  source: branchId,
-                  target: activity.id,
-                  sourceHandle: EdgeGenerator.getSourceHandle(branchActivity),
-                  targetHandle: 'target',
-                })
-              }
-            }
-          }
-        }
+      for (const branchId of activity.converge?.branches ?? []) {
+        this.addBranchToConvergeEdge(branchId, activity, activities, edges)
       }
     }
 
@@ -417,6 +274,151 @@ export class WorkflowTransform {
 
   private static collectAllActivityIds(activity: Activity): string[] {
     return ActivityTraversal.collectAllActivityIds(activity)
+  }
+
+  private static findNextActivityAfterConverge(
+    nestedActivities: Activity[],
+    convergeIndex: number,
+    convergeBranches: Set<string>
+  ): Activity | null {
+    if (convergeIndex < nestedActivities.length - 1) {
+      return nestedActivities[convergeIndex + 1]
+    }
+
+    const previousActivity = convergeIndex > 0 ? nestedActivities[convergeIndex - 1] : null
+    if (previousActivity?.type === ActivityTypeEnum.PARALLEL) {
+      return null
+    }
+
+    for (let candidateIndex = 0; candidateIndex < convergeIndex; candidateIndex++) {
+      const candidate = nestedActivities[candidateIndex]
+      if (this.isStructuralActivity(candidate)) continue
+      if (convergeBranches.has(candidate.id)) continue
+      if (this.candidateFeedsIntoConverge(nestedActivities, candidateIndex, convergeBranches)) continue
+      return candidate
+    }
+
+    return null
+  }
+
+  private static isStructuralActivity(activity: Activity): boolean {
+    return (
+      activity.type === ActivityTypeEnum.CONDITION ||
+      activity.type === ActivityTypeEnum.LOOP ||
+      activity.type === ActivityTypeEnum.PARALLEL
+    )
+  }
+
+  private static candidateFeedsIntoConverge(
+    nestedActivities: Activity[],
+    candidateIndex: number,
+    convergeBranches: Set<string>
+  ): boolean {
+    for (const branchId of convergeBranches) {
+      if (this.branchAppearsAfterCandidate(nestedActivities, candidateIndex, branchId)) {
+        return true
+      }
+
+      if (this.branchIsNestedInsideOrAfterCandidate(nestedActivities, candidateIndex, branchId)) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  private static branchAppearsAfterCandidate(
+    nestedActivities: Activity[],
+    candidateIndex: number,
+    branchId: string
+  ): boolean {
+    const branchIndex = nestedActivities.findIndex((activity) => activity.id === branchId)
+    return branchIndex !== -1 && branchIndex > candidateIndex
+  }
+
+  private static branchIsNestedInsideOrAfterCandidate(
+    nestedActivities: Activity[],
+    candidateIndex: number,
+    branchId: string
+  ): boolean {
+    for (let activityIndex = candidateIndex; activityIndex < nestedActivities.length; activityIndex++) {
+      const nestedIds = this.collectAllActivityIds(nestedActivities[activityIndex])
+      if (nestedIds.includes(branchId)) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  private static collectParallelBranchIds(parallelActivity: Extract<Activity, { type: 'parallel' }>): Set<string> {
+    const branchIds = new Set<string>()
+
+    for (const branch of parallelActivity.branches || []) {
+      branchIds.add(branch.id)
+      const nestedIds = this.collectAllActivityIds(branch)
+      for (const id of nestedIds) {
+        branchIds.add(id)
+      }
+    }
+
+    return branchIds
+  }
+
+  private static addBranchToConvergeEdge(
+    branchId: string,
+    convergeActivity: Extract<Activity, { type: 'converge' }>,
+    activities: Activity[],
+    edges: EdgeConnection[]
+  ): void {
+    const edgeExists = edges.some((edge) => edge.source === branchId && edge.target === convergeActivity.id)
+    if (edgeExists) {
+      return
+    }
+
+    const branchActivity = activities.find((activity) => activity.id === branchId)
+    if (!branchActivity) {
+      return
+    }
+
+    edges.push({
+      id: `${branchId}-${convergeActivity.id}`,
+      source: branchId,
+      target: convergeActivity.id,
+      sourceHandle: EdgeGenerator.getSourceHandle(branchActivity),
+      targetHandle: EdgeHandleEnum.TARGET,
+    })
+  }
+
+  private static addConditionBranchEndpointEdges({
+    allBranchEndpoints,
+    convergeBranchSet,
+    thenActivities,
+    elseActivities,
+    convergeActivityId,
+    edges,
+  }: {
+    allBranchEndpoints: string[]
+    convergeBranchSet: Set<string>
+    thenActivities: Activity[]
+    elseActivities: Activity[]
+    convergeActivityId: string
+    edges: EdgeConnection[]
+  }): void {
+    for (const endpointId of allBranchEndpoints) {
+      if (!convergeBranchSet.has(endpointId)) continue
+
+      const sourceActivity =
+        this.searchInActivityList(thenActivities, endpointId) ?? this.searchInActivityList(elseActivities, endpointId)
+
+      edges.push({
+        id: `${endpointId}-${convergeActivityId}`,
+        source: endpointId,
+        target: convergeActivityId,
+        sourceHandle: sourceActivity ? EdgeGenerator.getSourceHandle(sourceActivity) : EdgeHandleEnum.SOURCE,
+        targetHandle: EdgeHandleEnum.TARGET,
+      })
+    }
   }
 
   /**
@@ -552,8 +554,8 @@ export class WorkflowTransform {
         id: `${activity.id}-loop-${this.getActivityId(firstDo)}`,
         source: activity.id,
         target: this.getActivityId(firstDo),
-        sourceHandle: 'loop',
-        targetHandle: 'target',
+        sourceHandle: EdgeHandleEnum.LOOP,
+        targetHandle: EdgeHandleEnum.TARGET,
       })
     }
 
@@ -569,14 +571,14 @@ export class WorkflowTransform {
       for (const lastActivityId of lastActivityIds) {
         // Search for the source activity in the nested structure (before flattening)
         const sourceActivity = this.searchInActivityList(doActivities, lastActivityId)
-        const sourceHandle = sourceActivity ? EdgeGenerator.getSourceHandle(sourceActivity) : 'source'
+        const sourceHandle = sourceActivity ? EdgeGenerator.getSourceHandle(sourceActivity) : EdgeHandleEnum.SOURCE
 
         edges.push({
           id: `${lastActivityId}-${activity.id}`,
           source: lastActivityId,
           target: activity.id,
           sourceHandle,
-          targetHandle: 'end',
+          targetHandle: EdgeHandleEnum.END,
         })
       }
     }
@@ -919,7 +921,9 @@ export class WorkflowTransform {
     const branchActivityIds = new Set<string>()
     for (const branch of branches) {
       const ids = this.collectAllActivityIds(branch)
-      ids.forEach((id) => branchActivityIds.add(id))
+      for (const id of ids) {
+        branchActivityIds.add(id)
+      }
     }
     return branchActivityIds
   }
@@ -956,7 +960,9 @@ export class WorkflowTransform {
     const outgoingEdges = edges.filter((e) => branchActivityIds.has(e.source) && !branchActivityIds.has(e.target))
 
     // Mark all branch activities as visited to prevent converge node duplication
-    branchActivityIds.forEach((id) => visited.add(id))
+    for (const id of branchActivityIds) {
+      visited.add(id)
+    }
 
     for (const edge of outgoingEdges) {
       const targetInCurrentScope = allActivities.some((a) => a.id === edge.target)
@@ -1069,37 +1075,13 @@ export class WorkflowTransform {
     // CRITICAL: Converge node collection logic
     // Don't collect converge nodes that have incoming edges from OUTSIDE the current traversal scope
     // This prevents duplicates when collecting individual parallel branches
-    if (activity.type === ActivityTypeEnum.CONVERGE) {
-      const incomingEdges = edges.filter((e) => e.target === startId)
-
-      const hasUnvisitedIncoming = incomingEdges.some((e) => {
-        const sourceActivity = allActivities.find((a) => a.id === e.source)
-        if (!sourceActivity) return false
-
-        // If the source is visited, it's in our scope
-        if (visited.has(e.source)) return false
-
-        // CRITICAL: Check if the source is reachable from ANY visited activity via outgoing edges
-        // This handles the case where we're at A, B is a sibling (not yet visited),
-        // but both A and B lead to J - we should still collect J
-        const visitedActivities = Array.from(visited)
-        for (const visitedId of visitedActivities) {
-          const outgoing = edges.filter((edge) => edge.source === visitedId)
-          if (outgoing.some((edge) => edge.target === e.source)) {
-            // The unvisited source is a direct child of a visited activity
-            // This means it's a sibling that will be visited in this traversal
-            return false
-          }
-        }
-
-        return true
-      })
-
-      if (hasUnvisitedIncoming) {
-        // This converge node has incoming edges from activities truly outside our scope
-        // Don't collect it here
-        return []
-      }
+    if (
+      activity.type === ActivityTypeEnum.CONVERGE &&
+      this.hasOutOfScopeIncomingEdges(startId, edges, allActivities, visited)
+    ) {
+      // This converge node has incoming edges from activities truly outside our scope
+      // Don't collect it here
+      return []
     }
 
     visited.add(startId)
@@ -1130,16 +1112,12 @@ export class WorkflowTransform {
     // CRITICAL: For parallel containers, collect activities that follow the parallel
     // For example: cond2 → parallel(A,B) → J means J should be in cond2.then
     if (activity.type === ActivityTypeEnum.PARALLEL) {
-      // Collect all activity IDs inside the parallel branches
-      const branches = activity.branches || []
-      const branchActivityIds = new Set<string>()
-      for (const branch of branches) {
-        const ids = this.collectAllActivityIds(branch)
-        ids.forEach((id) => branchActivityIds.add(id))
-      }
+      const branchActivityIds = this.collectParallelBranchIds(activity)
 
       // Mark all branch activities as visited to prevent collecting them again
-      branchActivityIds.forEach((id) => visited.add(id))
+      for (const id of branchActivityIds) {
+        visited.add(id)
+      }
 
       // Find edges FROM branch activities TO activities outside the parallel
       const outgoingFromBranches = edges.filter(
@@ -1165,70 +1143,25 @@ export class WorkflowTransform {
       if (!targetExists) {
         // Target doesn't exist - it might be wrapped in a parallel container
         // Check if there's a parallel at the same level that contains this target
-        const parallelContainer = allActivities.find((a) => {
+        const parallelContainer = allActivities.find((a): a is Extract<Activity, { type: 'parallel' }> => {
           if (a.type !== ActivityTypeEnum.PARALLEL) return false
           if (visited.has(a.id)) return false // Already collected
-          const branches = a.branches || []
-          return branches.some((branch) => {
+
+          return a.branches.some((branch) => {
             const branchIds = this.collectAllActivityIds(branch)
             return branchIds.includes(edge.target)
           })
         })
 
         if (parallelContainer) {
-          // Found a parallel containing the target - collect it
-          visited.add(parallelContainer.id)
-          result.push(parallelContainer)
-
-          // Mark all activities inside the parallel as visited
-          const branchIds = this.collectAllActivityIds(parallelContainer)
-          branchIds.forEach((id) => visited.add(id))
-
-          // CRITICAL: Only follow edges beyond the parallel if the edge TO the parallel
-          // uses a regular handle (source/done), not a structural handle (true/false/loop).
-          // Structural handles indicate the parallel is nested (e.g., in a condition's branch),
-          // and we shouldn't automatically collect what follows it.
-          const isStructuralEdge =
-            edge.sourceHandle === EdgeHandleEnum.TRUE ||
-            edge.sourceHandle === EdgeHandleEnum.FALSE ||
-            edge.sourceHandle === EdgeHandleEnum.LOOP
-
-          if (!isStructuralEdge) {
-            // Find edges FROM parallel branches TO activities outside the parallel
-            const outgoingFromParallel = edges.filter(
-              (e) => branchIds.includes(e.source) && !branchIds.includes(e.target)
-            )
-
-            // Collect activities that follow the parallel
-            for (const parallelEdge of outgoingFromParallel) {
-              // Check if target is already collected in this traversal
-              if (visited.has(parallelEdge.target)) continue
-
-              // If target is a converge node, check if it's in our scope
-              const targetActivity = allActivities.find((a) => a.id === parallelEdge.target)
-              if (targetActivity && targetActivity.type === 'converge') {
-                // Converge found in allActivities - check if we should collect it
-                // Skip if there are incoming edges from activities NOT in our current branch
-                const incomingToConverge = edges.filter((e) => e.target === parallelEdge.target)
-                const hasExternalIncoming = incomingToConverge.some((e) => {
-                  // If source is in parallel branches, it's not external
-                  if (branchIds.includes(e.source)) return false
-                  // If source is in visited set, it's part of our branch
-                  if (visited.has(e.source)) return false
-                  // If source exists in allActivities but not visited, it's external
-                  return allActivities.some((a) => a.id === e.source)
-                })
-
-                // Skip converge nodes that have external incoming edges
-                // (they're shared convergence points at a higher level)
-                if (hasExternalIncoming) continue
-              }
-
-              const afterParallel = this.collectSequentialActivities(parallelEdge.target, edges, allActivities, visited)
-              result.push(...afterParallel)
-            }
-          }
-
+          this.collectParallelContainerActivities({
+            edge,
+            parallelContainer,
+            edges,
+            allActivities,
+            visited,
+            result,
+          })
           continue
         }
       }
@@ -1238,6 +1171,123 @@ export class WorkflowTransform {
     }
 
     return result
+  }
+
+  private static hasOutOfScopeIncomingEdges(
+    activityId: string,
+    edges: EdgeConnection[],
+    allActivities: Activity[],
+    visited: Set<string>
+  ): boolean {
+    const incomingEdges = edges.filter((edge) => edge.target === activityId)
+
+    return incomingEdges.some((edge) => this.isOutOfScopeIncomingEdge(edge, edges, allActivities, visited))
+  }
+
+  private static isOutOfScopeIncomingEdge(
+    incomingEdge: EdgeConnection,
+    edges: EdgeConnection[],
+    allActivities: Activity[],
+    visited: Set<string>
+  ): boolean {
+    const sourceExists = allActivities.some((activity) => activity.id === incomingEdge.source)
+    if (!sourceExists) {
+      return false
+    }
+
+    if (visited.has(incomingEdge.source)) {
+      return false
+    }
+
+    for (const visitedId of visited) {
+      const outgoing = edges.filter((edge) => edge.source === visitedId)
+      if (outgoing.some((edge) => edge.target === incomingEdge.source)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  private static collectParallelContainerActivities({
+    edge,
+    parallelContainer,
+    edges,
+    allActivities,
+    visited,
+    result,
+  }: {
+    edge: EdgeConnection
+    parallelContainer: Extract<Activity, { type: 'parallel' }>
+    edges: EdgeConnection[]
+    allActivities: Activity[]
+    visited: Set<string>
+    result: Activity[]
+  }): void {
+    visited.add(parallelContainer.id)
+    result.push(parallelContainer)
+
+    const branchIds = this.collectAllActivityIds(parallelContainer)
+    for (const id of branchIds) {
+      visited.add(id)
+    }
+
+    if (this.isStructuralHandle(edge.sourceHandle)) {
+      return
+    }
+
+    const outgoingFromParallel = edges.filter(
+      (parallelEdge) => branchIds.includes(parallelEdge.source) && !branchIds.includes(parallelEdge.target)
+    )
+
+    for (const parallelEdge of outgoingFromParallel) {
+      if (visited.has(parallelEdge.target)) continue
+      if (this.shouldSkipParallelTarget(parallelEdge.target, branchIds, edges, allActivities, visited)) continue
+
+      const afterParallel = this.collectSequentialActivities(parallelEdge.target, edges, allActivities, visited)
+      result.push(...afterParallel)
+    }
+  }
+
+  private static isStructuralHandle(sourceHandle?: string | null): boolean {
+    return (
+      sourceHandle === EdgeHandleEnum.TRUE ||
+      sourceHandle === EdgeHandleEnum.FALSE ||
+      sourceHandle === EdgeHandleEnum.LOOP
+    )
+  }
+
+  private static shouldSkipParallelTarget(
+    targetId: string,
+    branchIds: string[],
+    edges: EdgeConnection[],
+    allActivities: Activity[],
+    visited: Set<string>
+  ): boolean {
+    const targetActivity = allActivities.find((activity) => activity.id === targetId)
+    if (targetActivity?.type !== ActivityTypeEnum.CONVERGE) {
+      return false
+    }
+
+    const incomingToConverge = edges.filter((edge) => edge.target === targetId)
+    return incomingToConverge.some((edge) => this.isExternalConvergeInput(edge, branchIds, allActivities, visited))
+  }
+
+  private static isExternalConvergeInput(
+    edge: EdgeConnection,
+    branchIds: string[],
+    allActivities: Activity[],
+    visited: Set<string>
+  ): boolean {
+    if (branchIds.includes(edge.source)) {
+      return false
+    }
+
+    if (visited.has(edge.source)) {
+      return false
+    }
+
+    return allActivities.some((activity) => activity.id === edge.source)
   }
 
   /**
