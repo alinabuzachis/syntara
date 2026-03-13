@@ -652,6 +652,7 @@ describe('useWorkflowStore', () => {
         id: 'cond-1',
         name: 'My Condition',
         condition: 'some.expr',
+        // biome-ignore lint/suspicious/noThenProperty: `then` is part of the workflow condition schema
         then: [],
         else: [],
       }
@@ -696,6 +697,7 @@ describe('useWorkflowStore', () => {
         id: 'cond-1',
         name: 'My Condition',
         condition: 'some.expr',
+        // biome-ignore lint/suspicious/noThenProperty: `then` is part of the workflow condition schema
         then: [],
         else: [],
       }

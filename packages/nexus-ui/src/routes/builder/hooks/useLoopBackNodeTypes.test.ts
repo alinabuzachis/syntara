@@ -1,0 +1,144 @@
+import { ActivityTypeEnum } from '@ansible/nexus-contracts'
+import { renderHook, act } from '@testing-library/react'
+import { type Dispatch, type SetStateAction } from 'react'
+import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest'
+
+import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import { detectLoopBackNodes } from '../utils/detectLoopBackNodes'
+import type { EdgeType } from '../utils/workflowToGraph'
+
+import { useLoopBackNodeTypes } from './useLoopBackNodeTypes'
+
+vi.mock('../utils/detectLoopBackNodes', () => ({
+  detectLoopBackNodes: vi.fn(() => new Set<string>()),
+}))
+
+const mockDetect = detectLoopBackNodes as Mock
+
+function makeTaskNode(id: string, type: 'task' | 'task-reversed' = 'task'): NodeType {
+  return {
+    id,
+    type,
+    position: { x: 0, y: 0 },
+    data: { type: ActivityTypeEnum.TASK, id, name: id, task: { executor: 'script', config: {} } },
+  } as unknown as NodeType
+}
+
+function makeGenericNode(id: string, reverseHandles = false): NodeType {
+  const metadata: Record<string, unknown> = { __isGeneric: true }
+  if (reverseHandles) {
+    metadata.__reverseHandles = true
+  }
+  return {
+    id,
+    type: 'generic',
+    position: { x: 0, y: 0 },
+    data: { type: ActivityTypeEnum.TASK, id, name: id, task: { config: {} }, metadata },
+  } as unknown as NodeType
+}
+
+describe('useLoopBackNodeTypes', () => {
+  let currentNodes: NodeType[]
+  let setNodes: Dispatch<SetStateAction<NodeType[]>>
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    currentNodes = []
+    setNodes = vi.fn((updater: SetStateAction<NodeType[]>) => {
+      if (typeof updater === 'function') {
+        currentNodes = updater(currentNodes)
+      }
+    }) as unknown as Dispatch<SetStateAction<NodeType[]>>
+  })
+
+  it('does nothing when not initialized', () => {
+    renderHook(() => useLoopBackNodeTypes({ edges: [], isInitialized: false, setNodes }))
+    expect(setNodes).not.toHaveBeenCalled()
+  })
+
+  it('returns same nodes when no changes are needed', () => {
+    const nodes = [makeTaskNode('a'), makeTaskNode('b')]
+    currentNodes = nodes
+    mockDetect.mockReturnValue(new Set<string>())
+
+    renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
+
+    expect(setNodes).toHaveBeenCalled()
+    expect(currentNodes).toBe(nodes)
+  })
+
+  it('reverses a task node to task-reversed when in loop-back path', () => {
+    currentNodes = [makeTaskNode('a'), makeTaskNode('b')]
+    mockDetect.mockReturnValue(new Set(['a']))
+
+    renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
+
+    expect(currentNodes[0].type).toBe('task-reversed')
+    expect(currentNodes[1].type).toBe('task')
+  })
+
+  it('restores a task-reversed node to task when no longer in loop-back path', () => {
+    currentNodes = [makeTaskNode('a', 'task-reversed')]
+    mockDetect.mockReturnValue(new Set<string>())
+
+    renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
+
+    expect(currentNodes[0].type).toBe(ActivityTypeEnum.TASK)
+  })
+
+  it('adds __reverseHandles to generic node when in loop-back path', () => {
+    currentNodes = [makeGenericNode('g1')]
+    mockDetect.mockReturnValue(new Set(['g1']))
+
+    renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
+
+    const metadata = (currentNodes[0].data as Record<string, unknown>).metadata as Record<string, unknown>
+    expect(metadata.__reverseHandles).toBe(true)
+  })
+
+  it('removes __reverseHandles from generic node when no longer in loop-back path', () => {
+    currentNodes = [makeGenericNode('g1', true)]
+    mockDetect.mockReturnValue(new Set<string>())
+
+    renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
+
+    const metadata = (currentNodes[0].data as Record<string, unknown>).metadata as Record<string, unknown>
+    expect(metadata.__reverseHandles).toBeUndefined()
+  })
+
+  it('skips non-task non-generic nodes', () => {
+    const triggerNode = {
+      id: 'trigger-0',
+      type: 'trigger',
+      position: { x: 0, y: 0 },
+      data: { name: 'Manual', triggerType: 'manual', details: '' },
+    } as unknown as NodeType
+    currentNodes = [triggerNode]
+    mockDetect.mockReturnValue(new Set(['trigger-0']))
+
+    renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
+
+    expect(currentNodes[0].type).toBe('trigger')
+  })
+
+  it('re-runs when edges change', () => {
+    currentNodes = [makeTaskNode('a')]
+    mockDetect.mockReturnValue(new Set<string>())
+
+    const edge1: EdgeType[] = []
+    const edge2: EdgeType[] = [{ id: 'e1', source: 'a', target: 'b' }] as EdgeType[]
+
+    const { rerender } = renderHook(({ edges }) => useLoopBackNodeTypes({ edges, isInitialized: true, setNodes }), {
+      initialProps: { edges: edge1 },
+    })
+
+    const callCount = (setNodes as unknown as Mock).mock.calls.length
+
+    mockDetect.mockReturnValue(new Set(['a']))
+    act(() => {
+      rerender({ edges: edge2 })
+    })
+
+    expect((setNodes as unknown as Mock).mock.calls.length).toBeGreaterThan(callCount)
+  })
+})

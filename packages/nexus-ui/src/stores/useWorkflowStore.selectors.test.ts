@@ -739,6 +739,17 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
       expect(result.current).toBe(false)
     })
 
+    it('useIsDirty returns dirty state', () => {
+      const { result } = renderHook(() => useWorkflowStore(selectIsDirty))
+      expect(result.current).toBe(false)
+
+      act(() => {
+        useWorkflowStore.getState().markDirty()
+      })
+
+      expect(result.current).toBe(true)
+    })
+
     it('custom hooks re-render when their specific state changes', () => {
       let versionRenderCount = 0
       let edgesRenderCount = 0
