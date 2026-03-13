@@ -532,4 +532,250 @@ describe('useWorkflowStore', () => {
       )
     })
   })
+
+  describe('duplicateActivity', () => {
+    const baseWorkflow: WorkflowDefinition = {
+      schemaVersion: '1.0',
+      version: 1,
+      metadata: { name: 'Test', description: '' },
+      triggers: [],
+      workflow: { activities: [] },
+    }
+
+    beforeEach(() => {
+      useWorkflowStore.getState().setWorkflow(baseWorkflow)
+    })
+
+    it('returns null when the workflow is not loaded', () => {
+      useWorkflowStore.setState({ currentWorkflow: null })
+      const result = useWorkflowStore.getState().duplicateActivity('nonexistent')
+      expect(result).toBeNull()
+    })
+
+    it('returns null when the activity is not found', () => {
+      const result = useWorkflowStore.getState().duplicateActivity('nonexistent')
+      expect(result).toBeNull()
+    })
+
+    it('appends a clone with a new ID and marks dirty', () => {
+      const original = createScriptActivity('act-1', 'Script', 'python', 'print(1)')
+      useWorkflowStore.getState().addActivity(original)
+
+      const newId = useWorkflowStore.getState().duplicateActivity('act-1')
+
+      expect(newId).not.toBeNull()
+      expect(newId).not.toBe('act-1')
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities).toHaveLength(2)
+      expect(activities[1].id).toBe(newId)
+      expect(useWorkflowStore.getState().isDirty).toBe(true)
+    })
+
+    it('names the clone "Copy of <original name>"', () => {
+      const original = createScriptActivity('act-1', 'My Script', 'python', 'print(1)')
+      useWorkflowStore.getState().addActivity(original)
+
+      useWorkflowStore.getState().duplicateActivity('act-1')
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities[1].name).toBe('Copy of My Script')
+    })
+
+    it('generates a unique name when "Copy of…" already exists', () => {
+      const original = createScriptActivity('act-1', 'Script', 'python', 'print(1)')
+      const copy1 = createScriptActivity('act-2', 'Copy of Script', 'python', 'print(1)')
+      useWorkflowStore.getState().addActivity(original)
+      useWorkflowStore.getState().addActivity(copy1)
+
+      useWorkflowStore.getState().duplicateActivity('act-1')
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities[2].name).toBe('Copy of Script2')
+    })
+
+    it('preserves the original activity type and config', () => {
+      const original = createScriptActivity('act-1', 'Script', 'python', 'print("hello")')
+      useWorkflowStore.getState().addActivity(original)
+
+      const newId = useWorkflowStore.getState().duplicateActivity('act-1')
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      const clone = activities.find((a) => a.id === newId)
+      expect(clone?.type).toBe('task')
+      const cloneTask = clone as Extract<Activity, { type: 'task' }>
+      expect(cloneTask.task.config).toEqual(original.task.config)
+    })
+
+    it('does not share object references between original and clone', () => {
+      const original = createScriptActivity('act-1', 'Script', 'python', 'print(1)')
+      useWorkflowStore.getState().addActivity(original)
+
+      const newId = useWorkflowStore.getState().duplicateActivity('act-1')
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      const clone = activities.find((a) => a.id === newId)
+      expect(clone).not.toBe(original)
+    })
+  })
+
+  describe('replaceActivity', () => {
+    const baseWorkflow: WorkflowDefinition = {
+      schemaVersion: '1.0',
+      version: 1,
+      metadata: { name: 'Test', description: '' },
+      triggers: [],
+      workflow: { activities: [] },
+    }
+
+    beforeEach(() => {
+      useWorkflowStore.getState().setWorkflow(baseWorkflow)
+    })
+
+    it('replaces the activity in place and marks dirty', () => {
+      const original = createScriptActivity('act-1', 'Script', 'python', 'print(1)')
+      const replacement = createScriptActivity('tmp-id', 'REST API', 'python', 'print(2)')
+      useWorkflowStore.getState().addActivity(original)
+
+      useWorkflowStore.getState().replaceActivity('act-1', { ...replacement, id: 'act-1' })
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      expect(activities).toHaveLength(1)
+      expect(activities[0].id).toBe('act-1')
+      expect(activities[0].name).toBe('REST API')
+      expect(useWorkflowStore.getState().isDirty).toBe(true)
+    })
+
+    it('does not carry over type-specific fields from the old activity', () => {
+      const conditionActivity: Activity = {
+        type: 'condition',
+        id: 'cond-1',
+        name: 'My Condition',
+        condition: 'some.expr',
+        then: [],
+        else: [],
+      }
+      const scriptActivity = createScriptActivity('tmp-id', 'Script Node', 'python', 'print(1)')
+      useWorkflowStore.getState().addActivity(conditionActivity)
+
+      useWorkflowStore.getState().replaceActivity('cond-1', { ...scriptActivity, id: 'cond-1' })
+
+      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
+      const replaced = activities[0] as Record<string, unknown>
+      expect(replaced.type).toBe('task')
+      expect(replaced).not.toHaveProperty('condition')
+      expect(replaced).not.toHaveProperty('then')
+      expect(replaced).not.toHaveProperty('else')
+    })
+
+    it('preserves list order when replacing a non-first activity', () => {
+      const act1 = createScriptActivity('act-1', 'First', 'python', '')
+      const act2 = createScriptActivity('act-2', 'Second', 'python', '')
+      const act3 = createScriptActivity('act-3', 'Third', 'python', '')
+      useWorkflowStore.getState().addActivity(act1)
+      useWorkflowStore.getState().addActivity(act2)
+      useWorkflowStore.getState().addActivity(act3)
+
+      const replacement = createScriptActivity('tmp', 'Replaced', 'python', '')
+      useWorkflowStore.getState().replaceActivity('act-2', { ...replacement, id: 'act-2' })
+
+      const ids = (useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []).map((a) => a.id)
+      expect(ids).toEqual(['act-1', 'act-2', 'act-3'])
+    })
+
+    it('does nothing when the workflow is not loaded', () => {
+      useWorkflowStore.setState({ currentWorkflow: null })
+      const scriptActivity = createScriptActivity('tmp', 'Script', 'python', '')
+      useWorkflowStore.getState().replaceActivity('any-id', scriptActivity)
+      expect(useWorkflowStore.getState().currentWorkflow).toBeNull()
+    })
+
+    it('removes type-specific outgoing edges when replacing a condition node with a task node', () => {
+      const conditionActivity: Activity = {
+        type: 'condition',
+        id: 'cond-1',
+        name: 'My Condition',
+        condition: 'some.expr',
+        then: [],
+        else: [],
+      }
+      useWorkflowStore.getState().addActivity(conditionActivity)
+      useWorkflowStore.setState({
+        edges: [
+          { id: 'e-true', source: 'cond-1', target: 'node-a', sourceHandle: 'true', targetHandle: 'target' },
+          { id: 'e-false', source: 'cond-1', target: 'node-b', sourceHandle: 'false', targetHandle: 'target' },
+          { id: 'e-in', source: 'prev-node', target: 'cond-1', sourceHandle: 'source', targetHandle: 'target' },
+        ] as EdgeConnection[],
+      })
+
+      const scriptActivity = createScriptActivity('tmp', 'Script Node', 'python', 'print(1)')
+      useWorkflowStore.getState().replaceActivity('cond-1', { ...scriptActivity, id: 'cond-1' })
+
+      const edges = useWorkflowStore.getState().edges
+      expect(edges.map((e) => e.id)).toEqual(['e-in'])
+    })
+
+    it('removes approval-specific outgoing edges when replacing an approval node with a task node', () => {
+      const approvalActivity = {
+        type: 'approval',
+        id: 'appr-1',
+        name: 'My Approval',
+        approval: { approvers: [], prompt: 'Please approve', onApproved: [], onRejected: [] },
+      } as unknown as Activity
+      useWorkflowStore.getState().addActivity(approvalActivity)
+      useWorkflowStore.setState({
+        edges: [
+          { id: 'e-ok', source: 'appr-1', target: 'node-a', sourceHandle: 'approved', targetHandle: 'target' },
+          { id: 'e-no', source: 'appr-1', target: 'node-b', sourceHandle: 'rejected', targetHandle: 'target' },
+          { id: 'e-in', source: 'prev-node', target: 'appr-1', sourceHandle: 'source', targetHandle: 'target' },
+        ] as EdgeConnection[],
+      })
+
+      const scriptActivity = createScriptActivity('tmp', 'Script Node', 'python', 'print(1)')
+      useWorkflowStore.getState().replaceActivity('appr-1', { ...scriptActivity, id: 'appr-1' })
+
+      const edges = useWorkflowStore.getState().edges
+      expect(edges.map((e) => e.id)).toEqual(['e-in'])
+    })
+
+    it('removes loop-specific outgoing edges when replacing a loop node with a task node', () => {
+      const loopActivity = {
+        type: 'loop',
+        id: 'loop-1',
+        name: 'My Loop',
+        loop: { type: 'forEach', items: '{{ items }}', do: [] },
+      } as unknown as Activity
+      useWorkflowStore.getState().addActivity(loopActivity)
+      useWorkflowStore.setState({
+        edges: [
+          { id: 'e-loop', source: 'loop-1', target: 'node-a', sourceHandle: 'loop', targetHandle: 'target' },
+          { id: 'e-done', source: 'loop-1', target: 'node-b', sourceHandle: 'done', targetHandle: 'target' },
+          { id: 'e-in', source: 'prev-node', target: 'loop-1', sourceHandle: 'source', targetHandle: 'target' },
+        ] as EdgeConnection[],
+      })
+
+      const scriptActivity = createScriptActivity('tmp', 'Script Node', 'python', 'print(1)')
+      useWorkflowStore.getState().replaceActivity('loop-1', { ...scriptActivity, id: 'loop-1' })
+
+      const edges = useWorkflowStore.getState().edges
+      expect(edges.map((e) => e.id)).toEqual(['e-in'])
+    })
+
+    it('preserves all edges when replacing a node with the same type', () => {
+      const act1 = createScriptActivity('act-1', 'Script', 'python', 'print(1)')
+      useWorkflowStore.getState().addActivity(act1)
+      useWorkflowStore.setState({
+        edges: [
+          { id: 'e-out', source: 'act-1', target: 'node-a', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'e-in', source: 'prev-node', target: 'act-1', sourceHandle: 'source', targetHandle: 'target' },
+        ] as EdgeConnection[],
+      })
+
+      const replacement = createScriptActivity('tmp', 'REST API', 'python', 'print(2)')
+      useWorkflowStore.getState().replaceActivity('act-1', { ...replacement, id: 'act-1' })
+
+      const edges = useWorkflowStore.getState().edges
+      expect(edges.map((e) => e.id)).toEqual(['e-out', 'e-in'])
+    })
+  })
 })

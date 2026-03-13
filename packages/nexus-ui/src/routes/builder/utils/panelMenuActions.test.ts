@@ -11,6 +11,28 @@ describe('buildPanelMenuActions', () => {
     expect(actions).toEqual([])
   })
 
+  it('filters out the view-details action', () => {
+    const node: Node<NodeType['data']> = {
+      id: 'task-1',
+      type: 'task',
+      position: { x: 0, y: 0 },
+      data: { id: 'task-1', type: 'task', name: 'Task' } as never,
+    }
+
+    const actions = buildPanelMenuActions(
+      'edit',
+      node,
+      [
+        { id: 'view-details', label: 'View node details', onClick: vi.fn() },
+        { id: 'delete', label: 'Delete', onClick: vi.fn(), variant: 'danger' },
+      ],
+      vi.fn()
+    )
+
+    expect(actions.find((a) => a.id === 'view-details')).toBeUndefined()
+    expect(actions.find((a) => a.id === 'delete')).toBeDefined()
+  })
+
   it('wraps delete action to close panel', () => {
     const onClose = vi.fn()
     const onDelete = vi.fn()

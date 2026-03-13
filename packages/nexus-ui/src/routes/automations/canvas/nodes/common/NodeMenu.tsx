@@ -1,5 +1,5 @@
 import { Divider, Dropdown, DropdownItem, DropdownList, MenuToggle } from '@patternfly/react-core'
-import type { MenuToggleElement } from '@patternfly/react-core'
+import type { DropdownProps, MenuToggleElement } from '@patternfly/react-core'
 import { RhUiEllipsisVerticalFillIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 
@@ -9,6 +9,14 @@ interface NodeMenuProps {
   menuActions: NodeMenuAction[]
   className?: string
   style?: React.CSSProperties
+  /**
+   * Passed directly to the PatternFly Dropdown's Popper.
+   * `preventOverflow` defaults to `true` so the menu shifts to stay inside the
+   * viewport rather than causing a horizontal scrollbar when the node is near
+   * the canvas edge.  Pass `{ position: 'right' }` to additionally pin the menu
+   * to the right edge of the toggle (opens leftward).
+   */
+  popperProps?: DropdownProps['popperProps']
 }
 
 /**
@@ -40,6 +48,7 @@ export function NodeMenu(props: Readonly<NodeMenuProps>) {
       <Dropdown
         isOpen={isMenuOpen}
         onOpenChange={(isOpen) => setIsMenuOpen(isOpen)}
+        popperProps={{ preventOverflow: true, ...props.popperProps }}
         toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
           <MenuToggle
             ref={toggleRef}

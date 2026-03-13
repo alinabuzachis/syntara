@@ -32,6 +32,8 @@ vi.spyOn(workflowStore, 'useWorkflowStoreActions').mockImplementation(() => ({
   updateTrigger: vi.fn(),
   addActivity: vi.fn(),
   removeActivity: vi.fn(),
+  replaceActivity: vi.fn(),
+  duplicateActivity: vi.fn(),
   syncConvergeNodeBranches: vi.fn(),
   moveActivityBefore: vi.fn(),
   moveActivityAfter: vi.fn(),

@@ -878,4 +878,53 @@ describe('useButtonEdgeMaintenance', () => {
     // Button edge should be removed
     expect(buttonEdge).toBeUndefined()
   })
+
+  it('re-runs when a node is replaced with a different type (same ID)', () => {
+    // Regression test: replacing a task node with an approval node must trigger the effect
+    // because the approval node needs 'approved'/'rejected' button edges instead of 'source'.
+    const setEdgesCalls: unknown[][] = []
+    const captureSetEdges = vi.fn((updater) => {
+      if (typeof updater === 'function') {
+        const result = updater([])
+        setEdgesCalls.push(result)
+        return result
+      }
+    })
+    mockSetNodes.mockImplementation((updater) => (typeof updater === 'function' ? updater([]) : undefined))
+
+    const taskNode = { id: 'node-1', type: 'task', position: { x: 100, y: 100 } }
+    const approvalNode = { id: 'node-1', type: 'approval', position: { x: 100, y: 100 } }
+
+    const { rerender } = renderHook((props) => useButtonEdgeMaintenance(props as never), {
+      initialProps: {
+        ...defaultOptions,
+        nodes: [taskNode],
+        edges: [],
+        setEdges: captureSetEdges,
+      },
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    // Replace the task node with an approval node (same ID, different type)
+    rerender({
+      ...defaultOptions,
+      nodes: [approvalNode],
+      edges: [],
+      setEdges: captureSetEdges,
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+
+    // The effect must have run a second time and created approval button edges
+    const allCreatedEdges = setEdgesCalls.flat() as Array<{ id: string; sourceHandle?: string }>
+    const approvedEdge = allCreatedEdges.find((e) => e.id === 'button-node-1-approved')
+    const rejectedEdge = allCreatedEdges.find((e) => e.id === 'button-node-1-rejected')
+    expect(approvedEdge).toBeDefined()
+    expect(rejectedEdge).toBeDefined()
+  })
 })

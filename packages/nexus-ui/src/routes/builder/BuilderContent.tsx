@@ -53,6 +53,7 @@ import { AddNodePanel } from './AddNodePanel'
 import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
+import { NodeActionsContext, type NodeActionsContextValue } from './NodeActionsContext'
 import type { FlowPosition } from './types'
 import { buildNestedConditionStructure } from './utils/buildNestedStructure'
 import { EdgeFactory } from './utils/EdgeFactory'
@@ -94,6 +95,73 @@ function removeButtonEdgeClass(nodes: Node[], sourceId: string): Node[] {
     }
     return n
   })
+}
+
+const DUPLICATE_GAP = 120
+const DUPLICATE_COLLISION_PADDING = 20
+const DEFAULT_NODE_WIDTH = 300
+const DEFAULT_NODE_HEIGHT = 60
+
+/**
+ * Returns the top-left position where a duplicated node can be placed without
+ * overlapping any existing node.
+ *
+ * Strategy:
+ * 1. Scan rightward from preferredX across up to 10 rows, skipping over any
+ *    blocking node's right edge on each row.
+ * 2. If every row is fully blocked (extremely unlikely), fall back to a position
+ *    beyond the rightmost edge of all nodes — which is mathematically guaranteed
+ *    to be free because no existing node's right edge can reach that x coordinate.
+ */
+function findDuplicatePosition(originalNode: Node, allNodes: Node[]): FlowPosition {
+  const origWidth = originalNode.measured?.width ?? DEFAULT_NODE_WIDTH
+  const origHeight = originalNode.measured?.height ?? DEFAULT_NODE_HEIGHT
+  const measuredNodes = allNodes.filter((n) => n.id !== originalNode.id && n.measured != null)
+
+  function getBlocker(x: number, y: number): Node | null {
+    return (
+      measuredNodes.find((node) => {
+        const nw = node.measured?.width ?? DEFAULT_NODE_WIDTH
+        const nh = node.measured?.height ?? DEFAULT_NODE_HEIGHT
+        const p = DUPLICATE_COLLISION_PADDING
+        return !(
+          x + origWidth + p <= node.position.x ||
+          node.position.x + nw + p <= x ||
+          y + origHeight + p <= node.position.y ||
+          node.position.y + nh + p <= y
+        )
+      }) ?? null
+    )
+  }
+
+  /** Scan rightward from `startX` at a fixed `y`, skipping over blockers. */
+  function scanForSlot(startX: number, y: number): FlowPosition | null {
+    let x = startX
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const blocker = getBlocker(x, y)
+      if (!blocker) return { x, y }
+      x = blocker.position.x + (blocker.measured?.width ?? DEFAULT_NODE_WIDTH) + DUPLICATE_GAP
+    }
+    return null
+  }
+
+  const preferredX = originalNode.position.x + origWidth + DUPLICATE_GAP
+
+  for (let row = 0; row < 10; row++) {
+    const y = originalNode.position.y + row * (origHeight + DUPLICATE_GAP)
+    const slot = scanForSlot(preferredX, y)
+    if (slot) return slot
+  }
+
+  // Guaranteed-free fallback: place beyond the rightmost edge of every node on
+  // the canvas. For any node n: n.right + DUPLICATE_GAP <= rightmostX, so
+  // n.right + DUPLICATE_COLLISION_PADDING < rightmostX — no node can
+  // horizontally overlap a candidate whose left edge starts at rightmostX.
+  const rightmostX = measuredNodes.reduce(
+    (max, n) => Math.max(max, n.position.x + (n.measured?.width ?? DEFAULT_NODE_WIDTH) + DUPLICATE_GAP),
+    preferredX
+  )
+  return { x: rightmostX, y: originalNode.position.y }
 }
 
 function isWorkflowQuery(query: Query): boolean {
@@ -161,6 +229,7 @@ type BuilderAction =
       }
     }
   | { type: 'CLEAR_NEW_NODE_DESIRED_POSITION' }
+  | { type: 'SET_NEW_NODE_DESIRED_POSITION'; payload: FlowPosition }
   | { type: 'OPEN_ADD_NODE_PANEL'; payload: { sourceNodeId: string | null; replacementNodeId: string | null } }
   | { type: 'CLOSE_ADD_NODE_PANEL' }
   | { type: 'CLOSE_OTHER_PANELS' }
@@ -262,6 +331,8 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       }
     case 'CLEAR_NEW_NODE_DESIRED_POSITION':
       return { ...state, newNodeDesiredPosition: null }
+    case 'SET_NEW_NODE_DESIRED_POSITION':
+      return { ...state, newNodeDesiredPosition: action.payload }
     case 'OPEN_ADD_NODE_PANEL':
       return {
         ...state,
@@ -387,6 +458,7 @@ export function BuilderContent(props: BuilderContentProps) {
     setEdges: setStoredEdges,
     markClean,
     markDirty,
+    duplicateActivity,
   } = useWorkflowStore()
   const { registerSaveHandler, unregisterSaveHandler } = useUnsavedChanges()
 
@@ -931,6 +1003,45 @@ export function BuilderContent(props: BuilderContentProps) {
   const handleNodesDeleted = useCallback((deletedNodeIds: string[]) => {
     dispatch({ type: 'CLEAR_SELECTED_IF_DELETED', payload: deletedNodeIds })
   }, [])
+
+  const handleViewNodeDetails = useCallback(
+    (nodeId: string) => {
+      const node = reactFlowInstance.getNode(nodeId) as Node<NodeType['data']> | undefined
+      if (!node) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isGeneric = (node.data as any).metadata?.__isGeneric === true
+      dispatch({ type: 'NODE_CLICK', payload: { node, isGeneric } })
+    },
+    [reactFlowInstance]
+  )
+
+  const handleReplaceNode = useCallback((nodeId: string) => {
+    dispatch({ type: 'OPEN_ADD_NODE_PANEL', payload: { sourceNodeId: null, replacementNodeId: nodeId } })
+  }, [])
+
+  const handleDuplicateNode = useCallback(
+    (nodeId: string) => {
+      const node = reactFlowInstance.getNode(nodeId)
+      dispatch({ type: 'CLOSE_NODE_EDITOR' })
+      if (node) {
+        const allNodes = reactFlowInstance.getNodes()
+        const { x, y } = findDuplicatePosition(node, allNodes)
+        const nodeHeight = node.measured?.height ?? 60
+        // useNodePositioning treats desiredPosition as (leftEdge.x, verticalCentre.y)
+        dispatch({
+          type: 'SET_NEW_NODE_DESIRED_POSITION',
+          payload: { x, y: y + nodeHeight / 2 },
+        })
+      }
+      duplicateActivity(nodeId)
+    },
+    [reactFlowInstance, duplicateActivity]
+  )
+
+  const nodeActionsValue = useMemo<NodeActionsContextValue>(
+    () => ({ onViewDetails: handleViewNodeDetails, onReplace: handleReplaceNode, onDuplicate: handleDuplicateNode }),
+    [handleViewNodeDetails, handleReplaceNode, handleDuplicateNode]
+  )
   // v8 ignore stop
 
   // v8 ignore start - Browser events and React Flow state monitoring (E2E tested)
@@ -955,358 +1066,364 @@ export function BuilderContent(props: BuilderContentProps) {
   // v8 ignore stop
 
   return (
-    <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
-      <AppPage>
-        <Stack hasGutter>
-          <StackItem>
-            <AppPageHeader
-              title={
-                <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
-                  <FlexItem>
-                    <TextInput
-                      id="workflow-name-input"
-                      type="text"
-                      value={workflowName}
-                      onChange={(_event, value) => {
-                        dispatch({ type: 'SET_WORKFLOW_NAME', payload: value })
-                        markDirty()
-                      }}
-                      placeholder="Workflow name"
-                    />
-                  </FlexItem>
-                </Flex>
-              }
-            >
-              {/* Builder action buttons */}
-              <>
-                <Button
-                  variant="plain"
-                  onClick={() => {
-                    dispatch({
-                      type: 'OPEN_ADD_NODE_PANEL',
-                      payload: { sourceNodeId: null, replacementNodeId: null },
-                    })
-                  }}
-                  icon={
-                    <Icon isInline>
-                      <RhUiAddSquareIcon />
-                    </Icon>
-                  }
-                  iconPosition="start"
-                >
-                  Add Node
-                </Button>
-
-                {!isNew && workflow?.id && (
-                  <>
-                    <Divider orientation={{ default: 'vertical' }} />
-                    <Button
-                      variant="plain"
-                      onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })}
-                      icon={
-                        <Icon isInline>
-                          <RhUiPlayIcon />
-                        </Icon>
-                      }
-                      iconPosition="start"
-                    >
-                      Run
-                    </Button>
-                  </>
-                )}
-
-                <Divider orientation={{ default: 'vertical' }} />
-
-                <Tooltip content="Workflow details">
+    <NodeActionsContext.Provider value={nodeActionsValue}>
+      <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
+        <AppPage>
+          <Stack hasGutter>
+            <StackItem>
+              <AppPageHeader
+                title={
+                  <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
+                    <FlexItem>
+                      <TextInput
+                        id="workflow-name-input"
+                        type="text"
+                        value={workflowName}
+                        onChange={(_event, value) => {
+                          dispatch({ type: 'SET_WORKFLOW_NAME', payload: value })
+                          markDirty()
+                        }}
+                        placeholder="Workflow name"
+                      />
+                    </FlexItem>
+                  </Flex>
+                }
+              >
+                {/* Builder action buttons */}
+                <>
                   <Button
                     variant="plain"
-                    onClick={handleToggleDetails}
+                    onClick={() => {
+                      dispatch({
+                        type: 'OPEN_ADD_NODE_PANEL',
+                        payload: { sourceNodeId: null, replacementNodeId: null },
+                      })
+                    }}
                     icon={
                       <Icon isInline>
-                        <RhUiCodeIcon />
+                        <RhUiAddSquareIcon />
                       </Icon>
                     }
-                    aria-label="Workflow details"
-                  />
-                </Tooltip>
+                    iconPosition="start"
+                  >
+                    Add Node
+                  </Button>
 
-                {!isNew && workflow?.id && (
-                  <Tooltip content="Run history">
+                  {!isNew && workflow?.id && (
+                    <>
+                      <Divider orientation={{ default: 'vertical' }} />
+                      <Button
+                        variant="plain"
+                        onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: true })}
+                        icon={
+                          <Icon isInline>
+                            <RhUiPlayIcon />
+                          </Icon>
+                        }
+                        iconPosition="start"
+                      >
+                        Run
+                      </Button>
+                    </>
+                  )}
+
+                  <Divider orientation={{ default: 'vertical' }} />
+
+                  <Tooltip content="Workflow details">
                     <Button
                       variant="plain"
-                      onClick={handleToggleHistory}
+                      onClick={handleToggleDetails}
                       icon={
                         <Icon isInline>
-                          <RhUiHistoryIcon />
+                          <RhUiCodeIcon />
                         </Icon>
                       }
-                      aria-label="Run history"
+                      aria-label="Workflow details"
                     />
                   </Tooltip>
-                )}
 
-                <Divider orientation={{ default: 'vertical' }} />
-
-                <Button
-                  variant="plain"
-                  onClick={handleSaveWorkflow}
-                  isDisabled={isPending}
-                  icon={
-                    <Icon isInline>
-                      <RhUiSaveFillIcon />
-                    </Icon>
-                  }
-                  iconPosition="start"
-                >
-                  {isPending ? 'Saving...' : 'Save'}
-                </Button>
-
-                {!isNew && (
-                  <>
-                    <Divider orientation={{ default: 'vertical' }} />
-                    <Switch
-                      isChecked={isEnabled}
-                      onChange={(_event, checked) => {
-                        dispatch({ type: 'SET_IS_ENABLED', payload: checked })
-                        markDirty()
-                      }}
-                      label={isEnabled ? 'Enabled' : 'Disabled'}
-                    />
-                  </>
-                )}
-
-                {!isNew && workflow?.id && (
-                  <>
-                    <Divider orientation={{ default: 'vertical' }} />
-                    <Dropdown
-                      isOpen={isKebabOpen}
-                      onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
-                      popperProps={{ position: 'right' }}
-                      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                        <MenuToggle
-                          ref={toggleRef}
-                          variant="plain"
-                          onClick={() => dispatch({ type: 'SET_KEBAB_OPEN', payload: !isKebabOpen })}
-                          isExpanded={isKebabOpen}
-                          aria-label="Automation actions"
-                        >
-                          <RhUiEllipsisVerticalFillIcon />
-                        </MenuToggle>
-                      )}
-                    >
-                      <DropdownList>
-                        <DropdownItem
-                          onClick={() => {
-                            dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
-                            dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
-                          }}
-                          isDanger
-                        >
-                          <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
-                            <RhUiTrashIcon />
+                  {!isNew && workflow?.id && (
+                    <Tooltip content="Run history">
+                      <Button
+                        variant="plain"
+                        onClick={handleToggleHistory}
+                        icon={
+                          <Icon isInline>
+                            <RhUiHistoryIcon />
                           </Icon>
-                          Delete automation
-                        </DropdownItem>
-                      </DropdownList>
-                    </Dropdown>
-                  </>
-                )}
-              </>
-            </AppPageHeader>
-          </StackItem>
-          <StackItem
-            isFilled
-            style={{
-              minHeight: 0,
-              overflow: 'hidden',
-            }}
-          >
-            <Flex
-              alignItems={{ default: 'alignItemsStretch' }}
-              flexWrap={{ default: 'nowrap' }}
-              gap={{ default: 'gapSm' }}
+                        }
+                        aria-label="Run history"
+                      />
+                    </Tooltip>
+                  )}
+
+                  <Divider orientation={{ default: 'vertical' }} />
+
+                  <Button
+                    variant="plain"
+                    onClick={handleSaveWorkflow}
+                    isDisabled={isPending}
+                    icon={
+                      <Icon isInline>
+                        <RhUiSaveFillIcon />
+                      </Icon>
+                    }
+                    iconPosition="start"
+                  >
+                    {isPending ? 'Saving...' : 'Save'}
+                  </Button>
+
+                  {!isNew && (
+                    <>
+                      <Divider orientation={{ default: 'vertical' }} />
+                      <Switch
+                        isChecked={isEnabled}
+                        onChange={(_event, checked) => {
+                          dispatch({ type: 'SET_IS_ENABLED', payload: checked })
+                          markDirty()
+                        }}
+                        label={isEnabled ? 'Enabled' : 'Disabled'}
+                      />
+                    </>
+                  )}
+
+                  {!isNew && workflow?.id && (
+                    <>
+                      <Divider orientation={{ default: 'vertical' }} />
+                      <Dropdown
+                        isOpen={isKebabOpen}
+                        onOpenChange={(isOpen) => dispatch({ type: 'SET_KEBAB_OPEN', payload: isOpen })}
+                        popperProps={{ position: 'right' }}
+                        toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                          <MenuToggle
+                            ref={toggleRef}
+                            variant="plain"
+                            onClick={() => dispatch({ type: 'SET_KEBAB_OPEN', payload: !isKebabOpen })}
+                            isExpanded={isKebabOpen}
+                            aria-label="Automation actions"
+                          >
+                            <RhUiEllipsisVerticalFillIcon />
+                          </MenuToggle>
+                        )}
+                      >
+                        <DropdownList>
+                          <DropdownItem
+                            onClick={() => {
+                              dispatch({ type: 'SET_DELETE_DIALOG', payload: true })
+                              dispatch({ type: 'SET_KEBAB_OPEN', payload: false })
+                            }}
+                            isDanger
+                          >
+                            <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
+                              <RhUiTrashIcon />
+                            </Icon>
+                            Delete automation
+                          </DropdownItem>
+                        </DropdownList>
+                      </Dropdown>
+                    </>
+                  )}
+                </>
+              </AppPageHeader>
+            </StackItem>
+            <StackItem
+              isFilled
               style={{
-                position: 'relative',
-                minWidth: 0,
-                height: '100%',
+                minHeight: 0,
                 overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'row',
-                width: '100%',
               }}
             >
-              <FlexItem
+              <Flex
+                alignItems={{ default: 'alignItemsStretch' }}
+                flexWrap={{ default: 'nowrap' }}
+                gap={{ default: 'gapSm' }}
                 style={{
                   position: 'relative',
                   minWidth: 0,
-                  flexGrow: 1,
                   height: '100%',
                   overflow: 'hidden',
-                  pointerEvents: isNodeEditorOpen ? 'none' : 'auto',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  width: '100%',
                 }}
               >
-                <Stack style={{ height: '100%', overflow: 'hidden', gap: 'var(--pf-t--global--spacer--sm)' }}>
-                  <StackItem
-                    isFilled
-                    style={{
-                      minHeight: 0,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <CompassPanel
-                      hasNoPadding
+                <FlexItem
+                  style={{
+                    position: 'relative',
+                    minWidth: 0,
+                    flexGrow: 1,
+                    height: '100%',
+                    overflow: 'hidden',
+                    pointerEvents: isNodeEditorOpen ? 'none' : 'auto',
+                  }}
+                >
+                  <Stack style={{ height: '100%', overflow: 'hidden', gap: 'var(--pf-t--global--spacer--sm)' }}>
+                    <StackItem
+                      isFilled
                       style={{
-                        position: 'relative',
-                        minWidth: 0,
-                        width: '100%',
-                        height: '100%',
+                        minHeight: 0,
                         overflow: 'hidden',
                       }}
                     >
-                      <BuilderFlow
-                        workflowId={workflowId}
-                        panelOpen={isAddNodePanelOpen || !!selectedNode}
-                        activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
-                        activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
-                        activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
-                        executionStatus={null}
-                        disableDeleteKey={isNodeEditorOpen}
-                        disableSpacePanning={isNodeEditorOpen}
-                        onNodeClick={handleNodeClick}
-                        onAddNodeFromEdge={handleAddNodeFromEdge}
-                        onNodesDeleted={handleNodesDeleted}
-                        newNodeDesiredPosition={state.newNodeDesiredPosition}
-                        onClearDesiredPosition={handleClearDesiredPosition}
-                      />
-                    </CompassPanel>
-                  </StackItem>
-                </Stack>
-              </FlexItem>
-
-              {isAddNodePanelOpen && !isNodeEditorOpen && (
-                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                  <AddNodePanel
-                    onClose={() => {
-                      dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })
-                    }}
-                    onSelectNode={(nodeTypeId, nodeSubtypeId) => {
-                      dispatch({
-                        type: 'OPEN_NODE_EDITOR_ADD',
-                        payload: { nodeTypeId, nodeSubtypeId: nodeSubtypeId ?? null },
-                      })
-                    }}
-                    sourceNodeId={sourceNodeId}
-                    replacementNodeId={replacementNodeId}
-                    hasNoWorkflowNodes={hasNoWorkflowNodes}
-                  />
+                      <CompassPanel
+                        hasNoPadding
+                        style={{
+                          position: 'relative',
+                          minWidth: 0,
+                          width: '100%',
+                          height: '100%',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <BuilderFlow
+                          workflowId={workflowId}
+                          panelOpen={isAddNodePanelOpen || !!selectedNode}
+                          activeEdgeButtonNodeId={isAddNodePanelOpen ? sourceNodeId : null}
+                          activeEdgeButtonHandle={isAddNodePanelOpen ? sourceHandle : null}
+                          activeEdgeId={isAddNodePanelOpen ? edgeIdToReplace : null}
+                          executionStatus={null}
+                          disableDeleteKey={isNodeEditorOpen}
+                          disableSpacePanning={isNodeEditorOpen}
+                          onNodeClick={handleNodeClick}
+                          onAddNodeFromEdge={handleAddNodeFromEdge}
+                          onNodesDeleted={handleNodesDeleted}
+                          newNodeDesiredPosition={state.newNodeDesiredPosition}
+                          onClearDesiredPosition={handleClearDesiredPosition}
+                        />
+                      </CompassPanel>
+                    </StackItem>
+                  </Stack>
                 </FlexItem>
-              )}
 
-              {!isNodeEditorOpen && historyCardOpen && !isNew && (
-                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                  <AutomationHistoryCard
-                    executions={executionsQuery.data?.resources ?? []}
-                    onClose={() => dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })}
-                    onExecutionSelect={(executionId) => {
-                      setLocation(`/executions/${executionId}`)
-                    }}
-                  />
-                </FlexItem>
-              )}
+                {isAddNodePanelOpen && !isNodeEditorOpen && (
+                  <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+                    <AddNodePanel
+                      onClose={() => {
+                        dispatch({ type: 'CLOSE_ADD_NODE_PANEL' })
+                      }}
+                      onSelectNode={(nodeTypeId, nodeSubtypeId) => {
+                        dispatch({
+                          type: 'OPEN_NODE_EDITOR_ADD',
+                          payload: { nodeTypeId, nodeSubtypeId: nodeSubtypeId ?? null },
+                        })
+                      }}
+                      sourceNodeId={sourceNodeId}
+                      replacementNodeId={replacementNodeId}
+                      hasNoWorkflowNodes={hasNoWorkflowNodes}
+                    />
+                  </FlexItem>
+                )}
 
-              {!isNodeEditorOpen && detailsOpen && workflow && (
-                <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
-                  <WorkflowSidepanel
-                    workflow={workflow}
-                    workflowName={workflowName}
-                    workflowDescription={workflowDescription}
-                    onNameChange={(name) => {
-                      dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
-                      markDirty()
-                    }}
-                    onDescriptionChange={(desc) => {
-                      dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: desc })
-                      markDirty()
-                    }}
-                    onClose={() => dispatch({ type: 'SET_DETAILS_OPEN', payload: false })}
-                  />
-                </FlexItem>
-              )}
+                {!isNodeEditorOpen && historyCardOpen && !isNew && (
+                  <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+                    <AutomationHistoryCard
+                      executions={executionsQuery.data?.resources ?? []}
+                      onClose={() => dispatch({ type: 'SET_HISTORY_CARD_OPEN', payload: false })}
+                      onExecutionSelect={(executionId) => {
+                        setLocation(`/executions/${executionId}`)
+                      }}
+                    />
+                  </FlexItem>
+                )}
 
-              <NodeEditorOverlay
-                isOpen={isNodeEditorOpen}
-                mode={nodeEditorMode}
-                selectedNode={selectedNode}
-                nodeTypeId={nodeEditorNodeTypeId}
-                nodeSubtypeId={nodeEditorNodeSubtypeId}
-                sourceNodeId={sourceNodeId}
-                replacementNodeId={replacementNodeId}
-                onConnect={handleConnectFromPanel}
-                onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
-              />
-            </Flex>
-          </StackItem>
-        </Stack>
+                {!isNodeEditorOpen && detailsOpen && workflow && (
+                  <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
+                    <WorkflowSidepanel
+                      workflow={workflow}
+                      workflowName={workflowName}
+                      workflowDescription={workflowDescription}
+                      onNameChange={(name) => {
+                        dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
+                        markDirty()
+                      }}
+                      onDescriptionChange={(desc) => {
+                        dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: desc })
+                        markDirty()
+                      }}
+                      onClose={() => dispatch({ type: 'SET_DETAILS_OPEN', payload: false })}
+                    />
+                  </FlexItem>
+                )}
 
-        <Modal
-          isOpen={confirmDialogOpen}
-          onClose={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}
-          variant="small"
-          aria-labelledby="run-workflow-modal-title"
-          aria-describedby="run-workflow-modal-description"
-        >
-          <ModalHeader title={`Run ${workflowName}?`} labelId="run-workflow-modal-title" />
-          <ModalBody id="run-workflow-modal-description">
-            You are about to manually run this automation. This action will start the automation immediately, bypassing
-            its normal trigger conditions.
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="link" onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleRunAutomation}>
-              Run now
-            </Button>
-          </ModalFooter>
-        </Modal>
-        <Modal
-          isOpen={deleteDialogOpen}
-          onClose={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
-          variant="medium"
-          aria-labelledby="delete-automation-modal-title"
-          aria-describedby="delete-automation-modal-body"
-        >
-          <ModalHeader title="Delete automation?" titleIconVariant="warning" labelId="delete-automation-modal-title" />
-          <ModalBody id="delete-automation-modal-body">
-            <Stack hasGutter>
-              <StackItem>
-                You are about to permanently delete this automation. This action cannot be reversed. After deletion, the
-                following will occur:
-              </StackItem>
-              <StackItem>
-                <List>
-                  <ListItem>This automation will stop running immediately.</ListItem>
-                  <ListItem>
-                    Any other automations that use this one as a step will also become invalid and stop running.
-                  </ListItem>
-                </List>
-              </StackItem>
-            </Stack>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              key="cancel"
-              variant="secondary"
-              onClick={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
-            >
-              Cancel
-            </Button>
-            <Button key="delete" variant="danger" onClick={handleDeleteAutomation}>
-              Delete
-            </Button>
-          </ModalFooter>
-        </Modal>
-      </AppPage>
-    </NodeExpandedAllContext.Provider>
+                <NodeEditorOverlay
+                  isOpen={isNodeEditorOpen}
+                  mode={nodeEditorMode}
+                  selectedNode={selectedNode}
+                  nodeTypeId={nodeEditorNodeTypeId}
+                  nodeSubtypeId={nodeEditorNodeSubtypeId}
+                  sourceNodeId={sourceNodeId}
+                  replacementNodeId={replacementNodeId}
+                  onConnect={handleConnectFromPanel}
+                  onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
+                />
+              </Flex>
+            </StackItem>
+          </Stack>
+
+          <Modal
+            isOpen={confirmDialogOpen}
+            onClose={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}
+            variant="small"
+            aria-labelledby="run-workflow-modal-title"
+            aria-describedby="run-workflow-modal-description"
+          >
+            <ModalHeader title={`Run ${workflowName}?`} labelId="run-workflow-modal-title" />
+            <ModalBody id="run-workflow-modal-description">
+              You are about to manually run this automation. This action will start the automation immediately,
+              bypassing its normal trigger conditions.
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="link" onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleRunAutomation}>
+                Run now
+              </Button>
+            </ModalFooter>
+          </Modal>
+          <Modal
+            isOpen={deleteDialogOpen}
+            onClose={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
+            variant="medium"
+            aria-labelledby="delete-automation-modal-title"
+            aria-describedby="delete-automation-modal-body"
+          >
+            <ModalHeader
+              title="Delete automation?"
+              titleIconVariant="warning"
+              labelId="delete-automation-modal-title"
+            />
+            <ModalBody id="delete-automation-modal-body">
+              <Stack hasGutter>
+                <StackItem>
+                  You are about to permanently delete this automation. This action cannot be reversed. After deletion,
+                  the following will occur:
+                </StackItem>
+                <StackItem>
+                  <List>
+                    <ListItem>This automation will stop running immediately.</ListItem>
+                    <ListItem>
+                      Any other automations that use this one as a step will also become invalid and stop running.
+                    </ListItem>
+                  </List>
+                </StackItem>
+              </Stack>
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                key="cancel"
+                variant="secondary"
+                onClick={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
+              >
+                Cancel
+              </Button>
+              <Button key="delete" variant="danger" onClick={handleDeleteAutomation}>
+                Delete
+              </Button>
+            </ModalFooter>
+          </Modal>
+        </AppPage>
+      </NodeExpandedAllContext.Provider>
+    </NodeActionsContext.Provider>
   )
 }

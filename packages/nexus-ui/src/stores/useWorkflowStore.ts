@@ -2,6 +2,7 @@ import { ActivityTypeEnum, EdgeHandleEnum, type WorkflowAPI } from '@ansible/nex
 import { create } from 'zustand'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
+import { generateActivityId } from '../utils/generateUUID'
 
 // Type aliases from API contracts
 type WorkflowDefinitionBase = WorkflowAPI.components['schemas']['workflow-definition.schema']
@@ -70,6 +71,19 @@ interface WorkflowStore {
   addActivity: (activity: Activity) => void
   removeActivity: (activityId: string) => void
   updateActivity: (activityId: string, updates: Partial<Activity>) => void
+  /**
+   * Fully replace an activity in the list, discarding all type-specific fields
+   * from the old activity. Unlike `updateActivity`, this does NOT merge — the
+   * replacement activity is inserted as-is (with `id` overridden to the target ID).
+   */
+  replaceActivity: (activityId: string, newActivity: Activity) => void
+  /**
+   * Deep-clone an activity, assign it a new ID, derive a unique "Copy of…"
+   * name, and append it to the flat activities list.
+   *
+   * @returns The new activity's ID, or null when the source activity is not found.
+   */
+  duplicateActivity: (activityId: string) => string | null
   syncConvergeNodeBranches: () => void
   moveActivityBefore: (activityId: string, beforeActivityId: string) => void
   moveActivityAfter: (activityId: string, afterActivityId: string) => void
@@ -194,44 +208,80 @@ function removeActivityFromList(activities: Activity[], activityId: string): Act
 }
 
 /**
- * Recursively update an activity in a list
+ * Recursively walk an activity list, applying `mapper` to the single activity
+ * whose id matches `activityId` and recursing into nested containers for all
+ * others.  Both updateActivityInList and replaceActivityInList delegate here so
+ * the traversal logic lives in exactly one place.
  */
-function updateActivityInList(activities: Activity[], activityId: string, updates: Partial<Activity>): Activity[] {
+function mapActivityInList(
+  activities: Activity[],
+  activityId: string,
+  mapper: (activity: Activity) => Activity
+): Activity[] {
   return activities.map((activity) => {
-    // If this is the activity we're looking for, update it
     if (activity.id === activityId) {
-      return { ...activity, ...updates } as Activity
+      return mapper(activity)
     }
 
-    // Otherwise, recursively search nested structures
     if (activity.type === ActivityTypeEnum.PARALLEL) {
       return {
         ...activity,
-        branches: activity.branches ? updateActivityInList(activity.branches, activityId, updates) : activity.branches,
+        branches: activity.branches ? mapActivityInList(activity.branches, activityId, mapper) : activity.branches,
       }
     } else if (activity.type === ActivityTypeEnum.SEQUENCE) {
       return {
         ...activity,
-        steps: activity.steps ? updateActivityInList(activity.steps, activityId, updates) : activity.steps,
+        steps: activity.steps ? mapActivityInList(activity.steps, activityId, mapper) : activity.steps,
       }
     } else if (activity.type === ActivityTypeEnum.CONDITION) {
       return {
         ...activity,
-        then: activity.then ? updateActivityInList(activity.then, activityId, updates) : activity.then,
-        else: activity.else ? updateActivityInList(activity.else, activityId, updates) : activity.else,
+        then: activity.then ? mapActivityInList(activity.then, activityId, mapper) : activity.then,
+        else: activity.else ? mapActivityInList(activity.else, activityId, mapper) : activity.else,
       }
     } else if (activity.type === ActivityTypeEnum.LOOP) {
       return {
         ...activity,
         loop: {
           ...activity.loop,
-          do: activity.loop.do ? updateActivityInList(activity.loop.do, activityId, updates) : activity.loop.do,
+          do: activity.loop.do ? mapActivityInList(activity.loop.do, activityId, mapper) : activity.loop.do,
         },
       }
     }
 
     return activity
   })
+}
+
+/** Merge `updates` into the matching activity (preserves existing fields). */
+function updateActivityInList(activities: Activity[], activityId: string, updates: Partial<Activity>): Activity[] {
+  return mapActivityInList(activities, activityId, (activity) => ({ ...activity, ...updates }) as Activity)
+}
+
+/**
+ * Fully replace the matching activity, discarding all type-specific fields from
+ * the old one.  The replacement is stored with `id` set to `activityId` so
+ * position-dependent consumers (edges, converge nodes) continue to work.
+ */
+function replaceActivityInList(activities: Activity[], activityId: string, newActivity: Activity): Activity[] {
+  return mapActivityInList(activities, activityId, () => ({ ...newActivity, id: activityId }) as Activity)
+}
+
+/**
+ * Returns the set of valid outgoing sourceHandle values for an activity type.
+ * Used by replaceActivity to prune edges that become incompatible after a type change.
+ */
+function getValidSourceHandles(activityType: string): Set<string> {
+  switch (activityType) {
+    case ActivityTypeEnum.CONDITION:
+      return new Set([EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE])
+    case ActivityTypeEnum.LOOP:
+      return new Set([EdgeHandleEnum.LOOP, EdgeHandleEnum.DONE])
+    case ActivityTypeEnum.APPROVAL:
+      return new Set([EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED])
+    default:
+      return new Set([EdgeHandleEnum.SOURCE])
+  }
 }
 
 // ============================================================================
@@ -354,6 +404,50 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
     })
   },
 
+  duplicateActivity: (activityId) => {
+    let newId: string | null = null
+
+    set((state) => {
+      if (!state.currentWorkflow) return state
+
+      const original = findActivityById(state.currentWorkflow.workflow.activities, activityId)
+      if (!original) return state
+
+      const generatedId = generateActivityId()
+      newId = generatedId
+
+      const existingNames = new Set(
+        state.currentWorkflow.workflow.activities
+          .map((a) => a.name)
+          .filter((name): name is string => Boolean(name?.trim()))
+      )
+
+      const baseName = `Copy of ${original.name ?? 'Node'}`
+      let uniqueName = baseName
+      if (existingNames.has(uniqueName)) {
+        let suffix = 2
+        while (existingNames.has(`${baseName}${suffix}`)) suffix++
+        uniqueName = `${baseName}${suffix}`
+      }
+
+      // JSON round-trip for a safe deep-clone of plain data objects
+      const clone = { ...(JSON.parse(JSON.stringify(original)) as Activity), id: generatedId, name: uniqueName }
+
+      return {
+        currentWorkflow: {
+          ...state.currentWorkflow,
+          workflow: {
+            ...state.currentWorkflow.workflow,
+            activities: [...state.currentWorkflow.workflow.activities, clone],
+          },
+        },
+        isDirty: true,
+      }
+    })
+
+    return newId
+  },
+
   removeActivity: (activityId) => {
     set((state) => {
       if (!state.currentWorkflow) return state
@@ -414,6 +508,36 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
           workflow: {
             ...state.currentWorkflow.workflow,
             activities: updateActivityInList(state.currentWorkflow.workflow.activities, activityId, updates),
+          },
+        },
+        isDirty: true,
+      }
+    })
+  },
+
+  replaceActivity: (activityId, newActivity) => {
+    set((state) => {
+      if (!state.currentWorkflow) return state
+
+      const oldActivity = findActivityById(state.currentWorkflow.workflow.activities, activityId)
+
+      // When the node type changes, remove outgoing edges that use handles incompatible
+      // with the new type (e.g. condition's true/false edges when replacing with a task).
+      let edges = state.edges
+      if (oldActivity && oldActivity.type !== newActivity.type) {
+        const validHandles = getValidSourceHandles(newActivity.type)
+        edges = state.edges.filter(
+          (edge) => edge.source !== activityId || edge.sourceHandle == null || validHandles.has(edge.sourceHandle)
+        )
+      }
+
+      return {
+        edges,
+        currentWorkflow: {
+          ...state.currentWorkflow,
+          workflow: {
+            ...state.currentWorkflow.workflow,
+            activities: replaceActivityInList(state.currentWorkflow.workflow.activities, activityId, newActivity),
           },
         },
         isDirty: true,
@@ -953,6 +1077,8 @@ export const useWorkflowStoreActions = () => {
     addActivity: state.addActivity,
     removeActivity: state.removeActivity,
     updateActivity: state.updateActivity,
+    replaceActivity: state.replaceActivity,
+    duplicateActivity: state.duplicateActivity,
     syncConvergeNodeBranches: state.syncConvergeNodeBranches,
     moveActivityBefore: state.moveActivityBefore,
     moveActivityAfter: state.moveActivityAfter,

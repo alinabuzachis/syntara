@@ -13,16 +13,18 @@ export function buildPanelMenuActions(
 ) {
   if (mode !== 'edit' || !node) return []
 
-  return menuActions.map((action) => {
-    if (action.separator || action.id !== 'delete') {
-      return action
-    }
-    return {
-      ...action,
-      onClick: () => {
-        action.onClick()
-        onClose()
-      },
-    }
-  })
+  return menuActions
+    .filter((action) => action.id !== 'view-details')
+    .map((action) => {
+      if (action.separator || action.id !== 'delete') {
+        return action
+      }
+      return {
+        ...action,
+        onClick: () => {
+          action.onClick()
+          onClose()
+        },
+      }
+    })
 }

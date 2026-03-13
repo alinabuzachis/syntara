@@ -54,10 +54,12 @@ export function useButtonEdgeMaintenance({
   setEdges,
   executionStatus,
 }: UseButtonEdgeMaintenanceOptions) {
-  // Memoize real node IDs (excluding placeholders and pending targets) to use as stable dependency
+  // Memoize real node IDs+types (excluding placeholders and pending targets) to use as stable dependency.
+  // Including the node type ensures the effect re-runs when a node is replaced with a different type
+  // (e.g. task → approval), even though the node ID stays the same during a replace operation.
   const realNodeIds = useMemo(() => {
     return filterRealNodes(nodes)
-      .map((node) => node.id)
+      .map((node) => `${node.id}:${node.type ?? ''}`)
       .sort()
       .join(',')
   }, [nodes])

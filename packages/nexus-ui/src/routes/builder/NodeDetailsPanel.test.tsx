@@ -11,6 +11,7 @@ import { NodeRegistry } from './registry/NodeRegistry'
 
 const mockMoveActivityAfter = vi.fn()
 const mockUpdateActivity = vi.fn()
+const mockReplaceActivity = vi.fn()
 const mockRemoveActivity = vi.fn()
 const mockShowError = vi.fn()
 
@@ -33,6 +34,7 @@ vi.mock('../../stores/useWorkflowStore', () => ({
   useWorkflowStoreActions: vi.fn(() => ({
     moveActivityAfter: mockMoveActivityAfter,
     updateActivity: mockUpdateActivity,
+    replaceActivity: mockReplaceActivity,
     removeActivity: mockRemoveActivity,
   })),
   selectCurrentWorkflow: (state: { currentWorkflow: unknown }) => state.currentWorkflow,
@@ -155,7 +157,7 @@ describe('NodeDetailsPanel', () => {
     await user.click(screen.getByRole('button', { name: /Submit/i }))
 
     expect(mockRemoveActivity).toHaveBeenCalledWith('new-1')
-    expect(mockUpdateActivity).toHaveBeenCalledWith(
+    expect(mockReplaceActivity).toHaveBeenCalledWith(
       'replacement-1',
       expect.objectContaining({
         id: 'replacement-1',

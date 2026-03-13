@@ -11,7 +11,12 @@ import { useState } from 'react'
 
 import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
-import { useWorkflowStore, useWorkflowStoreActions, selectCurrentWorkflow } from '../../stores/useWorkflowStore'
+import {
+  useWorkflowStore,
+  useWorkflowStoreActions,
+  selectCurrentWorkflow,
+  type Activity,
+} from '../../stores/useWorkflowStore'
 import { parseTriggerIndex } from '../../utils/triggerNodeIds'
 import { NodeMenu } from '../automations/canvas/nodes/common/NodeMenu'
 import { MenuNodeType, useNodeMenuActions } from '../automations/canvas/nodes/hooks/useNodeMenuActions'
@@ -73,7 +78,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
   const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
   const [headerContent, setHeaderContent] = useState<ReactNode | null>(null)
   // Use action accessor - component won't re-render when store state changes
-  const { moveActivityAfter, updateActivity, removeActivity } = useWorkflowStoreActions()
+  const { moveActivityAfter, updateActivity, replaceActivity, removeActivity } = useWorkflowStoreActions()
   const isTriggerNode = node?.type === FlowNodeType.TRIGGER
   const triggerIndex = isTriggerNode ? parseTriggerIndex(node?.id ?? '') : undefined
   const nodeMenuType = isTriggerNode ? MenuNodeType.TRIGGER : MenuNodeType.ACTIVITY
@@ -113,7 +118,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
 
       const FormComponent = selectedNode.formComponent
       const subtypeFormProps = selectedSubtype?.formProps ?? {}
-      const submitButtonText = replacementNodeId ? 'Update node' : 'Add node'
+      const submitButtonText = 'Add node'
 
       /** Returns true if replacement succeeded, false if lookup failed. */
       const handleReplacement = (newNodeId: string | undefined): boolean => {
@@ -126,11 +131,13 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           removeActivity(newNodeId)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const cleaned = cleanMetadata((newActivity as any).metadata)
-          updateActivity(replacementNodeId, {
+          // Full replacement — do not merge with the old activity so that
+          // type-specific fields (e.g. condition.then/else) do not bleed through.
+          replaceActivity(replacementNodeId, {
             ...newActivity,
             id: replacementNodeId,
             metadata: cleaned,
-          } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
+          } as unknown as Activity)
         } else {
           const genericActivity = findActivityInCurrentWorkflow(replacementNodeId)
           if (!genericActivity) return false
