@@ -15,23 +15,24 @@ export interface ParsedRepeatingInterval {
 }
 
 /**
- * Parse an ISO 8601 repeating interval string into components
- * Supports formats like: "R/2024-01-01T10:00:00Z/P1D" or "R/2024-01-01T10:00:00Z/P1D/2024-12-31T23:59:59Z"
+ * Parse an ISO 8601 repeating interval string into components.
+ * Supports: "R/start/duration", "R/start/duration/end", and run-once "R1/start/PT0S".
  */
 export function parseRepeatingInterval(interval: string): ParsedRepeatingInterval {
-  if (!interval?.startsWith('R/')) {
+  if (!interval?.startsWith('R')) {
     return { start: '', cadence: '' }
   }
 
-  // Remove 'R/' prefix
-  const withoutPrefix = interval.substring(2)
+  // R1/start/PT0S (run once) or R/start/duration[/end]
+  const withoutPrefix = interval.startsWith('R/')
+    ? interval.substring(2)
+    : interval.substring(interval.indexOf('/') + 1)
   const parts = withoutPrefix.split('/')
 
   if (parts.length === 2) {
-    // Format: R/start/duration
     return { start: parts[0], cadence: parts[1] }
-  } else if (parts.length === 3) {
-    // Format: R/start/duration/end
+  }
+  if (parts.length === 3) {
     return { start: parts[0], cadence: parts[1], end: parts[2] }
   }
 

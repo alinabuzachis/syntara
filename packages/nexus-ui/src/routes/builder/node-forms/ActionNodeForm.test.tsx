@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -41,6 +41,19 @@ describe('ActionNodeForm', () => {
     expect(screen.getByLabelText(/Script code editor/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/URL/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/HTTP Method/i)).not.toBeInTheDocument()
+  })
+
+  it('shows "Script is required" when submitting with empty script', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
+
+    await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Script')
+    await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Script is required')).toBeInTheDocument()
+    })
+    expect(mockOnSubmit).not.toHaveBeenCalled()
   })
 
   it('submits script form data', async () => {

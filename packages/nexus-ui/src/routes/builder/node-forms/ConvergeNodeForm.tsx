@@ -21,32 +21,18 @@ import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'rea
 
 import { timeUnitsToSeconds } from '../utils/timeUtils'
 
+import {
+  convergeFormSchema,
+  type ConvergeFormData,
+  type ConvergeStrategy,
+  type RemainingBehavior,
+} from './convergeFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
+import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
-/** Converge strategy: when to continue after branches */
-export type ConvergeStrategy = 'all' | 'any'
-
-/** Behavior of remaining nodes when strategy is 'any' */
-export type RemainingBehavior = 'continue' | 'cancel'
-
-export interface ConvergeFormData {
-  name: string
-  strategy: ConvergeStrategy
-  timeoutEnabled?: boolean
-  timeoutSeconds?: number
-  timeoutMinutes?: number
-  timeoutHours?: number
-  timeoutDays?: number
-  /** Computed total timeout in seconds (output only — derived from the unit fields below) */
-  timeout?: number
-  onTimeout?: 'continue' | 'fail'
-  /** Required path count when strategy is 'any' */
-  requiredPathCount?: number
-  /** Behavior of remaining nodes when strategy is 'any' */
-  remainingBehavior?: RemainingBehavior
-}
+export type { ConvergeFormData, ConvergeStrategy, RemainingBehavior }
 
 /** Options for "Continue when criteria" dropdown */
 const CONTINUE_WHEN_CRITERIA_OPTIONS: Array<{ label: string; value: ConvergeStrategy; disabled?: boolean }> = [
@@ -85,19 +71,31 @@ interface ConvergeNodeFormProps {
 function ConvergeFormFields({
   submitButtonText,
   onHeaderContentChange,
+  validationErrors,
 }: {
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
+  validationErrors?: {
+    strategy?: { message?: string }
+    requiredPathCount?: { message?: string }
+    remainingBehavior?: { message?: string }
+    onTimeout?: { message?: string }
+  }
 }) {
   const {
     register,
     control,
     setValue,
-    formState: { errors },
+    formState: { errors: contextErrors },
   } = useFormContext<ConvergeFormData>()
+  const errors = validationErrors ?? contextErrors
   const strategy = useWatch({ control, name: 'strategy' })
   const timeoutEnabled = useWatch({ control, name: 'timeoutEnabled' })
   const [isTimeoutActionOpen, setIsTimeoutActionOpen] = useState(false)
+
+  useEffect(() => {
+    if (errors.strategy) document.getElementById('converge-strategy')?.focus()
+  }, [errors.strategy])
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="converge-name" ariaLabel="Name" />,
@@ -120,7 +118,6 @@ function ConvergeFormFields({
           <Controller
             control={control}
             name="strategy"
-            rules={{ required: 'Continue when criteria is required' }}
             render={({ field }) => (
               <FormSelect
                 id="converge-strategy"
@@ -128,6 +125,7 @@ function ConvergeFormFields({
                 value={field.value ?? ''}
                 onChange={(_event, value) => field.onChange(value)}
                 isRequired
+                validated={errors.strategy ? 'error' : 'default'}
               >
                 <FormSelectOption value="" label="Select continue when criteria" isPlaceholder />
                 {CONTINUE_WHEN_CRITERIA_OPTIONS.map((option) => (
@@ -158,11 +156,7 @@ function ConvergeFormFields({
           <StackItem>
             <FormGroup label="Required path count" isRequired fieldId="converge-requiredPathCount">
               <TextInput
-                {...register('requiredPathCount', {
-                  required: strategy === 'any' ? 'Required path count is required' : false,
-                  min: { value: 1, message: 'Must be at least 1' },
-                  valueAsNumber: true,
-                })}
+                {...register('requiredPathCount', { valueAsNumber: true })}
                 id="converge-requiredPathCount"
                 type="number"
                 min={1}
@@ -184,9 +178,6 @@ function ConvergeFormFields({
               <Controller
                 control={control}
                 name="remainingBehavior"
-                rules={{
-                  required: strategy === 'any' ? 'Behavior of remaining nodes is required' : false,
-                }}
                 render={({ field }) => (
                   <FormSelect
                     id="converge-remainingBehavior"
@@ -281,7 +272,6 @@ function ConvergeFormFields({
               <Controller
                 control={control}
                 name="onTimeout"
-                rules={{ required: timeoutEnabled ? 'Timeout action is required' : false }}
                 render={({ field }) => (
                   <Select
                     id="converge-timeoutAction"
@@ -366,7 +356,14 @@ export function ConvergeNodeForm(props: ConvergeNodeFormProps) {
     props.onSubmit(cleanedData)
   }
 
-  const methods = useForm<ConvergeFormData>({ defaultValues })
+  const methods = useForm<ConvergeFormData>({
+    resolver: zodResolver(convergeFormSchema, undefined, { mode: 'sync' }),
+    defaultValues,
+  })
+
+  const {
+    formState: { errors },
+  } = methods
 
   return (
     <FormProvider {...methods}>
@@ -374,6 +371,7 @@ export function ConvergeNodeForm(props: ConvergeNodeFormProps) {
         <ConvergeFormFields
           submitButtonText={props.submitButtonText}
           onHeaderContentChange={props.onHeaderContentChange}
+          validationErrors={errors}
         />
       </NodeFormContainer>
     </FormProvider>

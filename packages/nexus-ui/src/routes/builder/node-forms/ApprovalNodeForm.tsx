@@ -11,27 +11,18 @@ import {
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
 import { secondsToTimeUnits, timeUnitsToSeconds } from '../utils/timeUtils'
 
+import { approvalFormSchema, type ApprovalFormData } from './approvalFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
+import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
-
-// Form data structure used internally by the form (approvers as comma-separated string, timeout broken into units)
-interface ApprovalFormData {
-  name: string
-  approvers: string
-  prompt: string
-  timeoutSeconds?: number
-  timeoutMinutes?: number
-  timeoutHours?: number
-  timeoutDays?: number
-  onTimeout: string
-}
 
 // Data structure for form submission (name + API approval definition)
 // Note: timeout is in seconds as a number
@@ -63,14 +54,26 @@ function ApprovalFormFields({
   submitButtonText,
   initialApprovers,
   onHeaderContentChange,
+  validationErrors,
 }: {
   submitButtonText?: string
   initialApprovers: string[]
   onHeaderContentChange?: (content: ReactNode | null) => void
+  validationErrors?: { approvers?: { message?: string } }
 }) {
-  const { register, control, setValue } = useFormContext<ApprovalFormData>()
+  const {
+    register,
+    control,
+    setValue,
+    formState: { errors: contextErrors },
+  } = useFormContext<ApprovalFormData>()
+  const errors = validationErrors ?? contextErrors
   const [inputValue, setInputValue] = useState('')
   const [approversList, setApproversList] = useState<string[]>(initialApprovers)
+
+  useEffect(() => {
+    if (errors.approvers) document.getElementById('approval-approvers-inline-input')?.focus()
+  }, [errors.approvers])
 
   const handleAddApprover = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
@@ -113,12 +116,11 @@ function ApprovalFormFields({
           <Controller
             name="approvers"
             control={control}
-            rules={{ required: true }}
             render={({ field }) => (
               <>
                 <input type="hidden" {...field} />
                 <Flex
-                  className="pf-v6-c-form-control"
+                  className={`pf-v6-c-form-control ${errors.approvers ? 'pf-m-error' : ''}`.trim()}
                   flexWrap={{ default: 'wrap' }}
                   alignItems={{ default: 'alignItemsCenter' }}
                   columnGap={{ default: 'columnGapSm' }}
@@ -181,7 +183,13 @@ function ApprovalFormFields({
           />
           <FormHelperText>
             <HelperText>
-              <HelperTextItem>Type a username and press Enter or comma to add</HelperTextItem>
+              {errors.approvers ? (
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {errors.approvers.message}
+                </HelperTextItem>
+              ) : (
+                <HelperTextItem>Type a username and press Enter or comma to add</HelperTextItem>
+              )}
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -300,8 +308,13 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
   }
 
   const methods = useForm<ApprovalFormData>({
+    resolver: zodResolver(approvalFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
+
+  const {
+    formState: { errors },
+  } = methods
 
   return (
     <FormProvider {...methods}>
@@ -310,6 +323,7 @@ export function ApprovalNodeForm(props: ApprovalNodeFormProps) {
           submitButtonText={props.submitButtonText}
           initialApprovers={initialApprovers}
           onHeaderContentChange={props.onHeaderContentChange}
+          validationErrors={errors}
         />
       </NodeFormContainer>
     </FormProvider>

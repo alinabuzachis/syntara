@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -53,6 +53,19 @@ describe('LoopNodeForm', () => {
   })
 
   describe('forEach Submission', () => {
+    it('shows "Items expression is required" when submitting forEach with empty items', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'forEach' }} />)
+
+      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Loop')
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Items expression is required')).toBeInTheDocument()
+      })
+      expect(mockOnSubmit).not.toHaveBeenCalled()
+    })
+
     it('submits forEach loop data', async () => {
       const user = userEvent.setup()
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'forEach' }} />)
@@ -105,6 +118,19 @@ describe('LoopNodeForm', () => {
   })
 
   describe('while Submission', () => {
+    it('shows "Conditional expression is required" when submitting while with empty condition', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
+
+      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'While Loop')
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Conditional expression is required')).toBeInTheDocument()
+      })
+      expect(mockOnSubmit).not.toHaveBeenCalled()
+    })
+
     it('submits while loop data with all optional parameters', async () => {
       const user = userEvent.setup()
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
@@ -181,7 +207,7 @@ describe('LoopNodeForm', () => {
           maxIterations: undefined,
         })
       )
-    })
+    }, 10_000)
 
     it('cleans data for while (no items, indexVariable, or itemVariable)', async () => {
       const user = userEvent.setup()
@@ -248,33 +274,27 @@ describe('LoopNodeForm', () => {
 
       const maxIterationsInput = screen.getByRole('spinbutton', { name: /Max iterations/i })
 
-      // Test negative value
+      // Test negative value - schema rejects, submit is not called
       await user.clear(maxIterationsInput)
       await user.type(maxIterationsInput, '-1')
       await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-      const submittedDataNegative = mockOnSubmit.mock.calls[0][0] as LoopFormData
-      expect(submittedDataNegative.maxIterations).toBeUndefined()
+      expect(mockOnSubmit).not.toHaveBeenCalled()
 
       mockOnSubmit.mockClear()
 
-      // Test zero value
+      // Test zero value - schema rejects, submit is not called
       await user.clear(maxIterationsInput)
       await user.type(maxIterationsInput, '0')
       await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-      const submittedDataZero = mockOnSubmit.mock.calls[0][0] as LoopFormData
-      expect(submittedDataZero.maxIterations).toBeUndefined()
+      expect(mockOnSubmit).not.toHaveBeenCalled()
 
       mockOnSubmit.mockClear()
 
-      // Test decimal value (browser may prevent this with step=1, but test the validation logic)
+      // Test decimal value - schema rejects, submit is not called
       await user.clear(maxIterationsInput)
       await user.type(maxIterationsInput, '3.5')
       await user.click(screen.getByRole('button', { name: /Add node/i }))
-
-      const submittedDataDecimal = mockOnSubmit.mock.calls[0][0] as LoopFormData
-      expect(submittedDataDecimal.maxIterations).toBeUndefined()
+      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
   })
 

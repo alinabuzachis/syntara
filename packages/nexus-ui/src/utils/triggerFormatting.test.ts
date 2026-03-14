@@ -22,6 +22,15 @@ describe('parseRepeatingInterval', () => {
     })
   })
 
+  it('parses run-once interval R1/start/PT0S', () => {
+    const result = parseRepeatingInterval('R1/2024-01-15T00:00:00.000Z/PT0S')
+
+    expect(result).toEqual({
+      start: '2024-01-15T00:00:00.000Z',
+      cadence: 'PT0S',
+    })
+  })
+
   it('returns empty values for invalid format', () => {
     expect(parseRepeatingInterval('')).toEqual({ start: '', cadence: '' })
     expect(parseRepeatingInterval('invalid')).toEqual({ start: '', cadence: '' })

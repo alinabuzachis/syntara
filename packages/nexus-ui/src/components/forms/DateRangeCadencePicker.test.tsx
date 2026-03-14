@@ -68,11 +68,20 @@ describe('DateRangeCadencePicker', () => {
       expect(stack).toHaveClass('custom-class')
     })
 
-    it('applies error state to cadence select', () => {
+    it('applies error state to start date field only when error prop is true', () => {
       render(<DateRangeCadencePicker error />)
 
+      const startDateInput = screen.getByLabelText('Start date')
+      expect(startDateInput).toHaveAttribute('aria-invalid', 'true')
+
       const cadenceSelect = screen.getByLabelText('Cadence')
-      expect(cadenceSelect).toHaveAttribute('aria-invalid', 'true')
+      expect(cadenceSelect).not.toHaveAttribute('aria-invalid', 'true')
+    })
+
+    it('shows error message under Start date when error and errorMessage are set', () => {
+      render(<DateRangeCadencePicker error errorMessage="Start date is required" />)
+
+      expect(screen.getByText('Start date is required')).toBeInTheDocument()
     })
   })
 
@@ -185,7 +194,7 @@ describe('DateRangeCadencePicker', () => {
       })
     })
 
-    it('calls onChange with empty string when cadence is none', async () => {
+    it('calls onChange with run-once interval (R1/start/PT0S) when cadence is none and start date is set', async () => {
       const onChange = vi.fn()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
@@ -193,7 +202,7 @@ describe('DateRangeCadencePicker', () => {
       fireEvent.change(cadenceSelect, { target: { value: 'none' } })
 
       await waitFor(() => {
-        expect(onChange).toHaveBeenCalledWith('')
+        expect(onChange).toHaveBeenLastCalledWith(expect.stringMatching(/^R1\/.+\/PT0S$/))
       })
     })
 

@@ -114,6 +114,13 @@ For how the UI is structured, see these comprehensive guides:
 3. That's it! The `registerAllNodes()` auto-discovery finds files matching `register*.ts` pattern
 4. See: [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes" for details
 
+#### How do I add a new node form (with Zod)?
+
+1. Create a schema file next to your form: `packages/nexus-ui/src/routes/builder/node-forms/myNodeFormSchema.ts` — define shape and validation with `z.object()` (use `.superRefine()` for conditional rules, or `z.discriminatedUnion()` for executor-type-style forms). Export the schema and `type MyFormData = z.infer<typeof myNodeFormSchema>`. Import `z` from `'zod'`.
+2. For optional number fields (timeout units, max count, etc.) use `optionalNumber` from `./shared/formSchemaUtils` so empty `valueAsNumber` inputs (NaN) validate
+3. In your form component: `useForm<MyFormData>({ resolver: zodResolver(myNodeFormSchema, undefined, { mode: 'sync' }), defaultValues })` — import `zodResolver` from `./shared/formSchemaUtils`
+4. Keep using `useFormMutationErrorHandler(setError)` for API 422 field errors; Zod handles client-side only. See: [`docs/error-handling.md`](docs/error-handling.md) - "Client-side validation (Zod + @hookform/resolvers)"
+
 #### How do I make API calls?
 
 Use the type-safe clients from `client.tsx`:
@@ -245,6 +252,7 @@ Before writing any new UI code, follow this checklist:
    - Use proper key props for lists
    - Prefer controlled components for forms (react-hook-form)
    - Use proper semantic HTML
+   - For PatternFly form controls (TextInput, TextArea, FormSelect, FormGroup), use `validated={hasError ? 'error' : 'default'}` so the non-error state is explicit; do not use `undefined` for the default case
 
 **Example Workflow:**
 

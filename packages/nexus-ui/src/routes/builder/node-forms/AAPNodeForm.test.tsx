@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -10,10 +10,12 @@ vi.mock('../../../components/ExpandableCodeEditor', () => ({
   ExpandableCodeEditor: ({
     code,
     onCodeChange,
+    onBlur,
     ariaLabel,
   }: {
     code: string
     onCodeChange: (code: string) => void
+    onBlur?: (value: string) => void
     ariaLabel?: string
   }) => (
     <textarea
@@ -21,6 +23,7 @@ vi.mock('../../../components/ExpandableCodeEditor', () => ({
       id="aap-extraVars"
       value={code}
       onChange={(e) => onCodeChange(e.target.value)}
+      onBlur={(e) => onBlur?.(e.currentTarget.value)}
       placeholder='{"version": "1.0", "environment": "prod"}'
       aria-label={ariaLabel}
     />
@@ -98,29 +101,66 @@ describe('AAPNodeForm', () => {
     })
   })
 
-  it('validates JSON and disables submit on invalid input', async () => {
+  it('does not submit when extra vars JSON is invalid', async () => {
     const user = userEvent.setup()
     renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} onHeaderContentChange={vi.fn()} />)
 
+    await user.type(screen.getByPlaceholderText('123'), '456')
     const extraVarsInput = screen.getByPlaceholderText(/version/i)
     await user.click(extraVarsInput)
     await user.paste('invalid json')
+    await user.click(screen.getByRole('button', { name: /Add node/i }))
 
-    expect(await screen.findByText(/Invalid JSON format/i)).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: /Add node/i })).toBeDisabled()
+    expect(mockOnSubmit).not.toHaveBeenCalled()
   })
 
-  it('clears validation error when JSON input is cleared', async () => {
+  it('shows "Invalid JSON format" helper text after submit with invalid extra vars', async () => {
     const user = userEvent.setup()
     renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} onHeaderContentChange={vi.fn()} />)
 
+    await user.type(screen.getByPlaceholderText('123'), '456')
+    const extraVarsInput = screen.getByPlaceholderText(/version/i)
+    await user.click(extraVarsInput)
+    await user.paste('not valid json')
+    await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Invalid JSON format')).toBeInTheDocument()
+    })
+  })
+
+  it('shows "Invalid JSON format" helper text on blur when extra vars is invalid', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} onHeaderContentChange={vi.fn()} />)
+
+    await user.type(screen.getByPlaceholderText('123'), '456')
     const extraVarsInput = screen.getByPlaceholderText(/version/i)
     await user.click(extraVarsInput)
     await user.paste('bad json')
-    expect(await screen.findByText(/Invalid JSON format/i)).toBeInTheDocument()
+    await user.tab()
+
+    await waitFor(() => {
+      expect(screen.getByText('Invalid JSON format')).toBeInTheDocument()
+    })
+  })
+
+  it('submits when extra vars JSON is fixed after being invalid', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} onHeaderContentChange={vi.fn()} />)
+
+    await user.type(screen.getByPlaceholderText('123'), '456')
+    const extraVarsInput = screen.getByPlaceholderText(/version/i)
+    await user.click(extraVarsInput)
+    await user.paste('bad json')
+    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    expect(mockOnSubmit).not.toHaveBeenCalled()
 
     await user.clear(extraVarsInput)
-    expect(screen.queryByText(/Invalid JSON format/i)).not.toBeInTheDocument()
+    await user.paste('{"key": "value"}')
+    const form = document.getElementById('aap-node-form')
+    expect(form).toBeInstanceOf(HTMLFormElement)
+    ;(form as HTMLFormElement).requestSubmit()
+    await waitFor(() => expect(mockOnSubmit).toHaveBeenCalled())
   })
 
   it('populates form with initial data', () => {

@@ -1,3 +1,4 @@
+import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
 import {
   FormGroup,
   FormHelperText,
@@ -12,38 +13,28 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { ExpandableCodeEditor } from '../../../components/ExpandableCodeEditor'
+import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
+import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 
+import { actionFormSchema, type ActionFormData, type ActionFormValues } from './actionFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
+import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
-// Type definitions (Priority 2)
-export type ExecutorType = 'script' | 'api'
+// Re-export schema type for form state; registry uses useNodeCreation.ActionFormData
+export type { ActionFormData }
+export type ExecutorType = ActionFormData['executor']
 export type ScriptLanguage = 'python' | 'bash'
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
-export interface ActionFormData {
-  name: string
-  executor: ExecutorType
-  // Allow legacy or custom values to round-trip existing data.
-  language?: string
-  code?: string
-  method?: HttpMethod
-  url?: string
-  authentication?: string
-  headers?: string
-  body?: string
-  parameters?: string
-}
-
 interface ActionNodeFormProps {
-  onSubmit: (data: ActionFormData) => void
+  onSubmit: (data: RegistryActionFormData) => void
   submitButtonText?: string
-  initialData?: Partial<ActionFormData>
+  initialData?: Partial<RegistryActionFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
@@ -67,22 +58,31 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
 function ActionFormFields({
   submitButtonText,
   onHeaderContentChange,
+  validationErrors,
+  scriptEditorRef,
 }: {
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
+  validationErrors?: { code?: { message?: string }; url?: { message?: string } }
+  scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
 }) {
   const {
     register,
     control,
-    formState: { errors },
-  } = useFormContext<ActionFormData>()
+    formState: { errors: contextErrors },
+  } = useFormContext<ActionFormValues>()
+  const errors = validationErrors ?? contextErrors
   const executor = useWatch({ control, name: 'executor' })
   const language = useWatch({ control, name: 'language' })
   const editorLanguage = language === 'bash' ? 'bash' : language === 'python' ? 'python' : 'plaintext'
 
+  useEffect(() => {
+    if (errors.code && scriptEditorRef?.current) scriptEditorRef.current.focus()
+  }, [errors.code, scriptEditorRef])
+
   const nameField = useMemo(
     () => (
-      <ActivityNameField<ActionFormData>
+      <ActivityNameField<ActionFormValues>
         register={register}
         fieldId="action-name"
         placeholder="Enter activity name"
@@ -136,27 +136,31 @@ function ActionFormFields({
               <Controller
                 control={control}
                 name="code"
-                rules={{ required: 'Code is required' }}
                 render={({ field }) => (
-                  <ExpandableCodeEditor
-                    code={field.value ?? ''}
-                    onCodeChange={field.onChange}
-                    language={editorLanguage}
-                    height="200px"
-                    ariaLabel="Script code editor"
-                    isDarkTheme
-                  />
+                  <div className={errors.code ? 'pf-v6-c-form-control pf-m-error' : undefined}>
+                    <ExpandableCodeEditor
+                      ref={scriptEditorRef ?? undefined}
+                      code={field.value ?? ''}
+                      onCodeChange={field.onChange}
+                      language={editorLanguage}
+                      height="200px"
+                      ariaLabel="Script code editor"
+                      isDarkTheme
+                    />
+                  </div>
                 )}
               />
-              {errors.code && (
-                <FormHelperText>
-                  <HelperText>
+              <FormHelperText>
+                <HelperText>
+                  {errors.code ? (
                     <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
                       {errors.code.message}
                     </HelperTextItem>
-                  </HelperText>
-                </FormHelperText>
-              )}
+                  ) : (
+                    <HelperTextItem>Script code to execute</HelperTextItem>
+                  )}
+                </HelperText>
+              </FormHelperText>
             </FormGroup>
           </StackItem>
           <StackItem>
@@ -177,10 +181,11 @@ function ActionFormFields({
           <StackItem>
             <FormGroup label="URL" isRequired fieldId="action-url">
               <TextInput
-                {...register('url', { required: 'URL is required' })}
+                {...register('url')}
                 id="action-url"
                 type="url"
                 placeholder="https://api.example.com/endpoint"
+                validated={errors.url ? 'error' : 'default'}
               />
               {errors.url && (
                 <FormHelperText>
@@ -247,17 +252,19 @@ function ActionFormFields({
 }
 
 export function ActionNodeForm(props: ActionNodeFormProps) {
-  const defaultValues: ActionFormData = {
+  const defaultValues: ActionFormValues = {
     name: '',
-    executor: props.initialData?.executor ?? 'script',
+    executor: props.initialData?.executor ?? ExecutorTypeEnum.SCRIPT,
+    code: '',
+    url: '',
     language: 'python',
     method: 'GET',
     ...props.initialData,
   }
 
   const handleSubmit = (data: ActionFormData) => {
-    // Clean up data based on executor type
-    const cleanedData: ActionFormData = {
+    // Clean up data based on executor type (schema type is assignable to registry type)
+    const cleanedData: RegistryActionFormData = {
       name: data.name,
       executor: data.executor,
       language: data.executor === 'script' ? data.language : undefined,
@@ -268,13 +275,20 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
       headers: data.executor === 'api' ? data.headers : undefined,
       body: data.executor === 'api' ? data.body : undefined,
       parameters: data.parameters ?? undefined,
+      requiresApproval: props.initialData?.requiresApproval,
     }
     props.onSubmit(cleanedData)
   }
 
-  const methods = useForm<ActionFormData>({
+  const methods = useForm<ActionFormValues>({
+    resolver: zodResolver(actionFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
+
+  const {
+    formState: { errors },
+  } = methods
+  const scriptEditorRef = useRef<ExpandableCodeEditorHandle | null>(null)
 
   return (
     <FormProvider {...methods}>
@@ -282,6 +296,8 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
         <ActionFormFields
           submitButtonText={props.submitButtonText}
           onHeaderContentChange={props.onHeaderContentChange}
+          validationErrors={errors}
+          scriptEditorRef={scriptEditorRef}
         />
       </NodeFormContainer>
     </FormProvider>

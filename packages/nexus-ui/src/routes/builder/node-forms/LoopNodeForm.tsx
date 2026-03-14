@@ -9,31 +9,25 @@ import {
   StackItem,
   TextInput,
 } from '@patternfly/react-core'
+import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
 
+import { loopFormSchema, type LoopFormData } from './loopFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { BehaviorHelp } from './shared/BehaviorHelp'
 import { ConditionalExpressionHelp } from './shared/ConditionalExpressionHelp'
 import { conditionValidationRules } from './shared/conditionValidation'
+import { zodResolver } from './shared/formSchemaUtils'
 import { LoopTypeHelp } from './shared/LoopTypeHelp'
 import { MaxIterationsHelp } from './shared/MaxIterationsHelp'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
-export interface LoopFormData {
-  name: string
-  type: 'forEach' | 'while'
-  items?: string
-  indexVariable?: string
-  itemVariable?: string
-  condition?: string
-  maxIterations?: number
-  maxIterationsBehavior?: 'continue' | 'fail'
-}
+export type { LoopFormData }
 
 interface LoopNodeFormProps {
   onSubmit: (data: LoopFormData) => void
@@ -45,12 +39,29 @@ interface LoopNodeFormProps {
 function LoopFormFields({
   submitButtonText,
   onHeaderContentChange,
+  validationErrors,
 }: {
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
+  validationErrors?: {
+    items?: { message?: string }
+    condition?: { message?: string }
+    maxIterations?: { message?: string }
+  }
 }) {
-  const { register, control } = useFormContext<LoopFormData>()
+  const {
+    register,
+    control,
+    formState: { errors: contextErrors },
+  } = useFormContext<LoopFormData>()
+  const errors = validationErrors ?? contextErrors
   const type = useWatch({ control, name: 'type' })
+
+  useEffect(() => {
+    if (errors.items) document.getElementById('loop-items')?.focus()
+    else if (errors.condition) document.getElementById('loop-condition-while')?.focus()
+    else if (errors.maxIterations) document.getElementById('loop-maxIterations')?.focus()
+  }, [errors.items, errors.condition, errors.maxIterations])
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="loop-name" ariaLabel="Name" />,
@@ -100,12 +111,24 @@ function LoopFormFields({
           <StackItem>
             <FormGroup label="Items expression" isRequired fieldId="loop-items">
               <TextInput
-                {...register('items', { required: true })}
+                {...register('items')}
                 id="loop-items"
                 placeholder="${input.item_list}"
                 style={{ fontFamily: 'monospace' }}
                 type="text"
+                validated={errors.items ? 'error' : 'default'}
               />
+              <FormHelperText>
+                <HelperText>
+                  {errors.items ? (
+                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                      {errors.items.message}
+                    </HelperTextItem>
+                  ) : (
+                    <HelperTextItem>Expression that evaluates to a list</HelperTextItem>
+                  )}
+                </HelperText>
+              </FormHelperText>
             </FormGroup>
           </StackItem>
 
@@ -154,7 +177,17 @@ function LoopFormFields({
                 step={1}
                 placeholder="1000 (default)"
                 style={{ width: '100%' }}
+                validated={errors.maxIterations ? 'error' : 'default'}
               />
+              {errors.maxIterations && (
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                      {errors.maxIterations.message}
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              )}
             </FormGroup>
           </StackItem>
 
@@ -199,24 +232,33 @@ function LoopFormFields({
                 control={control}
                 name="condition"
                 rules={conditionValidationRules}
-                render={({ field, fieldState }) => (
-                  <>
-                    <ExpressionBuilder
-                      id="loop-condition-while"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      error={!!fieldState.error}
-                      placeholder="Build your condition"
-                    />
-                    {fieldState.error && (
+                render={({ field, fieldState }) => {
+                  const conditionError = fieldState.error ?? errors.condition
+                  return (
+                    <>
+                      <ExpressionBuilder
+                        id="loop-condition-while"
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        error={!!conditionError}
+                        placeholder="Build your condition"
+                      />
                       <FormHelperText>
                         <HelperText>
-                          <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                          {conditionError ? (
+                            <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                              {conditionError.message}
+                            </HelperTextItem>
+                          ) : (
+                            <HelperTextItem>
+                              Build your condition using the visual builder or custom expression
+                            </HelperTextItem>
+                          )}
                         </HelperText>
                       </FormHelperText>
-                    )}
-                  </>
-                )}
+                    </>
+                  )
+                }}
               />
             </FormGroup>
           </StackItem>
@@ -260,12 +302,23 @@ export function LoopNodeForm(props: LoopNodeFormProps) {
     props.onSubmit(cleanedData)
   }
 
-  const methods = useForm<LoopFormData>({ defaultValues })
+  const methods = useForm<LoopFormData>({
+    resolver: zodResolver(loopFormSchema, undefined, { mode: 'sync' }),
+    defaultValues,
+  })
+
+  const {
+    formState: { errors },
+  } = methods
 
   return (
     <FormProvider {...methods}>
       <NodeFormContainer formId="loop-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <LoopFormFields submitButtonText={props.submitButtonText} onHeaderContentChange={props.onHeaderContentChange} />
+        <LoopFormFields
+          submitButtonText={props.submitButtonText}
+          onHeaderContentChange={props.onHeaderContentChange}
+          validationErrors={errors}
+        />
       </NodeFormContainer>
     </FormProvider>
   )

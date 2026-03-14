@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -10,11 +10,13 @@ vi.mock('../../../components/forms/DateRangeCadencePicker', () => ({
   DateRangeCadencePicker: ({
     value,
     onChange,
+    errorMessage,
   }: {
     value: string
     onChange: (value: string) => void
     required?: boolean
     showTime?: boolean
+    errorMessage?: string
   }) => (
     <div data-testid="date-range-cadence-picker">
       <input
@@ -24,6 +26,7 @@ vi.mock('../../../components/forms/DateRangeCadencePicker', () => ({
         data-testid="interval-input"
         placeholder="Enter interval"
       />
+      {errorMessage && <span data-testid="interval-error">{errorMessage}</span>}
     </div>
   ),
 }))
@@ -74,6 +77,20 @@ describe('TriggerNodeForm Component', () => {
 
       expect(screen.getByLabelText('Schedule type')).toBeInTheDocument()
       expect(screen.getByLabelText('Schedule type')).toHaveValue('interval')
+    })
+
+    it('shows "Start date is required" when submitting interval schedule with empty interval', async () => {
+      const user = userEvent.setup()
+      renderWithHeader(
+        <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
+      )
+
+      await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('interval-error')).toHaveTextContent('Start date is required')
+      })
+      expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
     it('shows interval picker for interval schedule type', async () => {

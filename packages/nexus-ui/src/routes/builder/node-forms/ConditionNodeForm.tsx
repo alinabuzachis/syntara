@@ -5,16 +5,14 @@ import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-fo
 
 import { ExpressionBuilderCore as ExpressionBuilder } from '../../../components/expressions/ExpressionBuilderCore'
 
+import { conditionFormSchema, type ConditionFormData } from './conditionFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { ConditionalExpressionHelp } from './shared/ConditionalExpressionHelp'
-import { conditionValidationRules } from './shared/conditionValidation'
+import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
-export interface ConditionFormData {
-  name: string
-  condition: string
-}
+export type { ConditionFormData }
 
 interface ConditionNodeFormProps {
   onSubmit: (data: ConditionFormData) => void
@@ -67,7 +65,6 @@ function ConditionFormFields({
           <Controller
             control={control}
             name="condition"
-            rules={conditionValidationRules}
             render={({ field, fieldState }) => (
               <>
                 <ExpressionBuilder
@@ -102,7 +99,10 @@ export function ConditionNodeForm(props: ConditionNodeFormProps) {
     ...props.initialData,
   }
 
-  const methods = useForm<ConditionFormData>({ defaultValues })
+  const methods = useForm<ConditionFormData>({
+    resolver: zodResolver(conditionFormSchema, undefined, { mode: 'sync' }),
+    defaultValues,
+  })
 
   return (
     <FormProvider {...methods}>

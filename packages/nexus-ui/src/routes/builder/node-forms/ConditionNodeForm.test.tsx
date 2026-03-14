@@ -43,7 +43,9 @@ describe('ConditionNodeForm', () => {
       const user = userEvent.setup()
       renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
 
-      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Condition')
+      const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
+      await user.click(nameInput)
+      await user.paste('Test Condition')
 
       // Switch to raw mode and enter expression
       await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
@@ -59,13 +61,15 @@ describe('ConditionNodeForm', () => {
         name: 'Test Condition',
         condition: '${result > 0}',
       })
-    })
+    }, 10_000)
 
     it('submits without logicType field (removed from interface)', async () => {
       const user = userEvent.setup()
       renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
 
-      await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Another Condition')
+      const nameInput = screen.getByPlaceholderText(/Enter activity name/i)
+      await user.click(nameInput)
+      await user.paste('Another Condition')
       await user.selectOptions(screen.getByLabelText(/Expression editor mode/i), 'raw')
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)

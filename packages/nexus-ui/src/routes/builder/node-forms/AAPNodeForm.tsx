@@ -11,26 +11,18 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
-import { ExpandableCodeEditor } from '../../../components/ExpandableCodeEditor'
+import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
 
+import { aapFormSchema, type AAPFormData } from './aapFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
+import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
-export interface AAPFormData {
-  name: string
-  jobTemplateId: string // String in form, converted to number
-  inventory?: string // Optional, string in form, converted to number
-  credentials?: string // Optional, comma-separated credential IDs, converted to number[]
-  extraVars?: string // Optional JSON string
-  limit?: string // Optional, limit job to specific hosts
-  tags?: string // Optional, Ansible tags to run (comma-separated)
-  skipTags?: string // Optional, Ansible tags to skip (comma-separated)
-  verbosity?: string // Optional, string in form, converted to number (0-5)
-}
+export type { AAPFormData }
 
 interface AAPNodeFormProps {
   onSubmit: (data: AAPFormData) => void
@@ -43,30 +35,21 @@ interface AAPNodeFormProps {
 function AAPFormFields({
   submitButtonText,
   onHeaderContentChange,
+  extraVarsEditorRef,
+  validationErrors,
 }: {
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
+  extraVarsEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
+  validationErrors?: { jobTemplateId?: { message?: string }; extraVars?: { message?: string } }
 }) {
-  const { register, control } = useFormContext<AAPFormData>()
-  const [jsonError, setJsonError] = useState<string | null>(null)
-
-  // Validate JSON on change
-  const validateJSON = (value: string | undefined): boolean | string => {
-    const strValue = value ?? ''
-    if (strValue.trim()) {
-      try {
-        JSON.parse(strValue)
-        setJsonError(null)
-        return true
-      } catch {
-        setJsonError('Invalid JSON format')
-        return 'Invalid JSON format'
-      }
-    } else {
-      setJsonError(null)
-      return true
-    }
-  }
+  const {
+    register,
+    control,
+    formState: { errors: contextErrors },
+  } = useFormContext<AAPFormData>()
+  const errors = validationErrors ?? contextErrors
+  const extraVarsMessage = errors.extraVars?.message
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="aap-name" ariaLabel="Name" />,
@@ -85,14 +68,21 @@ function AAPFormFields({
       <StackItem>
         <FormGroup label="Job template ID" isRequired fieldId="aap-jobTemplateId">
           <TextInput
-            {...register('jobTemplateId', { required: true })}
+            {...register('jobTemplateId')}
             id="aap-jobTemplateId"
             type="number"
             placeholder="123"
+            validated={errors.jobTemplateId ? 'error' : 'default'}
           />
           <FormHelperText>
             <HelperText>
-              <HelperTextItem>AAP job template ID to launch</HelperTextItem>
+              {errors.jobTemplateId ? (
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {errors.jobTemplateId.message}
+                </HelperTextItem>
+              ) : (
+                <HelperTextItem>AAP job template ID to launch</HelperTextItem>
+              )}
             </HelperText>
           </FormHelperText>
         </FormGroup>
@@ -122,26 +112,27 @@ function AAPFormFields({
           <Controller
             control={control}
             name="extraVars"
-            rules={{ validate: validateJSON }}
             render={({ field }) => (
-              <ExpandableCodeEditor
-                code={field.value ?? ''}
-                onCodeChange={(value) => {
-                  field.onChange(value)
-                }}
-                language="json"
-                height="150px"
-                modalTitle="Edit extra variables"
-                ariaLabel="Extra variables JSON editor"
-                isDarkTheme
-              />
+              <div className={extraVarsMessage ? 'pf-v6-c-form-control pf-m-error' : undefined}>
+                <ExpandableCodeEditor
+                  ref={extraVarsEditorRef ?? undefined}
+                  code={field.value ?? ''}
+                  onCodeChange={field.onChange}
+                  onBlur={field.onBlur}
+                  language="json"
+                  height="150px"
+                  modalTitle="Edit extra variables"
+                  ariaLabel="Extra variables JSON editor"
+                  isDarkTheme
+                />
+              </div>
             )}
           />
           <FormHelperText>
             <HelperText>
-              {jsonError ? (
+              {extraVarsMessage ? (
                 <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                  {jsonError}
+                  {extraVarsMessage}
                 </HelperTextItem>
               ) : (
                 <HelperTextItem>Extra variables to pass to the job (JSON object)</HelperTextItem>
@@ -212,16 +203,13 @@ function AAPFormFields({
     </Stack>
   )
 
-  return (
-    <NodeFormTabsLayout
-      parametersContent={parametersContent}
-      submitButtonText={submitButtonText}
-      isSubmitDisabled={!!jsonError}
-    />
-  )
+  return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
 
 export function AAPNodeForm(props: AAPNodeFormProps) {
+  const extraVarsEditorRef = useRef<ExpandableCodeEditorHandle | null>(null)
+  const [, setSubmitValidationTick] = useState(0)
+
   const defaultValues: AAPFormData = {
     name: '',
     jobTemplateId: '',
@@ -236,19 +224,46 @@ export function AAPNodeForm(props: AAPNodeFormProps) {
   }
 
   const methods = useForm<AAPFormData>({
+    resolver: zodResolver(aapFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
     mode: 'onChange',
     reValidateMode: 'onChange',
   })
 
+  const {
+    formState: { errors },
+  } = methods
+
   const handleSubmit = (data: AAPFormData) => {
     props.onSubmit(data)
   }
 
+  const onSubmitWithFlush = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const valueFromEditor = extraVarsEditorRef.current?.getValue() ?? methods.getValues('extraVars') ?? ''
+    methods.setValue('extraVars', valueFromEditor)
+    void methods.trigger().then((valid) => {
+      setSubmitValidationTick((t) => t + 1)
+      const extraVarsError = methods.getFieldState('extraVars').error
+      if (valid && !extraVarsError) {
+        void methods.handleSubmit(handleSubmit)()
+      } else {
+        const errs = methods.formState.errors
+        if (errs.jobTemplateId) methods.setFocus('jobTemplateId')
+        else if (errs.extraVars) extraVarsEditorRef.current?.focus()
+      }
+    })
+  }
+
   return (
     <FormProvider {...methods}>
-      <NodeFormContainer formId="aap-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
-        <AAPFormFields submitButtonText={props.submitButtonText} onHeaderContentChange={props.onHeaderContentChange} />
+      <NodeFormContainer formId="aap-node-form" onSubmit={onSubmitWithFlush}>
+        <AAPFormFields
+          submitButtonText={props.submitButtonText}
+          onHeaderContentChange={props.onHeaderContentChange}
+          extraVarsEditorRef={extraVarsEditorRef}
+          validationErrors={errors}
+        />
       </NodeFormContainer>
     </FormProvider>
   )

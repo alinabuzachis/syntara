@@ -1,25 +1,33 @@
 import type { FilesAPI } from '@ansible/nexus-contracts'
-import { FormGroup, FormSelect, FormSelectOption, Stack, StackItem, TextArea } from '@patternfly/react-core'
+import {
+  FormGroup,
+  FormHelperText,
+  FormSelect,
+  FormSelectOption,
+  HelperText,
+  HelperTextItem,
+  Stack,
+  StackItem,
+  TextArea,
+} from '@patternfly/react-core'
+import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
+import { Controller, FormProvider, useForm, useFormContext, useFormState } from 'react-hook-form'
 
 import { FileUpload, type UploadedFile } from '../../../components/file-upload'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { generateUUID } from '../../../utils/generateUUID'
 
+import { aiAgentFormSchema, type AIAgentFormData } from './aiAgentFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
+import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
 
 type FileUploadInfo = FilesAPI.components['schemas']['FileUploadInfo']
 
-export interface AIAgentFormData {
-  name: string
-  model: string
-  prompt: string
-  tools: string
-}
+export type { AIAgentFormData }
 
 /** Submitted data includes file IDs from uploads */
 export interface AIAgentFormSubmitData extends AIAgentFormData {
@@ -51,6 +59,7 @@ function AIAgentFormFields({
   onHeaderContentChange?: (content: ReactNode | null) => void
 }) {
   const { register, control } = useFormContext<AIAgentFormData>()
+  const { errors } = useFormState({ control })
   const fileContext = useContext(FileContext)
   if (!fileContext) throw new Error('AIAgentFormFields must be used within FileContext.Provider')
   const { completedFiles, setCompletedFiles } = fileContext
@@ -140,11 +149,21 @@ function AIAgentFormFields({
       <StackItem>
         <FormGroup label="Prompt" fieldId="agent-prompt" isRequired>
           <TextArea
-            {...register('prompt', { required: true })}
+            {...register('prompt')}
             id="agent-prompt"
             placeholder="Natural language instructions for the agent..."
             rows={3}
+            validated={errors.prompt ? 'error' : 'default'}
           />
+          {errors.prompt && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                  {errors.prompt.message}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
         </FormGroup>
       </StackItem>
       <StackItem>
@@ -206,7 +225,10 @@ export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
   }
 
   const methods = useForm<AIAgentFormData>({
+    resolver: zodResolver(aiAgentFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
+    mode: 'onChange',
+    reValidateMode: 'onChange',
   })
 
   return (

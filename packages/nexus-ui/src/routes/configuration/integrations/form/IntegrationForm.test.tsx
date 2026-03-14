@@ -173,6 +173,30 @@ describe('IntegrationForm Component', () => {
   })
 
   describe('Form Interactions', () => {
+    it('does not submit when required fields are empty', async () => {
+      render(<IntegrationForm />, { wrapper })
+
+      fireEvent.click(screen.getByText('Add integration'))
+      await waitFor(() => {
+        expect(mockCreateMutate).not.toHaveBeenCalled()
+      })
+    })
+
+    it('does not submit when API URL is invalid', async () => {
+      render(<IntegrationForm />, { wrapper })
+
+      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
+        target: { value: 'My Server' },
+      })
+      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
+        target: { value: 'not-a-url' },
+      })
+      fireEvent.click(screen.getByText('Add integration'))
+      await waitFor(() => {
+        expect(mockCreateMutate).not.toHaveBeenCalled()
+      })
+    })
+
     it('allows users to fill out all form fields', () => {
       render(<IntegrationForm />, { wrapper })
 

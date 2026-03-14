@@ -4,10 +4,10 @@ import type { ReactNode } from 'react'
 import { useAlerts } from '../../../components/alerts'
 import { detectTaskNodeType } from '../../../routes/automations/canvas/nodes/common/detectTaskNodeType'
 import { createAAPJobTemplateActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
+import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 import { AAPNodeForm } from '../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../node-forms/AAPNodeForm'
 import { ActionNodeForm } from '../node-forms/ActionNodeForm'
-import type { ActionFormData } from '../node-forms/ActionNodeForm'
 import { buildAAPConfig, parsePositiveInt } from '../utils/aapHelpers'
 
 import { AIAgentNodeDetails } from './AIAgentNodeDetails'
@@ -113,7 +113,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
   // Store requiresApproval separately since ActionFormData doesn't include it
   const requiresApproval = taskData.requiresApproval
 
-  const initialData: Partial<ActionFormData> = {
+  const initialData: Partial<RegistryActionFormData> = {
     name: taskData.name,
     executor: executor as 'script' | 'api',
     language:
@@ -143,7 +143,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
     parameters: taskData.task.inputs ? JSON.stringify(taskData.task.inputs, null, 2) : undefined,
   }
 
-  const handleSubmit = (data: ActionFormData) => {
+  const handleSubmit = (data: RegistryActionFormData) => {
     try {
       const apiHeaders =
         data.executor === ExecutorTypeEnum.API && data.headers

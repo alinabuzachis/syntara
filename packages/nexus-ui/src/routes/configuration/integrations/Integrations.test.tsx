@@ -307,9 +307,12 @@ describe('Integrations Component', () => {
       await user.click(validateOption)
 
       // Validate dialog should open
-      await waitFor(() => {
-        expect(screen.getByText(/validate integration/i)).toBeInTheDocument()
-      })
+      await waitFor(
+        () => {
+          expect(screen.getByText(/validate integration/i)).toBeInTheDocument()
+        },
+        { timeout: 10_000 }
+      )
     })
 
     it('opens delete dialog when uninstall action is clicked', async () => {

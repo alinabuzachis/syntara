@@ -89,6 +89,19 @@ describe('AIAgentNodeForm', () => {
     })
   })
 
+  it('shows "Prompt is required" when submitting with empty prompt', async () => {
+    const user = userEvent.setup()
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
+
+    await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
+    await user.click(screen.getByRole('button', { name: /Add node/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Prompt is required')).toBeInTheDocument()
+    })
+    expect(mockOnSubmit).not.toHaveBeenCalled()
+  })
+
   it('submits form with required fields and default model', async () => {
     const user = userEvent.setup()
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)

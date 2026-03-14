@@ -1,4 +1,5 @@
 import type { ToolProviderCreate } from '@ansible/nexus-contracts'
+import { zodResolver } from '@hookform/resolvers/zod'
 import {
   Button,
   CompassPanel,
@@ -23,15 +24,7 @@ import { AppRoute } from '../../../../app/AppRoute'
 import { toolManagerClient } from '../../../../client'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 
-interface IntegrationFormData {
-  name: string
-  description?: string | null
-  configuration: {
-    provider_type: string
-    base_url: string
-    api_key?: string
-  }
-}
+import { integrationFormSchema, type IntegrationFormData } from './integrationFormSchema'
 
 export function IntegrationForm() {
   const { mutate: createIntegration } = toolManagerClient.useMutation('post', '/tool_providers')
@@ -42,8 +35,11 @@ export function IntegrationForm() {
   const { mutate: refreshTools } = toolManagerClient.useMutation('post', '/tool_providers/{provider_id}/refresh_tools')
 
   const { control, handleSubmit, setError } = useForm<IntegrationFormData>({
+    resolver: zodResolver(integrationFormSchema, undefined, { mode: 'sync' }),
     defaultValues: {
-      configuration: { provider_type: 'mcp' },
+      name: '',
+      description: '',
+      configuration: { provider_type: 'mcp', base_url: '', api_key: '' },
     },
   })
   const handleError = useFormMutationErrorHandler<IntegrationFormData>(setError)
@@ -125,7 +121,6 @@ export function IntegrationForm() {
             <Controller
               name="name"
               control={control}
-              rules={{ required: 'Server name is required' }}
               render={({ field, fieldState }) => (
                 <FormGroup label="Server name / ID" fieldId="name" isRequired>
                   <TextInput
@@ -168,7 +163,6 @@ export function IntegrationForm() {
             <Controller
               name="configuration.base_url"
               control={control}
-              rules={{ required: 'API URL is required' }}
               render={({ field, fieldState }) => (
                 <FormGroup label="API URL" fieldId="base-url" isRequired>
                   <TextInput

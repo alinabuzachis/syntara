@@ -2,7 +2,9 @@ import { CodeEditor, CodeEditorControl, Language } from '@patternfly/react-code-
 import { Button, Content, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
 import { RhUiExternalLinkIcon } from '@patternfly/react-icons'
 import type { KeyboardEvent } from 'react'
-import { useState } from 'react'
+import { forwardRef, useImperativeHandle, useState } from 'react'
+
+import { useMonacoBlur } from '../hooks/useMonacoBlur'
 
 /** Supported code languages for syntax highlighting */
 export type CodeLanguage = 'python' | 'bash' | 'json' | 'plaintext'
@@ -56,86 +58,110 @@ export interface ExpandableCodeEditorProps {
   isLineNumbersVisible?: boolean
   /** Whether to use dark theme */
   isDarkTheme?: boolean
+  /** Called when the editor loses focus (e.g. for blur-based validation). Receives current editor value. */
+  onBlur?: (value: string) => void
 }
 
-export function ExpandableCodeEditor({
-  code,
-  onCodeChange,
-  language = 'plaintext',
-  height = '200px',
-  modalHeight = '500px',
-  modalTitle = 'Edit script',
-  isReadOnly = false,
-  ariaLabel = 'Code editor',
-  isLineNumbersVisible = true,
-  isDarkTheme = false,
-}: ExpandableCodeEditorProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const monacoLanguage = languageMap[language]
-
-  const expandControl = (
-    <CodeEditorControl
-      icon={<RhUiExternalLinkIcon />}
-      aria-label="Open in new window"
-      tooltipProps={{ content: 'Open in new window' }}
-      onClick={() => setIsModalOpen(true)}
-    />
-  )
-
-  return (
-    <>
-      <div data-testid="inline-code-editor">
-        <CodeEditor
-          code={code}
-          onCodeChange={onCodeChange}
-          onKeyDown={stopKeyboardPropagation}
-          language={monacoLanguage}
-          height={height}
-          isReadOnly={isReadOnly}
-          isLineNumbersVisible={isLineNumbersVisible}
-          isDarkTheme={isDarkTheme}
-          customControls={expandControl}
-          aria-label={ariaLabel}
-          options={{ ariaLabel }}
-        />
-      </div>
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        variant="large"
-        aria-label={`${modalTitle} modal`}
-      >
-        <ModalHeader
-          title={modalTitle}
-          description={
-            <Content component="p">
-              Enter or edit the code below. Clicking close will only close this window, the code will still persist in
-              the code editor.
-            </Content>
-          }
-        />
-        <ModalBody>
-          <div data-testid="modal-code-editor">
-            <CodeEditor
-              code={code}
-              onCodeChange={onCodeChange}
-              language={monacoLanguage}
-              height={modalHeight}
-              isReadOnly={isReadOnly}
-              isLineNumbersVisible={isLineNumbersVisible}
-              isDarkTheme={isDarkTheme}
-              aria-label={`${ariaLabel} expanded`}
-              options={{ ariaLabel: `${ariaLabel} expanded` }}
-            />
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="primary" onClick={() => setIsModalOpen(false)}>
-            Close
-          </Button>
-        </ModalFooter>
-      </Modal>
-    </>
-  )
+export interface ExpandableCodeEditorHandle {
+  getValue: () => string
+  /** Focus the editor (e.g. when validation fails and this is the first error field). */
+  focus: () => void
 }
+
+export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, ExpandableCodeEditorProps>(
+  function ExpandableCodeEditor(
+    {
+      code,
+      onCodeChange,
+      language = 'plaintext',
+      height = '200px',
+      modalHeight = '500px',
+      modalTitle = 'Edit script',
+      isReadOnly = false,
+      ariaLabel = 'Code editor',
+      isLineNumbersVisible = true,
+      isDarkTheme = false,
+      onBlur,
+    },
+    ref
+  ) {
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const monacoLanguage = languageMap[language]
+    const { getValue, focus, handleEditorDidMount, setValue } = useMonacoBlur(code, onBlur)
+
+    useImperativeHandle(ref, () => ({ getValue, focus }))
+
+    const handleModalClose = () => {
+      onBlur?.(getValue())
+      setIsModalOpen(false)
+    }
+
+    const expandControl = (
+      <CodeEditorControl
+        icon={<RhUiExternalLinkIcon />}
+        aria-label="Open in new window"
+        tooltipProps={{ content: 'Open in new window' }}
+        onClick={() => setIsModalOpen(true)}
+      />
+    )
+
+    return (
+      <>
+        <div data-testid="inline-code-editor">
+          <CodeEditor
+            code={code}
+            onCodeChange={(value) => {
+              setValue(value)
+              onCodeChange(value)
+            }}
+            onEditorDidMount={handleEditorDidMount}
+            onKeyDown={stopKeyboardPropagation}
+            language={monacoLanguage}
+            height={height}
+            isReadOnly={isReadOnly}
+            isLineNumbersVisible={isLineNumbersVisible}
+            isDarkTheme={isDarkTheme}
+            customControls={expandControl}
+            aria-label={ariaLabel}
+            options={{ ariaLabel }}
+          />
+        </div>
+
+        <Modal isOpen={isModalOpen} onClose={handleModalClose} variant="large" aria-label={`${modalTitle} modal`}>
+          <ModalHeader
+            title={modalTitle}
+            description={
+              <Content component="p">
+                Enter or edit the code below. Clicking close will only close this window, the code will still persist in
+                the code editor.
+              </Content>
+            }
+          />
+          <ModalBody>
+            <div data-testid="modal-code-editor">
+              <CodeEditor
+                code={code}
+                onCodeChange={(value) => {
+                  setValue(value)
+                  onCodeChange(value)
+                }}
+                language={monacoLanguage}
+                height={modalHeight}
+                isReadOnly={isReadOnly}
+                isLineNumbersVisible={isLineNumbersVisible}
+                isDarkTheme={isDarkTheme}
+                aria-label={`${ariaLabel} expanded`}
+                options={{ ariaLabel: `${ariaLabel} expanded` }}
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="primary" onClick={handleModalClose}>
+              Close
+            </Button>
+          </ModalFooter>
+        </Modal>
+      </>
+    )
+  }
+)

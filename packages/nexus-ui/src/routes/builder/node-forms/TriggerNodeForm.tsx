@@ -7,15 +7,12 @@ import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'rea
 import { DateRangeCadencePicker } from '../../../components/forms/DateRangeCadencePicker'
 
 import { ActivityNameField } from './shared/ActivityNameField'
+import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
 import { NodeFormTabsLayout } from './shared/NodeFormTabsLayout'
+import { triggerFormSchema, type TriggerFormData } from './triggerFormSchema'
 
-export interface TriggerFormData {
-  name?: string
-  triggerType: string
-  scheduleType?: string
-  interval?: string
-}
+export type { TriggerFormData }
 
 interface TriggerNodeFormProps {
   onSubmit: (data: TriggerFormData) => void
@@ -27,13 +24,24 @@ interface TriggerNodeFormProps {
 function TriggerFormFields({
   submitButtonText,
   onHeaderContentChange,
+  validationErrors,
 }: {
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
+  validationErrors?: { interval?: { message?: string } }
 }) {
-  const { control, register } = useFormContext<TriggerFormData>()
+  const {
+    control,
+    register,
+    formState: { errors: contextErrors },
+  } = useFormContext<TriggerFormData>()
+  const errors = validationErrors ?? contextErrors
   const triggerType = useWatch({ control, name: 'triggerType' })
   const scheduleType = useWatch({ control, name: 'scheduleType' })
+
+  useEffect(() => {
+    if (errors.interval) document.getElementById('cadence-start')?.focus()
+  }, [errors.interval])
 
   const nameField = useMemo(
     () => (
@@ -86,7 +94,14 @@ function TriggerFormFields({
                 control={control}
                 name="interval"
                 render={({ field }) => (
-                  <DateRangeCadencePicker value={field.value ?? ''} onChange={field.onChange} required showTime />
+                  <DateRangeCadencePicker
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    required
+                    showTime
+                    error={!!errors.interval}
+                    errorMessage={errors.interval?.message}
+                  />
                 )}
               />
             </StackItem>
@@ -109,8 +124,13 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
   }
 
   const methods = useForm<TriggerFormData>({
+    resolver: zodResolver(triggerFormSchema, undefined, { mode: 'sync' }),
     defaultValues,
   })
+
+  const {
+    formState: { errors },
+  } = methods
 
   const handleSubmit = (data: TriggerFormData) => {
     const cleanedData: TriggerFormData = {
@@ -129,6 +149,7 @@ export function TriggerNodeForm(props: TriggerNodeFormProps) {
         <TriggerFormFields
           submitButtonText={props.submitButtonText}
           onHeaderContentChange={props.onHeaderContentChange}
+          validationErrors={errors}
         />
       </NodeFormContainer>
     </FormProvider>

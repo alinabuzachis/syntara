@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ExpandableCodeEditor } from './ExpandableCodeEditor'
@@ -160,5 +161,27 @@ describe('ExpandableCodeEditor', () => {
     // Helper text should be visible
     expect(screen.getByText(/Enter or edit the code below/i)).toBeInTheDocument()
     expect(screen.getByText(/the code will still persist/i)).toBeInTheDocument()
+  })
+
+  it('calls onBlur with latest value when modal is closed after editing', async () => {
+    const onBlur = vi.fn()
+    const user = userEvent.setup()
+    function EditorWithState() {
+      const [code, setCode] = useState('initial')
+      return <ExpandableCodeEditor code={code} onCodeChange={setCode} onBlur={onBlur} modalTitle="Test Modal" />
+    }
+    render(<EditorWithState />)
+
+    await user.click(screen.getByTestId('expand-button'))
+    const modalTextarea = screen.getByTestId('modal-code-editor').querySelector('textarea')!
+    await user.clear(modalTextarea)
+    await user.type(modalTextarea, 'edited in modal')
+
+    const closeButton = screen
+      .getAllByRole('button', { name: /close/i })
+      .find((btn) => btn.classList.contains('pf-m-primary'))
+    await user.click(closeButton!)
+
+    expect(onBlur).toHaveBeenCalledWith('edited in modal')
   })
 })
