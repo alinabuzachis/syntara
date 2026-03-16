@@ -81,7 +81,7 @@ npm test
 npm run build
 
 # Run linter
-npm run format:check
+npm run lint
 
 # Generate API contracts
 npm run gen
@@ -140,11 +140,12 @@ npm run start:ui                   # Start UI only
 npm run start:mock-api             # Start mock API server only
 
 # Building
-npm run build                      # Build all packages
-npm run build:ui                   # Build UI only
+npm run build                      # Build UI package
 
 # Testing & Linting
-npm test                           # Run all tests (format check + ESLint + TypeScript)
+npm test                           # Run all tests (format check + lint + TypeScript)
+npm run lint                       # Run ESLint
+npm run lint:fix                   # Run ESLint with auto-fix
 npm run format                     # Format code with Prettier
 npm run format:check               # Check code formatting
 

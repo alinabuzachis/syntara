@@ -141,7 +141,7 @@ Run these project commands:
 ```bash
 npm test                              # All tests
 npm run format:check                  # Formatting
-cd packages/nexus-ui && npm run eslint # Linting
+cd packages/nexus-ui && npm run lint  # Linting
 cd packages/nexus-ui && npm run tsc    # Type check
 ```
 

@@ -148,7 +148,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
       // This ensures old workflow's edges don't persist in React Flow
       // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizing React Flow state with workflow store
       setNodes([])
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setEdges([])
 
       // CRITICAL: Update refs AFTER clearing state
@@ -159,9 +159,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
       // This handles the case where cached data was used initially, then fresh data arrives
       isInitializedRef.current = false
       if (!currentWorkflow) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizing React Flow state with workflow store
         setNodes([])
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+
         setEdges([])
       }
       lastWorkflowVersionRef.current = workflowVersion
@@ -169,9 +168,9 @@ export function BuilderFlow(props: BuilderFlowProps) {
       // Workflow was cleared from store (by BuilderContent cleanup) but ID didn't change
       // Reset initialization so we re-initialize when workflow loads again
       isInitializedRef.current = false
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizing React Flow state with workflow store
+
       setNodes([])
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setEdges([])
     }
   }, [workflowId, workflowVersion])
@@ -228,7 +227,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     ) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time initialization from workflow data
       setNodes(initialNodes)
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setEdges(initialEdges)
       isInitializedRef.current = true
     }
@@ -354,7 +353,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
     if (pendingEdge) {
       const sourceExists = nodes.some((n) => n.id === pendingEdge.sourceNodeId)
       if (!sourceExists) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPendingEdge(null)
       }
     }

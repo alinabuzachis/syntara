@@ -38,14 +38,13 @@ npm run test:coverage       # Run tests with coverage report
 npm run test:coverage:check # Check coverage meets 80% threshold
 
 # Build
-npm run build              # Build all packages
-npm run build:ui           # Build UI package
+npm run build              # Build UI package
 npm run gen                # Regenerate API contracts
 
 # Code Quality
 npm run format             # Format code
 npm run format:check       # Check formatting
-cd packages/nexus-ui && npm run eslint  # Run ESLint
+cd packages/nexus-ui && npm run lint   # Run ESLint
 cd packages/nexus-ui && npm run tsc     # Type check only
 ```
 

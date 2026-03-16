@@ -33,7 +33,7 @@ jobs:
         working-directory: packages/nexus-ui
 
       - name: ESLint
-        run: npm run eslint
+        run: npm run lint
         working-directory: packages/nexus-ui
 
       - name: Check for dead code with knip
