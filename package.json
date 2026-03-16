@@ -51,7 +51,20 @@
     "vitest": "^4.0.18"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,md,yml,yaml}": [
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "packages/nexus-ui/**/*.{ts,tsx,js,jsx}": [
+      "prettier --write",
+      "eslint --fix --config packages/nexus-ui/eslint.config.js"
+    ],
+    "packages/nexus-contracts/**/*.ts": [
+      "prettier --write"
+    ],
+    "packages/nexus-mock-api/**/*.ts": [
+      "prettier --write"
+    ],
+    "scripts/**/*.js": [
       "prettier --write"
     ]
   },

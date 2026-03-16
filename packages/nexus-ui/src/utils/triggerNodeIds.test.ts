@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { MenuNodeType } from '../constants'
 
 import { buildTriggerNodeId, parseTriggerIndex, resolveFlowNodeId } from './triggerNodeIds'
-
 describe('triggerNodeIds', () => {
   it('builds trigger node ids', () => {
     expect(buildTriggerNodeId(2)).toBe('trigger-2')
