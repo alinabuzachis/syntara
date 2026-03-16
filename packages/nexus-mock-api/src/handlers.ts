@@ -244,10 +244,12 @@ export const handlers = [
     workflow.updated_at = now
     workflow.updated_by = 'user-1'
     workflow.current_version = nextVersion
+    // Tags live only in workflow.labels (above). Keep existing definition when PATCH omits workflow_definition (e.g. details-only edit).
+    const nextDefinition = body.workflow_definition ?? workflow.version?.workflow_definition
     workflow.version = {
       version: nextVersion,
-      schema_version: body.workflow_definition?.schemaVersion ?? workflow.version?.schema_version ?? '1.0.0',
-      workflow_definition: body.workflow_definition ?? workflow.version?.workflow_definition,
+      schema_version: nextDefinition?.schemaVersion ?? workflow.version?.schema_version ?? '1.0.0',
+      workflow_definition: nextDefinition,
       created_by: workflow.updated_by ?? workflow.version?.created_by ?? 'user-1',
       created_at: now,
       change_description: 'Updated via mock API',

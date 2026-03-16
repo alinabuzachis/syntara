@@ -1,10 +1,8 @@
 import {
-  Flex,
   FormGroup,
   FormHelperText,
   HelperText,
   HelperTextItem,
-  Label,
   Stack,
   StackItem,
   TextArea,
@@ -13,9 +11,10 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
+import { TagInput } from '../../../components/forms/TagInput'
 import { secondsToTimeUnits, timeUnitsToSeconds } from '../utils/timeUtils'
 
 import { approvalFormSchema, type ApprovalFormData } from './approvalFormSchema'
@@ -52,7 +51,6 @@ interface ApprovalNodeFormProps {
 
 function ApprovalFormFields({
   submitButtonText,
-  initialApprovers,
   onHeaderContentChange,
   validationErrors,
 }: {
@@ -61,41 +59,7 @@ function ApprovalFormFields({
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: { approvers?: { message?: string } }
 }) {
-  const {
-    register,
-    control,
-    setValue,
-    formState: { errors: contextErrors },
-  } = useFormContext<ApprovalFormData>()
-  const errors = validationErrors ?? contextErrors
-  const [inputValue, setInputValue] = useState('')
-  const [approversList, setApproversList] = useState<string[]>(initialApprovers)
-
-  useEffect(() => {
-    if (errors.approvers) document.getElementById('approval-approvers-inline-input')?.focus()
-  }, [errors.approvers])
-
-  const handleAddApprover = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      e.stopPropagation()
-      const newApprover = inputValue.trim()
-      if (newApprover && !approversList.includes(newApprover)) {
-        const updatedList = [...approversList, newApprover]
-        setApproversList(updatedList)
-        setValue('approvers', updatedList.join(', '), { shouldValidate: true })
-        setInputValue('')
-      } else {
-        setInputValue('')
-      }
-    }
-  }
-
-  const handleRemoveApprover = (approverToRemove: string) => {
-    const updatedList = approversList.filter((a) => a !== approverToRemove)
-    setApproversList(updatedList)
-    setValue('approvers', updatedList.join(', '), { shouldValidate: true })
-  }
+  const { register, control } = useFormContext<ApprovalFormData>()
 
   const nameField = useMemo(
     () => <ActivityNameField register={register} fieldId="approval-name" ariaLabel="Name" />,
@@ -116,82 +80,39 @@ function ApprovalFormFields({
           <Controller
             name="approvers"
             control={control}
-            render={({ field }) => (
-              <>
-                <input type="hidden" {...field} />
-                <Flex
-                  className={`pf-v6-c-form-control ${errors.approvers ? 'pf-m-error' : ''}`.trim()}
-                  flexWrap={{ default: 'wrap' }}
-                  alignItems={{ default: 'alignItemsCenter' }}
-                  columnGap={{ default: 'columnGapSm' }}
-                  rowGap={{ default: 'rowGapSm' }}
-                  style={{
-                    height: 'auto',
-                    minHeight: '36px',
-                    padding:
-                      'var(--pf-t--global--spacer--control--vertical--default) var(--pf-t--global--spacer--control--horizontal--default)',
-                    cursor: 'text',
-                  }}
-                  onClick={() => {
-                    document.getElementById('approval-approvers-inline-input')?.focus()
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      document.getElementById('approval-approvers-inline-input')?.focus()
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                >
-                  {approversList.map((approver) => (
-                    <Label
-                      key={approver}
-                      color="grey"
-                      onClose={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleRemoveApprover(approver)
-                      }}
-                      closeBtnAriaLabel={`Remove ${approver}`}
-                    >
-                      {approver}
-                    </Label>
-                  ))}
-                  <input
+            rules={{ required: true }}
+            render={({ field }) => {
+              const approversList = field.value
+                ? field.value
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                : []
+              return (
+                <>
+                  <TagInput
                     id="approval-approvers-inline-input"
-                    type="text"
-                    placeholder={approversList.length === 0 ? 'username1' : ''}
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleAddApprover}
-                    aria-label="Add approver"
-                    style={{
-                      flex: '1',
-                      minWidth: '100px',
-                      border: 'none',
-                      outline: 'none',
-                      backgroundColor: 'transparent',
-                      padding: '0',
-                      margin: '0',
-                      fontFamily: 'inherit',
-                      fontSize: 'inherit',
-                    }}
+                    value={approversList}
+                    onChange={(arr) => field.onChange(arr.join(', '))}
+                    ariaLabel="Add approver"
+                    placeholder="username1"
+                    helperText={
+                      validationErrors?.approvers ? undefined : 'Type a username and press Enter or comma to add'
+                    }
                   />
-                </Flex>
-              </>
-            )}
+                  {validationErrors?.approvers && (
+                    <FormHelperText>
+                      <HelperText>
+                        <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                          {validationErrors.approvers.message}
+                        </HelperTextItem>
+                      </HelperText>
+                    </FormHelperText>
+                  )}
+                </>
+              )
+            }}
           />
-          <FormHelperText>
-            <HelperText>
-              {errors.approvers ? (
-                <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                  {errors.approvers.message}
-                </HelperTextItem>
-              ) : (
-                <HelperTextItem>Type a username and press Enter or comma to add</HelperTextItem>
-              )}
-            </HelperText>
-          </FormHelperText>
         </FormGroup>
       </StackItem>
       <StackItem>

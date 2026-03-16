@@ -681,7 +681,7 @@ sequenceDiagram
 
 1. **Validation**: `validateSavePath()` checks graph connectivity, `validateWorkflow()` checks data integrity
 2. **Transformation**: `buildNestedConditionStructure()` converts flat activities + edges to nested format
-3. **Metadata merge**: `getWorkflowDefinition()` combines activities with workflow metadata (name, description, is_enabled, labels)
+3. **Metadata merge**: `getWorkflowDefinition()` combines activities with workflow metadata (name, description, is_enabled, labels). Tags are stored only in `workflow.labels` (key = tag name, value = '') and sent on PATCH/POST so the list API returns them for the Tags column.
 4. **HTTP Method**: Uses `PATCH`, not `PUT`
 5. **Cache invalidation**: After success, `queryClient.invalidateQueries()` refreshes the workflow list
 

@@ -26,8 +26,8 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
+import { BadgesCell } from '../../components/table/BadgesCell'
 import { DateCell } from '../../components/table/DateCell'
-import { LabelsCell } from '../../components/table/LabelsCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { SwitchCell } from '../../components/table/SwitchCell.tsx'
@@ -35,6 +35,7 @@ import { useFuse } from '../../hooks/useFuse'
 import { useTableSort } from '../../hooks/useTableSort'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { getDateField } from '../../utils/getDateField'
+import { getWorkflowTagsForDisplay } from '../../utils/workflowTags'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
@@ -285,7 +286,7 @@ export default function Automations() {
                   <DateCell dateString={getDateField(workflow, 'updatedAt')} />
                 </Td>
                 <Td dataLabel="Tags">
-                  <LabelsCell labels={workflow.labels} />
+                  <BadgesCell items={getWorkflowTagsForDisplay(workflow)} />
                 </Td>
                 <Td dataLabel="State">
                   <SwitchCell

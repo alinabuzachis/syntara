@@ -28,6 +28,7 @@ export function convertYamlToWorkflow(yamlFilePath: string, id: string, createdB
     created_at: timestamp,
     updated_at: timestamp,
     created_by: createdBy,
+    labels: {},
     version: {
       workflow_definition: workflowDefinition,
     },

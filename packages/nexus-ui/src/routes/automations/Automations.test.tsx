@@ -299,18 +299,43 @@ describe('Automations Component', () => {
       expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/1')
     })
 
-    it('renders labels column', () => {
+    it('renders tags column with label keys from workflow.labels', () => {
       render(<Automations />, { wrapper })
 
-      // Get all labels
-      const labelElements = screen.getAllByText(/type=critical|status=active|type=routine|status=maintenance/i)
+      // Tags column shows label keys (mock workflows have labels: { type, status } per row)
+      expect(screen.getAllByText('type').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('status').length).toBeGreaterThanOrEqual(1)
+    })
 
-      // Verify labels are present
-      expect(labelElements.length).toBeGreaterThanOrEqual(4)
-      expect(screen.getByText('type=critical')).toBeInTheDocument()
-      expect(screen.getByText('status=active')).toBeInTheDocument()
-      expect(screen.getByText('type=routine')).toBeInTheDocument()
-      expect(screen.getByText('status=maintenance')).toBeInTheDocument()
+    it('renders tags column from workflow.labels (tags stored as label keys)', () => {
+      const workflowsWithTags = [
+        {
+          id: '1',
+          name: 'Tagged Workflow',
+          description: 'Has tags as labels',
+          created_at: '2023-01-01T00:00:00Z',
+          updated_at: '2023-01-02T00:00:00Z',
+          is_enabled: true,
+          labels: { deploy: '', prod: '' },
+        },
+      ]
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: workflowsWithTags,
+          next: null,
+          prev: null,
+          total: 1,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      expect(screen.getByText('deploy')).toBeInTheDocument()
+      expect(screen.getByText('prod')).toBeInTheDocument()
     })
   })
 

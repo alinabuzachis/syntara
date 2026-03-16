@@ -53,6 +53,7 @@ import { AddNodePanel } from './AddNodePanel'
 import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
+import { EditAutomationDetailsPopover } from './EditAutomationDetailsPopover'
 import { NodeActionsContext, type NodeActionsContextValue } from './NodeActionsContext'
 import type { FlowPosition } from './types'
 import { buildNestedConditionStructure } from './utils/buildNestedStructure'
@@ -192,6 +193,7 @@ interface BuilderState {
   newNodeDesiredPosition: FlowPosition | null
   workflowName: string
   workflowDescription: string
+  workflowTags: string[]
   isEnabled: boolean
 }
 
@@ -216,6 +218,7 @@ type BuilderAction =
   | { type: 'SET_REPLACEMENT_NODE_ID'; payload: string | null }
   | { type: 'SET_WORKFLOW_NAME'; payload: string }
   | { type: 'SET_WORKFLOW_DESCRIPTION'; payload: string }
+  | { type: 'SET_WORKFLOW_TAGS'; payload: string[] }
   | { type: 'SET_IS_ENABLED'; payload: boolean }
   | {
       type: 'OPEN_ADD_NODE_FROM_EDGE'
@@ -235,7 +238,7 @@ type BuilderAction =
   | { type: 'CLOSE_OTHER_PANELS' }
   | { type: 'NODE_CLICK'; payload: { node: Node<NodeType['data']>; isGeneric: boolean } }
   | { type: 'CLEAR_SELECTED_IF_DELETED'; payload: string[] }
-  | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; isEnabled: boolean } }
+  | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; tags: string[]; isEnabled: boolean } }
 
 // Reducer function
 function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
@@ -309,6 +312,8 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       return { ...state, workflowName: action.payload }
     case 'SET_WORKFLOW_DESCRIPTION':
       return { ...state, workflowDescription: action.payload }
+    case 'SET_WORKFLOW_TAGS':
+      return { ...state, workflowTags: action.payload }
     case 'SET_IS_ENABLED':
       return { ...state, isEnabled: action.payload }
     case 'OPEN_ADD_NODE_FROM_EDGE':
@@ -411,6 +416,7 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         ...state,
         workflowName: action.payload.name,
         workflowDescription: action.payload.description,
+        workflowTags: action.payload.tags,
         isEnabled: action.payload.isEnabled,
       }
     default:
@@ -440,6 +446,7 @@ function getInitialState(): BuilderState {
     newNodeDesiredPosition: null,
     workflowName: DEFAULT_WORKFLOW_NAME,
     workflowDescription: 'New workflow',
+    workflowTags: [],
     isEnabled: false,
   }
 }
@@ -482,6 +489,7 @@ export function BuilderContent(props: BuilderContentProps) {
     replacementNodeId,
     workflowName,
     workflowDescription,
+    workflowTags,
     isEnabled,
   } = state
 
@@ -554,7 +562,7 @@ export function BuilderContent(props: BuilderContentProps) {
         loadWorkflowWithEdges(newWorkflow, [])
         dispatch({
           type: 'INIT_WORKFLOW',
-          payload: { name: defaultName, description: 'New workflow', isEnabled: false },
+          payload: { name: defaultName, description: 'New workflow', tags: [], isEnabled: false },
         })
         // No need for markClean - loadWorkflowWithEdges sets isDirty: false
       })
@@ -626,11 +634,14 @@ export function BuilderContent(props: BuilderContentProps) {
         // This prevents race conditions where BuilderFlow renders with workflow but no edges
         // Note: loadWorkflowWithEdges already sets isDirty to false
         loadWorkflowWithEdges(flattenedWorkflow, generatedEdges)
+        // Tags come only from workflow.labels (list API returns them)
+        const tagKeys = Object.keys(workflow.labels ?? {})
         dispatch({
           type: 'INIT_WORKFLOW',
           payload: {
             name: workflow.name,
             description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,
+            tags: tagKeys,
             isEnabled: workflow.is_enabled ?? false,
           },
         })
@@ -643,11 +654,13 @@ export function BuilderContent(props: BuilderContentProps) {
   useEffect(() => {
     if (workflow && !isNew) {
       queueMicrotask(() => {
+        const tagKeys = Object.keys(workflow.labels ?? {})
         dispatch({
           type: 'INIT_WORKFLOW',
           payload: {
             name: workflow.name,
             description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,
+            tags: tagKeys,
             isEnabled: workflow.is_enabled ?? false,
           },
         })
@@ -767,11 +780,13 @@ export function BuilderContent(props: BuilderContentProps) {
       if (workflowDef.metadata.name !== nameToSave) {
         workflowDef.metadata = { ...workflowDef.metadata, name: nameToSave }
       }
+      // Tags are persisted as workflow.labels (key = tag name, value = '') so they appear in list API.
+      // Use only current tags so removals persist (do not merge with previous labels).
       const workflowData = {
         name: nameToSave,
         description: workflowDescription,
         is_enabled: isEnabled,
-        labels: workflow?.labels ?? {},
+        labels: Object.fromEntries(workflowTags.map((t) => [t, ''])),
         workflow_definition: workflowDef,
       }
 
@@ -827,8 +842,8 @@ export function BuilderContent(props: BuilderContentProps) {
     currentWorkflow,
     workflowName,
     workflowDescription,
+    workflowTags,
     isEnabled,
-    workflow?.labels,
     getWorkflowDefinition,
     workflowId,
     isNew,
@@ -1084,6 +1099,23 @@ export function BuilderContent(props: BuilderContentProps) {
                           markDirty()
                         }}
                         placeholder="Workflow name"
+                      />
+                    </FlexItem>
+                    <FlexItem>
+                      <EditAutomationDetailsPopover
+                        name={workflowName}
+                        description={workflowDescription}
+                        tags={workflowTags}
+                        onApply={(name, description, tags) => {
+                          const nameChanged = name !== workflowName
+                          const descriptionChanged = description !== workflowDescription
+                          const tagsChanged =
+                            tags.length !== workflowTags.length || tags.some((t, i) => t !== workflowTags[i])
+                          if (nameChanged) dispatch({ type: 'SET_WORKFLOW_NAME', payload: name })
+                          if (descriptionChanged) dispatch({ type: 'SET_WORKFLOW_DESCRIPTION', payload: description })
+                          if (tagsChanged) dispatch({ type: 'SET_WORKFLOW_TAGS', payload: tags })
+                          if (nameChanged || descriptionChanged || tagsChanged) markDirty()
+                        }}
                       />
                     </FlexItem>
                   </Flex>
