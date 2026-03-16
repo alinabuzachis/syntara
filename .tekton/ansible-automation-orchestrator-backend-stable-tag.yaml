@@ -32,21 +32,20 @@ spec:
       - linux/x86_64
       - linux/arm64
   - name: hermetic
-    value: 'false'
+    value: 'true'
+  - name: prefetch-input
+    value: '{"type": "pip", "path": ".", "allow_binary": true}'
+  - name: prefetch-mode
+    value: permissive
   pipelineRef:
     params:
     - name: name
       value: pde-docker-build-multi-platform-oci-ta
     - name: bundle
-      value: quay.io/aap-ci/pde-docker-build-multi-platform-oci-ta-bundle@sha256:08b18400effc29e02d3783b33c40633823294483f557ffad21d75a75b98b1f57
+      value: quay.io/aap-ci/pde-docker-build-multi-platform-oci-ta-bundle@sha256:c8e5e79e9d6eca23775035fa3b1e7a4adf3c9d66b321b4f641c49bfc916d4d83
     - name: kind
       value: pipeline
     resolver: bundles
-  taskRunSpecs:
-  - pipelineTaskName: prefetch-dependencies
-    params:
-    - name: mode
-      value: 'permissive'
   taskRunTemplate:
     serviceAccountName: build-pipeline-ansible-automation-orchestrator-backend-stable
   workspaces:
