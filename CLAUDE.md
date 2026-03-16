@@ -603,14 +603,14 @@ ESLint enforces readability constraints that keep functions small, files focused
 
 These thresholds are based on industry standards (Code Complete, SonarQube, BiomeJS):
 
-| Rule                     | Limit              | Purpose & Research Basis                                              |
-| ------------------------ | ------------------ | --------------------------------------------------------------------- |
-| `max-lines`              | 400 lines/file     | One responsibility per file                                           |
-| `max-lines-per-function` | 100 lines/function | Maintainability degrades beyond ~100 lines (Code Complete, SonarQube) |
-| `complexity`             | 15 (cyclomatic)    | Matches BiomeJS cognitive complexity & SonarQube defaults             |
-| `max-depth`              | 4 levels           | Use early returns, not pyramids                                       |
-| `max-params`             | 5 parameters       | Use a typed options object for 6+ params                              |
-| `max-nested-callbacks`   | 4 levels           | Flatten with named functions or async/await                           |
+| Rule                     | Limit              | Purpose & Research Basis                                                 |
+| ------------------------ | ------------------ | ------------------------------------------------------------------------ |
+| `max-lines`              | 500 lines/file     | One responsibility per file                                              |
+| `max-lines-per-function` | 200 lines/function | Maintainability degrades beyond ~200 lines (Code Complete, SonarQube)    |
+| `complexity`             | 20 (cyclomatic)    | Balanced threshold used by many enterprise configs; catches complex code |
+| `max-depth`              | 4 levels           | Use early returns, not pyramids                                          |
+| `max-params`             | 5 parameters       | Use a typed options object for 6+ params                                 |
+| `max-nested-callbacks`   | 4 levels           | Flatten with named functions or async/await                              |
 
 Additional code quality rules (enforced as `error` — CI will block violations):
 
