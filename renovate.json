@@ -4,7 +4,8 @@
     {
       "matchManagers": ["npm"],
       "groupName": "npm dependencies",
-      "schedule": ["before 6am on Monday"]
+      "schedule": ["before 6am on Monday"],
+      "rangeStrategy": "in-range-only"
     }
   ]
 }
