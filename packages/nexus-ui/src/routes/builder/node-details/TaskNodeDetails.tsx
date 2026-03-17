@@ -23,6 +23,7 @@ interface TaskNodeDetailsProps {
   onHeaderContentChange: (content: ReactNode | null) => void
 }
 
+// eslint-disable-next-line complexity
 export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChange }: TaskNodeDetailsProps) {
   const { showError } = useAlerts()
   // Use action accessor - component won't re-render when store state changes

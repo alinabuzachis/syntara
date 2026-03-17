@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
@@ -241,6 +242,7 @@ type BuilderAction =
   | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; tags: string[]; isEnabled: boolean } }
 
 // Reducer function
+// eslint-disable-next-line complexity
 function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
   switch (action.type) {
     case 'SET_CONFIRM_DIALOG':
@@ -451,6 +453,7 @@ function getInitialState(): BuilderState {
   }
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId } = props
   const [, setLocation] = useLocation()

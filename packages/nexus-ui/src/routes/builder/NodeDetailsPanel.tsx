@@ -96,6 +96,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
       : resolveIconForType({ nodeTypeId, nodeSubtypeId })
   const headerIcon = renderNodeIcon(iconDescriptor.icon, iconDescriptor.id, 'header')
 
+  // eslint-disable-next-line complexity
   const renderContent = () => {
     if (mode === 'add') {
       const selectedNode = nodeTypeId ? NodeRegistry.get(nodeTypeId) : null

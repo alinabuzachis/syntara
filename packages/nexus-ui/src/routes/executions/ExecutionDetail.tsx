@@ -157,6 +157,7 @@ function ExecutionDetailContent({
   )
 }
 
+// eslint-disable-next-line complexity
 export default function ExecutionDetail() {
   const params = useParams<{ executionId: string }>()
   const executionId = params.executionId

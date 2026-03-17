@@ -19,6 +19,7 @@ import { StatusLabel } from '../builder/ExecutionStatus'
 
 import { getExecutionSortValue } from './getExecutionSortValue'
 
+// eslint-disable-next-line complexity
 export default function Executions() {
   const searchParams = useSearch()
   const urlParams = useMemo(() => new URLSearchParams(searchParams), [searchParams])

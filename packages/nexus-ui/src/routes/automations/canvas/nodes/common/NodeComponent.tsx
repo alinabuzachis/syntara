@@ -45,6 +45,7 @@ const isWideTaskNode = (nodeProps: NodeProps) => {
   return false
 }
 
+// eslint-disable-next-line complexity
 export function NodeComponent(props: {
   children: React.ReactNode
   disableSource?: boolean

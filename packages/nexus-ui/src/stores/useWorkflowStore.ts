@@ -17,6 +17,7 @@ import type { Activity, WorkflowStore } from './workflowStoreTypes'
 // Zustand Store
 // ============================================================================
 
+// eslint-disable-next-line max-lines-per-function
 export const useWorkflowStore = create<WorkflowStore>((set) => ({
   currentWorkflow: null,
   workflowVersion: 0,

@@ -599,7 +599,7 @@ Before writing a string comparison or assignment:
 
 ### Code Readability Enforcement
 
-ESLint enforces readability constraints that keep functions small, files focused, and logic simple. All are set to `warn` — they light up in the IDE and guide AI agents without blocking CI on existing code. **New code should respect these limits.**
+ESLint enforces readability constraints that keep functions small, files focused, and logic simple. All are set to `error` — CI will block violations. **New code must respect these limits.**
 
 These thresholds are based on industry standards (Code Complete, SonarQube, BiomeJS):
 

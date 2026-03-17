@@ -66,6 +66,7 @@ const builderEdgeTypes = {
   loopOutgoing: LoopOutgoingEdge,
 }
 
+// eslint-disable-next-line max-lines-per-function
 export function BuilderFlow(props: BuilderFlowProps) {
   const isExecutionView = useIsExecutionView()
   // Destructure props to use in callbacks

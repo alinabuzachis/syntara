@@ -56,6 +56,7 @@ interface LogicNodeFormProps {
  * Note: This wrapper exists to maintain the subtype pattern in registerLogicNode.
  * For editing existing nodes, use the specialized forms directly via NodeDetails components.
  */
+// eslint-disable-next-line complexity
 export function LogicNodeForm({ onSubmit, submitButtonText, initialData, onHeaderContentChange }: LogicNodeFormProps) {
   const logicType = initialData?.logicType
 

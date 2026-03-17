@@ -66,6 +66,7 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
   )
 }
 
+// eslint-disable-next-line complexity
 export function TaskActivityDetails(
   props: Readonly<{
     data: TaskActivity

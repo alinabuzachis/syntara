@@ -68,6 +68,7 @@ interface ConvergeNodeFormProps {
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
+// eslint-disable-next-line max-lines-per-function
 function ConvergeFormFields({
   submitButtonText,
   onHeaderContentChange,

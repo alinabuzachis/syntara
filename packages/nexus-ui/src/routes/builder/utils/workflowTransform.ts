@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 
 import type { EdgeConnection } from '../types/edge'
@@ -60,6 +61,7 @@ export class WorkflowTransform {
    *
    * All parallel containers are flattened - they don't exist in builder format.
    */
+  // eslint-disable-next-line complexity
   static flatten(nestedActivities: Activity[]): FlatWorkflow {
     const activities: Activity[] = []
     const edges: EdgeConnection[] = []

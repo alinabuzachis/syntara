@@ -42,6 +42,7 @@ interface UseButtonEdgeMaintenanceOptions {
  * - Updates node classes for proper styling
  * - Skips all button edge logic when in execution view mode
  */
+// eslint-disable-next-line max-lines-per-function
 export function useButtonEdgeMaintenance({
   nodes,
   edges,
@@ -96,6 +97,7 @@ export function useButtonEdgeMaintenance({
   }, [edges.length])
 
   // Maintain button edges: add to nodes without outgoing edges, remove from nodes with outgoing edges
+  // eslint-disable-next-line max-lines-per-function
   useEffect(() => {
     // Skip button edge creation when in execution view mode
     if (!isInitialized || executionStatus) {
@@ -121,6 +123,7 @@ export function useButtonEdgeMaintenance({
     lastProcessedSignatureRef.current = currentSignature
 
     // Use a delay to ensure nodes are fully loaded and measured, and edges are synchronized
+    // eslint-disable-next-line max-lines-per-function
     const timeoutId = setTimeout(() => {
       // CRITICAL FIX: Capture real nodes from current nodes state
       // Filter out placeholders and pending targets

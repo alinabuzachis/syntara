@@ -32,6 +32,7 @@ import { useFuse } from '../../../hooks/useFuse'
 import { useTableSort } from '../../../hooks/useTableSort'
 import { getErrorMessage } from '../../../utils/apiErrors'
 
+// eslint-disable-next-line max-lines-per-function, complexity
 export default function IntegrationTools() {
   const params = useParams()
   const [, navigate] = useLocation()

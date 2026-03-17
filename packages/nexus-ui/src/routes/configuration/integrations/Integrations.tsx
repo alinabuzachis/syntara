@@ -109,6 +109,7 @@ function integrationsReducer(state: IntegrationsState, action: IntegrationsActio
   }
 }
 
+// eslint-disable-next-line max-lines-per-function
 export default function Integrations() {
   const [, navigate] = useLocation()
   const [state, dispatch] = useReducer(integrationsReducer, {

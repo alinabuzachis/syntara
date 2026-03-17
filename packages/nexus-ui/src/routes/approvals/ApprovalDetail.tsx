@@ -84,6 +84,7 @@ function ApprovalSummaryList(props: {
   )
 }
 
+// eslint-disable-next-line complexity
 export default function ApprovalDetail() {
   const { approvalId } = useParams<{ approvalId: string }>()
   const [, setLocation] = useLocation()

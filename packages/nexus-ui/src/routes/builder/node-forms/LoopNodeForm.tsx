@@ -36,6 +36,7 @@ interface LoopNodeFormProps {
   onHeaderContentChange?: (content: ReactNode | null) => void
 }
 
+// eslint-disable-next-line max-lines-per-function
 function LoopFormFields({
   submitButtonText,
   onHeaderContentChange,

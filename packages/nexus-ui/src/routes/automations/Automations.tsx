@@ -86,6 +86,7 @@ function automationsReducer(state: AutomationsState, action: AutomationsAction):
   }
 }
 
+// eslint-disable-next-line max-lines-per-function
 export default function Automations() {
   const [state, dispatch] = useReducer(automationsReducer, {
     cursor: null,

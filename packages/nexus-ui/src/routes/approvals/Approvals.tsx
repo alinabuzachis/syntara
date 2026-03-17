@@ -87,6 +87,7 @@ const DecidedCell = ({ approval }: { approval: ApprovalWithDetails }) => {
   )
 }
 
+// eslint-disable-next-line max-lines-per-function
 export default function Approvals() {
   const [cursor, setCursor] = useState<string | null>(null)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
