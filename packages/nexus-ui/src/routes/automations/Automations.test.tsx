@@ -21,12 +21,14 @@ vi.mock('../../client', () => ({
 }))
 
 const mockSetLocation = vi.fn()
+const mockSetSearchParams = vi.fn()
 
 vi.mock('wouter', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal()
   return {
     ...actual,
     useLocation: () => ['/automations', mockSetLocation],
+    useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
   }
 })
 
@@ -129,9 +131,8 @@ describe('Automations Component', () => {
       // Check page header
       expect(screen.getByText('Automations')).toBeInTheDocument()
 
-      // Check search input
-      const searchInput = screen.getByPlaceholderText('Search automations...')
-      expect(searchInput).toBeInTheDocument()
+      // Check table is rendered
+      expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
     })
 
     it('renders workflows in the table', async () => {
@@ -148,106 +149,28 @@ describe('Automations Component', () => {
     })
   })
 
-  describe('Search Functionality', () => {
-    it('allows searching workflows', () => {
+  describe('Filter Functionality', () => {
+    it('renders FilterBar component without keyword search', () => {
       render(<Automations />, { wrapper })
 
-      // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search automations...')
+      // FilterBar should be present but keyword search input should not
+      expect(screen.queryByPlaceholderText('Search automations...')).not.toBeInTheDocument()
 
-      // Simulate typing in the search input
-      const searchTerm = 'project'
-      fireEvent.change(searchInput, { target: { value: searchTerm } })
-
-      // Verify the input value is updated
-      expect((searchInput as HTMLInputElement).value).toBe(searchTerm)
+      // Table should still render
+      expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
     })
 
-    it('filters workflows with fuzzy search, prioritizing most relevant', async () => {
+    it('shows all workflows when no filters are active', async () => {
       render(<Automations />, { wrapper })
 
-      // Wait for table to render (PF Table uses role="grid")
+      // Wait for table to render
       await waitFor(() => {
         expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
       })
 
-      // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search automations...')
-
-      // Simulate searching for "project"
-      fireEvent.change(searchInput, { target: { value: 'project' } })
-
-      // Wait for filtered results
-      await waitFor(() => {
-        // Get all table rows (PF Table uses role="grid")
-        const table = screen.getByRole('grid', { name: 'Automations table' })
-        const rows = within(table).getAllByRole('row')
-
-        // Verify row count (header + at least 1 data row)
-        expect(rows.length).toBeGreaterThanOrEqual(2)
-
-        // The most relevant row (containing "project") should be the first data row
-        const firstDataRow = rows[1]
-        expect(within(firstDataRow).getByText('Important Project Workflow')).toBeInTheDocument()
-
-        // Verify the other workflow is not visible
-        expect(screen.queryByText('Secondary Team Workflow')).not.toBeInTheDocument()
-      })
-    })
-
-    it('supports partial matches in fuzzy search', async () => {
-      render(<Automations />, { wrapper })
-
-      // Wait for table to render (PF Table uses role="grid")
-      await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
-      })
-
-      // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search automations...')
-
-      // Simulate searching for "team"
-      fireEvent.change(searchInput, { target: { value: 'team' } })
-
-      // Wait for filtered results
-      await waitFor(() => {
-        // Get all table rows (PF Table uses role="grid")
-        const table = screen.getByRole('grid', { name: 'Automations table' })
-        const rows = within(table).getAllByRole('row')
-
-        // Verify row count (header + at least 1 data row)
-        expect(rows.length).toBeGreaterThanOrEqual(2)
-
-        // The row with "team" should be visible
-        expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
-      })
-    })
-
-    it('shows all workflows when search is empty', async () => {
-      render(<Automations />, { wrapper })
-
-      // Wait for table to render (PF Table uses role="grid")
-      await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
-      })
-
-      // Find the search input
-      const searchInput = screen.getByPlaceholderText('Search automations...')
-
-      // Clear the search input
-      fireEvent.change(searchInput, { target: { value: '' } })
-
-      // Wait for results
-      await waitFor(() => {
-        // Get all table rows (PF Table uses role="grid")
-        const table = screen.getByRole('grid', { name: 'Automations table' })
-        const rows = within(table).getAllByRole('row')
-
-        // Verify all rows are shown (header + 2 data rows)
-        expect(rows.length).toBeGreaterThanOrEqual(3)
-        expect(within(rows[1]).getByText('Important Project Workflow')).toBeInTheDocument()
-        expect(within(rows[2]).getByText('Secondary Team Workflow')).toBeInTheDocument()
-      })
+      // All workflows should be visible
+      expect(screen.getByText('Important Project Workflow')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
     })
   })
 
@@ -1004,76 +927,5 @@ describe('Automations Component', () => {
     })
   })
 
-  describe('Sorting Functionality', () => {
-    it('renders sortable column headers', async () => {
-      render(<Automations />, { wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
-      })
-
-      // Verify sortable columns have sort buttons
-      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
-      expect(within(nameHeader).getByRole('button')).toBeInTheDocument()
-
-      const createdAtHeader = screen.getByRole('columnheader', { name: /Created at/i })
-      expect(within(createdAtHeader).getByRole('button')).toBeInTheDocument()
-
-      const updatedAtHeader = screen.getByRole('columnheader', { name: /Updated at/i })
-      expect(within(updatedAtHeader).getByRole('button')).toBeInTheDocument()
-    })
-
-    it('changes sort when clicking column headers', async () => {
-      render(<Automations />, { wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
-      })
-
-      // Click Name header to sort by name
-      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
-      const sortButton = within(nameHeader).getByRole('button')
-      fireEvent.click(sortButton)
-
-      // All automations should still be visible
-      expect(screen.getByText('Important Project Workflow')).toBeInTheDocument()
-      expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
-    })
-
-    it('can toggle sort direction by clicking the same column header', async () => {
-      render(<Automations />, { wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
-      })
-
-      const nameHeader = screen.getByRole('columnheader', { name: /^Name$/i })
-      const sortButton = within(nameHeader).getByRole('button')
-
-      // Click twice to toggle direction
-      fireEvent.click(sortButton)
-      fireEvent.click(sortButton)
-
-      // All automations should still be visible after sorting
-      expect(screen.getByText('Important Project Workflow')).toBeInTheDocument()
-      expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
-    })
-
-    it('can sort by different columns', async () => {
-      render(<Automations />, { wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
-      })
-
-      // Click Created at column
-      const createdAtHeader = screen.getByRole('columnheader', { name: /Created at/i })
-      const sortButton = within(createdAtHeader).getByRole('button')
-      fireEvent.click(sortButton)
-
-      // All automations should still be visible
-      expect(screen.getByText('Important Project Workflow')).toBeInTheDocument()
-      expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
-    })
-  })
+  // NOTE: Sorting tests removed - client-side sorting disabled for cursor-paginated data
 })

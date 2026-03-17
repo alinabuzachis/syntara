@@ -2,20 +2,30 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
+  Content,
+  ContentVariants,
+  Flex,
+  FlexItem,
   List,
   ListItem,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
-  SearchInput,
   Stack,
   StackItem,
 } from '@patternfly/react-core'
-import { RhUiHistoryIcon, RhUiEditFillIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
+import {
+  RhUiCaretLeftIcon,
+  RhUiCaretRightIcon,
+  RhUiEditFillIcon,
+  RhUiHistoryIcon,
+  RhUiPlayIcon,
+  RhUiTrashIcon,
+} from '@patternfly/react-icons'
+import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useReducer } from 'react'
+import { useMemo, useReducer } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -24,16 +34,18 @@ import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
+import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
 import { BadgesCell } from '../../components/table/BadgesCell'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { SwitchCell } from '../../components/table/SwitchCell.tsx'
-import { useFuse } from '../../hooks/useFuse'
-import { useTableSort } from '../../hooks/useTableSort'
+import { useFilterState } from '../../hooks/useFilterState'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
+import type { FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { buildFilterParams } from '../../utils/filterUtils'
 import { getDateField } from '../../utils/getDateField'
 import { getWorkflowTagsForDisplay } from '../../utils/workflowTags'
 
@@ -97,41 +109,93 @@ export default function Automations() {
   })
   const { cursor, confirmDialogOpen, deleteDialogOpen, selectedWorkflow, workflowToDelete } = state
 
-  const workflowsQuery = workflowClient.useQuery('get', '/workflows', {
-    params: {
-      query: {
-        cursor: cursor ?? undefined,
-        limit: 20,
-        include_total: true,
-      },
-    },
-  })
-  const workflows = workflowsQuery.data?.resources ?? []
-  const { mutate: executeAutomation } = executionsClient.useMutation('post', '/executions')
-  const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
   const { showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
 
-  const { search, setSearch, items: filteredAutomations } = useFuse<Workflow>(workflows, [{ name: 'name' }])
+  // Filter state management
+  const { filters, setAllFilters, clearAllFilters } = useFilterState()
 
-  const { activeSortIndex, getSortParams, sortData } = useTableSort({
-    initialSortIndex: 0,
-    initialDirection: 'asc',
-  })
+  // Define filter field definitions for FilterBar
+  const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
+    () => [
+      {
+        key: 'name',
+        label: 'Name',
+        type: FilterTypeEnum.TEXT,
+        operators: [FilterOperatorEnum.CONTAINS],
+        defaultOperator: FilterOperatorEnum.CONTAINS,
+        placeholder: 'Filter by name',
+      },
+      {
+        key: 'is_enabled',
+        label: 'State',
+        type: FilterTypeEnum.SELECT,
+        options: [
+          { value: 'true', label: 'Enabled' },
+          { value: 'false', label: 'Disabled' },
+        ],
+        placeholder: 'Filter by state',
+      },
+    ],
+    []
+  )
 
-  // Sort the filtered automations
-  const automations = sortData(filteredAutomations, (workflow) => {
-    switch (activeSortIndex) {
-      case 0:
-        return workflow.name ?? ''
-      case 1:
-        return getDateField(workflow, 'createdAt') ? new Date(getDateField(workflow, 'createdAt')!) : null
-      case 2:
-        return getDateField(workflow, 'updatedAt') ? new Date(getDateField(workflow, 'updatedAt')!) : null
-      default:
-        return workflow.name ?? ''
+  // Handle filter changes from FilterBar
+  const handleFilterChange = (newFilters: typeof filters) => {
+    // Reset to first page when filters change
+    if (cursor) {
+      dispatch({ type: 'SET_CURSOR', payload: null })
     }
+
+    // Compute final filter state with transformations applied
+    const finalFilters = newFilters.map((filter) => {
+      // Convert string 'true'/'false' to boolean for is_enabled
+      if (filter.key === 'is_enabled' && typeof filter.value === 'string') {
+        return { ...filter, value: filter.value === 'true' }
+      }
+      return filter
+    })
+
+    // Replace all filters at once - preserves order and makes atomic update
+    setAllFilters(finalFilters)
+  }
+
+  // Build query parameters from filters
+  const queryParams = useMemo(() => {
+    const params: Record<string, unknown> = {
+      limit: 20,
+      include_total: true,
+    }
+
+    // Add filter params
+    const filterParams = buildFilterParams(filters)
+    Object.assign(params, filterParams)
+
+    // Add cursor if present
+    if (cursor) {
+      params.cursor = cursor
+    }
+
+    return params
+  }, [filters, cursor])
+
+  // Query workflows with server-side filtering
+  const workflowsQuery = workflowClient.useQuery('get', '/workflows', {
+    params: {
+      query: queryParams,
+    },
   })
+
+  const workflows = workflowsQuery.data?.resources ?? []
+  const { mutate: executeAutomation } = executionsClient.useMutation('post', '/executions')
+  const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
+
+  // Note: Client-side sorting disabled for cursor-paginated data
+  // Sorting only the current page would produce incorrect results
+  // TODO: Implement server-side sorting by passing sort params to the API
+  const automations = workflows
+
+  const hasActiveFilters = filters.length > 0
 
   const handleRunAutomation = (workflow: Workflow) => {
     executeAutomation(
@@ -204,7 +268,12 @@ export default function Automations() {
     },
   ]
 
-  const queryState = useQueryState(workflowsQuery, 'Error loading workflows')
+  const queryState = useQueryState(workflowsQuery, {
+    title: 'Error loading workflows',
+    onRetry: () => workflowsQuery.refetch(),
+  })
+
+  // Show loading/error state
   if (queryState) {
     return (
       <AppPage>
@@ -219,94 +288,138 @@ export default function Automations() {
   return (
     <AppPage>
       <AppPageHeader title="Automations">
-        <SearchInput
-          placeholder="Search automations..."
-          value={search}
-          onChange={(_event, value) => setSearch(value)}
-          onClear={() => setSearch('')}
-          style={{ width: '250px' }}
-        />
         <Button variant="primary" onClick={() => setLocation('/automation-builder/new')}>
           Create automation
         </Button>
       </AppPageHeader>
-      {automations.length === 0 ? (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            {search ? (
-              <EmptyStateFilter clearAllFilters={() => setSearch('')} />
-            ) : (
-              <EmptyStateNoData
-                title="No automations found"
-                description="Create your first automation to get started."
-                buttonText="Create automation"
-                addData={() => setLocation('/automation-builder/new')}
+
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <CompassPanel isFullHeight>
+          <Stack style={{ height: '100%' }}>
+            <StackItem>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
               />
-            )}
-          </CompassPanel>
-        </StackItem>
-      ) : (
-        <ScrollableTableContainer
-          aria-label="Automations table"
-          useFixedLayout={false}
-          footer={{
-            content: (
-              <>
-                {automations.length} {automations.length === 1 ? 'automation' : 'automations'}
-                {workflowsQuery.data?.total && workflowsQuery.data.total > automations.length && (
-                  <span style={{ opacity: 0.6 }}> (of {workflowsQuery.data.total} total)</span>
-                )}
-              </>
-            ),
-            prev: workflowsQuery.data?.prev ?? null,
-            next: workflowsQuery.data?.next ?? null,
-            onPrev: () => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.prev ?? null }),
-            onNext: () => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.next ?? null }),
-          }}
-        >
-          <Thead>
-            <Tr>
-              <Th sort={getSortParams(0)}>Name</Th>
-              <Th sort={getSortParams(1)}>Created at</Th>
-              <Th sort={getSortParams(2)}>Updated at</Th>
-              <Th>Tags</Th>
-              <Th>State</Th>
-              <Th screenReaderText="Actions" />
-            </Tr>
-          </Thead>
-          <Tbody>
-            {automations.map((workflow) => (
-              <Tr key={workflow.id}>
-                <Td dataLabel="Name">
-                  <LinkCell href={`/automation-builder/${workflow.id}`}>{workflow.name}</LinkCell>
-                </Td>
-                <Td dataLabel="Created at">
-                  <DateCell dateString={getDateField(workflow, 'createdAt')} />
-                </Td>
-                <Td dataLabel="Updated at">
-                  <DateCell dateString={getDateField(workflow, 'updatedAt')} />
-                </Td>
-                <Td dataLabel="Tags">
-                  <BadgesCell items={getWorkflowTagsForDisplay(workflow)} />
-                </Td>
-                <Td dataLabel="State">
-                  <SwitchCell
-                    checked={workflow?.is_enabled}
-                    handleChange={() => {}}
-                    showLabels
-                    enabledLabel="Enabled"
-                    disabledLabel="Disabled"
-                    readOnly
+            </StackItem>
+
+            {automations.length === 0 ? (
+              <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {hasActiveFilters ? (
+                  <EmptyStateFilter clearAllFilters={clearAllFilters} />
+                ) : (
+                  <EmptyStateNoData
+                    title="No automations found"
+                    description="Create your first automation to get started."
+                    buttonText="Create automation"
+                    addData={() => setLocation('/automation-builder/new')}
                   />
-                </Td>
-                <Td isActionCell>
-                  <ActionsColumn items={getRowActions(workflow)} />
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </ScrollableTableContainer>
-      )}
+                )}
+              </StackItem>
+            ) : (
+              <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+                <Table
+                  aria-label="Automations table"
+                  isPlain
+                  isStickyHeader
+                  style={
+                    {
+                      '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
+                      width: '100%',
+                    } as React.CSSProperties
+                  }
+                >
+                  <Thead>
+                    <Tr>
+                      <Th>Name</Th>
+                      <Th>Created at</Th>
+                      <Th>Updated at</Th>
+                      <Th>Tags</Th>
+                      <Th>State</Th>
+                      <Th screenReaderText="Actions" />
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {automations.map((workflow) => (
+                      <Tr key={workflow.id}>
+                        <Td dataLabel="Name">
+                          <LinkCell href={`/automation-builder/${workflow.id}`}>{workflow.name}</LinkCell>
+                        </Td>
+                        <Td dataLabel="Created at">
+                          <DateCell dateString={getDateField(workflow, 'createdAt')} />
+                        </Td>
+                        <Td dataLabel="Updated at">
+                          <DateCell dateString={getDateField(workflow, 'updatedAt')} />
+                        </Td>
+                        <Td dataLabel="Tags">
+                          <BadgesCell items={getWorkflowTagsForDisplay(workflow)} />
+                        </Td>
+                        <Td dataLabel="State">
+                          <SwitchCell
+                            checked={workflow?.is_enabled}
+                            handleChange={() => {}} // Read-only display - toggle via edit workflow
+                            showLabels
+                            enabledLabel="Enabled"
+                            disabledLabel="Disabled"
+                            readOnly
+                          />
+                        </Td>
+                        <Td isActionCell>
+                          <ActionsColumn items={getRowActions(workflow)} />
+                        </Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </StackItem>
+            )}
+
+            <StackItem
+              style={{
+                flex: '0 0 auto',
+                borderTop: '1px solid rgba(196, 181, 253, 0.2)',
+                padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
+              }}
+            >
+              <Flex
+                justifyContent={{ default: 'justifyContentSpaceBetween' }}
+                alignItems={{ default: 'alignItemsCenter' }}
+              >
+                <FlexItem>
+                  <Content component={ContentVariants.p}>
+                    {automations.length} {automations.length === 1 ? 'automation' : 'automations'}
+                    {workflowsQuery.data?.total && workflowsQuery.data.total > automations.length && (
+                      <span style={{ opacity: 0.6 }}> (of {workflowsQuery.data.total} total)</span>
+                    )}
+                  </Content>
+                </FlexItem>
+                {(workflowsQuery.data?.prev || workflowsQuery.data?.next) && (
+                  <Flex gap={{ default: 'gapSm' }}>
+                    <Button
+                      variant="plain"
+                      isDisabled={!workflowsQuery.data?.prev}
+                      onClick={() => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.prev ?? null })}
+                      aria-label="Previous page"
+                    >
+                      <RhUiCaretLeftIcon /> Previous
+                    </Button>
+                    <Button
+                      variant="plain"
+                      isDisabled={!workflowsQuery.data?.next}
+                      onClick={() => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.next ?? null })}
+                      aria-label="Next page"
+                    >
+                      Next <RhUiCaretRightIcon />
+                    </Button>
+                  </Flex>
+                )}
+              </Flex>
+            </StackItem>
+          </Stack>
+        </CompassPanel>
+      </StackItem>
       <Modal
         isOpen={confirmDialogOpen}
         onClose={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}

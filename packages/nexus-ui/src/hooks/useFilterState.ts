@@ -16,6 +16,8 @@ export interface UseFilterStateResult {
   removeFilter: (key: string) => void
   /** Remove all filters */
   clearAllFilters: () => void
+  /** Replace all filters at once (preserves order) */
+  setAllFilters: (filters: FilterConfig[]) => void
 }
 
 /**
@@ -176,10 +178,52 @@ export function useFilterState(defaultFilters: FilterConfig[] = []): UseFilterSt
     setSearchParams(newSearchParams)
   }, [filters, searchParams, setSearchParams])
 
+  /**
+   * Replace all filters at once (preserves order and makes atomic update)
+   * This is more efficient than calling clearAll + setFilter multiple times
+   */
+  const setAllFilters = useCallback(
+    (newFilters: FilterConfig[]) => {
+      // Build set of all possible filter keys (old + new) to remove
+      const filterKeysToRemove = new Set<string>()
+
+      // Add keys from current filters (what's currently in URL)
+      filters.forEach((f) => {
+        const operator = f.operator ?? 'eq'
+        filterKeysToRemove.add(operator === 'eq' ? f.key : `${f.key}[${operator}]`)
+        // Also add base key to handle edge cases
+        filterKeysToRemove.add(f.key)
+      })
+
+      // Preserve non-filter params - convert to string then back to ensure proper copying
+      const newSearchParams = new URLSearchParams(searchParams.toString())
+
+      // Remove only the specific filter keys we identified
+      Array.from(newSearchParams.keys()).forEach((key) => {
+        // Remove if it's a known filter key or starts with 'labels[' (label filters)
+        if (filterKeysToRemove.has(key) || key.startsWith('labels[')) {
+          newSearchParams.delete(key)
+        }
+      })
+
+      // Add new filter params
+      if (newFilters.length > 0) {
+        const filterParams = buildFilterParams(newFilters)
+        Object.entries(filterParams).forEach(([key, value]) => {
+          newSearchParams.set(key, String(value))
+        })
+      }
+
+      setSearchParams(newSearchParams)
+    },
+    [filters, searchParams, setSearchParams]
+  )
+
   return {
     filters,
     setFilter,
     removeFilter,
     clearAllFilters,
+    setAllFilters,
   }
 }

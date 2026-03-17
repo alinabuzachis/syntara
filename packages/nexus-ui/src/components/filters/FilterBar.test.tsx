@@ -67,47 +67,31 @@ describe('FilterBar', () => {
       expect(container.querySelector('#filter-toolbar')).toBeInTheDocument()
     })
 
-    it('renders keyword search when enabled', () => {
-      render(<FilterBar {...defaultProps} keywordSearchEnabled={true} />)
-
-      expect(screen.getByPlaceholderText('Filter by keyword')).toBeInTheDocument()
-    })
-
-    it('renders with custom search placeholder', () => {
-      render(<FilterBar {...defaultProps} keywordSearchEnabled={true} searchPlaceholder="Search items" />)
-
-      expect(screen.getByPlaceholderText('Search items')).toBeInTheDocument()
-    })
-
-    it('does not render keyword search when disabled', () => {
-      render(<FilterBar {...defaultProps} keywordSearchEnabled={false} />)
-
-      expect(screen.queryByPlaceholderText('Filter by keyword')).not.toBeInTheDocument()
-    })
-
-    it('does not show filter count badge when no filters', () => {
+    it('renders attribute search field selector', () => {
       render(<FilterBar {...defaultProps} />)
 
-      expect(screen.queryByText(/filter/)).not.toBeInTheDocument()
+      // Should render the field selector with first field selected
+      expect(screen.getByText('Name')).toBeInTheDocument()
     })
 
-    it('shows filter count badge when filters active', () => {
+    it('does not show filter chips when no filters', () => {
+      render(<FilterBar {...defaultProps} />)
+
+      // No chips or category labels should be visible
+      expect(screen.queryByText('Name')).toBeInTheDocument() // Field selector shows "Name"
+      expect(screen.queryByText('test')).not.toBeInTheDocument()
+    })
+
+    it('shows filter chips grouped by field name', () => {
       const filters: FilterConfig[] = [{ key: 'name', operator: 'contains', value: 'test' }]
 
       render(<FilterBar {...defaultProps} filters={filters} />)
 
-      expect(screen.getByText('1 filter')).toBeInTheDocument()
-    })
-
-    it('shows plural filter count', () => {
-      const filters: FilterConfig[] = [
-        { key: 'name', operator: 'contains', value: 'test' },
-        { key: 'status', operator: 'eq', value: 'running' },
-      ]
-
-      render(<FilterBar {...defaultProps} filters={filters} />)
-
-      expect(screen.getByText('2 filters')).toBeInTheDocument()
+      // Should show chip value
+      expect(screen.getByText('test')).toBeInTheDocument()
+      // Category name "Name" appears multiple times (field selector + label group)
+      const nameElements = screen.getAllByText('Name')
+      expect(nameElements.length).toBeGreaterThanOrEqual(1)
     })
 
     it('does not show clear all button when no filters', () => {
@@ -133,55 +117,42 @@ describe('FilterBar', () => {
     })
   })
 
-  describe('keyword search', () => {
-    it('uses default operator from field definition', async () => {
+  describe('attribute search', () => {
+    it('allows selecting different filter fields', async () => {
       const user = userEvent.setup()
-      const onFilterChange = vi.fn()
 
-      render(<FilterBar {...defaultProps} onFilterChange={onFilterChange} keywordSearchEnabled={true} />)
+      render(<FilterBar {...defaultProps} />)
 
-      const searchInput = screen.getByPlaceholderText('Filter by keyword')
-      await user.type(searchInput, 'x')
+      // Click field selector to open dropdown
+      const fieldSelector = screen.getByText('Name')
+      await user.click(fieldSelector)
 
-      const lastCall = onFilterChange.mock.calls[onFilterChange.mock.calls.length - 1]
-      expect(lastCall[0][0].operator).toBe('contains')
+      // Should show both field options
+      expect(screen.getByText('Status')).toBeInTheDocument()
     })
 
-    it('preserves other filters when keyword changes', async () => {
-      const user = userEvent.setup()
-      const onFilterChange = vi.fn()
-      const filters: FilterConfig[] = [{ key: 'status', operator: 'eq', value: 'running' }]
+    it('renders text input for TEXT field type', () => {
+      render(<FilterBar {...defaultProps} />)
 
-      render(
-        <FilterBar {...defaultProps} filters={filters} onFilterChange={onFilterChange} keywordSearchEnabled={true} />
-      )
-
-      const searchInput = screen.getByPlaceholderText('Filter by keyword')
-      await user.type(searchInput, 'x')
-
-      // Should keep status filter and add name filter
-      const lastCall = onFilterChange.mock.calls[onFilterChange.mock.calls.length - 1]
-      expect(lastCall[0]).toHaveLength(2)
-      expect(lastCall[0]).toContainEqual({ key: 'status', operator: 'eq', value: 'running' })
-      expect(lastCall[0]).toContainEqual(expect.objectContaining({ key: 'name' }))
+      // Should render text input with placeholder
+      expect(screen.getByPlaceholderText('Filter by name')).toBeInTheDocument()
     })
-
-    // Note: Tests for multi-character typing into keyword search are skipped
-    // due to the component emitting onChange on every keystroke (correct controlled behavior).
-    // The component works correctly in actual usage - these are unit test limitations.
   })
 
   describe('filter chips', () => {
-    it('displays active filter chips', () => {
+    it('displays active filter chips grouped by field', () => {
       const filters: FilterConfig[] = [{ key: 'name', operator: 'contains', value: 'test' }]
 
       render(<FilterBar {...defaultProps} filters={filters} />)
 
-      expect(screen.getByText(/Name:/)).toBeInTheDocument()
-      expect(screen.getByText(/test/)).toBeInTheDocument()
+      // Should show chip value "test"
+      expect(screen.getByText('test')).toBeInTheDocument()
+      // Category name "Name" appears in label group
+      const nameElements = screen.getAllByText('Name')
+      expect(nameElements.length).toBeGreaterThanOrEqual(1)
     })
 
-    it('displays multiple filter chips', () => {
+    it('displays multiple filter chips with separate groups', () => {
       const filters: FilterConfig[] = [
         { key: 'name', operator: 'contains', value: 'test' },
         { key: 'status', operator: 'eq', value: 'running' },
@@ -189,8 +160,19 @@ describe('FilterBar', () => {
 
       render(<FilterBar {...defaultProps} filters={filters} />)
 
-      expect(screen.getByText(/Name:/)).toBeInTheDocument()
-      expect(screen.getByText(/Status:/)).toBeInTheDocument()
+      // Should show both chip values (name shows raw value, status shows label from options)
+      expect(screen.getByText('test')).toBeInTheDocument()
+      // "Running" appears in both the chip and the dropdown value, so use getAllByText
+      const runningElements = screen.getAllByText('Running')
+      expect(runningElements.length).toBeGreaterThan(0)
+      // Verify at least one is in a chip
+      const chipWithRunning = runningElements.find((el) => el.closest('.pf-v6-c-label'))
+      expect(chipWithRunning).toBeInTheDocument()
+      // Category names appear in label groups
+      const nameElements = screen.getAllByText('Name')
+      expect(nameElements.length).toBeGreaterThanOrEqual(1)
+      const statusElements = screen.getAllByText('Status')
+      expect(statusElements.length).toBeGreaterThanOrEqual(1)
     })
 
     it('removes filter when chip clicked', async () => {
@@ -203,11 +185,9 @@ describe('FilterBar', () => {
 
       render(<FilterBar {...defaultProps} filters={filters} onFilterChange={onFilterChange} />)
 
-      // Find all close buttons and click the one for the Name filter
-      // In PatternFly 6, Label uses onClose which creates a close button
-      const nameLabel = screen.getByText(/Name:/)
-      // Find the close button within the same label group as the Name text
-      const labelElement = nameLabel.closest('.pf-v6-c-label')
+      // Find the close button for the "test" chip
+      const testChip = screen.getByText('test')
+      const labelElement = testChip.closest('.pf-v6-c-label')
       const closeButton = labelElement?.querySelector('button')
 
       expect(closeButton).toBeInTheDocument()
@@ -219,32 +199,39 @@ describe('FilterBar', () => {
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'status', operator: 'eq', value: 'running' }])
     })
 
-    it('handles date range filters with duplicate keys correctly', async () => {
+    it('removes date range filter with specific operator', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
-      // Date range creates two filters with same key but different operators
       const filters: FilterConfig[] = [
         { key: 'created_at', operator: 'gte', value: '2024-01-01' },
         { key: 'created_at', operator: 'lte', value: '2024-12-31' },
       ]
 
-      render(<FilterBar {...defaultProps} filters={filters} onFilterChange={onFilterChange} />)
+      const dateRangeFieldDefinition: FilterFieldDefinition = {
+        key: 'created_at',
+        label: 'Created',
+        type: FilterTypeEnum.DATERANGE,
+      }
 
-      // Should render both chips with unique keys (no React warnings)
-      const chips = screen.getAllByText(/created_at:/i)
-      expect(chips).toHaveLength(2)
+      render(
+        <FilterBar
+          {...defaultProps}
+          fieldDefinitions={[dateRangeFieldDefinition]}
+          filters={filters}
+          onFilterChange={onFilterChange}
+        />
+      )
 
-      // Click close button on first chip (gte)
-      const firstChip = chips[0]
-      const labelElement = firstChip.closest('.pf-v6-c-label')
+      // Find the close button for the first chip (gte)
+      const gteChip = screen.getByText('2024-01-01')
+      const labelElement = gteChip.closest('.pf-v6-c-label')
       const closeButton = labelElement?.querySelector('button')
 
-      expect(closeButton).toBeInTheDocument()
       if (closeButton) {
         await user.click(closeButton)
       }
 
-      // Should remove only the gte filter, keep the lte filter
+      // Should remove only the gte filter, keep lte filter
       expect(onFilterChange).toHaveBeenCalledWith([{ key: 'created_at', operator: 'lte', value: '2024-12-31' }])
     })
   })
@@ -268,17 +255,19 @@ describe('FilterBar', () => {
       expect(onFilterChange).toHaveBeenCalledWith([])
     })
 
-    it('clears keyword search when clear all clicked', async () => {
+    it('clears all active filters when clear all clicked', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
-      const initialFilters: FilterConfig[] = [{ key: 'name', operator: 'contains', value: 'test' }]
+      const initialFilters: FilterConfig[] = [
+        { key: 'name', operator: 'contains', value: 'test' },
+        { key: 'status', operator: 'eq', value: 'running' },
+      ]
 
       render(
         <ControlledFilterBar
           {...defaultProps}
           initialFilters={initialFilters}
           onFilterChange={onFilterChange}
-          keywordSearchEnabled={true}
           showClearAll={true}
         />
       )
@@ -286,9 +275,8 @@ describe('FilterBar', () => {
       const clearButton = screen.getByText('Clear all filters')
       await user.click(clearButton)
 
-      // Search input should be cleared
-      const searchInput = screen.getByPlaceholderText('Filter by keyword')
-      expect(searchInput).toHaveValue('')
+      // onFilterChange should be called with empty array
+      expect(onFilterChange).toHaveBeenCalledWith([])
     })
   })
 
@@ -296,200 +284,317 @@ describe('FilterBar', () => {
     it('renders text filter when field type is TEXT', () => {
       const fieldDefinitions = [textFieldDefinition]
 
-      render(<FilterBar {...defaultProps} fieldDefinitions={fieldDefinitions} keywordSearchEnabled={false} />)
+      render(<FilterBar {...defaultProps} fieldDefinitions={fieldDefinitions} />)
 
-      // Text filter should render (even though not visible in toolbar by default)
-      // This verifies the component doesn't crash
-      expect(screen.getByLabelText('Name filter')).toBeInTheDocument()
+      // Text filter should render in attribute search
+      expect(screen.getByPlaceholderText('Filter by name')).toBeInTheDocument()
     })
 
-    it('renders select filter when field type is SELECT', () => {
+    it('renders select dropdown when SELECT field is selected', () => {
       const fieldDefinitions = [selectFieldDefinition]
 
       render(<FilterBar {...defaultProps} fieldDefinitions={fieldDefinitions} />)
 
-      // Select filter should render - check for the toggle button
-      // Since operators includes 'in', isMulti=true, so it shows "0 selected" instead of placeholder
-      expect(screen.getByText('0 selected')).toBeInTheDocument()
+      // Field selector should show first field (Status)
+      expect(screen.getByText('Status')).toBeInTheDocument()
+      // Should show placeholder for value selector
+      expect(screen.getByText('Filter by status')).toBeInTheDocument()
     })
 
     it('renders boolean filter when field type is BOOLEAN', () => {
-      const booleanField: FilterFieldDefinition = {
-        key: 'is_enabled',
-        label: 'Status', // Changed from 'Enabled' to avoid duplicate text
+      const booleanFieldDefinition: FilterFieldDefinition = {
+        key: 'is_active',
+        label: 'Active',
         type: FilterTypeEnum.BOOLEAN,
       }
 
-      render(<FilterBar {...defaultProps} fieldDefinitions={[booleanField]} />)
+      render(<FilterBar {...defaultProps} fieldDefinitions={[booleanFieldDefinition]} />)
 
-      // Check for the FormGroup label and Switch
-      expect(screen.getByText('Status')).toBeInTheDocument()
-      expect(screen.getByText('Enabled')).toBeInTheDocument() // Switch label
-      expect(screen.getByRole('switch', { name: 'Status filter' })).toBeInTheDocument()
+      // Should render the boolean filter toggle
+      expect(screen.getByRole('switch')).toBeInTheDocument()
     })
 
     it('renders date range filter when field type is DATERANGE', () => {
-      const dateRangeField: FilterFieldDefinition = {
+      const dateRangeFieldDefinition: FilterFieldDefinition = {
         key: 'created_at',
-        label: 'Created Date',
+        label: 'Created',
         type: FilterTypeEnum.DATERANGE,
       }
 
-      render(<FilterBar {...defaultProps} fieldDefinitions={[dateRangeField]} />)
+      render(<FilterBar {...defaultProps} fieldDefinitions={[dateRangeFieldDefinition]} />)
 
-      expect(screen.getByPlaceholderText('Start date')).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('End date')).toBeInTheDocument()
+      // Should render date range inputs with aria-labels using field label
+      expect(screen.getByLabelText('Created start date')).toBeInTheDocument()
+      expect(screen.getByLabelText('Created end date')).toBeInTheDocument()
     })
 
     it('renders label filter when field type is LABELS', () => {
-      const labelField: FilterFieldDefinition = {
+      const labelsFieldDefinition: FilterFieldDefinition = {
         key: 'labels',
         label: 'Labels',
         type: FilterTypeEnum.LABELS,
       }
 
-      render(<FilterBar {...defaultProps} fieldDefinitions={[labelField]} />)
+      render(<FilterBar {...defaultProps} fieldDefinitions={[labelsFieldDefinition]} />)
 
-      expect(screen.getByText('Add label')).toBeInTheDocument()
+      // Should render label filter input
+      expect(screen.getByPlaceholderText(/key/i)).toBeInTheDocument()
     })
   })
 
   describe('filter integration', () => {
-    it('handles text filter change', async () => {
-      const user = userEvent.setup()
-      const onFilterChange = vi.fn()
-
-      render(<FilterBar {...defaultProps} onFilterChange={onFilterChange} keywordSearchEnabled={false} />)
-
-      const textInput = screen.getByLabelText('Name filter')
-      await user.type(textInput, 'x')
-
-      expect(onFilterChange).toHaveBeenCalled()
-    })
-
-    it('handles select filter change', async () => {
+    it('handles text filter change via Enter key', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
 
       render(<FilterBar {...defaultProps} onFilterChange={onFilterChange} />)
 
-      // Click to open dropdown
-      const toggle = screen.getByText('0 selected')
+      const textInput = screen.getByPlaceholderText('Filter by name')
+      await user.type(textInput, 'test{Enter}')
+
+      expect(onFilterChange).toHaveBeenCalledWith([
+        expect.objectContaining({ key: 'name', operator: 'contains', value: 'test' }),
+      ])
+    })
+
+    it('handles select filter change', async () => {
+      const user = userEvent.setup()
+      const onFilterChange = vi.fn()
+      const fieldDefinitions = [selectFieldDefinition]
+
+      render(<FilterBar {...defaultProps} fieldDefinitions={fieldDefinitions} onFilterChange={onFilterChange} />)
+
+      // Click value selector to open dropdown
+      const toggle = screen.getByText('Filter by status')
       await user.click(toggle)
 
       // Select an option
       const option = screen.getByText('Running')
       await user.click(option)
 
-      expect(onFilterChange).toHaveBeenCalledWith([
-        expect.objectContaining({ key: 'status', operator: 'in', value: ['running'] }),
-      ])
+      expect(onFilterChange).toHaveBeenCalledWith([expect.objectContaining({ key: 'status', value: 'running' })])
     })
 
     it('handles boolean filter change', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
-      const booleanField: FilterFieldDefinition = {
-        key: 'is_enabled',
-        label: 'Enabled',
+      const booleanFieldDefinition: FilterFieldDefinition = {
+        key: 'is_active',
+        label: 'Active',
         type: FilterTypeEnum.BOOLEAN,
       }
 
-      render(<FilterBar {...defaultProps} fieldDefinitions={[booleanField]} onFilterChange={onFilterChange} />)
+      render(
+        <FilterBar {...defaultProps} fieldDefinitions={[booleanFieldDefinition]} onFilterChange={onFilterChange} />
+      )
 
-      const switchElement = screen.getByRole('switch', { name: 'Enabled filter' })
-      await user.click(switchElement)
+      const toggleSwitch = screen.getByRole('switch')
+      await user.click(toggleSwitch)
 
-      expect(onFilterChange).toHaveBeenCalledWith([
-        expect.objectContaining({ key: 'is_enabled', operator: 'eq', value: true }),
-      ])
+      // BooleanFilter passes filter directly via handleFilterUpdate (not in array yet)
+      // handleFilterUpdate then wraps it in an array
+      expect(onFilterChange).toHaveBeenCalledWith([{ key: 'is_active', operator: 'eq', value: true }])
     })
 
     it('handles date range filter change', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
-      const dateRangeField: FilterFieldDefinition = {
+      const dateRangeFieldDefinition: FilterFieldDefinition = {
         key: 'created_at',
-        label: 'Created Date',
+        label: 'Created',
         type: FilterTypeEnum.DATERANGE,
       }
 
-      render(<FilterBar {...defaultProps} fieldDefinitions={[dateRangeField]} onFilterChange={onFilterChange} />)
+      render(
+        <FilterBar {...defaultProps} fieldDefinitions={[dateRangeFieldDefinition]} onFilterChange={onFilterChange} />
+      )
 
-      const startDateInput = screen.getByLabelText('Created Date start date')
+      // DatePicker uses aria-label "Created start date"
+      const startDateInput = screen.getByLabelText('Created start date')
       await user.type(startDateInput, '2024-01-01')
 
-      // Should emit date filters
-      expect(onFilterChange).toHaveBeenCalled()
-    })
-
-    it('passes filter values to individual filter components', () => {
-      const filters: FilterConfig[] = [{ key: 'name', operator: 'contains', value: 'test' }]
-
-      render(<FilterBar {...defaultProps} filters={filters} keywordSearchEnabled={false} />)
-
-      expect(screen.getByDisplayValue('test')).toBeInTheDocument()
+      // Date range filter calls handleDateRangeChange which replaces all filters for this field
+      // The onChange from DateRangeFilter passes an array of filters (gte/lte)
+      expect(onFilterChange).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ key: 'created_at', operator: 'gte' })])
+      )
     })
 
     it('handles label filter change', async () => {
       const user = userEvent.setup()
       const onFilterChange = vi.fn()
-      const labelField: FilterFieldDefinition = {
+      const labelsFieldDefinition: FilterFieldDefinition = {
         key: 'labels',
         label: 'Labels',
         type: FilterTypeEnum.LABELS,
       }
 
-      render(<FilterBar {...defaultProps} fieldDefinitions={[labelField]} onFilterChange={onFilterChange} />)
+      render(<FilterBar {...defaultProps} fieldDefinitions={[labelsFieldDefinition]} onFilterChange={onFilterChange} />)
 
-      // Type into the first key input
-      const keyInput = screen.getByPlaceholderText('Key')
+      // LabelFilter uses specific aria-labels
+      const keyInput = screen.getByLabelText('Label key 1')
+      const valueInput = screen.getByLabelText('Label value 1')
+
+      // Type both fields
       await user.type(keyInput, 'env')
+      await user.type(valueInput, 'prod')
 
+      // Label filter should have called onFilterChange multiple times (once per keystroke)
       expect(onFilterChange).toHaveBeenCalled()
-      // Should emit label params
-      const lastCall = onFilterChange.mock.calls[onFilterChange.mock.calls.length - 1]
-      expect(lastCall[0]).toContainEqual(expect.objectContaining({ key: 'labels[empty]' }))
-    })
 
-    it('hydrates label filters from props', () => {
-      const labelField: FilterFieldDefinition = {
-        key: 'labels',
-        label: 'Labels',
-        type: FilterTypeEnum.LABELS,
-      }
-      const filters: FilterConfig[] = [
-        { key: 'labels[environment]', operator: 'eq', value: 'prod' },
-        { key: 'labels[team]', operator: 'eq', value: 'platform' },
-      ]
-
-      render(<FilterBar {...defaultProps} fieldDefinitions={[labelField]} filters={filters} />)
-
-      // Should display the label keys in the inputs
-      expect(screen.getByDisplayValue('environment')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('prod')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('team')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('platform')).toBeInTheDocument()
+      // At least one call should have a labels filter
+      const callsWithLabels = onFilterChange.mock.calls.filter((call) => {
+        const filters = call[0] as FilterConfig[]
+        return filters.some((f) => f.key === 'labels')
+      })
+      expect(callsWithLabels.length).toBeGreaterThan(0)
     })
   })
 
   describe('edge cases', () => {
     it('handles empty field definitions', () => {
-      render(<FilterBar {...defaultProps} fieldDefinitions={[]} />)
+      const { container } = render(<FilterBar {...defaultProps} fieldDefinitions={[]} />)
 
       // Should not crash
-      expect(screen.queryByPlaceholderText('Filter by keyword')).not.toBeInTheDocument()
+      expect(container.querySelector('#filter-toolbar')).toBeInTheDocument()
     })
 
-    it('handles missing first text field for keyword search', () => {
-      const onlySelectField = [selectFieldDefinition]
+    it('handles mixed filter types', () => {
+      const mixedFieldDefinitions: FilterFieldDefinition[] = [
+        textFieldDefinition,
+        selectFieldDefinition,
+        { key: 'is_active', label: 'Active', type: FilterTypeEnum.BOOLEAN },
+        { key: 'created_at', label: 'Created', type: FilterTypeEnum.DATERANGE },
+      ]
 
-      // Should not show keyword search if no text field available
-      // (Keyword search requires a text field)
-      const { container } = render(
-        <FilterBar {...defaultProps} fieldDefinitions={onlySelectField} keywordSearchEnabled={true} />
+      render(<FilterBar {...defaultProps} fieldDefinitions={mixedFieldDefinitions} />)
+
+      // Should render attribute search for TEXT/SELECT
+      expect(screen.getByText('Name')).toBeInTheDocument()
+      // Should render boolean filter
+      expect(screen.getByRole('switch')).toBeInTheDocument()
+      // Should render date range filter
+      expect(screen.getByLabelText('Created start date')).toBeInTheDocument()
+    })
+
+    it('updates existing filter when value changes', async () => {
+      const user = userEvent.setup()
+      const initialFilters: FilterConfig[] = [{ key: 'name', operator: 'contains', value: 'old' }]
+
+      render(<ControlledFilterBar {...defaultProps} initialFilters={initialFilters} />)
+
+      const textInput = screen.getByPlaceholderText('Filter by name')
+      await user.clear(textInput)
+      await user.type(textInput, 'new{Enter}')
+
+      // Should update the existing filter, not add a new one
+      expect(screen.getByText('new')).toBeInTheDocument()
+      expect(screen.queryByText('old')).not.toBeInTheDocument()
+    })
+
+    it('handles date range filter removal', async () => {
+      const user = userEvent.setup()
+      const onFilterChange = vi.fn()
+      const dateRangeFieldDefinition: FilterFieldDefinition = {
+        key: 'created_at',
+        label: 'Created',
+        type: FilterTypeEnum.DATERANGE,
+      }
+      const initialFilters: FilterConfig[] = [
+        { key: 'created_at', operator: 'gte', value: '2024-01-01T00:00:00.000Z' },
+        { key: 'created_at', operator: 'lte', value: '2024-12-31T23:59:59.999Z' },
+      ]
+
+      render(
+        <FilterBar
+          {...defaultProps}
+          fieldDefinitions={[dateRangeFieldDefinition]}
+          filters={initialFilters}
+          onFilterChange={onFilterChange}
+        />
       )
-      expect(container.querySelector('input[type="search"]')).toBeNull()
+
+      // Find the first chip value and its close button
+      const gteChip = screen.getByText('2024-01-01T00:00:00.000Z')
+      const labelElement = gteChip.closest('.pf-v6-c-label')
+      const closeButton = labelElement?.querySelector('button')
+
+      if (closeButton) {
+        await user.click(closeButton)
+      }
+
+      // Should call onFilterChange to remove the gte filter but keep lte
+      expect(onFilterChange).toHaveBeenCalled()
+    })
+
+    it('handles label values with colons correctly', () => {
+      const labelsFieldDefinition: FilterFieldDefinition = {
+        key: 'labels',
+        label: 'Labels',
+        type: FilterTypeEnum.LABELS,
+      }
+      // Label value contains colons (e.g., URL)
+      const initialFilters: FilterConfig[] = [{ key: 'labels', operator: 'eq', value: 'url:https://example.com:8080' }]
+
+      render(<FilterBar {...defaultProps} fieldDefinitions={[labelsFieldDefinition]} filters={initialFilters} />)
+
+      // ActiveFilterChips displays the full filter.value (key:value format)
+      expect(screen.getByText('url:https://example.com:8080')).toBeInTheDocument()
+
+      // LabelFilter should parse it correctly - verify the input shows the parsed value
+      const valueInput = screen.getByLabelText('Label value 1')
+      expect(valueInput).toHaveValue('https://example.com:8080')
+    })
+
+    it('maintains selected field after applying SELECT filter', async () => {
+      const user = userEvent.setup()
+
+      render(
+        <ControlledFilterBar fieldDefinitions={[textFieldDefinition, selectFieldDefinition]} initialFilters={[]} />
+      )
+
+      // Initially shows Name field (first field)
+      const allButtons = screen.getAllByRole('button')
+      const fieldSelectorButton = allButtons.find(
+        (btn) => btn.textContent?.includes('Name') && btn.querySelector('.pf-v6-c-menu-toggle__icon')
+      )
+      expect(fieldSelectorButton).toBeInTheDocument()
+
+      // Switch to Status field
+      if (fieldSelectorButton) {
+        await user.click(fieldSelectorButton)
+      }
+      const statusOption = screen.getByText('Status')
+      await user.click(statusOption)
+
+      // Verify Status field is now selected (field selector shows Status)
+      const updatedButtons = screen.getAllByRole('button')
+      const statusFieldSelector = updatedButtons.find(
+        (btn) => btn.textContent?.includes('Status') && btn.querySelector('.pf-v6-c-menu-toggle__icon')
+      )
+      expect(statusFieldSelector).toBeInTheDocument()
+
+      // Select a value from the Status dropdown
+      const statusDropdown = screen.getByRole('button', { name: /Filter by status/i })
+      await user.click(statusDropdown)
+      const runningOption = screen.getByText('Running')
+      await user.click(runningOption)
+
+      // CRITICAL: After applying the filter, the field selector should still show "Status", not reset to "Name"
+      const finalButtons = screen.getAllByRole('button')
+      const finalFieldSelector = finalButtons.find(
+        (btn) => btn.textContent?.includes('Status') && btn.querySelector('.pf-v6-c-menu-toggle__icon')
+      )
+      expect(finalFieldSelector).toBeInTheDocument()
+
+      // Verify the filter chip shows the label, not raw value
+      // There will be multiple "Running" text elements (in dropdown and in chip), so use getAllByText
+      const runningElements = screen.getAllByText('Running')
+      expect(runningElements.length).toBeGreaterThan(0)
+
+      // Verify at least one is in a label chip
+      const chipWithRunning = runningElements.find((el) => el.closest('.pf-v6-c-label'))
+      expect(chipWithRunning).toBeInTheDocument()
     })
   })
 })

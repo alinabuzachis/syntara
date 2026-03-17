@@ -2,217 +2,236 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 
-import type { FilterConfig } from '../../types/filters'
+import type { FilterFieldDefinition } from '../../types/filters'
+import { FilterTypeEnum } from '../../types/filters'
 
-import { ControlledTextFilter } from './test-helpers'
 import { TextFilter } from './TextFilter'
 
 describe('TextFilter', () => {
-  const defaultProps = {
-    fieldKey: 'name',
+  const textFieldDefinition: FilterFieldDefinition = {
+    key: 'name',
     label: 'Name',
-    onChange: vi.fn(),
+    type: FilterTypeEnum.TEXT,
+    defaultOperator: 'contains',
+    placeholder: 'Filter by name',
   }
 
-  describe('rendering', () => {
-    it('renders text input with placeholder', () => {
+  const selectFieldDefinition: FilterFieldDefinition = {
+    key: 'status',
+    label: 'Status',
+    type: FilterTypeEnum.SELECT,
+    options: [
+      { label: 'Enabled', value: 'true' },
+      { label: 'Disabled', value: 'false' },
+    ],
+    placeholder: 'Filter by status',
+  }
+
+  const defaultProps = {
+    fieldDefinitions: [textFieldDefinition, selectFieldDefinition],
+    filters: [],
+    onFilterChange: vi.fn(),
+  }
+
+  describe('field selector', () => {
+    it('renders field selector with first field selected by default', () => {
+      render(<TextFilter {...defaultProps} />)
+
+      expect(screen.getByText('Name')).toBeInTheDocument()
+    })
+
+    it('allows switching between fields', async () => {
+      const user = userEvent.setup()
+      render(<TextFilter {...defaultProps} />)
+
+      // Click field selector
+      const fieldSelector = screen.getByText('Name')
+      await user.click(fieldSelector)
+
+      // Select Status field
+      const statusOption = screen.getByText('Status')
+      await user.click(statusOption)
+
+      // Field selector should now show Status
+      expect(screen.getByText('Filter by status')).toBeInTheDocument()
+    })
+  })
+
+  describe('text field filtering', () => {
+    it('renders text input for TEXT field type', () => {
       render(<TextFilter {...defaultProps} />)
 
       expect(screen.getByPlaceholderText('Filter by name')).toBeInTheDocument()
     })
 
-    it('renders with custom placeholder', () => {
-      render(<TextFilter {...defaultProps} placeholder="Search names" />)
-
-      expect(screen.getByPlaceholderText('Search names')).toBeInTheDocument()
-    })
-
-    it('renders with initial value', () => {
-      render(<TextFilter {...defaultProps} value="test" />)
-
-      expect(screen.getByDisplayValue('test')).toBeInTheDocument()
-    })
-
-    it('renders search button', () => {
-      render(<TextFilter {...defaultProps} />)
-
-      expect(screen.getByLabelText('Search')).toBeInTheDocument()
-    })
-
-    it('does not show clear button when empty', () => {
-      render(<TextFilter {...defaultProps} />)
-
-      expect(screen.queryByLabelText('Clear filter')).not.toBeInTheDocument()
-    })
-
-    it('shows clear button when value exists', () => {
-      render(<TextFilter {...defaultProps} value="test" />)
-
-      expect(screen.getByLabelText('Clear filter')).toBeInTheDocument()
-    })
-  })
-
-  describe('value change behavior', () => {
-    it('emits FilterConfig with default "contains" operator', async () => {
+    it('applies filter when arrow button is clicked', async () => {
       const user = userEvent.setup()
-      const onChange = vi.fn()
+      const onFilterChange = vi.fn()
 
-      render(<ControlledTextFilter {...defaultProps} onChange={onChange} />)
-
-      const input = screen.getByPlaceholderText('Filter by name')
-      await user.type(input, 'deploy')
-
-      // Check last call (after typing "deploy")
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]
-      expect(lastCall[0]).toEqual<FilterConfig>({
-        key: 'name',
-        operator: 'contains',
-        value: 'deploy',
-      })
-    })
-
-    it('uses custom defaultOperator when provided', async () => {
-      const user = userEvent.setup()
-      const onChange = vi.fn()
-
-      render(<ControlledTextFilter {...defaultProps} onChange={onChange} defaultOperator="starts_with" />)
+      render(<TextFilter {...defaultProps} onFilterChange={onFilterChange} />)
 
       const input = screen.getByPlaceholderText('Filter by name')
       await user.type(input, 'test')
 
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]
-      expect(lastCall[0]).toEqual<FilterConfig>({
-        key: 'name',
-        operator: 'starts_with',
-        value: 'test',
-      })
-    })
+      // Filter should not be applied yet
+      expect(onFilterChange).not.toHaveBeenCalled()
 
-    it('emits null when value is cleared', async () => {
-      const user = userEvent.setup()
-      const onChange = vi.fn()
+      // Click the arrow button
+      const applyButton = screen.getByLabelText('Apply filter')
+      await user.click(applyButton)
 
-      render(<TextFilter {...defaultProps} onChange={onChange} value="test" />)
-
-      const input = screen.getByDisplayValue('test')
-      await user.clear(input)
-
-      expect(onChange).toHaveBeenCalledWith(null)
-    })
-
-    it('trims whitespace from value', async () => {
-      const user = userEvent.setup()
-      const onChange = vi.fn()
-
-      render(<ControlledTextFilter {...defaultProps} onChange={onChange} />)
-
-      const input = screen.getByPlaceholderText('Filter by name')
-      await user.type(input, '  test  ')
-
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]
-      expect(lastCall[0]).toEqual<FilterConfig>({
+      expect(onFilterChange).toHaveBeenCalledWith({
         key: 'name',
         operator: 'contains',
         value: 'test',
       })
     })
 
-    it('emits null when value is whitespace only', async () => {
+    it('applies filter on Enter key', async () => {
       const user = userEvent.setup()
-      const onChange = vi.fn()
+      const onFilterChange = vi.fn()
 
-      render(<TextFilter {...defaultProps} onChange={onChange} />)
+      render(<TextFilter {...defaultProps} onFilterChange={onFilterChange} />)
 
       const input = screen.getByPlaceholderText('Filter by name')
-      await user.type(input, '   ')
+      await user.type(input, 'test{Enter}')
 
-      expect(onChange).toHaveBeenCalledWith(null)
+      expect(onFilterChange).toHaveBeenCalledWith({
+        key: 'name',
+        operator: 'contains',
+        value: 'test',
+      })
+    })
+
+    it('displays active filter value in input', () => {
+      const filters = [{ key: 'name', operator: 'contains' as const, value: 'existing-filter' }]
+
+      render(<TextFilter {...defaultProps} filters={filters} />)
+
+      expect(screen.getByDisplayValue('existing-filter')).toBeInTheDocument()
+    })
+
+    it('allows editing active filter value', async () => {
+      const user = userEvent.setup()
+      const onFilterChange = vi.fn()
+      const filters = [{ key: 'name', operator: 'contains' as const, value: 'original' }]
+
+      render(<TextFilter {...defaultProps} filters={filters} onFilterChange={onFilterChange} />)
+
+      const input = screen.getByDisplayValue('original')
+      await user.clear(input)
+      await user.type(input, 'modified{Enter}')
+
+      expect(onFilterChange).toHaveBeenCalledWith({
+        key: 'name',
+        operator: 'contains',
+        value: 'modified',
+      })
+    })
+
+    it('clears filter when input is emptied and Enter pressed', async () => {
+      const user = userEvent.setup()
+      const onFilterChange = vi.fn()
+      const filters = [{ key: 'name', operator: 'contains' as const, value: 'test' }]
+
+      render(<TextFilter {...defaultProps} filters={filters} onFilterChange={onFilterChange} />)
+
+      const input = screen.getByDisplayValue('test')
+      await user.clear(input)
+      await user.type(input, '{Enter}')
+
+      expect(onFilterChange).toHaveBeenCalledWith(null, 'name')
     })
   })
 
-  describe('clear button', () => {
-    it('clears input value when clicked', async () => {
-      const user = userEvent.setup()
-      const onChange = vi.fn()
+  describe('select field filtering', () => {
+    it('renders select dropdown for SELECT field type', () => {
+      const fieldDefinitions = [selectFieldDefinition]
 
-      render(<ControlledTextFilter {...defaultProps} onChange={onChange} initialValue="test" />)
+      render(<TextFilter {...defaultProps} fieldDefinitions={fieldDefinitions} />)
 
-      const clearButton = screen.getByLabelText('Clear filter')
-      await user.click(clearButton)
-
-      expect(screen.getByPlaceholderText('Filter by name')).toHaveValue('')
+      // Field selector shows Status
+      expect(screen.getByText('Status')).toBeInTheDocument()
+      // Value selector shows placeholder
+      expect(screen.getByText('Filter by status')).toBeInTheDocument()
     })
 
-    it('emits null when clear button clicked', async () => {
+    it('applies filter when option is selected', async () => {
       const user = userEvent.setup()
-      const onChange = vi.fn()
+      const onFilterChange = vi.fn()
+      const fieldDefinitions = [selectFieldDefinition]
 
-      render(<TextFilter {...defaultProps} onChange={onChange} value="test" />)
+      render(<TextFilter {...defaultProps} fieldDefinitions={fieldDefinitions} onFilterChange={onFilterChange} />)
 
-      const clearButton = screen.getByLabelText('Clear filter')
-      await user.click(clearButton)
+      // Click value selector
+      const valueSelector = screen.getByText('Filter by status')
+      await user.click(valueSelector)
 
-      expect(onChange).toHaveBeenCalledWith(null)
+      // Select an option
+      const enabledOption = screen.getByText('Enabled')
+      await user.click(enabledOption)
+
+      expect(onFilterChange).toHaveBeenCalledWith({
+        key: 'status',
+        operator: 'eq',
+        value: 'true',
+      })
     })
 
-    it('hides clear button after clearing', async () => {
-      const user = userEvent.setup()
-      const onChange = vi.fn()
+    it('displays active filter value in selector', () => {
+      const fieldDefinitions = [selectFieldDefinition]
+      const filters = [{ key: 'status', operator: 'eq' as const, value: 'true' }]
 
-      render(<ControlledTextFilter {...defaultProps} onChange={onChange} initialValue="test" />)
+      render(<TextFilter {...defaultProps} fieldDefinitions={fieldDefinitions} filters={filters} />)
 
-      const clearButton = screen.getByLabelText('Clear filter')
-      await user.click(clearButton)
-
-      expect(screen.queryByLabelText('Clear filter')).not.toBeInTheDocument()
+      // Value selector should show the selected option label
+      expect(screen.getByText('Enabled')).toBeInTheDocument()
     })
   })
 
-  describe('search button', () => {
-    it('disables search button when input is empty', () => {
-      render(<TextFilter {...defaultProps} />)
-
-      const searchButton = screen.getByLabelText('Search')
-      expect(searchButton).toBeDisabled()
-    })
-
-    it('enables search button when input has value', () => {
-      render(<TextFilter {...defaultProps} value="test" />)
-
-      const searchButton = screen.getByLabelText('Search')
-      expect(searchButton).not.toBeDisabled()
-    })
-
-    it('disables search button for whitespace-only input', async () => {
+  describe('field switching behavior', () => {
+    it('clears input when switching fields', async () => {
       const user = userEvent.setup()
 
       render(<TextFilter {...defaultProps} />)
 
+      // Type into Name field
       const input = screen.getByPlaceholderText('Filter by name')
-      await user.type(input, '   ')
+      await user.type(input, 'test')
 
-      const searchButton = screen.getByLabelText('Search')
-      expect(searchButton).toBeDisabled()
-    })
-  })
+      // Switch to Status field
+      const fieldSelector = screen.getByText('Name')
+      await user.click(fieldSelector)
+      const statusOption = screen.getByText('Status')
+      await user.click(statusOption)
 
-  describe('accessibility', () => {
-    it('has proper aria-label on input', () => {
-      render(<TextFilter {...defaultProps} />)
-
-      expect(screen.getByLabelText('Name filter')).toBeInTheDocument()
-    })
-
-    it('has proper aria-label on search button', () => {
-      render(<TextFilter {...defaultProps} />)
-
-      expect(screen.getByLabelText('Search')).toBeInTheDocument()
+      // Should show status selector, not the typed text
+      expect(screen.getByText('Filter by status')).toBeInTheDocument()
+      expect(screen.queryByDisplayValue('test')).not.toBeInTheDocument()
     })
 
-    it('has proper aria-label on clear button', () => {
-      render(<TextFilter {...defaultProps} value="test" />)
+    it('selects field based on last filter in filters array', () => {
+      // With status filter as the last filter
+      const filters = [
+        { key: 'name', operator: 'contains' as const, value: 'test' },
+        { key: 'status', operator: 'eq' as const, value: 'true' },
+      ]
 
-      expect(screen.getByLabelText('Clear filter')).toBeInTheDocument()
+      render(<TextFilter {...defaultProps} filters={filters} />)
+
+      // Should select Status field (last filter)
+      const allButtons = screen.getAllByRole('button')
+      const statusFieldSelector = allButtons.find(
+        (btn) => btn.textContent?.includes('Status') && btn.querySelector('.pf-v6-c-menu-toggle__icon')
+      )
+      expect(statusFieldSelector).toBeInTheDocument()
+    })
+
+    it('defaults to first field when no filters present', () => {
+      render(<TextFilter {...defaultProps} filters={[]} />)
+
+      // Should default to Name (first field)
+      expect(screen.getByText('Name')).toBeInTheDocument()
     })
   })
 })

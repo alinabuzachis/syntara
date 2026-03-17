@@ -1,9 +1,55 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 
+import type { LabelFilterProps } from './LabelFilter'
 import { LabelFilter } from './LabelFilter'
-import { ControlledLabelFilter } from './test-helpers'
+
+/**
+ * Test helper for controlled LabelFilter
+ */
+function ControlledLabelFilter({
+  onChange,
+  initialLabels,
+  ...props
+}: Omit<LabelFilterProps, 'onChange'> & {
+  onChange?: (labelParams: Record<string, string>) => void
+  initialLabels?: Record<string, string>
+}) {
+  const [rawLabelParams, setRawLabelParams] = useState<Record<string, string>>(() => {
+    // Convert initial labels to label params format
+    const params: Record<string, string> = {}
+    Object.entries(initialLabels ?? {}).forEach(([key, value]) => {
+      params[`labels[${key}]`] = value
+    })
+    return params
+  })
+
+  // Convert label params back to labels for the component
+  const labels = Object.entries(rawLabelParams).reduce(
+    (acc, [paramKey, value]) => {
+      const match = paramKey.match(/^labels\[([^\]]+)\]$/)
+      if (match) {
+        acc[match[1]] = value
+      }
+      return acc
+    },
+    {} as Record<string, string>
+  )
+
+  return (
+    <LabelFilter
+      {...props}
+      labels={labels}
+      onChange={(labelParams) => {
+        onChange?.(labelParams)
+        // Store raw label params to preserve empty keys
+        setRawLabelParams(labelParams)
+      }}
+    />
+  )
+}
 
 describe('LabelFilter', () => {
   const defaultProps = {

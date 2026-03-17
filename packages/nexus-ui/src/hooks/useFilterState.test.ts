@@ -305,6 +305,148 @@ describe('useFilterState', () => {
     })
   })
 
+  describe('setAllFilters', () => {
+    it('should replace all filters at once', () => {
+      mockSearchParams = new URLSearchParams('name[contains]=old&status[in]=running')
+
+      const { result } = renderHook(() => useFilterState())
+
+      act(() => {
+        result.current.setAllFilters([
+          { key: 'is_enabled', value: true },
+          { key: 'name', operator: 'contains', value: 'new' },
+        ])
+      })
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(URLSearchParams))
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      // Old filters should be gone
+      expect(calledParams.has('status[in]')).toBe(false)
+      // New filters should be present
+      expect(calledParams.get('is_enabled')).toBe('true')
+      expect(calledParams.get('name[contains]')).toBe('new')
+    })
+
+    it('should clear all filters when given empty array', () => {
+      mockSearchParams = new URLSearchParams('name[contains]=deploy&is_enabled=true')
+
+      const { result } = renderHook(() => useFilterState())
+
+      act(() => {
+        result.current.setAllFilters([])
+      })
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(URLSearchParams))
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.toString()).toBe('')
+    })
+
+    it('should preserve filter order from input array', () => {
+      const { result } = renderHook(() => useFilterState())
+
+      const filters: FilterConfig[] = [
+        { key: 'name', operator: 'contains', value: 'deploy' },
+        { key: 'is_enabled', value: true },
+        { key: 'status', operator: 'in', value: ['running', 'failed'] },
+      ]
+
+      act(() => {
+        result.current.setAllFilters(filters)
+      })
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(URLSearchParams))
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('name[contains]')).toBe('deploy')
+      expect(calledParams.get('is_enabled')).toBe('true')
+      expect(calledParams.get('status[in]')).toBe('running,failed')
+    })
+
+    it('should handle setting filters when none exist', () => {
+      const { result } = renderHook(() => useFilterState())
+
+      act(() => {
+        result.current.setAllFilters([{ key: 'name', operator: 'contains', value: 'test' }])
+      })
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(URLSearchParams))
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('name[contains]')).toBe('test')
+    })
+
+    it('should handle multiple filters with same key but different operators', () => {
+      const { result } = renderHook(() => useFilterState())
+
+      const filters: FilterConfig[] = [
+        { key: 'created_at', operator: 'gte', value: new Date('2024-01-01') },
+        { key: 'created_at', operator: 'lte', value: new Date('2024-12-31') },
+      ]
+
+      act(() => {
+        result.current.setAllFilters(filters)
+      })
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(URLSearchParams))
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('created_at[gte]')).toBe('2024-01-01T00:00:00.000Z')
+      expect(calledParams.get('created_at[lte]')).toBe('2024-12-31T00:00:00.000Z')
+    })
+
+    it('should make atomic update in single call', () => {
+      mockSearchParams = new URLSearchParams('old_key=old_value')
+
+      const { result } = renderHook(() => useFilterState())
+
+      act(() => {
+        result.current.setAllFilters([
+          { key: 'key1', value: 'value1' },
+          { key: 'key2', value: 'value2' },
+          { key: 'key3', value: 'value3' },
+        ])
+      })
+
+      // Should only call setSearchParams once, not multiple times
+      expect(mockSetSearchParams).toHaveBeenCalledTimes(1)
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('key1')).toBe('value1')
+      expect(calledParams.get('key2')).toBe('value2')
+      expect(calledParams.get('key3')).toBe('value3')
+      expect(calledParams.has('old_key')).toBe(false)
+    })
+
+    it('should handle filters with boolean values', () => {
+      const { result } = renderHook(() => useFilterState())
+
+      act(() => {
+        result.current.setAllFilters([
+          { key: 'is_enabled', value: true },
+          { key: 'is_archived', value: false },
+        ])
+      })
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(URLSearchParams))
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      expect(calledParams.get('is_enabled')).toBe('true')
+      expect(calledParams.get('is_archived')).toBe('false')
+    })
+
+    it('should remove old filter and add new filter', () => {
+      mockSearchParams = new URLSearchParams('name[contains]=old')
+
+      const { result } = renderHook(() => useFilterState())
+
+      act(() => {
+        result.current.setAllFilters([{ key: 'is_enabled', value: true }])
+      })
+
+      expect(mockSetSearchParams).toHaveBeenCalledWith(expect.any(URLSearchParams))
+      const calledParams = mockSetSearchParams.mock.calls[0][0] as URLSearchParams
+      // Old filter should be removed
+      expect(calledParams.has('name[contains]')).toBe(false)
+      // New filter should be added
+      expect(calledParams.get('is_enabled')).toBe('true')
+    })
+  })
+
   describe('edge cases', () => {
     it('should handle empty string filter value', () => {
       const { result } = renderHook(() => useFilterState())
