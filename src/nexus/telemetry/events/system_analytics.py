@@ -1,0 +1,79 @@
+"""Periodic system analytics event and query result models.
+
+All models are stateless snapshots of current database state.
+Sent to Segment at fixed intervals by the PeriodicCollector.
+"""
+
+from pydantic import Field
+from sqlmodel import SQLModel
+
+from nexus.telemetry.events.base import BaseTelemetryEvent
+
+
+class WorkflowCounts(SQLModel):
+    """Current workflow counts from database."""
+
+    total: int = Field(default=0, description="Total workflows")
+    enabled: int = Field(default=0, description="Enabled workflows")
+    disabled: int = Field(default=0, description="Disabled workflows")
+
+
+class ExecutionCounts(SQLModel):
+    """Current execution counts from database."""
+
+    total: int = Field(default=0, description="Total executions")
+    completed: int = Field(default=0, description="Completed executions")
+    failed: int = Field(default=0, description="Failed executions")
+    cancelled: int = Field(default=0, description="Cancelled executions")
+    running: int = Field(default=0, description="Currently running executions")
+    pending: int = Field(default=0, description="Pending executions")
+    paused: int = Field(default=0, description="Paused executions")
+    avg_duration_seconds: float = Field(
+        default=0.0,
+        description="Average execution duration in seconds",
+    )
+
+
+class CredentialCounts(SQLModel):
+    """Aggregated tool provider counts from database."""
+
+    total: int = Field(default=0, description="Total tool providers configured")
+
+
+class ConfigInfo(SQLModel):
+    """Configuration information for analytics."""
+
+    feature_flags_enabled: list[str] = Field(
+        default_factory=list,
+        description="List of enabled feature flags",
+    )
+
+
+class SystemAnalyticsEvent(BaseTelemetryEvent):
+    """Stateless system analytics event sent to Segment.
+
+    Extends BaseTelemetryEvent for consistency with all other telemetry events.
+
+    Each event is a self-contained snapshot of current DB state.
+    No delta tracking or "since last report" logic.
+    Timestamp is set automatically by the Segment SDK.
+    """
+
+    entitlement_id: str = Field(..., description="Installation identifier")
+    workflows: WorkflowCounts = Field(..., description="Workflow aggregates")
+    credentials: CredentialCounts = Field(..., description="Credential aggregates")
+    executions: ExecutionCounts = Field(..., description="Execution aggregates")
+    config: ConfigInfo = Field(..., description="Configuration info")
+
+    def to_segment_event(self) -> dict[str, object]:
+        """Convert to Segment Track API format."""
+        return {
+            "event": self._get_event_name(),
+            "properties": {
+                "entitlement_id": self.entitlement_id,
+                "workflows": self.workflows.model_dump(),
+                "credentials": self.credentials.model_dump(),
+                "executions": self.executions.model_dump(),
+                "config": self.config.model_dump(),
+            },
+        }

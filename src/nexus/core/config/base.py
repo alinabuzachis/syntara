@@ -939,6 +939,11 @@ class TelemetrySettings(BaseSettings):
         description="Unique Nexus installation identifier for anonymized telemetry tracking",
     )
 
+    collection_interval_seconds: int = Field(
+        default=300,
+        description="Interval in seconds between periodic analytics collection cycles",
+    )
+
 
 # =============================================================================
 # Workflow Engine Configuration

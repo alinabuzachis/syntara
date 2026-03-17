@@ -37,6 +37,7 @@ from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
 from nexus.telemetry.client import get_telemetry_registry, initialize_telemetry
 from nexus.telemetry.middleware import AnalyticsMiddleware
+from nexus.telemetry.periodic_collector import PeriodicCollector
 from nexus.workflows.error_handlers import (
     temporal_rpc_error_handler,
 )
@@ -90,9 +91,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     lifecycle_manager.start_monitoring()
     logger.info("WebSocket connection health monitoring started")
 
+    # Initialize periodic analytics collector
+    periodic_collector = PeriodicCollector(
+        registry=get_telemetry_registry(),
+    )
+
     try:
+        periodic_collector.start()
+        logger.info("Periodic analytics collector started")
+
         yield
     finally:
+        # Stop periodic analytics collector
+        await periodic_collector.stop()
+        logger.info("Periodic analytics collector stopped")
+
         # Stop WebSocket connection monitoring
         lifecycle_manager.stop_monitoring()
         logger.info("WebSocket connection health monitoring stopped")
