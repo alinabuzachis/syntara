@@ -1,6 +1,9 @@
 import {
   CompassPanel,
   Content,
+  Flex,
+  FlexItem,
+  Label,
   PanelMain,
   PanelMainBody,
   Split,
@@ -51,10 +54,25 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
                     <SplitItem isFilled={false} style={{ width: '2rem', flexShrink: 0 }}>
                       {nodeIcon}
                     </SplitItem>
-                    <SplitItem>
-                      <Title headingLevel="h3" size="md">
-                        {nodeType.label}
-                      </Title>
+                    <SplitItem isFilled>
+                      <Flex
+                        alignItems={{ default: 'alignItemsCenter' }}
+                        gap={{ default: 'gapSm' }}
+                        flexWrap={{ default: 'nowrap' }}
+                      >
+                        <FlexItem flex={{ default: 'flexNone' }}>
+                          <Title headingLevel="h3" size="md">
+                            {nodeType.label}
+                          </Title>
+                        </FlexItem>
+                        {nodeType.id === 'action-script' && (
+                          <FlexItem>
+                            <Label isCompact color="purple">
+                              NOT SCOPED FOR GA
+                            </Label>
+                          </FlexItem>
+                        )}
+                      </Flex>
                     </SplitItem>
                   </Split>
                 </StackItem>

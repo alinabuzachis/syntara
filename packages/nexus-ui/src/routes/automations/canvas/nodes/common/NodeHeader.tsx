@@ -9,7 +9,7 @@ export function NodeHeader(props: { children: React.ReactNode }) {
         paddingRight: 'var(--pf-t--global--spacer--md)',
       }}
     >
-      <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
+      <Flex alignItems={{ default: 'alignItemsFlexStart' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
         {props.children}
       </Flex>
     </div>

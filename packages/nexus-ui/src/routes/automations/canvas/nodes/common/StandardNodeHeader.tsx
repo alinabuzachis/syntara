@@ -1,4 +1,4 @@
-import { Content, Flex, FlexItem } from '@patternfly/react-core'
+import { Content, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 
 import { useIsExecutionView } from '../../../../builder/ExecutionViewContext'
 import type { NodeMenuAction } from '../hooks/useNodeMenuActions'
@@ -10,6 +10,8 @@ import { NodeTitle } from './NodeTitle'
 
 interface StandardNodeHeaderProps {
   icon?: React.ReactNode
+  /** Optional badge rendered just under the icon, above title/subtitle */
+  badge?: React.ReactNode
   title?: string
   subtitle?: string
   expandable?: boolean
@@ -30,42 +32,55 @@ interface StandardNodeHeaderProps {
  *
  * Layout: Icon and kebab menu on first line, title and subtitle on second line below.
  */
+const sectionPadding = {
+  paddingLeft: 'var(--pf-t--global--spacer--md)',
+  paddingRight: 'var(--pf-t--global--spacer--md)',
+}
+
+const badgeSectionStyle = {
+  ...sectionPadding,
+  paddingTop: 'var(--pf-t--global--spacer--xs)',
+  paddingBottom: 0,
+}
+
+const titleSectionStyle = {
+  ...sectionPadding,
+  paddingTop: 'var(--pf-t--global--spacer--xs)',
+  paddingBottom: 'var(--pf-t--global--spacer--sm)',
+}
+
 export function StandardNodeHeader(props: Readonly<StandardNodeHeaderProps>) {
   const isExecutionView = useIsExecutionView()
 
   return (
-    <>
-      <NodeHeader>
-        {props.icon && <FlexItem>{props.icon}</FlexItem>}
-        <FlexItem>
-          <Flex>
-            {props.expandable && (
-              <FlexItem>
-                <NodeExpandToggle />
-              </FlexItem>
-            )}
-            {props.menuActions && props.menuActions.length > 0 && !isExecutionView && (
-              <FlexItem>
-                <NodeMenu menuActions={props.menuActions} />
-              </FlexItem>
-            )}
-          </Flex>
-        </FlexItem>
-      </NodeHeader>
+    <Stack>
+      <StackItem>
+        <NodeHeader>
+          {props.icon && <FlexItem>{props.icon}</FlexItem>}
+          <FlexItem>
+            <Flex>
+              {props.expandable && (
+                <FlexItem>
+                  <NodeExpandToggle />
+                </FlexItem>
+              )}
+              {props.menuActions && props.menuActions.length > 0 && !isExecutionView && (
+                <FlexItem>
+                  <NodeMenu menuActions={props.menuActions} />
+                </FlexItem>
+              )}
+            </Flex>
+          </FlexItem>
+        </NodeHeader>
+      </StackItem>
+      {props.badge && <StackItem style={badgeSectionStyle}>{props.badge}</StackItem>}
       {(props.title || props.subtitle) && (
-        <div
-          style={{
-            paddingTop: 'var(--pf-t--global--spacer--xs)',
-            paddingLeft: 'var(--pf-t--global--spacer--md)',
-            paddingRight: 'var(--pf-t--global--spacer--md)',
-            paddingBottom: 'var(--pf-t--global--spacer--sm)',
-          }}
-        >
+        <StackItem style={titleSectionStyle}>
           <Content>
             <NodeTitle title={props.title ?? ''} subTitle={props.subtitle ?? ''} />
           </Content>
-        </div>
+        </StackItem>
       )}
-    </>
+    </Stack>
   )
 }

@@ -1,11 +1,14 @@
 import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
 import {
+  Flex,
+  FlexItem,
   FormGroup,
   FormHelperText,
   FormSelect,
   FormSelectOption,
   HelperText,
   HelperTextItem,
+  Label,
   Stack,
   StackItem,
   TextArea,
@@ -16,7 +19,11 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
-import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
+import {
+  ExpandableCodeEditor,
+  type CodeLanguage,
+  type ExpandableCodeEditorHandle,
+} from '../../../components/ExpandableCodeEditor'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 
 import { actionFormSchema, type ActionFormData, type ActionFormValues } from './actionFormSchema'
@@ -52,54 +59,17 @@ const HTTP_METHOD_OPTIONS: Array<{ label: HttpMethod; value: HttpMethod }> = [
   { label: 'DELETE', value: 'DELETE' },
 ]
 
-/**
- * Form fields component that manually registers fields with react-hook-form
- */
-function ActionFormFields({
-  submitButtonText,
-  onHeaderContentChange,
-  validationErrors,
-  scriptEditorRef,
-}: {
-  submitButtonText?: string
-  onHeaderContentChange?: (content: ReactNode | null) => void
-  validationErrors?: { code?: { message?: string }; url?: { message?: string } }
+/** Script + API form fields (Stack content) for action node. */
+function ActionParametersContent(props: {
+  register: ReturnType<typeof useFormContext<ActionFormValues>>['register']
+  control: ReturnType<typeof useFormContext<ActionFormValues>>['control']
+  errors: { code?: { message?: string }; url?: { message?: string } }
+  executor: ActionFormValues['executor']
   scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
+  editorLanguage: CodeLanguage
 }) {
-  const {
-    register,
-    control,
-    formState: { errors: contextErrors },
-  } = useFormContext<ActionFormValues>()
-  const errors = validationErrors ?? contextErrors
-  const executor = useWatch({ control, name: 'executor' })
-  const language = useWatch({ control, name: 'language' })
-  const editorLanguage = language === 'bash' ? 'bash' : language === 'python' ? 'python' : 'plaintext'
-
-  useEffect(() => {
-    if (errors.code && scriptEditorRef?.current) scriptEditorRef.current.focus()
-  }, [errors.code, scriptEditorRef])
-
-  const nameField = useMemo(
-    () => (
-      <ActivityNameField<ActionFormValues>
-        register={register}
-        fieldId="action-name"
-        placeholder="Enter activity name"
-        ariaLabel="Name"
-      />
-    ),
-    [register]
-  )
-
-  useEffect(() => {
-    onHeaderContentChange?.(nameField)
-    return () => {
-      onHeaderContentChange?.(null)
-    }
-  }, [nameField, onHeaderContentChange])
-
-  const parametersContent = (
+  const { register, control, errors, executor, scriptEditorRef, editorLanguage } = props
+  return (
     <Stack
       hasGutter
       style={{
@@ -108,8 +78,7 @@ function ActionFormFields({
       }}
     >
       <input type="hidden" {...register('executor')} />
-
-      {executor === 'script' && (
+      {executor === ExecutorTypeEnum.SCRIPT && (
         <>
           <StackItem>
             <FormGroup label="Language" fieldId="action-language">
@@ -175,8 +144,7 @@ function ActionFormFields({
           </StackItem>
         </>
       )}
-
-      {executor === 'api' && (
+      {executor === ExecutorTypeEnum.API && (
         <>
           <StackItem>
             <FormGroup label="URL" isRequired fieldId="action-url">
@@ -247,6 +215,80 @@ function ActionFormFields({
       )}
     </Stack>
   )
+}
+
+/**
+ * Form fields component that manually registers fields with react-hook-form
+ */
+function ActionFormFields({
+  submitButtonText,
+  onHeaderContentChange,
+  validationErrors,
+  scriptEditorRef,
+}: {
+  submitButtonText?: string
+  onHeaderContentChange?: (content: ReactNode | null) => void
+  validationErrors?: { code?: { message?: string }; url?: { message?: string } }
+  scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
+}) {
+  const {
+    register,
+    control,
+    formState: { errors: contextErrors },
+  } = useFormContext<ActionFormValues>()
+  const errors = validationErrors ?? contextErrors
+  const executor = useWatch({ control, name: 'executor' })
+  const language = useWatch({ control, name: 'language' })
+  const editorLanguage = language === 'bash' ? 'bash' : language === 'python' ? 'python' : 'plaintext'
+
+  useEffect(() => {
+    if (errors.code && scriptEditorRef?.current) scriptEditorRef.current.focus()
+  }, [errors.code, scriptEditorRef])
+
+  const headerContent = useMemo(
+    () => (
+      <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+        <FlexItem>
+          <ActivityNameField<ActionFormValues>
+            register={register}
+            fieldId="action-name"
+            placeholder="Enter activity name"
+            ariaLabel="Name"
+          />
+        </FlexItem>
+        {executor === ExecutorTypeEnum.SCRIPT && (
+          <FlexItem>
+            <Label isCompact color="purple">
+              NOT SCOPED FOR GA
+            </Label>
+          </FlexItem>
+        )}
+      </Flex>
+    ),
+    [register, executor]
+  )
+
+  useEffect(() => {
+    onHeaderContentChange?.(headerContent)
+  }, [headerContent, onHeaderContentChange])
+
+  useEffect(
+    () => () => {
+      onHeaderContentChange?.(null)
+    },
+    [onHeaderContentChange]
+  )
+
+  const parametersContent = (
+    <ActionParametersContent
+      register={register}
+      control={control}
+      errors={errors}
+      executor={executor}
+      scriptEditorRef={scriptEditorRef}
+      editorLanguage={editorLanguage}
+    />
+  )
 
   return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
@@ -267,13 +309,13 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
     const cleanedData: RegistryActionFormData = {
       name: data.name,
       executor: data.executor,
-      language: data.executor === 'script' ? data.language : undefined,
-      code: data.executor === 'script' ? data.code : undefined,
-      method: data.executor === 'api' ? data.method : undefined,
-      url: data.executor === 'api' ? data.url : undefined,
-      authentication: data.executor === 'api' && data.authentication ? data.authentication : undefined,
-      headers: data.executor === 'api' ? data.headers : undefined,
-      body: data.executor === 'api' ? data.body : undefined,
+      language: data.executor === ExecutorTypeEnum.SCRIPT ? data.language : undefined,
+      code: data.executor === ExecutorTypeEnum.SCRIPT ? data.code : undefined,
+      method: data.executor === ExecutorTypeEnum.API ? data.method : undefined,
+      url: data.executor === ExecutorTypeEnum.API ? data.url : undefined,
+      authentication: data.executor === ExecutorTypeEnum.API && data.authentication ? data.authentication : undefined,
+      headers: data.executor === ExecutorTypeEnum.API ? data.headers : undefined,
+      body: data.executor === ExecutorTypeEnum.API ? data.body : undefined,
       parameters: data.parameters ?? undefined,
       requiresApproval: props.initialData?.requiresApproval,
     }
