@@ -22,7 +22,6 @@ import {
 import type { MenuToggleElement } from '@patternfly/react-core'
 import {
   RedhatIcon,
-  RhUiDarkModeIcon,
   RhUiInfrastructureIcon,
   RhUiLikeIcon,
   RhUiListIcon,
@@ -177,11 +176,12 @@ export function AppDockedNav() {
             </ToolbarItem>
             <ToolbarGroup variant="action-group-plain" align={{ default: 'alignEnd' }}>
               <ToolbarGroup variant="action-group-plain">
-                <ToolbarItem>
+                {/* TODO: Uncomment this when mode switcher is implemented */}
+                {/* <ToolbarItem>
                   <Button variant="plain" aria-label="Toggle dark mode" ref={darkModeRef}>
                     <RhUiDarkModeIcon />
                   </Button>
-                </ToolbarItem>
+                </ToolbarItem> */}
                 <ToolbarItem>
                   <Button
                     variant="plain"
