@@ -26,6 +26,7 @@ class TestEndToEndWorkflowTelemetry:
         mock_client = MagicMock()
         registry._client = mock_client
         registry._entitlement_id = "test-install-001"
+        registry._anonymous_id = "anon-test-id"
 
         collector = TelemetryCollector(registry=registry)
 
@@ -51,8 +52,10 @@ class TestEndToEndWorkflowTelemetry:
         # Verify start event
         start_call = mock_client.track.call_args_list[0]
         assert start_call.kwargs["event"] == "workflow_execution_start"
-        assert start_call.kwargs["user_id"] == "test-install-001"
+        assert "user_id" not in start_call.kwargs
+        assert start_call.kwargs["anonymous_id"] == "anon-test-id"
         assert start_call.kwargs["properties"]["workflow_execution_id"] == workflow_execution_id
+        assert start_call.kwargs["properties"]["entitlement_id"] == "test-install-001"
 
         # Verify completed event
         complete_call = mock_client.track.call_args_list[1]
@@ -68,6 +71,7 @@ class TestEndToEndWorkflowTelemetry:
         mock_client = MagicMock()
         registry._client = mock_client
         registry._entitlement_id = "test-install-001"
+        registry._anonymous_id = "anon-test-id"
 
         collector = TelemetryCollector(registry=registry)
 
@@ -90,14 +94,15 @@ class TestEndToEndWorkflowTelemetry:
 
 
 class TestEntitlementIdPropagation:
-    """Integration test: entitlement_id flows from registry to Segment track calls."""
+    """Integration test: entitlement_id flows from registry to Segment event properties."""
 
-    def test_entitlement_id_from_registry_to_track_call(self) -> None:
-        """Verify entitlement_id set on registry is used as user_id in track calls."""
+    def test_entitlement_id_in_event_properties(self) -> None:
+        """Verify entitlement_id set on registry is included in event properties."""
         registry = TelemetryClientRegistry()
         mock_client = MagicMock()
         registry._client = mock_client
         registry._entitlement_id = "prod-install-xyz"
+        registry._anonymous_id = "anon-test-id"
 
         assert registry.entitlement_id == "prod-install-xyz"
 
@@ -108,4 +113,6 @@ class TestEntitlementIdPropagation:
         )
 
         call = mock_client.track.call_args
-        assert call.kwargs["user_id"] == "prod-install-xyz"
+        assert "user_id" not in call.kwargs
+        assert call.kwargs["anonymous_id"] == "anon-test-id"
+        assert call.kwargs["properties"]["entitlement_id"] == "prod-install-xyz"

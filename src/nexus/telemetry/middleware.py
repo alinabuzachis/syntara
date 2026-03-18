@@ -119,6 +119,7 @@ class AnalyticsMiddleware:
                 status_code=status_code,
                 response_time_ms=duration_ms,
                 request_payload_size=payload_size,
+                entitlement_id=self._registry.entitlement_id,
             )
             self._registry.send_event(event)
             logger.debug(

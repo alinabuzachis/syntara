@@ -80,18 +80,29 @@ class TestWorkflowExecutionStartEvent:
     def test_valid_event_creation(self):
         event = WorkflowExecutionStartEvent(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            entitlement_id="",
         )
         assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
 
     def test_to_segment_event(self):
         event = WorkflowExecutionStartEvent(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            entitlement_id="",
         )
         segment_event = event.to_segment_event()
         assert segment_event["event"] == "workflow_execution_start"
         assert "properties" in segment_event
         props = segment_event["properties"]
         assert props["workflow_execution_id"] == VALID_WORKFLOW_EXECUTION_ID
+
+    def test_entitlement_id_in_segment_properties(self):
+        """entitlement_id value must appear in segment event properties."""
+        event = WorkflowExecutionStartEvent(
+            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            entitlement_id="ent-start-123",
+        )
+        props = event.to_segment_event()["properties"]
+        assert props["entitlement_id"] == "ent-start-123"
 
 
 # =============================================================================
@@ -117,6 +128,7 @@ class TestWorkflowExecutionCompletedEvent:
             activity_count=8,
             error_count=error_count,
             error_type=error_type,
+            entitlement_id="",
         )
         assert event.status == status
         assert event.duration_ms == 12500
@@ -132,6 +144,7 @@ class TestWorkflowExecutionCompletedEvent:
                 duration_ms=100,
                 activity_count=1,
                 error_count=0,
+                entitlement_id="",
             )
 
     def test_to_segment_event(self):
@@ -141,6 +154,7 @@ class TestWorkflowExecutionCompletedEvent:
             duration_ms=12500,
             activity_count=8,
             error_count=0,
+            entitlement_id="",
         )
         segment_event = event.to_segment_event()
         assert segment_event["event"] == "workflow_execution_completed"
@@ -149,6 +163,19 @@ class TestWorkflowExecutionCompletedEvent:
         assert props["duration_ms"] == 12500
         assert props["activity_count"] == 8
         assert props["error_count"] == 0
+
+    def test_entitlement_id_in_segment_properties(self):
+        """entitlement_id value must appear in segment event properties."""
+        event = WorkflowExecutionCompletedEvent(
+            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            status="completed",
+            duration_ms=100,
+            activity_count=1,
+            error_count=0,
+            entitlement_id="ent-completed-456",
+        )
+        props = event.to_segment_event()["properties"]
+        assert props["entitlement_id"] == "ent-completed-456"
 
 
 # =============================================================================
@@ -166,6 +193,7 @@ class TestActivityExecutionEvent:
             activity_hash=VALID_ACTIVITY_HASH,
             status="completed",
             error_type=None,
+            entitlement_id="",
         )
         assert event.activity_type == "task"
         assert event.status == "completed"
@@ -178,6 +206,7 @@ class TestActivityExecutionEvent:
                 activity_type="invalid",
                 activity_hash=VALID_ACTIVITY_HASH,
                 status="completed",
+                entitlement_id="",
             )
 
     def test_to_segment_event(self):
@@ -187,12 +216,25 @@ class TestActivityExecutionEvent:
             activity_hash=VALID_ACTIVITY_HASH,
             status="completed",
             action_type="api_call",
+            entitlement_id="",
         )
         segment_event = event.to_segment_event()
         assert segment_event["event"] == "activity_execution"
         props = segment_event["properties"]
         assert props["activity_type"] == "task"
         assert props["action_type"] == "api_call"
+
+    def test_entitlement_id_in_segment_properties(self):
+        """entitlement_id value must appear in segment event properties."""
+        event = ActivityExecutionEvent(
+            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            activity_type="task",
+            activity_hash=VALID_ACTIVITY_HASH,
+            status="completed",
+            entitlement_id="ent-activity-789",
+        )
+        props = event.to_segment_event()["properties"]
+        assert props["entitlement_id"] == "ent-activity-789"
 
 
 # =============================================================================
@@ -207,6 +249,7 @@ class TestWorkflowExecutionEventBuilder:
         builder = WorkflowExecutionEventBuilder()
         event = builder.build_start_event(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            entitlement_id="",
         )
         assert isinstance(event, WorkflowExecutionStartEvent)
         assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
@@ -219,6 +262,7 @@ class TestWorkflowExecutionEventBuilder:
             duration_ms=12500,
             activity_count=8,
             error_count=0,
+            entitlement_id="",
         )
         assert isinstance(event, WorkflowExecutionCompletedEvent)
         assert event.status == "completed"
@@ -243,6 +287,7 @@ class TestActivityExecutionEventBuilder:
             activity_type="task",
             activity_def={"a": 1, "b": 2},
             status="completed",
+            entitlement_id="",
         )
         assert isinstance(event, ActivityExecutionEvent)
         assert event.status == "completed"
@@ -254,5 +299,6 @@ class TestActivityExecutionEventBuilder:
             activity_type="task",
             activity_def={"b": 2, "a": 1},
             status="completed",
+            entitlement_id="",
         )
         assert event.activity_hash == event_same.activity_hash

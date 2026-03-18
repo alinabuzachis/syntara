@@ -5,7 +5,7 @@ Provides the abstract base for all telemetry events transmitted to Segment.com.
 
 import re
 
-from sqlmodel import SQLModel
+from sqlmodel import Field, SQLModel
 
 
 class BaseTelemetryEvent(SQLModel):
@@ -20,6 +20,7 @@ class BaseTelemetryEvent(SQLModel):
     """
 
     model_config = {"frozen": True}
+    entitlement_id: str = Field(..., description="Installation identifier")
 
     @classmethod
     def _get_event_name(cls) -> str:

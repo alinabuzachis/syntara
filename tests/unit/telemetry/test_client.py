@@ -63,17 +63,27 @@ class TestTelemetryClientRegistry:
         mock_segment.Client.return_value = mock_client
 
         registry = TelemetryClientRegistry()
-        registry.initialize(write_key="test-key", entitlement_id="test-user")
+        registry.initialize(
+            write_key="test-key",
+            entitlement_id="test-user",
+            anonymous_id="anon-id-123",
+        )
 
         event = WorkflowExecutionStartEvent(
             workflow_execution_id="test-correlation-id",
+            entitlement_id="test-user",
         )
 
         registry.send_event(event)
+
+        raw = event.to_segment_event()["properties"]
+        expected_properties = dict(raw) if isinstance(raw, dict) else {}
+        expected_properties["entitlement_id"] = "test-user"
+
         mock_client.track.assert_called_once_with(
-            user_id="test-user",
+            anonymous_id="anon-id-123",
             event="workflow_execution_start",
-            properties=event.to_segment_event()["properties"],
+            properties=expected_properties,
         )
 
     @patch("nexus.telemetry.client.logger")
@@ -88,6 +98,7 @@ class TestTelemetryClientRegistry:
 
         event = WorkflowExecutionStartEvent(
             workflow_execution_id="test-id",
+            entitlement_id="",
         )
 
         # Should not raise
@@ -96,7 +107,7 @@ class TestTelemetryClientRegistry:
 
     def test_default_entitlement_id(self):
         registry = TelemetryClientRegistry()
-        assert registry.entitlement_id == "unknown"
+        assert registry.entitlement_id == ""
 
     def test_error_handler_logs_warning(self):
         with patch("nexus.telemetry.client.logger") as mock_logger:

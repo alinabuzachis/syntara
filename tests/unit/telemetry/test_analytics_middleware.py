@@ -52,6 +52,7 @@ def _make_registry_mock() -> MagicMock:
     """Build a mock TelemetryClientRegistry."""
     mock = MagicMock()
     mock.is_initialized.return_value = True
+    mock.entitlement_id = ""
     return mock
 
 
@@ -236,6 +237,7 @@ class TestAnalyticsMiddlewarePrivacy:
             "status_code",
             "response_time_ms",
             "request_payload_size",
+            "entitlement_id",
         }
         # No header values in properties
         for value in props.values():
@@ -295,6 +297,7 @@ class TestAnalyticsMiddlewarePrivacy:
             "status_code",
             "response_time_ms",
             "request_payload_size",
+            "entitlement_id",
         }
 
 

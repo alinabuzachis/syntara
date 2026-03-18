@@ -14,6 +14,7 @@ from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, User
 from nexus.approvals.models.approval_request import ApprovalRequest
 from nexus.core.config.base import get_settings
 from nexus.core.models import User
+from nexus.core.models.installation import Installation
 from nexus.files.models import FileMetadata
 from nexus.tool_manager.models.rate_limit_config import RateLimit
 from nexus.tool_manager.models.tool import Tool, ToolParameter
@@ -27,6 +28,7 @@ from nexus.workflows.models.execution import Execution
 # Ensure models are registered with SQLModel metadata
 
 _ = (
+    Installation,
     Invocation,
     User,
     Workflow,

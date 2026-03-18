@@ -99,8 +99,8 @@ class TemporalWorkerService:
             # Register in global registry for access by internal activities
             set_activity_sync_service(self.activity_sync_service)
 
-            # Initialize telemetry
-            initialize_telemetry()
+            # Initialize telemetry (reads installation ID from database)
+            await initialize_telemetry()
 
             # Create worker with workflows, activities, and interceptors
             self.worker = Worker(

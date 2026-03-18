@@ -48,6 +48,7 @@ def mock_registry() -> MagicMock:
     """Return a mock TelemetryClientRegistry for testing."""
     registry = MagicMock()
     registry.is_initialized.return_value = True
+    registry.entitlement_id = ""
     return registry
 
 
@@ -99,7 +100,14 @@ class TestEndToEndMiddleware:
 
         event: APICallEvent = mock_registry.send_event.call_args[0][0]
         props = event.model_dump()
-        required_fields = {"endpoint", "http_method", "status_code", "response_time_ms", "request_payload_size"}
+        required_fields = {
+            "endpoint",
+            "http_method",
+            "status_code",
+            "response_time_ms",
+            "request_payload_size",
+            "entitlement_id",
+        }
         assert set(props.keys()) == required_fields
 
     @pytest.mark.anyio

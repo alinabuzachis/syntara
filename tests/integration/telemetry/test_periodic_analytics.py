@@ -41,7 +41,8 @@ class TestPeriodicAnalyticsFlow:
         registry = TelemetryClientRegistry()
         mock_client = MagicMock()
         registry._client = mock_client
-        registry._entitlement_id = "test-install-001"
+        registry._anonymous_id = "test-anonymous-001"
+        registry._entitlement_id = "test-entitlement-001"
         return registry, mock_client
 
     async def test_collect_and_send_produces_correct_segment_call(
@@ -178,11 +179,11 @@ class TestPeriodicAnalyticsFlow:
         mock_client.track.assert_called_once()
         call_kwargs = mock_client.track.call_args.kwargs
 
-        assert call_kwargs["user_id"] == "test-install-001"
+        assert call_kwargs["anonymous_id"] == "test-anonymous-001"
         assert call_kwargs["event"] == "system_analytics"
 
         props = call_kwargs["properties"]
-        assert props["entitlement_id"] == "test-install-001"
+        assert props["entitlement_id"] == "test-entitlement-001"
 
         # Verify workflow counts (3 enabled + 2 disabled + 1 exec_wf = 6 total, 4 enabled)
         assert props["workflows"]["total"] == 6

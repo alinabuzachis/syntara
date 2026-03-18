@@ -6,18 +6,71 @@ the WorkerRegistry pattern used in temporal_worker.py.
 
 from __future__ import annotations
 
+import hashlib
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 import segment.analytics as segment_analytics  # type: ignore[import-untyped]
 import structlog
+from sqlmodel import select
 
 from nexus.core.config.base import get_settings
+from nexus.core.database.session import AsyncSessionLocal
+from nexus.core.models.installation import Installation
 
 if TYPE_CHECKING:
+    import uuid
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
     from nexus.telemetry.events.base import BaseTelemetryEvent
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+async def get_installation_id(session: AsyncSession) -> uuid.UUID:
+    """Read the installation ID from the database.
+
+    The installation row is seeded by an Alembic migration and must always
+    exist.
+
+    Args:
+        session: Async database session.
+
+    Returns:
+        The installation UUID.
+
+    Raises:
+        RuntimeError: If the installation row is missing.
+
+    """
+    result = await session.exec(select(Installation))
+    installation = result.first()
+    if installation is None:
+        msg = "Installation table is empty — the Alembic migration that seeds the row must run first"
+        raise RuntimeError(msg)
+    return installation.id
+
+
+def derive_anonymous_id(installation_id: uuid.UUID, db_host: str, db_name: str) -> str:
+    """Derive a stable anonymous identifier for telemetry.
+
+    Combines the installation ID with database connection coordinates and
+    produces a SHA-256 hex digest.  This ensures distinct environments
+    (e.g. production vs. a restored snapshot) yield different identifiers.
+
+    Args:
+        installation_id: The installation UUID from the database.
+        db_host: Database host from settings.
+        db_name: Database name from settings.
+
+    Returns:
+        A 64-character lowercase hex string.
+
+    """
+    raw = f"{installation_id}:{db_host}:{db_name}"
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
 class TelemetryClientRegistry:
@@ -26,13 +79,15 @@ class TelemetryClientRegistry:
     def __init__(self) -> None:
         """Initialize the registry."""
         self._client: segment_analytics.Client | None = None
-        self._entitlement_id: str = "unknown"
+        self._entitlement_id: str = ""
+        self._anonymous_id: str = ""
 
     def initialize(
         self,
         write_key: str,
         host: str = "https://api.segment.io",
-        entitlement_id: str = "unknown",
+        entitlement_id: str = "",
+        anonymous_id: str = "",
     ) -> None:
         """Initialize the Segment client.
 
@@ -41,7 +96,8 @@ class TelemetryClientRegistry:
         Args:
             write_key: Segment write API key.
             host: Segment API endpoint URL.
-            entitlement_id: Nexus installation identifier for anonymized tracking.
+            entitlement_id: Optional entitlement identifier included in event properties.
+            anonymous_id: Derived telemetry identifier used as Segment ``anonymousId``.
 
         """
         if self._client is not None:
@@ -49,6 +105,7 @@ class TelemetryClientRegistry:
             return
 
         self._entitlement_id = entitlement_id
+        self._anonymous_id = anonymous_id
         self._client = segment_analytics.Client(
             write_key=write_key,
             host=host,
@@ -60,7 +117,11 @@ class TelemetryClientRegistry:
             upload_size=100,
             on_error=self._error_handler,
         )
-        logger.info("Telemetry client initialized", entitlement_id=entitlement_id)
+        logger.info(
+            "Telemetry client initialized",
+            anonymous_id=anonymous_id,
+            entitlement_id=entitlement_id,
+        )
 
     def get_client(self) -> segment_analytics.Client:
         """Get the initialized Segment client instance.
@@ -80,8 +141,9 @@ class TelemetryClientRegistry:
     def send_event(self, event: BaseTelemetryEvent) -> None:
         """Send a telemetry event to Segment (fire-and-forget).
 
-        The registry's configured ``entitlement_id`` is used as the Segment
-        ``userId`` for all events.
+        The derived ``anonymous_id`` is used as the Segment ``anonymousId``.
+        The ``entitlement_id`` is always included in event properties
+        (empty string when not configured).
 
         Args:
             event: Telemetry event to send.
@@ -96,10 +158,14 @@ class TelemetryClientRegistry:
                 event_name=segment_event.get("event"),
             )
 
+            raw_props = segment_event.get("properties", {})
+            properties: dict[str, object] = dict(raw_props) if isinstance(raw_props, dict) else {}
+            properties["entitlement_id"] = self._entitlement_id
+
             client.track(
-                user_id=self._entitlement_id,
+                anonymous_id=self._anonymous_id,
                 event=segment_event["event"],
-                properties=segment_event.get("properties", {}),
+                properties=properties,
             )
         except Exception:
             logger.exception("Failed to send telemetry event (fire-and-forget)")
@@ -123,11 +189,21 @@ class TelemetryClientRegistry:
         return self._client is not None
 
     @property
+    def anonymous_id(self) -> str:
+        """Get the derived anonymous identifier.
+
+        Returns:
+            The derived telemetry identifier (SHA-256 hex digest).
+
+        """
+        return self._anonymous_id
+
+    @property
     def entitlement_id(self) -> str:
         """Get the configured entitlement_id.
 
         Returns:
-            The Nexus installation identifier.
+            The optional entitlement identifier.
 
         """
         return self._entitlement_id
@@ -172,11 +248,12 @@ def get_telemetry_registry() -> TelemetryClientRegistry:
     return _get_telemetry_registry()
 
 
-def initialize_telemetry() -> bool:
+async def initialize_telemetry(session_factory: async_sessionmaker[AsyncSession] = AsyncSessionLocal) -> bool:
     """Initialize the telemetry client from application settings.
 
-    Reads the Segment write key and endpoint from settings and initializes the
-    singleton registry. Safe to call multiple times — subsequent calls are no-ops.
+    Reads the installation ID from the database, derives the anonymous
+    telemetry identifier, and initializes the singleton registry.
+    Safe to call multiple times — subsequent calls are no-ops.
 
     Returns:
         True if telemetry was initialized, False if disabled (no write key).
@@ -188,11 +265,18 @@ def initialize_telemetry() -> bool:
         logger.info("Telemetry disabled: no Segment write key configured")
         return False
 
+    # Read installation ID from database and derive anonymous_id
+    async with session_factory() as session:
+        installation_id = await get_installation_id(session)
+
+    anonymous_id = derive_anonymous_id(installation_id, settings.db_host, settings.db_name)
+
     registry = get_telemetry_registry()
     registry.initialize(
         write_key=segment_key,
         host=str(settings.segment_endpoint),
         entitlement_id=settings.entitlement_id,
+        anonymous_id=anonymous_id,
     )
     return True
 

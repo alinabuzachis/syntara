@@ -59,21 +59,7 @@ class SystemAnalyticsEvent(BaseTelemetryEvent):
     Timestamp is set automatically by the Segment SDK.
     """
 
-    entitlement_id: str = Field(..., description="Installation identifier")
     workflows: WorkflowCounts = Field(..., description="Workflow aggregates")
     credentials: CredentialCounts = Field(..., description="Credential aggregates")
     executions: ExecutionCounts = Field(..., description="Execution aggregates")
     config: ConfigInfo = Field(..., description="Configuration info")
-
-    def to_segment_event(self) -> dict[str, object]:
-        """Convert to Segment Track API format."""
-        return {
-            "event": self._get_event_name(),
-            "properties": {
-                "entitlement_id": self.entitlement_id,
-                "workflows": self.workflows.model_dump(),
-                "credentials": self.credentials.model_dump(),
-                "executions": self.executions.model_dump(),
-                "config": self.config.model_dump(),
-            },
-        }

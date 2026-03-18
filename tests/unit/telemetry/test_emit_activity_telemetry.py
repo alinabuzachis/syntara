@@ -41,6 +41,7 @@ class TestEmitActivityTelemetry:
     def test_emits_for_completed_activity(self):
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = True
+        mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
         activity = _make_activity("task-1", ActivityStatus.COMPLETED)
@@ -63,6 +64,7 @@ class TestEmitActivityTelemetry:
     def test_computes_duration_from_timestamps(self):
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = True
+        mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
         start = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
@@ -82,6 +84,7 @@ class TestEmitActivityTelemetry:
     def test_emits_for_failed_activity_with_error_type(self):
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = True
+        mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
         activity = _make_activity("task-1", ActivityStatus.FAILED)
@@ -100,6 +103,7 @@ class TestEmitActivityTelemetry:
     def test_emits_for_skipped_activity(self):
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = True
+        mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
         activity = _make_activity("task-1", ActivityStatus.SKIPPED)
@@ -117,6 +121,7 @@ class TestEmitActivityTelemetry:
     def test_skips_non_terminal_status(self):
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = True
+        mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
         activity = _make_activity("task-1", ActivityStatus.RUNNING)
@@ -134,6 +139,7 @@ class TestEmitActivityTelemetry:
         """Avoid duplicate telemetry when re-syncing an already-terminal activity."""
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = True
+        mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
         activity = _make_activity("task-1", ActivityStatus.COMPLETED)
@@ -151,6 +157,7 @@ class TestEmitActivityTelemetry:
         """Telemetry errors should not propagate."""
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = True
+        mock_registry.entitlement_id = ""
         mock_registry.send_event.side_effect = RuntimeError("Segment down")
         collector = _make_collector(mock_registry)
 

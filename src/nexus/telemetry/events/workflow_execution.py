@@ -58,11 +58,13 @@ class WorkflowExecutionEventBuilder:
     def build_start_event(
         self,
         workflow_execution_id: str,
+        entitlement_id: str,
     ) -> WorkflowExecutionStartEvent:
         """Build a workflow execution start event.
 
         Args:
             workflow_execution_id: Unique workflow execution identifier (UUID v4).
+            entitlement_id: Installation entitlement identifier.
 
         Returns:
             WorkflowExecutionStartEvent instance.
@@ -70,6 +72,7 @@ class WorkflowExecutionEventBuilder:
         """
         return WorkflowExecutionStartEvent(
             workflow_execution_id=workflow_execution_id,
+            entitlement_id=entitlement_id,
         )
 
     def build_completed_event(
@@ -79,6 +82,7 @@ class WorkflowExecutionEventBuilder:
         duration_ms: int,
         activity_count: int,
         error_count: int,
+        entitlement_id: str,
         error_type: Literal["ActivityExecutionError"] | None = None,
     ) -> WorkflowExecutionCompletedEvent:
         """Build a workflow execution completed event.
@@ -89,6 +93,7 @@ class WorkflowExecutionEventBuilder:
             duration_ms: Duration in milliseconds.
             activity_count: Total number of activities executed.
             error_count: Number of activities that failed.
+            entitlement_id: Installation entitlement identifier.
             error_type: Categorized error type if workflow failed.
 
         Returns:
@@ -102,4 +107,5 @@ class WorkflowExecutionEventBuilder:
             activity_count=activity_count,
             error_count=error_count,
             error_type=error_type,
+            entitlement_id=entitlement_id,
         )

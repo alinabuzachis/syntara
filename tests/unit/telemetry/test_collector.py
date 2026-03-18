@@ -24,10 +24,11 @@ from tests.unit.telemetry.conftest import (
 class TestTelemetryCollector:
     """Tests for TelemetryCollector."""
 
-    def _create_collector(self) -> tuple[TelemetryCollector, MagicMock]:
+    def _create_collector(self, entitlement_id: str = "") -> tuple[TelemetryCollector, MagicMock]:
         """Create a collector with a mocked registry."""
         mock_registry = MagicMock()
         mock_registry.is_initialized.return_value = True
+        mock_registry.entitlement_id = entitlement_id
         collector = TelemetryCollector(
             registry=mock_registry,
         )
@@ -108,6 +109,7 @@ class TestTelemetryCollector:
     def test_capture_workflow_start_fire_and_forget(self, mock_logger):
         """Verify fire-and-forget: errors are logged but not raised."""
         mock_registry = MagicMock()
+        mock_registry.entitlement_id = ""
         mock_registry.send_event.side_effect = RuntimeError("Send failed")
         collector = TelemetryCollector(
             registry=mock_registry,
@@ -122,6 +124,7 @@ class TestTelemetryCollector:
     def test_capture_workflow_completed_fire_and_forget(self, mock_logger):
         """Verify fire-and-forget: errors are logged but not raised."""
         mock_registry = MagicMock()
+        mock_registry.entitlement_id = ""
         mock_registry.send_event.side_effect = RuntimeError("Send failed")
         collector = TelemetryCollector(
             registry=mock_registry,
@@ -139,6 +142,7 @@ class TestTelemetryCollector:
     def test_capture_activity_fire_and_forget(self, mock_logger):
         """Verify fire-and-forget: errors are logged but not raised."""
         mock_registry = MagicMock()
+        mock_registry.entitlement_id = ""
         mock_registry.send_event.side_effect = RuntimeError("Send failed")
         collector = TelemetryCollector(
             registry=mock_registry,
@@ -150,3 +154,37 @@ class TestTelemetryCollector:
             status=ActivityTerminalStatus.COMPLETED,
         )
         mock_logger.exception.assert_called_once()
+
+    def test_workflow_start_event_includes_entitlement_id(self):
+        """entitlement_id from registry must appear on the start event."""
+        collector, mock_registry = self._create_collector(entitlement_id="ent-abc")
+        collector.capture_workflow_start(
+            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+        )
+        sent_event = mock_registry.send_event.call_args[0][0]
+        assert sent_event.entitlement_id == "ent-abc"
+
+    def test_workflow_completed_event_includes_entitlement_id(self):
+        """entitlement_id from registry must appear on the completed event."""
+        collector, mock_registry = self._create_collector(entitlement_id="ent-abc")
+        collector.capture_workflow_completed(
+            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            status=WorkflowTerminalStatus.COMPLETED,
+            duration_ms=100,
+            activity_count=1,
+            error_count=0,
+        )
+        sent_event = mock_registry.send_event.call_args[0][0]
+        assert sent_event.entitlement_id == "ent-abc"
+
+    def test_activity_event_includes_entitlement_id(self):
+        """entitlement_id from registry must appear on the activity event."""
+        collector, mock_registry = self._create_collector(entitlement_id="ent-abc")
+        collector.capture_activity_executed(
+            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            activity_type=ActivityType.TASK,
+            activity_def=SAMPLE_ACTIVITY_DEF,
+            status=ActivityTerminalStatus.COMPLETED,
+        )
+        sent_event = mock_registry.send_event.call_args[0][0]
+        assert sent_event.entitlement_id == "ent-abc"

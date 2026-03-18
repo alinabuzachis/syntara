@@ -92,6 +92,7 @@ class TelemetryCollector:
         try:
             event = self._workflow_builder.build_start_event(
                 workflow_execution_id=workflow_execution_id,
+                entitlement_id=self._registry.entitlement_id,
             )
             self._registry.send_event(event)
         except Exception:
@@ -125,6 +126,7 @@ class TelemetryCollector:
                 activity_count=activity_count,
                 error_count=error_count,
                 error_type=error_type,
+                entitlement_id=self._registry.entitlement_id,
             )
             self._registry.send_event(event)
         except Exception:
@@ -167,6 +169,7 @@ class TelemetryCollector:
                 inbound_activities=inbound_activities,
                 outbound_activities=outbound_activities,
                 error_type=error_type,
+                entitlement_id=self._registry.entitlement_id,
             )
             self._registry.send_event(event)
         except Exception:

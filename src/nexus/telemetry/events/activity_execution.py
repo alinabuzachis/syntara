@@ -97,6 +97,7 @@ class ActivityExecutionEventBuilder:
         activity_type: ActivityType,
         activity_def: dict[str, object],
         status: ActivityTerminalStatus,
+        entitlement_id: str,
         duration_ms: int | None = None,
         action_type: str | None = None,
         inbound_activities: list[str] | None = None,
@@ -110,6 +111,7 @@ class ActivityExecutionEventBuilder:
             activity_type: Type of activity executed.
             activity_def: Activity definition dictionary for hash calculation.
             status: Activity execution outcome.
+            entitlement_id: Installation entitlement identifier.
             duration_ms: Activity execution duration in milliseconds.
             action_type: Optional action type for task activities.
             inbound_activities: Optional array of preceding activity hashes.
@@ -132,4 +134,5 @@ class ActivityExecutionEventBuilder:
             inbound_activities=inbound_activities,
             outbound_activities=outbound_activities,
             error_type=error_type,
+            entitlement_id=entitlement_id,
         )

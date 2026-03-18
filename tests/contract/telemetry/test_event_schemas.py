@@ -32,6 +32,7 @@ class TestWorkflowExecutionStartEventSchema:
         schema = WorkflowExecutionStartEvent.model_json_schema()
         event = WorkflowExecutionStartEvent(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            entitlement_id="",
         )
         event_dict = event.model_dump()
         jsonschema.validate(instance=event_dict, schema=schema)
@@ -59,6 +60,7 @@ class TestWorkflowExecutionCompletedEventSchema:
             activity_count=8,
             error_count=0,
             error_type=None,
+            entitlement_id="",
         )
         event_dict = event.model_dump()
         jsonschema.validate(instance=event_dict, schema=schema)
@@ -84,6 +86,7 @@ class TestActivityExecutionEventSchema:
             activity_hash=VALID_ACTIVITY_HASH,
             status="completed",
             error_type=None,
+            entitlement_id="",
         )
         event_dict = event.model_dump()
         jsonschema.validate(instance=event_dict, schema=schema)
@@ -98,6 +101,7 @@ class TestActivityExecutionEventSchema:
                 activity_type=activity_type,
                 activity_hash=VALID_ACTIVITY_HASH,
                 status="completed",
+                entitlement_id="",
             )
             event_dict = event.model_dump()
             jsonschema.validate(instance=event_dict, schema=schema)

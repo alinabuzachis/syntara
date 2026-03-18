@@ -35,7 +35,7 @@ from nexus.core.logging.logging import configure_structlog
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
-from nexus.telemetry.client import get_telemetry_registry, initialize_telemetry
+from nexus.telemetry.client import flush_telemetry, get_telemetry_registry, initialize_telemetry
 from nexus.telemetry.middleware import AnalyticsMiddleware
 from nexus.telemetry.periodic_collector import PeriodicCollector
 from nexus.workflows.error_handlers import (
@@ -84,6 +84,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     ws_router = build_websocket_router()
     app.include_router(ws_router)
 
+    # Initialize telemetry (reads installation ID from database)
+    await initialize_telemetry()
+
     # Start WebSocket connection health monitoring
     # This background task runs every 30 seconds to clean up stale connections
     # that haven't responded to ping frames within the timeout period (60s)
@@ -105,6 +108,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         # Stop periodic analytics collector
         await periodic_collector.stop()
         logger.info("Periodic analytics collector stopped")
+
+        # Flush any remaining telemetry events (e.g. from middleware)
+        flush_telemetry()
 
         # Stop WebSocket connection monitoring
         lifecycle_manager.stop_monitoring()
@@ -146,7 +152,8 @@ app.add_middleware(
 
 # Register analytics middleware (outermost = first to execute).
 # Added after CORS so it wraps the entire request lifecycle.
-initialize_telemetry()
+# Telemetry is initialized asynchronously in the lifespan handler;
+# the middleware uses the registry which will be populated by that point.
 app.add_middleware(AnalyticsMiddleware, registry=get_telemetry_registry())
 
 # RFC 9457 compliant error handlers

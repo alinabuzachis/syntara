@@ -16,6 +16,7 @@ class TestAPICallEventConstruction:
             status_code=200,
             response_time_ms=45,
             request_payload_size=0,
+            entitlement_id="",
         )
         assert event.endpoint == "/api/v1/workflows"
         assert event.http_method == "GET"
@@ -30,6 +31,7 @@ class TestAPICallEventConstruction:
             status_code=202,
             response_time_ms=120,
             request_payload_size=1524,
+            entitlement_id="",
         )
         assert event.endpoint == "/api/v1/invocations"
         assert event.http_method == "POST"
@@ -44,6 +46,7 @@ class TestAPICallEventConstruction:
             status_code=500,
             response_time_ms=8,
             request_payload_size=0,
+            entitlement_id="",
         )
         assert event.status_code == 500
 
@@ -55,6 +58,7 @@ class TestAPICallEventConstruction:
             status_code=200,
             response_time_ms=1,
             request_payload_size=0,
+            entitlement_id="",
         )
         assert event.http_method == method
 
@@ -70,6 +74,7 @@ class TestAPICallEventFieldConstraints:
                 status_code=200,
                 response_time_ms=0,
                 request_payload_size=0,
+                entitlement_id="",
             )
 
     def test_invalid_http_method_rejected(self) -> None:
@@ -80,6 +85,7 @@ class TestAPICallEventFieldConstraints:
                 status_code=200,
                 response_time_ms=0,
                 request_payload_size=0,
+                entitlement_id="",
             )
 
     def test_status_code_below_100_rejected(self) -> None:
@@ -90,6 +96,7 @@ class TestAPICallEventFieldConstraints:
                 status_code=99,
                 response_time_ms=0,
                 request_payload_size=0,
+                entitlement_id="",
             )
 
     def test_status_code_above_599_rejected(self) -> None:
@@ -100,6 +107,7 @@ class TestAPICallEventFieldConstraints:
                 status_code=600,
                 response_time_ms=0,
                 request_payload_size=0,
+                entitlement_id="",
             )
 
     def test_status_code_boundary_100(self) -> None:
@@ -109,6 +117,7 @@ class TestAPICallEventFieldConstraints:
             status_code=100,
             response_time_ms=0,
             request_payload_size=0,
+            entitlement_id="",
         )
         assert event.status_code == 100
 
@@ -119,6 +128,7 @@ class TestAPICallEventFieldConstraints:
             status_code=599,
             response_time_ms=0,
             request_payload_size=0,
+            entitlement_id="",
         )
         assert event.status_code == 599
 
@@ -130,6 +140,7 @@ class TestAPICallEventFieldConstraints:
                 status_code=200,
                 response_time_ms=-1,
                 request_payload_size=0,
+                entitlement_id="",
             )
 
     def test_negative_payload_size_rejected(self) -> None:
@@ -140,6 +151,7 @@ class TestAPICallEventFieldConstraints:
                 status_code=200,
                 response_time_ms=0,
                 request_payload_size=-1,
+                entitlement_id="",
             )
 
     def test_zero_response_time_accepted(self) -> None:
@@ -149,6 +161,7 @@ class TestAPICallEventFieldConstraints:
             status_code=200,
             response_time_ms=0,
             request_payload_size=0,
+            entitlement_id="",
         )
         assert event.response_time_ms == 0
 
@@ -163,6 +176,7 @@ class TestAPICallEventImmutability:
             status_code=200,
             response_time_ms=0,
             request_payload_size=0,
+            entitlement_id="",
         )
         with pytest.raises(ValidationError):
             event.endpoint = "/changed"
@@ -174,6 +188,7 @@ class TestAPICallEventImmutability:
             status_code=200,
             response_time_ms=0,
             request_payload_size=0,
+            entitlement_id="",
         )
         with pytest.raises(ValidationError):
             event.status_code = 500
@@ -189,6 +204,7 @@ class TestAPICallEventSegmentConversion:
             status_code=200,
             response_time_ms=0,
             request_payload_size=0,
+            entitlement_id="",
         )
         segment_event = event.to_segment_event()
         assert segment_event["event"] == "api_call"
@@ -200,6 +216,7 @@ class TestAPICallEventSegmentConversion:
             status_code=200,
             response_time_ms=45,
             request_payload_size=0,
+            entitlement_id="",
         )
         segment_event = event.to_segment_event()
         assert segment_event["event"] == "api_call"
@@ -210,6 +227,7 @@ class TestAPICallEventSegmentConversion:
             "status_code": 200,
             "response_time_ms": 45,
             "request_payload_size": 0,
+            "entitlement_id": "",
         }
 
     def test_to_segment_event_properties_returns_dict(self) -> None:
@@ -219,7 +237,23 @@ class TestAPICallEventSegmentConversion:
             status_code=201,
             response_time_ms=100,
             request_payload_size=512,
+            entitlement_id="",
         )
         segment_event = event.to_segment_event()
         assert isinstance(segment_event["properties"], dict)
-        assert len(segment_event["properties"]) == 5
+        assert len(segment_event["properties"]) == 6
+
+    def test_entitlement_id_in_segment_properties(self) -> None:
+        """entitlement_id value must appear in segment event properties."""
+        event = APICallEvent(
+            endpoint="/test",
+            http_method="GET",
+            status_code=200,
+            response_time_ms=0,
+            request_payload_size=0,
+            entitlement_id="ent-xyz",
+        )
+        segment_event = event.to_segment_event()
+        props = segment_event["properties"]
+        assert isinstance(props, dict)
+        assert props["entitlement_id"] == "ent-xyz"
