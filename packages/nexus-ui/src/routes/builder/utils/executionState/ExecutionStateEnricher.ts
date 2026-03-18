@@ -218,7 +218,7 @@ export class ExecutionStateEnricher {
    *
    * For trigger edges, the edge is "passed" if the trigger is completed (any target started).
    *
-   * For regular edges, the edge is "passed" if the source activity has started.
+   * For regular edges, the edge is "passed" if the source activity reached a terminal status.
    *
    * This determines visual styling:
    * - Passed edges: Solid line (execution traversed this path)

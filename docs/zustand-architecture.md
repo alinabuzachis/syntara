@@ -67,7 +67,7 @@ User clicks "Edit Workflow"
          ▼
 ┌─────────────────────────────────┐
 │  TanStack Query fetches from    │
-│  GET /api/workflows/{id}        │
+│  GET /api/v1/workflows/{workflow_id} │
 └─────────────────────────────────┘
          │
          ▼
@@ -140,7 +140,7 @@ User clicks "Save"
          ▼
 ┌─────────────────────────────────┐
 │  TanStack Query mutation:       │
-│  PATCH /api/workflows/{id}      │
+│  PATCH /api/v1/workflows/{workflow_id} │
 └─────────────────────────────────┘
          │
          ▼
@@ -730,15 +730,15 @@ packages/nexus-ui/src/routes/automations/stores/useExecutionStore.ts
 
 **Key state:**
 
-| Field            | Type                  | Description                                    |
-| ---------------- | --------------------- | ---------------------------------------------- |
-| `executionId`    | `string \| null`      | Currently tracked execution                    |
-| `visualization`  | `object \| null`      | Full visualization snapshot from backend       |
-| `activityStates` | `Map<string, status>` | Per-activity execution status                  |
-| `activityErrors` | `Map<string, string>` | Per-activity error messages                    |
-| `isConnected`    | `boolean`             | WebSocket connection state                     |
-| `isComplete`     | `boolean`             | Whether execution has finished                 |
-| `lastEventId`    | `string \| null`      | Last processed event (for replay on reconnect) |
+| Field            | Type                         | Description                                              |
+| ---------------- | ---------------------------- | -------------------------------------------------------- |
+| `executionId`    | `string \| null`             | Currently tracked execution                              |
+| `visualization`  | `object \| null`             | Full visualization snapshot from backend                 |
+| `activityStates` | `Map<string, ActivityState>` | Per-activity execution status, timing, and error details |
+| `activityErrors` | `Map<string, string>`        | Per-activity error messages                              |
+| `isConnected`    | `boolean`                    | WebSocket connection state                               |
+| `isComplete`     | `boolean`                    | Whether execution has finished                           |
+| `lastEventId`    | `string \| null`             | Last processed event (for replay on reconnect)           |
 
 **Key actions:** `setExecution`, `applyPatch`, `setComplete`, `setConnectionState`, `setActivityExecutions`, `reset`
 

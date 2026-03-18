@@ -4,14 +4,20 @@ A plugin-based architecture for registering and managing workflow node types.
 
 ## Architecture Overview
 
-```
+```text
 registry/
 ├── NodeRegistry.ts          # Core registry singleton
+├── helpers/                 # Node template helpers
+│   └── nodeTemplates.ts
 ├── nodes/                   # Node type registrations
-│   ├── index.ts            # Central registration point
-│   ├── registerTriggerNode.ts
+│   ├── index.ts            # Auto-discovery entry point
+│   ├── registerAAPNode.ts
 │   ├── registerActionNode.ts
-│   └── registerCustomPlugin.example.ts  # Example
+│   ├── registerAIAgentNode.ts
+│   ├── registerApprovalNode.ts
+│   ├── registerGenericNode.ts
+│   ├── registerLogicNode.ts
+│   └── registerTriggerNode.ts
 └── README.md               # This file
 ```
 
@@ -228,7 +234,7 @@ return <FormComponent ... />
 
 ## Examples
 
-See `registerCustomPlugin.example.ts` for a complete working example.
+See the existing `register*.ts` files in `nodes/` for working examples (e.g., `registerApprovalNode.ts`, `registerActionNode.ts`).
 
 ## Future Enhancements
 

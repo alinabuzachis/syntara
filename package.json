@@ -18,6 +18,7 @@
     "format:check": "prettier --check .",
     "lint": "npm run lint --workspaces --if-present",
     "lint:fix": "npm run lint:fix --workspaces --if-present",
+    "lint:mermaid": "node scripts/lint-mermaid.js",
     "sync-cursor-commands": "python3 tools/install_cursor_commands.py",
     "check-specs": "python3 tools/ci/check_path_sequence.py specs/ --strict",
     "create-workflow": "python3 tools/workflow-creator/create_workflow.py",
@@ -47,12 +48,17 @@
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
     "lint-staged": "^16.2.7",
+    "mermaid": "^11.13.0",
     "prettier": "^3.8.1",
     "vitest": "^4.0.18"
   },
   "lint-staged": {
-    "*.{json,md,yml,yaml}": [
+    "*.{json,yml,yaml}": [
       "prettier --write"
+    ],
+    "*.md": [
+      "prettier --write",
+      "node scripts/lint-mermaid.js"
     ],
     "packages/nexus-ui/**/*.{ts,tsx,js,jsx}": [
       "prettier --write",

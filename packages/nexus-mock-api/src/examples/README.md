@@ -31,98 +31,78 @@ This directory contains example YAML workflow files used for testing, demonstrat
   - `activity-chaining.yaml` - Output-to-input parameter mapping between activities
   - `input-expressions.yaml` - Various input parameter expression formats
 
-## Usage
+- **`agentic/`** - AI agent-driven workflow examples (see `agentic/README.md`)
+  - `simple-research.yaml` - Basic agentic research workflow
+  - `hybrid-workflow.yaml` - Combined script and agentic tasks
+  - `multi-agent-pipeline.yaml` - Sequential specialized agents
+  - `parallel-research.yaml` - Parallel agentic research
+  - `conditional-agent-routing.yaml` - AI-powered request routing
 
-### Via CLI Tool
+- **`real-world/`** - Examples using real public APIs (see `real-world/README.md`)
+  - `blog-analytics.yaml` - Multi-step blog analytics with JSONPlaceholder
+  - `github-repo-info.yaml` - GitHub repository analysis
+  - `ip-geolocation.yaml` - IP address geolocation lookup
+  - `random-users.yaml` - Random user profile generation
+  - `country-info.yaml` - Country information analysis
 
-Run workflows using the CLI tool:
+- **`api/`** - API executor examples (auth, query params, HTTP methods)
 
-```bash
-# Basic examples
-python tools/workflow_cli.py run tests/integration/workflow/examples/basic/hello-world.yaml
+- **`condition/`**, **`conditionals/`** - Conditional branching examples
 
-# Loop demo with custom inputs
-python tools/workflow_cli.py run tests/integration/workflow/examples/basic/loop-demo.yaml \
-  --inputs '{"items": ["apple", "banana", "cherry"]}'
+- **`converge/`** - Converge (join) node examples
 
-# Loop demo with default inputs
-python tools/workflow_cli.py run tests/integration/workflow/examples/basic/loop-demo.yaml
+- **`edge_cases/`** - Edge case and stress-test workflows
 
-# Parallel execution
-python tools/workflow_cli.py run tests/integration/workflow/examples/basic/parallel-demo.yaml
+- **`join/`** - Join/parallel convergence patterns
 
-# Conditional logic examples
-python tools/workflow_cli.py run tests/integration/workflow/examples/basic/conditional-demo.yaml \
-  --inputs '{"temperature": 35}'   # Hot weather
+- **`metadata/`** - Workflow metadata examples
 
-python tools/workflow_cli.py run tests/integration/workflow/examples/basic/conditional-demo.yaml \
-  --inputs '{"temperature": 10}'   # Cold weather
+- **`mixed/`** - Mixed activity type workflows
 
-python tools/workflow_cli.py run tests/integration/workflow/examples/basic/conditional-demo.yaml \
-  --inputs '{"temperature": 22}'   # Mild weather
+- **`python/`** - Python script executor examples
 
-# Retry policies
-python tools/workflow_cli.py run tests/integration/workflow/examples/basic/retry-demo.yaml \
-  --inputs '{"failure_rate": 30}'  # Easier to succeed (30% chance of failure)
+- **`retry/`** - Retry policy examples
 
-python tools/workflow_cli.py run tests/integration/workflow/examples/basic/retry-demo.yaml \
-  --inputs '{"failure_rate": 90}'  # Harder to succeed (90% chance of failure, will retry)
+- **`sequence/`** - Sequential activity workflows
 
-# Error handling examples
-python tools/workflow_cli.py run tests/integration/workflow/examples/error-handling/failing-task.yaml
+## Usage in This Repository
 
-python tools/workflow_cli.py run tests/integration/workflow/examples/error-handling/transient-errors.yaml
+These YAML files are fixture examples for the mock API package and local UI development. In this repository, use them as:
 
-# Loop examples
-python tools/workflow_cli.py run tests/integration/workflow/examples/loops/foreach-items.yaml
+- Example workflow definitions under `packages/nexus-mock-api/src/examples/`
+- Input data copied from the backend repo during `npm run gen`
+- Reference files for inspecting workflow syntax and mock responses
 
-python tools/workflow_cli.py run tests/integration/workflow/examples/loops/foreach-items.yaml \
-  --inputs '{"item_list": ["custom1", "custom2", "custom3"]}'
-
-# Parameter mapping examples
-python tools/workflow_cli.py run tests/integration/workflow/examples/parameters/activity-chaining.yaml
-
-# Timeout and retry examples
-python tools/workflow_cli.py run tests/integration/workflow/examples/timeout-retry/retry-policy.yaml
-
-python tools/workflow_cli.py run tests/integration/workflow/examples/timeout-retry/timeout-with-retry.yaml
+```text
+packages/nexus-mock-api/src/examples/
+├── agentic/
+├── api/
+├── basic/
+├── condition/
+├── conditionals/
+├── converge/
+├── edge_cases/
+├── error-handling/
+├── join/
+├── loops/
+├── metadata/
+├── mixed/
+├── parallel/
+├── parameters/
+├── python/
+├── real-world/
+├── retry/
+├── sequence/
+└── timeout-retry/
 ```
 
-### Via Integration Tests
-
-These workflows are used by the integration test suite in `tests/integration/workflow/`. Each example is:
-
-- Validated against the JSON schema (`workflow-definition.schema.json`)
-- Tested end-to-end through Temporal
-- Verified for correct output and behavior
-
-See the test files for programmatic usage examples.
-
-## Schema Validation
-
-All examples are validated against `schemas/workflows/workflow-definition.schema.json`.
-
-Run validation tests:
-
-```bash
-# Validate all examples against schema
-pytest tests/integration/workflow/test_example_schema_validation.py -v
-
-# Run specific example tests
-pytest tests/integration/workflow/test_example_schema_validation.py::test_example_schema_validation -v
-```
-
-## Requirements
-
-- Temporal dev server running on `localhost:7233`
-- Start with: `temporal server start-dev`
+If you need to execute these workflows with backend tooling, validate them against backend schemas, or run integration tests, do that in the backend repository where the workflow CLI and schema test harness live.
 
 ## Adding New Examples
 
 When adding new examples:
 
 1. Place them in the appropriate category directory
-2. Ensure they validate against the schema
-3. Add integration tests to verify they work end-to-end
-4. Update this README with usage examples
-5. Add to `test_example_schema_validation.py` parametrized test
+2. Keep the YAML aligned with the backend workflow schema so `npm run gen` does not overwrite or regress it
+3. Update this README when adding a new category or notable example
+4. Make any execution/schema-validation updates in the backend repository as well

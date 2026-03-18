@@ -11,7 +11,7 @@ The system uses two design patterns:
 
 ## File Structure
 
-```
+```text
 executionState/
 ├── README.md                    # This file
 ├── index.ts                     # Public API exports
@@ -61,8 +61,8 @@ const edgeStatus = enricher.determineEdgeStatus(
 
 - `determineEdgeStatus(edge, activityStates): 'passed' | 'pending'`
   - For branching edges: checks if target has started (indicates branch was taken)
-  - For regular edges: checks if source has started
-  - Trigger edges are always 'passed'
+  - For trigger and converge outgoing edges: checks if target has started
+  - For regular edges: checks if source reached a terminal status
 
 ### Node State Inferrers (Strategy Pattern)
 
@@ -152,13 +152,13 @@ For edges with branch handles (`true`, `false`, `approved`, `rejected`, `done`, 
 
 For normal edges without special handles:
 
-- Status determined by checking if **source** node has started
+- Status determined by checking if **source** node has reached a terminal status (completed, failed, or cancelled)
 
 ### Trigger Edges
 
 Edges from trigger nodes (`trigger-0`, `trigger-1`, etc.):
 
-- Always marked as 'passed' since triggers initiate workflow execution
+- Marked as `passed` only after the target node has started
 
 ## Adding a New Node Type
 
@@ -242,7 +242,7 @@ npm --workspace=@ansible/nexus-ui run vitest -- executionState
 
 ### Scenario 1: Loop Execution
 
-```
+```text
 Loop → [loop] → Body Task → [loop-back] → Loop → [done] → Done Task
 ```
 
@@ -253,7 +253,7 @@ Loop → [loop] → Body Task → [loop-back] → Loop → [done] → Done Task
 
 ### Scenario 2: Conditional Branch
 
-```
+```text
 Condition → [true] → Task True
          → [false] → Task False
 ```
@@ -264,7 +264,7 @@ Condition → [true] → Task True
 
 ### Scenario 3: Converge
 
-```
+```text
 Task A ↘
 Task B → Converge → Task Next
 Task C ↗
@@ -277,6 +277,6 @@ Task C ↗
 
 ## Related Documentation
 
-- [Main Architecture Guide](../../../../docs/architecture.md)
-- [Workflow Builder Internals](../../../../docs/architecture.md#builder-internals-advanced)
-- [Execution Visualizer Protocol](../../../../docs/execution-visualizer-protocol.md)
+- [Main Architecture Guide](../../../../../../../docs/architecture.md)
+- [Workflow Builder Internals](../../../../../../../docs/architecture.md#builder-internals-advanced)
+- [Execution Visualizer Protocol](../../../../../../../docs/execution-visualizer-protocol.md)

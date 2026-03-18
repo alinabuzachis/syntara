@@ -22,18 +22,19 @@ import type { BaseNodeFormProps } from '../registry/NodeRegistry'
 
 export interface MyNewNodeFormData {
   name: string
-  url: string
-  method: 'GET' | 'POST'
+  language: string
+  code: string
+  inputs?: string
 }
 
 export function MyNewNodeForm({ onSubmit, onCancel }: BaseNodeFormProps<MyNewNodeFormData>) {
   const [name, setName] = useState('')
-  const [url, setUrl] = useState('')
-  const [method, setMethod] = useState<'GET' | 'POST'>('GET')
+  const [language, setLanguage] = useState('python')
+  const [code, setCode] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({ name, url, method })
+    onSubmit({ name, language, code })
   }
 
   return (
@@ -50,31 +51,42 @@ export function MyNewNodeForm({ onSubmit, onCancel }: BaseNodeFormProps<MyNewNod
 
 Choose the appropriate template based on your needs:
 
-### Option A: Simple Node (Placeholder Implementation)
-
-For nodes where you're not ready to implement the full logic yet:
+### Option A: Simple Node (Direct Registration)
 
 ```typescript
 // registerMyNewNode.ts
 import { RhUiRobotIcon } from '@patternfly/react-icons'
-import { createBasicNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
+import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
+import { createScriptActivity } from '../../../../stores/workflowFactories'
 import { MyNewNodeForm } from '../../node-forms/MyNewNodeForm'
+import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
+import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 
 // IMPORTANT: Must export as default for auto-discovery
 export default function registerMyNewNode() {
-  NodeRegistry.register(
-    createBasicNode({
-      id: 'my-new-node',
-      label: 'My New Node',
-      icon: RhUiRobotIcon,
-      category: 'action', // Type-safe category
-      description: 'Does something amazing',
-      keywords: ['api', 'http', 'request', 'web'],
-      order: 35, // Optional: controls display order
-      formComponent: MyNewNodeForm,
-    })
-  )
+  NodeRegistry.register({
+    id: 'my-new-node',
+    label: 'My New Node',
+    icon: RhUiRobotIcon,
+    category: 'action',
+    description: 'Does something amazing',
+    keywords: ['script', 'code', 'python'],
+    order: 35,
+    formComponent: MyNewNodeForm,
+    onSubmit: (data, onSuccess, onError) => {
+      try {
+        const baseName = getDefaultNodeBaseName('my-new-node')
+        const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
+          createScriptActivity(id, name, data.language ?? 'python', data.code ?? '', data.inputs)
+        )
+        useWorkflowStore.getState().addActivity(activity)
+        onSuccess(activityId)
+      } catch (error) {
+        onError(error instanceof Error ? error.message : 'Failed to add node')
+      }
+    },
+  })
 }
 ```
 
@@ -293,4 +305,4 @@ export default function registerWebhookNode() {
 
 - Review existing `register*.ts` files in this directory for patterns and examples
 - Read the [Node Registry README](../README.md) for the full API reference
-- See [docs/architecture.md](/docs/architecture.md) for the broader architectural overview
+- See [docs/architecture.md](../../../../../../../docs/architecture.md) for the broader architectural overview

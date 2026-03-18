@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the expected behavior of execution badge rendering in BuilderContent.tsx. These tests verify the critical race condition fix implemented for badge display.
+This document describes the expected behavior of execution badge rendering across the builder execution-view stack. `BuilderContent.tsx` is responsible for the node-initialization timing fix, while `BuilderFlow.tsx` and `ExecutionStateEnricher.ts` handle enrichment and edge/node execution-state derivation.
 
 ## Context
 
@@ -31,21 +31,9 @@ useEffect(() => {
 }, [nodesInitialized, reactFlowInstance, nodeCount])
 ```
 
-### Execution State Application
+### Execution State Enrichment
 
-```typescript
-useEffect(() => {
-  const nodes = reactFlowInstance.getNodes()
-
-  // Skip if no nodes loaded yet (race condition)
-  if (nodes.length === 0) {
-    return
-  }
-
-  // Apply __executionState to nodes for badge rendering
-  // ...
-}, [activityStates, executionViewOpen, isExecutionView, reactFlowInstance, currentWorkflow, nodeCount])
-```
+`BuilderFlow.tsx` enriches activities and edges during graph construction using `ExecutionStateEnricher`. `BuilderContent.tsx` provides the `nodeCount` re-trigger so execution-view rendering waits for React Flow nodes to exist before downstream badge rendering settles.
 
 ## Test Scenarios
 
@@ -115,20 +103,20 @@ useEffect(() => {
 
 ## Data Flow
 
-```
+```text
 REST API → ExecutionDetail.tsx
   ↓
   setActivityExecutions(activities)
   ↓
 useExecutionStore (activityStates Map)
   ↓
-BuilderContent.tsx (activityStates from store)
+BuilderFlow.tsx + ExecutionStateEnricher.ts
   ↓
-Execution State Effect
+Node and edge enrichment
   ↓
-Wait for nodesInitialized = true  ← React Flow async loading
+BuilderContent.tsx waits for nodesInitialized = true  ← React Flow async loading
   ↓
-Apply __executionState to nodes
+Render nodes with `__executionState`
   ↓
 Node renders ExecutionStatusBadge
 ```
@@ -150,22 +138,22 @@ Node renders ExecutionStatusBadge
 
 ## Verification Points
 
-### Component Must Call:
+### Components Must Call
 
 - `useNodesInitialized()` - to detect node initialization
 - `reactFlowInstance.getNodes()` - to check for loaded nodes
-- Check `nodes.length > 0` before applying execution state
+- Re-run enrichment/rendering after node initialization completes
 
-### Effect Dependencies Must Include:
+### Timing Dependencies Must Include
 
 - `activityStates` - from execution store
 - `executionViewOpen` - builder overlay mode flag
 - `isExecutionView` - execution page mode flag
 - `nodeCount` - triggers re-run when nodes load
-- `reactFlowInstance` - for accessing nodes
+- `reactFlowInstance` - for accessing current nodes
 - `currentWorkflow` - workflow data
 
-### State Flow:
+### State Flow
 
 1. `nodesInitialized` changes from `false` to `true`
 2. `nodeCount` changes from `0` to `N` (number of nodes)
@@ -175,10 +163,11 @@ Node renders ExecutionStatusBadge
 
 ## Related Files
 
-- `BuilderContent.tsx:873-890` - Node initialization tracking
-- `BuilderContent.tsx:939` - Execution state effect dependencies
-- `ExecutionDetail.tsx:189-204` - Pending activities initialization
-- `useExecutionStore.ts:185-193` - setActivityExecutions action
+- `BuilderContent.tsx` - Node initialization tracking with `useNodesInitialized()` and `nodeCount`
+- `BuilderFlow.tsx` - Applies `ExecutionStateEnricher` to nodes and edges during graph construction
+- `ExecutionStateEnricher.ts` - Infers `__executionState` and edge execution status
+- `ExecutionDetail.tsx` - Initializes execution data in the execution store
+- `useExecutionStore.ts` - Stores `activityStates` and replay metadata
 - `ExecutionStatusBadge.tsx` - Badge rendering component
 
 ## Manual Testing Steps

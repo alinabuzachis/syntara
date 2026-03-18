@@ -8,6 +8,16 @@ Claude, you have access to the following skills. Use them when appropriate:
 
 - See `.claude/skills/pr_review.md` for PR review steps
 
+### TypeScript and ESLint Guardrails
+
+**CRITICAL: Always follow TypeScript best practices and do not introduce new ESLint warnings.**
+
+- **TypeScript first**: Prefer strict, explicit typing and type-safe patterns. Avoid `any`, avoid unsafe casts unless absolutely necessary, and use existing shared types or contract types whenever possible.
+- **Respect existing lint rules**: New or modified code should not add fresh ESLint warnings or errors, even in areas where older warnings still exist.
+- **Leave files no worse than you found them**: If you touch a file, avoid increasing its warning count. When practical, reduce nearby warnings as part of the change.
+- **Refactor instead of suppressing**: Prefer clearer control flow, smaller functions, extracted helpers, and stronger types over disabling rules.
+- **Validate before finishing**: After substantive edits, run the relevant lint/type-check commands for the affected package and fix any issues introduced by the change.
+
 ### Documentation Must Stay in Sync with Code
 
 **CRITICAL: Documentation must always reflect the current state of the codebase.**
@@ -93,20 +103,35 @@ For how the UI is structured, see these comprehensive guides:
 2. Define your registration function (must be a **default export**):
 
    ```typescript
+   import { RhUiMyIcon } from '@patternfly/react-icons'
    import { NodeRegistry } from '../NodeRegistry'
-   import { createBasicNode } from '../helpers/nodeTemplates'
+   import { useWorkflowStore } from '../../../../stores/useWorkflowStore'
+   import { createScriptActivity } from '../../../../stores/workflowFactories'
+   import { MyNodeForm } from '../../node-forms/MyNodeForm'
+   import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
+   import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 
    export default function registerMyNode() {
-     NodeRegistry.register(
-       createBasicNode({
-         id: 'my_node',
-         label: 'My Node',
-         icon: MyIcon,
-         category: 'action',
-         description: 'Does something useful',
-         formComponent: MyNodeForm,
-       })
-     )
+     NodeRegistry.register({
+       id: 'my-node',
+       label: 'My Node',
+       icon: RhUiMyIcon,
+       category: 'action',
+       description: 'Does something useful',
+       formComponent: MyNodeForm,
+       onSubmit: (data, onSuccess, onError) => {
+         try {
+           const baseName = getDefaultNodeBaseName('my-node')
+           const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
+             createScriptActivity(id, name, data.language ?? 'python', data.code ?? '')
+           )
+           useWorkflowStore.getState().addActivity(activity)
+           onSuccess(activityId)
+         } catch (error) {
+           onError(error instanceof Error ? error.message : 'Failed to add node')
+         }
+       },
+     })
    }
    ```
 
@@ -210,7 +235,7 @@ npm run test:coverage:check
 
 ### Component Development Guidelines
 
-**CRITICAL: Always prioritize using PatternFly components directly**
+#### PatternFly First
 
 Before writing any new UI code, follow this checklist:
 
@@ -441,7 +466,7 @@ These types of strings are **safe** to use in logic (they won't be translated):
 - **Internal constants**: `mode === 'development'`, `edge.type === 'buttonEdge'`
 - **Technical identifiers**: `file.endsWith('.tsx')`, `id.startsWith('parallel_')`
 
-#### Quick Checklist
+#### Enum Checklist
 
 Before writing conditional logic with strings:
 
@@ -851,7 +876,7 @@ describe('Button', () => {
 
 - UI: <http://localhost:5173>
 - Mock API: <http://localhost:3000>
-- WebSocket: `ws://localhost:8000` (real backend) or via mock API
+- WebSocket: `ws://localhost:8000` (real backend only; override with `VITE_WS_URL` if needed)
 
 ## Deployment Considerations
 

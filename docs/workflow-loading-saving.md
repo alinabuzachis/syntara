@@ -455,15 +455,15 @@ if (handleId === 'loop') {
 
 ## Key Files
 
-| File                        | Purpose                                     |
-| --------------------------- | ------------------------------------------- |
-| `loadWorkflow.ts`           | Entry point for loading workflows from API  |
-| `workflowTransform.ts`      | Bidirectional transformation (flatten/nest) |
-| `buildNestedStructure.ts`   | Nests condition nodes for save              |
-| `useEdgeSynchronization.ts` | Syncs edges with workflow store             |
-| `useWorkflowStore.ts`       | Central state management                    |
-| `validateConnection.ts`     | Edge validation rules                       |
-| `BuilderFlow.tsx`           | ReactFlow integration and edge handling     |
+| File                        | Purpose                                                       |
+| --------------------------- | ------------------------------------------------------------- |
+| `loadWorkflow.ts`           | Entry point for loading workflows from API                    |
+| `workflowTransform.ts`      | Bidirectional transformation (flatten/nest)                   |
+| `buildNestedStructure.ts`   | Converts flat activities + edges back to nested API structure |
+| `useEdgeSynchronization.ts` | Syncs edges with workflow store                               |
+| `useWorkflowStore.ts`       | Central state management                                      |
+| `validateConnection.ts`     | Edge validation rules                                         |
+| `BuilderFlow.tsx`           | ReactFlow integration and edge handling                       |
 
 ## Common Patterns
 
@@ -495,8 +495,8 @@ Activities in parallel execution are identified by:
 
 ### Issue: Loop body not populated after save/load
 
-**Cause**: Loop bodies are not re-nested during save
-**Solution**: This is expected - loop structure is preserved via edges only
+**Cause**: Loop body edges are missing or point to the wrong handles
+**Solution**: Verify the loop body entry edge uses `sourceHandle: 'loop'` and the loop-back edge uses `targetHandle: 'end'`
 
 ### Issue: Activities appear in wrong order
 
@@ -625,8 +625,7 @@ Now `getAllLastActivityIds(condition(C))` correctly returns C's ID (and any othe
 
 ## Future Improvements
 
-1. **Nest loop bodies during save** - Currently lossy, could rebuild `do` arrays from edges
-2. **Nest sequence structures** - Could detect sequential chains and wrap in `sequence`
-3. **Preserve parallel structures** - Could maintain parallel nesting instead of flattening
-4. **Round-trip validation** - Ensure load→edit→save produces identical structure
-5. **Edge order preservation** - Maintain original order when possible
+1. **Nest sequence structures** - Could detect sequential chains and wrap in `sequence`
+2. **Round-trip validation** - Continue expanding guarantees that load→edit→save preserves intent
+3. **Edge order preservation** - Maintain original order when possible
+4. **More save diagnostics** - Surface clearer errors when structural handles are miswired

@@ -6,10 +6,7 @@
 # Standard tests (fast, jsdom)
 npm test                    # Run all tests with linting and type checking
 npm run vitest              # Run tests only
-npm run test:ui             # Interactive test UI
-
-# Coverage
-npm run test:coverage       # Generate coverage report
+npm run test:coverage       # Run tests with coverage
 
 # Playwright E2E tests (real browser)
 npm run e2e                   # Run E2E tests headless
@@ -44,7 +41,7 @@ npm run test:coverage           # Generate coverage report
 npm run test:coverage:check     # Check coverage for changed files
 ```
 
-The check will **fail the PR** if any changed source file has less than 80% coverage on any of the four metrics: lines, statements, functions, or branches.
+The check will **fail the PR** if any changed source file has less than 80% **lines** coverage. The other metrics are still reported in the coverage output for visibility.
 
 ## Test File Naming
 

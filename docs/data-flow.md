@@ -60,10 +60,11 @@ Types are generated from OpenAPI specs in the backend repository:
 ```mermaid
 flowchart LR
     subgraph Backend["syntara-orchestration/syntara repo"]
-        W[workflow-api.yaml]
+        W[workflows/openapi.yaml]
         TM[tool_manager/openapi.yaml]
-        F[files-api.yaml]
-        A[approvals-api.yaml]
+        F[files/openapi.yaml]
+        A[approvals/openapi.yaml]
+        E[workflows/executions_openapi.yaml]
     end
 
     subgraph Gen["Generation Process"]
@@ -76,17 +77,20 @@ flowchart LR
         TMT[tool-manager.ts]
         FT[files-api.ts]
         AT[approvals-api.ts]
+        ET[executions-api.ts]
     end
 
     W --> Clone
     TM --> Clone
     F --> Clone
     A --> Clone
+    E --> Clone
     Clone --> OT
     OT --> WT
     OT --> TMT
     OT --> FT
     OT --> AT
+    OT --> ET
 ```
 
 ### How to Regenerate Types
@@ -132,7 +136,7 @@ The UI creates API clients using the generated types:
 ```typescript
 // packages/nexus-ui/src/client.tsx
 
-import type { ApprovalsAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
+import type { ApprovalsAPI, ExecutionsAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
 import createFetchClient from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
@@ -141,6 +145,12 @@ const workflowFetchClient = createFetchClient<WorkflowAPI.paths>({
   baseUrl: '/api/v1/',
 })
 export const workflowClient = createClient(workflowFetchClient)
+
+// Executions API client
+const executionsFetchClient = createFetchClient<ExecutionsAPI.paths>({
+  baseUrl: '/api/v1/',
+})
+export const executionsClient = createClient(executionsFetchClient)
 
 // Tool Manager API client (unified tools & providers)
 const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({
@@ -215,14 +225,14 @@ sequenceDiagram
     participant Z as Zustand Store
     participant R as React Flow Canvas
 
-    C->>Q: workflowClient.useQuery('get', '/workflows/{id}')
+    C->>Q: workflowClient.useQuery('get', '/workflows/{workflow_id}')
     Q->>Q: Check cache
 
     alt Cache HIT
         Q-->>C: Return cached data
     else Cache MISS
         Q->>F: Fetch request
-        F->>P: HTTP GET /api/v1/workflows/{id}
+        F->>P: HTTP GET /api/v1/workflows/{workflow_id}
         P->>B: Forward request
         B-->>P: WorkflowDefinition (nested)
         P-->>F: Response
@@ -290,7 +300,7 @@ function handleSave() {
 }
 ```
 
-**Note:** The actual implementation uses `buildNestedConditionStructure()` which wraps `WorkflowTransform.nest()` and handles validation.
+**Note:** The actual implementation uses `buildNestedConditionStructure()` as a thin wrapper around `WorkflowTransform.nest()`. Validation happens before that call in `BuilderContent`.
 
 ---
 
@@ -440,11 +450,11 @@ static flatten(nestedActivities: Activity[]): FlatWorkflow {
 ```mermaid
 flowchart TB
     subgraph Nested["Nested: Condition"]
-        NC[Condition<br/>then: [A, B]<br/>else: [C]]
+        NC["Condition<br/>then: A, B<br/>else: C"]
     end
 
     subgraph Flat["Flat: Condition"]
-        FC[Condition<br/>then: []<br/>else: []]
+        FC["Condition<br/>then: empty<br/>else: empty"]
         FA[Task A]
         FB[Task B]
         FCC[Task C]
@@ -460,7 +470,7 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph Nested2["Nested: Parallel"]
-        NP[Parallel<br/>branches: [[A], [B], [C]]]
+        NP["Parallel<br/>branches: A, B, C"]
     end
 
     subgraph Flat2["Flat: Parallel"]
@@ -468,7 +478,7 @@ flowchart TB
         FP1[Task A]
         FP2[Task B]
         FP3[Task C]
-        FJ[Converge/Join Node<br/>branches: [A, B, C]]
+        FJ["Converge/Join Node<br/>branches: A, B, C"]
 
         FD --> FP1 & FP2 & FP3
         FP1 & FP2 & FP3 --> FJ
@@ -488,8 +498,8 @@ Once the workflow is in the Zustand store, `BuilderFlow` converts it to React Fl
 ```mermaid
 flowchart LR
     subgraph Store["Zustand Store"]
-        A[activities: Activity[]]
-        E[edges: EdgeConnection[]]
+        A["activities: Activity[ ]"]
+        E["edges: EdgeConnection[ ]"]
     end
 
     subgraph BuilderFlow["BuilderFlow Component"]
@@ -498,8 +508,8 @@ flowchart LR
     end
 
     subgraph ReactFlow["React Flow Canvas"]
-        N[nodes: Node[]]
-        RE[edges: Edge[]]
+        N["nodes: Node[ ]"]
+        RE["edges: Edge[ ]"]
     end
 
     A --> T
@@ -536,7 +546,7 @@ const nodes = activities.map((activity) => ({
 ```mermaid
 flowchart TB
     subgraph Input["Input"]
-        N[Nodes<br/>(unmeasured)]
+        N["Nodes<br/>unmeasured"]
         E[Edges]
     end
 
@@ -548,7 +558,7 @@ flowchart TB
     end
 
     subgraph Output["Output"]
-        P[Positioned nodes<br/>(x, y coordinates)]
+        P["Positioned nodes<br/>x, y coordinates"]
     end
 
     N --> G

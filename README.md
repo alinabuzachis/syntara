@@ -42,7 +42,7 @@ npm start
 
 To use the real Nexus backend instead of the mock API:
 
-1. Clone and setup the backend from https://github.com/syntara-orchestration/syntara
+1. Clone and setup the backend from [syntara-orchestration/syntara](https://github.com/syntara-orchestration/syntara)
 2. Follow the backend README to start the API server
 3. Export the backend URL and start the UI:
 
@@ -53,8 +53,8 @@ npm start
 
 ### Access Applications
 
-- **UI**: http://localhost:5173
-- **Mock API**: http://localhost:3000
+- **UI**: <http://localhost:5173>
+- **Mock API**: <http://localhost:3000>
 
 The UI loads with demo workflows from the mock API. No backend setup needed for initial exploration!
 
@@ -62,7 +62,7 @@ The UI loads with demo workflows from the mock API. No backend setup needed for 
 
 Get familiar with the hot reload workflow:
 
-1. **Open the UI** in your browser: http://localhost:5173
+1. **Open the UI** in your browser: <http://localhost:5173>
 2. **Navigate to** the Automations page
 3. **Open the code** in your editor: `packages/nexus-ui/src/routes/automations/Automations.tsx`
 4. **Find the `AppPageHeader`** component and change the title text
@@ -80,8 +80,11 @@ npm test
 # Build for production
 npm run build
 
-# Run linter
-npm run lint
+# Check formatting
+npm run format:check
+
+# Run ESLint
+cd packages/nexus-ui && npm run lint
 
 # Generate API contracts
 npm run gen
@@ -112,7 +115,7 @@ npm run gen
 
 This is a monorepo using npm workspaces:
 
-```
+```text
 nexus-ui/
 ├── packages/
 │   ├── nexus-ui/              # Main React 19 application
@@ -121,12 +124,13 @@ nexus-ui/
 ├── docs/                      # Architecture and design documentation
 ├── tools/                     # Developer utilities (workflow creator, CI scripts)
 ├── package.json               # Root workspace configuration
-└── Containerfile              # Production deployment
+├── packages/nexus-ui/Containerfile        # UI container image
+└── packages/nexus-mock-api/Containerfile  # Mock API container image
 ```
 
 ## Development
 
-### Prerequisites
+### Tooling
 
 - Node.js 22+ (see package.json for exact requirements)
 - npm (comes with Node.js)
@@ -143,9 +147,7 @@ npm run start:mock-api             # Start mock API server only
 npm run build                      # Build UI package
 
 # Testing & Linting
-npm test                           # Run all tests (format check + lint + TypeScript)
-npm run lint                       # Run ESLint
-npm run lint:fix                   # Run ESLint with auto-fix
+npm test                           # Run all tests (format check + ESLint + TypeScript)
 npm run format                     # Format code with Prettier
 npm run format:check               # Check code formatting
 

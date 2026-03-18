@@ -203,20 +203,20 @@ The application will be available at:
 
 ## Code Readability Rules
 
-We enforce code readability through ESLint rules that keep functions small, files focused, and logic simple. These rules are set to `warn` — they won't block your PR, but new code should respect them.
+We enforce code readability through ESLint rules that keep functions small, files focused, and logic simple. The size/readability thresholds below are generally configured as `warn` so they guide refactoring without blocking every PR, but new code should still respect them.
 
 These thresholds are based on industry standards (Code Complete, SonarQube, BiomeJS):
 
 | Rule                     | Limit              | What it enforces                                             |
 | ------------------------ | ------------------ | ------------------------------------------------------------ |
-| `max-lines`              | 400 lines/file     | Keep files focused on a single responsibility                |
-| `max-lines-per-function` | 100 lines/function | Extract helpers instead of writing monoliths                 |
-| `complexity`             | 15 (cyclomatic)    | Break complex branching into smaller functions               |
+| `max-lines`              | 500 lines/file     | Keep files focused on a single responsibility                |
+| `max-lines-per-function` | 200 lines/function | Extract helpers instead of writing monoliths                 |
+| `complexity`             | 20 (cyclomatic)    | Break complex branching into smaller functions               |
 | `max-depth`              | 4 levels           | Use early returns instead of deep nesting                    |
 | `max-params`             | 5 parameters       | Use an options object for functions with many inputs         |
 | `max-nested-callbacks`   | 4 levels           | Flatten nested callbacks with named functions or async/await |
 
-We also enforce modern TypeScript, React, and import hygiene rules (all `warn`):
+We also enforce modern TypeScript, React, and import hygiene rules as CI-blocking `error`s:
 
 - **`prefer-optional-chain`** / **`prefer-nullish-coalescing`** — Use `?.` and `??` for safer, cleaner code
 - **`require-array-sort-compare`** — Prevent subtle `Array.sort()` bugs

@@ -23,8 +23,8 @@
 
 ```
 POST /api/v1/executions
-WS   /ws/workflows/v1/executions/{id}?replay={eventId}
-GET  /api/v1/executions/{id}?include=workflow_definition&include=activities
+WS   /ws/workflows/v1/executions/{execution_id}?replay={event_id}
+GET  /api/v1/executions/{execution_id}?include=workflow_definition,activities
 ```
 
 ---
@@ -159,7 +159,7 @@ GET  /api/v1/executions/{id}?include=workflow_definition&include=activities
 ### Historical Execution
 
 ```
-GET /api/v1/executions/exec-123?include=workflow_definition&include=activities
+GET /api/v1/executions/exec-123?include=workflow_definition,activities
 → Returns: workflow structure + final activity states
 → NO WebSocket connection needed
 ```
@@ -409,9 +409,9 @@ function determineEdgeStatus(edge, activityStates) {
     return targetState?.status !== 'pending' ? 'passed' : 'pending'
   }
 
-  // Regular edges: passed when source has startedAt
+  // Regular edges: passed when source reaches a terminal status
   const sourceState = activityStates.get(edge.source)
-  return sourceState?.startedAt ? 'passed' : 'pending'
+  return ['completed', 'failed', 'cancelled'].includes(sourceState?.status ?? '') ? 'passed' : 'pending'
 }
 ```
 
@@ -506,7 +506,7 @@ let lastEventId = '0'
 
 // On disconnect
 connectWebSocket(executionId, lastEventId)
-// → WS /ws/workflows/v1/executions/{id}?replay={lastEventId}
+// → WS /ws/workflows/v1/executions/{execution_id}?replay={lastEventId}
 ```
 
 ---
@@ -532,7 +532,7 @@ Nodes re-render with new border/badge
 ## Protocol Rules
 
 1. **Always store `event_id`** from every message (for reconnection)
-2. **Backend does NOT send edge status** (derive from source node)
+2. **Backend does NOT send edge status** (derive it client-side from node states and edge type)
 3. **No extra GET for live run** (workflow already in Zustand)
 4. **WebSocket closes after `final_snapshot`**
 5. **Reconnect with `?replay={lastEventId}`** to catch up
@@ -623,9 +623,9 @@ Edge visual status is derived from node states:
 ```typescript
 // Edge is "passed" (solid line) when:
 // - For branching edges (from condition/approval): target node has started
-// - For converge edges (to converge node): target node has completed
-// - For trigger edges: target has startedAt
-// - For regular edges: source has startedAt (execution flowed through)
+// - For converge outgoing edges: target node has started
+// - For trigger edges: target has started
+// - For regular edges: source reached a terminal status (completed/failed/cancelled)
 
 // Edge is "pending" (dotted line) otherwise
 ```

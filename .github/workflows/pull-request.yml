@@ -28,6 +28,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Lint Mermaid diagrams
+        run: npm run lint:mermaid
+
       - name: TypeScript type check
         run: npm run tsc
         working-directory: packages/nexus-ui

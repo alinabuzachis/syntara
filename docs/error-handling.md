@@ -129,7 +129,7 @@ const queryState = useQueryState(query, {
 Shows a deduped alert for query errors. Automatically parses 4xx/5xx response bodies.
 
 ```tsx
-const { error } = workflowClient.useQuery('get', '/workflows/{id}')
+const { error } = workflowClient.useQuery('get', '/workflows/{workflow_id}')
 
 // Show alert for errors (deduped, won't spam on re-renders)
 useApiErrorAlert(error, { title: 'Error loading workflow' })
@@ -158,9 +158,9 @@ Provides consistent error handling for mutations with special 503 support.
 const handleError = useMutationErrorHandler()
 
 // Basic usage
-const { mutate } = workflowClient.useMutation('post', '/invocations')
+const { mutate } = workflowClient.useMutation('post', '/workflows')
 mutate(data, {
-  onError: handleError({ title: 'Failed to create invocation' }),
+  onError: handleError({ title: 'Failed to create workflow' }),
 })
 
 // With custom 503 handling (e.g., show inline UI instead of alert)

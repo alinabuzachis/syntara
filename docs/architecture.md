@@ -188,11 +188,11 @@ Notes:
 
 ### 2. Explore these 3 files (15 min)
 
-| File                                 | Why                                                    |
-| ------------------------------------ | ------------------------------------------------------ |
-| `src/app/App.tsx`                    | Entry point — see how routing and providers are set up |
-| `src/client.tsx`                     | How we make API calls — pattern you'll use everywhere  |
-| `src/routes/builder/BuilderFlow.tsx` | The "big" file — workflow canvas rendering             |
+| File                                                   | Why                                                    |
+| ------------------------------------------------------ | ------------------------------------------------------ |
+| `packages/nexus-ui/src/app/App.tsx`                    | Entry point — see how routing and providers are set up |
+| `packages/nexus-ui/src/client.tsx`                     | How we make API calls — pattern you'll use everywhere  |
+| `packages/nexus-ui/src/routes/builder/BuilderFlow.tsx` | The "big" file — workflow canvas rendering             |
 
 ### 3. Make a small change (10 min)
 
@@ -508,7 +508,8 @@ mutation.mutate({ body: workflowPayload })
 
 | Client              | Base URL                | Used for                                     |
 | ------------------- | ----------------------- | -------------------------------------------- |
-| `workflowClient`    | `/api/v1/`              | Workflows, executions                        |
+| `workflowClient`    | `/api/v1/`              | Workflow definitions and CRUD                |
+| `executionsClient`  | `/api/v1/`              | Execution list, detail, and run              |
 | `toolManagerClient` | `/api/v1/tool_manager/` | Tool manager (tools & providers unified API) |
 | `approvalsClient`   | `/api/v1/`              | Approval requests and responses              |
 
@@ -599,8 +600,8 @@ This section is the “how it really works” view of the builder. It’s here s
   - Any file matching **`register*.ts`** is loaded at startup (see "How `registerAllNodes()` auto-discovers nodes" above).
   - Each registration module must export a **default** function that calls `NodeRegistry.register(...)`.
 - **Templates**:
-  - `createBasicNode(...)`: good for placeholder nodes (minimal behavior; usually just "close the form" on submit).
-  - `createCustomNode(...)`: use when you need custom submit logic (e.g., writing into the workflow store).
+  - `createCustomNode(...)`: use this helper when you want shared registration ergonomics plus custom submit logic.
+  - Or call `NodeRegistry.register(...)` directly for simple registrations without helper wrappers.
 - **Categories**:
   - Categories are type-safe and provide UI metadata (ordering/grouping/search). See `routes/builder/registry/categories.ts`.
 
@@ -611,23 +612,23 @@ This section is the “how it really works” view of the builder. It’s here s
 // Files matching register*.ts are automatically discovered and registered
 // MUST export the registration function as default
 
-// Basic nodes (placeholder implementations):
-import { createBasicNode } from '../helpers/nodeTemplates'
+// Simple registrations can call NodeRegistry.register() directly:
 import { NodeRegistry } from '../NodeRegistry'
 
 export default function registerApprovalNode() {
-  NodeRegistry.register(
-    createBasicNode({
-      id: 'approval',
-      label: 'Approval',
-      icon: RhUiUserCheckIcon,
-      category: 'logic', // Type-safe - must be a valid NodeCategory
-      description: 'Require human approval before continuing workflow',
-      keywords: ['approve', 'approval', 'review', 'manual'],
-      order: 50,
-      formComponent: ApprovalNodeForm,
-    })
-  )
+  NodeRegistry.register({
+    id: 'approval',
+    label: 'Approval',
+    icon: RhUiUserCheckIcon,
+    category: 'logic', // Type-safe - must be a valid NodeCategory
+    description: 'Require human approval before continuing workflow',
+    keywords: ['approve', 'approval', 'review', 'manual'],
+    order: 50,
+    formComponent: ApprovalNodeForm,
+    onSubmit: (_data, onSuccess) => {
+      onSuccess()
+    },
+  })
 }
 
 // Complex nodes (with workflow store integration):
@@ -666,10 +667,10 @@ export default function registerTriggerNode() {
 2. Export your registration function as **default**
 3. That's it! Auto-discovery handles the rest
 
-**Available Templates:**
+**Available Registration Patterns:**
 
-- `createBasicNode(config, errorMessage?)` - For placeholder nodes that just call onSuccess
-- `createCustomNode(config, onSubmit)` - For nodes with custom submission logic
+- `NodeRegistry.register({ ... })` - Good for direct/simple registrations
+- `createCustomNode(config, onSubmit)` - Good for nodes with shared helper behavior and custom submission logic
 
 **Node Categories (Type-Safe):**
 
@@ -766,8 +767,8 @@ flowchart TB
   - `BuilderContent` uses the result with `loadWorkflowWithEdges()` to atomically update the store.
 - **Save (builder → API)**:
   - The builder validates the graph first (`utils/validation/`).
-  - `utils/buildNestedStructure.ts` is responsible for building the nested payload for save.
-  - Important nuance: today, the "nesting back" behavior is intentionally **not fully symmetric** for every container type; the UI preserves semantics primarily through edges.
+  - `utils/buildNestedStructure.ts` is the thin wrapper that delegates to `WorkflowTransform.nest(...)`.
+  - The current save path reconstructs nested parallel, loop, approval, and condition structures from the flat graph before sending the payload to the API.
 
 **WorkflowTransform Utility:**
 
@@ -785,12 +786,11 @@ Central class for bidirectional workflow conversion:
 
 **Serialization workflow (Save → API):**
 
-1. `buildNestedConditionStructure(activities, edges)` - Converts flat to nested
-2. Finds edges from condition's true/false handles
-3. Recursively collects all downstream activities for each branch
-4. Moves them into then/else arrays
-5. Handles `parallel_for_*` wrappers (includes wrapper, not individual branches)
-6. Located in `packages/nexus-ui/src/routes/builder/utils/buildNestedStructure.ts`
+1. `buildNestedConditionStructure(activities, edges)` delegates to `WorkflowTransform.nest(...)`
+2. `WorkflowTransform.nest(...)` reconstructs outer containers first (parallel → loop → approval → condition)
+3. Branch and loop relationships come from edges and handle metadata
+4. `parallel_for_*` wrappers are recreated only for the nested API payload
+5. Implementation lives in `packages/nexus-ui/src/routes/builder/utils/buildNestedStructure.ts` and `workflowTransform.ts`
 
 **Deserialization workflow (API → Edit):**
 
@@ -805,7 +805,7 @@ The `WorkflowTransform.flatten()` method handles the deserialization process:
 
 Located in `packages/nexus-ui/src/routes/builder/utils/workflowTransform.ts`
 
-**Note:** sequence/loop/parallel containers are lossy — after flatten→nest, they become flat tasks with edges. This is acceptable as the semantic meaning (execution order) is preserved.
+**Note:** the builder still uses a flat editing model internally, but the save path reconstructs nested loop, approval, condition, and parallel structures for the API payload.
 
 #### Edge synchronization (keeping store + React Flow consistent)
 
@@ -885,7 +885,7 @@ Converge nodes (also called "join" nodes) are "merge points" with special semant
 ```mermaid
 flowchart TB
   subgraph Editing["During Editing: Flat with edges"]
-    B1[Task A] --> BJ[Converge<br/>branches: [A, B, C]]
+    B1[Task A] --> BJ["Converge<br/>branches: A, B, C"]
     B2[Task B] --> BJ
     B3[Task C] --> BJ
   end

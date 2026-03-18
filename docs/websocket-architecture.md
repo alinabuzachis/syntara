@@ -12,9 +12,8 @@
 4. [API Reference](#api-reference)
 5. [Connection States](#connection-states)
 6. [Reconnection](#reconnection)
-7. [Demo Page](#demo-page)
-8. [Configuration](#configuration)
-9. [Design Principles](#design-principles)
+7. [Configuration](#configuration)
+8. [Design Principles](#design-principles)
 
 ---
 
@@ -410,7 +409,7 @@ Automatic reconnection with exponential backoff:
 Custom configuration:
 
 ```tsx
-import { useWebSocketStore } from '../lib/websocket'
+import { useWebSocketStore } from '../lib/websocket/store'
 
 useWebSocketStore.getState().updateConfig({
   reconnection: {

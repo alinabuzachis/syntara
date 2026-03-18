@@ -53,8 +53,8 @@ npm start
 
 ### Environment Ports
 
-- UI: http://localhost:5173
-- Mock API: http://localhost:3000
+- UI: <http://localhost:5173>
+- Mock API: <http://localhost:3000>
 
 ## Architecture
 
@@ -75,7 +75,7 @@ npm start
 
 The `nexus-contracts` package contains auto-generated TypeScript types from the backend OpenAPI schemas. These must be updated whenever the backend API changes.
 
-### Prerequisites
+### Backend Access
 
 - Local clone of the [nexus backend](https://github.com/syntara-orchestration/syntara) repository
 - The backend repo should be at a sibling path or you'll need to adjust the paths below
@@ -88,17 +88,32 @@ The recommended approach is using the automated gen script (see below). For manu
 cd packages/nexus-contracts
 
 # Replace /path/to/nexus with your local backend clone path
-npx openapi-typescript /path/to/nexus/src/nexus/schemas/workflows/workflow-api.yaml \
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/workflows/openapi.yaml \
   --output ./src/workflow-api.ts --default-non-nullable false
 
 npx openapi-typescript /path/to/nexus/src/nexus/schemas/tool_manager/openapi.yaml \
   --output ./src/tool-manager.ts --default-non-nullable false
 
-npx openapi-typescript /path/to/nexus/src/nexus/schemas/files/files-api.yaml \
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/files/openapi.yaml \
   --output ./src/files-api.ts --default-non-nullable false
 
-npx openapi-typescript /path/to/nexus/src/nexus/schemas/approvals/approvals-api.yaml \
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/approvals/openapi.yaml \
   --output ./src/approvals-api.ts --default-non-nullable false
+
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/workflows/executions_openapi.yaml \
+  --output ./src/executions-api.ts --default-non-nullable false
+
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/workflows/activity_types_openapi.yaml \
+  --output ./src/activity-types-api.ts --default-non-nullable false
+
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/invocations/openapi.yaml \
+  --output ./src/invocations-api.ts --default-non-nullable false
+
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/metrics/openapi.yaml \
+  --output ./src/metrics-api.ts --default-non-nullable false
+
+npx openapi-typescript /path/to/nexus/src/nexus/schemas/tool_manager/metrics.yaml \
+  --output ./src/tool-manager-metrics.ts --default-non-nullable false
 
 # Copy example workflows to mock API
 cp -r /path/to/nexus/tests/integration/workflow/examples ../nexus-mock-api/src/
@@ -133,14 +148,19 @@ This will:
 
 ### Contract Files
 
-| File                | Source Schema                          | Description                                    |
-| ------------------- | -------------------------------------- | ---------------------------------------------- |
-| `workflow-api.ts`   | `schemas/workflows/workflow-api.yaml`  | Workflow and execution types                   |
-| `tool-manager.ts`   | `schemas/tool_manager/openapi.yaml`    | Unified tool & provider management types       |
-| `files-api.ts`      | `schemas/files/files-api.yaml`         | File upload and management types               |
-| `approvals-api.ts`  | `schemas/approvals/approvals-api.yaml` | Approval request and response types            |
-| `tools.ts`          | Legacy (not auto-generated)            | Legacy tool types (kept for compatibility)     |
-| `tool-providers.ts` | Legacy (not auto-generated)            | Legacy provider types (kept for compatibility) |
+| File                      | Source Schema                                   | Description                                    |
+| ------------------------- | ----------------------------------------------- | ---------------------------------------------- |
+| `workflow-api.ts`         | `schemas/workflows/openapi.yaml`                | Workflow definitions and workflow CRUD types   |
+| `executions-api.ts`       | `schemas/workflows/executions_openapi.yaml`     | Execution list/detail/run endpoints            |
+| `activity-types-api.ts`   | `schemas/workflows/activity_types_openapi.yaml` | Activity type metadata                         |
+| `tool-manager.ts`         | `schemas/tool_manager/openapi.yaml`             | Unified tool and provider management types     |
+| `tool-manager-metrics.ts` | `schemas/tool_manager/metrics.yaml`             | Tool manager metrics endpoints                 |
+| `files-api.ts`            | `schemas/files/openapi.yaml`                    | File upload and management types               |
+| `approvals-api.ts`        | `schemas/approvals/openapi.yaml`                | Approval request and response types            |
+| `invocations-api.ts`      | `schemas/invocations/openapi.yaml`              | Invocation-related endpoints                   |
+| `metrics-api.ts`          | `schemas/metrics/openapi.yaml`                  | Metrics endpoints                              |
+| `tools.ts`                | Legacy (not auto-generated)                     | Legacy tool types (kept for compatibility)     |
+| `tool-providers.ts`       | Legacy (not auto-generated)                     | Legacy provider types (kept for compatibility) |
 
 ## Development Workflow
 
@@ -301,7 +321,7 @@ See [docs/zustand-architecture.md](docs/zustand-architecture.md) for the complet
 | Dependencies out of sync                | `npm ci` from root                                        |
 | Port already in use                     | Check for running processes on 5173 (UI) or 3000 (API)    |
 | TypeScript errors after contract update | Run `npm run gen` then `npm test`                         |
-| WebSocket demo not working              | WebSocket requires the real backend, not the mock API     |
+| WebSocket features not working          | WebSocket requires the real backend, not the mock API     |
 | Tests failing after node change         | Ensure `register*.ts` files use `export default function` |
 
 ## Further Reading
