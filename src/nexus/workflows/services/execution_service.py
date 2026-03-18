@@ -16,6 +16,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.emission import emit_completion_metrics
+from nexus.metrics.types import MetricType
 from nexus.workflows.exceptions import (
     ExecutionNotFoundError,
     TemporalUnavailableError,
@@ -143,6 +146,8 @@ class ExecutionService(BaseService):
         """
         logger.info("Creating execution for workflow by user", workflow_id=workflow_id, user_id=self.user.id)
 
+        recorder = get_metrics_recorder()
+
         # Step 1: Validate workflow exists and is enabled
         result = await self.session.exec(
             select(Workflow, WorkflowVersion)
@@ -219,6 +224,20 @@ class ExecutionService(BaseService):
             temporal_workflow_id=execution.temporal_workflow_id,
         )
 
+        recorder.record(
+            MetricType.WORKFLOW_STATUS,
+            value=1,
+            labels={
+                "workflow_id": str(workflow.id),
+                "execution_id": str(execution.id),
+                "status": "started",
+                "workflow_type": workflow.name,
+            },
+        )
+        recorder.increment("total_workflows")
+        recorder.increment("active_workflows")
+        recorder.prometheus.active_workflows.inc()
+
         return self.convert_resource_mixin.convert_resource(execution)  # type: ignore[no-any-return]
 
     async def get_execution(self, execution_id: UUID, *, include: set[ExecutionInclude] | None = None) -> ExecutionRead:
@@ -236,16 +255,19 @@ class ExecutionService(BaseService):
 
         """
         # Build query with conditional eager loading based on include parameter
-        query = select(Execution).where(Execution.id == execution_id).where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
+        query = (
+            select(Execution)
+            .where(Execution.id == execution_id)
+            .where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
+            .options(selectinload(Execution.workflow))  # type: ignore[arg-type]
+        )
 
         # Eagerly load workflow_version if workflow_definition is requested
         if include and ExecutionInclude.WORKFLOW_DEFINITION in include:
-            # Type ignore needed for SQLAlchemy/SQLModel relationship typing
             query = query.options(selectinload(Execution.workflow_version))  # type: ignore[arg-type]
 
         # Eagerly load activities if activities is requested
         if include and ExecutionInclude.ACTIVITIES in include:
-            # Type ignore needed for SQLAlchemy/SQLModel relationship typing
             query = query.options(selectinload(Execution.activities))  # type: ignore[arg-type]
 
         result = await self.session.exec(query)
@@ -253,6 +275,8 @@ class ExecutionService(BaseService):
 
         if execution is None:
             raise ExecutionNotFoundError(execution_id)
+
+        await self._emit_completion_metrics(execution)
 
         # We need to use an "include"-aware instance of ExecutionsConvertResourceMixin
         mixin: ExecutionsConvertResourceMixin = ExecutionsConvertResourceMixin(include)
@@ -308,8 +332,15 @@ class ExecutionService(BaseService):
             ExecutionNotFoundError: If execution not found
 
         """
-        # Verify execution exists
-        await self.get_execution(execution_id)
+        exec_result = await self.session.exec(
+            select(Execution)
+            .where(Execution.id == execution_id)
+            .where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
+            .options(selectinload(Execution.workflow))  # type: ignore[arg-type]
+        )
+        execution = exec_result.one_or_none()
+        if execution is None:
+            raise ExecutionNotFoundError(execution_id)
 
         # Load all activities from DB (single query), ordered by created_at
         result = await self.session.exec(
@@ -319,6 +350,8 @@ class ExecutionService(BaseService):
         )
         activities = list(result.all())
 
+        await self._emit_completion_metrics(execution)
+
         logger.debug(
             "Retrieved activities for execution from database",
             activity_count=len(activities),
@@ -326,6 +359,15 @@ class ExecutionService(BaseService):
         )
 
         return activities
+
+    async def _emit_completion_metrics(self, execution: Execution) -> None:
+        """Emit workflow and activity metrics on first terminal-state read.
+
+        Delegates to ``emission.emit_completion_metrics`` which owns the
+        dedup set, terminal-state check and all metric recording.
+        """
+        recorder = get_metrics_recorder()
+        await emit_completion_metrics(self.session, execution, recorder)
 
     async def send_activity_signal(
         self,

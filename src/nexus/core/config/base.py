@@ -1163,6 +1163,24 @@ class MetricsSettings(BaseSettings):
         description="Enable OpenMetrics scrape endpoint (GET /api/v1/metrics/openmetrics)",
     )
 
+    metrics_poller_interval_seconds: float = Field(
+        default=15.0,
+        description="Seconds between completion-poller cycles",
+        gt=0,
+    )
+
+    metrics_poller_lookback_seconds: float = Field(
+        default=120.0,
+        description="How far back the completion poller queries for finished executions",
+        gt=0,
+    )
+
+    metrics_poller_max_dedup_size: int = Field(
+        default=50_000,
+        description="Maximum size of the in-memory dedup set for emitted executions",
+        ge=1,
+    )
+
 
 # =============================================================================
 # Workflow Client Configuration

@@ -224,6 +224,47 @@ class MetricsRecorder:
         """Dispatch metric to the appropriate Prometheus instrument."""
         p = self._prometheus
 
+        if metric_type in {
+            MetricType.REQUEST_DURATION,
+            MetricType.LLM_DURATION,
+            MetricType.LLM_TTFT,
+        }:
+            MetricsRecorder._dispatch_latency(metric_type, value, labels, p)
+
+        elif metric_type == MetricType.CACHE_HIT:
+            p.cache_hits_total.inc()
+
+        elif metric_type == MetricType.CACHE_MISS:
+            p.cache_misses_total.inc()
+
+        elif metric_type == MetricType.CACHE_LOOKUP_DURATION:
+            p.cache_lookup_duration_seconds.observe(value / 1000)
+
+        elif metric_type == MetricType.CACHE_UTILIZATION:
+            p.cache_utilization_ratio.set(value)
+
+        elif metric_type == MetricType.WORKFLOW_DURATION:
+            p.workflow_duration_seconds.observe(value / 1000)
+            p.workflows_total.labels(
+                workflow_type=labels.get("workflow_type", "unknown"),
+            ).inc()
+
+        elif metric_type == MetricType.ACTIVITY_DURATION:
+            p.activity_duration_seconds.observe(value / 1000)
+
+        elif metric_type == MetricType.ERROR:
+            p.errors_total.labels(
+                error_type=labels.get("error_type", "unknown"),
+            ).inc()
+
+    @staticmethod
+    def _dispatch_latency(
+        metric_type: MetricType,
+        value: float,
+        labels: dict[str, str],
+        p: NexusPrometheusMetrics,
+    ) -> None:
+        """Handle request, LLM, and TTFT latency metrics."""
         if metric_type == MetricType.REQUEST_DURATION:
             endpoint = labels.get("endpoint", "unknown")
             status_label = labels.get("status", "unknown")
@@ -240,28 +281,3 @@ class MetricsRecorder:
             p.ttft_seconds.labels(
                 model=labels.get("model", "unknown"),
             ).observe(value / 1000)
-
-        elif metric_type == MetricType.CACHE_HIT:
-            p.cache_hits_total.inc()
-
-        elif metric_type == MetricType.CACHE_MISS:
-            p.cache_misses_total.inc()
-
-        elif metric_type == MetricType.CACHE_LOOKUP_DURATION:
-            p.cache_lookup_duration_seconds.observe(value / 1000)
-
-        elif metric_type == MetricType.CACHE_UTILIZATION:
-            p.cache_utilization_ratio.set(value)
-
-        elif metric_type == MetricType.WORKFLOW_DURATION:
-            p.workflow_duration_seconds.labels(
-                workflow_type=labels.get("workflow_type", "unknown"),
-            ).observe(value / 1000)
-            p.workflows_total.labels(
-                workflow_type=labels.get("workflow_type", "unknown"),
-            ).inc()
-
-        elif metric_type == MetricType.ERROR:
-            p.errors_total.labels(
-                error_type=labels.get("error_type", "unknown"),
-            ).inc()

@@ -6,6 +6,7 @@ handling context integration and routing requests to appropriate specialist agen
 
 import asyncio
 import copy
+import time
 from typing import Any, ClassVar
 from uuid import UUID
 
@@ -16,6 +17,8 @@ from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlann
 from nexus.agent_orchestrator.exceptions import ContextIntegrationError
 from nexus.agent_orchestrator.models.agent_state import AgentState
 from nexus.core.config.base import get_settings
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.types import MetricType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -180,6 +183,7 @@ class OrchestratorAgent:
             State with current_agent set to target agent
 
         """
+        start = time.perf_counter()
         prompt_lower = state["original_prompt"].lower()
 
         # Simple keyword matching for workflow generation
@@ -196,5 +200,17 @@ class OrchestratorAgent:
         # Update state with routing decision
         routed_state = copy.deepcopy(state)
         routed_state["current_agent"] = target_agent
+
+        duration_ms = (time.perf_counter() - start) * 1000
+        recorder = get_metrics_recorder()
+        recorder.record(
+            MetricType.AGENT_ROUTING_DURATION,
+            duration_ms,
+            unit="ms",
+            labels={
+                "invocation_id": state["invocation_id"],
+                "target_agent": target_agent,
+            },
+        )
 
         return routed_state

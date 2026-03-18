@@ -1,9 +1,10 @@
 """Service for executing invocations decoupled from creation."""
 
 import contextlib
+import time
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
 import structlog
@@ -17,6 +18,12 @@ from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignal
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
 from nexus.files import FileManager, FileStatus, get_file_manager
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.recorder import MetricsRecorder
+from nexus.metrics.types import MetricType
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -80,42 +87,14 @@ class InvocationExecutor:
             await self._log_conversion_failures(invocation, session)
 
             # Initialize OrchestrationService - fail immediately if LLM not configured
-            try:
-                # Import here to avoid circular dependency
-                from nexus.agent_orchestrator.services.orchestration_service import (  # noqa: PLC0415
-                    OrchestrationService,
-                )
-
-                logger.info("Initializing LLM for invocation", invocation_id=invocation.id)
-                llm = get_openrouter_llm()
-                context_manager_planner = ContextManagerPlanner(session_factory=self.session_factory)
-                orchestration_service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
-                logger.info("LLM initialized successfully for invocation", invocation_id=invocation.id)
-            except LLMConfigurationError as e:
-                # Mark invocation as failed
-                logger.exception(
-                    "LLM configuration failed for invocation",
-                    invocation_id=invocation.id,
-                )
-                now = datetime.now(UTC)
-                invocation.started_at = now  # Set started_at to indicate when failure was detected
-                invocation.status = InvocationStatus.FAILED
-                invocation.error_message = str(e)
-                invocation.completed_at = now
-                await session.commit()
-                logger.exception(
-                    "Invocation failed", invocation_id=invocation.id, error_message=invocation.error_message
-                )
-
-                # Send failure signal to workflow
-                callback_url = cast(
-                    "str | None", invocation.context_data.get("callback_url") if invocation.context_data else None
-                )
-                await WorkflowSignalClient.send_failure_signal(callback_url, invocation.id, e)
+            orchestration_service = await self._init_orchestration(invocation, session)
+            if orchestration_service is None:
                 return
 
             # Store ID for logging in case of session errors
             exec_invocation_id = invocation.id
+            recorder = get_metrics_recorder()
+            invocation_start = time.perf_counter()
 
             try:
                 # Mark invocation as started
@@ -157,11 +136,15 @@ class InvocationExecutor:
                 invocation.completed_at = datetime.now(UTC)
                 await session.commit()
 
+                self._record_invocation_metrics(recorder, invocation_start, exec_invocation_id, status="success")
+
             except InvocationCancelledError:
                 # Invocation was cancelled during execution - this is expected behavior
                 # Don't mark as failed since cancellation is already handled
                 logger.info("Invocation cancelled during execution", invocation_id=exec_invocation_id)
             except Exception as e:
+                self._record_invocation_metrics(recorder, invocation_start, exec_invocation_id, status="error", error=e)
+
                 logger.exception(
                     "Exception during invocation execution",
                     invocation_id=exec_invocation_id,
@@ -174,6 +157,66 @@ class InvocationExecutor:
                     "str | None", invocation.context_data.get("callback_url") if invocation.context_data else None
                 )
                 await WorkflowSignalClient.send_failure_signal(callback_url, exec_invocation_id, e)
+
+    async def _init_orchestration(self, invocation: Invocation, session: AsyncSession) -> "OrchestrationService | None":
+        """Initialise LLM and OrchestrationService, handling configuration failures.
+
+        Returns the OrchestrationService instance or ``None`` on failure.
+        """
+        try:
+            from nexus.agent_orchestrator.services.orchestration_service import (  # noqa: PLC0415
+                OrchestrationService,
+            )
+
+            logger.info("Initializing LLM for invocation", invocation_id=invocation.id)
+            llm = get_openrouter_llm()
+            context_manager_planner = ContextManagerPlanner(session_factory=self.session_factory)
+            service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
+            logger.info("LLM initialized successfully for invocation", invocation_id=invocation.id)
+            return service
+        except LLMConfigurationError as e:
+            logger.exception("LLM configuration failed for invocation", invocation_id=invocation.id)
+            now = datetime.now(UTC)
+            invocation.started_at = now
+            invocation.status = InvocationStatus.FAILED
+            invocation.error_message = str(e)
+            invocation.completed_at = now
+            await session.commit()
+            logger.exception("Invocation failed", invocation_id=invocation.id, error_message=str(e))
+
+            callback_url = cast(
+                "str | None", invocation.context_data.get("callback_url") if invocation.context_data else None
+            )
+            await WorkflowSignalClient.send_failure_signal(callback_url, invocation.id, e)
+            return None
+
+    @staticmethod
+    def _record_invocation_metrics(
+        recorder: MetricsRecorder,
+        start_time: float,
+        invocation_id: UUID,
+        *,
+        status: str,
+        error: Exception | None = None,
+    ) -> None:
+        """Record invocation duration and status metrics.
+
+        Args:
+            recorder: Metrics recorder instance.
+            start_time: ``time.perf_counter()`` value captured at invocation start.
+            invocation_id: Invocation UUID.
+            status: Outcome label (``"success"`` or ``"error"``).
+            error: Optional exception for error-path labels.
+
+        """
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        labels: dict[str, str] = {"invocation_id": str(invocation_id), "status": status}
+        recorder.record(MetricType.AGENT_INVOCATION_DURATION, duration_ms, unit="ms", labels=labels)
+
+        status_labels = dict(labels)
+        if error is not None:
+            status_labels["error_type"] = type(error).__name__
+        recorder.record(MetricType.AGENT_STATUS, value=1, labels=status_labels)
 
     async def _handle_execution_error(self, error: Exception, invocation_id: UUID, session: AsyncSession) -> None:
         """Handle execution errors by marking invocation as failed.

@@ -58,7 +58,7 @@ from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
 from tests.helpers.approval import ApprovalsFactory
 from tests.helpers.tool_manager import ToolFactory
-from tests.helpers.workflow import ExecutionsFactory
+from tests.helpers.workflow import ActivitiesFactory, ExecutionsFactory
 
 _ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata)
 
@@ -1285,6 +1285,16 @@ async def executions_factory(
         )
     """
     return ExecutionsFactory(test_db_session, test_workflow, test_user)
+
+
+@pytest_asyncio.fixture
+async def activities_factory(test_db_session: AsyncSession) -> ActivitiesFactory:
+    """Create a factory fixture for test activity executions.
+
+    Returns an ActivitiesFactory instance that can create ActivityExecution
+    rows for any execution via ``create_activities(execution, names, ...)``.
+    """
+    return ActivitiesFactory(test_db_session)
 
 
 @pytest_asyncio.fixture

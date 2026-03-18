@@ -1,5 +1,6 @@
 """Base agent class providing common functionality for all agents."""
 
+import time
 from abc import ABC, abstractmethod
 from typing import NoReturn
 
@@ -15,6 +16,8 @@ from nexus.agent_orchestrator.models.agent_response import (
     GenericAgentResponse,
 )
 from nexus.agent_orchestrator.models.agent_state import AgentState
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.types import MetricType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -57,16 +60,42 @@ class BaseAgent(ABC):
 
         """
         self._log_execution_start(state["invocation_id"], state["session_id"])
+        start = time.perf_counter()
+        recorder = get_metrics_recorder()
+        agent_name = self.__class__.__name__
 
         try:
             # Call agent-specific implementation (returns SQLModel instance)
             updated_state = await self._execute(state)
+
+            duration_ms = (time.perf_counter() - start) * 1000
+            recorder.record(
+                MetricType.AGENT_INVOCATION_DURATION,
+                duration_ms,
+                unit="ms",
+                labels={
+                    "agent_type": agent_name,
+                    "invocation_id": state["invocation_id"],
+                    "status": "success",
+                },
+            )
 
             self._log_execution_success(state["invocation_id"])
 
             return updated_state
 
         except Exception as e:  # noqa: BLE001
+            duration_ms = (time.perf_counter() - start) * 1000
+            recorder.record(
+                MetricType.AGENT_INVOCATION_DURATION,
+                duration_ms,
+                unit="ms",
+                labels={
+                    "agent_type": agent_name,
+                    "invocation_id": state["invocation_id"],
+                    "status": "error",
+                },
+            )
             self._handle_execution_error(e, state["invocation_id"])
 
     @abstractmethod

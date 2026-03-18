@@ -135,8 +135,14 @@ class NexusPrometheusMetrics:
         self.workflow_duration_seconds = Histogram(
             "nexus_workflow_duration_seconds",
             "Workflow execution duration in seconds",
-            ["workflow_type"],
             buckets=LATENCY_BUCKETS_SLOW,
+            registry=self.registry,
+        )
+
+        self.activity_duration_seconds = Histogram(
+            "nexus_activity_duration_seconds",
+            "Activity execution duration in seconds",
+            buckets=LATENCY_BUCKETS_MEDIUM,
             registry=self.registry,
         )
 

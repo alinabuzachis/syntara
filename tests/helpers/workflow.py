@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -12,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.workflows.models import Workflow, WorkflowVersion
+from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 
 
@@ -153,6 +155,64 @@ class ExecutionsFactory:
         self.session.add_all(executions)
         await self.session.commit()
         return executions
+
+
+class ActivitiesFactory:
+    """Factory class for creating test activity executions.
+
+    Unlike ``ExecutionsFactory``, the parent ``Execution`` is passed to
+    ``create_activities`` so that a single injected factory can create
+    activities for different executions.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        """Initialise with a database session."""
+        self.session = session
+
+    async def create_activities(
+        self,
+        execution: Execution,
+        names: list[str],
+        *,
+        status: ActivityStatus = ActivityStatus.COMPLETED,
+        duration_seconds: float = 1.5,
+    ) -> list[ActivityExecution]:
+        """Create activity executions with timing data.
+
+        Args:
+            execution: Parent execution to attach activities to.
+            names: Activity names to create.
+            status: Status for all activities (default: COMPLETED).
+            duration_seconds: Duration of each activity.
+
+        Returns:
+            List of created ActivityExecution objects.
+
+        """
+        now = datetime.now(UTC)
+        is_terminal = status in {
+            ActivityStatus.COMPLETED,
+            ActivityStatus.FAILED,
+            ActivityStatus.SKIPPED,
+            ActivityStatus.CANCELLED,
+        }
+        activities = [
+            ActivityExecution(
+                execution_id=execution.id,
+                activity_name=name,
+                temporal_activity_id=f"temporal-{uuid4()}",
+                status=status,
+                activity_definition={"id": name, "type": "task"},
+                started_at=now - timedelta(seconds=duration_seconds),
+                completed_at=now if is_terminal else None,
+                input_data={},
+                output_data={},
+            )
+            for name in names
+        ]
+        self.session.add_all(activities)
+        await self.session.commit()
+        return activities
 
 
 @asynccontextmanager

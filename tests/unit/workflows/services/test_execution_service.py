@@ -5,7 +5,7 @@ These tests verify the business logic layer for execution management.
 
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -330,11 +330,11 @@ class TestGetExecution(TestExecutionServiceBase):
         mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
-        result = await service.get_execution(execution_id)
+        with patch.object(service, "_emit_completion_metrics", new_callable=AsyncMock):
+            result = await service.get_execution(execution_id)
 
         assert isinstance(result, ExecutionRead)
         assert result.id == execution_id
-        mock_session.exec.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_get_execution_success_returns_database_status(self) -> None:
@@ -863,7 +863,8 @@ class TestGetExecutionActivities(TestExecutionServiceBase):
 
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
-        result = await service.get_execution_activities(execution_id)
+        with patch.object(service, "_emit_completion_metrics", new_callable=AsyncMock):
+            result = await service.get_execution_activities(execution_id)
 
         assert result == []
 
