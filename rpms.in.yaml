@@ -1,0 +1,13 @@
+---
+contentOrigin:
+  repos: inherit-from-base-image
+packages:
+  - name: python3.12
+  - name: python3.12-pip
+  - name: python3.12-cffi
+context:
+  containerfile: containers/nexus/Containerfile
+arches:
+  - x86_64
+  - aarch64
+installWeakDeps: false

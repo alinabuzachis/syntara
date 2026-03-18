@@ -116,7 +116,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: [CMD, curl, -f, 'http://localhost:8000/health']
+      test: [CMD-SHELL, 'python3 -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")"']
       interval: 10s
       timeout: 10s
       retries: 3
@@ -167,7 +167,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: [CMD, pgrep, -f, nexus.workflows.worker]
+      test: [CMD-SHELL, 'cat /proc/[0-9]*/cmdline 2>/dev/null | grep -qa nexus.workflows.worker']
       interval: 30s
       timeout: 10s
       retries: 3
