@@ -26,6 +26,7 @@ from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import (
     METRIC_CATEGORIES,
     MetricRecord,
+    MetricsCategoryType,
     MetricsQuery,
     MetricsSummary,
     MetricType,
@@ -39,9 +40,9 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 # ---------------------------------------------------------------------------
 
 
-def _resolve_metric_types(category: str | None) -> set[MetricType] | None:
+def _resolve_metric_types(category: MetricsCategoryType | None) -> set[MetricType] | None:
     """Map a category name to the corresponding MetricType members."""
-    if category is None or category == "all":
+    if category is None:
         return None
     types = METRIC_CATEGORIES.get(category)
     return set(types) if types else None

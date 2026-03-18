@@ -9,7 +9,7 @@ This module defines:
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import ClassVar, Literal
+from typing import ClassVar
 from uuid import UUID, uuid4
 
 from pydantic import ConfigDict, field_validator
@@ -58,31 +58,41 @@ class MetricType(StrEnum):
     ERROR = "error"
 
 
-METRIC_CATEGORIES: dict[str, list[MetricType]] = {
-    "llm": [
+class MetricsCategoryType(StrEnum):
+    """Metric category names used to group :class:`MetricType` members."""
+
+    LLM = "llm"
+    CACHE = "cache"
+    WORKFLOW = "workflow"
+    AGENT = "agent"
+    ERROR = "error"
+
+
+METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
+    MetricsCategoryType.LLM: [
         MetricType.LLM_DURATION,
         MetricType.LLM_TOKENS_INPUT,
         MetricType.LLM_TOKENS_OUTPUT,
         MetricType.LLM_TTFT,
         MetricType.LLM_STATUS,
     ],
-    "cache": [
+    MetricsCategoryType.CACHE: [
         MetricType.CACHE_HIT,
         MetricType.CACHE_MISS,
         MetricType.CACHE_LOOKUP_DURATION,
         MetricType.CACHE_UTILIZATION,
     ],
-    "workflow": [
+    MetricsCategoryType.WORKFLOW: [
         MetricType.WORKFLOW_DURATION,
         MetricType.WORKFLOW_STATUS,
         MetricType.ACTIVITY_DURATION,
     ],
-    "agent": [
+    MetricsCategoryType.AGENT: [
         MetricType.AGENT_ROUTING_DURATION,
         MetricType.AGENT_INVOCATION_DURATION,
         MetricType.AGENT_STATUS,
     ],
-    "error": [
+    MetricsCategoryType.ERROR: [
         MetricType.ERROR,
     ],
 }
@@ -175,8 +185,8 @@ class MetricsQuery(BaseListParams):
     (limit, cursor, sort, include_total) and adds metrics-specific filters.
     """
 
-    category: Literal["llm", "cache", "workflow", "agent", "error", "all"] | None = Field(
-        default="all",
+    category: MetricsCategoryType | None = Field(
+        default=None,
         description="Filter by metric category",
     )
 

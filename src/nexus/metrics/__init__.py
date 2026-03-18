@@ -14,6 +14,7 @@ from nexus.metrics.store import MetricsStore
 from nexus.metrics.types import (
     METRIC_CATEGORIES,
     MetricRecord,
+    MetricsCategoryType,
     MetricsSummary,
     MetricType,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "METRIC_CATEGORIES",
     "MetricRecord",
     "MetricType",
+    "MetricsCategoryType",
     "MetricsRecorder",
     "MetricsStore",
     "MetricsSummary",

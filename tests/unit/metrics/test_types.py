@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from nexus.metrics.types import (
     METRIC_CATEGORIES,
     MetricRecord,
+    MetricsCategoryType,
     MetricsQuery,
     MetricsSummary,
     MetricType,
@@ -62,11 +63,11 @@ class TestMetricType:
 
     def test_metric_categories_contain_correct_types(self) -> None:
         """Each category contains the right MetricType members."""
-        assert MetricType.LLM_DURATION in METRIC_CATEGORIES["llm"]
-        assert MetricType.CACHE_HIT in METRIC_CATEGORIES["cache"]
-        assert MetricType.WORKFLOW_DURATION in METRIC_CATEGORIES["workflow"]
-        assert MetricType.AGENT_ROUTING_DURATION in METRIC_CATEGORIES["agent"]
-        assert MetricType.ERROR in METRIC_CATEGORIES["error"]
+        assert MetricType.LLM_DURATION in METRIC_CATEGORIES[MetricsCategoryType.LLM]
+        assert MetricType.CACHE_HIT in METRIC_CATEGORIES[MetricsCategoryType.CACHE]
+        assert MetricType.WORKFLOW_DURATION in METRIC_CATEGORIES[MetricsCategoryType.WORKFLOW]
+        assert MetricType.AGENT_ROUTING_DURATION in METRIC_CATEGORIES[MetricsCategoryType.AGENT]
+        assert MetricType.ERROR in METRIC_CATEGORIES[MetricsCategoryType.ERROR]
 
     def test_all_metric_types_belong_to_a_category(self) -> None:
         """Every MetricType is listed in at least one category (except system overhead)."""
@@ -188,7 +189,7 @@ class TestMetricsQuery:
     def test_defaults(self) -> None:
         """Default values match spec expectations."""
         query = MetricsQuery()
-        assert query.category == "all"
+        assert query.category is None
         assert query.start_time is None
         assert query.end_time is None
         assert query.limit == 20

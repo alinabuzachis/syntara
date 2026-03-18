@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 from nexus.metrics.store import MetricsStore
-from nexus.metrics.types import METRIC_CATEGORIES, MetricRecord, MetricType
+from nexus.metrics.types import METRIC_CATEGORIES, MetricRecord, MetricsCategoryType, MetricType
 
 
 def _make_record(
@@ -95,7 +95,7 @@ class TestStoreQuery:
         store.add(_make_record(metric_type=MetricType.LLM_TOKENS_INPUT))
         store.add(_make_record(metric_type=MetricType.CACHE_HIT))
 
-        results = list(store.query(metric_types=set(METRIC_CATEGORIES["llm"])))
+        results = list(store.query(metric_types=set(METRIC_CATEGORIES[MetricsCategoryType.LLM])))
         assert len(results) == 2
 
     def test_query_by_time_range(self) -> None:
