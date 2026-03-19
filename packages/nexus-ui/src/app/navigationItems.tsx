@@ -32,18 +32,12 @@ export const navigationItems: INavigationItem[] = [
   {
     label: 'Automations',
     path: AppRoute.Automations.Root,
-    children: [
-      {
-        label: 'Automations',
-        path: AppRoute.Automations.Root,
-        element: <Automations />,
-      },
-      {
-        label: 'Executions',
-        path: AppRoute.Executions.Root,
-        element: <Executions />,
-      },
-    ],
+    element: <Automations />,
+  },
+  {
+    label: 'Automation Runs',
+    path: AppRoute.Executions.Root,
+    element: <Executions />,
   },
   {
     label: 'Approvals',

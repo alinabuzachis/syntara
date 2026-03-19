@@ -12,12 +12,12 @@ describe('getExecutionSortValue', () => {
   } as Parameters<typeof getExecutionSortValue>[0]
 
   describe('with workflow column visible', () => {
-    it('returns execution.id for index 0', () => {
-      expect(getExecutionSortValue(mockExecution, 0, true)).toBe('exec-123')
+    it('returns workflow_id for index 0 (Automation name column)', () => {
+      expect(getExecutionSortValue(mockExecution, 0, true)).toBe('workflow-456')
     })
 
-    it('returns workflow_id for index 1', () => {
-      expect(getExecutionSortValue(mockExecution, 1, true)).toBe('workflow-456')
+    it('returns execution.id for index 1 (Run ID column)', () => {
+      expect(getExecutionSortValue(mockExecution, 1, true)).toBe('exec-123')
     })
 
     it('returns status for index 2', () => {
@@ -42,21 +42,21 @@ describe('getExecutionSortValue', () => {
   })
 
   describe('with workflow column hidden', () => {
-    it('returns execution.id for index 0 (unchanged)', () => {
+    it('returns execution.id for index 0 (Run ID, maps to actual index 1)', () => {
       expect(getExecutionSortValue(mockExecution, 0, false)).toBe('exec-123')
     })
 
-    it('maps index 1 to status (skips workflow_id)', () => {
+    it('maps index 1 to status (maps to actual index 2)', () => {
       expect(getExecutionSortValue(mockExecution, 1, false)).toBe('completed')
     })
 
-    it('maps index 2 to created_at (shifts by 1)', () => {
+    it('maps index 2 to created_at (maps to actual index 3)', () => {
       const result = getExecutionSortValue(mockExecution, 2, false)
       expect(result).toBeInstanceOf(Date)
       expect((result as Date).toISOString()).toBe('2026-02-27T10:00:00.000Z')
     })
 
-    it('maps index 3 to completed_at (shifts by 1)', () => {
+    it('maps index 3 to completed_at (maps to actual index 4)', () => {
       const result = getExecutionSortValue(mockExecution, 3, false)
       expect(result).toBeInstanceOf(Date)
       expect((result as Date).toISOString()).toBe('2026-02-27T11:00:00.000Z')

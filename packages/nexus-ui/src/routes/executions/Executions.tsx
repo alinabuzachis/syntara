@@ -36,8 +36,6 @@ export default function Executions() {
       },
     },
   })
-  const executions = executionsQuery.data?.resources ?? []
-
   const workflowQuery = workflowClient.useQuery(
     'get',
     '/workflows/{workflow_id}',
@@ -51,7 +49,40 @@ export default function Executions() {
     }
   )
 
-  const { search, setSearch, items: searchFilteredExecutions } = useFuse(executions, [{ name: 'workflow_id' }])
+  // Fetch all workflows to get names
+  const workflowsQuery = workflowClient.useQuery('get', '/workflows', {
+    params: {
+      query: {
+        limit: 100,
+      },
+    },
+  })
+
+  const workflowNameMap = useMemo(() => {
+    const workflows = workflowsQuery.data?.resources ?? []
+    const map = new Map<string, string>()
+    workflows.forEach((workflow) => {
+      if (workflow.id && workflow.name) {
+        map.set(workflow.id, workflow.name)
+      }
+    })
+    return map
+  }, [workflowsQuery.data?.resources])
+
+  // Enrich executions with workflow names for search
+  const executionsWithNames = useMemo(() => {
+    const executions = executionsQuery.data?.resources ?? []
+    return executions.map((execution) => ({
+      ...execution,
+      workflow_name: execution.workflow_id ? workflowNameMap.get(execution.workflow_id) : undefined,
+    }))
+  }, [executionsQuery.data?.resources, workflowNameMap])
+
+  const {
+    search,
+    setSearch,
+    items: searchFilteredExecutions,
+  } = useFuse(executionsWithNames, [{ name: 'id' }, { name: 'workflow_id' }, { name: 'workflow_name' }])
 
   const showWorkflowColumn = !workflowIdFilter
 
@@ -73,7 +104,7 @@ export default function Executions() {
           title={
             workflowIdFilter && workflowQuery.data
               ? `Run history for ${(workflowQuery.data as { name?: string }).name ?? 'Workflow'}`
-              : 'Run history'
+              : 'Automation Runs'
           }
         />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
@@ -86,7 +117,7 @@ export default function Executions() {
   const pageTitle =
     workflowIdFilter && workflowQuery.data
       ? `Run history for ${(workflowQuery.data as { name?: string }).name ?? 'Workflow'}`
-      : 'Run history'
+      : 'Automation Runs'
 
   return (
     <AppPage>
@@ -132,45 +163,54 @@ export default function Executions() {
         >
           <Thead>
             <Tr>
-              <Th modifier="nowrap" style={{ minWidth: '250px', width: '250px' }} sort={getSortParams(0)}>
-                Execution ID
-              </Th>
               {showWorkflowColumn && (
-                <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }} sort={getSortParams(1)}>
-                  Workflow
+                <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }} sort={getSortParams(0)}>
+                  Automation name
                 </Th>
               )}
+              <Th
+                modifier="nowrap"
+                style={{ minWidth: '250px', width: '250px' }}
+                sort={getSortParams(showWorkflowColumn ? 1 : 0)}
+              >
+                Run ID
+              </Th>
               <Th sort={getSortParams(showWorkflowColumn ? 2 : 1)}>Status</Th>
               <Th sort={getSortParams(showWorkflowColumn ? 3 : 2)}>Created at</Th>
               <Th sort={getSortParams(showWorkflowColumn ? 4 : 3)}>Completed at</Th>
             </Tr>
           </Thead>
           <Tbody>
-            {filteredExecutions.map((execution) => (
-              <Tr key={execution.id}>
-                <Td dataLabel="Execution ID" modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
-                  <LinkCell href={`/executions/${execution.id}`}>
-                    <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>{execution.id}</code>
-                  </LinkCell>
-                </Td>
-                {showWorkflowColumn && (
-                  <Td dataLabel="Workflow" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
-                    <LinkCell href={`/automation-builder/${execution.workflow_id}`}>{execution.workflow_id}</LinkCell>
-                  </Td>
-                )}
-                <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
-                <Td dataLabel="Created at">
-                  <DateCell dateString={getDateField(execution, 'createdAt')} />
-                </Td>
-                <Td dataLabel="Completed at">
-                  {execution.completed_at ? (
-                    <DateCell dateString={execution.completed_at} />
-                  ) : (
-                    <span style={{ color: 'var(--pf-t--global--color--text--secondary)' }}>—</span>
+            {filteredExecutions.map((execution) => {
+              const workflowName = execution.workflow_id ? workflowNameMap.get(execution.workflow_id) : undefined
+              return (
+                <Tr key={execution.id}>
+                  {showWorkflowColumn && (
+                    <Td dataLabel="Automation name" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
+                      <LinkCell href={`/automation-builder/${execution.workflow_id}`}>
+                        {workflowName ?? execution.workflow_id}
+                      </LinkCell>
+                    </Td>
                   )}
-                </Td>
-              </Tr>
-            ))}
+                  <Td dataLabel="Run ID" modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
+                    <LinkCell href={`/executions/${execution.id}`}>
+                      <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>{execution.id}</code>
+                    </LinkCell>
+                  </Td>
+                  <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
+                  <Td dataLabel="Created at">
+                    <DateCell dateString={getDateField(execution, 'createdAt')} />
+                  </Td>
+                  <Td dataLabel="Completed at">
+                    {execution.completed_at ? (
+                      <DateCell dateString={execution.completed_at} />
+                    ) : (
+                      <span style={{ color: 'var(--pf-t--global--color--text--secondary)' }}>—</span>
+                    )}
+                  </Td>
+                </Tr>
+              )
+            })}
           </Tbody>
         </ScrollableTableContainer>
       )}

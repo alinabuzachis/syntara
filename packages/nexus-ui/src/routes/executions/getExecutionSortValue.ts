@@ -16,18 +16,14 @@ export function getExecutionSortValue(
   activeSortIndex: number,
   showWorkflowColumn: boolean
 ): string | Date | null {
-  // When workflow column is hidden, shift indices to match the full table structure
-  const columnIndex = showWorkflowColumn
-    ? activeSortIndex
-    : activeSortIndex >= 1
-      ? activeSortIndex + 1
-      : activeSortIndex
+  // When workflow column is hidden, shift all indices by 1 since Automation name is first column
+  const columnIndex = showWorkflowColumn ? activeSortIndex : activeSortIndex + 1
 
   switch (columnIndex) {
     case 0:
-      return execution.id ?? ''
-    case 1:
       return execution.workflow_id ?? ''
+    case 1:
+      return execution.id ?? ''
     case 2:
       return execution.status ?? ''
     case 3:

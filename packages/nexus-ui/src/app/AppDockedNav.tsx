@@ -26,6 +26,7 @@ import {
   RhUiLikeIcon,
   RhUiListIcon,
   RhUiMenuBarsIcon,
+  RhUiPlayCircleIcon,
   RhUiProfileFillIcon,
   RhUiQuestionMarkCircleIcon,
   RhUiSettingsIcon,
@@ -40,6 +41,7 @@ import { useUnsavedChanges } from './useUnsavedChanges'
 const navIconMap: Record<string, React.ComponentType> = {
   '/automation-builder': RhUiInfrastructureIcon,
   '/automations': RhUiListIcon,
+  '/executions': RhUiPlayCircleIcon,
   '/approvals': RhUiLikeIcon,
   '/configuration': RhUiSettingsIcon,
 }

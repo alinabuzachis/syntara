@@ -74,6 +74,12 @@ describe('Executions Component', () => {
     vi.mocked(useSearch).mockReturnValue('')
   })
 
+  const mockWorkflows = [
+    { id: 'workflow-1', name: 'Hello World Workflow' },
+    { id: 'workflow-2', name: 'Data Processing Workflow' },
+    { id: 'workflow-3', name: 'API Integration Workflow' },
+  ]
+
   const mockExecutionsQuery = (
     data: ExecutionsAPI.components['schemas']['Execution'][],
     isPending = false,
@@ -84,6 +90,22 @@ describe('Executions Component', () => {
       isPending,
       error,
     } as never)
+
+    // Mock the workflows query for fetching workflow names
+    vi.mocked(workflowClient.useQuery).mockImplementation(((_method: string, path: string) => {
+      if (path === '/workflows') {
+        return {
+          data: { resources: mockWorkflows },
+          isPending: false,
+          error: null,
+        }
+      }
+      return {
+        data: undefined,
+        isPending: false,
+        error: null,
+      }
+    }) as never)
   }
 
   it('renders the executions table with data', () => {
@@ -91,7 +113,7 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    expect(screen.getByText('Run history')).toBeInTheDocument()
+    expect(screen.getByText('Automation Runs')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Search executions...')).toBeInTheDocument()
   })
 
@@ -120,8 +142,8 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    expect(screen.getByText('Execution ID')).toBeInTheDocument()
-    expect(screen.getByText('Workflow')).toBeInTheDocument()
+    expect(screen.getByText('Run ID')).toBeInTheDocument()
+    expect(screen.getByText('Automation name')).toBeInTheDocument()
     expect(screen.getByText('Status')).toBeInTheDocument()
     expect(screen.getByText('Created at')).toBeInTheDocument()
     expect(screen.getByText('Completed at')).toBeInTheDocument()
@@ -143,14 +165,14 @@ describe('Executions Component', () => {
     expect(screen.getByText('Error loading executions')).toBeInTheDocument()
   })
 
-  it('displays workflow links', () => {
+  it('displays workflow names instead of IDs', () => {
     mockExecutionsQuery(mockExecutions)
 
     render(<Executions />)
 
-    expect(screen.getByText('workflow-1')).toBeInTheDocument()
-    expect(screen.getByText('workflow-2')).toBeInTheDocument()
-    expect(screen.getByText('workflow-3')).toBeInTheDocument()
+    expect(screen.getByText('Hello World Workflow')).toBeInTheDocument()
+    expect(screen.getByText('Data Processing Workflow')).toBeInTheDocument()
+    expect(screen.getByText('API Integration Workflow')).toBeInTheDocument()
   })
 
   it('shows placeholder for null timestamps', () => {
@@ -211,7 +233,7 @@ describe('Executions Component', () => {
     expect(mockSetLocation).toHaveBeenCalledWith('/executions/123e4567-e89b-12d3-a456-426614174000')
   })
 
-  it('workflow ID links navigate to workflow builder', async () => {
+  it('workflow name links navigate to workflow builder', async () => {
     mockExecutionsQuery(mockExecutions)
     const mockSetLocation = vi.fn()
     vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
@@ -219,8 +241,8 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Find and click the button for the first workflow ID
-    const workflowButton = screen.getByText('workflow-1').closest('button')
+    // Find and click the button for the first workflow name
+    const workflowButton = screen.getByText('Hello World Workflow').closest('button')
     expect(workflowButton).toBeInTheDocument()
 
     await user.click(workflowButton!)
@@ -249,7 +271,7 @@ describe('Executions Component', () => {
     expect(mockSetLocation).toHaveBeenCalledWith('/executions/323e4567-e89b-12d3-a456-426614174002')
   })
 
-  it('all workflow IDs navigate to their respective workflow builders', async () => {
+  it('all workflow names navigate to their respective workflow builders', async () => {
     mockExecutionsQuery(mockExecutions)
     const mockSetLocation = vi.fn()
     vi.mocked(useLocation).mockReturnValue(['/', mockSetLocation] as never)
@@ -257,16 +279,16 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Verify all workflow ID links navigate to the correct workflow builder routes
-    const workflow1Button = screen.getByText('workflow-1').closest('button')
+    // Verify all workflow name links navigate to the correct workflow builder routes
+    const workflow1Button = screen.getByText('Hello World Workflow').closest('button')
     await user.click(workflow1Button!)
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1')
 
-    const workflow2Button = screen.getByText('workflow-2').closest('button')
+    const workflow2Button = screen.getByText('Data Processing Workflow').closest('button')
     await user.click(workflow2Button!)
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-2')
 
-    const workflow3Button = screen.getByText('workflow-3').closest('button')
+    const workflow3Button = screen.getByText('API Integration Workflow').closest('button')
     await user.click(workflow3Button!)
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-3')
   })
@@ -278,10 +300,10 @@ describe('Executions Component', () => {
       render(<Executions />)
 
       // Verify sortable columns have sort buttons
-      const executionIdHeader = screen.getByRole('columnheader', { name: /Execution ID/i })
+      const executionIdHeader = screen.getByRole('columnheader', { name: /Run ID/i })
       expect(within(executionIdHeader).getByRole('button')).toBeInTheDocument()
 
-      const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow$/i })
+      const workflowHeader = screen.getByRole('columnheader', { name: /^Automation name$/i })
       expect(within(workflowHeader).getByRole('button')).toBeInTheDocument()
 
       const statusHeader = screen.getByRole('columnheader', { name: /^Status$/i })
@@ -293,8 +315,8 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      // Click Execution ID header to sort
-      const executionIdHeader = screen.getByRole('columnheader', { name: /Execution ID/i })
+      // Click Run ID header to sort
+      const executionIdHeader = screen.getByRole('columnheader', { name: /Run ID/i })
       const sortButton = within(executionIdHeader).getByRole('button')
       fireEvent.click(sortButton)
 
@@ -309,7 +331,7 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      const executionIdHeader = screen.getByRole('columnheader', { name: /Execution ID/i })
+      const executionIdHeader = screen.getByRole('columnheader', { name: /Run ID/i })
       const sortButton = within(executionIdHeader).getByRole('button')
 
       // Click twice to toggle direction
@@ -327,15 +349,15 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      // Click Workflow header
-      const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow$/i })
+      // Click Automation name header
+      const workflowHeader = screen.getByRole('columnheader', { name: /^Automation name$/i })
       const sortButton = within(workflowHeader).getByRole('button')
       fireEvent.click(sortButton)
 
       // All executions should still be visible
-      expect(screen.getByText('workflow-1')).toBeInTheDocument()
-      expect(screen.getByText('workflow-2')).toBeInTheDocument()
-      expect(screen.getByText('workflow-3')).toBeInTheDocument()
+      expect(screen.getByText('Hello World Workflow')).toBeInTheDocument()
+      expect(screen.getByText('Data Processing Workflow')).toBeInTheDocument()
+      expect(screen.getByText('API Integration Workflow')).toBeInTheDocument()
     })
 
     it('can sort by Status column', () => {
@@ -387,11 +409,11 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      // Workflow column should not be present when filtering
-      expect(screen.queryByRole('columnheader', { name: /^Workflow$/i })).not.toBeInTheDocument()
+      // Automation name column should not be present when filtering
+      expect(screen.queryByRole('columnheader', { name: /^Automation name$/i })).not.toBeInTheDocument()
 
-      // Sort by Execution ID (index 0)
-      const execIdHeader = screen.getByRole('columnheader', { name: /Execution ID/i })
+      // Sort by Run ID (index 0)
+      const execIdHeader = screen.getByRole('columnheader', { name: /Run ID/i })
       fireEvent.click(within(execIdHeader).getByRole('button'))
 
       // Sort by Status column (index 1 when Workflow is hidden)
