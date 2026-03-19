@@ -14,6 +14,8 @@ from nexus.agent_orchestrator.agents.base_agent import BaseAgent
 from nexus.agent_orchestrator.models import GenericAgentResponse
 from nexus.agent_orchestrator.models.agent_state import AgentState
 from nexus.core.utils.retry import retry_with_backoff
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.instrumentation import record_llm_call
 
 if TYPE_CHECKING:
     from langchain.messages import AnyMessage
@@ -60,7 +62,11 @@ class GenericAgent(BaseAgent):
                 "Focus on providing helpful, direct answers about tools, services, and capabilities."
             )
         ] + state["messages"]
-        result_message = await llm_with_tools.ainvoke(messages)
+        result_message = await record_llm_call(
+            get_metrics_recorder(),
+            lambda: llm_with_tools.ainvoke(messages),
+            model=getattr(self.llm, "model_name", None),
+        )
 
         # Update AgentState
         state["messages"] = [result_message]

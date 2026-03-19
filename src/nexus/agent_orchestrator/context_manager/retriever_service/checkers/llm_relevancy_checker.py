@@ -19,6 +19,8 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy
 )
 from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.core.constants import RetrieverServiceDefaults
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.instrumentation import record_llm_call
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -126,7 +128,11 @@ class LLMRelevancyChecker(RelevancyChecker):
 
                 # Invoke LLM (assuming LangChain-compatible interface)
                 config_obj = RunnableConfig(configurable={"max_tokens": max_tokens})
-                response = await llm.ainvoke(input=messages, config=config_obj)
+                response = await record_llm_call(
+                    get_metrics_recorder(),
+                    lambda: llm.ainvoke(input=messages, config=config_obj),
+                    model=model,
+                )
 
                 # Extract response content
                 response_text = str(response)

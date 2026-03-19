@@ -280,8 +280,13 @@ class TestRecorderPrometheus:
         )._value.get()
         assert value == pytest.approx(1.0)
 
-    def test_llm_duration_increments_llm_calls_total(self, recorder: MetricsRecorder) -> None:
-        """Recording LLM_DURATION also increments llm_calls_total."""
+    def test_llm_duration_does_not_increment_calls_total(self, recorder: MetricsRecorder) -> None:
+        """LLM_DURATION only updates the histogram; llm_calls_total is owned by LLM_STATUS.
+
+        This separation avoids double-counting because _record_llm_metrics
+        emits both LLM_DURATION and LLM_STATUS for every call. If both
+        branches incremented llm_calls_total the counter would be 2x.
+        """
         recorder.record(
             MetricType.LLM_DURATION,
             200.0,
@@ -292,7 +297,7 @@ class TestRecorderPrometheus:
             model="gpt-4",
             status="success",
         )._value.get()
-        assert value == pytest.approx(1.0)
+        assert value == pytest.approx(0.0)
 
     def test_workflow_duration_updates_counter(self, recorder: MetricsRecorder) -> None:
         """Recording WORKFLOW_DURATION also increments workflows_total counter."""

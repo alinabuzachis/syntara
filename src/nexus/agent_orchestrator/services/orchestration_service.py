@@ -42,6 +42,8 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
 )
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.core.cache.stream import StreamClient
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.instrumentation import LLMStreamTracker
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -231,11 +233,16 @@ class OrchestrationService:
 
         """
         final_state: AgentState | None = None
+        ttft_tracker = LLMStreamTracker(
+            recorder=get_metrics_recorder(),
+            model=self._get_model_name(),
+        )
 
         # Stream events from LangGraph
         async for event in graph.astream_events(initial_state, config, version="v2"):
             # Process streaming events (event is StandardStreamEvent | CustomStreamEvent)
             event_dict = cast("dict[str, Any]", event)
+            ttft_tracker.process_event(event_dict)
             await self._process_streaming_event(event_dict, invocation_id, stream_id, client)
 
             # Capture final state from graph end events

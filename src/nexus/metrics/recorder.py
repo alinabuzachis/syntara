@@ -231,6 +231,13 @@ class MetricsRecorder:
         }:
             MetricsRecorder._dispatch_latency(metric_type, value, labels, p)
 
+        elif metric_type in {
+            MetricType.LLM_STATUS,
+            MetricType.LLM_TOKENS_INPUT,
+            MetricType.LLM_TOKENS_OUTPUT,
+        }:
+            MetricsRecorder._dispatch_llm_event(metric_type, value, labels, p)
+
         elif metric_type == MetricType.CACHE_HIT:
             p.cache_hits_total.inc()
 
@@ -272,12 +279,28 @@ class MetricsRecorder:
             p.requests_total.labels(status=status_label, endpoint=endpoint).inc()
 
         elif metric_type == MetricType.LLM_DURATION:
-            model = labels.get("model", "unknown")
-            status_label = labels.get("status", "success")
-            p.llm_duration_seconds.labels(model=model).observe(value / 1000)
-            p.llm_calls_total.labels(model=model, status=status_label).inc()
+            p.llm_duration_seconds.labels(
+                model=labels.get("model", "unknown"),
+            ).observe(value / 1000)
 
         elif metric_type == MetricType.LLM_TTFT:
             p.ttft_seconds.labels(
                 model=labels.get("model", "unknown"),
             ).observe(value / 1000)
+
+    @staticmethod
+    def _dispatch_llm_event(
+        metric_type: MetricType,
+        value: float,
+        labels: dict[str, str],
+        p: NexusPrometheusMetrics,
+    ) -> None:
+        """Handle LLM status and token metrics."""
+        model = labels.get("model", "unknown")
+
+        if metric_type == MetricType.LLM_STATUS:
+            p.llm_calls_total.labels(model=model, status=labels.get("status", "unknown")).inc()
+        elif metric_type == MetricType.LLM_TOKENS_INPUT:
+            p.llm_tokens_input_total.labels(model=model).inc(value)
+        elif metric_type == MetricType.LLM_TOKENS_OUTPUT:
+            p.llm_tokens_output_total.labels(model=model).inc(value)

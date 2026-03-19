@@ -164,3 +164,18 @@ class NexusPrometheusMetrics:
             "Number of in-flight LLM requests",
             registry=self.registry,
         )
+
+        # ---- LLM Token Counters (FR-006 to FR-008) ----
+        self.llm_tokens_input_total = Counter(
+            "nexus_llm_tokens_input_total",
+            "Total input tokens sent to LLM",
+            ["model"],
+            registry=self.registry,
+        )
+
+        self.llm_tokens_output_total = Counter(
+            "nexus_llm_tokens_output_total",
+            "Total output tokens received from LLM",
+            ["model"],
+            registry=self.registry,
+        )
