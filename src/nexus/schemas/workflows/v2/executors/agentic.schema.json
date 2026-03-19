@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/agentic",
+  "title": "Agentic Node",
+  "description": "Execute AI agent tasks with optional tool selection and structured output",
+  "configSchema": {
+    "type": "object",
+    "required": ["prompt"],
+    "properties": {
+      "agent": {
+        "type": "string",
+        "description": "Optional agent identifier for routing",
+        "minLength": 1
+      },
+      "prompt": {
+        "type": "string",
+        "description": "Natural language prompt for the agent",
+        "minLength": 1
+      },
+      "model": {
+        "type": "string",
+        "description": "LLM model to use",
+        "examples": ["gpt-4", "claude-3-opus", "gemini-pro"]
+      },
+      "tool_selection_strategy": {
+        "type": "string",
+        "enum": ["ALL", "NONE", "SELECTED"],
+        "default": "NONE",
+        "description": "Strategy for tool selection: ALL (all enabled tools), NONE (no tools), or SELECTED (specific tools from tool_selections)"
+      },
+      "tool_selections": {
+        "type": "array",
+        "description": "List of tool UUIDs when tool_selection_strategy is SELECTED. Required when strategy is SELECTED.",
+        "items": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "minItems": 1
+      },
+      "response_schema": {
+        "type": "object",
+        "description": "JSON Schema Draft 2020-12 for structured response output. When defined, agent output will conform to this schema structure.",
+        "additionalProperties": true,
+        "examples": [
+          {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": "string",
+                "description": "Brief summary of the task"
+              },
+              "priority": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              }
+            },
+            "required": ["summary", "priority"]
+          }
+        ]
+      },
+      "file_ids": {
+        "type": "array",
+        "description": "File references for the agent",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "tool_selection_strategy": { "const": "SELECTED" }
+          }
+        },
+        "then": {
+          "required": ["tool_selections"]
+        },
+        "else": {
+          "not": {
+            "required": ["tool_selections"]
+          }
+        }
+      }
+    ],
+    "additionalProperties": true
+  },
+  "resultSchema": {
+    "description": "Result structure available after agent execution",
+    "oneOf": [
+      {
+        "title": "Completed Result",
+        "type": "object",
+        "required": ["status", "output"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "description": "Execution succeeded"
+          },
+          "output": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Unstructured text response when response_schema is not defined"
+              },
+              {
+                "type": "object",
+                "description": "Structured response conforming to response_schema when defined",
+                "additionalProperties": true
+              }
+            ],
+            "description": "Agent response output - either string (unstructured) or object (structured based on response_schema)"
+          },
+          "tool_calls": {
+            "type": "array",
+            "description": "List of tool calls made by the agent during execution",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tool_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUID of the tool that was called"
+                },
+                "tool_name": {
+                  "type": "string",
+                  "description": "Name of the tool"
+                },
+                "duration_ms": {
+                  "type": "number",
+                  "description": "Tool execution duration in milliseconds"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["success", "failed"],
+                  "description": "Whether the tool call succeeded"
+                }
+              }
+            }
+          },
+          "structured_output_metadata": {
+            "type": "object",
+            "description": "Metadata about structured output generation when response_schema is defined",
+            "properties": {
+              "fallback_strategy_used": {
+                "type": "string",
+                "enum": ["native", "pydantic", "structured_parser", "none"],
+                "description": "Which strategy was used for structured output generation. 'native': LLM provider's native structured output. 'pydantic': Pydantic validation/coercion fallback. 'structured_parser': output parsed with structured parser fallback. 'none': response_schema was not defined."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "title": "Failed Result",
+        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
+  }
+}

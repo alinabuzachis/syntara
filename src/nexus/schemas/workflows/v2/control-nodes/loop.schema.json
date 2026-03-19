@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/control-nodes/loop",
+  "title": "Loop Node",
+  "description": "Iterate over collections or conditions (for_each/do_while)",
+  "configSchema": {
+    "type": "object",
+    "required": ["type"],
+    "oneOf": [
+      {
+        "title": "for_each Loop",
+        "type": "object",
+        "required": ["type", "items"],
+        "properties": {
+          "type": {
+            "const": "for_each"
+          },
+          "items": {
+            "type": "string",
+            "description": "Array to iterate over. The current item is available as ${loop.item} and the current index as ${loop.index} in loop body nodes.",
+            "minLength": 1,
+            "examples": [
+              "${trigger.server_list}",
+              "${previous_node.items}",
+              "[\"server1\", \"server2\", \"server3\"]"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "title": "do_while Loop",
+        "type": "object",
+        "required": ["type", "condition"],
+        "properties": {
+          "type": {
+            "const": "do_while"
+          },
+          "condition": {
+            "type": "string",
+            "description": "Expression that evaluates to boolean AFTER each iteration. Must reference nodes inside the loop body. Loop continues while condition is true.",
+            "minLength": 1,
+            "examples": [
+              "${process_item.remaining_count} > 0",
+              "${check_status.should_continue} == true"
+            ]
+          },
+          "max_iterations": {
+            "type": "integer",
+            "description": "Maximum number of iterations (safety limit)",
+            "minimum": 1,
+            "maximum": 10000,
+            "default": 1000
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "resultSchema": {
+    "description": "Result structure available in result namespace (discriminated union)",
+    "oneOf": [
+      {
+        "title": "Completed Result",
+        "type": "object",
+        "required": ["status", "iteration_count"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "description": "Loop completed successfully"
+          },
+          "iteration_count": {
+            "type": "integer",
+            "description": "Number of iterations completed",
+            "minimum": 0
+          },
+          "iteration_results": {
+            "type": "object",
+            "description": "Aggregated variables from loop body iterations. Key = variable name with namespace (node_id.output_field), Value = list of values from each iteration.",
+            "additionalProperties": {
+              "type": "array",
+              "description": "List of values from each iteration for this variable"
+            },
+            "examples": [
+              {
+                "patch_server.status": ["running", "stopped", "running"],
+                "patch_server.hostname": ["server1.example.com", "server2.example.com", "server3.example.com"],
+                "patch_server.patch_count": [5, 12, 3]
+              },
+              {
+                "run_job.job_id": [12345, 12346, 12347],
+                "run_job.success": [true, false, true]
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "title": "Failed Result",
+        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
+  }
+}

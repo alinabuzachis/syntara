@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/triggers/manual",
+  "title": "Manual Trigger Node",
+  "description": "Workflow entry point triggered manually with user-provided inputs",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "input_schema": {
+        "type": "object",
+        "description": "JSON Schema defining the structure and validation rules for manual trigger inputs",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "resultSchema": {
+    "description": "Trigger result is the user-provided input data validated against the input_schema",
+    "type": "object",
+    "additionalProperties": true
+  }
+}

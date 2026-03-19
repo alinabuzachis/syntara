@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/executors/approval",
+  "title": "Approval Node",
+  "description": "Human approval gate that pauses workflow execution until approved or rejected",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "approver_timeout": {
+        "type": "integer",
+        "description": "Time limit in seconds for approver to respond. If the timeout expires, the decision is set to 'expired' and the workflow follows the rejection path. If not set, waits indefinitely until approved, rejected, or workflow is cancelled.",
+        "minimum": 1,
+        "examples": [604800, 86400, 3600]
+      }
+    },
+    "additionalProperties": false
+  },
+  "resultSchema": {
+    "description": "Result structure available after approval decision is made",
+    "oneOf": [
+      {
+        "title": "Completed Result",
+        "type": "object",
+        "required": ["status", "approver", "decision", "timestamp"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "description": "Approval decision was made"
+          },
+          "approver": {
+            "type": "string",
+            "description": "User ID or identifier who made the decision (or 'system' for timeout/cancellation)"
+          },
+          "decision": {
+            "type": "string",
+            "enum": ["approved", "rejected", "expired", "cancelled"],
+            "description": "Detailed decision outcome"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the decision occurred (ISO 8601)"
+          },
+          "comments": {
+            "type": "string",
+            "description": "Optional notes provided by approver or system (e.g., 'Auto-rejected due to timeout')"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "title": "Failed Result",
+        "$ref": "../common-definitions.schema.json#/$defs/baseFailedResult"
+      }
+    ],
+    "discriminator": {
+      "propertyName": "status"
+    }
+  }
+}

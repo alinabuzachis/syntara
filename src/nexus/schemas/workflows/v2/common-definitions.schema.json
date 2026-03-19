@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://syntara-orchestration.io/schemas/workflows/v2/common-definitions",
+  "title": "Common Schema Definitions",
+  "description": "Shared schema definitions for workflow v2",
+  "$defs": {
+    "baseErrorObject": {
+      "type": "object",
+      "description": "Standard error object structure",
+      "required": ["type", "message"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Error type (e.g., 'TimeoutError', 'ExecutionError', 'HTTPError', 'ConnectionError', 'JobLaunchError', 'AgentError')"
+        },
+        "message": {
+          "type": "string",
+          "description": "Error message"
+        }
+      },
+      "additionalProperties": false
+    },
+    "baseFailedResult": {
+      "type": "object",
+      "description": "Base failed result structure (can be extended with additional properties)",
+      "required": ["status", "error"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "failed",
+          "description": "Execution failed"
+        },
+        "error": {
+          "$ref": "#/$defs/baseErrorObject"
+        }
+      }
+    },
+    "retry_policy": {
+      "type": "object",
+      "description": "Retry configuration for failed node execution",
+      "properties": {
+        "max_attempts": {
+          "type": "integer",
+          "description": "Maximum number of retry attempts",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 3
+        },
+        "backoff": {
+          "type": "string",
+          "enum": ["fixed", "exponential", "linear"],
+          "description": "Backoff strategy between retries",
+          "default": "exponential"
+        },
+        "initial_interval": {
+          "type": "integer",
+          "description": "Initial retry interval in seconds",
+          "minimum": 1,
+          "default": 1
+        },
+        "max_interval": {
+          "type": "integer",
+          "description": "Maximum retry interval in seconds",
+          "minimum": 1
+        },
+        "multiplier": {
+          "type": "number",
+          "description": "Backoff multiplier for exponential strategy",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 2
+        },
+        "retryable_errors": {
+          "type": "array",
+          "description": "HTTP status codes or exit codes that should trigger retry (whitelist approach)",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 599
+          },
+          "default": [408, 429, 500, 502, 503, 504]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
