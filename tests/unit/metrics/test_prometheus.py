@@ -33,6 +33,7 @@ class TestMetricDefinitions:
         assert prom.cache_misses_total is not None
         assert prom.llm_calls_total is not None
         assert prom.workflows_total is not None
+        assert prom.tool_executions_total is not None
 
     def test_histograms_defined(self, prom: NexusPrometheusMetrics) -> None:
         """All required histograms are present."""
@@ -41,12 +42,33 @@ class TestMetricDefinitions:
         assert prom.ttft_seconds is not None
         assert prom.cache_lookup_duration_seconds is not None
         assert prom.workflow_duration_seconds is not None
+        assert prom.api_response_time_seconds is not None
+        assert prom.workflow_serialization_duration_seconds is not None
+        assert prom.workflow_validation_duration_seconds is not None
+        assert prom.workflow_start_latency_seconds is not None
+        assert prom.tool_execution_duration_seconds is not None
+        assert prom.database_query_response_time_seconds is not None
+        assert prom.system_e2e_latency_seconds is not None
 
     def test_gauges_defined(self, prom: NexusPrometheusMetrics) -> None:
         """All required gauges are present."""
         assert prom.cache_utilization_ratio is not None
         assert prom.active_workflows is not None
         assert prom.active_llm_requests is not None
+        assert prom.api_error_rate is not None
+        assert prom.api_throughput_rps is not None
+        assert prom.workflow_creation_success_rate is not None
+        assert prom.workflow_completion_rate is not None
+        assert prom.temporal_queue_depth is not None
+        assert prom.activity_execution_success_rate is not None
+        assert prom.active_workflow_count is not None
+        assert prom.tool_execution_success_rate is not None
+        assert prom.tool_provider_availability is not None
+        assert prom.tool_error_rate is not None
+        assert prom.database_connection_pool_utilization is not None
+        assert prom.database_transaction_rate_tps is not None
+        assert prom.system_uptime is not None
+        assert prom.system_error_rate is not None
 
 
 # =============================================================================

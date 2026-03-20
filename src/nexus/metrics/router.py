@@ -9,8 +9,10 @@ Endpoints:
     GET /api/v1/metrics/openmetrics - OpenMetrics scrape target
 """
 
+import json
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from nexus.core.config.base import get_settings
@@ -32,6 +34,8 @@ from nexus.metrics.types import (
     MetricType,
 )
 
+logger = structlog.stdlib.get_logger(__name__)
+
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 
@@ -40,12 +44,46 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 # ---------------------------------------------------------------------------
 
 
-def _resolve_metric_types(category: MetricsCategoryType | None) -> set[MetricType] | None:
-    """Map a category name to the corresponding MetricType members."""
+def _resolve_metric_types(
+    category: MetricsCategoryType | None,
+    metric_type_value: str | None = None,
+) -> set[MetricType] | None:
+    """Map a category name and/or specific type value to MetricType members.
+
+    When *metric_type_value* is provided it takes precedence, returning a
+    single-element set.  Otherwise category-based resolution is used.
+    """
+    if metric_type_value:
+        try:
+            return {MetricType(metric_type_value)}
+        except ValueError:
+            return set()
+
     if category is None:
         return None
     types = METRIC_CATEGORIES.get(category)
     return set(types) if types else None
+
+
+def _parse_labels(raw: str | None) -> dict[str, str] | None:
+    """Parse a JSON-encoded labels string into a dict.
+
+    Raises :class:`~fastapi.HTTPException` (400) when the value is valid
+    JSON but not a JSON object.
+    """
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        logger.debug("Invalid labels JSON", raw_labels=raw)
+        return None
+    if not isinstance(parsed, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="labels must be a JSON object",
+        )
+    return {str(k): str(v) for k, v in parsed.items()}
 
 
 def _find_cursor_index(
@@ -59,11 +97,92 @@ def _find_cursor_index(
     return None
 
 
+def _resolve_cursor_offset(
+    cursor: str | None,
+    records: list[MetricRecord],
+    limit: int,
+) -> int:
+    """Decode *cursor* and return the page offset into *records*."""
+    if not cursor:
+        return 0
+    try:
+        cursor_data = decode_cursor(cursor)
+        cursor_id = cursor_data.get("id", "")
+        direction_str = cursor_data.get("direction", PaginationDirection.NEXT.value)
+        cursor_idx = _find_cursor_index(records, cursor_id)
+    except (ValueError, KeyError):
+        return 0
+
+    if cursor_idx is None:
+        return 0
+    if direction_str == PaginationDirection.PREV.value:
+        return max(0, cursor_idx - limit)
+    return cursor_idx + 1
+
+
+def _build_cursor(record: MetricRecord, direction: PaginationDirection) -> str:
+    """Create an encoded cursor string for *record*."""
+    return encode_cursor(
+        create_cursor_data(
+            resource_id=record.id,
+            created_at=record.created_at,
+            direction=direction,
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # MetricsListResponse - typed paginated response
 # ---------------------------------------------------------------------------
 
 MetricsListResponse = ResourcesResponse[MetricRecord]
+
+
+# ---------------------------------------------------------------------------
+# Shared query logic
+# ---------------------------------------------------------------------------
+
+
+def build_metrics_response(
+    recorder: MetricsRecorder,
+    params: MetricsQuery,
+    extra_labels: dict[str, str] | None = None,
+) -> MetricsListResponse:
+    """Query and paginate metrics, shared by unified and component endpoints."""
+    metric_types = _resolve_metric_types(params.category, params.metric_type)
+    label_filter = _parse_labels(params.labels) or {}
+    if extra_labels:
+        label_filter.update(extra_labels)
+
+    all_records: list[MetricRecord] = list(
+        recorder.store.query(
+            metric_types=metric_types,
+            start_time=params.start_time,
+            end_time=params.end_time,
+            labels=label_filter or None,
+        ),
+    )
+
+    reverse = not params.sort or params.sort.startswith("-")
+    all_records.sort(key=lambda r: (r.created_at, r.id), reverse=reverse)
+
+    total = len(all_records) if params.include_total else None
+    limit = params.limit
+    offset = _resolve_cursor_offset(params.cursor, all_records, limit)
+
+    page = all_records[offset : offset + limit + 1]
+    has_more = len(page) > limit
+    trimmed = page[:limit]
+
+    next_cursor = _build_cursor(trimmed[-1], PaginationDirection.NEXT) if has_more and trimmed else None
+    prev_cursor = _build_cursor(trimmed[0], PaginationDirection.PREV) if offset > 0 and trimmed else None
+
+    return MetricsListResponse(
+        resources=trimmed,
+        next=next_cursor,
+        prev=prev_cursor,
+        total=total,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -89,76 +208,7 @@ async def query_metrics(
         Paginated list of MetricRecord resources.
 
     """
-    metric_types = _resolve_metric_types(params.category)
-
-    all_records: list[MetricRecord] = list(
-        recorder.store.query(
-            metric_types=metric_types,
-            start_time=params.start_time,
-            end_time=params.end_time,
-        ),
-    )
-
-    reverse = True
-    if params.sort:
-        reverse = params.sort.startswith("-")
-
-    all_records.sort(key=lambda r: (r.created_at, r.id), reverse=reverse)
-
-    total = len(all_records) if params.include_total else None
-
-    limit = params.limit
-
-    # Resolve cursor position and direction
-    offset = 0
-    if params.cursor:
-        try:
-            cursor_data = decode_cursor(params.cursor)
-            cursor_id = cursor_data.get("id", "")
-            direction_str = cursor_data.get("direction", PaginationDirection.NEXT.value)
-            cursor_idx = _find_cursor_index(all_records, cursor_id)
-
-            if cursor_idx is not None:
-                if direction_str == PaginationDirection.PREV.value:
-                    offset = max(0, cursor_idx - limit)
-                else:
-                    offset = cursor_idx + 1
-        except (ValueError, KeyError):
-            offset = 0
-
-    page = all_records[offset : offset + limit + 1]
-
-    has_more = len(page) > limit
-    trimmed = page[:limit]
-
-    next_cursor: str | None = None
-    if has_more and trimmed:
-        last = trimmed[-1]
-        next_cursor = encode_cursor(
-            create_cursor_data(
-                resource_id=last.id,
-                created_at=last.created_at,
-                direction=PaginationDirection.NEXT,
-            ),
-        )
-
-    prev_cursor: str | None = None
-    if offset > 0 and trimmed:
-        first = trimmed[0]
-        prev_cursor = encode_cursor(
-            create_cursor_data(
-                resource_id=first.id,
-                created_at=first.created_at,
-                direction=PaginationDirection.PREV,
-            ),
-        )
-
-    return MetricsListResponse(
-        resources=trimmed,
-        next=next_cursor,
-        prev=prev_cursor,
-        total=total,
-    )
+    return build_metrics_response(recorder, params)
 
 
 @router.get("/summary")

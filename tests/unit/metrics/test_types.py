@@ -7,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from nexus.metrics.types import (
+    COMPONENT_LABELS,
     METRIC_CATEGORIES,
     MetricRecord,
     MetricsCategoryType,
@@ -26,24 +27,59 @@ class TestMetricType:
     def test_metric_type_values_exist(self) -> None:
         """All expected metric types are defined."""
         expected = {
+            # LLM
             "LLM_DURATION",
             "LLM_TOKENS_INPUT",
             "LLM_TOKENS_OUTPUT",
             "LLM_TTFT",
             "LLM_STATUS",
+            # Cache
             "CACHE_HIT",
             "CACHE_MISS",
             "CACHE_LOOKUP_DURATION",
             "CACHE_UTILIZATION",
+            # Workflow
             "WORKFLOW_DURATION",
             "WORKFLOW_STATUS",
             "ACTIVITY_DURATION",
+            # Agent
             "AGENT_ROUTING_DURATION",
             "AGENT_INVOCATION_DURATION",
             "AGENT_STATUS",
+            # System Overhead
             "REQUEST_DURATION",
             "COMPONENT_DURATION",
+            # Error
             "ERROR",
+            # API Service
+            "API_RESPONSE_TIME",
+            "API_ERROR_RATE",
+            "API_THROUGHPUT",
+            # Workflow Engine
+            "WORKFLOW_CREATION_SUCCESS_RATE",
+            "WORKFLOW_SERIALIZATION_DURATION",
+            "WORKFLOW_VALIDATION_DURATION",
+            # Temporal Worker
+            "TEMPORAL_QUEUE_DEPTH",
+            "ACTIVITY_EXECUTION_SUCCESS_RATE",
+            # Execution Service
+            "WORKFLOW_START_LATENCY",
+            "WORKFLOW_COMPLETION_RATE",
+            "ACTIVE_WORKFLOW_COUNT",
+            # Tool Manager
+            "TOOL_EXECUTION_SUCCESS_RATE",
+            "TOOL_EXECUTION_DURATION",
+            "TOOL_PROVIDER_AVAILABILITY",
+            "TOOL_EXECUTION_COUNT",
+            "TOOL_ERROR_RATE",
+            # Database
+            "DATABASE_QUERY_RESPONSE_TIME",
+            "DATABASE_CONNECTION_POOL_UTILIZATION",
+            "DATABASE_TRANSACTION_RATE",
+            # System-Wide
+            "SYSTEM_UPTIME",
+            "SYSTEM_E2E_LATENCY",
+            "SYSTEM_ERROR_RATE",
         }
         actual = {m.name for m in MetricType}
         assert actual == expected
@@ -56,24 +92,70 @@ class TestMetricType:
     def test_metric_type_from_value(self) -> None:
         """MetricType can be constructed from its string value."""
         assert MetricType("llm_duration_ms") is MetricType.LLM_DURATION
+        assert MetricType("api_response_time_ms") is MetricType.API_RESPONSE_TIME
+        assert MetricType("system_uptime_ratio") is MetricType.SYSTEM_UPTIME
 
     def test_metric_categories_keys(self) -> None:
         """All expected categories are present."""
-        assert set(METRIC_CATEGORIES.keys()) == {"llm", "cache", "workflow", "agent", "error"}
+        expected_categories = {
+            "llm",
+            "cache",
+            "workflow",
+            "agent",
+            "error",
+            "api",
+            "workflow_engine",
+            "temporal_worker",
+            "execution_service",
+            "tool_manager",
+            "database",
+            "system_wide",
+        }
+        assert set(METRIC_CATEGORIES.keys()) == expected_categories
 
     def test_metric_categories_contain_correct_types(self) -> None:
-        """Each category contains the right MetricType members."""
+        """Each category contains the right MetricType members including cross-refs."""
         assert MetricType.LLM_DURATION in METRIC_CATEGORIES[MetricsCategoryType.LLM]
         assert MetricType.CACHE_HIT in METRIC_CATEGORIES[MetricsCategoryType.CACHE]
         assert MetricType.WORKFLOW_DURATION in METRIC_CATEGORIES[MetricsCategoryType.WORKFLOW]
         assert MetricType.AGENT_ROUTING_DURATION in METRIC_CATEGORIES[MetricsCategoryType.AGENT]
         assert MetricType.ERROR in METRIC_CATEGORIES[MetricsCategoryType.ERROR]
+        assert MetricType.API_RESPONSE_TIME in METRIC_CATEGORIES[MetricsCategoryType.API]
+        assert MetricType.TOOL_EXECUTION_DURATION in METRIC_CATEGORIES[MetricsCategoryType.TOOL_MANAGER]
+        assert MetricType.DATABASE_QUERY_RESPONSE_TIME in METRIC_CATEGORIES[MetricsCategoryType.DATABASE]
+        assert MetricType.SYSTEM_UPTIME in METRIC_CATEGORIES[MetricsCategoryType.SYSTEM_WIDE]
+        assert MetricType.WORKFLOW_DURATION in METRIC_CATEGORIES[MetricsCategoryType.WORKFLOW_ENGINE]
+        assert MetricType.ACTIVITY_DURATION in METRIC_CATEGORIES[MetricsCategoryType.TEMPORAL_WORKER]
 
     def test_all_metric_types_belong_to_a_category(self) -> None:
         """Every MetricType is listed in at least one category (except system overhead)."""
         categorized = {mt for types in METRIC_CATEGORIES.values() for mt in types}
         uncategorized = set(MetricType) - categorized
         assert uncategorized == {MetricType.REQUEST_DURATION, MetricType.COMPONENT_DURATION}
+
+
+# =============================================================================
+# COMPONENT_LABELS tests
+# =============================================================================
+
+
+class TestComponentLabels:
+    """Tests for the COMPONENT_LABELS constant."""
+
+    def test_all_nine_components_present(self) -> None:
+        """All 9 component categories are defined."""
+        expected = {
+            "api_service",
+            "workflow_engine",
+            "temporal_worker",
+            "execution_service",
+            "invocation_service",
+            "routing_service",
+            "tool_manager",
+            "database",
+            "system_wide",
+        }
+        assert set(COMPONENT_LABELS.keys()) == expected
 
 
 # =============================================================================
@@ -190,8 +272,10 @@ class TestMetricsQuery:
         """Default values match spec expectations."""
         query = MetricsQuery()
         assert query.category is None
+        assert query.metric_type is None
         assert query.start_time is None
         assert query.end_time is None
+        assert query.labels is None
         assert query.limit == 20
         assert query.cursor is None
         assert query.sort is None
@@ -204,6 +288,45 @@ class TestMetricsQuery:
         assert query.category == "llm"
         assert query.start_time == now
         assert query.limit == 50
+
+    def test_custom_values_with_component_filters(self) -> None:
+        """Fields work together with a component category."""
+        now = datetime.now(UTC)
+        query = MetricsQuery(
+            category="api",
+            metric_type="api_response_time_ms",
+            start_time=now,
+            labels='{"component": "api_service"}',
+            limit=50,
+        )
+        assert query.category == "api"
+        assert query.metric_type == "api_response_time_ms"
+        assert query.start_time == now
+        assert query.labels == '{"component": "api_service"}'
+        assert query.limit == 50
+
+    def test_component_category_accepted(self) -> None:
+        """Component categories are valid category values."""
+        for cat in (
+            "api",
+            "workflow_engine",
+            "temporal_worker",
+            "execution_service",
+            "tool_manager",
+            "database",
+            "system_wide",
+        ):
+            query = MetricsQuery(category=cat)
+            assert query.category == cat
+
+    def test_metric_type_takes_precedence_over_category(self) -> None:
+        """When both metric_type and category are given, metric_type wins."""
+        query = MetricsQuery(
+            category="api",
+            metric_type="api_error_rate",
+        )
+        assert query.metric_type == "api_error_rate"
+        assert query.category == "api"
 
 
 # =============================================================================

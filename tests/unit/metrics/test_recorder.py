@@ -299,6 +299,40 @@ class TestRecorderPrometheus:
         )._value.get()
         assert value == pytest.approx(0.0)
 
+    def test_llm_status_increments_calls_total(self, recorder: MetricsRecorder) -> None:
+        """LLM_STATUS is the sole owner of llm_calls_total in Prometheus."""
+        recorder.record(
+            MetricType.LLM_STATUS,
+            1.0,
+            labels={"model": "gpt-4", "status": "success"},
+        )
+        recorder.record(
+            MetricType.LLM_STATUS,
+            1.0,
+            labels={"model": "gpt-4", "status": "error"},
+        )
+        success = recorder.prometheus.llm_calls_total.labels(
+            model="gpt-4",
+            status="success",
+        )._value.get()
+        error = recorder.prometheus.llm_calls_total.labels(
+            model="gpt-4",
+            status="error",
+        )._value.get()
+        assert success == pytest.approx(1.0)
+        assert error == pytest.approx(1.0)
+
+    def test_llm_ttft_updates_histogram(self, recorder: MetricsRecorder) -> None:
+        """LLM_TTFT populates the Prometheus TTFT histogram."""
+        recorder.record(
+            MetricType.LLM_TTFT,
+            120.0,
+            unit="ms",
+            labels={"model": "gpt-4"},
+        )
+        sample_value = recorder.prometheus.ttft_seconds.labels(model="gpt-4")._sum.get()
+        assert sample_value == pytest.approx(0.12)
+
     def test_workflow_duration_updates_counter(self, recorder: MetricsRecorder) -> None:
         """Recording WORKFLOW_DURATION also increments workflows_total counter."""
         recorder.record(
@@ -316,6 +350,63 @@ class TestRecorderPrometheus:
         sample_value = recorder.prometheus.workflows_total.labels(workflow_type="deploy")._value.get()
         assert sample_value == pytest.approx(2.0)
 
+    def test_api_response_time_updates_histogram(self, recorder: MetricsRecorder) -> None:
+        """Recording API_RESPONSE_TIME updates the component histogram."""
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            150.0,
+            unit="ms",
+            labels={"component": "api_service", "endpoint": "/chat", "method": "POST"},
+        )
+        sample_value = recorder.prometheus.api_response_time_seconds.labels(
+            component="api_service",
+            endpoint="/chat",
+            method="POST",
+        )._sum.get()
+        assert sample_value == pytest.approx(0.15, rel=0.01)
+
+    def test_temporal_queue_depth_updates_gauge(self, recorder: MetricsRecorder) -> None:
+        """Recording TEMPORAL_QUEUE_DEPTH sets the component gauge."""
+        recorder.record(
+            MetricType.TEMPORAL_QUEUE_DEPTH,
+            42.0,
+            labels={"component": "temporal_worker"},
+        )
+        sample_value = recorder.prometheus.temporal_queue_depth.labels(
+            component="temporal_worker",
+        )._value.get()
+        assert sample_value == pytest.approx(42.0)
+
+    def test_tool_execution_count_updates_counter(self, recorder: MetricsRecorder) -> None:
+        """Recording TOOL_EXECUTION_COUNT increments the component counter."""
+        recorder.record(
+            MetricType.TOOL_EXECUTION_COUNT,
+            1.0,
+            labels={"component": "tool_manager", "tool_id": "search"},
+        )
+        recorder.record(
+            MetricType.TOOL_EXECUTION_COUNT,
+            1.0,
+            labels={"component": "tool_manager", "tool_id": "search"},
+        )
+        sample_value = recorder.prometheus.tool_executions_total.labels(
+            component="tool_manager",
+            tool_id="search",
+        )._value.get()
+        assert sample_value == pytest.approx(2.0)
+
+    def test_system_uptime_updates_gauge(self, recorder: MetricsRecorder) -> None:
+        """Recording SYSTEM_UPTIME sets the system-wide gauge."""
+        recorder.record(
+            MetricType.SYSTEM_UPTIME,
+            0.999,
+            labels={"component": "system_wide"},
+        )
+        sample_value = recorder.prometheus.system_uptime.labels(
+            component="system_wide",
+        )._value.get()
+        assert sample_value == pytest.approx(0.999)
+
     def test_enabled_property(self, recorder: MetricsRecorder) -> None:
         """Enabled property reflects constructor argument."""
         assert recorder.enabled is True
@@ -323,3 +414,62 @@ class TestRecorderPrometheus:
     def test_disabled_property(self, disabled_recorder: MetricsRecorder) -> None:
         """Enabled property is False when recording is disabled."""
         assert disabled_recorder.enabled is False
+
+
+# =============================================================================
+# Component label validation
+# =============================================================================
+
+
+class TestComponentLabelValidation:
+    """Tests for component label validation in record()."""
+
+    def test_valid_component_label_accepted(self, recorder: MetricsRecorder) -> None:
+        """Record succeeds when component label is a valid identifier."""
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            120.0,
+            unit="ms",
+            labels={"component": "api_service", "endpoint": "/health"},
+        )
+        records = list(recorder.query())
+        assert len(records) == 1
+        assert records[0].labels["component"] == "api_service"
+
+    def test_invalid_component_label_raises(self, recorder: MetricsRecorder) -> None:
+        """Record raises SafeValueError when component label is not recognised."""
+        from nexus.core.exceptions import SafeValueError
+
+        with pytest.raises(SafeValueError, match="Invalid component label 'bogus'"):
+            recorder.record(
+                MetricType.API_RESPONSE_TIME,
+                100.0,
+                labels={"component": "bogus"},
+            )
+
+    def test_invalid_component_not_stored(self, recorder: MetricsRecorder) -> None:
+        """No metric is persisted when validation fails."""
+        with pytest.raises(ValueError):
+            recorder.record(
+                MetricType.API_RESPONSE_TIME,
+                100.0,
+                labels={"component": "invalid"},
+            )
+        assert list(recorder.query()) == []
+
+    def test_missing_component_label_still_records(self, recorder: MetricsRecorder) -> None:
+        """Metric is recorded even without a component label."""
+        recorder.record(MetricType.LLM_DURATION, 50.0, unit="ms")
+        records = list(recorder.query())
+        assert len(records) == 1
+
+    def test_all_valid_components_accepted(self, recorder: MetricsRecorder) -> None:
+        """Every value in COMPONENT_LABELS is accepted by validation."""
+        from nexus.metrics.types import COMPONENT_LABELS
+
+        for component in COMPONENT_LABELS:
+            recorder.record(
+                MetricType.SYSTEM_UPTIME,
+                1.0,
+                labels={"component": component},
+            )

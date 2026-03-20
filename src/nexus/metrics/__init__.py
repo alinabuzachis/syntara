@@ -18,6 +18,7 @@ from nexus.metrics.prometheus import NexusPrometheusMetrics
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.store import MetricsStore
 from nexus.metrics.types import (
+    COMPONENT_LABELS,
     METRIC_CATEGORIES,
     MetricRecord,
     MetricsCategoryType,
@@ -26,6 +27,7 @@ from nexus.metrics.types import (
 )
 
 __all__ = [
+    "COMPONENT_LABELS",
     "METRIC_CATEGORIES",
     "LLMCallMetrics",
     "LLMStreamTracker",

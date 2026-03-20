@@ -11,10 +11,11 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from prometheus_client import CollectorRegistry
 
+from nexus.metrics.component_router import router as component_router
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.router import router
-from nexus.metrics.types import MetricType
+from nexus.metrics.types import COMPONENT_LABELS, MetricType
 
 
 @pytest.fixture
@@ -29,9 +30,10 @@ def recorder() -> MetricsRecorder:
 
 @pytest.fixture
 def client(recorder: MetricsRecorder) -> TestClient:
-    """Build a TestClient with the metrics router wired to the test recorder."""
+    """Build a TestClient with both metrics routers wired to the test recorder."""
     app = FastAPI()
     app.include_router(router, prefix="/api/v1")
+    app.include_router(component_router, prefix="/api/v1")
     app.dependency_overrides[get_metrics_recorder] = lambda: recorder
     return TestClient(app)
 
@@ -115,7 +117,6 @@ class TestQueryMetrics:
         for i in range(5):
             recorder.record(MetricType.LLM_DURATION, value=float(i))
 
-        # Default sort is descending by created_at, so newest first: 4,3,2,1,0
         resp1 = client.get("/api/v1/metrics", params={"limit": 2})
         assert resp1.status_code == 200
         body1 = resp1.json()
@@ -147,7 +148,6 @@ class TestQueryMetrics:
         for i in range(5):
             recorder.record(MetricType.LLM_DURATION, value=float(i))
 
-        # Page forward twice (descending: 4,3,2,1,0)
         resp1 = client.get("/api/v1/metrics", params={"limit": 2})
         body1 = resp1.json()
 
@@ -156,7 +156,6 @@ class TestQueryMetrics:
         page2_values = [r["value"] for r in body2["resources"]]
         assert page2_values == [pytest.approx(2.0), pytest.approx(1.0)]
 
-        # Now page backward from page 2 using prev cursor
         resp_prev = client.get("/api/v1/metrics", params={"limit": 2, "cursor": body2["prev"]})
         assert resp_prev.status_code == 200
         body_prev = resp_prev.json()
@@ -169,7 +168,6 @@ class TestQueryMetrics:
         for i in range(5):
             recorder.record(MetricType.LLM_DURATION, value=float(i))
 
-        # Ascending sort: 0,1,2,3,4
         resp1 = client.get("/api/v1/metrics", params={"limit": 2, "sort": "created_at"})
         assert resp1.status_code == 200
         body1 = resp1.json()
@@ -184,7 +182,6 @@ class TestQueryMetrics:
         assert page2_values == [pytest.approx(2.0), pytest.approx(3.0)]
         assert body2["prev"] is not None
 
-        # Go backward from page 2
         resp_prev = client.get(
             "/api/v1/metrics",
             params={"limit": 2, "sort": "created_at", "cursor": body2["prev"]},
@@ -223,6 +220,58 @@ class TestQueryMetrics:
         body = resp.json()
         values = [r["value"] for r in body["resources"]]
         assert values == [pytest.approx(2.0), pytest.approx(1.0), pytest.approx(0.0)]
+
+    def test_filter_by_component_label(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """Filtering by labels={"component": "api_service"} returns matching metrics."""
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            value=150.0,
+            unit="ms",
+            labels={"component": "api_service", "endpoint": "/api/v1/chat"},
+        )
+        recorder.record(
+            MetricType.TOOL_EXECUTION_DURATION,
+            value=200.0,
+            unit="ms",
+            labels={"component": "tool_manager", "tool_id": "search"},
+        )
+        resp = client.get(
+            "/api/v1/metrics",
+            params={"labels": '{"component": "api_service"}'},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["resources"]) == 1
+        assert body["resources"][0]["labels"]["component"] == "api_service"
+
+    def test_filter_by_type(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """Filtering by type returns only metrics of that specific type."""
+        recorder.record(MetricType.API_RESPONSE_TIME, value=100.0, unit="ms")
+        recorder.record(MetricType.API_ERROR_RATE, value=0.02, unit="ratio")
+        recorder.record(MetricType.LLM_DURATION, value=500.0, unit="ms")
+
+        resp = client.get(
+            "/api/v1/metrics",
+            params={"metric_type": "api_response_time_ms"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["resources"]) == 1
+        assert body["resources"][0]["metric_type"] == "api_response_time_ms"
+
+    def test_metric_type_takes_precedence_over_category(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """When both metric_type and category are provided, metric_type wins."""
+        recorder.record(MetricType.API_RESPONSE_TIME, value=100.0, unit="ms")
+        recorder.record(MetricType.API_ERROR_RATE, value=0.02, unit="ratio")
+
+        resp = client.get(
+            "/api/v1/metrics",
+            params={"category": "api", "metric_type": "api_error_rate"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["resources"]) == 1
+        assert body["resources"][0]["metric_type"] == "api_error_rate"
 
 
 # =============================================================================
@@ -331,3 +380,135 @@ class TestRouterDiscovery:
     def test_router_has_tags(self) -> None:
         """Router has the 'metrics' tag."""
         assert "metrics" in router.tags
+
+
+# =============================================================================
+# GET /api/v1/{component}/metrics (component shortcut endpoints)
+# =============================================================================
+
+
+class TestComponentMetrics:
+    """Tests for the per-component metrics shortcut endpoints."""
+
+    def test_returns_only_component_metrics(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """Component endpoint returns only metrics for that component."""
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            value=150.0,
+            labels={"component": "api_service", "endpoint": "/chat"},
+        )
+        recorder.record(
+            MetricType.TOOL_EXECUTION_DURATION,
+            value=200.0,
+            labels={"component": "tool_manager", "tool_id": "search"},
+        )
+
+        resp = client.get("/api/v1/api_service/metrics")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["resources"]) == 1
+        assert body["resources"][0]["labels"]["component"] == "api_service"
+
+    def test_unknown_component_returns_404(self, client: TestClient) -> None:
+        """Requesting an invalid component returns 404."""
+        resp = client.get("/api/v1/invalid_component/metrics")
+        assert resp.status_code == 404
+
+    def test_empty_component_returns_empty(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """Component endpoint returns empty list when no metrics match."""
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            value=100.0,
+            labels={"component": "api_service"},
+        )
+        resp = client.get("/api/v1/database/metrics")
+        assert resp.status_code == 200
+        assert resp.json()["resources"] == []
+
+    def test_supports_metric_type_filter(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """Component endpoint supports metric_type query parameter."""
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            value=100.0,
+            labels={"component": "api_service"},
+        )
+        recorder.record(
+            MetricType.API_ERROR_RATE,
+            value=0.02,
+            labels={"component": "api_service"},
+        )
+        resp = client.get(
+            "/api/v1/api_service/metrics",
+            params={"metric_type": "api_response_time_ms"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["resources"]) == 1
+        assert body["resources"][0]["metric_type"] == "api_response_time_ms"
+
+    def test_response_contains_required_schema_fields(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """Each resource has the fields required by the OpenAPI schema."""
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            value=150.5,
+            unit="ms",
+            labels={"component": "api_service", "endpoint": "/chat"},
+        )
+        resp = client.get("/api/v1/api_service/metrics")
+        assert resp.status_code == 200
+        resource = resp.json()["resources"][0]
+
+        required_fields = {"id", "created_at", "metric_type", "value", "unit", "labels"}
+        missing = required_fields - set(resource.keys())
+        assert not missing, f"Missing required fields: {missing}"
+        assert isinstance(resource["id"], str)
+        assert isinstance(resource["value"], (int, float))
+        assert isinstance(resource["labels"], dict)
+
+    def test_all_valid_components_return_200(self, client: TestClient) -> None:
+        """Every component in COMPONENT_LABELS is accepted by the endpoint."""
+        for component in COMPONENT_LABELS:
+            resp = client.get(f"/api/v1/{component}/metrics")
+            assert resp.status_code == 200, f"Component '{component}' returned {resp.status_code}"
+
+    def test_component_name_is_case_sensitive(self, client: TestClient) -> None:
+        """Upper-case variant of a valid component returns 404."""
+        resp = client.get("/api/v1/API_SERVICE/metrics")
+        assert resp.status_code == 404
+
+    def test_supports_additional_labels_filter(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """Labels query parameter narrows results beyond the component filter."""
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            value=150.0,
+            unit="ms",
+            labels={"component": "api_service", "endpoint": "/chat", "method": "POST"},
+        )
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            value=80.0,
+            unit="ms",
+            labels={"component": "api_service", "endpoint": "/health", "method": "GET"},
+        )
+        resp = client.get(
+            "/api/v1/api_service/metrics",
+            params={"labels": '{"method": "POST"}'},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["resources"]) == 1
+        assert body["resources"][0]["labels"]["method"] == "POST"
+
+    def test_unknown_metric_type_returns_empty(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """A metric_type value that does not exist returns an empty list."""
+        recorder.record(
+            MetricType.API_RESPONSE_TIME,
+            value=100.0,
+            labels={"component": "api_service"},
+        )
+        resp = client.get(
+            "/api/v1/api_service/metrics",
+            params={"metric_type": "nonexistent_metric"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["resources"] == []

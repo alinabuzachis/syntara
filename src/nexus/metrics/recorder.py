@@ -17,23 +17,62 @@ Usage::
 
 from __future__ import annotations
 
-import logging
 import threading
 import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import structlog
+
+from nexus.core.exceptions import SafeValueError
 from nexus.metrics.prometheus import NexusPrometheusMetrics
 from nexus.metrics.store import MetricsStore
-from nexus.metrics.types import MetricRecord, MetricsSummary, MetricType
+from nexus.metrics.types import COMPONENT_LABELS, MetricRecord, MetricsSummary, MetricType
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from prometheus_client import CollectorRegistry
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
+
+# Table-driven dispatch for component-level Prometheus metrics.
+# Each entry: (prometheus_attr, action, extra_label_keys)
+#   action: "gauge" -> .set(value)
+#           "histogram" -> .observe(value / 1000)
+#           "counter" -> .inc()
+_COMPONENT_METRIC_MAP: dict[MetricType, tuple[str, str, tuple[str, ...]]] = {
+    # API Service
+    MetricType.API_RESPONSE_TIME: ("api_response_time_seconds", "histogram", ("endpoint", "method")),
+    MetricType.API_ERROR_RATE: ("api_error_rate", "gauge", ()),
+    MetricType.API_THROUGHPUT: ("api_throughput_rps", "gauge", ()),
+    # Workflow Engine
+    MetricType.WORKFLOW_CREATION_SUCCESS_RATE: ("workflow_creation_success_rate", "gauge", ()),
+    MetricType.WORKFLOW_SERIALIZATION_DURATION: ("workflow_serialization_duration_seconds", "histogram", ()),
+    MetricType.WORKFLOW_VALIDATION_DURATION: ("workflow_validation_duration_seconds", "histogram", ()),
+    # Temporal Worker
+    MetricType.TEMPORAL_QUEUE_DEPTH: ("temporal_queue_depth", "gauge", ()),
+    MetricType.ACTIVITY_EXECUTION_SUCCESS_RATE: ("activity_execution_success_rate", "gauge", ()),
+    # Execution Service
+    MetricType.WORKFLOW_START_LATENCY: ("workflow_start_latency_seconds", "histogram", ()),
+    MetricType.WORKFLOW_COMPLETION_RATE: ("workflow_completion_rate", "gauge", ()),
+    MetricType.ACTIVE_WORKFLOW_COUNT: ("active_workflow_count", "gauge", ()),
+    # Tool Manager
+    MetricType.TOOL_EXECUTION_SUCCESS_RATE: ("tool_execution_success_rate", "gauge", ()),
+    MetricType.TOOL_EXECUTION_DURATION: ("tool_execution_duration_seconds", "histogram", ("tool_id",)),
+    MetricType.TOOL_PROVIDER_AVAILABILITY: ("tool_provider_availability", "gauge", ()),
+    MetricType.TOOL_EXECUTION_COUNT: ("tool_executions_total", "counter", ("tool_id",)),
+    MetricType.TOOL_ERROR_RATE: ("tool_error_rate", "gauge", ()),
+    # Database
+    MetricType.DATABASE_QUERY_RESPONSE_TIME: ("database_query_response_time_seconds", "histogram", ("table_name",)),
+    MetricType.DATABASE_CONNECTION_POOL_UTILIZATION: ("database_connection_pool_utilization", "gauge", ()),
+    MetricType.DATABASE_TRANSACTION_RATE: ("database_transaction_rate_tps", "gauge", ()),
+    # System-Wide
+    MetricType.SYSTEM_UPTIME: ("system_uptime", "gauge", ()),
+    MetricType.SYSTEM_E2E_LATENCY: ("system_e2e_latency_seconds", "histogram", ()),
+    MetricType.SYSTEM_ERROR_RATE: ("system_error_rate", "gauge", ()),
+}
 
 
 class MetricsRecorder:
@@ -106,18 +145,25 @@ class MetricsRecorder:
 
         The record is appended to the in-memory store *and* the matching
         Prometheus metric is updated.
+
+        When a ``component`` label is provided its value is validated
+        against :data:`COMPONENT_LABELS`.  An invalid value raises
+        :class:`SafeValueError`.
         """
         if not self._enabled:
             return
+
+        metric_labels = labels or {}
+        self._validate_component_label(metric_labels)
 
         record = MetricRecord(
             metric_type=metric_type,
             value=value,
             unit=unit,
-            labels=labels or {},
+            labels=metric_labels,
         )
         self._store.add(record)
-        self._update_prometheus(metric_type, value, labels or {})
+        self._update_prometheus(metric_type, value, metric_labels)
 
     def increment(self, counter_name: str, value: int = 1) -> None:
         """Increment an internal named counter."""
@@ -146,6 +192,25 @@ class MetricsRecorder:
         finally:
             duration_ms = (time.perf_counter() - start) * 1000
             self.record(metric_type, duration_ms, unit="ms", labels=labels)
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def _validate_component_label(self, labels: dict[str, str]) -> None:
+        """Validate the ``component`` label if present.
+
+        Raises :class:`SafeValueError` when the value is not one of the
+        recognised component identifiers defined in
+        :data:`COMPONENT_LABELS`.  Silently skips validation when the
+        label is absent.
+        """
+        component = labels.get("component")
+        if component is None:
+            return
+        if component not in COMPONENT_LABELS:
+            msg = f"Invalid component label {component!r}. Must be one of: {sorted(COMPONENT_LABELS)}"
+            raise SafeValueError(msg)
 
     # ------------------------------------------------------------------
     # Querying
@@ -213,7 +278,7 @@ class MetricsRecorder:
         try:
             self._dispatch_prometheus(metric_type, value, labels)
         except Exception:  # noqa: BLE001
-            logger.debug("Failed to update Prometheus metric for %s", metric_type, exc_info=True)
+            logger.debug("Failed to update Prometheus metric", metric_type=metric_type, exc_info=True)
 
     def _dispatch_prometheus(
         self,
@@ -264,6 +329,9 @@ class MetricsRecorder:
                 error_type=labels.get("error_type", "unknown"),
             ).inc()
 
+        else:
+            MetricsRecorder._dispatch_component(metric_type, value, labels, p)
+
     @staticmethod
     def _dispatch_latency(
         metric_type: MetricType,
@@ -304,3 +372,27 @@ class MetricsRecorder:
             p.llm_tokens_input_total.labels(model=model).inc(value)
         elif metric_type == MetricType.LLM_TOKENS_OUTPUT:
             p.llm_tokens_output_total.labels(model=model).inc(value)
+
+    @staticmethod
+    def _dispatch_component(
+        metric_type: MetricType,
+        value: float,
+        labels: dict[str, str],
+        p: NexusPrometheusMetrics,
+    ) -> None:
+        """Handle component-level metrics (API, workflow engine, tools, etc.)."""
+        entry = _COMPONENT_METRIC_MAP.get(metric_type)
+        if entry is None:
+            return
+
+        attr_name, action, extra_keys = entry
+        component = labels.get("component", "unknown")
+        extra_labels = {k: labels.get(k, "unknown") for k in extra_keys}
+        instrument = getattr(p, attr_name).labels(component=component, **extra_labels)
+
+        if action == "gauge":
+            instrument.set(value)
+        elif action == "histogram":
+            instrument.observe(value / 1000)
+        elif action == "counter":
+            instrument.inc()

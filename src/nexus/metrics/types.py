@@ -57,6 +57,42 @@ class MetricType(StrEnum):
     # Error Metrics (FR-024 to FR-025)
     ERROR = "error"
 
+    # API Service Metrics
+    API_RESPONSE_TIME = "api_response_time_ms"
+    API_ERROR_RATE = "api_error_rate"
+    API_THROUGHPUT = "api_throughput_rps"
+
+    # Workflow Engine Metrics
+    WORKFLOW_CREATION_SUCCESS_RATE = "workflow_creation_success_rate"
+    WORKFLOW_SERIALIZATION_DURATION = "workflow_serialization_duration_ms"
+    WORKFLOW_VALIDATION_DURATION = "workflow_validation_duration_ms"
+
+    # Temporal Worker Metrics
+    TEMPORAL_QUEUE_DEPTH = "temporal_queue_depth"
+    ACTIVITY_EXECUTION_SUCCESS_RATE = "activity_execution_success_rate"
+
+    # Execution Service Metrics
+    WORKFLOW_START_LATENCY = "workflow_start_latency_ms"
+    WORKFLOW_COMPLETION_RATE = "workflow_completion_rate"
+    ACTIVE_WORKFLOW_COUNT = "active_workflow_count"
+
+    # Tool Manager Metrics
+    TOOL_EXECUTION_SUCCESS_RATE = "tool_execution_success_rate"
+    TOOL_EXECUTION_DURATION = "tool_execution_duration_ms"
+    TOOL_PROVIDER_AVAILABILITY = "tool_provider_availability_ratio"
+    TOOL_EXECUTION_COUNT = "tool_execution_count"
+    TOOL_ERROR_RATE = "tool_error_rate"
+
+    # Database Metrics
+    DATABASE_QUERY_RESPONSE_TIME = "database_query_response_time_ms"
+    DATABASE_CONNECTION_POOL_UTILIZATION = "database_connection_pool_utilization_ratio"
+    DATABASE_TRANSACTION_RATE = "database_transaction_rate_tps"
+
+    # System-Wide Metrics
+    SYSTEM_UPTIME = "system_uptime_ratio"
+    SYSTEM_E2E_LATENCY = "system_e2e_latency_ms"
+    SYSTEM_ERROR_RATE = "system_error_rate"
+
 
 class MetricsCategoryType(StrEnum):
     """Metric category names used to group :class:`MetricType` members."""
@@ -66,6 +102,13 @@ class MetricsCategoryType(StrEnum):
     WORKFLOW = "workflow"
     AGENT = "agent"
     ERROR = "error"
+    API = "api"
+    WORKFLOW_ENGINE = "workflow_engine"
+    TEMPORAL_WORKER = "temporal_worker"
+    EXECUTION_SERVICE = "execution_service"
+    TOOL_MANAGER = "tool_manager"
+    DATABASE = "database"
+    SYSTEM_WIDE = "system_wide"
 
 
 METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
@@ -95,6 +138,57 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
     MetricsCategoryType.ERROR: [
         MetricType.ERROR,
     ],
+    MetricsCategoryType.API: [
+        MetricType.API_RESPONSE_TIME,
+        MetricType.API_ERROR_RATE,
+        MetricType.API_THROUGHPUT,
+    ],
+    MetricsCategoryType.WORKFLOW_ENGINE: [
+        MetricType.WORKFLOW_CREATION_SUCCESS_RATE,
+        MetricType.WORKFLOW_SERIALIZATION_DURATION,
+        MetricType.WORKFLOW_VALIDATION_DURATION,
+        MetricType.WORKFLOW_DURATION,
+        MetricType.WORKFLOW_STATUS,
+    ],
+    MetricsCategoryType.TEMPORAL_WORKER: [
+        MetricType.TEMPORAL_QUEUE_DEPTH,
+        MetricType.ACTIVITY_EXECUTION_SUCCESS_RATE,
+        MetricType.ACTIVITY_DURATION,
+    ],
+    MetricsCategoryType.EXECUTION_SERVICE: [
+        MetricType.WORKFLOW_START_LATENCY,
+        MetricType.WORKFLOW_COMPLETION_RATE,
+        MetricType.ACTIVE_WORKFLOW_COUNT,
+    ],
+    MetricsCategoryType.TOOL_MANAGER: [
+        MetricType.TOOL_EXECUTION_SUCCESS_RATE,
+        MetricType.TOOL_EXECUTION_DURATION,
+        MetricType.TOOL_PROVIDER_AVAILABILITY,
+        MetricType.TOOL_EXECUTION_COUNT,
+        MetricType.TOOL_ERROR_RATE,
+    ],
+    MetricsCategoryType.DATABASE: [
+        MetricType.DATABASE_QUERY_RESPONSE_TIME,
+        MetricType.DATABASE_CONNECTION_POOL_UTILIZATION,
+        MetricType.DATABASE_TRANSACTION_RATE,
+    ],
+    MetricsCategoryType.SYSTEM_WIDE: [
+        MetricType.SYSTEM_UPTIME,
+        MetricType.SYSTEM_E2E_LATENCY,
+        MetricType.SYSTEM_ERROR_RATE,
+    ],
+}
+
+COMPONENT_LABELS: dict[str, str] = {
+    "api_service": "api_service",
+    "workflow_engine": "workflow_engine",
+    "temporal_worker": "temporal_worker",
+    "execution_service": "execution_service",
+    "invocation_service": "invocation_service",
+    "routing_service": "routing_service",
+    "tool_manager": "tool_manager",
+    "database": "database",
+    "system_wide": "system_wide",
 }
 
 
@@ -190,6 +284,11 @@ class MetricsQuery(BaseListParams):
         description="Filter by metric category",
     )
 
+    metric_type: str | None = Field(
+        default=None,
+        description="Filter by specific metric type value (e.g. api_response_time_ms)",
+    )
+
     start_time: datetime | None = Field(
         default=None,
         description="Start of time range (ISO 8601)",
@@ -198,6 +297,11 @@ class MetricsQuery(BaseListParams):
     end_time: datetime | None = Field(
         default=None,
         description="End of time range (ISO 8601)",
+    )
+
+    labels: str | None = Field(
+        default=None,
+        description='Label filter as JSON string (e.g. {"component": "api_service"})',
     )
 
 

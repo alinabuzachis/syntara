@@ -179,3 +179,167 @@ class NexusPrometheusMetrics:
             ["model"],
             registry=self.registry,
         )
+
+        # ---- Component Histograms ----
+        self.api_response_time_seconds = Histogram(
+            "nexus_api_response_time_seconds",
+            "API response time in seconds",
+            ["component", "endpoint", "method"],
+            buckets=LATENCY_BUCKETS_MEDIUM,
+            registry=self.registry,
+        )
+
+        self.workflow_serialization_duration_seconds = Histogram(
+            "nexus_workflow_serialization_duration_seconds",
+            "Workflow serialization duration in seconds",
+            ["component"],
+            buckets=LATENCY_BUCKETS_MEDIUM,
+            registry=self.registry,
+        )
+
+        self.workflow_validation_duration_seconds = Histogram(
+            "nexus_workflow_validation_duration_seconds",
+            "Workflow validation duration in seconds",
+            ["component"],
+            buckets=LATENCY_BUCKETS_MEDIUM,
+            registry=self.registry,
+        )
+
+        self.workflow_start_latency_seconds = Histogram(
+            "nexus_workflow_start_latency_seconds",
+            "Workflow start latency in seconds",
+            ["component"],
+            buckets=LATENCY_BUCKETS_MEDIUM,
+            registry=self.registry,
+        )
+
+        self.tool_execution_duration_seconds = Histogram(
+            "nexus_tool_execution_duration_seconds",
+            "Tool execution duration in seconds",
+            ["component", "tool_id"],
+            buckets=LATENCY_BUCKETS_MEDIUM,
+            registry=self.registry,
+        )
+
+        self.database_query_response_time_seconds = Histogram(
+            "nexus_database_query_response_time_seconds",
+            "Database query response time in seconds",
+            ["component", "table_name"],
+            buckets=LATENCY_BUCKETS_MEDIUM,
+            registry=self.registry,
+        )
+
+        self.system_e2e_latency_seconds = Histogram(
+            "nexus_system_e2e_latency_seconds",
+            "System end-to-end latency in seconds",
+            ["component"],
+            buckets=LATENCY_BUCKETS_SLOW,
+            registry=self.registry,
+        )
+
+        # ---- Component Counters ----
+        self.tool_executions_total = Counter(
+            "nexus_tool_executions_total",
+            "Total tool executions",
+            ["component", "tool_id"],
+            registry=self.registry,
+        )
+
+        # ---- Component Gauges ----
+        self.api_error_rate = Gauge(
+            "nexus_api_error_rate",
+            "API error rate",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.api_throughput_rps = Gauge(
+            "nexus_api_throughput_rps",
+            "API throughput in requests per second",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.workflow_creation_success_rate = Gauge(
+            "nexus_workflow_creation_success_rate",
+            "Workflow creation success rate",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.workflow_completion_rate = Gauge(
+            "nexus_workflow_completion_rate",
+            "Workflow completion rate",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.temporal_queue_depth = Gauge(
+            "nexus_temporal_queue_depth",
+            "Temporal task queue depth",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.activity_execution_success_rate = Gauge(
+            "nexus_activity_execution_success_rate",
+            "Activity execution success rate",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.active_workflow_count = Gauge(
+            "nexus_active_workflow_count",
+            "Number of active workflows",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.tool_execution_success_rate = Gauge(
+            "nexus_tool_execution_success_rate",
+            "Tool execution success rate",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.tool_provider_availability = Gauge(
+            "nexus_tool_provider_availability",
+            "Tool provider availability ratio",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.tool_error_rate = Gauge(
+            "nexus_tool_error_rate",
+            "Tool error rate",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.database_connection_pool_utilization = Gauge(
+            "nexus_database_connection_pool_utilization",
+            "Database connection pool utilization ratio",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.database_transaction_rate_tps = Gauge(
+            "nexus_database_transaction_rate_tps",
+            "Database transaction rate in transactions per second",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.system_uptime = Gauge(
+            "nexus_system_uptime",
+            "System uptime ratio",
+            ["component"],
+            registry=self.registry,
+        )
+
+        self.system_error_rate = Gauge(
+            "nexus_system_error_rate",
+            "System-wide error rate",
+            ["component"],
+            registry=self.registry,
+        )
