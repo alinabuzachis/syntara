@@ -2,6 +2,8 @@ import type { TaskActivity } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { FlowNodeType } from '../../../../constants'
+
 import { GenericNodeComponent } from './GenericNode'
 
 // Mock @xyflow/react
@@ -37,7 +39,7 @@ describe('GenericNodeComponent', () => {
   const createNodeProps = (data: TaskActivity) => ({
     id: data.id,
     data,
-    type: 'generic' as const,
+    type: FlowNodeType.GENERIC,
     position: { x: 0, y: 0 },
     positionAbsoluteX: 0,
     positionAbsoluteY: 0,

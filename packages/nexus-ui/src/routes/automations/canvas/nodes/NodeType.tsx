@@ -1,5 +1,7 @@
 import { type NodeTypes } from '@xyflow/react'
 
+import { FlowNodeType } from '../../../../constants'
+
 import { type ApprovalNode, ApprovalNodeComponent } from './ApprovalNode'
 import { type ConditionNode, ConditionNodeComponent } from './ConditionNode'
 import { type ConvergeNode, ConvergeNodeComponent } from './ConvergeNode'
@@ -22,13 +24,13 @@ export type NodeType =
   | GenericNode
 
 export const nodeTypes: NodeTypes = {
-  trigger: TriggerNodeComponent,
-  task: TaskNodeComponent,
-  'task-reversed': TaskReversedNodeComponent,
-  approval: ApprovalNodeComponent,
-  condition: ConditionNodeComponent,
-  converge: ConvergeNodeComponent,
-  parallel: ParallelNodeComponent,
-  loop: LoopNodeComponent,
-  generic: GenericNodeComponent,
+  [FlowNodeType.TRIGGER]: TriggerNodeComponent,
+  [FlowNodeType.TASK]: TaskNodeComponent,
+  [FlowNodeType.TASK_REVERSED]: TaskReversedNodeComponent,
+  [FlowNodeType.APPROVAL]: ApprovalNodeComponent,
+  [FlowNodeType.CONDITION]: ConditionNodeComponent,
+  [FlowNodeType.CONVERGE]: ConvergeNodeComponent,
+  [FlowNodeType.PARALLEL]: ParallelNodeComponent,
+  [FlowNodeType.LOOP]: LoopNodeComponent,
+  [FlowNodeType.GENERIC]: GenericNodeComponent,
 }

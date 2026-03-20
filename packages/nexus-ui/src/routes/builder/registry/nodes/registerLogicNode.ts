@@ -6,6 +6,7 @@ import {
   RhUiMergeNodesIcon,
 } from '@patternfly/react-icons'
 
+import { RegistryNodeId } from '../../../../constants'
 import {
   createConditionActivity,
   createConvergeActivity,
@@ -36,7 +37,7 @@ export default function registerLogicNode() {
   NodeRegistry.register(
     createCustomNode<LogicFormData>(
       {
-        id: 'logic',
+        id: RegistryNodeId.LOGIC,
         label: 'Logic',
         icon: RhUiBranchFillIcon,
         category: 'logic',
@@ -47,7 +48,7 @@ export default function registerLogicNode() {
         formComponent: LogicNodeForm,
         subtypes: [
           {
-            id: 'logic-condition',
+            id: RegistryNodeId.LOGIC_CONDITION,
             label: 'Conditional',
             icon: RhUiConditionNodeIcon,
             description: 'Set parameters to branch the automation.',
@@ -55,7 +56,7 @@ export default function registerLogicNode() {
             initialData: { logicType: ActivityTypeEnum.CONDITION },
           },
           {
-            id: 'logic-converge',
+            id: RegistryNodeId.LOGIC_CONVERGE,
             label: 'Converge',
             icon: RhUiMergeNodesIcon,
             description: 'Converge automation to single path.',
@@ -63,7 +64,7 @@ export default function registerLogicNode() {
             initialData: { logicType: ActivityTypeEnum.CONVERGE },
           },
           {
-            id: 'logic-loop',
+            id: RegistryNodeId.LOGIC_LOOP,
             label: 'Loop',
             icon: RhUiLoopNodeIcon,
             description: 'Batch automation to repeat specific actions.',
@@ -80,7 +81,7 @@ export default function registerLogicNode() {
 
           const name = getNodeDisplayName(
             getDefaultNodeBaseName({
-              nodeTypeId: 'logic',
+              nodeTypeId: RegistryNodeId.LOGIC,
               initialData: { logicType: data.logicType },
               label:
                 data.logicType === ActivityTypeEnum.CONDITION

@@ -3,13 +3,16 @@ import { Content, ContentVariants, Flex, FlexItem } from '@patternfly/react-core
 import { RhUiSettingsIcon } from '@patternfly/react-icons'
 import { type Node, type NodeProps } from '@xyflow/react'
 
+import { FlowNodeType } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
+import { getNodeTypeColor } from '../nodeTypeColors'
 
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
+import { renderNodeIcon } from './renderNodeIcon'
 
-export type GenericNode = { type: 'generic' } & Node<TaskActivity>
+export type GenericNode = { type: typeof FlowNodeType.GENERIC } & Node<TaskActivity>
 
 /**
  * Generic placeholder node component
@@ -47,9 +50,10 @@ export function GenericNodeComponent(props: NodeProps<GenericNode>) {
       hasDashedBorder
       executionState={executionState}
       collapsible={false}
+      topBarColor={getNodeTypeColor(FlowNodeType.GENERIC)}
     >
       <StandardNodeHeader
-        icon={<RhUiSettingsIcon />}
+        icon={renderNodeIcon(RhUiSettingsIcon, FlowNodeType.GENERIC, 'canvas', getNodeTypeColor(FlowNodeType.GENERIC))}
         title={showTitle ? 'Click to configure' : undefined}
         expandable={false}
       />

@@ -1,7 +1,9 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { type Node, type NodeProps } from '@xyflow/react'
 
+import { FlowNodeType } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
+import { getNodeTypeColor } from '../nodeTypeColors'
 
 import { NodeComponent } from './common/NodeComponent'
 import { nodeMetadata } from './nodeMetadata'
@@ -17,7 +19,7 @@ import { TaskActivityDetails } from './TaskNode'
  * The node shares the same rendering logic as TaskNode (via TaskActivityDetails)
  * but uses the reverseHandles prop to flip the handle positions.
  */
-export type TaskReversedNode = { type: 'task-reversed' } & Node<TaskActivity>
+export type TaskReversedNode = { type: typeof FlowNodeType.TASK_REVERSED } & Node<TaskActivity>
 
 export function TaskReversedNodeComponent(props: NodeProps<TaskReversedNode>) {
   const metadata = nodeMetadata.task
@@ -34,8 +36,14 @@ export function TaskReversedNodeComponent(props: NodeProps<TaskReversedNode>) {
     | undefined
 
   return (
-    <NodeComponent className={metadata.className} nodeProps={props} reverseHandles executionState={executionState}>
-      <TaskActivityDetails data={props.data} />
+    <NodeComponent
+      className={metadata.className}
+      nodeProps={props}
+      reverseHandles
+      executionState={executionState}
+      topBarColor={getNodeTypeColor(FlowNodeType.TASK_REVERSED, props.data)}
+    >
+      <TaskActivityDetails data={props.data} iconColor={getNodeTypeColor(FlowNodeType.TASK_REVERSED, props.data)} />
     </NodeComponent>
   )
 }

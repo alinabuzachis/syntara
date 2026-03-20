@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { FlowNodeType } from '../../constants'
+
 import { BuilderFlow } from './BuilderFlow'
 import { ExecutionViewContext } from './ExecutionViewContext'
 
@@ -224,11 +226,11 @@ describe('BuilderFlow execution view', () => {
 
     const nodes = props.nodes as Array<Record<string, unknown>>
     const edges = props.edges as Array<Record<string, unknown>>
-    expect(nodes.some((node) => node.type === 'condition')).toBe(true)
-    expect(nodes.some((node) => node.type === 'loop')).toBe(true)
-    expect(nodes.some((node) => node.type === 'converge')).toBe(true)
-    expect(nodes.some((node) => node.type === 'task-reversed')).toBe(true)
-    expect(nodes.some((node) => node.type === 'generic')).toBe(true)
+    expect(nodes.some((node) => node.type === FlowNodeType.CONDITION)).toBe(true)
+    expect(nodes.some((node) => node.type === FlowNodeType.LOOP)).toBe(true)
+    expect(nodes.some((node) => node.type === FlowNodeType.CONVERGE)).toBe(true)
+    expect(nodes.some((node) => node.type === FlowNodeType.TASK_REVERSED)).toBe(true)
+    expect(nodes.some((node) => node.type === FlowNodeType.GENERIC)).toBe(true)
     expect(edges.some((edge) => edge.type === 'loopBack')).toBe(true)
     expect(edges.some((edge) => edge.type === 'loopOutgoing')).toBe(true)
     expect(

@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import { type Dispatch, type SetStateAction } from 'react'
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest'
 
+import { FlowNodeType } from '../../../constants'
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { detectLoopBackNodes } from '../utils/detectLoopBackNodes'
 import type { EdgeType } from '../utils/workflowToGraph'
@@ -15,7 +16,10 @@ vi.mock('../utils/detectLoopBackNodes', () => ({
 
 const mockDetect = detectLoopBackNodes as Mock
 
-function makeTaskNode(id: string, type: 'task' | 'task-reversed' = 'task'): NodeType {
+function makeTaskNode(
+  id: string,
+  type: typeof FlowNodeType.TASK | typeof FlowNodeType.TASK_REVERSED = FlowNodeType.TASK
+): NodeType {
   return {
     id,
     type,
@@ -31,7 +35,7 @@ function makeGenericNode(id: string, reverseHandles = false): NodeType {
   }
   return {
     id,
-    type: 'generic',
+    type: FlowNodeType.GENERIC,
     position: { x: 0, y: 0 },
     data: { type: ActivityTypeEnum.TASK, id, name: id, task: { config: {} }, metadata },
   } as unknown as NodeType
@@ -73,12 +77,12 @@ describe('useLoopBackNodeTypes', () => {
 
     renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
 
-    expect(currentNodes[0].type).toBe('task-reversed')
-    expect(currentNodes[1].type).toBe('task')
+    expect(currentNodes[0].type).toBe(FlowNodeType.TASK_REVERSED)
+    expect(currentNodes[1].type).toBe(FlowNodeType.TASK)
   })
 
   it('restores a task-reversed node to task when no longer in loop-back path', () => {
-    currentNodes = [makeTaskNode('a', 'task-reversed')]
+    currentNodes = [makeTaskNode('a', FlowNodeType.TASK_REVERSED)]
     mockDetect.mockReturnValue(new Set<string>())
 
     renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
@@ -109,7 +113,7 @@ describe('useLoopBackNodeTypes', () => {
   it('skips non-task non-generic nodes', () => {
     const triggerNode = {
       id: 'trigger-0',
-      type: 'trigger',
+      type: FlowNodeType.TRIGGER,
       position: { x: 0, y: 0 },
       data: { name: 'Manual', triggerType: 'manual', details: '' },
     } as unknown as NodeType
@@ -118,7 +122,7 @@ describe('useLoopBackNodeTypes', () => {
 
     renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
 
-    expect(currentNodes[0].type).toBe('trigger')
+    expect(currentNodes[0].type).toBe(FlowNodeType.TRIGGER)
   })
 
   it('re-runs when edges change', () => {

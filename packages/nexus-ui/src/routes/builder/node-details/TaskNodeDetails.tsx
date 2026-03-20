@@ -2,7 +2,10 @@ import { ActivityTypeEnum, ExecutorTypeEnum, type Activity, type TaskActivity } 
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
-import { detectTaskNodeType } from '../../../routes/automations/canvas/nodes/common/detectTaskNodeType'
+import {
+  detectTaskNodeType,
+  DetectedExecutorType,
+} from '../../../routes/automations/canvas/nodes/common/detectTaskNodeType'
 import { createAAPJobTemplateActivity, useWorkflowStoreActions } from '../../../stores/useWorkflowStore'
 import type { ActionFormData as RegistryActionFormData } from '../hooks/useNodeCreation'
 import { AAPNodeForm } from '../node-forms/AAPNodeForm'
@@ -39,20 +42,10 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
 
   const executor = taskData.task.executor as string
 
-  // Check if this is an agentic task
-  if (executor === ExecutorTypeEnum.AGENTIC) {
-    return (
-      <AIAgentNodeDetails
-        taskData={taskData as TaskActivity & { task: { executor: 'agentic'; config: unknown } }}
-        nodeId={nodeId}
-        onClose={onClose}
-        onHeaderContentChange={onHeaderContentChange}
-      />
-    )
-  }
-
-  // Check if this is an AAP job template task (including disguised ones)
-  const isAAPTask = detectedExecutorType === 'aap' || actualExecutor === 'aap_job_template'
+  // AAP (incl. connector-backed with executor still "agentic") must be checked before the generic
+  // agentic branch, or those tasks would incorrectly show AI Agent details.
+  const isAAPTask =
+    detectedExecutorType === DetectedExecutorType.AAP || actualExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE
   if (isAAPTask) {
     const aapConfig = taskData.task.config as unknown as {
       jobTemplateId: number
@@ -101,6 +94,18 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
         submitButtonText="Update node"
         onSubmit={handleAAPSubmit}
         onCancel={onClose}
+        onHeaderContentChange={onHeaderContentChange}
+      />
+    )
+  }
+
+  // True agentic tasks (not AAP-in-disguise)
+  if (executor === ExecutorTypeEnum.AGENTIC) {
+    return (
+      <AIAgentNodeDetails
+        taskData={taskData as TaskActivity & { task: { executor: 'agentic'; config: unknown } }}
+        nodeId={nodeId}
+        onClose={onClose}
         onHeaderContentChange={onHeaderContentChange}
       />
     )

@@ -1,6 +1,7 @@
 import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 import { useMemo } from 'react'
 
+import { FlowNodeType } from '../../../constants'
 import { buildTriggerNodeId } from '../../../utils/triggerNodeIds'
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import type { ActivityState } from '../../automations/execution/types'
@@ -160,11 +161,12 @@ export function useBuilderFlowGraph({
         position = { x: LOOP_NODE_WIDTH + HORIZONTAL_SPACING, y: 0 }
       }
 
-      let nodeType: 'generic' | 'approval' | 'task' = 'task'
+      let nodeType: typeof FlowNodeType.GENERIC | typeof FlowNodeType.APPROVAL | typeof FlowNodeType.TASK =
+        FlowNodeType.TASK
       if (isGeneric) {
-        nodeType = 'generic'
+        nodeType = FlowNodeType.GENERIC
       } else if (isApproval) {
-        nodeType = 'approval'
+        nodeType = FlowNodeType.APPROVAL
       }
 
       const activityData = executionStateEnricher.enrichActivity(activity, executionStatus, activityStates, storedEdges)

@@ -1,3 +1,4 @@
+import { RegistryNodeId } from '../../../constants'
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import { generateUUID } from '../../../utils/generateUUID'
 
@@ -82,16 +83,16 @@ export function getDefaultNodeBaseName({
   initialData?: Record<string, unknown>
   label?: string
 }): string {
-  if (nodeTypeId === 'trigger') return 'Trigger'
+  if (nodeTypeId === RegistryNodeId.TRIGGER) return 'Trigger'
 
-  if (nodeTypeId === 'logic') {
+  if (nodeTypeId === RegistryNodeId.LOGIC) {
     const logicType = initialData?.logicType as string | undefined
     if (logicType === 'condition') return 'Condition'
     if (logicType === 'loop') return 'Loop'
     return 'Converge'
   }
 
-  if (nodeTypeId === 'action') {
+  if (nodeTypeId === RegistryNodeId.ACTION) {
     const executor = initialData?.executor as string | undefined
     if (executor === 'api') return 'REST API'
     if (executor === 'script') return 'Script'

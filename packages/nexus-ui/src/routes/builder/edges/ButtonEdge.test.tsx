@@ -1,9 +1,11 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { Position } from '@xyflow/react'
 import type React from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { ButtonEdge } from './ButtonEdge'
+import { BUTTON_EDGE_DEFAULT_STROKE, getButtonEdgeStrokeColor } from './buttonEdgeStrokeColor'
 import { calculateStubTarget } from './edgeUtils'
 
 // Mock @xyflow/react
@@ -69,6 +71,26 @@ describe('calculateStubTarget', () => {
   })
 })
 
+describe('getButtonEdgeStrokeColor', () => {
+  it('returns success token for approved handle', () => {
+    expect(getButtonEdgeStrokeColor(EdgeHandleEnum.APPROVED)).toBe(
+      'var(--pf-t--global--color--status--success--default)'
+    )
+  })
+
+  it('returns danger token for rejected handle', () => {
+    expect(getButtonEdgeStrokeColor(EdgeHandleEnum.REJECTED)).toBe(
+      'var(--pf-t--global--color--status--danger--default)'
+    )
+  })
+
+  it('returns default gray for other or missing handles', () => {
+    expect(getButtonEdgeStrokeColor(undefined)).toBe(BUTTON_EDGE_DEFAULT_STROKE)
+    expect(getButtonEdgeStrokeColor(null)).toBe(BUTTON_EDGE_DEFAULT_STROKE)
+    expect(getButtonEdgeStrokeColor('source')).toBe(BUTTON_EDGE_DEFAULT_STROKE)
+  })
+})
+
 describe('ButtonEdge', () => {
   const defaultProps = {
     id: 'button-edge-1',
@@ -95,6 +117,33 @@ describe('ButtonEdge', () => {
   it('renders BaseEdge', () => {
     render(<ButtonEdge {...defaultProps} />)
     expect(screen.getByTestId('base-edge')).toBeInTheDocument()
+  })
+
+  it('uses approval stroke color when sourceHandleId is approved', () => {
+    const { container } = render(<ButtonEdge {...defaultProps} sourceHandleId={EdgeHandleEnum.APPROVED} />)
+    const paths = container.querySelectorAll('path[stroke]')
+    const visibleStrokePath = paths[paths.length - 1]
+    expect(visibleStrokePath).toHaveAttribute('stroke', 'var(--pf-t--global--color--status--success--default)')
+  })
+
+  it('uses rejected stroke color when sourceHandleId is rejected', () => {
+    const { container } = render(<ButtonEdge {...defaultProps} sourceHandleId={EdgeHandleEnum.REJECTED} />)
+    const paths = container.querySelectorAll('path[stroke]')
+    const visibleStrokePath = paths[paths.length - 1]
+    expect(visibleStrokePath).toHaveAttribute('stroke', 'var(--pf-t--global--color--status--danger--default)')
+  })
+
+  it('falls back to data.sourceHandle when sourceHandleId is undefined', () => {
+    const { container } = render(
+      <ButtonEdge
+        {...defaultProps}
+        sourceHandleId={undefined}
+        data={{ ...defaultProps.data, sourceHandle: EdgeHandleEnum.APPROVED }}
+      />
+    )
+    const paths = container.querySelectorAll('path[stroke]')
+    const visibleStrokePath = paths[paths.length - 1]
+    expect(visibleStrokePath).toHaveAttribute('stroke', 'var(--pf-t--global--color--status--success--default)')
   })
 
   it('renders plus icon', () => {

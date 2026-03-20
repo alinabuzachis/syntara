@@ -4,6 +4,7 @@ import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
 import type { ActivityStatus } from '../../execution/types'
+import { getNodeTypeColor } from '../nodeTypeColors'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { renderText } from './common/detailRenderers'
@@ -24,7 +25,7 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
   })
 
   const executorMeta = executorMetadata.approval
-  const iconNode = renderNodeIcon(executorMeta?.icon, 'approval')
+  const iconNode = renderNodeIcon(executorMeta?.icon, 'approval', 'canvas', getNodeTypeColor('approval'))
   const taskExecutor = executorMeta?.label || 'Approval'
 
   // Extract execution state if present
@@ -49,6 +50,7 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
       disableSource
       executionState={executionState}
       showExecutionBadge={showExecutionBadge}
+      topBarColor={getNodeTypeColor('approval')}
     >
       <>
         <StandardNodeHeader

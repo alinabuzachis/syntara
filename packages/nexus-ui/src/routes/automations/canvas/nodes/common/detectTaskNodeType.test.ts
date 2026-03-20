@@ -1,7 +1,7 @@
 import type { TaskActivity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
-import { detectTaskNodeType, type TaskActivityWithMetadata } from './detectTaskNodeType'
+import { DetectedExecutorType, detectTaskNodeType, type TaskActivityWithMetadata } from './detectTaskNodeType'
 
 describe('detectTaskNodeType', () => {
   const createBaseTask = (overrides: Partial<TaskActivity> = {}): TaskActivity => ({
@@ -118,8 +118,8 @@ describe('detectTaskNodeType', () => {
 
       const result = detectTaskNodeType(task)
 
-      expect(result.detectedExecutorType).toBe('aap')
-      expect(result.actualExecutor).toBe('aap')
+      expect(result.detectedExecutorType).toBe(DetectedExecutorType.AAP)
+      expect(result.actualExecutor).toBe(DetectedExecutorType.AAP)
       expect(result.connectorData).toEqual({
         connectorId: 'ansible-automation-platform',
         operation: 'run-job',
@@ -144,7 +144,7 @@ describe('detectTaskNodeType', () => {
 
       const result = detectTaskNodeType(task)
 
-      expect(result.detectedExecutorType).toBe('aap')
+      expect(result.detectedExecutorType).toBe(DetectedExecutorType.AAP)
     })
 
     it('does not detect AAP for non-ansible connectors', () => {

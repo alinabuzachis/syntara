@@ -1,3 +1,5 @@
+import type { ValueOf } from './types'
+
 /**
  * React Flow node type identifiers.
  * These match the keys in nodeTypes registry.
@@ -12,15 +14,20 @@
 export const FlowNodeType = {
   TRIGGER: 'trigger',
   TASK: 'task',
+  /** Loop-back path: same data as task, handles reversed for layout */
+  TASK_REVERSED: 'task-reversed',
   APPROVAL: 'approval',
   CONDITION: 'condition',
+  CONVERGE: 'converge',
   PARALLEL: 'parallel',
   LOOP: 'loop',
+  /** Placeholder until user picks a real node type */
+  GENERIC: 'generic',
   PLACEHOLDER: 'placeholder',
 } as const
 
-/** Type for FlowNodeType values */
-export type FlowNodeTypeValue = (typeof FlowNodeType)[keyof typeof FlowNodeType]
+/** Union of FlowNodeType values */
+export type FlowNodeTypeUnion = ValueOf<typeof FlowNodeType>
 
 /**
  * Node type categories for menu actions and workflow operations.
@@ -40,5 +47,5 @@ export const MenuNodeType = {
   TRIGGER: 'trigger',
 } as const
 
-/** Type for MenuNodeType values */
-export type MenuNodeTypeValue = (typeof MenuNodeType)[keyof typeof MenuNodeType]
+/** Union of MenuNodeType values ('activity' | 'trigger') */
+export type MenuNodeTypeUnion = ValueOf<typeof MenuNodeType>

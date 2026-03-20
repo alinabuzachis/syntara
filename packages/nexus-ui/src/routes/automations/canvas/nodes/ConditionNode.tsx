@@ -3,7 +3,9 @@ import { Flex, FlexItem } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
+import { RegistryNodeId } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
+import { getNodeTypeColor } from '../nodeTypeColors'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { renderJson, renderOutputs } from './common/detailRenderers'
@@ -18,7 +20,12 @@ export type ConditionNode = { type: 'condition' } & Node<ConditionActivity>
 
 export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
   const metadata = nodeMetadata.condition
-  const iconNode = renderNodeIcon(metadata.icon, 'logic-condition')
+  const iconNode = renderNodeIcon(
+    metadata.icon,
+    RegistryNodeId.LOGIC_CONDITION,
+    'canvas',
+    getNodeTypeColor('condition')
+  )
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
     nodeType: MenuNodeType.ACTIVITY,
@@ -36,7 +43,13 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
     | undefined
 
   return (
-    <NodeComponent className={metadata.className} nodeProps={props} disableSource executionState={executionState}>
+    <NodeComponent
+      className={metadata.className}
+      nodeProps={props}
+      disableSource
+      executionState={executionState}
+      topBarColor={getNodeTypeColor('condition')}
+    >
       <ConditionNodeDetails conditionActivity={props.data} icon={iconNode} menuActions={menuActions}>
         <BranchHandles>
           <BranchHandle id="true">True</BranchHandle>

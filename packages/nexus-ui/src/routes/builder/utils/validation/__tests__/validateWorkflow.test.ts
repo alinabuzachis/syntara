@@ -1,6 +1,7 @@
 import type { Activity } from '@ansible/nexus-contracts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { FlowNodeType } from '../../../../../constants'
 import { makeCondition } from '../../../../../test/test-helpers'
 import type { EdgeConnection } from '../../workflowTransform'
 import { validateWorkflow } from '../validateWorkflow'
@@ -131,8 +132,8 @@ describe('validateWorkflow', () => {
           name: 'Start',
           trigger: { executor: 'manual', config: {} },
         },
-        // Use 'generic' type which should be detected by validateNoGenericNodes
-        { type: 'generic', id: 'generic-1', name: 'Unconfigured Node' },
+        // Use generic type which should be detected by validateNoGenericNodes
+        { type: FlowNodeType.GENERIC, id: 'generic-1', name: 'Unconfigured Node' },
       ] as unknown as Activity[]
       const edges: EdgeConnection[] = [
         {
@@ -194,7 +195,7 @@ describe('validateWorkflow', () => {
     it('collects errors from multiple rules', () => {
       const activities: Activity[] = [
         // @ts-expect-error - Testing generic node detection
-        { type: 'generic', id: 'generic-1', name: 'Unconfigured Node' },
+        { type: FlowNodeType.GENERIC, id: 'generic-1', name: 'Unconfigured Node' },
         makeCondition({ id: 'C1', name: 'Condition 1', condition: 'x > 10' }),
       ]
       const edges: EdgeConnection[] = [] // No connections at all

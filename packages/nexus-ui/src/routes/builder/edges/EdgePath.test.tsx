@@ -98,6 +98,74 @@ describe('EdgePath', () => {
     })
   })
 
+  describe('approval handle edge coloring', () => {
+    it('uses success color when sourceHandle is approved', () => {
+      const { container } = render(
+        <svg>
+          <EdgePath
+            edgePath={mockEdgePath}
+            markerEnd="url(#arrow)"
+            selected={false}
+            isEdgeHovered={false}
+            data={{}}
+            sourceHandle="approved"
+            onMouseEnter={mockOnMouseEnter}
+            onMouseLeave={mockOnMouseLeave}
+          />
+        </svg>
+      )
+
+      const baseEdge = container.querySelector('[data-testid="base-edge"]')
+      const style = baseEdge?.getAttribute('style')
+      expect(style).toContain('--pf-t--global--color--status--success--default')
+      expect(style).toContain('stroke-opacity: 1')
+    })
+
+    it('uses danger color when sourceHandle is rejected', () => {
+      const { container } = render(
+        <svg>
+          <EdgePath
+            edgePath={mockEdgePath}
+            markerEnd="url(#arrow)"
+            selected={false}
+            isEdgeHovered={false}
+            data={{}}
+            sourceHandle="rejected"
+            onMouseEnter={mockOnMouseEnter}
+            onMouseLeave={mockOnMouseLeave}
+          />
+        </svg>
+      )
+
+      const baseEdge = container.querySelector('[data-testid="base-edge"]')
+      const style = baseEdge?.getAttribute('style')
+      expect(style).toContain('--pf-t--global--color--status--danger--default')
+      expect(style).toContain('stroke-opacity: 1')
+    })
+
+    it('execution status overrides approval handle color', () => {
+      const { container } = render(
+        <svg>
+          <EdgePath
+            edgePath={mockEdgePath}
+            markerEnd="url(#arrow)"
+            selected={false}
+            isEdgeHovered={false}
+            data={{ executionStatus: 'passed' }}
+            sourceHandle="approved"
+            onMouseEnter={mockOnMouseEnter}
+            onMouseLeave={mockOnMouseLeave}
+          />
+        </svg>
+      )
+
+      const baseEdge = container.querySelector('[data-testid="base-edge"]')
+      const style = baseEdge?.getAttribute('style')
+      // Passed takes precedence over approved
+      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)')
+    })
+  })
+
   describe('interactive states', () => {
     it('highlights edge on hover when no execution status', () => {
       const { container } = render(

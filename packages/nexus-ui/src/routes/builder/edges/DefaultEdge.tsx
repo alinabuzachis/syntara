@@ -27,6 +27,7 @@ export function DefaultEdge(props: BaseEdgeProps) {
     data,
     markerEnd,
     selected,
+    sourceHandleId,
   } = props
   const {
     isHovered,
@@ -73,6 +74,7 @@ export function DefaultEdge(props: BaseEdgeProps) {
         selected={selected}
         isEdgeHovered={isEdgeHovered}
         data={data}
+        sourceHandle={sourceHandleId}
         onMouseEnter={handleEdgeMouseEnter}
         onMouseLeave={handleEdgeMouseLeave}
       />

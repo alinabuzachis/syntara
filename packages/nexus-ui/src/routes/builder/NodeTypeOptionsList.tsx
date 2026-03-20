@@ -13,7 +13,9 @@ import {
   Title,
 } from '@patternfly/react-core'
 
+import { RegistryNodeId } from '../../constants'
 import { renderNodeIcon } from '../automations/canvas/nodes/renderNodeIcon'
+import { getAddNodePanelColor } from '../automations/canvas/nodeTypeColors'
 
 import type { NodeSubtypeDefinition, NodeTypeDefinition } from './registry/NodeRegistry'
 import { resolveIconForType } from './utils/nodeIcons'
@@ -28,7 +30,9 @@ interface NodeTypeOptionsListProps {
 export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
   return props.nodeTypes.map((nodeType) => {
     const { icon, id } = resolveIconForType({ nodeTypeId: nodeType.id })
-    const nodeIcon = renderNodeIcon(icon, id, 'list')
+    const accentColor = getAddNodePanelColor(nodeType.id)
+    const iconColor = nodeType.id === RegistryNodeId.AAP ? undefined : accentColor
+    const nodeIcon = renderNodeIcon(icon, id, 'list', iconColor)
 
     return (
       <StackItem key={nodeType.id}>
@@ -41,7 +45,17 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
               props.onSelect(nodeType.id)
             }
           }}
-          style={{ cursor: 'pointer' }}
+          style={{
+            cursor: 'pointer',
+            ...(accentColor
+              ? {
+                  border: 'none',
+                  borderTopWidth: 4,
+                  borderTopStyle: 'solid',
+                  borderTopColor: accentColor,
+                }
+              : {}),
+          }}
           role="button"
           tabIndex={0}
           aria-label={nodeType.label}
@@ -65,7 +79,7 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
                             {nodeType.label}
                           </Title>
                         </FlexItem>
-                        {nodeType.id === 'action-script' && (
+                        {nodeType.id === RegistryNodeId.ACTION_SCRIPT && (
                           <FlexItem>
                             <Label isCompact color="purple">
                               NOT SCOPED FOR GA

@@ -1050,6 +1050,12 @@ const nodeTypes = {
 
 Builder adds extra types like `placeholder` for drop targets.
 
+**Visual coding (builder canvas):**
+
+- **Type-colored top bar + icon**: `routes/automations/canvas/nodeTypeColors.ts` (`getNodeTypeColor`, `NODE_TYPE_COLORS`) maps node / executor types to PatternFly non-status tokens. `NodeComponent` accepts optional `topBarColor` for a 4px top border; when a node is **selected**, the full brand border replaces the top bar (same as nodes without a type bar). Icons use the same token via `renderNodeIcon(..., color)`.
+- **Add node panel**: `getAddNodePanelColor` uses registry ids; builder registry ids are centralized in `src/constants/registryNodeIds.ts` (`RegistryNodeId`, `RegistryNodeIdUnion`).
+- **Approval branches**: `BranchHandle` and `EdgePath` / `DefaultEdge` / `ButtonEdge` color approved vs rejected handles and edges using success/danger tokens.
+
 ### Edge types
 
 | Registry              | Location                                       |

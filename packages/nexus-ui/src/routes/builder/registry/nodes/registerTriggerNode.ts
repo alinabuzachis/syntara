@@ -1,6 +1,7 @@
 import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { RhUiCalendarIcon, RhUiPlayIcon } from '@patternfly/react-icons'
 
+import { RegistryNodeId } from '../../../../constants'
 import { createManualTrigger, createScheduledTrigger, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import type { TriggerFormData } from '../../hooks/useNodeCreation'
 import { TriggerNodeForm } from '../../node-forms/TriggerNodeForm'
@@ -16,7 +17,7 @@ export default function registerTriggerNode() {
   NodeRegistry.register(
     createCustomNode<TriggerFormData>(
       {
-        id: 'trigger',
+        id: RegistryNodeId.TRIGGER,
         label: 'Triggers',
         icon: RhUiPlayIcon,
         category: 'trigger',
@@ -26,7 +27,7 @@ export default function registerTriggerNode() {
         selectionTitle: 'Select a trigger node',
         subtypes: [
           {
-            id: 'trigger-manual',
+            id: RegistryNodeId.TRIGGER_MANUAL,
             label: 'Manual trigger',
             icon: RhUiPlayIcon,
             description: 'Automation will start when run is clicked.',
@@ -34,7 +35,7 @@ export default function registerTriggerNode() {
             initialData: { triggerType: TriggerTypeEnum.MANUAL },
           },
           {
-            id: 'trigger-scheduled',
+            id: RegistryNodeId.TRIGGER_SCHEDULED,
             label: 'Schedule trigger',
             icon: RhUiCalendarIcon,
             description: 'Automation will start based on a schedule.',
@@ -46,7 +47,7 @@ export default function registerTriggerNode() {
       },
       (data, onSuccess, onError) => {
         try {
-          const baseName = getDefaultNodeBaseName({ nodeTypeId: 'trigger', label: 'Trigger' })
+          const baseName = getDefaultNodeBaseName({ nodeTypeId: RegistryNodeId.TRIGGER, label: 'Trigger' })
           const { trigger } = buildNamedTrigger(baseName, data.name, (name) => {
             if (data.triggerType === TriggerTypeEnum.MANUAL) {
               return createManualTrigger(undefined, name)

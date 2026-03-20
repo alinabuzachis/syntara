@@ -4,7 +4,9 @@ import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Detail } from '../../../../components/details/Detail'
 import { Details } from '../../../../components/details/Details'
+import { RegistryNodeId } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
+import { getNodeTypeColor } from '../nodeTypeColors'
 
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -16,7 +18,7 @@ export type ConvergeNode = { type: 'converge' } & Node<ConvergeActivity>
 
 export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
   const metadata = nodeMetadata.converge
-  const iconNode = renderNodeIcon(metadata.icon, 'logic-converge')
+  const iconNode = renderNodeIcon(metadata.icon, RegistryNodeId.LOGIC_CONVERGE, 'canvas', getNodeTypeColor('converge'))
   const strategy = props.data.converge?.strategy as 'all' | 'any' | undefined
   const strategyLabel = strategy === 'any' ? 'Any' : 'All'
 
@@ -32,7 +34,12 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
     | undefined
 
   return (
-    <NodeComponent className={metadata.className} nodeProps={props} executionState={executionState}>
+    <NodeComponent
+      className={metadata.className}
+      nodeProps={props}
+      executionState={executionState}
+      topBarColor={getNodeTypeColor('converge')}
+    >
       <StandardNodeHeader icon={iconNode} title={props.data.name} subtitle={metadata.label} expandable />
       <Flex justifyContent={{ default: 'justifyContentFlexStart' }} style={{ overflow: 'hidden' }}>
         <NodeBody>

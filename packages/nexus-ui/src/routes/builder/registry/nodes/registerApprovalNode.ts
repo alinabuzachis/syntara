@@ -1,5 +1,6 @@
 import { RhUiUserCheckIcon } from '@patternfly/react-icons'
 
+import { RegistryNodeId } from '../../../../constants'
 import { createApprovalActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import type { ApprovalFormSubmitData } from '../../node-forms/ApprovalNodeForm'
 import { ApprovalNodeForm } from '../../node-forms/ApprovalNodeForm'
@@ -13,7 +14,7 @@ import { NodeRegistry } from '../NodeRegistry'
  */
 export default function registerApprovalNode() {
   NodeRegistry.register<ApprovalFormSubmitData>({
-    id: 'approval',
+    id: RegistryNodeId.APPROVAL,
     label: 'Approval',
     icon: RhUiUserCheckIcon,
     category: 'logic',
@@ -25,7 +26,7 @@ export default function registerApprovalNode() {
     onSubmit: (data, onSuccess, onError) => {
       try {
         // Create approval activity with workflow store helper
-        const baseName = getDefaultNodeBaseName({ nodeTypeId: 'approval', label: 'Approval' })
+        const baseName = getDefaultNodeBaseName({ nodeTypeId: RegistryNodeId.APPROVAL, label: 'Approval' })
         const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
           createApprovalActivity({
             id,

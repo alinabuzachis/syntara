@@ -3,6 +3,7 @@ import { Flex } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import type { ActivityStatus } from '../../execution/types'
+import { getNodeTypeColor } from '../nodeTypeColors'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { NodeComponent } from './common/NodeComponent'
@@ -15,7 +16,7 @@ export type LoopNode = { type: 'loop' } & Node<LoopActivity>
 
 export function LoopNodeComponent(props: NodeProps<LoopNode>) {
   const metadata = nodeMetadata.loop
-  const iconNode = renderNodeIcon(metadata.icon, 'logic-loop')
+  const iconNode = renderNodeIcon(metadata.icon, 'logic-loop', 'canvas', getNodeTypeColor('loop'))
   const menuActions = useNodeMenuActions({
     nodeId: props.data.id,
     nodeType: MenuNodeType.ACTIVITY,
@@ -40,6 +41,7 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
       enableStart={metadata.enableStart}
       nodeProps={props}
       executionState={executionState}
+      topBarColor={getNodeTypeColor('loop')}
     >
       <StandardNodeHeader
         icon={iconNode}

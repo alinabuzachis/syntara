@@ -1,4 +1,5 @@
 import AnsibleIcon from '../../../../assets/ansible-automation-platform.svg?react'
+import { RegistryNodeId } from '../../../../constants'
 import { createAAPJobTemplateActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import { AAPNodeForm } from '../../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../../node-forms/AAPNodeForm'
@@ -12,7 +13,7 @@ import { NodeRegistry } from '../NodeRegistry'
  */
 export default function registerAAPNode() {
   NodeRegistry.register<AAPFormData>({
-    id: 'aap',
+    id: RegistryNodeId.AAP,
     label: 'AAP Job Execution',
     icon: AnsibleIcon,
     category: 'action',
@@ -29,7 +30,7 @@ export default function registerAAPNode() {
         }
 
         const config = buildAAPConfig(data)
-        const baseName = getDefaultNodeBaseName({ nodeTypeId: 'aap', label: 'AAP Job Execution' })
+        const baseName = getDefaultNodeBaseName({ nodeTypeId: RegistryNodeId.AAP, label: 'AAP Job Execution' })
         const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
           createAAPJobTemplateActivity(id, name, jobTemplateId, config)
         )

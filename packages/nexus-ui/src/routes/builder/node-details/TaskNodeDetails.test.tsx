@@ -292,6 +292,31 @@ describe('TaskNodeDetails Component', () => {
     expect(screen.getByTestId('agent-task-name')).toHaveTextContent('AI Agent Task')
   })
 
+  it('renders AAPNodeForm for connector-backed AAP task (executor still agentic)', () => {
+    const taskData = {
+      type: 'task' as const,
+      id: 'task-aap-connector',
+      name: 'AAP via connector',
+      task: {
+        executor: 'agentic' as const,
+        config: {
+          agent: 'default-agent',
+          prompt: JSON.stringify({
+            __type: 'connector',
+            connectorId: 'ansible-automation-platform',
+            operation: 'run-job',
+            parameters: { jobId: '123' },
+          }),
+        },
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-aap-connector')
+
+    expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
+    expect(screen.queryByTestId('ai-agent-node-details')).not.toBeInTheDocument()
+  })
+
   it('returns null for unsupported executor type', () => {
     const taskData = {
       type: 'task' as const,

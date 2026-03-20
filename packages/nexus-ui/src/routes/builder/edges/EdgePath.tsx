@@ -1,6 +1,11 @@
+import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import type { EdgeProps, MarkerType } from '@xyflow/react'
 import { BaseEdge } from '@xyflow/react'
 import { useMemo } from 'react'
+
+/** PatternFly tokens for approval branch edge stroke/marker */
+const APPROVED_EDGE_COLOR = 'var(--pf-t--global--color--status--success--default)'
+const REJECTED_EDGE_COLOR = 'var(--pf-t--global--color--status--danger--default)'
 
 interface EdgePathProps {
   /** The SVG path string for the edge */
@@ -19,6 +24,8 @@ interface EdgePathProps {
     isPending?: boolean
     executionStatus?: 'passed' | 'pending'
   }
+  /** Source handle id; when 'approved' or 'rejected', edge is colored to match the approval result */
+  sourceHandle?: string | null
   /** Mouse enter handler for hover detection */
   onMouseEnter: () => void
   /** Mouse leave handler for hover detection */
@@ -30,22 +37,39 @@ interface EdgePathProps {
  * Renders both the visible BaseEdge and the invisible hover detection path
  */
 export function EdgePath(props: EdgePathProps) {
-  const { edgePath, markerEnd, style, selected, isEdgeHovered, data, onMouseEnter, onMouseLeave } = props
+  const { edgePath, markerEnd, style, selected, isEdgeHovered, data, sourceHandle, onMouseEnter, onMouseLeave } = props
 
-  // Determine stroke color and style based on execution status
+  // Determine stroke color and style: execution status > approval handle > interactive state > default
   const { strokeColor, strokeOpacity, strokeDasharray } = useMemo(() => {
-    // Execution status takes precedence over interactive states
+    // Execution status takes precedence over interactive states and approval handle
     if (data?.executionStatus === 'passed') {
       return {
         strokeColor: '#6b7280', // Gray (matches automation builder default)
         strokeOpacity: 1,
         strokeDasharray: 'none', // Solid line
       }
-    } else if (data?.executionStatus === 'pending') {
+    }
+    if (data?.executionStatus === 'pending') {
       return {
         strokeColor: '#9ca3af', // Dimmed gray (pending edge)
         strokeOpacity: 0.4,
         strokeDasharray: '5,5', // Dashed line
+      }
+    }
+
+    // Approval branch edges: color by result (approved = green, rejected = red)
+    if (sourceHandle === EdgeHandleEnum.APPROVED) {
+      return {
+        strokeColor: APPROVED_EDGE_COLOR,
+        strokeOpacity: 1,
+        strokeDasharray: 'none',
+      }
+    }
+    if (sourceHandle === EdgeHandleEnum.REJECTED) {
+      return {
+        strokeColor: REJECTED_EDGE_COLOR,
+        strokeOpacity: 1,
+        strokeDasharray: 'none',
       }
     }
 
@@ -56,7 +80,15 @@ export function EdgePath(props: EdgePathProps) {
       strokeOpacity: 1,
       strokeDasharray: 'none',
     }
-  }, [selected, isEdgeHovered, data?.isActive, data?.executionStatus])
+  }, [selected, isEdgeHovered, data?.isActive, data?.executionStatus, sourceHandle])
+
+  // Use stroke color for marker when edge is approval-colored so the arrow matches
+  const effectiveMarkerEnd =
+    typeof markerEnd === 'object' &&
+    markerEnd != null &&
+    (sourceHandle === EdgeHandleEnum.APPROVED || sourceHandle === EdgeHandleEnum.REJECTED)
+      ? { ...markerEnd, color: strokeColor }
+      : markerEnd
 
   const edgeStyle = {
     ...style,
@@ -103,7 +135,7 @@ export function EdgePath(props: EdgePathProps) {
           />
         </g>
       ) : (
-        <BaseEdge path={edgePath} markerEnd={markerEnd as EdgeProps['markerEnd']} style={edgeStyle} />
+        <BaseEdge path={edgePath} markerEnd={effectiveMarkerEnd as EdgeProps['markerEnd']} style={edgeStyle} />
       )}
       {/* Invisible wider path for hover detection */}
       {!data?.isPending && (

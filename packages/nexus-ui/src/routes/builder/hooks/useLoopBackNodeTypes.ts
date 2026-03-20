@@ -1,6 +1,7 @@
 import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import { type Dispatch, type SetStateAction, useEffect } from 'react'
 
+import { FlowNodeType } from '../../../constants'
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { detectLoopBackNodes } from '../utils/detectLoopBackNodes'
 import { type ActivityWithMetadata } from '../utils/executionState'
@@ -15,7 +16,7 @@ export function applyLoopBackNodeTypes(nodes: NodeType[], loopBackNodeIds: Set<s
   const updatedNodes = nodes.map((node) => {
     const shouldBeReversed = loopBackNodeIds.has(node.id)
 
-    if (node.type === 'generic') {
+    if (node.type === FlowNodeType.GENERIC) {
       const currentReverseHandles = (node.data as ActivityWithMetadata).metadata?.__reverseHandles as
         | boolean
         | undefined
@@ -45,15 +46,15 @@ export function applyLoopBackNodeTypes(nodes: NodeType[], loopBackNodeIds: Set<s
       return node
     }
 
-    if (node.type !== 'task' && node.type !== 'task-reversed') {
+    if (node.type !== FlowNodeType.TASK && node.type !== FlowNodeType.TASK_REVERSED) {
       return node
     }
 
-    const isCurrentlyReversed = node.type === 'task-reversed'
+    const isCurrentlyReversed = node.type === FlowNodeType.TASK_REVERSED
 
     if (shouldBeReversed && !isCurrentlyReversed) {
       hasChanges = true
-      return { ...node, type: 'task-reversed' as const }
+      return { ...node, type: FlowNodeType.TASK_REVERSED }
     } else if (!shouldBeReversed && isCurrentlyReversed) {
       hasChanges = true
       return { ...node, type: ActivityTypeEnum.TASK }

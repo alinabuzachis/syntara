@@ -2,6 +2,8 @@ import type { TaskActivity } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { FlowNodeType } from '../../../../constants'
+
 import { TaskReversedNodeComponent } from './TaskReversedNode'
 
 // Mock @xyflow/react
@@ -37,7 +39,7 @@ describe('TaskReversedNodeComponent', () => {
   const createNodeProps = (data: TaskActivity) => ({
     id: data.id,
     data,
-    type: 'task-reversed' as const,
+    type: FlowNodeType.TASK_REVERSED,
     position: { x: 0, y: 0 },
     positionAbsoluteX: 0,
     positionAbsoluteY: 0,

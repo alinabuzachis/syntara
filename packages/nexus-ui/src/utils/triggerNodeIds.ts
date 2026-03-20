@@ -1,4 +1,4 @@
-import { MenuNodeType, type MenuNodeTypeValue } from '../constants'
+import { MenuNodeType, type MenuNodeTypeUnion } from '../constants'
 
 export function buildTriggerNodeId(index: number): string {
   return `trigger-${index}`
@@ -14,7 +14,7 @@ export function parseTriggerIndex(nodeId: string): number | undefined {
 
 export function resolveFlowNodeId(params: {
   nodeId: string
-  nodeType: MenuNodeTypeValue
+  nodeType: MenuNodeTypeUnion
   triggerIndex?: number
 }): string {
   const { nodeId, nodeType, triggerIndex } = params

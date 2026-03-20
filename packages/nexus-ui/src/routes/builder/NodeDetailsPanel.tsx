@@ -10,7 +10,7 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 
 import { useAlerts } from '../../components/alerts'
-import { FlowNodeType } from '../../constants'
+import { FlowNodeType, RegistryNodeId } from '../../constants'
 import {
   useWorkflowStore,
   useWorkflowStoreActions,
@@ -273,7 +273,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
     return <NodeRawDataView node={node} />
   }
 
-  const showInputPanel = mode === 'add' ? nodeTypeId !== 'trigger' : node?.type !== FlowNodeType.TRIGGER
+  const showInputPanel = mode === 'add' ? nodeTypeId !== RegistryNodeId.TRIGGER : node?.type !== FlowNodeType.TRIGGER
 
   return (
     <NodeEditorLayout

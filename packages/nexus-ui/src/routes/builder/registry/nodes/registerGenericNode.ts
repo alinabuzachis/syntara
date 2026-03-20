@@ -1,5 +1,6 @@
 import { RhUiAddCircleFillIcon } from '@patternfly/react-icons'
 
+import { RegistryNodeId } from '../../../../constants'
 import { createGenericActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import { GenericNodeForm } from '../../node-forms/GenericNodeForm'
 import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
@@ -12,7 +13,7 @@ import { NodeRegistry } from '../NodeRegistry'
  */
 export default function registerGenericNode() {
   NodeRegistry.register({
-    id: 'generic',
+    id: RegistryNodeId.GENERIC,
     label: 'Generic Node',
     icon: RhUiAddCircleFillIcon,
     category: 'other',

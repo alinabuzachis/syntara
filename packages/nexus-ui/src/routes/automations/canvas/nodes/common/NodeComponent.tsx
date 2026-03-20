@@ -3,6 +3,7 @@ import { CompassPanel } from '@patternfly/react-core'
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import React, { useEffect, useState } from 'react'
 
+import { FlowNodeType } from '../../../../../constants'
 import { ExecutionStatusBadge } from '../../../../builder/components/ExecutionStatusBadge'
 import type { ActivityStatus } from '../../../execution/types'
 
@@ -23,11 +24,11 @@ const DEFAULT_NODE_WIDTH = 240
 const WIDE_NODE_WIDTH = 360
 
 const isWideTaskNode = (nodeProps: NodeProps) => {
-  if (nodeProps.type === 'generic') {
+  if (nodeProps.type === FlowNodeType.GENERIC) {
     return true
   }
 
-  if (nodeProps.type !== 'task' && nodeProps.type !== 'task-reversed') {
+  if (nodeProps.type !== FlowNodeType.TASK && nodeProps.type !== FlowNodeType.TASK_REVERSED) {
     return false
   }
 
@@ -61,6 +62,8 @@ export function NodeComponent(props: {
   collapsible?: boolean
   executionState?: ExecutionState
   showExecutionBadge?: boolean
+  /** Optional color for the type indicator bar at the top of the node (PatternFly token or CSS color) */
+  topBarColor?: string
 }) {
   const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
   const expandedContext = useState(true)
@@ -98,15 +101,25 @@ export function NodeComponent(props: {
           width: `${nodeWidth}px`, // Fixed width for consistent node sizing
           minWidth: `${nodeWidth}px`,
           maxWidth: `${nodeWidth}px`,
-          // Apply dashed border styling for placeholder nodes
-          ...(props.hasDashedBorder && {
-            border: '2px dashed rgba(196, 181, 253, 0.5)',
-            // Explicitly set individual properties to override any CompassPanel defaults
-            borderWidth: '2px',
-            borderStyle: 'dashed',
-            borderColor: 'rgba(196, 181, 253, 0.5)',
-          }),
-          // Apply selected border only if not a dashed border placeholder
+          // Type indicator: top border in type color when not selected (full top bar, no dashed).
+          // Use longhands and border: 'none' so the top bar is visible and shorthand doesn't stick after deselect.
+          ...(props.topBarColor &&
+            !isSelected &&
+            !props.hasDashedBorder && {
+              border: 'none',
+              borderTopWidth: 4,
+              borderTopStyle: 'solid',
+              borderTopColor: props.topBarColor,
+            }),
+          // Dashed placeholder (e.g. GenericNode): full dashed outline, no type-colored top bar.
+          ...(props.hasDashedBorder &&
+            !isSelected && {
+              border: '2px dashed rgba(196, 181, 253, 0.5)',
+              borderWidth: '2px',
+              borderStyle: 'dashed',
+              borderColor: 'rgba(196, 181, 253, 0.5)',
+            }),
+          // Full brand border when selected (replaces type top bar while selected)
           ...(isSelected &&
             !props.hasDashedBorder && {
               border: '2px solid var(--pf-t--global--color--brand--default)',

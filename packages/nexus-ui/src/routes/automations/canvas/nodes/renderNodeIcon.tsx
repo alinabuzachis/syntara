@@ -2,17 +2,21 @@ import { Icon } from '@patternfly/react-core'
 import type { IconSize } from '@patternfly/react-core'
 import type { ComponentType, CSSProperties, ReactNode } from 'react'
 
+import { RegistryNodeId } from '../../../../constants'
+
 export type NodeIconVariant = 'canvas' | 'list' | 'header'
 
 export function renderNodeIcon(
   IconComponent?: ComponentType,
   nodeId?: string,
-  variant: NodeIconVariant = 'canvas'
+  variant: NodeIconVariant = 'canvas',
+  /** Optional color (e.g. PatternFly token) so icon matches node type accent; uses currentColor when unset */
+  color?: string
 ): ReactNode | undefined {
   if (!IconComponent) return undefined
 
-  const isCustomIcon = nodeId === 'aap'
-  const shouldRotateIcon = nodeId === 'logic-condition' || nodeId === 'logic-converge'
+  const isCustomIcon = nodeId === RegistryNodeId.AAP
+  const shouldRotateIcon = nodeId === RegistryNodeId.LOGIC_CONDITION || nodeId === RegistryNodeId.LOGIC_CONVERGE
   const variantConfig: Record<
     NodeIconVariant,
     { size: IconSize; iconSize: IconSize; customIconScale: number; customIconOffsetY: number }
@@ -23,8 +27,17 @@ export function renderNodeIcon(
   }
   const { size, iconSize, customIconScale, customIconOffsetY } = variantConfig[variant]
 
+  const iconStyle: CSSProperties = {
+    ...(shouldRotateIcon && { transform: 'rotate(90deg)' }),
+    ...(color && {
+      color,
+      // Override PatternFly Icon's inner content color so the SVG (fill: currentColor) picks it up
+      ['--pf-v6-c-icon__content--Color' as string]: color,
+    }),
+  }
+
   return (
-    <Icon size={size} iconSize={iconSize} style={shouldRotateIcon ? { transform: 'rotate(90deg)' } : undefined}>
+    <Icon size={size} iconSize={iconSize} style={Object.keys(iconStyle).length > 0 ? iconStyle : undefined}>
       {isCustomIcon ? (
         (() => {
           const StyledIcon = IconComponent as ComponentType<{ style?: CSSProperties }>

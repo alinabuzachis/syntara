@@ -3,12 +3,12 @@ import { useCallback } from 'react'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../../../components/alerts'
-import { type MenuNodeTypeValue, MenuNodeType } from '../../../../../constants'
+import { type MenuNodeTypeUnion, MenuNodeType } from '../../../../../constants'
 import { useNodeActions } from '../../../../../routes/builder/NodeActionsContext'
 import { resolveFlowNodeId } from '../../../../../utils/triggerNodeIds'
 
 // Re-export for convenience
-export { MenuNodeType, type MenuNodeTypeValue } from '../../../../../constants'
+export { MenuNodeType, type MenuNodeTypeUnion } from '../../../../../constants'
 
 export interface NodeMenuAction {
   id: string
@@ -21,7 +21,7 @@ export interface NodeMenuAction {
 
 interface UseNodeMenuActionsOptions {
   nodeId: string
-  nodeType: MenuNodeTypeValue
+  nodeType: MenuNodeTypeUnion
   triggerIndex?: number
   additionalActions?: NodeMenuAction[]
 }

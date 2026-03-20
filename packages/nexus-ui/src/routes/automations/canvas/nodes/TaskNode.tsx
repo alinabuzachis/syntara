@@ -3,7 +3,9 @@ import { Label } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { Details } from '../../../../components/details/Details'
+import { FlowNodeType, RegistryNodeId } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
+import { getNodeTypeColor } from '../nodeTypeColors'
 
 import { renderCondition, renderJson, renderObject, renderText } from './common/detailRenderers'
 import { detectTaskNodeType, type TaskActivityWithMetadata } from './common/detectTaskNodeType'
@@ -32,7 +34,7 @@ type AgenticTaskConfig = {
   tools?: string[]
 }
 
-export type TaskNode = { type: 'task' } & Node<TaskActivity>
+export type TaskNode = { type: typeof FlowNodeType.TASK } & Node<TaskActivity>
 
 export function TaskNodeComponent(props: NodeProps<TaskNode>) {
   const metadata = nodeMetadata.task
@@ -61,8 +63,13 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
       nodeProps={props}
       executionState={executionState}
       showExecutionBadge={showExecutionBadge}
+      topBarColor={getNodeTypeColor(FlowNodeType.TASK, props.data)}
     >
-      <TaskActivityDetails data={props.data} menuActions={menuActions} />
+      <TaskActivityDetails
+        data={props.data}
+        menuActions={menuActions}
+        iconColor={getNodeTypeColor(FlowNodeType.TASK, props.data)}
+      />
     </NodeComponent>
   )
 }
@@ -73,6 +80,8 @@ export function TaskActivityDetails(
     data: TaskActivity
     showJson?: boolean
     menuActions?: ReturnType<typeof useNodeMenuActions>
+    /** Optional color so icon matches node type accent (same as top bar) */
+    iconColor?: string
   }>
 ) {
   // Detect the actual node type and extract any connector data
@@ -81,10 +90,10 @@ export function TaskActivityDetails(
 
   const executorMeta = executorMetadata[actualExecutor] || executorMetadata[props.data.task.executor]
   const { id: iconId } = getTaskIconDescriptor(props.data)
-  const iconNode = renderNodeIcon(executorMeta?.icon, iconId)
+  const iconNode = renderNodeIcon(executorMeta?.icon, iconId, 'canvas', props.iconColor)
   const taskExecutorLabel = executorMeta?.label || 'Task'
   const taskExecutor = actualExecutor || props.data.task.executor
-  const aapTask = iconId === 'aap' ? (props.data as unknown as AAPJobTemplateTask) : null
+  const aapTask = iconId === RegistryNodeId.AAP ? (props.data as unknown as AAPJobTemplateTask) : null
   const agentConfig =
     props.data.task.executor === ExecutorTypeEnum.AGENTIC ? (props.data.task.config as AgenticTaskConfig) : undefined
 

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { setPendingDragHandle } from '../utils/pendingDragHandle'
 
+import { BUTTON_EDGE_DEFAULT_STROKE, getButtonEdgeStrokeColor } from './buttonEdgeStrokeColor'
 import { adjustSourceCoordinates, calculateStubTarget } from './edgeUtils'
 import type { ButtonEdgeProps } from './types'
 
@@ -72,9 +73,11 @@ function useButtonEdgeDragHandler(params: { id: string; source: string; sourceX:
  * Creates a short stub edge extending from the source node
  */
 export function ButtonEdge(props: ButtonEdgeProps) {
-  const { sourceX, sourceY, sourcePosition, style, data, id, source } = props
+  const { sourceX, sourceY, sourcePosition, style, data, id, source, sourceHandleId } = props
   const [isFocused, setIsFocused] = useState(false)
   const { handleMouseDown, isDragging } = useButtonEdgeDragHandler({ id, source, sourceX, sourceY })
+
+  const strokeColor = getButtonEdgeStrokeColor(sourceHandleId ?? data?.sourceHandle)
 
   const { x: adjustedSourceX, y: adjustedSourceY } = adjustSourceCoordinates(sourceX, sourceY, sourcePosition)
   const { targetX: buttonX, targetY: buttonY } = calculateStubTarget(
@@ -110,13 +113,13 @@ export function ButtonEdge(props: ButtonEdgeProps) {
         path={edgePath}
         style={{
           ...style,
-          stroke: '#6b7280',
+          stroke: BUTTON_EDGE_DEFAULT_STROKE,
           strokeWidth: 20,
           opacity: 0.01,
         }}
       />
-      {/* Visible thin stroke - override CSS opacity when dragging */}
-      <path d={edgePath} fill="none" stroke="#6b7280" strokeWidth={2} pointerEvents="none" style={draggingStyle} />
+      {/* Visible thin stroke - override CSS opacity when dragging; colored for approval handles */}
+      <path d={edgePath} fill="none" stroke={strokeColor} strokeWidth={2} pointerEvents="none" style={draggingStyle} />
       {/* Plus icon - visual elements (non-interactive) */}
       <EdgeLabelRenderer>
         <div

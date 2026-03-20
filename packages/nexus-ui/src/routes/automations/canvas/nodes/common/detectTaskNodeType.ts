@@ -1,5 +1,14 @@
 import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 
+/**
+ * Resolved executor strings produced by {@link detectTaskNodeType} (not API contract values).
+ * Use these instead of string literals when comparing `actualExecutor` / `detectedExecutorType`.
+ */
+export const DetectedExecutorType = {
+  /** AAP via connector workaround (ansible connector id), distinct from {@link ExecutorTypeEnum.AAP_JOB_TEMPLATE} */
+  AAP: 'aap',
+} as const
+
 // Extended types for internal metadata and non-standard executors
 export type TaskActivityWithMetadata = TaskActivity & {
   metadata?: {
@@ -50,7 +59,7 @@ export function detectTaskNodeType(data: TaskActivity): DetectedNodeTypeResult {
           !detectedExecutorType &&
           (parsed.connectorId === 'ansible-automation-platform' || parsed.connectorId?.includes('ansible'))
         ) {
-          detectedExecutorType = 'aap'
+          detectedExecutorType = DetectedExecutorType.AAP
         }
       }
     } catch {

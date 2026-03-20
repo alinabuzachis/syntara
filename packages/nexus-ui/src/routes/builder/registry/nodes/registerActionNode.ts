@@ -1,5 +1,6 @@
 import { RhUiFileCodeIcon, RhUiElectricityFillIcon, RhUiPlugFillIcon } from '@patternfly/react-icons'
 
+import { RegistryNodeId } from '../../../../constants'
 import { createApiActivity, createScriptActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import type { ActionFormData } from '../../hooks/useNodeCreation'
 import { ActionNodeForm } from '../../node-forms/ActionNodeForm'
@@ -15,7 +16,7 @@ export default function registerActionNode() {
   NodeRegistry.register(
     createCustomNode<ActionFormData>(
       {
-        id: 'action',
+        id: RegistryNodeId.ACTION,
         label: 'Action',
         icon: RhUiElectricityFillIcon,
         category: 'action',
@@ -25,7 +26,7 @@ export default function registerActionNode() {
         selectionTitle: 'Select an action node',
         subtypes: [
           {
-            id: 'action-script',
+            id: RegistryNodeId.ACTION_SCRIPT,
             label: 'Script',
             icon: RhUiFileCodeIcon,
             description: 'Execute code to manage complex conditions, calculate values, or format data.',
@@ -33,7 +34,7 @@ export default function registerActionNode() {
             initialData: { executor: 'script' },
           },
           {
-            id: 'action-api',
+            id: RegistryNodeId.ACTION_API,
             label: 'REST API',
             icon: RhUiPlugFillIcon,
             description: 'Trigger an action or retrieve data from an external source.',
@@ -46,7 +47,7 @@ export default function registerActionNode() {
       (data, onSuccess, onError) => {
         try {
           const baseName = getDefaultNodeBaseName({
-            nodeTypeId: 'action',
+            nodeTypeId: RegistryNodeId.ACTION,
             initialData: { executor: data.executor },
             label: data.executor === 'api' ? 'REST API' : 'Script',
           })
