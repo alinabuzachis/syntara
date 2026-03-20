@@ -1,19 +1,20 @@
 <!-- Sync Impact Report
-Version Change: 1.1.0 → 1.2.0 (API Specification Standards added)
-Modified Principles: Development Standards (added API Specification Standards section)
-Added Sections: API Specification Standards (OpenAPI, AsyncAPI, error handling, versioning, path structure, pagination, security)
+Version Change: 1.2.0 → 1.3.0 (Type safety: Enum over Literal)
+Modified Principles: None renamed
+Added Sections:
+  - Code Style Standards: Added "Enum over Literal" rule discouraging
+    typing.Literal in favor of Enum/StrEnum
 Removed Sections: N/A
 Templates Updated:
-  ✅ .specify/templates/plan-template.md (added API Specification Standards checklist with 11 checks including path structure /api/v1/[component]/[resource], updated pagination to limit/cursor, corrected schema paths to [project root]/schemas/[component]/)
-  ✅ .specify/templates/spec-template.md (no changes needed - business-focused document)
-  ✅ .specify/templates/tasks-template.md (added API specification reminders including path structure, updated pagination to limit/cursor, corrected schema paths to [project root]/schemas/[component]/)
-  ✅ .specify/templates/agent-file-template.md (no changes needed - auto-generated file)
+  ✅ .specify/templates/plan-template.md (no changes needed - no
+     type-system checklist items present)
+  ✅ .specify/templates/spec-template.md (no changes needed -
+     business-focused document)
+  ✅ .specify/templates/tasks-template.md (no changes needed -
+     no type-system guidance present)
 Follow-up TODOs:
-  - Review existing OpenAPI/AsyncAPI specs for compliance with new standards
-  - Update API documentation to include RFC 9457 error response format
-  - Audit all endpoints to ensure they follow /api/v1/[component]/[resource] path pattern
-  - Audit endpoints for pagination (limit/cursor), filtering, and security scheme documentation
-  - Migrate any existing /contracts/ directories to [project root]/schemas/[component]/ structure
+  - Audit existing codebase for Literal usage and migrate to
+    Enum/StrEnum where applicable
 -->
 
 # Nexus System Constitution
@@ -149,6 +150,7 @@ consistency, maintainability, and interoperability.
 - Constants must be UPPER_CASE_WITH_UNDERSCORES
 - No magic numbers - all numeric literals must be named constants or have inline comments
 - Consistent naming conventions per language (camelCase for JS/TS, snake_case for Python, etc.)
+- `Enum` over `Literal` - Use `enum.Enum` (or `enum.StrEnum` for strings) instead of `typing.Literal` for constrained value sets. Enums centralize definitions and enable runtime validation.
 
 ### Documentation Standards
 
@@ -206,4 +208,4 @@ process. All team members are responsible for upholding these principles.
 - Exceptions require explicit documentation and time bounds
 - Regular audits to ensure ongoing compliance
 
-**Version**: 1.2.0 | **Ratified**: 2025-09-23 | **Last Amended**: 2025-10-24
+**Version**: 1.3.0 | **Ratified**: 2025-09-23 | **Last Amended**: 2026-03-18
