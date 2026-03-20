@@ -17,9 +17,13 @@ vi.mock('../../../client', () => ({
   },
 }))
 
+const mockSearchParams = new URLSearchParams()
+const mockSetSearchParams = vi.fn()
+
 vi.mock('wouter', () => ({
   useLocation: () => ['/configuration/integrations/provider-1/tools', vi.fn()],
   useParams: () => ({ provider_id: 'provider-1' }),
+  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 
 // Create a QueryClient instance
@@ -150,9 +154,9 @@ describe('IntegrationTools Component', () => {
       // Check page header with provider name
       expect(screen.getByText('Test Provider tools')).toBeInTheDocument()
 
-      // Check search input
-      const searchInput = screen.getByPlaceholderText('Search tools...')
-      expect(searchInput).toBeInTheDocument()
+      // Check filter input (FilterBar name filter)
+      const filterInput = screen.getByRole('textbox', { name: /name filter/i })
+      expect(filterInput).toBeInTheDocument()
 
       // Check Save and Cancel buttons
       expect(screen.getByText('Save')).toBeInTheDocument()
@@ -270,54 +274,33 @@ describe('IntegrationTools Component', () => {
     })
   })
 
-  describe('Search Functionality', () => {
-    it('allows searching tools', async () => {
+  describe('Filter Functionality', () => {
+    it('renders name filter input', async () => {
       const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search tools...')
+      const filterInput = screen.getByRole('textbox', { name: /name filter/i })
 
-      // Simulate typing in the search input
-      await user.clear(searchInput)
-      await user.type(searchInput, 'tool_one')
-
-      // Verify the input value is updated
-      await waitFor(() => {
-        expect(searchInput).toHaveValue('tool_one')
-      })
+      // Verify user can type in the filter
+      await user.type(filterInput, 'tool_one')
+      expect(filterInput).toHaveValue('tool_one')
     })
 
-    it('filters tools with fuzzy search', async () => {
-      const user = userEvent.setup()
+    it('displays filter input for filtering tools', () => {
       render(<IntegrationTools />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search tools...')
-
-      // Simulate searching for "tool_one"
-      await user.clear(searchInput)
-      await user.type(searchInput, 'tool_one')
-
-      // The matching tool should be visible
-      await waitFor(() => {
-        expect(screen.getByText('test.tool_one')).toBeInTheDocument()
-      })
+      const filterInput = screen.getByRole('textbox', { name: /name filter/i })
+      expect(filterInput).toBeInTheDocument()
+      expect(filterInput).toHaveAttribute('placeholder', 'Filter by name')
     })
 
-    it('shows all tools when search is empty', async () => {
-      const user = userEvent.setup()
+    it('shows all tools when filters are empty', () => {
       render(<IntegrationTools />, { wrapper })
-
-      const searchInput = screen.getByPlaceholderText('Search tools...')
-
-      // Clear the search input
-      await user.clear(searchInput)
 
       // Verify all tools are shown
-      await waitFor(() => {
-        expect(screen.getByText('test.tool_one')).toBeInTheDocument()
-        expect(screen.getByText('test.tool_two')).toBeInTheDocument()
-        expect(screen.getByText('test.tool_three')).toBeInTheDocument()
-      })
+      expect(screen.getByText('test.tool_one')).toBeInTheDocument()
+      expect(screen.getByText('test.tool_two')).toBeInTheDocument()
+      expect(screen.getByText('test.tool_three')).toBeInTheDocument()
     })
   })
 

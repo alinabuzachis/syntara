@@ -1,3 +1,4 @@
+import { ProviderStatusEnum } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -18,9 +19,12 @@ vi.mock('../../../client', () => ({
 }))
 
 const mockNavigate = vi.fn()
+const mockSearchParams = new URLSearchParams()
+const mockSetSearchParams = vi.fn()
 
 vi.mock('wouter', () => ({
   useLocation: () => ['/configuration/integrations', mockNavigate],
+  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 
 // Create a QueryClient instance
@@ -44,10 +48,10 @@ describe('Integrations Component', () => {
       id: '1',
       name: 'Primary MCP Server',
       description: 'Main integration server for critical workflows',
-      status: 'available',
+      status: ProviderStatusEnum.AVAILABLE,
       configuration: {
-        provider_type: 'mcp-server',
-        url: 'https://primary.example.com',
+        provider_type: 'mcp',
+        base_url: 'https://primary.example.com',
       },
       tool_count: 5,
       created_at: '2023-01-01T00:00:00Z',
@@ -57,10 +61,10 @@ describe('Integrations Component', () => {
       id: '2',
       name: 'Secondary Test Server',
       description: 'Testing environment integration',
-      status: 'error',
+      status: ProviderStatusEnum.ERROR,
       configuration: {
-        provider_type: 'mcp-server',
-        url: 'https://secondary.example.com',
+        provider_type: 'mcp',
+        base_url: 'https://secondary.example.com',
       },
       tool_count: 3,
       created_at: '2023-02-01T00:00:00Z',
@@ -70,10 +74,10 @@ describe('Integrations Component', () => {
       id: '3',
       name: 'Development Server',
       description: 'Development integration for testing new features',
-      status: 'validating',
+      status: ProviderStatusEnum.VALIDATING,
       configuration: {
-        provider_type: 'mcp-server',
-        url: 'https://dev.example.com',
+        provider_type: 'mcp',
+        base_url: 'https://dev.example.com',
       },
       tool_count: 8,
       created_at: '2023-03-01T00:00:00Z',
@@ -120,12 +124,11 @@ describe('Integrations Component', () => {
       // Check page header
       expect(screen.getByText('Integrations')).toBeInTheDocument()
 
-      // Check search input
-      const searchInput = screen.getByPlaceholderText('Search integrations...')
-      expect(searchInput).toBeInTheDocument()
-
       // Check Add Integration button
       expect(screen.getByText('Add integration')).toBeInTheDocument()
+
+      // Check FilterBar is present (filter input)
+      expect(screen.getByRole('textbox', { name: /name filter/i })).toBeInTheDocument()
     })
 
     it('renders integrations in table view by default', () => {
@@ -138,60 +141,34 @@ describe('Integrations Component', () => {
     })
   })
 
-  describe('Search Functionality', () => {
-    it('allows searching integrations', () => {
+  describe('Filter Functionality', () => {
+    it('renders name filter input', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search integrations...')
+      // Find the name filter input (PatternFly TextFilter)
+      const textInput = screen.getByRole('textbox', { name: /name filter/i })
 
-      // Simulate typing in the search input
-      const searchTerm = 'primary'
-      fireEvent.change(searchInput, { target: { value: searchTerm } })
-
-      // Verify the input value is updated
-      expect((searchInput as HTMLInputElement).value).toBe(searchTerm)
+      // Verify user can type in the filter
+      await user.type(textInput, 'primary')
+      expect(textInput).toHaveValue('primary')
     })
 
-    it('filters integrations with fuzzy search', () => {
+    it('shows all integrations when no filters are active', () => {
       render(<Integrations />, { wrapper })
-
-      const searchInput = screen.getByPlaceholderText('Search integrations...')
-
-      // Simulate searching for "primary"
-      fireEvent.change(searchInput, { target: { value: 'primary' } })
-
-      // The matching integration should be visible
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
-
-      // Note: Fuzzy search may still show other results if they have partial matches
-      // The test verifies that the primary match is present
-    })
-
-    it('supports partial matches in fuzzy search', () => {
-      render(<Integrations />, { wrapper })
-
-      const searchInput = screen.getByPlaceholderText('Search integrations...')
-
-      // Simulate searching for "test"
-      fireEvent.change(searchInput, { target: { value: 'test' } })
-
-      // The row with "test" should be visible
-      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
-      expect(screen.getByText('Development Server')).toBeInTheDocument()
-    })
-
-    it('shows all integrations when search is empty', () => {
-      render(<Integrations />, { wrapper })
-
-      const searchInput = screen.getByPlaceholderText('Search integrations...')
-
-      // Clear the search input
-      fireEvent.change(searchInput, { target: { value: '' } })
 
       // Verify all integrations are shown
       expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
       expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
       expect(screen.getByText('Development Server')).toBeInTheDocument()
+    })
+
+    it('displays filter toolbar with field selectors', () => {
+      render(<Integrations />, { wrapper })
+
+      // Verify filter input is present
+      const textInput = screen.getByRole('textbox', { name: /name filter/i })
+      expect(textInput).toBeInTheDocument()
     })
   })
 
@@ -232,19 +209,21 @@ describe('Integrations Component', () => {
   })
 
   describe('Empty State', () => {
-    it('displays empty state when no integrations exist', () => {
+    it('displays empty state when no integrations exist and no filters active', () => {
       vi.mocked(toolManagerClient.useQuery).mockReturnValueOnce({
         data: { resources: [] },
         isPending: false,
         isError: false,
         error: null,
-      })
+        refetch: vi.fn(),
+      } as never)
 
       render(<Integrations />, { wrapper })
 
-      // Check for empty state message
+      // Check for empty state message (no filters active, so shows empty state not filter empty)
       expect(screen.getByText('No integrations have been configured yet.')).toBeInTheDocument()
-      expect(screen.getByText('Add integration')).toBeInTheDocument()
+      // Multiple "Add integration" buttons exist (header + empty state), so use getAllByText
+      expect(screen.getAllByText('Add integration').length).toBeGreaterThan(0)
     })
   })
 
@@ -267,7 +246,7 @@ describe('Integrations Component', () => {
     it('renders integration type column', () => {
       render(<Integrations />, { wrapper })
 
-      const typeCells = screen.getAllByText('mcp-server')
+      const typeCells = screen.getAllByText('MCP Server')
       expect(typeCells.length).toBe(3)
     })
 
@@ -277,6 +256,14 @@ describe('Integrations Component', () => {
       expect(screen.getByText('5')).toBeInTheDocument()
       expect(screen.getByText('3')).toBeInTheDocument()
       expect(screen.getByText('8')).toBeInTheDocument()
+    })
+
+    it('renders API URL column', () => {
+      render(<Integrations />, { wrapper })
+
+      expect(screen.getByText('https://primary.example.com')).toBeInTheDocument()
+      expect(screen.getByText('https://secondary.example.com')).toBeInTheDocument()
+      expect(screen.getByText('https://dev.example.com')).toBeInTheDocument()
     })
   })
 
@@ -467,29 +454,17 @@ describe('Integrations Component', () => {
     })
   })
 
-  describe('Search No Results', () => {
-    it('shows empty state filter when search has no results', () => {
+  describe('Filter No Results', () => {
+    it('allows applying filters via text input', async () => {
+      const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search integrations...')
-      fireEvent.change(searchInput, { target: { value: 'nonexistent-integration-xyz' } })
+      // Verify text input is available for filtering
+      const textInput = screen.getByRole('textbox', { name: /name filter/i })
+      await user.type(textInput, 'test')
 
-      // Should show empty state filter with clear button
-      expect(screen.getByText('No results found')).toBeInTheDocument()
-    })
-
-    it('clears search when clear all filters is clicked', () => {
-      render(<Integrations />, { wrapper })
-
-      const searchInput = screen.getByPlaceholderText('Search integrations...')
-      fireEvent.change(searchInput, { target: { value: 'nonexistent-integration-xyz' } })
-
-      // Click clear all filters
-      const clearButton = screen.getByRole('button', { name: /clear all filters/i })
-      fireEvent.click(clearButton)
-
-      // All integrations should be visible again
-      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
+      // Verify input value is updated
+      expect(textInput).toHaveValue('test')
     })
   })
 
@@ -572,6 +547,20 @@ describe('Integrations Component', () => {
       // Click Integration type header
       const typeHeader = screen.getByRole('columnheader', { name: /Integration type/i })
       const sortButton = within(typeHeader).getByRole('button')
+      fireEvent.click(sortButton)
+
+      // All integrations should still be visible
+      expect(screen.getByText('Primary MCP Server')).toBeInTheDocument()
+      expect(screen.getByText('Secondary Test Server')).toBeInTheDocument()
+      expect(screen.getByText('Development Server')).toBeInTheDocument()
+    })
+
+    it('can sort by API URL column', () => {
+      render(<Integrations />, { wrapper })
+
+      // Click API URL header
+      const urlHeader = screen.getByRole('columnheader', { name: /^API URL$/i })
+      const sortButton = within(urlHeader).getByRole('button')
       fireEvent.click(sortButton)
 
       // All integrations should still be visible
@@ -896,22 +885,14 @@ describe('Integrations Component', () => {
     })
   })
 
-  describe('Search Clear Button', () => {
-    it('clears search when X button is clicked', () => {
+  describe('Filter Controls', () => {
+    it('provides filter controls for user interaction', () => {
       render(<Integrations />, { wrapper })
 
-      const searchInput = screen.getByPlaceholderText('Search integrations...')
-
-      // Type something
-      fireEvent.change(searchInput, { target: { value: 'test search' } })
-      expect((searchInput as HTMLInputElement).value).toBe('test search')
-
-      // Click the clear button (X)
-      const clearButton = screen.getByRole('button', { name: /reset/i })
-      fireEvent.click(clearButton)
-
-      // Search should be cleared
-      expect((searchInput as HTMLInputElement).value).toBe('')
+      // Verify filter input is available
+      const textInput = screen.getByRole('textbox', { name: /name filter/i })
+      expect(textInput).toBeInTheDocument()
+      expect(textInput).toHaveAttribute('placeholder', 'Filter by name')
     })
   })
 })

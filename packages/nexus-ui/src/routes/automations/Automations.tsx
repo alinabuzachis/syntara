@@ -41,6 +41,7 @@ import { BadgesCell } from '../../components/table/BadgesCell'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
 import { SwitchCell } from '../../components/table/SwitchCell.tsx'
+import { createFilterChangeHandler } from '../../hooks/useFilterChangeHandler'
 import { useFilterState } from '../../hooks/useFilterState'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import type { FilterFieldDefinition } from '../../types/filters'
@@ -141,24 +142,20 @@ export default function Automations() {
   )
 
   // Handle filter changes from FilterBar
-  const handleFilterChange = (newFilters: typeof filters) => {
-    // Reset to first page when filters change
-    if (cursor) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-
-    // Compute final filter state with transformations applied
-    const finalFilters = newFilters.map((filter) => {
-      // Convert string 'true'/'false' to boolean for is_enabled
-      if (filter.key === 'is_enabled' && typeof filter.value === 'string') {
-        return { ...filter, value: filter.value === 'true' }
-      }
-      return filter
-    })
-
-    // Replace all filters at once - preserves order and makes atomic update
-    setAllFilters(finalFilters)
-  }
+  const handleFilterChange = createFilterChangeHandler(
+    cursor,
+    () => dispatch({ type: 'SET_CURSOR', payload: null }),
+    clearAllFilters,
+    setAllFilters,
+    // Transform is_enabled string values to boolean
+    (filters) =>
+      filters.map((filter) => {
+        if (filter.key === 'is_enabled' && typeof filter.value === 'string') {
+          return { ...filter, value: filter.value === 'true' }
+        }
+        return filter
+      })
+  )
 
   // Build query parameters from filters
   const queryParams = useMemo(() => {

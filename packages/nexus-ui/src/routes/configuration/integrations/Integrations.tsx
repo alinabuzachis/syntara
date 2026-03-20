@@ -1,4 +1,5 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
+import { ProviderStatusEnum } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
@@ -7,7 +8,7 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  SearchInput,
+  Stack,
   StackItem,
 } from '@patternfly/react-core'
 import {
@@ -19,37 +20,58 @@ import {
 } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useReducer } from 'react'
+import { useEffect, useMemo, useReducer } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
-import noResultsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolManagerClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
+import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
-import { useFuse } from '../../../hooks/useFuse'
+import { useFilterState } from '../../../hooks/useFilterState'
 import { useTableSort } from '../../../hooks/useTableSort'
+import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
+import { buildFilterParams } from '../../../utils/filterUtils'
 
 import { IntegrationEmptyState } from './IntegrationEmptyState'
+import {
+  PROVIDER_TYPE_LABELS,
+  getIntegrationNameFilterDefinition,
+  getIntegrationStatusFilterDefinition,
+  getIntegrationTypeFilterDefinition,
+  createFilterChangeHandler,
+} from './integrationFilters'
 
-type ProviderStatus = 'available' | 'error' | 'validating'
+// Extended type to handle tool_count and configuration access
+// Note: OpenAPI schema has conflicting types for configuration.provider_type (both 'mcp' and 'MCPConfiguration')
+// which creates a 'never' type. We work around this by omitting the problematic configuration and re-adding it.
+type ToolProviderWithToolCount = Omit<ToolProvider, 'configuration'> & {
+  tool_count?: number
+  configuration: {
+    provider_type: string
+    base_url: string
+    api_key?: string | null
+  }
+}
+
+type ProviderStatus = (typeof ProviderStatusEnum)[keyof typeof ProviderStatusEnum]
 
 const statusMap: Record<ProviderStatus, 'success' | 'danger' | 'custom'> = {
-  available: 'success',
-  error: 'danger',
-  validating: 'custom',
+  [ProviderStatusEnum.AVAILABLE]: 'success',
+  [ProviderStatusEnum.ERROR]: 'danger',
+  [ProviderStatusEnum.VALIDATING]: 'custom',
 }
 
 const statusIcons: Record<ProviderStatus, React.ComponentType<{ className?: string }>> = {
-  available: RhUiCheckCircleIcon,
-  error: RhUiCloseCircleIcon,
-  validating: RhUiSyncIcon,
+  [ProviderStatusEnum.AVAILABLE]: RhUiCheckCircleIcon,
+  [ProviderStatusEnum.ERROR]: RhUiCloseCircleIcon,
+  [ProviderStatusEnum.VALIDATING]: RhUiSyncIcon,
 }
 
 function StatusLabel({ status }: { status: string }) {
@@ -68,19 +90,19 @@ function StatusLabel({ status }: { status: string }) {
 interface IntegrationsState {
   cursor: string | null
   validateDialogOpen: boolean
-  providerToValidate: ToolProvider | null
+  providerToValidate: ToolProviderWithToolCount | null
   deleteDialogOpen: boolean
-  providerToDelete: ToolProvider | null
+  providerToDelete: ToolProviderWithToolCount | null
 }
 
 type IntegrationsAction =
   | { type: 'SET_CURSOR'; payload: string | null }
   | { type: 'SET_VALIDATE_DIALOG'; payload: boolean }
-  | { type: 'SET_PROVIDER_TO_VALIDATE'; payload: ToolProvider | null }
+  | { type: 'SET_PROVIDER_TO_VALIDATE'; payload: ToolProviderWithToolCount | null }
   | { type: 'SET_DELETE_DIALOG'; payload: boolean }
-  | { type: 'SET_PROVIDER_TO_DELETE'; payload: ToolProvider | null }
-  | { type: 'OPEN_VALIDATE_DIALOG'; payload: ToolProvider }
-  | { type: 'OPEN_DELETE_DIALOG'; payload: ToolProvider }
+  | { type: 'SET_PROVIDER_TO_DELETE'; payload: ToolProviderWithToolCount | null }
+  | { type: 'OPEN_VALIDATE_DIALOG'; payload: ToolProviderWithToolCount }
+  | { type: 'OPEN_DELETE_DIALOG'; payload: ToolProviderWithToolCount }
   | { type: 'CLOSE_VALIDATE_DIALOG' }
   | { type: 'CLOSE_DELETE_DIALOG' }
 
@@ -121,38 +143,93 @@ export default function Integrations() {
   })
   const { cursor, validateDialogOpen, providerToValidate, deleteDialogOpen, providerToDelete } = state
 
+  // Filter state management
+  const { filters, clearAllFilters, setAllFilters } = useFilterState()
+
+  // Define filter field definitions for FilterBar
+  const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
+    () => [
+      getIntegrationNameFilterDefinition(),
+      getIntegrationStatusFilterDefinition(),
+      getIntegrationTypeFilterDefinition(),
+    ],
+    []
+  )
+
+  // Handle filter changes from FilterBar
+  const handleFilterChange = createFilterChangeHandler(
+    cursor,
+    () => dispatch({ type: 'SET_CURSOR', payload: null }),
+    clearAllFilters,
+    setAllFilters
+  )
+
+  // Wrapper to clear both filters and pagination cursor
+  const handleClearAllFilters = () => {
+    // Reset pagination cursor
+    if (cursor) {
+      dispatch({ type: 'SET_CURSOR', payload: null })
+    }
+    // Clear all filters
+    clearAllFilters()
+  }
+
+  // Build query parameters from filters
+  const queryParams = useMemo(() => {
+    const params: Record<string, unknown> = {
+      limit: 20,
+      include_total: true,
+    }
+
+    // Add filter params
+    const filterParams = buildFilterParams(filters)
+    Object.assign(params, filterParams)
+
+    // Add cursor if present
+    if (cursor) {
+      params.cursor = cursor
+    }
+
+    return params
+  }, [filters, cursor])
+
+  // Query tool providers with server-side filtering
   const query = toolManagerClient.useQuery('get', '/tool_providers', {
     params: {
-      query: {
-        cursor: cursor ?? undefined,
-        limit: 20,
-        include_total: true,
-      },
+      query: queryParams,
     },
   })
-  const {
-    search,
-    setSearch,
-    items: filteredResults,
-  } = useFuse<ToolProvider>((query.data?.resources ?? []) as unknown as ToolProvider[], [{ name: 'name' }])
+
   const { showAlert } = useAlerts()
+
+  const integrations = (query.data?.resources ?? []) as ToolProviderWithToolCount[]
+  const hasActiveFilters = filters.length > 0
+
+  // Reset cursor when showing IntegrationEmptyState (no integrations and no filters)
+  useEffect(() => {
+    if (integrations.length === 0 && !hasActiveFilters && cursor) {
+      dispatch({ type: 'SET_CURSOR', payload: null })
+    }
+  }, [integrations.length, hasActiveFilters, cursor])
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,
     initialDirection: 'asc',
   })
 
-  // Sort the filtered results
-  const results = sortData(filteredResults, (provider) => {
+  // Sort the results (client-side sorting of current page)
+  const results = sortData(integrations, (provider) => {
     switch (activeSortIndex) {
       case 0:
         return provider.name ?? ''
       case 1:
         return provider.status ?? ''
       case 2:
-        return (provider.configuration as { provider_type?: string }).provider_type ?? ''
+        return provider.configuration?.provider_type ?? ''
       case 3:
-        return (provider as { tool_count?: number }).tool_count ?? 0
+        return provider.configuration?.base_url ?? ''
+      case 4:
+        return provider.tool_count ?? 0
       default:
         return provider.name ?? ''
     }
@@ -222,7 +299,7 @@ export default function Integrations() {
   }
 
   // Row actions for PF ActionsColumn
-  const getRowActions = (provider: ToolProvider): IAction[] => [
+  const getRowActions = (provider: ToolProviderWithToolCount): IAction[] => [
     {
       title: <IconLabel icon={<RhUiViewIcon />}>View and enable/disable tools</IconLabel>,
       onClick: () => navigate(`/configuration/integrations/${provider.id}/tools`),
@@ -256,77 +333,88 @@ export default function Integrations() {
 
   return (
     <AppPage>
-      {query.data?.resources && query.data.resources.length > 0 && (
-        <AppPageHeader title="Integrations">
-          <SearchInput
-            placeholder="Search integrations..."
-            value={search}
-            onChange={(_event, value) => setSearch(value)}
-            onClear={() => setSearch('')}
-            style={{ width: '250px' }}
-          />
-          <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
-            Add integration
-          </Button>
-        </AppPageHeader>
-      )}
-      {results.length === 0 ? (
-        search ? (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-            <CompassPanel isFullHeight>
-              <EmptyStateFilter clearAllFilters={() => setSearch('')} imageSrc={noResultsImage} imageAlt="No results" />
-            </CompassPanel>
-          </StackItem>
-        ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-            <IntegrationEmptyState />
-          </StackItem>
-        )
+      <AppPageHeader title="Integrations">
+        <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>
+          Add integration
+        </Button>
+      </AppPageHeader>
+
+      {results.length === 0 && !hasActiveFilters ? (
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <IntegrationEmptyState />
+        </StackItem>
       ) : (
-        <ScrollableTableContainer
-          aria-label="Integrations table"
-          footer={{
-            content: (
-              <>
-                {results.length} {results.length === 1 ? 'integration' : 'integrations'}
-                {query.data?.total && query.data.total > results.length && (
-                  <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                )}
-              </>
-            ),
-            prev: query.data?.prev ?? null,
-            next: query.data?.next ?? null,
-            onPrev: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.prev ?? null }),
-            onNext: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.next ?? null }),
-          }}
-        >
-          <Thead>
-            <Tr>
-              <Th sort={getSortParams(0)}>Name</Th>
-              <Th sort={getSortParams(1)}>Status</Th>
-              <Th sort={getSortParams(2)}>Integration type</Th>
-              <Th sort={getSortParams(3)}>Tools</Th>
-              <Th screenReaderText="Actions" />
-            </Tr>
-          </Thead>
-          <Tbody>
-            {results.map((provider) => (
-              <Tr key={provider.id}>
-                <Td dataLabel="Name">{provider.name}</Td>
-                <Td dataLabel="Status">
-                  <StatusLabel status={provider.status ?? 'unknown'} />
-                </Td>
-                <Td dataLabel="Integration type">
-                  {(provider.configuration as { provider_type?: string }).provider_type}
-                </Td>
-                <Td dataLabel="Tools">{(provider as { tool_count?: number }).tool_count}</Td>
-                <Td isActionCell>
-                  <ActionsColumn items={getRowActions(provider)} />
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </ScrollableTableContainer>
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <Stack style={{ height: '100%' }}>
+              <StackItem>
+                <FilterBar
+                  fieldDefinitions={filterFieldDefinitions}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  showClearAll={true}
+                />
+              </StackItem>
+
+              {results.length === 0 ? (
+                <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
+                </StackItem>
+              ) : (
+                <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+                  <ScrollableTableContainer
+                    aria-label="Integrations table"
+                    footer={{
+                      content: (
+                        <>
+                          {results.length} {results.length === 1 ? 'integration' : 'integrations'}
+                          {query.data?.total && query.data.total > results.length && (
+                            <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                          )}
+                        </>
+                      ),
+                      prev: query.data?.prev ?? null,
+                      next: query.data?.next ?? null,
+                      onPrev: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.prev ?? null }),
+                      onNext: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.next ?? null }),
+                    }}
+                  >
+                    <Thead>
+                      <Tr>
+                        <Th sort={getSortParams(0)}>Name</Th>
+                        <Th sort={getSortParams(1)}>Status</Th>
+                        <Th sort={getSortParams(2)}>Integration type</Th>
+                        <Th sort={getSortParams(3)}>API URL</Th>
+                        <Th sort={getSortParams(4)}>Tools</Th>
+                        <Th screenReaderText="Actions" />
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {results.map((provider) => (
+                        <Tr key={provider.id}>
+                          <Td dataLabel="Name">{provider.name}</Td>
+                          <Td dataLabel="Status">
+                            <StatusLabel status={provider.status ?? 'unknown'} />
+                          </Td>
+                          <Td dataLabel="Integration type">
+                            {PROVIDER_TYPE_LABELS[provider.configuration?.provider_type ?? ''] ??
+                              provider.configuration?.provider_type ??
+                              ''}
+                          </Td>
+                          <Td dataLabel="API URL">{provider.configuration?.base_url ?? ''}</Td>
+                          <Td dataLabel="Tools">{provider.tool_count}</Td>
+                          <Td isActionCell>
+                            <ActionsColumn items={getRowActions(provider)} />
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </ScrollableTableContainer>
+                </StackItem>
+              )}
+            </Stack>
+          </CompassPanel>
+        </StackItem>
       )}
       <Modal
         isOpen={validateDialogOpen}

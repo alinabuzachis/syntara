@@ -10,12 +10,12 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  SearchInput,
+  Stack,
   StackItem,
 } from '@patternfly/react-core'
 import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useParams } from 'wouter'
 
 import { AppPage } from '../../../app/AppPage'
@@ -26,11 +26,16 @@ import { toolManagerClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
+import { FilterBar } from '../../../components/filters/FilterBar'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer, type TableFooterProps } from '../../../components/table/ScrollableTableContainer'
-import { useFuse } from '../../../hooks/useFuse'
+import { useFilterState } from '../../../hooks/useFilterState'
 import { useTableSort } from '../../../hooks/useTableSort'
+import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
+import { buildFilterParams } from '../../../utils/filterUtils'
+
+import { getIntegrationNameFilterDefinition, createFilterChangeHandler } from './integrationFilters'
 
 // eslint-disable-next-line max-lines-per-function, complexity
 export default function IntegrationTools() {
@@ -41,6 +46,35 @@ export default function IntegrationTools() {
   const { showAlert } = useAlerts()
   const [cursor, setCursor] = useState<string | null>(null)
 
+  // Filter state management
+  const { filters, clearAllFilters, setAllFilters } = useFilterState()
+
+  // Define filter field definitions for FilterBar
+  const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(() => [getIntegrationNameFilterDefinition()], [])
+
+  // Handle filter changes from FilterBar
+  const handleFilterChange = createFilterChangeHandler(cursor, () => setCursor(null), clearAllFilters, setAllFilters)
+
+  // Build query parameters from filters
+  const queryParams = useMemo(() => {
+    const params: Record<string, unknown> = {
+      provider_id: provider_id,
+      limit: 50,
+      include_total: true,
+    }
+
+    // Add filter params
+    const filterParams = buildFilterParams(filters)
+    Object.assign(params, filterParams)
+
+    // Add cursor if present
+    if (cursor) {
+      params.cursor = cursor
+    }
+
+    return params
+  }, [filters, cursor, provider_id])
+
   const integrationQuery = toolManagerClient.useQuery('get', '/tool_providers/{provider_id}', {
     params: { path: { provider_id } },
   })
@@ -48,12 +82,7 @@ export default function IntegrationTools() {
   const integrationQueryStatus = useQueryState(integrationQuery, 'Error loading tools')
   const query = toolManagerClient.useQuery('get', '/tools', {
     params: {
-      query: {
-        provider_id: provider_id,
-        cursor: cursor ?? undefined,
-        limit: 50,
-        include_total: true,
-      },
+      query: queryParams,
     },
   })
   const { mutateAsync: updateTools } = toolManagerClient.useMutation('patch', '/tools/bulk_update')
@@ -111,11 +140,9 @@ export default function IntegrationTools() {
 
     navigate(AppRoute.Configuration.Integrations.Root)
   }
-  const {
-    search,
-    setSearch,
-    items: filteredResults,
-  } = useFuse<Tool>(query.data?.resources ?? [], [{ name: 'namespaced_name' }])
+
+  const tools = useMemo(() => query.data?.resources ?? [], [query.data?.resources])
+  const hasActiveFilters = filters.length > 0
 
   const { getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,
@@ -123,38 +150,38 @@ export default function IntegrationTools() {
   })
 
   // Sort the filtered results by name
-  const results = sortData(filteredResults, (tool) => tool.namespaced_name ?? '')
+  const results = sortData(tools, (tool) => tool.namespaced_name ?? '')
 
-  // Track filteredResults for state sync (not results, since sorting creates new array each render)
-  const previousResultsRef = useRef(filteredResults)
+  // Track tools for state sync (not results, since sorting creates new array each render)
+  const previousResultsRef = useRef(tools)
   // Track enabled tool IDs across all pages
   const [enabledToolIds, setEnabledToolIds] = useState<Set<string>>(() => {
     const initialEnabled = new Set<string>()
-    filteredResults.filter((tool) => tool.enabled).forEach((tool) => initialEnabled.add(tool.id))
+    tools.filter((tool) => tool.enabled).forEach((tool) => initialEnabled.add(tool.id))
     return initialEnabled
   })
   const [refreshDialogOpen, setRefreshDialogOpen] = useState(false)
 
-  // Sync enabledToolIds when filteredResults change (e.g., page navigation, refresh)
+  // Sync enabledToolIds when tools change (e.g., page navigation, refresh)
   // This initializes enabledToolIds with tools that are enabled from the API
   // and preserves user selections when navigating between pages
   useEffect(() => {
-    // Only update if filteredResults actually changed (not on every sort)
-    if (previousResultsRef.current !== filteredResults) {
-      previousResultsRef.current = filteredResults
+    // Only update if tools actually changed (not on every sort)
+    if (previousResultsRef.current !== tools) {
+      previousResultsRef.current = tools
       // Use queueMicrotask to avoid calling setState synchronously within an effect
       queueMicrotask(() => {
         setEnabledToolIds((prev) => {
           const updated = new Set(prev)
           // Add tools that are enabled on the current page (from API)
-          filteredResults.filter((tool) => tool.enabled).forEach((tool) => updated.add(tool.id))
+          tools.filter((tool) => tool.enabled).forEach((tool) => updated.add(tool.id))
           // Note: We preserve selections for tools not on the current page
           // This allows tracking enabled tools across all pages
           return updated
         })
       })
     }
-  }, [filteredResults])
+  }, [tools])
 
   // Get enabled tools for the current page
   const enabledTools = results.filter((tool) => enabledToolIds.has(tool.id))
@@ -199,13 +226,6 @@ export default function IntegrationTools() {
   return (
     <AppPage>
       <AppPageHeader title={`${provider?.name} tools`}>
-        <SearchInput
-          placeholder="Search tools..."
-          value={search}
-          onChange={(_event, value) => setSearch(value)}
-          onClear={() => setSearch('')}
-          style={{ width: '250px' }}
-        />
         <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
           Refresh tools
         </Button>
@@ -214,98 +234,118 @@ export default function IntegrationTools() {
           Cancel
         </Button>
       </AppPageHeader>
-      {results.length === 0 ? (
+      {results.length === 0 && !hasActiveFilters ? (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>
-            {search ? (
-              <EmptyStateFilter clearAllFilters={() => setSearch('')} imageSrc={noToolsImage} imageAlt="No results" />
-            ) : (
-              <EmptyStateNoData
-                title="No tools available"
-                description={`No tools found for "${provider?.name}". Click the button below to refresh and fetch the latest tools from this integration.`}
-                buttonText="Refresh tools"
-                addData={handleRefreshTools}
-                imageSrc={noToolsImage}
-                imageAlt="No tools available"
-              />
-            )}
+            <EmptyStateNoData
+              title="No tools available"
+              description={`No tools found for "${provider?.name}". Click the button below to refresh and fetch the latest tools from this integration.`}
+              buttonText="Refresh tools"
+              addData={handleRefreshTools}
+              imageSrc={noToolsImage}
+              imageAlt="No tools available"
+            />
           </CompassPanel>
         </StackItem>
       ) : (
-        <ScrollableTableContainer
-          aria-label="Tools table"
-          isExpandable
-          footer={
-            {
-              content: (
-                <>
-                  {selectedToolIds.size > 0 ? (
-                    <>
-                      {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'} enabled
-                      {query.data?.total && query.data.total > results.length && (
-                        <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {results.length} {results.length === 1 ? 'tool' : 'tools'}
-                      {query.data?.total && query.data.total > results.length && (
-                        <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                      )}
-                    </>
-                  )}
-                </>
-              ),
-              prev: query.data?.prev ?? null,
-              next: query.data?.next ?? null,
-              onPrev: () => {
-                if (query.data?.prev !== undefined) {
-                  setCursor(query.data.prev)
-                }
-              },
-              onNext: () => {
-                if (query.data?.next !== undefined) {
-                  setCursor(query.data.next)
-                }
-              },
-            } satisfies TableFooterProps
-          }
-        >
-          <Thead>
-            <Tr>
-              <Th
-                select={{
-                  onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
-                  isSelected: allSelected,
-                  isHeaderSelectDisabled: results.length === 0,
-                }}
-                screenReaderText="Select all tools"
-              />
-              <Th sort={getSortParams(0)}>Name</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {results.map((tool, index) => (
-              <Tr key={tool.id}>
-                <Td
-                  select={{
-                    rowIndex: index,
-                    onSelect: (_event, isSelecting) => handleSelectTool(tool, isSelecting),
-                    isSelected: selectedToolIds.has(tool.id),
-                  }}
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <Stack style={{ height: '100%' }}>
+              <StackItem>
+                <FilterBar
+                  fieldDefinitions={filterFieldDefinitions}
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  showClearAll={true}
                 />
-                <Td dataLabel="Name">
-                  <DescriptionList>
-                    <DescriptionListGroup>
-                      <DescriptionListTerm>{tool.namespaced_name}</DescriptionListTerm>
-                      <DescriptionListDescription>{tool.description}</DescriptionListDescription>
-                    </DescriptionListGroup>
-                  </DescriptionList>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </ScrollableTableContainer>
+              </StackItem>
+
+              {results.length === 0 ? (
+                <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <EmptyStateFilter clearAllFilters={clearAllFilters} imageSrc={noToolsImage} imageAlt="No results" />
+                </StackItem>
+              ) : (
+                <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+                  <ScrollableTableContainer
+                    aria-label="Tools table"
+                    isExpandable
+                    footer={
+                      {
+                        content: (
+                          <>
+                            {selectedToolIds.size > 0 ? (
+                              <>
+                                {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'}{' '}
+                                enabled
+                                {query.data?.total && query.data.total > results.length && (
+                                  <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {results.length} {results.length === 1 ? 'tool' : 'tools'}
+                                {query.data?.total && query.data.total > results.length && (
+                                  <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                                )}
+                              </>
+                            )}
+                          </>
+                        ),
+                        prev: query.data?.prev ?? null,
+                        next: query.data?.next ?? null,
+                        onPrev: () => {
+                          if (query.data?.prev !== undefined) {
+                            setCursor(query.data.prev)
+                          }
+                        },
+                        onNext: () => {
+                          if (query.data?.next !== undefined) {
+                            setCursor(query.data.next)
+                          }
+                        },
+                      } satisfies TableFooterProps
+                    }
+                  >
+                    <Thead>
+                      <Tr>
+                        <Th
+                          select={{
+                            onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
+                            isSelected: allSelected,
+                            isHeaderSelectDisabled: results.length === 0,
+                          }}
+                          screenReaderText="Select all tools"
+                        />
+                        <Th sort={getSortParams(0)}>Name</Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {results.map((tool, index) => (
+                        <Tr key={tool.id}>
+                          <Td
+                            select={{
+                              rowIndex: index,
+                              onSelect: (_event, isSelecting) => handleSelectTool(tool, isSelecting),
+                              isSelected: selectedToolIds.has(tool.id),
+                            }}
+                          />
+                          <Td dataLabel="Name">
+                            <DescriptionList>
+                              <DescriptionListGroup>
+                                <DescriptionListTerm>{tool.namespaced_name}</DescriptionListTerm>
+                                <DescriptionListDescription>{tool.description}</DescriptionListDescription>
+                              </DescriptionListGroup>
+                            </DescriptionList>
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </ScrollableTableContainer>
+                </StackItem>
+              )}
+            </Stack>
+          </CompassPanel>
+        </StackItem>
       )}
       <Modal isOpen={refreshDialogOpen} onClose={() => setRefreshDialogOpen(false)} variant="small">
         <ModalHeader title="Refresh tools" />

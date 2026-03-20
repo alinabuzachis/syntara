@@ -116,7 +116,7 @@ export interface FilterBarProps {
  * />
  * ```
  */
-// eslint-disable-next-line max-lines-per-function -- FilterBar is primarily declarative JSX
+
 export function FilterBar({ fieldDefinitions, filters, onFilterChange, showClearAll = true }: FilterBarProps) {
   // Separate field definitions for TextFilter (TEXT/SELECT) vs other filter types
   const attributeSearchFields = fieldDefinitions.filter(

@@ -65,6 +65,16 @@ export const EdgeHandleEnum = {
   TARGET: 'target',
   END: 'end',
 } as const
+
+/**
+ * Constants for tool provider status values
+ * Use these constants instead of string literals when comparing provider.status values
+ */
+export const ProviderStatusEnum = {
+  AVAILABLE: 'available',
+  ERROR: 'error',
+  VALIDATING: 'validating',
+} as const
 export type WorkflowsResponse =
   WorkflowAPI.paths['/workflows']['get']['responses']['200']['content']['application/json']
 export type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
