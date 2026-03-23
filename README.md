@@ -65,6 +65,16 @@ src/nexus/{domain}/
 
 This project uses `uv` for dependency management and provides a comprehensive Makefile for development tasks.
 
+### Contributing with SpecKit
+
+This project uses specification-driven development. Every feature follows three phases:
+
+1. **Define** — Write the spec (`/speckit.specify`), clarify gaps (`/speckit.clarify`), create the plan (`/speckit.plan`), and get team approval
+2. **Build** — Generate tasks (`/speckit.tasks`), implement (`/speckit.implement`), and review (`/speckit.review-implementation`)
+3. **Ship** — Pass quality gates (`make format lint test-all typecheck`) and open a PR
+
+See the **[SDD Development Walkthrough](docs/sdd-development-walkthrough.md)** for the full step-by-step guide.
+
 ### Prerequisites
 
 - Python (3.12 or 3.13)
@@ -622,6 +632,7 @@ Telemetry is configured via environment variables:
 
 ## Further reading
 
+- 📖 **[SDD Development Walkthrough](docs/sdd-development-walkthrough.md)** - Step-by-step guide to contributing with SpecKit
 - 📖 **[Developer Getting Started Guide](docs/developer-getting-started.md)** - Architecture deep dive with examples
 - 📖 **[Development with Worktrees Guide](docs/development-with-worktrees.md)** - Parallel development setup
 - 📖 **[Architecture Decision Records](decision-records.md)** - Design rationale and decisions
