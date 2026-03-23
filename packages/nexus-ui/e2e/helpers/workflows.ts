@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test'
+
 import { toAppUrl } from '../fixtures'
 
 export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
