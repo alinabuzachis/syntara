@@ -102,6 +102,7 @@ class MetricsCategoryType(StrEnum):
     WORKFLOW = "workflow"
     AGENT = "agent"
     ERROR = "error"
+    SYSTEM_OVERHEAD = "system_overhead"
     API = "api"
     WORKFLOW_ENGINE = "workflow_engine"
     TEMPORAL_WORKER = "temporal_worker"
@@ -137,6 +138,10 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
     ],
     MetricsCategoryType.ERROR: [
         MetricType.ERROR,
+    ],
+    MetricsCategoryType.SYSTEM_OVERHEAD: [
+        MetricType.REQUEST_DURATION,
+        MetricType.COMPONENT_DURATION,
     ],
     MetricsCategoryType.API: [
         MetricType.API_RESPONSE_TIME,

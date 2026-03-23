@@ -14,6 +14,7 @@ from nexus.metrics.instrumentation import (
     LLMStreamTracker,
     record_llm_call,
 )
+from nexus.metrics.middleware import MetricsMiddleware, classify_error_type
 from nexus.metrics.prometheus import NexusPrometheusMetrics
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.store import MetricsStore
@@ -34,10 +35,12 @@ __all__ = [
     "MetricRecord",
     "MetricType",
     "MetricsCategoryType",
+    "MetricsMiddleware",
     "MetricsRecorder",
     "MetricsStore",
     "MetricsSummary",
     "NexusPrometheusMetrics",
+    "classify_error_type",
     "get_metrics_recorder",
     "record_llm_call",
 ]

@@ -36,6 +36,8 @@ from nexus.core.router_discovery import _get_lock_file_path, discover_and_regist
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
 from nexus.metrics.completion_poller import get_completion_poller
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.middleware import MetricsMiddleware
 from nexus.telemetry.client import flush_telemetry, get_telemetry_registry, initialize_telemetry
 from nexus.telemetry.middleware import AnalyticsMiddleware
 from nexus.telemetry.periodic_collector import PeriodicCollector
@@ -156,11 +158,16 @@ app.add_middleware(
     allow_headers=_cors_settings.cors_allow_headers,
 )
 
-# Register analytics middleware (outermost = first to execute).
+# Register analytics middleware.
 # Added after CORS so it wraps the entire request lifecycle.
 # Telemetry is initialized asynchronously in the lifespan handler;
 # the middleware uses the registry which will be populated by that point.
 app.add_middleware(AnalyticsMiddleware, registry=get_telemetry_registry())
+
+# Register metrics middleware (outermost = first to execute).
+# Added after analytics so it captures full request duration including
+# analytics overhead.  Records REQUEST_DURATION and ERROR metrics.
+app.add_middleware(MetricsMiddleware, recorder=get_metrics_recorder())
 
 # RFC 9457 compliant error handlers
 # Register decorated exceptions automatically

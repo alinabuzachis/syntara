@@ -8,8 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from nexus.api.constants import EXCLUDED_PATHS
 from nexus.telemetry.events.api_call import APICallEvent
-from nexus.telemetry.middleware import EXCLUDED_PATHS, AnalyticsMiddleware
+from nexus.telemetry.middleware import AnalyticsMiddleware
 
 if TYPE_CHECKING:
     from starlette.types import Receive, Scope, Send

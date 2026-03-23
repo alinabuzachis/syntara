@@ -103,6 +103,7 @@ class TestMetricType:
             "workflow",
             "agent",
             "error",
+            "system_overhead",
             "api",
             "workflow_engine",
             "temporal_worker",
@@ -126,12 +127,14 @@ class TestMetricType:
         assert MetricType.SYSTEM_UPTIME in METRIC_CATEGORIES[MetricsCategoryType.SYSTEM_WIDE]
         assert MetricType.WORKFLOW_DURATION in METRIC_CATEGORIES[MetricsCategoryType.WORKFLOW_ENGINE]
         assert MetricType.ACTIVITY_DURATION in METRIC_CATEGORIES[MetricsCategoryType.TEMPORAL_WORKER]
+        assert MetricType.REQUEST_DURATION in METRIC_CATEGORIES[MetricsCategoryType.SYSTEM_OVERHEAD]
+        assert MetricType.COMPONENT_DURATION in METRIC_CATEGORIES[MetricsCategoryType.SYSTEM_OVERHEAD]
 
     def test_all_metric_types_belong_to_a_category(self) -> None:
-        """Every MetricType is listed in at least one category (except system overhead)."""
+        """Every MetricType is listed in at least one category."""
         categorized = {mt for types in METRIC_CATEGORIES.values() for mt in types}
         uncategorized = set(MetricType) - categorized
-        assert uncategorized == {MetricType.REQUEST_DURATION, MetricType.COMPONENT_DURATION}
+        assert uncategorized == set()
 
 
 # =============================================================================

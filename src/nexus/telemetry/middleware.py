@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from nexus.api.constants import EXCLUDED_PATHS
 from nexus.telemetry.events.api_call import APICallEvent
 
 if TYPE_CHECKING:
@@ -19,19 +20,6 @@ if TYPE_CHECKING:
     from nexus.telemetry.client import TelemetryClientRegistry
 
 logger = structlog.stdlib.get_logger(__name__)
-
-# Endpoints excluded from analytics event collection (FR-005).
-# Health checks, documentation, and root informational endpoints are not
-# business API endpoints and would generate noise in analytics data.
-EXCLUDED_PATHS: frozenset[str] = frozenset(
-    {
-        "/health",
-        "/",
-        "/docs",
-        "/redoc",
-        "/openapi.json",
-    }
-)
 
 
 class AnalyticsMiddleware:
