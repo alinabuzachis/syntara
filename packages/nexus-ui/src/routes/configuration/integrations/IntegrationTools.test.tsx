@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { toolManagerClient } from '../../../client'
 import { AlertProvider } from '../../../components/alerts'
+import { assertUrlParam, assertUrlParamIsNull } from '../../../test/filter-test-helpers'
 
 import IntegrationTools from './IntegrationTools'
 
@@ -275,15 +276,19 @@ describe('IntegrationTools Component', () => {
   })
 
   describe('Filter Functionality', () => {
-    it('renders name filter input', async () => {
+    it('applies name filter to API query when typing and submitting', async () => {
       const user = userEvent.setup()
       render(<IntegrationTools />, { wrapper })
 
       const filterInput = screen.getByRole('textbox', { name: /name filter/i })
+      await user.type(filterInput, 'search-term')
+      await user.keyboard('{Enter}')
 
-      // Verify user can type in the filter
-      await user.type(filterInput, 'tool_one')
-      expect(filterInput).toHaveValue('tool_one')
+      // Verify both UI state AND API contract
+      expect(filterInput).toHaveValue('search-term')
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'name[contains]', 'search-term')
+      })
     })
 
     it('displays filter input for filtering tools', () => {
@@ -301,6 +306,36 @@ describe('IntegrationTools Component', () => {
       expect(screen.getByText('test.tool_one')).toBeInTheDocument()
       expect(screen.getByText('test.tool_two')).toBeInTheDocument()
       expect(screen.getByText('test.tool_three')).toBeInTheDocument()
+    })
+
+    it('resets pagination cursor when filters change', async () => {
+      const user = userEvent.setup()
+
+      // Start with pagination cursor in URL
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockTools,
+          next: 'next-cursor',
+          prev: 'prev-cursor',
+          total: 50,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<IntegrationTools />, { wrapper })
+
+      // Apply a filter
+      const filterInput = screen.getByRole('textbox', { name: /name filter/i })
+      await user.type(filterInput, 'tool_one')
+      await user.keyboard('{Enter}')
+
+      // Verify cursor was reset
+      await waitFor(() => {
+        assertUrlParamIsNull(mockSetSearchParams, 'cursor')
+      })
     })
   })
 

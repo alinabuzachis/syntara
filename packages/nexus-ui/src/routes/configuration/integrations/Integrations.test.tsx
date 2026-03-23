@@ -7,6 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { toolManagerClient } from '../../../client'
 import { AlertProvider } from '../../../components/alerts'
+import { assertUrlParam } from '../../../test/filter-test-helpers'
 
 import Integrations from './Integrations'
 
@@ -88,6 +89,11 @@ describe('Integrations Component', () => {
   beforeEach(() => {
     // Reset mocks before each test
     mockNavigate.mockClear()
+    mockSetSearchParams.mockClear()
+    // Clear all search params to start with empty state
+    Array.from(mockSearchParams.keys()).forEach((key) => {
+      mockSearchParams.delete(key)
+    })
 
     vi.mocked(toolManagerClient.useQuery).mockReturnValue({
       data: { resources: mockIntegrations },
@@ -454,17 +460,94 @@ describe('Integrations Component', () => {
     })
   })
 
-  describe('Filter No Results', () => {
-    it('allows applying filters via text input', async () => {
+  describe('Filter API Contract', () => {
+    it('applies name filter to API query when typing and submitting', async () => {
       const user = userEvent.setup()
       render(<Integrations />, { wrapper })
 
-      // Verify text input is available for filtering
       const textInput = screen.getByRole('textbox', { name: /name filter/i })
       await user.type(textInput, 'test')
+      await user.keyboard('{Enter}')
 
-      // Verify input value is updated
+      // Verify both UI state AND API contract
       expect(textInput).toHaveValue('test')
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'name[contains]', 'test')
+      })
+    })
+
+    it('applies status filter to API query when selecting option', async () => {
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      // Switch to status filter - find the field selector toggle (first button with "Name")
+      const fieldButtons = screen.getAllByRole('button', { name: 'Name' })
+      const fieldSelector = fieldButtons[0] // First "Name" button is the filter field selector
+      await user.click(fieldSelector)
+      await user.click(await screen.findByRole('option', { name: /status/i }))
+
+      // Select "Available"
+      const statusButton = await screen.findByRole('button', { name: /filter by status/i })
+      await user.click(statusButton)
+      await user.click(await screen.findByRole('option', { name: 'Available' }))
+
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'status', 'available')
+      })
+    })
+
+    it('applies integration type filter to API query', async () => {
+      const user = userEvent.setup()
+      render(<Integrations />, { wrapper })
+
+      // Switch to integration type filter - find the field selector toggle (first button with "Name")
+      const fieldButtons = screen.getAllByRole('button', { name: 'Name' })
+      const fieldSelector = fieldButtons[0] // First "Name" button is the filter field selector
+      await user.click(fieldSelector)
+      await user.click(await screen.findByRole('option', { name: /integration type/i }))
+
+      // Select "MCP Server"
+      const typeButton = await screen.findByRole('button', { name: /filter by integration type/i })
+      await user.click(typeButton)
+      await user.click(await screen.findByRole('option', { name: 'MCP Server' }))
+
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'provider_type', 'mcp')
+      })
+    })
+
+    it('applies filter to API query after paginating', async () => {
+      const user = userEvent.setup()
+
+      // Mock query with pagination to have next/prev cursors available
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockIntegrations,
+          next: 'next-cursor',
+          prev: 'prev-cursor',
+          total: 25,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Integrations />, { wrapper })
+
+      // Click next page to set internal cursor state
+      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      fireEvent.click(nextButton)
+
+      // Apply a filter after navigating to page 2
+      const textInput = screen.getByRole('textbox', { name: /name filter/i })
+      await user.type(textInput, 'test')
+      await user.keyboard('{Enter}')
+
+      // Verify the filter was applied to URL params
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'name[contains]', 'test')
+      })
     })
   })
 

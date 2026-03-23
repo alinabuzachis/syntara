@@ -8,7 +8,13 @@ import type { FilterConfig } from '../types/filters'
  * 2. Optionally transform filter values before applying
  * 3. Apply filters atomically to URL state
  *
- * @param cursor - Current pagination cursor value
+ * ARCHITECTURE NOTE: Cursor Storage
+ * - Cursor is stored in component state (via reducer/useState), NOT in URL
+ * - resetCursor() updates component state only (e.g., dispatch({type: 'SET_CURSOR', payload: null}))
+ * - setAllFilters() preserves non-filter URL params, but cursor wouldn't be there anyway
+ * - This keeps URLs clean and bookmarkable while maintaining pagination state
+ *
+ * @param cursor - Current pagination cursor value from component state
  * @param resetCursor - Function to reset the pagination cursor to null
  * @param clearAllFilters - Function to clear all active filters
  * @param setAllFilters - Function to set all filters atomically

@@ -1,10 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
+import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
 
 import Automations from './Automations'
 
@@ -171,6 +173,69 @@ describe('Automations Component', () => {
       // All workflows should be visible
       expect(screen.getByText('Important Project Workflow')).toBeInTheDocument()
       expect(screen.getByText('Secondary Team Workflow')).toBeInTheDocument()
+    })
+
+    it('applies name filter to API query when typing and submitting', async () => {
+      const user = userEvent.setup()
+      render(<Automations />, { wrapper })
+
+      const nameInput = screen.getByRole('textbox', { name: /name filter/i })
+      await user.type(nameInput, 'deploy')
+      await user.keyboard('{Enter}')
+
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'name[contains]', 'deploy')
+      })
+    })
+
+    it('applies state filter (is_enabled) to API query when selecting option', async () => {
+      const user = userEvent.setup()
+      render(<Automations />, { wrapper })
+
+      // Switch to state filter - find the field selector toggle (first button with "Name")
+      const fieldButtons = screen.getAllByRole('button', { name: 'Name' })
+      const fieldSelector = fieldButtons[0] // First "Name" button is the filter field selector
+      await user.click(fieldSelector)
+      await user.click(await screen.findByRole('option', { name: /state/i }))
+
+      // Select "Enabled"
+      const stateButton = await screen.findByRole('button', { name: /filter by state/i })
+      await user.click(stateButton)
+      await user.click(await screen.findByRole('option', { name: 'Enabled' }))
+
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'is_enabled', 'true')
+      })
+    })
+
+    it('resets pagination cursor when filters change', async () => {
+      const user = userEvent.setup()
+
+      // Start with pagination cursor in URL
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockWorkflows,
+          next: 'next-cursor',
+          prev: 'prev-cursor',
+          total: 25,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Apply a filter
+      const nameInput = screen.getByRole('textbox', { name: /name filter/i })
+      await user.type(nameInput, 'test')
+      await user.keyboard('{Enter}')
+
+      // Verify cursor was reset
+      await waitFor(() => {
+        assertUrlParamIsNull(mockSetSearchParams, 'cursor')
+      })
     })
   })
 

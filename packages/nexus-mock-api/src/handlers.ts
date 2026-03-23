@@ -314,6 +314,7 @@ export const handlers = [
     const status = url.searchParams.get('status')
     const execution_id = url.searchParams.get('execution_id')
     const created_at = url.searchParams.get('created_at')
+    const nameContains = url.searchParams.get('name[contains]')
     const sort = url.searchParams.get('sort')
     const cursor = url.searchParams.get('cursor')
     const limitParam = url.searchParams.get('limit')
@@ -330,6 +331,11 @@ export const handlers = [
       if (created_at && a.createdAt) {
         const filterDate = new Date(created_at).toDateString()
         if (new Date(a.createdAt).toDateString() !== filterDate) return false
+      }
+      if (nameContains) {
+        const approvalData = a as unknown as { name?: string }
+        const name = approvalData.name || ''
+        if (!name.toLowerCase().includes(nameContains.toLowerCase())) return false
       }
       return true
     })

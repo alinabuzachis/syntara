@@ -25,7 +25,7 @@ import {
 } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useMemo, useReducer } from 'react'
+import { useEffect, useMemo, useReducer } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -157,6 +157,16 @@ export default function Automations() {
       })
   )
 
+  // Wrapper to clear both filters and pagination cursor
+  const handleClearAllFilters = () => {
+    // Reset pagination cursor
+    if (cursor) {
+      dispatch({ type: 'SET_CURSOR', payload: null })
+    }
+    // Clear all filters
+    clearAllFilters()
+  }
+
   // Build query parameters from filters
   const queryParams = useMemo(() => {
     const params: Record<string, unknown> = {
@@ -193,6 +203,13 @@ export default function Automations() {
   const automations = workflows
 
   const hasActiveFilters = filters.length > 0
+
+  // Reset cursor when showing EmptyStateNoData (no automations and no filters)
+  useEffect(() => {
+    if (automations.length === 0 && !hasActiveFilters && cursor) {
+      dispatch({ type: 'SET_CURSOR', payload: null })
+    }
+  }, [automations.length, hasActiveFilters, cursor])
 
   const handleRunAutomation = (workflow: Workflow) => {
     executeAutomation(
@@ -305,7 +322,7 @@ export default function Automations() {
             {automations.length === 0 ? (
               <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {hasActiveFilters ? (
-                  <EmptyStateFilter clearAllFilters={clearAllFilters} />
+                  <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
                   <EmptyStateNoData
                     title="No automations found"

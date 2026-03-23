@@ -1,8 +1,10 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { approvalsClient } from '../../client'
+import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
 
 import Approvals from './Approvals'
 
@@ -11,6 +13,14 @@ vi.mock('../../client', () => ({
   approvalsClient: {
     useQuery: vi.fn(),
   },
+}))
+
+const mockSearchParams = new URLSearchParams()
+const mockSetSearchParams = vi.fn()
+
+vi.mock('wouter', () => ({
+  useLocation: () => ['/approvals', vi.fn()],
+  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }))
 
 describe('Approvals Component', () => {
@@ -161,7 +171,8 @@ describe('Approvals Component', () => {
     render(<Approvals />)
 
     expect(screen.getByText('Approvals')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Search approvals...')).toBeInTheDocument()
+    // FilterBar with text filter input
+    expect(screen.getByRole('textbox', { name: /name filter/i })).toBeInTheDocument()
   })
 
   it('displays approval names', () => {
@@ -423,32 +434,99 @@ describe('Approvals Component', () => {
     })
   })
 
-  describe('Search Functionality', () => {
-    it('updates search input value when typing', async () => {
+  describe('Filter Functionality', () => {
+    it('applies name filter to API query when typing and submitting', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
-      const searchInput = screen.getByPlaceholderText('Search approvals...')
-      fireEvent.change(searchInput, { target: { value: 'test' } })
+      const nameInput = screen.getByRole('textbox', { name: /name filter/i })
 
-      expect(searchInput).toHaveValue('test')
+      // Type filter value
+      await user.type(nameInput, 'test')
+
+      // Submit by pressing Enter
+      await user.keyboard('{Enter}')
+
+      // Verify URL parameters were updated with filter
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'name[contains]', 'test')
+      })
     })
 
-    it('clears search when clear button is clicked', async () => {
+    it('applies status filter to API query when selecting option', async () => {
+      const user = userEvent.setup()
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
-      const searchInput = screen.getByPlaceholderText('Search approvals...')
-      fireEvent.change(searchInput, { target: { value: 'test' } })
-      expect(searchInput).toHaveValue('test')
+      // Click the field selector dropdown to switch from "Name" to "Status"
+      const fieldSelectorButton = screen.getByRole('button', { name: 'Name' })
+      await user.click(fieldSelectorButton)
 
-      // Click clear button
-      const clearButton = screen.getByRole('button', { name: /reset/i })
-      fireEvent.click(clearButton)
+      // Select "Status" field from dropdown
+      const statusOption = await screen.findByRole('option', { name: 'Status' })
+      await user.click(statusOption)
 
-      expect(searchInput).toHaveValue('')
+      // Now the filter field should show the status selector
+      // Open the status value dropdown
+      const statusValueButton = await screen.findByRole('button', { name: /filter by status/i })
+      await user.click(statusValueButton)
+
+      // Select "Pending" option
+      const pendingOption = await screen.findByRole('option', { name: 'Pending' })
+      await user.click(pendingOption)
+
+      // Verify URL params were updated with status filter
+      await waitFor(() => {
+        assertUrlParam(mockSetSearchParams, 'status', 'pending')
+      })
+    })
+
+    it('displays name filter input in toolbar', () => {
+      mockApprovalsQuery(mockApprovals)
+
+      render(<Approvals />)
+
+      // Verify filter input is present
+      const textInput = screen.getByRole('textbox', { name: /name filter/i })
+      expect(textInput).toBeInTheDocument()
+      expect(textInput).toHaveAttribute('placeholder', 'Filter by name')
+    })
+
+    it('resets pagination cursor when filters change', async () => {
+      const user = userEvent.setup()
+
+      // Mock query with pagination cursor
+      vi.mocked(approvalsClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockApprovals,
+          next: 'cursor-page-2',
+          prev: null,
+          total: 20,
+        },
+        isPending: false,
+        error: null,
+        isError: false,
+        refetch: vi.fn(),
+      } as never)
+
+      render(<Approvals />)
+
+      // Navigate to page 2
+      const nextButton = screen.getByRole('button', { name: /next/i })
+      await user.click(nextButton)
+
+      // Apply a filter
+      const nameInput = screen.getByRole('textbox', { name: /name filter/i })
+      await user.type(nameInput, 'test')
+      await user.keyboard('{Enter}')
+
+      // Verify cursor was reset (no cursor in URL params)
+      await waitFor(() => {
+        assertUrlParamIsNull(mockSetSearchParams, 'cursor')
+      })
     })
   })
 
