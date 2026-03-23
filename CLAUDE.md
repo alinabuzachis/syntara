@@ -18,6 +18,17 @@ Claude, you have access to the following skills. Use them when appropriate:
 - **Refactor instead of suppressing**: Prefer clearer control flow, smaller functions, extracted helpers, and stronger types over disabling rules.
 - **Validate before finishing**: After substantive edits, run the relevant lint/type-check commands for the affected package and fix any issues introduced by the change.
 
+### Pull Request Rules
+
+All changes must follow the PR sizing and slicing policy defined in [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md).
+
+Before writing code:
+
+1. Read the PR sizing rules
+2. Propose a stacked PR plan
+3. Ensure each PR fits within the limits
+4. Only implement the first PR unless asked otherwise
+
 ### Documentation Must Stay in Sync with Code
 
 **CRITICAL: Documentation must always reflect the current state of the codebase.**
@@ -79,19 +90,21 @@ For how the UI is structured, see these comprehensive guides:
 - [`docs/data-flow.md`](docs/data-flow.md) - Deep dive into OpenAPI contract generation, type-safe API clients, and workflow transformations (nested ↔ flat)
 - [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Workflow store details, state management patterns, and best practices
 - [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - WebSocket infrastructure, multi-channel architecture, and real-time features
-- [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - **NEW!** Execution visualizer WebSocket protocol, endpoints, and data structures
+- [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - Execution visualizer WebSocket protocol, endpoints, and data structures
+- [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) - PR sizing, stacking strategy, and change isolation rules
 
 ### Quick Navigation by Task
 
-| Working on...                  | Read this section                                                                                                            |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| **API integration**            | [`docs/data-flow.md`](docs/data-flow.md) - OpenAPI contract generation and type-safe clients                                 |
-| **Workflow transformations**   | [`docs/data-flow.md`](docs/data-flow.md) - Nested to flat conversions with diagrams                                          |
-| **Node registry**              | [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes"                               |
-| **Builder internals**          | [`docs/architecture.md`](docs/architecture.md) - "Builder internals (advanced)" section                                      |
-| **State management**           | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide                                      |
-| **WebSocket / real-time**      | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - Multi-channel WebSocket infrastructure                  |
-| **Execution visualization** 🆕 | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - WebSocket protocol, endpoints, data specs |
+| Working on...                | Read this section                                                                                                            |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **API integration**          | [`docs/data-flow.md`](docs/data-flow.md) - OpenAPI contract generation and type-safe clients                                 |
+| **Workflow transformations** | [`docs/data-flow.md`](docs/data-flow.md) - Nested to flat conversions with diagrams                                          |
+| **Node registry**            | [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes"                               |
+| **Builder internals**        | [`docs/architecture.md`](docs/architecture.md) - "Builder internals (advanced)" section                                      |
+| **State management**         | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide                                      |
+| **WebSocket / real-time**    | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - Multi-channel WebSocket infrastructure                  |
+| **Execution visualization**  | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - WebSocket protocol, endpoints, data specs |
+| **PR sizing / stacking**     | [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) - Budget, stacked PR strategy, stop rules                             |
 
 ### Quick Reference: Common Tasks
 
