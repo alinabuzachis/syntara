@@ -120,7 +120,7 @@ jobs:
             const base = '${{ github.event.pull_request.base.sha }}';
             const head = '${{ github.event.pull_request.head.sha }}';
 
-            // Exclude test files from size calculation — tests shouldn't count toward the PR budget
+            // Exclude tests and Markdown from size calculation — they shouldn't count toward the PR budget
             const excludes = [
               ':(exclude)*.test.*',
               ':(exclude)*.spec.*',
@@ -128,12 +128,13 @@ jobs:
               ':(exclude)**/__mocks__/**',
               ':(exclude)**/test-utils/**',
               ':(exclude)**/e2e/**',
+              ':(exclude,glob)**/*.md',
             ].map(e => `'${e}'`).join(' ');
 
             const diffStat = execSync(`git diff --stat ${base}...${head} -- . ${excludes}`).toString();
             const shortstat = execSync(`git diff --shortstat ${base}...${head} -- . ${excludes}`).toString().trim();
 
-            // Also get total stats (including tests) for informational display
+            // Also get total stats (including tests and Markdown) for informational display
             const totalShortstat = execSync(`git diff --shortstat ${base}...${head}`).toString().trim();
 
             function parseShortstat(s) {
@@ -160,7 +161,7 @@ jobs:
             const marker = '<!-- pr-size-check -->';
             let body = '';
 
-            const testNote = testLines > 0 ? ` (+ ${testLines} lines in tests)` : '';
+            const testNote = testLines > 0 ? ` (+ ${testLines} lines in tests or Markdown)` : '';
 
             if (totalChanged > SOFT_LINES || filesChanged > SOFT_FILES) {
               const warnings = [];
@@ -177,7 +178,7 @@ jobs:
                 '',
                 warnings.join('\n'),
                 '',
-                `_Test files excluded from budget.${testNote}_`,
+                `_Test and Markdown (\`*.md\`) files excluded from budget.${testNote}_`,
                 '',
                 'This PR may be easier to review if broken into smaller, stacked PRs.',
                 `See [PR_GUIDELINES.md](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/.github/PR_GUIDELINES.md) for sizing policy.`,

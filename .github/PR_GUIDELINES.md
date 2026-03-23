@@ -4,7 +4,7 @@ The goal is to keep pull requests small, reviewable, and stackable.
 
 ## PR Budget
 
-Line counts apply to **feature code only** — test files (`*.test.*`, `*.spec.*`, `__tests__/`, `e2e/`) are excluded from the budget. Tests are expected and encouraged but should not inflate the PR size metric.
+Line counts apply to **feature code only** — test files (`*.test.*`, `*.spec.*`, `__tests__/`, `e2e/`) and all Markdown (`*.md`) are excluded from the budget. Tests and docs edits are expected and encouraged but should not inflate the PR size metric.
 
 **Preferred:**
 
