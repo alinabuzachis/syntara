@@ -263,6 +263,25 @@ class TestRecordLLMCall:
         assert durations[0].labels["model"] == "anthropic/claude-3.5-sonnet"
         assert durations[0].labels["provider"] == "anthropic"
 
+    @pytest.mark.asyncio
+    async def test_active_llm_requests_gauge_lifecycle(self, recorder: MetricsRecorder) -> None:
+        """Gauge is 0 before, incremented during, and 0 again after a successful call."""
+        assert recorder.prometheus.active_llm_requests._value.get() == pytest.approx(0.0)
+
+        await record_llm_call(recorder, _async_response, model="m")
+
+        assert recorder.prometheus.active_llm_requests._value.get() == pytest.approx(0.0)
+        assert recorder.get_summary().active_llm_requests == 0
+
+    @pytest.mark.asyncio
+    async def test_active_llm_requests_gauge_decrements_on_error(self, recorder: MetricsRecorder) -> None:
+        """Gauge returns to 0 even when the LLM call raises."""
+        with pytest.raises(RuntimeError):
+            await record_llm_call(recorder, lambda: _async_raise(RuntimeError("fail")), model="m")
+
+        assert recorder.prometheus.active_llm_requests._value.get() == pytest.approx(0.0)
+        assert recorder.get_summary().active_llm_requests == 0
+
 
 # =============================================================================
 # Prometheus dispatch

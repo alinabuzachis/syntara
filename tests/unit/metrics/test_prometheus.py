@@ -61,7 +61,6 @@ class TestMetricDefinitions:
         assert prom.workflow_completion_rate is not None
         assert prom.temporal_queue_depth is not None
         assert prom.activity_execution_success_rate is not None
-        assert prom.active_workflow_count is not None
         assert prom.tool_execution_success_rate is not None
         assert prom.tool_provider_availability is not None
         assert prom.tool_error_rate is not None

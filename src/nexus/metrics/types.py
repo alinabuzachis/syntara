@@ -74,7 +74,6 @@ class MetricType(StrEnum):
     # Execution Service Metrics
     WORKFLOW_START_LATENCY = "workflow_start_latency_ms"
     WORKFLOW_COMPLETION_RATE = "workflow_completion_rate"
-    ACTIVE_WORKFLOW_COUNT = "active_workflow_count"
 
     # Tool Manager Metrics
     TOOL_EXECUTION_SUCCESS_RATE = "tool_execution_success_rate"
@@ -163,7 +162,6 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
     MetricsCategoryType.EXECUTION_SERVICE: [
         MetricType.WORKFLOW_START_LATENCY,
         MetricType.WORKFLOW_COMPLETION_RATE,
-        MetricType.ACTIVE_WORKFLOW_COUNT,
     ],
     MetricsCategoryType.TOOL_MANAGER: [
         MetricType.TOOL_EXECUTION_SUCCESS_RATE,
@@ -320,6 +318,7 @@ class MetricsSummary(SQLModel):
     llm_calls: int = Field(default=0, description="Total LLM API calls")
     total_workflows: int = Field(default=0, description="Total workflow executions started")
     active_workflows: int = Field(default=0, description="Currently active workflows")
+    active_llm_requests: int = Field(default=0, description="Currently in-flight LLM requests")
     period_start: datetime = Field(..., description="Start of metrics retention period")
     period_end: datetime = Field(..., description="End of metrics period (now)")
 

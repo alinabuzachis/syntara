@@ -7,7 +7,9 @@ FR-029 are encapsulated in :class:`NexusPrometheusMetrics` so that each test
 
 from __future__ import annotations
 
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, disable_created_metrics
+
+disable_created_metrics()  # type: ignore[no-untyped-call]
 
 # Histogram bucket boundaries tuned to different latency profiles.
 LATENCY_BUCKETS_FAST: tuple[float, ...] = (
@@ -284,13 +286,6 @@ class NexusPrometheusMetrics:
         self.activity_execution_success_rate = Gauge(
             "nexus_activity_execution_success_rate",
             "Activity execution success rate",
-            ["component"],
-            registry=self.registry,
-        )
-
-        self.active_workflow_count = Gauge(
-            "nexus_active_workflow_count",
-            "Number of active workflows",
             ["component"],
             registry=self.registry,
         )

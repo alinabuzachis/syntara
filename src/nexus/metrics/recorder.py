@@ -57,7 +57,6 @@ _COMPONENT_METRIC_MAP: dict[MetricType, tuple[str, str, tuple[str, ...]]] = {
     # Execution Service
     MetricType.WORKFLOW_START_LATENCY: ("workflow_start_latency_seconds", "histogram", ()),
     MetricType.WORKFLOW_COMPLETION_RATE: ("workflow_completion_rate", "gauge", ()),
-    MetricType.ACTIVE_WORKFLOW_COUNT: ("active_workflow_count", "gauge", ()),
     # Tool Manager
     MetricType.TOOL_EXECUTION_SUCCESS_RATE: ("tool_execution_success_rate", "gauge", ()),
     MetricType.TOOL_EXECUTION_DURATION: ("tool_execution_duration_seconds", "histogram", ("tool_id",)),
@@ -172,6 +171,41 @@ class MetricsRecorder:
         with self._counters_lock:
             self._counters[counter_name] = self._counters.get(counter_name, 0) + value
 
+    def increment_gauge(self, gauge_name: str) -> None:
+        """Increment the named internal counter and the matching Prometheus gauge."""
+        if not self._enabled:
+            return
+
+        with self._counters_lock:
+            self._counters[gauge_name] = self._counters.get(gauge_name, 0) + 1
+
+        prom_gauge = getattr(self._prometheus, gauge_name, None)
+        if prom_gauge is not None:
+            prom_gauge.inc()
+
+    def decrement_gauge(self, gauge_name: str) -> None:
+        """Decrement the named internal counter and the matching Prometheus gauge, floored at zero.
+
+        After a server restart the in-memory counter resets to 0 while the
+        completion poller may still emit metrics for workflows that started
+        before the restart.  A naive decrement would push the value below
+        zero, producing nonsensical metrics.  This method prevents that.
+        """
+        if not self._enabled:
+            return
+
+        with self._counters_lock:
+            current = self._counters.get(gauge_name, 0)
+            self._counters[gauge_name] = max(0, current - 1)
+
+        prom_gauge = getattr(self._prometheus, gauge_name, None)
+        if prom_gauge is not None:
+            prom_value = prom_gauge._value.get()  # noqa: SLF001
+            if prom_value > 0:
+                prom_gauge.dec()
+            else:
+                prom_gauge.set(0)
+
     @contextmanager
     def time(
         self,
@@ -247,6 +281,7 @@ class MetricsRecorder:
             llm_calls=counters_snapshot.get("llm_calls", 0),
             total_workflows=counters_snapshot.get("total_workflows", 0),
             active_workflows=counters_snapshot.get("active_workflows", 0),
+            active_llm_requests=counters_snapshot.get("active_llm_requests", 0),
             period_start=now - self._store.retention,
             period_end=now,
         )

@@ -62,6 +62,24 @@ def classify_error_type(status_code: int) -> str | None:
     return "internal"
 
 
+# ---- Route resolution -----------------------------------------------------------
+
+
+def _resolve_endpoint(scope: Scope, raw_path: str) -> str:
+    """Extract the route template from the ASGI scope for use as a metric label.
+
+    Starlette populates ``scope["route"]`` after routing completes.  Using
+    the template (e.g. ``/api/v1/executions/{execution_id}``) instead of the
+    raw path avoids unbounded label cardinality in Prometheus.
+
+    Falls back to *raw_path* when no route is resolved (e.g. 404 responses).
+    """
+    route = scope.get("route")
+    if route is not None and hasattr(route, "path"):
+        return route.path  # type: ignore[no-any-return]
+    return raw_path
+
+
 # ---- Middleware ------------------------------------------------------------------
 
 
@@ -136,10 +154,12 @@ class MetricsMiddleware:
             await self.app(scope, receive, send_wrapper)
         except Exception:
             status_code = 500
-            self._record_metrics(path, method, status_code, start, correlation_id)
+            endpoint = _resolve_endpoint(scope, path)
+            self._record_metrics(endpoint, method, status_code, start, correlation_id)
             raise
 
-        self._record_metrics(path, method, status_code, start, correlation_id)
+        endpoint = _resolve_endpoint(scope, path)
+        self._record_metrics(endpoint, method, status_code, start, correlation_id)
 
     def _record_metrics(
         self,

@@ -235,8 +235,7 @@ class ExecutionService(BaseService):
             },
         )
         recorder.increment("total_workflows")
-        recorder.increment("active_workflows")
-        recorder.prometheus.active_workflows.inc()
+        recorder.increment_gauge("active_workflows")
 
         return self.convert_resource_mixin.convert_resource(execution)  # type: ignore[no-any-return]
 

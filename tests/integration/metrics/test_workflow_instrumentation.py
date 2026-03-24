@@ -158,13 +158,32 @@ class TestWorkflowCompletionMetrics:
         completed_execution: Execution,
         test_db_session: AsyncSession,
     ) -> None:
-        recorder.increment("active_workflows", 3)
+        for _ in range(3):
+            recorder.increment_gauge("active_workflows")
         service = _make_service(test_db_session)
 
         with patch(PATCH_TARGET, return_value=recorder):
             await service._emit_completion_metrics(completed_execution)
 
         assert recorder.get_summary().active_workflows == 2
+        assert recorder.prometheus.active_workflows._value.get() == pytest.approx(2.0)
+
+    @pytest.mark.asyncio
+    async def test_active_workflows_gauge_floors_at_zero(
+        self,
+        recorder: MetricsRecorder,
+        completed_execution: Execution,
+        test_db_session: AsyncSession,
+    ) -> None:
+        """After a restart the counter is 0; completing a workflow must not go negative."""
+        assert recorder.get_summary().active_workflows == 0
+        service = _make_service(test_db_session)
+
+        with patch(PATCH_TARGET, return_value=recorder):
+            await service._emit_completion_metrics(completed_execution)
+
+        assert recorder.get_summary().active_workflows == 0
+        assert recorder.prometheus.active_workflows._value.get() == pytest.approx(0.0)
 
     @pytest.mark.asyncio
     async def test_observes_prometheus_histogram(

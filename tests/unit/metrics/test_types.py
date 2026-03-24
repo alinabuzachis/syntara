@@ -65,7 +65,6 @@ class TestMetricType:
             # Execution Service
             "WORKFLOW_START_LATENCY",
             "WORKFLOW_COMPLETION_RATE",
-            "ACTIVE_WORKFLOW_COUNT",
             # Tool Manager
             "TOOL_EXECUTION_SUCCESS_RATE",
             "TOOL_EXECUTION_DURATION",

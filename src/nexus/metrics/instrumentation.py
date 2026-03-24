@@ -192,12 +192,14 @@ async def record_llm_call[T](
     status = "success"
     result: Any = None
 
+    recorder.increment_gauge("active_llm_requests")
     try:
         result = await call()
     except Exception:
         status = "error"
         raise
     finally:
+        recorder.decrement_gauge("active_llm_requests")
         duration_ms = (time.perf_counter() - start) * 1000
 
         input_tokens, output_tokens = 0, 0

@@ -89,6 +89,58 @@ class TestRecorderIncrement:
 
 
 # =============================================================================
+# Gauge helpers (increment_gauge / decrement_gauge)
+# =============================================================================
+
+
+class TestRecorderGaugeHelpers:
+    """Tests for increment_gauge() and decrement_gauge()."""
+
+    def test_increment_gauge_updates_counter_and_prometheus(self, recorder: MetricsRecorder) -> None:
+        recorder.increment_gauge("active_workflows")
+        recorder.increment_gauge("active_workflows")
+
+        assert recorder.get_summary().active_workflows == 2
+        assert recorder.prometheus.active_workflows._value.get() == pytest.approx(2.0)
+
+    def test_decrement_gauge_updates_counter_and_prometheus(self, recorder: MetricsRecorder) -> None:
+        for _ in range(3):
+            recorder.increment_gauge("active_workflows")
+
+        recorder.decrement_gauge("active_workflows")
+
+        assert recorder.get_summary().active_workflows == 2
+        assert recorder.prometheus.active_workflows._value.get() == pytest.approx(2.0)
+
+    def test_decrement_gauge_floors_at_zero(self, recorder: MetricsRecorder) -> None:
+        """Decrementing a gauge that is already at 0 must not go negative."""
+        assert recorder.get_summary().active_workflows == 0
+
+        recorder.decrement_gauge("active_workflows")
+
+        assert recorder.get_summary().active_workflows == 0
+        assert recorder.prometheus.active_workflows._value.get() == pytest.approx(0.0)
+
+    def test_decrement_gauge_floors_after_multiple(self, recorder: MetricsRecorder) -> None:
+        """Several decrements below zero all stay at 0."""
+        recorder.increment_gauge("active_workflows")
+
+        recorder.decrement_gauge("active_workflows")
+        recorder.decrement_gauge("active_workflows")
+        recorder.decrement_gauge("active_workflows")
+
+        assert recorder.get_summary().active_workflows == 0
+        assert recorder.prometheus.active_workflows._value.get() == pytest.approx(0.0)
+
+    def test_gauge_helpers_disabled_is_noop(self, disabled_recorder: MetricsRecorder) -> None:
+        disabled_recorder.increment_gauge("active_workflows")
+        assert disabled_recorder.get_summary().active_workflows == 0
+
+        disabled_recorder.decrement_gauge("active_workflows")
+        assert disabled_recorder.get_summary().active_workflows == 0
+
+
+# =============================================================================
 # Time context manager
 # =============================================================================
 
@@ -168,7 +220,8 @@ class TestRecorderSummary:
         recorder.increment("cache_misses", 3)
         recorder.increment("llm_calls", 8)
         recorder.increment("total_workflows", 15)
-        recorder.increment("active_workflows", 2)
+        for _ in range(2):
+            recorder.increment_gauge("active_workflows")
 
         summary = recorder.get_summary()
         assert summary.total_requests == 10

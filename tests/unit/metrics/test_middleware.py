@@ -178,6 +178,37 @@ class TestMetricsMiddlewareRequestDuration:
 
         assert recorder.get_summary().total_requests == 3
 
+    @pytest.mark.asyncio
+    async def test_uses_route_template_as_endpoint_label(self, recorder: MetricsRecorder) -> None:
+        """When Starlette resolves a route, the template is used instead of the raw path."""
+
+        class _FakeRoute:
+            path = "/api/v1/executions/{execution_id}"
+
+        async def app_with_route(scope: dict[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            scope["route"] = _FakeRoute()
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = MetricsMiddleware(app_with_route, recorder=recorder)  # type: ignore[arg-type]
+        scope = _make_scope(path="/api/v1/executions/3f129c38-1008-4383-a224-e20ddcf51755")
+        await middleware(scope, AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
+        assert results[0].labels["endpoint"] == "/api/v1/executions/{execution_id}"
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_raw_path_when_no_route(self, recorder: MetricsRecorder) -> None:
+        """Without a resolved route (e.g. 404), the raw path is used as endpoint label."""
+        app = await _make_app(status_code=404)
+        middleware = MetricsMiddleware(app, recorder=recorder)
+
+        scope = _make_scope(path="/api/v1/nonexistent")
+        await middleware(scope, AsyncMock(), AsyncMock())
+
+        results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
+        assert results[0].labels["endpoint"] == "/api/v1/nonexistent"
+
 
 # =============================================================================
 # MetricsMiddleware - correlation ID
