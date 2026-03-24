@@ -454,8 +454,8 @@ export function BuilderFlow(props: BuilderFlowProps) {
         nodesConnectable={!isExecutionView}
       >
         <EdgeMarkers />
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-        <CanvasControls onLayout={onLayout} />
+        {!isExecutionView && <Background variant={BackgroundVariant.Dots} gap={20} size={1} />}
+        <CanvasControls onLayout={onLayout} hideLayout={isExecutionView} />
       </ReactFlow>
     </div>
   )

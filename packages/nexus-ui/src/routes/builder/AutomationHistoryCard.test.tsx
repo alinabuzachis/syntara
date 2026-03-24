@@ -1,15 +1,37 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { SimpleList } from '@patternfly/react-core'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AutomationHistoryCard, ExecutionHistoryRow } from './AutomationHistoryCard'
 
 type Execution = ExecutionsAPI.components['schemas']['Execution']
 
-// Mock StatusLabel component
 vi.mock('./ExecutionStatus', () => ({
   StatusLabel: ({ status }: { status: string }) => <span data-testid="status-label">{status}</span>,
 }))
+
+vi.mock('../../utils/dateUtils', () => ({
+  formatElapsedTime: (ms: number) => `${ms}ms`,
+}))
+
+vi.mock('date-fns', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('date-fns')>()
+  return {
+    ...actual,
+    isToday: () => true,
+    isYesterday: () => false,
+  }
+})
+
+const baseExecution: Execution = {
+  id: '12345678-abcd-ef01-2345-678901234567',
+  workflow_id: 'wf-1',
+  workflow_version_id: 'wfv-1',
+  status: 'running',
+  created_at: '2024-01-15T10:00:00Z',
+  updated_at: '2024-01-15T10:00:00Z',
+}
 
 describe('AutomationHistoryCard', () => {
   const mockOnClose = vi.fn()
@@ -27,176 +49,101 @@ describe('AutomationHistoryCard', () => {
 
   it('renders the component with title', () => {
     render(<AutomationHistoryCard {...defaultProps} />)
-
     expect(screen.getByText('Run History')).toBeInTheDocument()
+  })
+
+  it('renders the subtext', () => {
+    render(<AutomationHistoryCard {...defaultProps} />)
+    expect(screen.getByText('View past runs of this automation.')).toBeInTheDocument()
   })
 
   it('renders close button', () => {
     render(<AutomationHistoryCard {...defaultProps} />)
-
-    const closeButton = screen.getByLabelText('Close')
-    expect(closeButton).toBeInTheDocument()
+    expect(screen.getByLabelText('Close')).toBeInTheDocument()
   })
 
   it('calls onClose when close button is clicked', () => {
     render(<AutomationHistoryCard {...defaultProps} />)
-
-    const closeButton = screen.getByLabelText('Close')
-    fireEvent.click(closeButton)
-
+    fireEvent.click(screen.getByLabelText('Close'))
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
   it('shows empty message when no executions', () => {
-    render(<AutomationHistoryCard {...defaultProps} executions={[]} />)
-
+    render(<AutomationHistoryCard {...defaultProps} />)
     expect(screen.getByText('No execution history available')).toBeInTheDocument()
   })
 
-  it('renders table headers when executions exist', () => {
-    const executions: Execution[] = [
-      {
-        id: 'exec-1',
-        workflow_id: 'wf-1',
-        workflow_version_id: 'wfv-1',
-        status: 'running',
-        created_at: '2024-01-15T10:00:00Z',
-        updated_at: '2024-01-15T10:00:00Z',
-      },
-    ]
-
-    render(<AutomationHistoryCard {...defaultProps} executions={executions} />)
-
-    expect(screen.getByText('Created At')).toBeInTheDocument()
-    expect(screen.getByText('Status')).toBeInTheDocument()
+  it('renders date group header "Today" for a recent execution', () => {
+    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    expect(screen.getByText('Today')).toBeInTheDocument()
   })
 
-  it('renders execution rows with date and status', () => {
-    const executions: Execution[] = [
-      {
-        id: 'exec-1',
-        workflow_id: 'wf-1',
-        workflow_version_id: 'wfv-1',
-        status: 'running',
-        created_at: '2024-01-15T10:00:00Z',
-        updated_at: '2024-01-15T10:00:00Z',
-      },
-    ]
-
-    render(<AutomationHistoryCard {...defaultProps} executions={executions} />)
-
-    // Status should be rendered via StatusLabel
+  it('renders execution rows with formatted date and status', () => {
+    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    expect(screen.getByText(/Jan 15, 2024/)).toBeInTheDocument()
     expect(screen.getByTestId('status-label')).toHaveTextContent('running')
   })
 
-  it('renders multiple executions', () => {
+  it('renders truncated run ID with label', () => {
+    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    expect(screen.getByText('Run ID: 12345678')).toBeInTheDocument()
+  })
+
+  it('renders elapsed time when started_at and completed_at are present', () => {
+    const execution: Execution = {
+      ...baseExecution,
+      started_at: '2024-01-15T10:00:00Z',
+      completed_at: '2024-01-15T10:01:30Z',
+    }
+    render(<AutomationHistoryCard {...defaultProps} executions={[execution]} />)
+    expect(screen.getByText('Elapsed time: 90000ms')).toBeInTheDocument()
+  })
+
+  it('renders "Elapsed time: -" when execution is completed with no timing data', () => {
+    const execution: Execution = { ...baseExecution, status: 'completed' }
+    render(<AutomationHistoryCard {...defaultProps} executions={[execution]} />)
+    expect(screen.getByText('Elapsed time: -')).toBeInTheDocument()
+  })
+
+  it('renders multiple execution rows', () => {
     const executions: Execution[] = [
-      {
-        id: 'exec-1',
-        workflow_id: 'wf-1',
-        workflow_version_id: 'wfv-1',
-        status: 'completed',
-        created_at: '2024-01-15T10:00:00Z',
-        updated_at: '2024-01-15T10:00:00Z',
-      },
-      {
-        id: 'exec-2',
-        workflow_id: 'wf-1',
-        workflow_version_id: 'wfv-1',
-        status: 'failed',
-        created_at: '2024-01-16T14:30:00Z',
-        updated_at: '2024-01-16T14:30:00Z',
-      },
+      { ...baseExecution, id: 'aaaaaaaa-0000-0000-0000-000000000001', status: 'completed' },
+      { ...baseExecution, id: 'bbbbbbbb-0000-0000-0000-000000000002', status: 'failed' },
     ]
-
     render(<AutomationHistoryCard {...defaultProps} executions={executions} />)
-
     const statusLabels = screen.getAllByTestId('status-label')
     expect(statusLabels).toHaveLength(2)
     expect(statusLabels[0]).toHaveTextContent('completed')
     expect(statusLabels[1]).toHaveTextContent('failed')
   })
 
-  it('calls onExecutionSelect when row is clicked', () => {
-    const executions: Execution[] = [
-      {
-        id: 'exec-123',
-        workflow_id: 'wf-1',
-        workflow_version_id: 'wfv-1',
-        status: 'running',
-        created_at: '2024-01-15T10:00:00Z',
-        updated_at: '2024-01-15T10:00:00Z',
-      },
-    ]
-
-    render(<AutomationHistoryCard {...defaultProps} executions={executions} />)
-
-    // Click the row (find by status content)
-    const row = screen.getByTestId('status-label').closest('tr')
-    fireEvent.click(row!)
-
-    expect(mockOnExecutionSelect).toHaveBeenCalledWith('exec-123')
+  it('calls onExecutionSelect with the execution id when row is clicked', () => {
+    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    const buttons = screen.getAllByRole('button')
+    const rowButton = buttons.find((btn) => btn.textContent?.includes('Jan 15, 2024'))!
+    fireEvent.click(rowButton)
+    expect(mockOnExecutionSelect).toHaveBeenCalledWith(baseExecution.id)
   })
 
-  it('handles execution without created_at date', () => {
-    const executions = [
-      {
-        id: 'exec-1',
-        workflow_id: 'wf-1',
-        workflow_version_id: 'wfv-1',
-        status: 'running',
-        updated_at: '2024-01-15T10:00:00Z',
-        // No created_at
-      },
-    ] as unknown as Execution[]
-
-    render(<AutomationHistoryCard {...defaultProps} executions={executions} />)
-
-    expect(screen.getByText('Unknown')).toBeInTheDocument()
+  it('highlights the selected execution row with pf-m-current class', () => {
+    render(
+      <AutomationHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId={baseExecution.id} />
+    )
+    const buttons = screen.getAllByRole('button')
+    const rowButton = buttons.find((btn) => btn.textContent?.includes('Jan 15, 2024'))!
+    expect(rowButton).toHaveClass('pf-m-current')
   })
 
-  it('applies hover styles on row mouse enter and leave', () => {
-    const executions: Execution[] = [
-      {
-        id: 'exec-1',
-        workflow_id: 'wf-1',
-        workflow_version_id: 'wfv-1',
-        status: 'running',
-        created_at: '2024-01-15T10:00:00Z',
-        updated_at: '2024-01-15T10:00:00Z',
-      },
-    ]
-
-    render(<AutomationHistoryCard {...defaultProps} executions={executions} />)
-
-    const row = screen.getByTestId('status-label').closest('tr')
-
-    // Mouse enter - verify event handler is called
-    fireEvent.mouseEnter(row!)
-    // Mouse leave - verify event handler is called without throwing
-    fireEvent.mouseLeave(row!)
-    // Just verify the row exists and handles events without error
-    expect(row).toBeInTheDocument()
+  it('does not highlight an unselected row', () => {
+    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId="other-id" />)
+    const buttons = screen.getAllByRole('button')
+    const rowButton = buttons.find((btn) => btn.textContent?.includes('Jan 15, 2024'))!
+    expect(rowButton).not.toHaveClass('pf-m-current')
   })
 
-  it('formats date correctly', () => {
-    const executions: Execution[] = [
-      {
-        id: 'exec-1',
-        workflow_id: 'wf-1',
-        workflow_version_id: 'wfv-1',
-        status: 'running',
-        created_at: '2024-01-15T10:30:45Z',
-        updated_at: '2024-01-15T10:30:45Z',
-      },
-    ]
-
-    render(<AutomationHistoryCard {...defaultProps} executions={executions} />)
-
-    // The date formatting depends on locale, so we just check that date and time are displayed
-    const row = screen.getByTestId('status-label').closest('tr')
-    expect(row).toBeInTheDocument()
-    // Component should display both date and time
+  it('renders a SimpleList when executions are present', () => {
+    render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
+    expect(screen.getByRole('list')).toBeInTheDocument()
   })
 })
 
@@ -207,136 +154,77 @@ describe('ExecutionHistoryRow', () => {
     vi.clearAllMocks()
   })
 
-  it('renders date and time for an execution with created_at', () => {
-    const execution: Execution = {
-      id: 'exec-1',
-      workflow_id: 'wf-1',
-      workflow_version_id: 'wfv-1',
-      status: 'running',
-      created_at: '2024-01-15T10:30:45Z',
-      updated_at: '2024-01-15T10:30:45Z',
-    }
-
-    render(
-      <table>
-        <tbody>
-          <ExecutionHistoryRow execution={execution} onSelect={mockOnSelect} />
-        </tbody>
-      </table>
+  function renderRow(execution: Execution, isSelected?: boolean) {
+    return render(
+      <SimpleList isControlled={false}>
+        <ExecutionHistoryRow execution={execution} onSelect={mockOnSelect} isSelected={isSelected} />
+      </SimpleList>
     )
+  }
 
-    const date = new Date('2024-01-15T10:30:45Z')
-    expect(screen.getByText(date.toLocaleDateString())).toBeInTheDocument()
-    expect(screen.getByText(date.toLocaleTimeString())).toBeInTheDocument()
+  it('renders formatted date in Mon D, YYYY format for an execution with created_at', () => {
+    renderRow(baseExecution)
+    expect(screen.getByText(/Jan 15, 2024/)).toBeInTheDocument()
   })
 
-  it('renders "Unknown" when created_at is missing', () => {
-    const execution = {
-      id: 'exec-1',
-      workflow_id: 'wf-1',
-      workflow_version_id: 'wfv-1',
-      status: 'running',
-      updated_at: '2024-01-15T10:00:00Z',
-    } as unknown as Execution
+  it('does not render date when created_at is missing', () => {
+    const execution = { ...baseExecution, created_at: undefined } as unknown as Execution
+    renderRow(execution)
+    expect(screen.queryByText(/2024/)).not.toBeInTheDocument()
+  })
 
-    render(
-      <table>
-        <tbody>
-          <ExecutionHistoryRow execution={execution} onSelect={mockOnSelect} />
-        </tbody>
-      </table>
-    )
+  it('renders elapsed time label when started_at and completed_at are present', () => {
+    const execution: Execution = {
+      ...baseExecution,
+      started_at: '2024-01-15T10:00:00Z',
+      completed_at: '2024-01-15T10:01:30Z',
+    }
+    renderRow(execution)
+    expect(screen.getByText('Elapsed time: 90000ms')).toBeInTheDocument()
+  })
 
-    expect(screen.getByText('Unknown')).toBeInTheDocument()
+  it('renders "Elapsed time: -" when execution is completed with no timing data', () => {
+    renderRow({ ...baseExecution, status: 'completed' })
+    expect(screen.getByText('Elapsed time: -')).toBeInTheDocument()
+  })
+
+  it('renders run ID with label', () => {
+    renderRow(baseExecution)
+    expect(screen.getByText('Run ID: 12345678')).toBeInTheDocument()
   })
 
   it('renders status label', () => {
-    const execution: Execution = {
-      id: 'exec-1',
-      workflow_id: 'wf-1',
-      workflow_version_id: 'wfv-1',
-      status: 'completed',
-      created_at: '2024-01-15T10:00:00Z',
-      updated_at: '2024-01-15T10:00:00Z',
-    }
+    renderRow(baseExecution)
+    expect(screen.getByTestId('status-label')).toHaveTextContent('running')
+  })
 
-    render(
-      <table>
-        <tbody>
-          <ExecutionHistoryRow execution={execution} onSelect={mockOnSelect} />
-        </tbody>
-      </table>
-    )
-
-    expect(screen.getByTestId('status-label')).toHaveTextContent('completed')
+  it('does not render status label when status is undefined', () => {
+    const execution = { ...baseExecution, status: undefined } as unknown as Execution
+    renderRow(execution)
+    expect(screen.queryByTestId('status-label')).not.toBeInTheDocument()
   })
 
   it('calls onSelect when row is clicked', () => {
-    const execution: Execution = {
-      id: 'exec-123',
-      workflow_id: 'wf-1',
-      workflow_version_id: 'wfv-1',
-      status: 'running',
-      created_at: '2024-01-15T10:00:00Z',
-      updated_at: '2024-01-15T10:00:00Z',
-    }
-
-    render(
-      <table>
-        <tbody>
-          <ExecutionHistoryRow execution={execution} onSelect={mockOnSelect} />
-        </tbody>
-      </table>
-    )
-
-    const row = screen.getByTestId('status-label').closest('tr')
-    fireEvent.click(row!)
-
+    renderRow(baseExecution)
+    fireEvent.click(screen.getByRole('button'))
     expect(mockOnSelect).toHaveBeenCalledTimes(1)
   })
 
-  it.each(['Enter', ' '])('calls onSelect on %s key press', (key) => {
-    const execution: Execution = {
-      id: 'exec-1',
-      workflow_id: 'wf-1',
-      workflow_version_id: 'wfv-1',
-      status: 'running',
-      created_at: '2024-01-15T10:00:00Z',
-      updated_at: '2024-01-15T10:00:00Z',
-    }
+  it('applies pf-m-current class when isSelected is true', () => {
+    renderRow(baseExecution, true)
+    expect(screen.getByRole('button')).toHaveClass('pf-m-current')
+  })
 
-    render(
-      <table>
-        <tbody>
-          <ExecutionHistoryRow execution={execution} onSelect={mockOnSelect} />
-        </tbody>
-      </table>
-    )
+  it('does not apply pf-m-current class when isSelected is false', () => {
+    renderRow(baseExecution, false)
+    expect(screen.getByRole('button')).not.toHaveClass('pf-m-current')
+  })
 
+  it('uses within to check layout structure', () => {
+    renderRow(baseExecution)
     const row = screen.getByRole('button')
-    fireEvent.keyDown(row, { key })
-
-    expect(mockOnSelect).toHaveBeenCalledTimes(1)
-  })
-
-  it('renders "Unknown" when execution.status is undefined', () => {
-    const execution = {
-      id: 'exec-1',
-      workflow_id: 'wf-1',
-      workflow_version_id: 'wfv-1',
-      created_at: '2024-01-15T10:00:00Z',
-      updated_at: '2024-01-15T10:00:00Z',
-    } as unknown as Execution
-
-    render(
-      <table>
-        <tbody>
-          <ExecutionHistoryRow execution={execution} onSelect={mockOnSelect} />
-        </tbody>
-      </table>
-    )
-
-    expect(screen.queryByTestId('status-label')).not.toBeInTheDocument()
-    expect(screen.getByText('Unknown')).toBeInTheDocument()
+    const { getByText } = within(row)
+    expect(getByText(/Jan 15, 2024/)).toBeInTheDocument()
+    expect(getByText('Run ID: 12345678')).toBeInTheDocument()
   })
 })

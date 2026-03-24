@@ -232,7 +232,7 @@ describe('ExecutionDetail', () => {
     )
   })
 
-  it('does not show history panel by default', () => {
+  it('shows history panel by default', () => {
     const queryClient = new QueryClient()
     render(
       <QueryClientProvider client={queryClient}>
@@ -240,7 +240,7 @@ describe('ExecutionDetail', () => {
       </QueryClientProvider>
     )
 
-    expect(screen.queryByTestId('automation-history-card')).not.toBeInTheDocument()
+    expect(screen.getByTestId('automation-history-card')).toBeInTheDocument()
   })
 
   it('shows history panel when history=open query param is present', () => {
@@ -256,7 +256,7 @@ describe('ExecutionDetail', () => {
     expect(screen.getByTestId('automation-history-card')).toBeInTheDocument()
   })
 
-  it('toggles history panel when history button is clicked', async () => {
+  it('toggles history panel closed when history button is clicked', async () => {
     const user = userEvent.setup()
     const queryClient = new QueryClient()
     render(
@@ -268,7 +268,7 @@ describe('ExecutionDetail', () => {
     const historyButton = screen.getByLabelText('Run history')
     await user.click(historyButton)
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123?history=open')
+    expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123?history=closed')
   })
 
   it('closes history panel when close button in history card is clicked', async () => {
@@ -285,10 +285,10 @@ describe('ExecutionDetail', () => {
     const closeButton = screen.getByLabelText('Close history')
     await user.click(closeButton)
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123')
+    expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123?history=closed')
   })
 
-  it('navigates to automation builder when close button in header is clicked', async () => {
+  it('navigates to automation builder when Back to editor button is clicked', async () => {
     const user = userEvent.setup()
     const queryClient = new QueryClient()
     render(
@@ -297,8 +297,8 @@ describe('ExecutionDetail', () => {
       </QueryClientProvider>
     )
 
-    const closeButton = screen.getByLabelText('Close')
-    await user.click(closeButton)
+    const backButton = screen.getByRole('button', { name: 'Back to editor' })
+    await user.click(backButton)
 
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/wf-456')
   })

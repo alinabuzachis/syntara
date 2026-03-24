@@ -954,17 +954,14 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Run History')).toBeInTheDocument()
       })
 
-      // Click on an execution to test onExecutionSelect
-      // Executions are rendered as table rows, not buttons
-      // StatusLabel capitalizes the status text ("Completed")
+      // Click on an execution to select it in the history panel
       const statusText = screen.getByText('Completed')
       expect(statusText).toBeInTheDocument()
-      // Click the parent row element
-      const row = statusText.closest('tr')
+      const row = statusText.closest('button')
       expect(row).not.toBeNull()
       fireEvent.click(row!)
       await waitFor(() => {
-        expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-1')
+        expect(row).toHaveClass('pf-m-current')
       })
     })
   })

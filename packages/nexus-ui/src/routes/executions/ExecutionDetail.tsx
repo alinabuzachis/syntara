@@ -4,14 +4,12 @@ import {
   CompassPanel,
   Flex,
   FlexItem,
-  Icon,
+  Label,
   Stack,
   StackItem,
   Title,
   TitleSizes,
-  Tooltip,
 } from '@patternfly/react-core'
-import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
 import { useQueryClient } from '@tanstack/react-query'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo } from 'react'
@@ -29,6 +27,8 @@ import { AutomationHistoryCard } from '../builder/AutomationHistoryCard'
 import { ExecutionDetailsPanel, type WorkflowDefShape } from '../builder/ExecutionDetailsPanel'
 import { StatusLabel } from '../builder/ExecutionStatus'
 import { ExecutionViewContent } from '../builder/ExecutionViewContent'
+import { formatHistoryDateTime } from '../builder/historyDateUtils'
+import { RunHistoryToggleButton } from '../builder/RunHistoryToggleButton'
 
 type Execution = ExecutionsAPI.components['schemas']['Execution']
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
@@ -63,7 +63,12 @@ function ExecutionDetailContent({
   execution: Execution | undefined
   activities: (ActivityData | ActivityExecution)[]
   executionId: string
-  executionsQuery: { data?: { resources?: Execution[] }; isLoading: boolean; error: unknown }
+  executionsQuery: {
+    data?: { resources?: Execution[] }
+    isLoading: boolean
+    error: unknown
+    refetch: () => Promise<unknown>
+  }
   searchParams: string
   setLocation: (path: string) => void
 }) {
@@ -138,17 +143,17 @@ function ExecutionDetailContent({
         <FlexItem style={{ flexShrink: 0, alignSelf: 'stretch' }}>
           <AutomationHistoryCard
             executions={executionsQuery.data?.resources ?? []}
+            selectedExecutionId={executionId}
             onClose={() => {
               const params = new URLSearchParams(searchParams)
-              params.delete('history')
-              const newSearch = params.toString()
-              setLocation(`/executions/${executionId}${newSearch ? `?${newSearch}` : ''}`)
+              params.set('history', 'closed')
+              setLocation(`/executions/${executionId}?${params.toString()}`)
             }}
-            onExecutionSelect={(selectedExecutionId) => {
+            onExecutionSelect={(selectedId) => {
               // Preserve history panel state when navigating to different execution
               const params = new URLSearchParams(searchParams)
               const newSearch = params.toString()
-              setLocation(`/executions/${selectedExecutionId}${newSearch ? `?${newSearch}` : ''}`)
+              setLocation(`/executions/${selectedId}${newSearch ? `?${newSearch}` : ''}`)
             }}
           />
         </FlexItem>
@@ -207,10 +212,10 @@ export default function ExecutionDetail() {
     },
   })
 
-  // Derive historyCardOpen from URL search params
+  // History panel is open by default; only closed when explicitly set via URL param
   const historyCardOpen = useMemo(() => {
     const params = new URLSearchParams(searchParams)
-    return params.get('history') === 'open'
+    return params.get('history') !== 'closed'
   }, [searchParams])
 
   // Fetch executions for this workflow
@@ -218,11 +223,7 @@ export default function ExecutionDetail() {
     'get',
     '/executions',
     {
-      params: {
-        query: {
-          workflow_id: execution?.workflow_id ?? '',
-        },
-      },
+      params: { query: { workflow_id: execution?.workflow_id ?? '' } },
     },
     {
       enabled: !!execution?.workflow_id,
@@ -318,13 +319,8 @@ export default function ExecutionDetail() {
   // Toggle history panel and update URL
   const toggleHistoryCard = () => {
     const params = new URLSearchParams(searchParams)
-    if (historyCardOpen) {
-      params.delete('history')
-    } else {
-      params.set('history', 'open')
-    }
-    const newSearch = params.toString()
-    setLocation(`/executions/${executionId}${newSearch ? `?${newSearch}` : ''}`)
+    params.set('history', historyCardOpen ? 'closed' : 'open')
+    setLocation(`/executions/${executionId}?${params.toString()}`)
   }
 
   const wfDefMeta = (execution?.workflow_definition as unknown as WorkflowDefinitionLike | undefined)?.metadata
@@ -340,36 +336,24 @@ export default function ExecutionDetail() {
           <StatusLabel status={execution.status} />
         </FlexItem>
       )}
+      {execution?.created_at && (
+        <FlexItem>
+          <Label>{`Viewing run: ${formatHistoryDateTime(execution.created_at)}`}</Label>
+        </FlexItem>
+      )}
     </Flex>
   )
 
   return (
     <AppPage>
       <AppPageHeader title={pageTitle}>
-        <Tooltip content="Run history">
-          <Button
-            variant="plain"
-            onClick={toggleHistoryCard}
-            icon={
-              <Icon isInline>
-                <RhUiHistoryIcon />
-              </Icon>
-            }
-            aria-label="Run history"
-          />
-        </Tooltip>
-        <Tooltip content="Close and open in automation builder">
-          <Button
-            variant="plain"
-            onClick={() => execution?.workflow_id && setLocation(`/automation-builder/${execution.workflow_id}`)}
-            icon={
-              <Icon isInline>
-                <RhUiCloseIcon />
-              </Icon>
-            }
-            aria-label="Close"
-          />
-        </Tooltip>
+        <RunHistoryToggleButton onClick={toggleHistoryCard} isActive={historyCardOpen} />
+        <Button
+          variant="primary"
+          onClick={() => execution?.workflow_id && setLocation(`/automation-builder/${execution.workflow_id}`)}
+        >
+          Back to editor
+        </Button>
       </AppPageHeader>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <ExecutionDetailContent

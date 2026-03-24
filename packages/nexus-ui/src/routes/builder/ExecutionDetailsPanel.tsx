@@ -1,3 +1,4 @@
+import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import {
   CompassPanel,
   Content,
@@ -24,11 +25,12 @@ import { StatusLabel } from './ExecutionStatus'
 interface ActivityLike {
   id?: string
   name?: string
-  branches?: ActivityLike[][]
+  branches?: (ActivityLike[] | ActivityLike | string)[]
   steps?: ActivityLike[]
   then?: ActivityLike[]
   else?: ActivityLike[]
   loop?: { do?: ActivityLike[] }
+  converge?: { branches?: string[] }
 }
 
 interface TriggerLike {
@@ -49,6 +51,13 @@ interface ExecutionDetailsPanelProps {
 
 const CHILD_KEYS: (keyof ActivityLike)[] = ['steps', 'then', 'else']
 
+/** Normalize branches to ActivityLike[][] — parallel has objects/arrays, converge has strings (skipped). */
+function normalizeBranches(branches: (ActivityLike[] | ActivityLike | string)[]): ActivityLike[][] {
+  return branches
+    .filter((b): b is ActivityLike[] | ActivityLike => typeof b !== 'string')
+    .map((b) => (Array.isArray(b) ? b : [b]))
+}
+
 function buildNameMap(activities: ActivityLike[] | undefined): Map<string, string> {
   const map = new Map<string, string>()
   if (!activities) return map
@@ -58,7 +67,7 @@ function buildNameMap(activities: ActivityLike[] | undefined): Map<string, strin
       if (act.id && act.name) map.set(act.id, act.name)
 
       if (act.branches) {
-        for (const branch of act.branches) traverse(branch)
+        for (const branch of normalizeBranches(act.branches)) traverse(branch)
       }
 
       for (const key of CHILD_KEYS) {
@@ -72,6 +81,59 @@ function buildNameMap(activities: ActivityLike[] | undefined): Map<string, strin
 
   traverse(activities)
   return map
+}
+
+type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
+
+interface HeaderMetadataProps {
+  execution: {
+    started_at?: string | null
+    created_at?: string | null
+    completed_at?: string | null
+    status?: ExecutionStatus | null
+  }
+  elapsedLabel?: string
+  isRunning: boolean
+}
+
+function HeaderMetadata({ execution, elapsedLabel, isRunning }: HeaderMetadataProps) {
+  const startDisplay = execution.started_at ?? execution.created_at
+
+  return (
+    <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
+      <FlexItem>
+        <Title headingLevel="h2" size={TitleSizes.md} style={{ margin: 0 }}>
+          {isRunning ? 'Current run details' : 'Run details'}
+        </Title>
+      </FlexItem>
+      <FlexItem>
+        <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
+          {startDisplay && (
+            <Content
+              component={ContentVariants.small}
+              style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
+            >
+              {formatExecutionDateTime(startDisplay)}
+              {execution.completed_at && ` - ${formatExecutionDateTime(execution.completed_at)}`}
+            </Content>
+          )}
+          {elapsedLabel && (
+            <Content
+              component={ContentVariants.small}
+              style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
+            >
+              Elapsed time: {elapsedLabel}
+            </Content>
+          )}
+          {execution.status && (
+            <FlexItem style={{ display: 'flex', alignItems: 'center' }}>
+              <StatusLabel status={execution.status} />
+            </FlexItem>
+          )}
+        </Flex>
+      </FlexItem>
+    </Flex>
+  )
 }
 
 /**
@@ -155,6 +217,7 @@ export function ExecutionDetailsPanel({ executionId, workflowDefinition }: Execu
 
   return (
     <CompassPanel
+      hasNoPadding
       style={{
         height: '100%',
         maxHeight: '100%',
@@ -165,43 +228,10 @@ export function ExecutionDetailsPanel({ executionId, workflowDefinition }: Execu
         overflow: 'hidden',
       }}
     >
-      <Stack style={{ height: '100%', overflow: 'hidden' }}>
+      <Stack style={{ height: '100%', overflow: 'hidden', padding: 'var(--pf-t--global--spacer--md)' }}>
         {/* Header: title left, execution metadata right */}
-        <StackItem
-          style={{ flexShrink: 0, padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)' }}
-        >
-          <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
-            <FlexItem>
-              <Title headingLevel="h2" size={TitleSizes.lg}>
-                Current run details
-              </Title>
-            </FlexItem>
-            <FlexItem>
-              <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
-                {execution.started_at && (
-                  <Content
-                    component={ContentVariants.small}
-                    style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
-                  >
-                    {formatExecutionDateTime(execution.started_at)} - {execution.status}
-                  </Content>
-                )}
-                {elapsedLabel && (
-                  <Content
-                    component={ContentVariants.small}
-                    style={{ color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}
-                  >
-                    Elapsed time: {elapsedLabel}
-                  </Content>
-                )}
-                {execution.status && (
-                  <FlexItem style={{ display: 'flex', alignItems: 'center' }}>
-                    <StatusLabel status={execution.status} />
-                  </FlexItem>
-                )}
-              </Flex>
-            </FlexItem>
-          </Flex>
+        <StackItem style={{ flexShrink: 0, paddingBottom: 'var(--pf-t--global--spacer--md)' }}>
+          <HeaderMetadata execution={execution} elapsedLabel={elapsedLabel} isRunning={isRunning} />
         </StackItem>
 
         {/* Scrollable activity table */}

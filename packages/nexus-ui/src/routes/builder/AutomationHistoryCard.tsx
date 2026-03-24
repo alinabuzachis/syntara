@@ -4,77 +4,84 @@ import {
   CompassPanel,
   Content,
   ContentVariants,
+  Divider,
   Flex,
   FlexItem,
   Icon,
+  SimpleList,
+  SimpleListGroup,
+  SimpleListItem,
   Stack,
   StackItem,
   Title,
   TitleSizes,
 } from '@patternfly/react-core'
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
-import { useState } from 'react'
+
+import { useElapsedTime } from '../../hooks/useElapsedTime'
+import { formatElapsedTime } from '../../utils/dateUtils'
 
 import { StatusLabel } from './ExecutionStatus'
+import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
 
 type Execution = ExecutionsAPI.components['schemas']['Execution']
+
+const TRUNCATED_ID_LENGTH = 8 // First 8 chars of UUID provide sufficient uniqueness
+
+interface ExecutionGroup {
+  label: string
+  items: Execution[]
+}
+
+function groupExecutionsByDate(executions: Execution[]): ExecutionGroup[] {
+  const map = new Map<string, Execution[]>()
+  for (const exec of executions) {
+    const label = exec.created_at ? getDateGroupLabel(exec.created_at) : 'Unknown'
+    if (!map.has(label)) map.set(label, [])
+    map.get(label)!.push(exec)
+  }
+  return Array.from(map.entries()).map(([label, items]) => ({ label, items }))
+}
 
 interface ExecutionHistoryRowProps {
   execution: Execution
   onSelect: () => void
+  isSelected?: boolean
 }
 
-export function ExecutionHistoryRow({ execution, onSelect }: ExecutionHistoryRowProps) {
-  const date = execution.created_at ? new Date(execution.created_at) : null
-  const [isHovered, setIsHovered] = useState(false)
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      onSelect()
-    }
-  }
+export function ExecutionHistoryRow({ execution, onSelect, isSelected }: ExecutionHistoryRowProps) {
+  const isRunning = execution.status === 'running'
+  const startedAtValue = execution.started_at ?? execution.created_at ?? null
+  const { elapsedMs } = useElapsedTime(startedAtValue, execution.completed_at, isRunning)
+  const elapsedLabel = elapsedMs !== undefined ? `Elapsed time: ${formatElapsedTime(elapsedMs)}` : 'Elapsed time: -'
+  const truncatedId = execution.id ? execution.id.slice(0, TRUNCATED_ID_LENGTH) : null
+
   return (
-    <tr
-      onClick={onSelect}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="button"
-      style={{
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-        cursor: 'pointer',
-        backgroundColor: isHovered ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <td
-        style={{
-          paddingTop: 'var(--pf-t--global--spacer--sm)',
-          paddingBottom: 'var(--pf-t--global--spacer--sm)',
-        }}
+    <SimpleListItem itemId={execution.id} isActive={isSelected} onClick={onSelect}>
+      <Flex
+        justifyContent={{ default: 'justifyContentSpaceBetween' }}
+        alignItems={{ default: 'alignItemsFlexStart' }}
+        gap={{ default: 'gapSm' }}
+        fullWidth={{ default: 'fullWidth' }}
       >
-        {date ? (
-          <Stack>
-            <StackItem>
-              <Content style={{ whiteSpace: 'nowrap' }}>{date.toLocaleDateString()}</Content>
-            </StackItem>
-            <StackItem>
-              <Content style={{ whiteSpace: 'nowrap', opacity: 0.6 }}>{date.toLocaleTimeString()}</Content>
-            </StackItem>
+        <FlexItem>
+          <Stack style={{ gap: 'var(--pf-t--global--spacer--sm)' }}>
+            {execution.created_at && (
+              <Content component={ContentVariants.p} style={{ whiteSpace: 'nowrap', fontWeight: 600, margin: 0 }}>
+                {formatHistoryDateTime(execution.created_at)}
+              </Content>
+            )}
+            <Content component={ContentVariants.small} style={{ margin: 0 }}>
+              {elapsedLabel}
+            </Content>
+            {truncatedId && (
+              <Content component={ContentVariants.small} style={{ margin: 0 }}>{`Run ID: ${truncatedId}`}</Content>
+            )}
           </Stack>
-        ) : (
-          <Content>Unknown</Content>
-        )}
-      </td>
-      <td
-        style={{
-          paddingTop: 'var(--pf-t--global--spacer--sm)',
-          paddingBottom: 'var(--pf-t--global--spacer--sm)',
-        }}
-      >
-        {execution.status ? <StatusLabel status={execution.status} /> : <Content>Unknown</Content>}
-      </td>
-    </tr>
+        </FlexItem>
+        <FlexItem style={{ flexShrink: 0 }}>{execution.status && <StatusLabel status={execution.status} />}</FlexItem>
+      </Flex>
+    </SimpleListItem>
   )
 }
 
@@ -82,13 +89,17 @@ interface AutomationHistoryCardProps {
   executions: Execution[]
   onClose: () => void
   onExecutionSelect: (executionId: string) => void
+  selectedExecutionId?: string | null
 }
 
 export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
-  const executions = props.executions
+  const { executions, onClose, onExecutionSelect, selectedExecutionId } = props
+
+  const groups = groupExecutionsByDate(executions)
 
   return (
     <CompassPanel
+      hasNoPadding
       style={{
         height: '100%',
         maxHeight: '100%',
@@ -99,21 +110,32 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
         overflow: 'hidden',
       }}
     >
-      <Stack>
-        <StackItem style={{ flexShrink: 0, padding: 'var(--pf-t--global--spacer--lg)' }}>
-          <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
+      <Stack style={{ height: '100%', overflow: 'hidden' }}>
+        <StackItem
+          style={{
+            flexShrink: 0,
+            padding: 'var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--md)',
+          }}
+        >
+          <Flex
+            justifyContent={{ default: 'justifyContentSpaceBetween' }}
+            alignItems={{ default: 'alignItemsFlexStart' }}
+          >
             <FlexItem>
-              <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-                <Icon>
-                  <RhUiHistoryIcon />
-                </Icon>
-                <Title headingLevel="h2" size={TitleSizes.lg}>
-                  Run History
-                </Title>
-              </Flex>
+              <Stack hasGutter>
+                <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+                  <Icon>
+                    <RhUiHistoryIcon />
+                  </Icon>
+                  <Title headingLevel="h2" size={TitleSizes.md}>
+                    Run History
+                  </Title>
+                </Flex>
+                <Content component={ContentVariants.small}>View past runs of this automation.</Content>
+              </Stack>
             </FlexItem>
             <FlexItem>
-              <Button variant="plain" onClick={props.onClose} aria-label="Close">
+              <Button variant="plain" onClick={onClose} aria-label="Close">
                 <Icon>
                   <RhUiCloseIcon />
                 </Icon>
@@ -121,41 +143,58 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
             </FlexItem>
           </Flex>
         </StackItem>
-        <StackItem
-          isFilled
-          style={{
-            minHeight: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            paddingLeft: 'var(--pf-t--global--spacer--lg)',
-            paddingRight: 'var(--pf-t--global--spacer--lg)',
-            paddingBottom: 'var(--pf-t--global--spacer--lg)',
-          }}
-        >
+
+        <StackItem isFilled style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
           {executions.length === 0 ? (
-            <Content component={ContentVariants.p}>No execution history available</Content>
+            <Content
+              component={ContentVariants.p}
+              style={{
+                padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
+              }}
+            >
+              No execution history available
+            </Content>
           ) : (
-            <table style={{ width: '100%' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.2)' }}>
-                  <th style={{ paddingBottom: 'var(--pf-t--global--spacer--sm)', textAlign: 'left', fontWeight: 600 }}>
-                    Created At
-                  </th>
-                  <th style={{ paddingBottom: 'var(--pf-t--global--spacer--sm)', textAlign: 'left', fontWeight: 600 }}>
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {executions.map((execution) => (
-                  <ExecutionHistoryRow
-                    key={execution.id}
-                    execution={execution}
-                    onSelect={() => props.onExecutionSelect(execution.id)}
-                  />
-                ))}
-              </tbody>
-            </table>
+            <SimpleList
+              isControlled={false}
+              aria-label="Run history list"
+              style={
+                {
+                  paddingBottom: 'var(--pf-t--global--spacer--lg)',
+                  '--pf-v6-c-simple-list__item-link--PaddingBlockStart': 'var(--pf-t--global--spacer--md)',
+                  '--pf-v6-c-simple-list__item-link--PaddingBlockEnd': 'var(--pf-t--global--spacer--md)',
+                } as React.CSSProperties
+              }
+            >
+              {groups.map(({ label, items }) => (
+                <SimpleListGroup
+                  key={label}
+                  title={
+                    <Content
+                      component={ContentVariants.small}
+                      style={{
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'var(--pf-t--global--text--color--subtle)',
+                        margin: 0,
+                      }}
+                    >
+                      {label}
+                    </Content>
+                  }
+                >
+                  {items.flatMap((execution) => [
+                    <ExecutionHistoryRow
+                      key={execution.id}
+                      execution={execution}
+                      onSelect={() => onExecutionSelect(execution.id)}
+                      isSelected={selectedExecutionId === execution.id}
+                    />,
+                    <Divider key={`${execution.id}-divider`} component="li" />,
+                  ])}
+                </SimpleListGroup>
+              ))}
+            </SimpleList>
           )}
         </StackItem>
       </Stack>

@@ -12,7 +12,7 @@ import React from 'react'
 
 import { NodeExpandedAllContext } from './nodes/common/NodeExpandedAllContext'
 
-export function CanvasControls(props: { onLayout: () => void }) {
+export function CanvasControls(props: { onLayout: () => void; hideLayout?: boolean }) {
   // const [, setFlowDirection] = useContext(FlowDirectionContext)
   const { fitView, zoomIn, zoomOut } = useReactFlow()
   const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
@@ -81,18 +81,20 @@ export function CanvasControls(props: { onLayout: () => void }) {
               }
             />
           </FlexItem>
-          <FlexItem>
-            <Button
-              variant="plain"
-              onClick={() => props.onLayout()}
-              aria-label="Layout"
-              icon={
-                <Icon isInline>
-                  <RhUiCleanUpFillIcon />
-                </Icon>
-              }
-            />
-          </FlexItem>
+          {!props.hideLayout && (
+            <FlexItem>
+              <Button
+                variant="plain"
+                onClick={() => props.onLayout()}
+                aria-label="Layout"
+                icon={
+                  <Icon isInline>
+                    <RhUiCleanUpFillIcon />
+                  </Icon>
+                }
+              />
+            </FlexItem>
+          )}
         </Flex>
       </CompassPanel>
     </Panel>
