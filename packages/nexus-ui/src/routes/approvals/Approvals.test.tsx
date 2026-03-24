@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { approvalsClient } from '../../client'
+import { useFilterState } from '../../hooks/useFilterState'
 import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
 
 import Approvals from './Approvals'
@@ -14,6 +15,15 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
   },
 }))
+
+// Mock useFilterState - will be configured per-test
+vi.mock('../../hooks/useFilterState', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../hooks/useFilterState')>()
+  return {
+    ...actual,
+    useFilterState: vi.fn(actual.useFilterState),
+  }
+})
 
 const mockSearchParams = new URLSearchParams()
 const mockSetSearchParams = vi.fn()
@@ -153,6 +163,8 @@ describe('Approvals Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset useFilterState to its default implementation (not mocked)
+    vi.mocked(useFilterState).mockRestore?.()
   })
 
   const mockApprovalsQuery = (data: Approval[], isPending = false, error: unknown = null) => {
@@ -602,6 +614,175 @@ describe('Approvals Component', () => {
       fireEvent.click(prevButton)
 
       expect(prevButton).toBeInTheDocument()
+    })
+
+    it('does not reset cursor while query is fetching', async () => {
+      const mockRefetch = vi.fn()
+
+      // First render: page 1 with data
+      vi.mocked(approvalsClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockApprovals,
+          next: 'next-cursor',
+          prev: null,
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      const { rerender } = render(<Approvals />)
+
+      // Verify pagination controls present
+      const nextButton = screen.getByRole('button', { name: /next/i })
+      expect(nextButton).toBeInTheDocument()
+
+      // Click Next to set internal cursor state
+      fireEvent.click(nextButton)
+
+      // Verify cursor was set after clicking Next
+      await waitFor(() => {
+        const lastCall = vi.mocked(approvalsClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toMatchObject({ cursor: 'next-cursor' })
+      })
+
+      // Second render: fetching state with empty data (cursor should NOT be reset due to isFetching=true)
+      vi.mocked(approvalsClient.useQuery).mockReturnValue({
+        data: {
+          resources: [], // Empty during transition
+          next: 'next-cursor',
+          prev: 'prev-cursor',
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: true, // Fetching prevents cursor reset
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      // Rerender to trigger useEffect with fetching state
+      rerender(<Approvals />)
+
+      // Wait for component to process and verify cursor is still present (not reset)
+      await waitFor(() => {
+        const lastCall = vi.mocked(approvalsClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        // Cursor should still be present because isFetching=true prevents reset
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toMatchObject({ cursor: 'next-cursor' })
+      })
+
+      // Third render: data arrives for page 2 - if cursor was preserved, we should have prev button
+      vi.mocked(approvalsClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockApprovals.slice(0, 2), // Page 2 data
+          next: 'next-cursor',
+          prev: 'prev-cursor', // This proves we're on page 2, not page 1
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      rerender(<Approvals />)
+
+      // Verify pagination shows both buttons (proves cursor was not reset - we're on page 2)
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /previous/i })).toBeInTheDocument()
+      })
+    })
+
+    it('resets cursor when data is empty and query is not fetching', async () => {
+      const mockRefetch = vi.fn()
+
+      // Ensure useFilterState returns no active filters so hasActiveFilters is false
+      // This is required for the cursor reset logic to run
+      vi.mocked(useFilterState).mockReturnValue({
+        filters: [], // No active filters
+        setFilter: vi.fn(),
+        removeFilter: vi.fn(),
+        clearAllFilters: vi.fn(),
+        setAllFilters: vi.fn(),
+      })
+
+      // Start with data and cursor
+      vi.mocked(approvalsClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockApprovals,
+          next: 'next-cursor',
+          prev: null,
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      const { rerender } = render(<Approvals />)
+
+      // Click Next to set cursor
+      const nextButton = screen.getByRole('button', { name: /next/i })
+      fireEvent.click(nextButton)
+
+      // Wait for cursor to be set and verify it's present
+      await waitFor(() => {
+        const lastCall = vi.mocked(approvalsClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toMatchObject({ cursor: 'next-cursor' })
+      })
+
+      // Simulate truly empty state - no data and not fetching
+      vi.mocked(approvalsClient.useQuery).mockReturnValue({
+        data: {
+          resources: [],
+          next: null,
+          prev: null,
+          total: 0,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false, // Not fetching allows cursor reset
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      rerender(<Approvals />)
+
+      // Should show empty state (cursor was reset)
+      await waitFor(() => {
+        expect(screen.getByText('No approvals found')).toBeInTheDocument()
+      })
+
+      // Verify cursor was reset (no cursor in query params)
+      await waitFor(() => {
+        const lastCall = vi.mocked(approvalsClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        // Cursor should be absent or undefined because it was reset
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams?.cursor).toBeUndefined()
+      })
     })
   })
 

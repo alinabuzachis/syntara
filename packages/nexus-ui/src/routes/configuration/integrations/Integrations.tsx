@@ -206,11 +206,12 @@ export default function Integrations() {
   const hasActiveFilters = filters.length > 0
 
   // Reset cursor when showing IntegrationEmptyState (no integrations and no filters)
+  // Only reset if query is not fetching to avoid clearing cursor during pagination
   useEffect(() => {
-    if (integrations.length === 0 && !hasActiveFilters && cursor) {
+    if (integrations.length === 0 && !hasActiveFilters && cursor && !query.isFetching) {
       dispatch({ type: 'SET_CURSOR', payload: null })
     }
-  }, [integrations.length, hasActiveFilters, cursor])
+  }, [integrations.length, hasActiveFilters, cursor, query.isFetching])
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,

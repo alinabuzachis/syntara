@@ -772,6 +772,104 @@ describe('Automations Component', () => {
       // Clicking previous should work without errors
       expect(() => fireEvent.click(prevButton)).not.toThrow()
     })
+
+    it('does not reset cursor while query is fetching', async () => {
+      // Mock initial state with data and next cursor
+      const mockRefetch = vi.fn()
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockWorkflows,
+          next: 'next-cursor',
+          prev: null,
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Verify pagination controls present
+      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      expect(nextButton).toBeInTheDocument()
+
+      // Click Next to set internal cursor state
+      fireEvent.click(nextButton)
+
+      // Now simulate fetching state with empty data (cursor should NOT be reset)
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: [], // Empty during transition
+          next: 'next-cursor',
+          prev: 'prev-cursor',
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: true, // Fetching prevents cursor reset
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      // Force re-render to trigger useEffect with new query state
+      fireEvent.click(nextButton)
+
+      // Verify pagination controls still present (cursor was not reset despite empty data)
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Previous page' })).toBeInTheDocument()
+      })
+    })
+
+    it('resets cursor when data is empty and query is not fetching', async () => {
+      const mockRefetch = vi.fn()
+
+      // Start with data
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockWorkflows,
+          next: 'next-cursor',
+          prev: null,
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      const { rerender } = render(<Automations />, { wrapper })
+
+      // Simulate truly empty state - no data and not fetching
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: [],
+          next: null,
+          prev: null,
+          total: 0,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false, // Not fetching allows cursor reset
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      rerender(<Automations />)
+
+      // Should show empty state (cursor was reset)
+      await waitFor(() => {
+        expect(screen.getByText('No automations found')).toBeInTheDocument()
+      })
+    })
   })
 
   describe('Delete Automation', () => {

@@ -205,11 +205,12 @@ export default function Automations() {
   const hasActiveFilters = filters.length > 0
 
   // Reset cursor when showing EmptyStateNoData (no automations and no filters)
+  // Only reset if query is not fetching to avoid clearing cursor during pagination
   useEffect(() => {
-    if (automations.length === 0 && !hasActiveFilters && cursor) {
+    if (automations.length === 0 && !hasActiveFilters && cursor && !workflowsQuery.isFetching) {
       dispatch({ type: 'SET_CURSOR', payload: null })
     }
-  }, [automations.length, hasActiveFilters, cursor])
+  }, [automations.length, hasActiveFilters, cursor, workflowsQuery.isFetching])
 
   const handleRunAutomation = (workflow: Workflow) => {
     executeAutomation(

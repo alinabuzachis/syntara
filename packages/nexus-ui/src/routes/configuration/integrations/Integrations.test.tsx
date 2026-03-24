@@ -7,6 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { toolManagerClient } from '../../../client'
 import { AlertProvider } from '../../../components/alerts'
+import { useFilterState } from '../../../hooks/useFilterState'
 import { assertUrlParam } from '../../../test/filter-test-helpers'
 
 import Integrations from './Integrations'
@@ -18,6 +19,15 @@ vi.mock('../../../client', () => ({
     useMutation: vi.fn(),
   },
 }))
+
+// Mock useFilterState - will be configured per-test
+vi.mock('../../../hooks/useFilterState', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../hooks/useFilterState')>()
+  return {
+    ...actual,
+    useFilterState: vi.fn(actual.useFilterState),
+  }
+})
 
 const mockNavigate = vi.fn()
 const mockSearchParams = new URLSearchParams()
@@ -90,6 +100,8 @@ describe('Integrations Component', () => {
     // Reset mocks before each test
     mockNavigate.mockClear()
     mockSetSearchParams.mockClear()
+    // Reset useFilterState to its default implementation (not mocked)
+    vi.mocked(useFilterState).mockRestore?.()
     // Clear all search params to start with empty state
     Array.from(mockSearchParams.keys()).forEach((key) => {
       mockSearchParams.delete(key)
@@ -457,6 +469,165 @@ describe('Integrations Component', () => {
 
       // The button click should trigger the onPrev callback
       expect(prevButton).toBeInTheDocument()
+    })
+
+    it('does not reset cursor while query is fetching', async () => {
+      const mockRefetch = vi.fn()
+
+      // First render: page 1 with data
+      vi.mocked(toolManagerClient.useQuery).mockReturnValueOnce({
+        data: {
+          resources: mockIntegrations,
+          next: 'next-cursor',
+          prev: null,
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      const { rerender } = render(<Integrations />, { wrapper })
+
+      // Verify pagination controls present
+      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      expect(nextButton).toBeInTheDocument()
+
+      // Click Next to set internal cursor state
+      fireEvent.click(nextButton)
+
+      // Verify cursor was set after clicking Next
+      await waitFor(() => {
+        const lastCall = vi.mocked(toolManagerClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toMatchObject({ cursor: 'next-cursor' })
+      })
+
+      // Second render: fetching state with empty data (cursor should NOT be reset due to isFetching=true)
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+        data: {
+          resources: [], // Empty during transition
+          next: 'next-cursor',
+          prev: 'prev-cursor',
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: true, // Fetching prevents cursor reset
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      // Rerender to trigger useEffect with fetching state
+      rerender(<Integrations />)
+
+      // Wait for component to process and verify cursor is still present (not reset)
+      await waitFor(() => {
+        const lastCall = vi.mocked(toolManagerClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        // Cursor should still be present because isFetching=true prevents reset
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toMatchObject({ cursor: 'next-cursor' })
+      })
+
+      // Third render: data arrives for page 2 - if cursor was preserved, we should have prev button
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockIntegrations.slice(0, 2), // Page 2 data
+          next: 'next-cursor',
+          prev: 'prev-cursor', // This proves we're on page 2, not page 1
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      rerender(<Integrations />)
+
+      // Verify pagination shows both buttons (proves cursor was not reset - we're on page 2)
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Previous page' })).toBeInTheDocument()
+      })
+    })
+
+    it('resets cursor when data is empty and query is not fetching', async () => {
+      const mockRefetch = vi.fn()
+
+      // Start with data and next cursor
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+        data: {
+          resources: mockIntegrations,
+          next: 'next-cursor',
+          prev: null,
+          total: 30,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      const { rerender } = render(<Integrations />, { wrapper })
+
+      // Click Next to set internal cursor state
+      const nextButton = screen.getByRole('button', { name: 'Next page' })
+      fireEvent.click(nextButton)
+
+      // Wait for cursor to be set and verify it's present
+      await waitFor(() => {
+        const lastCall = vi.mocked(toolManagerClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams).toMatchObject({ cursor: 'next-cursor' })
+      })
+
+      // Simulate truly empty state - no data and not fetching
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+        data: {
+          resources: [],
+          next: null,
+          prev: null,
+          total: 0,
+        },
+        isPending: false,
+        isLoading: false,
+        isFetching: false, // Not fetching allows cursor reset
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      })
+
+      rerender(<Integrations />)
+
+      // Verify cursor was reset (no cursor in query params)
+      await waitFor(() => {
+        const lastCall = vi.mocked(toolManagerClient.useQuery).mock.calls.at(-1)
+        expect(lastCall).toBeDefined()
+        // Cursor should be absent or undefined because it was reset
+        const queryParams = (lastCall?.[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params
+          ?.query
+        expect(queryParams?.cursor).toBeUndefined()
+      })
+
+      // Should show empty state (cursor was reset)
+      await waitFor(() => {
+        expect(screen.getByText(/No integrations/)).toBeInTheDocument()
+      })
     })
   })
 

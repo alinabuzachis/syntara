@@ -205,11 +205,12 @@ export default function Approvals() {
   const hasActiveFilters = filters.length > 0
 
   // Reset cursor when showing EmptyStateNoData (no approvals and no filters)
+  // Only reset if query is not fetching to avoid clearing cursor during pagination
   useEffect(() => {
-    if (enrichedApprovals.length === 0 && !hasActiveFilters && cursor) {
+    if (enrichedApprovals.length === 0 && !hasActiveFilters && cursor && !approvalsQuery.isFetching) {
       dispatch({ type: 'SET_CURSOR', payload: null })
     }
-  }, [enrichedApprovals.length, hasActiveFilters, cursor])
+  }, [enrichedApprovals.length, hasActiveFilters, cursor, approvalsQuery.isFetching])
 
   // Client-side sorting of current page only
   // Note: Server returns filtered results; sorting is applied to the current page
