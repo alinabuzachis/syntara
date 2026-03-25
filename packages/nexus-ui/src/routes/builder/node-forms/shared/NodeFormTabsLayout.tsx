@@ -39,7 +39,7 @@ export function NodeFormTabsLayout({
           </FlexItem>
         </Flex>
       </StackItem>
-      <StackItem isFilled style={{ minHeight: 0, overflow: 'auto', paddingRight: 'var(--pf-t--global--spacer--sm)' }}>
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'auto', paddingRight: 'var(--pf-t--global--spacer--md)' }}>
         <Stack hasGutter>
           <StackItem>{activeTabKey === 0 ? parametersContent : (settingsContent ?? null)}</StackItem>
           <FormSubmitButton submitButtonText={submitButtonText} isDisabled={isSubmitDisabled} />
