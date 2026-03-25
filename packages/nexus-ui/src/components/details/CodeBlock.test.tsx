@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { CodeBlock } from './CodeBlock'
@@ -60,7 +60,7 @@ describe('CodeBlock', () => {
     const { container } = render(<CodeBlock noMaxHeight>code</CodeBlock>)
 
     const codeBlock = container.querySelector('.pf-v6-c-code-block')
-    // When noMaxHeight, the wrapper div is not rendered
+
     expect(codeBlock?.parentElement).not.toHaveStyle({ maxHeight: '24rem' })
   })
 
@@ -87,9 +87,7 @@ describe('CodeBlock', () => {
     render(<CodeBlock enableCopy>code to copy</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
-    await act(async () => {
-      fireEvent.click(copyButton)
-    })
+    fireEvent.click(copyButton)
 
     expect(mockWriteText).toHaveBeenCalledWith('code to copy')
   })
@@ -98,9 +96,7 @@ describe('CodeBlock', () => {
     render(<CodeBlock enableCopy>code</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
-    await act(async () => {
-      fireEvent.click(copyButton)
-    })
+    fireEvent.click(copyButton)
 
     await waitFor(() => {
       expect(screen.getByText('Copied to clipboard')).toBeInTheDocument()
@@ -112,9 +108,7 @@ describe('CodeBlock', () => {
     render(<CodeBlock enableCopy jsonObject={jsonObject} />)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
-    await act(async () => {
-      fireEvent.click(copyButton)
-    })
+    fireEvent.click(copyButton)
 
     expect(mockWriteText).toHaveBeenCalledWith(JSON.stringify(jsonObject, undefined, 2))
   })
@@ -131,9 +125,7 @@ describe('CodeBlock', () => {
     render(<CodeBlock enableCopy>code</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
-    await act(async () => {
-      fireEvent.click(copyButton)
-    })
+    fireEvent.click(copyButton)
 
     // Even on failure, it should show "Copied" briefly
     await waitFor(() => {
@@ -166,8 +158,6 @@ describe('CodeBlock', () => {
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
     // Should not throw when clicked
-    await act(async () => {
-      expect(() => fireEvent.click(copyButton)).not.toThrow()
-    })
+    expect(() => fireEvent.click(copyButton)).not.toThrow()
   })
 })

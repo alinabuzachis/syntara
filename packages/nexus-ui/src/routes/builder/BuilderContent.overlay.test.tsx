@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ReactFlowProvider } from '@xyflow/react'
 import type { ComponentProps, ReactNode } from 'react'
 import * as React from 'react'
@@ -65,12 +65,8 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-async function renderBuilder(props: BuilderContentProps) {
-  let result: ReturnType<typeof render>
-  await act(async () => {
-    result = render(<BuilderContent {...props} />, { wrapper })
-  })
-  return result!
+function renderBuilder(props: BuilderContentProps) {
+  return render(<BuilderContent {...props} />, { wrapper })
 }
 
 describe('BuilderContent overlay', () => {

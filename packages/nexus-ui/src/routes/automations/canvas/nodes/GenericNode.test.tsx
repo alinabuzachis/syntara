@@ -136,9 +136,10 @@ describe('GenericNodeComponent', () => {
     it('renders with dashed border styling', () => {
       const { container } = render(<GenericNodeComponent {...createNodeProps(baseGenericNode)} />)
 
-      // The component passes hasDashedBorder prop to NodeComponent
-      // Check that the node is rendered (dashed border is handled by NodeComponent)
-      expect(container.querySelector('.pf-v6-c-compass__panel')).toBeInTheDocument()
+      const panel = container.querySelector('.pf-v6-c-compass__panel')
+      expect(panel).toBeInTheDocument()
+      // Verify the dashed-border-specific color is applied (only set when hasDashedBorder is true)
+      expect(panel).toHaveAttribute('style', expect.stringContaining('rgba(196, 181, 253, 0.5)'))
     })
   })
 

@@ -119,9 +119,8 @@ describe('AutomationHistoryCard', () => {
 
   it('calls onExecutionSelect with the execution id when row is clicked', () => {
     render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
-    const buttons = screen.getAllByRole('button')
-    const rowButton = buttons.find((btn) => btn.textContent?.includes('Jan 15, 2024'))!
-    fireEvent.click(rowButton)
+    const row = screen.getByRole('button', { name: /running/i })
+    fireEvent.click(row)
     expect(mockOnExecutionSelect).toHaveBeenCalledWith(baseExecution.id)
   })
 
@@ -136,8 +135,7 @@ describe('AutomationHistoryCard', () => {
 
   it('does not highlight an unselected row', () => {
     render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} selectedExecutionId="other-id" />)
-    const buttons = screen.getAllByRole('button')
-    const rowButton = buttons.find((btn) => btn.textContent?.includes('Jan 15, 2024'))!
+    const rowButton = screen.getByRole('button', { name: /running/i })
     expect(rowButton).not.toHaveClass('pf-m-current')
   })
 

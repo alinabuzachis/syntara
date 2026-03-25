@@ -162,6 +162,7 @@ describe('ApprovalNodeComponent', () => {
       const { container } = render(<ApprovalNodeComponent {...createNodeProps(baseApprovalNode)} />)
 
       expect(container.querySelector('.details')).toBeInTheDocument()
+
       expect(container.querySelector('.pf-v6-c-compass__panel')).toBeInTheDocument()
     })
   })

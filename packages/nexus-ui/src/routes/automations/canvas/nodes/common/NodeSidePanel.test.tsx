@@ -36,7 +36,6 @@ describe('NodeSidePanel', () => {
       </NodeSidePanel>
     )
 
-    // PatternFly Stack component renders with class
     const stack = container.querySelector('.pf-v6-l-stack')
     expect(stack).toBeInTheDocument()
     expect(stack).toHaveStyle({
@@ -52,7 +51,6 @@ describe('NodeSidePanel', () => {
       </NodeSidePanel>
     )
 
-    // Stack with hasGutter prop
     const stack = container.querySelector('.pf-v6-l-stack')
     expect(stack).toHaveClass('pf-m-gutter')
   })

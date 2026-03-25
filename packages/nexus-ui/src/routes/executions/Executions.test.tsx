@@ -225,11 +225,10 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Find and click the button for the first execution ID
-    const executionIdButton = screen.getByText('123e4567-e89b-12d3-a456-426614174000').closest('button')
+    const executionIdButton = screen.getByRole('button', { name: '123e4567-e89b-12d3-a456-426614174000' })
     expect(executionIdButton).toBeInTheDocument()
 
-    await user.click(executionIdButton!)
+    await user.click(executionIdButton)
     expect(mockSetLocation).toHaveBeenCalledWith('/executions/123e4567-e89b-12d3-a456-426614174000')
   })
 
@@ -241,11 +240,10 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Find and click the button for the first workflow name
-    const workflowButton = screen.getByText('Hello World Workflow').closest('button')
+    const workflowButton = screen.getByRole('button', { name: 'Hello World Workflow' })
     expect(workflowButton).toBeInTheDocument()
 
-    await user.click(workflowButton!)
+    await user.click(workflowButton)
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1')
   })
 
@@ -257,17 +255,16 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Verify all execution ID links navigate to the correct execution detail routes
-    const execution1Button = screen.getByText('123e4567-e89b-12d3-a456-426614174000').closest('button')
-    await user.click(execution1Button!)
+    const execution1Button = screen.getByRole('button', { name: '123e4567-e89b-12d3-a456-426614174000' })
+    await user.click(execution1Button)
     expect(mockSetLocation).toHaveBeenCalledWith('/executions/123e4567-e89b-12d3-a456-426614174000')
 
-    const execution2Button = screen.getByText('223e4567-e89b-12d3-a456-426614174001').closest('button')
-    await user.click(execution2Button!)
+    const execution2Button = screen.getByRole('button', { name: '223e4567-e89b-12d3-a456-426614174001' })
+    await user.click(execution2Button)
     expect(mockSetLocation).toHaveBeenCalledWith('/executions/223e4567-e89b-12d3-a456-426614174001')
 
-    const execution3Button = screen.getByText('323e4567-e89b-12d3-a456-426614174002').closest('button')
-    await user.click(execution3Button!)
+    const execution3Button = screen.getByRole('button', { name: '323e4567-e89b-12d3-a456-426614174002' })
+    await user.click(execution3Button)
     expect(mockSetLocation).toHaveBeenCalledWith('/executions/323e4567-e89b-12d3-a456-426614174002')
   })
 
@@ -279,17 +276,16 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    // Verify all workflow name links navigate to the correct workflow builder routes
-    const workflow1Button = screen.getByText('Hello World Workflow').closest('button')
-    await user.click(workflow1Button!)
+    const workflow1Button = screen.getByRole('button', { name: 'Hello World Workflow' })
+    await user.click(workflow1Button)
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1')
 
-    const workflow2Button = screen.getByText('Data Processing Workflow').closest('button')
-    await user.click(workflow2Button!)
+    const workflow2Button = screen.getByRole('button', { name: 'Data Processing Workflow' })
+    await user.click(workflow2Button)
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-2')
 
-    const workflow3Button = screen.getByText('API Integration Workflow').closest('button')
-    await user.click(workflow3Button!)
+    const workflow3Button = screen.getByRole('button', { name: 'API Integration Workflow' })
+    await user.click(workflow3Button)
     expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-3')
   })
 

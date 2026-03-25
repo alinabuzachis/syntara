@@ -6,18 +6,18 @@ import { renderCondition, renderInputs, renderJson, renderObject, renderOutputs,
 describe('detailRenderers', () => {
   describe('renderCondition', () => {
     it('returns null when condition is undefined', () => {
-      const result = renderCondition(undefined)
-      expect(result).toBeNull()
+      const view = renderCondition(undefined)
+      expect(view).toBeNull()
     })
 
     it('returns null when condition is empty string', () => {
-      const result = renderCondition('')
-      expect(result).toBeNull()
+      const view = renderCondition('')
+      expect(view).toBeNull()
     })
 
     it('renders condition with label', () => {
-      const result = renderCondition('x > 5')
-      render(<>{result}</>)
+      const view = renderCondition('x > 5')
+      render(<>{view}</>)
 
       expect(screen.getByText('Condition')).toBeInTheDocument()
       expect(screen.getByText('x > 5')).toBeInTheDocument()
@@ -25,8 +25,8 @@ describe('detailRenderers', () => {
 
     it('renders multi-line condition', () => {
       const condition = 'if (x > 5) {\n  return true\n}'
-      const result = renderCondition(condition)
-      render(<>{result}</>)
+      const view = renderCondition(condition)
+      render(<>{view}</>)
 
       expect(screen.getByText(/if \(x > 5\)/)).toBeInTheDocument()
     })
@@ -34,32 +34,32 @@ describe('detailRenderers', () => {
 
   describe('renderOutputs', () => {
     it('returns null when outputs is undefined', () => {
-      const result = renderOutputs(undefined)
-      expect(result).toBeNull()
+      const view = renderOutputs(undefined)
+      expect(view).toBeNull()
     })
 
     it('renders single output', () => {
-      const result = renderOutputs({ result: 'success' })
-      render(<>{result}</>)
+      const view = renderOutputs({ result: 'success' })
+      render(<>{view}</>)
 
       expect(screen.getByText('Outputs')).toBeInTheDocument()
       expect(screen.getByText('result: success')).toBeInTheDocument()
     })
 
     it('renders multiple outputs on separate lines', () => {
-      const result = renderOutputs({
+      const view = renderOutputs({
         status: 'ok',
         count: 42,
       })
-      render(<>{result}</>)
+      render(<>{view}</>)
 
       expect(screen.getByText(/status: ok/)).toBeInTheDocument()
       expect(screen.getByText(/count: 42/)).toBeInTheDocument()
     })
 
     it('renders empty object without crashing', () => {
-      const result = renderOutputs({})
-      render(<>{result}</>)
+      const view = renderOutputs({})
+      render(<>{view}</>)
 
       expect(screen.getByText('Outputs')).toBeInTheDocument()
     })
@@ -67,24 +67,24 @@ describe('detailRenderers', () => {
 
   describe('renderInputs', () => {
     it('returns null when inputs is undefined', () => {
-      const result = renderInputs(undefined)
-      expect(result).toBeNull()
+      const view = renderInputs(undefined)
+      expect(view).toBeNull()
     })
 
     it('renders single input', () => {
-      const result = renderInputs({ name: 'test' })
-      render(<>{result}</>)
+      const view = renderInputs({ name: 'test' })
+      render(<>{view}</>)
 
       expect(screen.getByText('Inputs')).toBeInTheDocument()
       expect(screen.getByText('name: test')).toBeInTheDocument()
     })
 
     it('renders multiple inputs on separate lines', () => {
-      const result = renderInputs({
+      const view = renderInputs({
         name: 'test',
         value: 123,
       })
-      render(<>{result}</>)
+      render(<>{view}</>)
 
       expect(screen.getByText(/name: test/)).toBeInTheDocument()
       expect(screen.getByText(/value: 123/)).toBeInTheDocument()
@@ -93,50 +93,50 @@ describe('detailRenderers', () => {
 
   describe('renderJson', () => {
     it('returns null when show is false', () => {
-      const result = renderJson({ key: 'value' }, false)
-      expect(result).toBeNull()
+      const view = renderJson({ key: 'value' }, false)
+      expect(view).toBeNull()
     })
 
     it('returns null when show is undefined', () => {
-      const result = renderJson({ key: 'value' }, undefined)
-      expect(result).toBeNull()
+      const view = renderJson({ key: 'value' }, undefined)
+      expect(view).toBeNull()
     })
 
     it('returns null when data is undefined', () => {
-      const result = renderJson(undefined, true)
-      expect(result).toBeNull()
+      const view = renderJson(undefined, true)
+      expect(view).toBeNull()
     })
 
     it('returns null when data is null', () => {
-      const result = renderJson(null, true)
-      expect(result).toBeNull()
+      const view = renderJson(null, true)
+      expect(view).toBeNull()
     })
 
     it('renders JSON with default label', () => {
-      const result = renderJson({ key: 'value' }, true)
-      render(<>{result}</>)
+      const view = renderJson({ key: 'value' }, true)
+      render(<>{view}</>)
 
       expect(screen.getByText('JSON')).toBeInTheDocument()
     })
 
     it('renders JSON with custom label', () => {
-      const result = renderJson({ key: 'value' }, true, 'Custom Label')
-      render(<>{result}</>)
+      const view = renderJson({ key: 'value' }, true, 'Custom Label')
+      render(<>{view}</>)
 
       expect(screen.getByText('Custom Label')).toBeInTheDocument()
     })
 
     it('wraps non-object data in object', () => {
-      const result = renderJson('string value', true)
-      render(<>{result}</>)
+      const view = renderJson('string value', true)
+      render(<>{view}</>)
 
       // Should wrap in { value: 'string value' }
       expect(screen.getByText('JSON')).toBeInTheDocument()
     })
 
     it('renders object data as JSON', () => {
-      const result = renderJson({ name: 'test', count: 5 }, true)
-      render(<>{result}</>)
+      const view = renderJson({ name: 'test', count: 5 }, true)
+      render(<>{view}</>)
 
       expect(screen.getByText('JSON')).toBeInTheDocument()
     })
@@ -144,22 +144,22 @@ describe('detailRenderers', () => {
 
   describe('renderObject', () => {
     it('returns null when data is undefined', () => {
-      const result = renderObject('Test Label', undefined)
-      expect(result).toBeNull()
+      const view = renderObject('Test Label', undefined)
+      expect(view).toBeNull()
     })
 
     it('renders object with custom label', () => {
-      const result = renderObject('Configuration', { setting: 'enabled' })
-      render(<>{result}</>)
+      const view = renderObject('Configuration', { setting: 'enabled' })
+      render(<>{view}</>)
 
       expect(screen.getByText('Configuration')).toBeInTheDocument()
     })
 
     it('renders nested object', () => {
-      const result = renderObject('Settings', {
+      const view = renderObject('Settings', {
         db: { host: 'localhost', port: 5432 },
       })
-      render(<>{result}</>)
+      render(<>{view}</>)
 
       expect(screen.getByText('Settings')).toBeInTheDocument()
     })
@@ -167,39 +167,39 @@ describe('detailRenderers', () => {
 
   describe('renderText', () => {
     it('returns null when text is undefined', () => {
-      const result = renderText('Label', undefined)
-      expect(result).toBeNull()
+      const view = renderText('Label', undefined)
+      expect(view).toBeNull()
     })
 
     it('returns null when text is null', () => {
-      const result = renderText('Label', null as unknown as string)
-      expect(result).toBeNull()
+      const view = renderText('Label', null as unknown as string)
+      expect(view).toBeNull()
     })
 
     it('returns null when text is empty string', () => {
-      const result = renderText('Label', '')
-      expect(result).toBeNull()
+      const view = renderText('Label', '')
+      expect(view).toBeNull()
     })
 
     it('renders text with label', () => {
-      const result = renderText('Description', 'This is a test')
-      render(<>{result}</>)
+      const view = renderText('Description', 'This is a test')
+      render(<>{view}</>)
 
       expect(screen.getByText('Description')).toBeInTheDocument()
       expect(screen.getByText('This is a test')).toBeInTheDocument()
     })
 
     it('renders multi-line text', () => {
-      const result = renderText('Script', 'line 1\nline 2\nline 3')
-      render(<>{result}</>)
+      const view = renderText('Script', 'line 1\nline 2\nline 3')
+      render(<>{view}</>)
 
       expect(screen.getByText('Script')).toBeInTheDocument()
       expect(screen.getByText(/line 1/)).toBeInTheDocument()
     })
 
     it('renders text with special characters', () => {
-      const result = renderText('Command', 'echo "hello world" && exit 0')
-      render(<>{result}</>)
+      const view = renderText('Command', 'echo "hello world" && exit 0')
+      render(<>{view}</>)
 
       expect(screen.getByText(/echo "hello world"/)).toBeInTheDocument()
     })

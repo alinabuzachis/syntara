@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { ErrorState } from './ErrorState'
 
@@ -25,6 +26,21 @@ vi.mock('../../utils/apiErrors', () => ({
 }))
 
 describe('ErrorState', () => {
+  it('has no accessibility violations', async () => {
+    const { container } = render(<ErrorState message="Something went wrong" />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations with retry button', async () => {
+    const error = { message: 'Retryable error', retryable: true }
+    const { container } = render(<ErrorState message={error} onRetry={vi.fn()} />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
   it('renders with error message string', () => {
     render(<ErrorState message="Something went wrong" />)
 

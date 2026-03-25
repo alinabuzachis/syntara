@@ -11,13 +11,13 @@ describe('App', () => {
 
   it('renders AppLogin component', () => {
     const { container } = render(<App />)
+
     expect(container.firstChild).toBeTruthy()
   })
 
   it('renders the main application structure', () => {
     const { container } = render(<App />)
 
-    // App should render Compass component structure
     expect(container.querySelector('.pf-v6-c-compass')).toBeInTheDocument()
   })
 

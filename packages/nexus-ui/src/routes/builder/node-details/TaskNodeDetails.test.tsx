@@ -330,7 +330,7 @@ describe('TaskNodeDetails Component', () => {
 
     const { container } = renderTaskNodeDetails(taskData, 'task-3')
 
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('calls updateActivity on successful form submission', async () => {
@@ -436,7 +436,7 @@ describe('TaskNodeDetails Component', () => {
 
     const { container } = renderTaskNodeDetails(taskData, 'task-approval')
 
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('handles API form submission with headers and body', async () => {

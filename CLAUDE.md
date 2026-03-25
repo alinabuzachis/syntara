@@ -8,6 +8,15 @@ Claude, you have access to the following skills. Use them when appropriate:
 
 - See `.claude/skills/pr_review.md` for PR review steps
 
+### Accessibility review (always)
+
+Treat accessibility as part of every UI change, not an optional follow-up:
+
+- **While implementing**: Prefer semantic HTML and PatternFly patterns; meaningful labels, names, and roles; keyboard operability where there is interactivity; do not rely on color alone for meaning.
+- **While reviewing** (code or PR): Check new or changed UI for the above, for `eslint-plugin-jsx-a11y` / Testing Library expectations, and for tests (`vitest-axe` where appropriate). Flag regressions and missing coverage.
+
+See **Accessibility Testing** in this file for project tooling (ESLint, axe, E2E).
+
 ### TypeScript and ESLint Guardrails
 
 **CRITICAL: Always follow TypeScript best practices and do not introduce new ESLint warnings.**
@@ -858,6 +867,89 @@ describe('Button', () => {
 - Catches most bugs without diminishing returns
 - Balances thoroughness with development velocity
 - Forces testing of critical paths without testing getters/setters
+
+#### Accessibility Testing
+
+The project enforces accessibility at three levels: linting, unit tests, and E2E tests.
+
+##### Accessible Test Queries (eslint-plugin-testing-library)
+
+`eslint-plugin-testing-library` is configured for all test files and enforces Testing Library best practices. Prefer accessible queries in this priority order:
+
+1. `getByRole` — queries accessible roles (best for buttons, headings, links)
+2. `getByLabelText` — queries form elements by their label
+3. `getByPlaceholderText` — queries by placeholder text
+4. `getByText` — queries by visible text content
+5. `getByTestId` — last resort when no accessible query works
+
+```typescript
+// ✅ GOOD: Accessible queries
+screen.getByRole('button', { name: 'Submit' })
+screen.getByLabelText('Email address')
+screen.getByRole('heading', { name: /welcome/i })
+
+// ❌ BAD: Avoid generic queries when accessible alternatives exist
+screen.getByTestId('submit-button')
+container.querySelector('.my-button')
+```
+
+Rules with many pre-existing violations are set to `warn` (not `error`) to allow gradual migration. New test code should follow the recommended patterns.
+
+##### Automated Accessibility Assertions (vitest-axe)
+
+Use `vitest-axe` to assert that rendered components have no accessibility violations. The `toHaveNoViolations()` matcher is globally available via the test setup.
+
+```typescript
+import { render } from '@testing-library/react'
+import { axe } from 'vitest-axe'
+
+it('has no accessibility violations', async () => {
+  const { container } = render(<MyComponent />)
+
+  const results = await axe(container)
+  expect(results).toHaveNoViolations()
+})
+```
+
+**When to add axe assertions:**
+
+- Every new component should include at least one `toHaveNoViolations()` test
+- Test multiple states (default, with actions, error states) for thorough coverage
+- axe tests are async — always `await axe(container)`
+
+**Important:** vitest-axe requires `jsdom` as the test environment (not happy-dom).
+
+##### E2E Accessibility Testing (@axe-core/playwright)
+
+`@axe-core/playwright` runs axe-core scans in real browser E2E tests. Tests live in `e2e/accessibility.spec.ts`.
+
+```typescript
+import AxeBuilder from '@axe-core/playwright'
+import { type Page } from '@playwright/test'
+import { test, expect, toAppUrl } from './fixtures'
+
+const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] as const
+
+async function expectNoA11yViolations(page: Page) {
+  const results = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).analyze()
+  expect(results.violations).toEqual([])
+}
+
+test('page has no a11y violations', async ({ app }) => {
+  await app.goto(toAppUrl('/automations'))
+  await expect(app.getByRole('heading', { name: /automations/i })).toBeVisible()
+
+  await expectNoA11yViolations(app)
+})
+```
+
+**Running accessibility E2E tests:**
+
+```bash
+npm run e2e                          # Run all E2E tests including accessibility
+npm run e2e -- accessibility.spec.ts # Run only accessibility tests
+npm run e2e:ui                       # Run with Playwright UI for debugging
+```
 
 ### Critical Development Workflows
 

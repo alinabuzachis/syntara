@@ -166,6 +166,7 @@ export function AppDockedNav() {
                         preventDefault
                         id={`nav-${item.path.replace(/\//g, '-')}`}
                         itemId={item.path}
+                        href={findFirstEnabledPath(item)}
                         isActive={isActive}
                         icon={Icon ? <Icon /> : undefined}
                         aria-label={item.label}

@@ -220,17 +220,17 @@ describe('useExecutionWebSocket', () => {
   })
 
   describe('activity_patch message', () => {
-    beforeEach(() => {
+    function setupWithInitialState() {
       renderHook(() => useExecutionWebSocket('exec-123'))
 
-      // Load initial state first
       const initialMessage = createInitialSnapshotMessage()
       act(() => {
         mockOnMessage?.(initialMessage)
       })
-    })
+    }
 
     it('applies JSON Patch operations', () => {
+      setupWithInitialState()
       const patchMessage = createActivityPatchMessage()
       act(() => {
         mockOnMessage?.(patchMessage)
@@ -241,6 +241,7 @@ describe('useExecutionWebSocket', () => {
     })
 
     it('updates last event ID', () => {
+      setupWithInitialState()
       const patchMessage = createActivityPatchMessage()
       act(() => {
         mockOnMessage?.(patchMessage)
@@ -251,6 +252,7 @@ describe('useExecutionWebSocket', () => {
     })
 
     it('applies multiple patches sequentially', () => {
+      setupWithInitialState()
       act(() => {
         mockOnMessage?.(createActivityPatchMessage())
         mockOnMessage?.({

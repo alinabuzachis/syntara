@@ -36,7 +36,6 @@ describe('AppPage', () => {
       </AppPage>
     )
 
-    // PatternFly Stack component renders with pf-v6-l-stack class
     const stack = container.querySelector('.pf-v6-l-stack')
     expect(stack).toBeInTheDocument()
   })

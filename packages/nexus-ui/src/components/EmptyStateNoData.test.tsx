@@ -1,9 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { EmptyStateNoData } from './EmptyStateNoData'
 
 describe('EmptyStateNoData', () => {
+  it('has no accessibility violations', async () => {
+    const { container } = render(<EmptyStateNoData />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
   it('renders with default title and description', () => {
     render(<EmptyStateNoData />)
 

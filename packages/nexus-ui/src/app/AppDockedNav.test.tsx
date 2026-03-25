@@ -90,14 +90,9 @@ describe('AppDockedNav', () => {
   it('navigates when nav item is selected', () => {
     render(<AppDockedNav />)
 
-    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
-    const navItems = nav.querySelectorAll('a')
-
-    // Click on a nav item
-    if (navItems.length > 0) {
-      fireEvent.click(navItems[0])
-      expect(mockRequestNavigation).toHaveBeenCalled()
-    }
+    const navItem = screen.getByLabelText('Automations')
+    fireEvent.click(navItem)
+    expect(mockRequestNavigation).toHaveBeenCalled()
   })
 
   it('renders with correct active state based on location', () => {
@@ -110,6 +105,7 @@ describe('AppDockedNav', () => {
 
   it('renders Red Hat icon in masthead', () => {
     const { container } = render(<AppDockedNav />)
+
     expect(container.querySelector('#docked-masthead')).toBeInTheDocument()
   })
 })

@@ -6,7 +6,7 @@ import { BadgesCell } from './BadgesCell'
 describe('BadgesCell', () => {
   it('returns null when items is empty', () => {
     const { container } = render(<BadgesCell items={[]} />)
-    expect(container.firstChild).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders each item as a badge', () => {

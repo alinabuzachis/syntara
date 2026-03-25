@@ -78,7 +78,7 @@ describe('FilterBar', () => {
       render(<FilterBar {...defaultProps} />)
 
       // No chips or category labels should be visible
-      expect(screen.queryByText('Name')).toBeInTheDocument() // Field selector shows "Name"
+      expect(screen.getByText('Name')).toBeInTheDocument() // Field selector shows "Name"
       expect(screen.queryByText('test')).not.toBeInTheDocument()
     })
 
@@ -165,7 +165,7 @@ describe('FilterBar', () => {
       // "Running" appears in both the chip and the dropdown value, so use getAllByText
       const runningElements = screen.getAllByText('Running')
       expect(runningElements.length).toBeGreaterThan(0)
-      // Verify at least one is in a chip
+
       const chipWithRunning = runningElements.find((el) => el.closest('.pf-v6-c-label'))
       expect(chipWithRunning).toBeInTheDocument()
       // Category names appear in label groups
@@ -187,7 +187,9 @@ describe('FilterBar', () => {
 
       // Find the close button for the "test" chip
       const testChip = screen.getByText('test')
+
       const labelElement = testChip.closest('.pf-v6-c-label')
+
       const closeButton = labelElement?.querySelector('button')
 
       expect(closeButton).toBeInTheDocument()
@@ -224,7 +226,9 @@ describe('FilterBar', () => {
 
       // Find the close button for the first chip (gte)
       const gteChip = screen.getByText('2024-01-01')
+
       const labelElement = gteChip.closest('.pf-v6-c-label')
+
       const closeButton = labelElement?.querySelector('button')
 
       if (closeButton) {
@@ -455,7 +459,6 @@ describe('FilterBar', () => {
     it('handles empty field definitions', () => {
       const { container } = render(<FilterBar {...defaultProps} fieldDefinitions={[]} />)
 
-      // Should not crash
       expect(container.querySelector('#filter-toolbar')).toBeInTheDocument()
     })
 
@@ -516,7 +519,9 @@ describe('FilterBar', () => {
 
       // Find the first chip value and its close button
       const gteChip = screen.getByText('2024-01-01T00:00:00.000Z')
+
       const labelElement = gteChip.closest('.pf-v6-c-label')
+
       const closeButton = labelElement?.querySelector('button')
 
       if (closeButton) {
@@ -592,7 +597,6 @@ describe('FilterBar', () => {
       const runningElements = screen.getAllByText('Running')
       expect(runningElements.length).toBeGreaterThan(0)
 
-      // Verify at least one is in a label chip
       const chipWithRunning = runningElements.find((el) => el.closest('.pf-v6-c-label'))
       expect(chipWithRunning).toBeInTheDocument()
     })

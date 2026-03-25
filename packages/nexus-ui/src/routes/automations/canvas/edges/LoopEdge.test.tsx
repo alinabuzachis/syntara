@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { Position } from '@xyflow/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -37,22 +37,22 @@ describe('LoopEdge', () => {
   })
 
   it('renders BaseEdge with correct path', () => {
-    const { getByTestId } = render(<LoopEdge {...defaultProps} />)
-    const edge = getByTestId('base-edge')
+    render(<LoopEdge {...defaultProps} />)
+    const edge = screen.getByTestId('base-edge')
     expect(edge).toBeInTheDocument()
     expect(edge).toHaveAttribute('data-path')
   })
 
   it('renders with markerEnd prop', () => {
-    const { getByTestId } = render(<LoopEdge {...defaultProps} />)
-    const edge = getByTestId('base-edge')
+    render(<LoopEdge {...defaultProps} />)
+    const edge = screen.getByTestId('base-edge')
     // Verify markerEnd is passed to BaseEdge component
     expect(edge).toHaveAttribute('data-marker-end', 'url(#arrow)')
   })
 
   it('calculates path based on source and target coordinates', () => {
-    const { getByTestId } = render(<LoopEdge {...defaultProps} />)
-    const edge = getByTestId('base-edge')
+    render(<LoopEdge {...defaultProps} />)
+    const edge = screen.getByTestId('base-edge')
     const path = edge.getAttribute('data-path')
     // Path should contain source and target coordinates
     expect(path).toContain('M 95') // sourceX - 5

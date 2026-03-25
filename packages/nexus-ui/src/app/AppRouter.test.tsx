@@ -14,7 +14,6 @@ describe('AppRouter', () => {
   it('renders with ErrorBoundary and Suspense', () => {
     const { container } = render(<AppRouter />)
 
-    // Should have rendered content
     expect(container.firstChild).toBeTruthy()
   })
 

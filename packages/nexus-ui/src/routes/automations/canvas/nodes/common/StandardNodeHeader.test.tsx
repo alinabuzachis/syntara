@@ -148,7 +148,7 @@ describe('StandardNodeHeader', () => {
 
     await waitFor(() => {
       const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })
-      // PatternFly applies pf-m-danger to the parent <li> element, not the button
+
       const parentLi = deleteItem.closest('li')
       expect(parentLi).toHaveClass('pf-m-danger')
     })

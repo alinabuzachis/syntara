@@ -123,10 +123,11 @@ describe('NodeBody', () => {
       )
 
       const stackItem = container.querySelector('.pf-v6-l-stack__item')
+      expect(stackItem).toBeInTheDocument()
       const mouseDownEvent = new MouseEvent('mousedown', { bubbles: true })
-      stackItem?.dispatchEvent(mouseDownEvent)
+      stackItem!.dispatchEvent(mouseDownEvent)
 
-      // Due to stopPropagation in the component
+      expect(parentMouseDownHandler).not.toHaveBeenCalled()
     })
   })
 

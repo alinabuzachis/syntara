@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { RegistryNodeId } from '../../../../constants'
 
-import { renderNodeIcon } from './renderNodeIcon'
+import { renderNodeIcon as buildNodeIconView } from './renderNodeIcon'
 
 // Mock icon component
 function MockIcon() {
@@ -21,20 +21,20 @@ function MockStyledIcon({ style }: { style?: React.CSSProperties }) {
 
 describe('renderNodeIcon', () => {
   it('returns undefined when no IconComponent is provided', () => {
-    const result = renderNodeIcon(undefined, 'test-node')
-    expect(result).toBeUndefined()
+    const view = buildNodeIconView(undefined, 'test-node')
+    expect(view).toBeUndefined()
   })
 
   it('renders standard icon for non-custom nodes', () => {
-    const result = renderNodeIcon(MockIcon, 'test-node')
-    render(<>{result}</>)
+    const view = buildNodeIconView(MockIcon, 'test-node')
+    render(<>{view}</>)
 
     expect(screen.getByTestId('mock-icon')).toBeInTheDocument()
   })
 
   it('renders custom icon with styling for aap node', () => {
-    const result = renderNodeIcon(MockStyledIcon, RegistryNodeId.AAP)
-    render(<>{result}</>)
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP)
+    render(<>{view}</>)
 
     const icon = screen.getByTestId('styled-icon')
     expect(icon).toBeInTheDocument()
@@ -46,25 +46,24 @@ describe('renderNodeIcon', () => {
   })
 
   it('applies rotation transform for logic-condition node', () => {
-    const result = renderNodeIcon(MockIcon, RegistryNodeId.LOGIC_CONDITION)
-    const { container } = render(<>{result}</>)
+    const view = buildNodeIconView(MockIcon, RegistryNodeId.LOGIC_CONDITION)
+    const { container } = render(<>{view}</>)
 
-    // The pf-v6-c-icon span should have rotation style
     const iconWrapper = container.querySelector('.pf-v6-c-icon')
     expect(iconWrapper).toHaveStyle({ transform: 'rotate(90deg)' })
   })
 
   it('applies rotation transform for logic-converge node', () => {
-    const result = renderNodeIcon(MockIcon, RegistryNodeId.LOGIC_CONVERGE)
-    const { container } = render(<>{result}</>)
+    const view = buildNodeIconView(MockIcon, RegistryNodeId.LOGIC_CONVERGE)
+    const { container } = render(<>{view}</>)
 
     const iconWrapper = container.querySelector('.pf-v6-c-icon')
     expect(iconWrapper).toHaveStyle({ transform: 'rotate(90deg)' })
   })
 
   it('does not apply rotation for regular nodes', () => {
-    const result = renderNodeIcon(MockIcon, 'regular-node')
-    const { container } = render(<>{result}</>)
+    const view = buildNodeIconView(MockIcon, 'regular-node')
+    const { container } = render(<>{view}</>)
 
     const iconWrapper = container.querySelector('.pf-v6-c-icon')
     expect(iconWrapper).not.toHaveStyle({ transform: 'rotate(90deg)' })
@@ -72,8 +71,8 @@ describe('renderNodeIcon', () => {
 
   it('applies color when provided so icon matches node type accent', () => {
     const token = 'var(--pf-t--global--color--brand--default)'
-    const result = renderNodeIcon(MockIcon, 'test-node', 'canvas', token)
-    const { container } = render(<>{result}</>)
+    const view = buildNodeIconView(MockIcon, 'test-node', 'canvas', token)
+    const { container } = render(<>{view}</>)
 
     const iconWrapper = container.querySelector('.pf-v6-c-icon')
     expect(iconWrapper).toHaveStyle({ color: token })
@@ -83,40 +82,40 @@ describe('renderNodeIcon', () => {
   })
 
   it('does not apply color when not provided', () => {
-    const result = renderNodeIcon(MockIcon, 'test-node')
-    const { container } = render(<>{result}</>)
+    const view = buildNodeIconView(MockIcon, 'test-node')
+    const { container } = render(<>{view}</>)
 
     const iconWrapper = container.querySelector('.pf-v6-c-icon')
     expect(iconWrapper).not.toHaveStyle({ color: expect.anything() })
   })
 
   it('uses canvas variant by default (md size)', () => {
-    const result = renderNodeIcon(MockIcon, 'test-node')
-    const { container } = render(<>{result}</>)
+    const view = buildNodeIconView(MockIcon, 'test-node')
+    const { container } = render(<>{view}</>)
 
     const iconWrapper = container.querySelector('.pf-v6-c-icon')
     expect(iconWrapper).toHaveClass('pf-m-md')
   })
 
   it('uses list variant when specified (xl size)', () => {
-    const result = renderNodeIcon(MockIcon, 'test-node', 'list')
-    const { container } = render(<>{result}</>)
+    const view = buildNodeIconView(MockIcon, 'test-node', 'list')
+    const { container } = render(<>{view}</>)
 
     const iconWrapper = container.querySelector('.pf-v6-c-icon')
     expect(iconWrapper).toHaveClass('pf-m-xl')
   })
 
   it('uses header variant when specified (xl size)', () => {
-    const result = renderNodeIcon(MockIcon, 'test-node', 'header')
-    const { container } = render(<>{result}</>)
+    const view = buildNodeIconView(MockIcon, 'test-node', 'header')
+    const { container } = render(<>{view}</>)
 
     const iconWrapper = container.querySelector('.pf-v6-c-icon')
     expect(iconWrapper).toHaveClass('pf-m-xl')
   })
 
   it('applies different custom icon offset for header variant', () => {
-    const result = renderNodeIcon(MockStyledIcon, RegistryNodeId.AAP, 'header')
-    render(<>{result}</>)
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP, 'header')
+    render(<>{view}</>)
 
     const icon = screen.getByTestId('styled-icon')
     // Header variant has customIconOffsetY: 1
@@ -124,8 +123,8 @@ describe('renderNodeIcon', () => {
   })
 
   it('applies zero offset for canvas variant custom icon', () => {
-    const result = renderNodeIcon(MockStyledIcon, RegistryNodeId.AAP, 'canvas')
-    render(<>{result}</>)
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP, 'canvas')
+    render(<>{view}</>)
 
     const icon = screen.getByTestId('styled-icon')
     // Canvas variant has customIconOffsetY: 0
@@ -133,8 +132,8 @@ describe('renderNodeIcon', () => {
   })
 
   it('applies correct scale for list variant custom icon', () => {
-    const result = renderNodeIcon(MockStyledIcon, RegistryNodeId.AAP, 'list')
-    render(<>{result}</>)
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP, 'list')
+    render(<>{view}</>)
 
     const icon = screen.getByTestId('styled-icon')
     // List variant has customIconScale: 1.5

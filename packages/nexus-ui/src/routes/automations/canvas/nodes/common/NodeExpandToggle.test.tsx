@@ -37,7 +37,6 @@ describe('NodeExpandToggle', () => {
       const setExpanded = vi.fn()
       renderWithContext(true, setExpanded)
 
-      // The icon should be rendered
       expect(document.querySelector('svg')).toBeInTheDocument()
     })
 

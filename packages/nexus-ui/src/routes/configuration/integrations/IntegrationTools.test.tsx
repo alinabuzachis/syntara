@@ -509,7 +509,6 @@ describe('IntegrationTools Component', () => {
     it('renders Stack for proper layout', () => {
       const { container } = render(<IntegrationTools />, { wrapper })
 
-      // Check that Stack is rendered (form was removed as it wasn't needed)
       const stack = container.querySelector('.pf-v6-l-stack')
       expect(stack).toBeInTheDocument()
     })

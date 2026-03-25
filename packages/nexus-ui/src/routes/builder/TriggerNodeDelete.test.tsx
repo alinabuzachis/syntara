@@ -169,6 +169,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
     // Verify Delete has danger styling (PatternFly applies pf-m-danger to the parent <li>)
     await waitFor(() => {
       const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })
+
       const parentLi = deleteItem.closest('li')
       expect(parentLi).toHaveClass('pf-m-danger')
     })

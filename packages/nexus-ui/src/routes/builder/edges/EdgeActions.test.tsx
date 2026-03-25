@@ -50,6 +50,7 @@ describe('EdgeActions', () => {
 
   it('calls onButtonMouseEnter when hovering', () => {
     render(<EdgeActions {...defaultProps} />)
+
     const container = screen.getByTestId('edge-label-renderer').firstChild as HTMLElement
     fireEvent.mouseEnter(container)
     expect(defaultProps.onButtonMouseEnter).toHaveBeenCalledTimes(1)
@@ -57,6 +58,7 @@ describe('EdgeActions', () => {
 
   it('calls onButtonMouseLeave when leaving', () => {
     render(<EdgeActions {...defaultProps} />)
+
     const container = screen.getByTestId('edge-label-renderer').firstChild as HTMLElement
     fireEvent.mouseLeave(container)
     expect(defaultProps.onButtonMouseLeave).toHaveBeenCalledTimes(1)

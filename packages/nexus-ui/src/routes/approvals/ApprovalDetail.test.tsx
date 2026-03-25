@@ -108,6 +108,7 @@ describe('ApprovalDetail Component', () => {
 
     // CodeBlock should render the approval data as JSON
     // Check that the JSON stringified content contains the approval data
+
     const codeBlock = container.querySelector('code')
     expect(codeBlock).toBeInTheDocument()
     expect(codeBlock?.textContent).toContain('550e8400-e29b-41d4-a716-446655440001')

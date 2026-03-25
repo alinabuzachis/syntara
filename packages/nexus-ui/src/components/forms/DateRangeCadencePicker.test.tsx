@@ -56,9 +56,15 @@ describe('DateRangeCadencePicker', () => {
     it('passes required prop to form groups', () => {
       const { container } = render(<DateRangeCadencePicker required />)
 
-      // Check that isRequired is applied to form groups
-      const formGroups = container.querySelectorAll('.pf-v6-c-form__group')
-      expect(formGroups.length).toBeGreaterThan(0)
+      const requiredIndicators = container.querySelectorAll('.pf-v6-c-form__label-required')
+      expect(requiredIndicators).toHaveLength(3)
+    })
+
+    it('does not mark form groups as required when required is false', () => {
+      const { container } = render(<DateRangeCadencePicker />)
+
+      const requiredIndicators = container.querySelectorAll('.pf-v6-c-form__label-required')
+      expect(requiredIndicators).toHaveLength(0)
     })
 
     it('applies custom className', () => {

@@ -117,6 +117,7 @@ describe('FileUploadItem', () => {
     it('applies custom className', () => {
       const file = createFile('test.png')
       const { container } = render(<FileUploadItem file={file} fileId="1" className="custom-class" />)
+
       expect(container.firstChild).toHaveClass('custom-class')
     })
   })

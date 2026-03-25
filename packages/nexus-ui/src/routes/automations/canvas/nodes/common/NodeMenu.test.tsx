@@ -157,6 +157,7 @@ describe('NodeMenu', () => {
 
       await waitFor(() => {
         const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })
+
         const parentLi = deleteItem.closest('li')
         expect(parentLi).toHaveClass('pf-m-danger')
       })

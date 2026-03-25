@@ -14,16 +14,8 @@ import { BuilderContent } from './BuilderContent'
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 type BuilderContentProps = ComponentProps<typeof BuilderContent>
 
-/**
- * Helper to render BuilderContent and wait for ReactFlow async updates to settle.
- * ReactFlow has internal async updates (positioning, markers) that cause act() warnings.
- */
-async function renderBuilder(props: BuilderContentProps) {
-  let result: ReturnType<typeof render>
-  await act(async () => {
-    result = render(<BuilderContent {...props} />, { wrapper })
-  })
-  return result!
+function renderBuilder(props: BuilderContentProps) {
+  return render(<BuilderContent {...props} />, { wrapper })
 }
 
 // Mock dependencies
@@ -495,8 +487,7 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      const runButton = screen.getByText('Run').closest('button')!
-      fireEvent.click(runButton)
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
 
       await waitFor(() => {
         expect(screen.getByText(/Run Test Workflow\?/)).toBeInTheDocument()
@@ -510,9 +501,8 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      const runButton = screen.getByText('Run').closest('button')!
-      fireEvent.click(runButton)
-      await waitFor(() => screen.getByText(/Run Test Workflow\?/))
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await screen.findByText(/Run Test Workflow\?/)
 
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
       fireEvent.click(cancelButton)
@@ -541,9 +531,8 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      const runButton = screen.getByText('Run').closest('button')!
-      fireEvent.click(runButton)
-      await waitFor(() => screen.getByText(/Run Test Workflow\?/))
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await screen.findByText(/Run Test Workflow\?/)
 
       const confirmButton = screen.getByRole('button', { name: 'Run now' })
       fireEvent.click(confirmButton)
@@ -573,9 +562,8 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      const runButton = screen.getByText('Run').closest('button')!
-      fireEvent.click(runButton)
-      await waitFor(() => screen.getByText(/Run Test Workflow\?/))
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await screen.findByText(/Run Test Workflow\?/)
 
       const confirmButton = screen.getByRole('button', { name: 'Run now' })
       fireEvent.click(confirmButton)
@@ -591,9 +579,8 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      const runButton = screen.getByText('Run').closest('button')!
-      fireEvent.click(runButton)
-      await waitFor(() => screen.getByText(/Run Test Workflow\?/))
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await screen.findByText(/Run Test Workflow\?/)
 
       // Cancel closes modal (tests SET_CONFIRM_DIALOG reducer)
       const cancelButton = screen.getByRole('button', { name: 'Cancel' })
@@ -610,12 +597,12 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      const runButton = screen.getByText('Run').closest('button')!
-      fireEvent.click(runButton)
-      await waitFor(() => screen.getByText(/Run Test Workflow\?/))
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await screen.findByText(/Run Test Workflow\?/)
 
       // Find the modal's X close button (tests onClose callback - lines 1183-1185)
       const modal = screen.getByRole('dialog')
+
       const closeButton = modal.querySelector('button[aria-label="Close"]')
       expect(closeButton).not.toBeNull()
       fireEvent.click(closeButton!)
@@ -794,6 +781,7 @@ describe('BuilderContent', () => {
 
       // Find the switch container and click it
       const enabledText = screen.getByText('Enabled')
+
       const switchContainer = enabledText.closest('.pf-v6-c-switch')
       expect(switchContainer).not.toBeNull()
       fireEvent.click(switchContainer!)
@@ -1023,8 +1011,7 @@ describe('BuilderContent', () => {
       const kebabButton = screen.getByLabelText('Automation actions')
       fireEvent.click(kebabButton)
 
-      await waitFor(() => screen.getByText('Delete automation'))
-      fireEvent.click(screen.getByText('Delete automation'))
+      fireEvent.click(await screen.findByText('Delete automation'))
 
       await waitFor(() => {
         expect(screen.getByText('Delete automation?')).toBeInTheDocument()
@@ -1035,10 +1022,9 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       fireEvent.click(screen.getByLabelText('Automation actions'))
-      await waitFor(() => screen.getByText('Delete automation'))
-      fireEvent.click(screen.getByText('Delete automation'))
+      fireEvent.click(await screen.findByText('Delete automation'))
 
-      await waitFor(() => screen.getByText('Delete automation?'))
+      await screen.findByText('Delete automation?')
 
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
@@ -1064,10 +1050,9 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       fireEvent.click(screen.getByLabelText('Automation actions'))
-      await waitFor(() => screen.getByText('Delete automation'))
-      fireEvent.click(screen.getByText('Delete automation'))
+      fireEvent.click(await screen.findByText('Delete automation'))
 
-      await waitFor(() => screen.getByText('Delete automation?'))
+      await screen.findByText('Delete automation?')
       fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
       await waitFor(() => {
@@ -1093,10 +1078,9 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       fireEvent.click(screen.getByLabelText('Automation actions'))
-      await waitFor(() => screen.getByText('Delete automation'))
-      fireEvent.click(screen.getByText('Delete automation'))
+      fireEvent.click(await screen.findByText('Delete automation'))
 
-      await waitFor(() => screen.getByText('Delete automation?'))
+      await screen.findByText('Delete automation?')
       fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
       await waitFor(() => {
@@ -1109,14 +1093,14 @@ describe('BuilderContent', () => {
 
       // Open kebab menu and click delete
       fireEvent.click(screen.getByLabelText('Automation actions'))
-      await waitFor(() => screen.getByText('Delete automation'))
-      fireEvent.click(screen.getByText('Delete automation'))
+      fireEvent.click(await screen.findByText('Delete automation'))
 
       // Wait for delete modal to open
-      await waitFor(() => screen.getByText('Delete automation?'))
+      await screen.findByText('Delete automation?')
 
       // Find the modal's X close button (tests onClose callback - line 1206)
       const modal = screen.getByRole('dialog')
+
       const closeButton = modal.querySelector('button[aria-label="Close"]')
       expect(closeButton).not.toBeNull()
       fireEvent.click(closeButton!)
@@ -1576,10 +1560,9 @@ describe('BuilderContent', () => {
       expect(container).toBeInTheDocument()
 
       // Run button may not be visible without id - tests guard clause
-      const runButton = screen.queryByText('Run')
+      const runButton = screen.queryByRole('button', { name: 'Run' })
       if (runButton) {
-        // If button is rendered, clicking it should not throw (guard clause handles missing id)
-        fireEvent.click(runButton.closest('button')!)
+        fireEvent.click(runButton)
       }
     })
 
@@ -1974,9 +1957,8 @@ describe('BuilderContent', () => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      const runButton = screen.getByText('Run').closest('button')!
-      fireEvent.click(runButton)
-      await waitFor(() => screen.getByText(/Run Test Workflow\?/))
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await screen.findByText(/Run Test Workflow\?/)
 
       fireEvent.click(screen.getByRole('button', { name: 'Run now' }))
 
@@ -2002,6 +1984,7 @@ describe('BuilderContent', () => {
 
       // Click to enable
       const disabledText = screen.getByText('Disabled')
+
       const switchContainer = disabledText.closest('.pf-v6-c-switch')
       if (switchContainer) {
         fireEvent.click(switchContainer)
@@ -2086,9 +2069,7 @@ describe('BuilderContent', () => {
         useWorkflowStore.setState({ currentWorkflow: null })
       })
 
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /save/i }))
-      })
+      fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
       await waitFor(() => {
         expect(screen.getByText('No workflow to save')).toBeInTheDocument()
@@ -2216,11 +2197,10 @@ describe('BuilderContent', () => {
 
       // Open kebab menu
       fireEvent.click(screen.getByLabelText('Automation actions'))
-      await waitFor(() => screen.getByText('Delete automation'))
 
       // Click delete
-      fireEvent.click(screen.getByText('Delete automation'))
-      await waitFor(() => screen.getByText('Delete automation?'))
+      fireEvent.click(await screen.findByText('Delete automation'))
+      await screen.findByText('Delete automation?')
 
       // Confirm delete
       fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
@@ -2252,8 +2232,8 @@ describe('BuilderContent', () => {
       })
 
       // Click Run
-      fireEvent.click(screen.getByText('Run').closest('button')!)
-      await waitFor(() => screen.getByText(/Run Test Workflow\?/))
+      fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+      await screen.findByText(/Run Test Workflow\?/)
 
       // Confirm
       fireEvent.click(screen.getByRole('button', { name: 'Run now' }))

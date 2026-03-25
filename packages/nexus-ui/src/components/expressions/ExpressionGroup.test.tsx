@@ -537,14 +537,14 @@ describe('ExpressionGroup', () => {
 
   it('applies level 0 background color styling', () => {
     const { container } = render(<ExpressionGroup {...defaultProps} level={0} />)
-    // At level 0, should apply surface-primary background
+
     const groupDiv = container.firstChild
     expect(groupDiv).toBeInTheDocument()
   })
 
   it('applies nested level border styling', () => {
     const { container } = render(<ExpressionGroup {...defaultProps} level={1} />)
-    // At level > 0, should apply left border
+
     const groupDiv = container.firstChild
     expect(groupDiv).toBeInTheDocument()
   })

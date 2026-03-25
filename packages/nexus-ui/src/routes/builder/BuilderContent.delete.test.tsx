@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ReactFlowProvider } from '@xyflow/react'
 import type { ComponentProps, ReactNode } from 'react'
@@ -57,12 +57,8 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-async function renderBuilder(props: BuilderContentProps) {
-  let result: ReturnType<typeof render>
-  await act(async () => {
-    result = render(<BuilderContent {...props} />, { wrapper })
-  })
-  return result!
+function renderBuilder(props: BuilderContentProps) {
+  return render(<BuilderContent {...props} />, { wrapper })
 }
 
 describe('BuilderContent - Delete Automation', () => {

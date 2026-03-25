@@ -50,6 +50,7 @@ describe('NodeTypeOptionsList', () => {
     const { container } = render(<NodeTypeOptionsList nodeTypes={nodeTypesWithoutDesc} onSelect={onSelect} />)
 
     expect(screen.getByText('Test Node')).toBeInTheDocument()
+
     expect(container.querySelector('small')).not.toBeInTheDocument()
   })
 

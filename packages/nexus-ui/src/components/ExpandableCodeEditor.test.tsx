@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -173,7 +173,7 @@ describe('ExpandableCodeEditor', () => {
     render(<EditorWithState />)
 
     await user.click(screen.getByTestId('expand-button'))
-    const modalTextarea = screen.getByTestId('modal-code-editor').querySelector('textarea')!
+    const modalTextarea = within(screen.getByTestId('modal-code-editor')).getByRole('textbox')
     await user.clear(modalTextarea)
     await user.type(modalTextarea, 'edited in modal')
 

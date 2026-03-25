@@ -1,9 +1,24 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { EmptyStateFilter } from './EmptyStateFilter'
 
 describe('EmptyStateFilter', () => {
+  it('has no accessibility violations with default props', async () => {
+    const { container } = render(<EmptyStateFilter />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations with action button', async () => {
+    const { container } = render(<EmptyStateFilter clearAllFilters={vi.fn()} />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
   it('renders with default title and description', () => {
     render(<EmptyStateFilter />)
 

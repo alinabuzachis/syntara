@@ -155,7 +155,6 @@ describe('NodeRawDataView Component', () => {
 
     const { container } = render(<NodeRawDataView node={node} />)
 
-    // PatternFly DescriptionList component is used
     const descriptionList = container.querySelector('.pf-v6-c-description-list')
     expect(descriptionList).toBeInTheDocument()
   })

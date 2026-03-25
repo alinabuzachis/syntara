@@ -76,13 +76,13 @@ describe('LogicNodeForm', () => {
         />
       )
 
-      expect(container.firstChild).toBeNull()
+      expect(container).toBeEmptyDOMElement()
     })
 
     it('returns null when logicType is undefined', () => {
       const { container } = render(<LogicNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(container.firstChild).toBeNull()
+      expect(container).toBeEmptyDOMElement()
     })
   })
 

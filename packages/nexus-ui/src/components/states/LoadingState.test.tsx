@@ -1,9 +1,17 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { LoadingState } from './LoadingState'
 
 describe('LoadingState', () => {
+  it('has no accessibility violations', async () => {
+    const { container } = render(<LoadingState />)
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
   it('renders without crashing', () => {
     render(<LoadingState />)
     expect(screen.getByTestId('loading-state')).toBeInTheDocument()

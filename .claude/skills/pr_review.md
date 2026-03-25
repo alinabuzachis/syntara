@@ -66,6 +66,7 @@ Check whether the changes follow:
 - Test strategy
 - Security expectations
 - Performance constraints
+- **Accessibility**: For any UI or test changes, review keyboard use, semantics, labels/roles, focus order, and color/contrast assumptions; confirm new interactive surfaces are reachable and named. Align with `jsx-a11y` / Testing Library rules and axe-style tests where the PR touches user-visible markup.
 
 **Project-Specific:**
 
@@ -150,6 +151,7 @@ Then ask the user to confirm manually:
 - UI works in the browser
 - Forms, navigation, and modals behave as expected
 - No console errors appear
+- **Accessibility**: Critical flows usable with keyboard; no obvious missing labels or confusing focus; consider a quick screen-reader or axe pass on changed screens when feasible
 
 ---
 

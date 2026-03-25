@@ -60,9 +60,12 @@
       "prettier --write",
       "node scripts/lint-mermaid.js"
     ],
-    "packages/nexus-ui/**/*.{ts,tsx,js,jsx}": [
+    "packages/nexus-ui/src/**/*.{ts,tsx,js,jsx}": [
       "prettier --write",
       "eslint --fix --config packages/nexus-ui/eslint.config.js"
+    ],
+    "packages/nexus-ui/{e2e,scripts}/**/*.{ts,tsx,js,jsx}": [
+      "prettier --write"
     ],
     "packages/nexus-contracts/**/*.ts": [
       "prettier --write"

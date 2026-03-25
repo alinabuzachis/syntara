@@ -6,6 +6,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
 import importPlugin from 'eslint-plugin-import-x'
 import noOnlyTests from 'eslint-plugin-no-only-tests'
+import testingLibrary from 'eslint-plugin-testing-library'
 import unicorn from 'eslint-plugin-unicorn'
 import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
@@ -41,6 +42,7 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-hooks/exhaustive-deps': 'error',
+      // Baseline accessibility linting for JSX (labels, roles, alt text, etc.)
       ...jsxA11y.configs.recommended.rules,
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
       '@typescript-eslint/no-floating-promises': 'error',
@@ -94,6 +96,18 @@ export default tseslint.config(
       'max-lines-per-function': 'off',
       'max-nested-callbacks': 'off',
       complexity: 'off',
+    },
+  },
+  {
+    ...testingLibrary.configs['flat/react'],
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    ignores: ['e2e/**'],
+    rules: {
+      ...testingLibrary.configs['flat/react'].rules,
+      'testing-library/no-debugging-utils': 'error',
+      // Many existing tests use container queries / DOM traversal; warn until migrated
+      'testing-library/no-container': 'warn',
+      'testing-library/no-node-access': 'warn',
     },
   },
   {

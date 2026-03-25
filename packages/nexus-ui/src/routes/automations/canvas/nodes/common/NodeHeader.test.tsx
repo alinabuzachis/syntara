@@ -51,7 +51,6 @@ describe('NodeHeader', () => {
       </NodeHeader>
     )
 
-    // The Flex component from PatternFly should be present
     const flexContainer = container.querySelector('.pf-v6-l-flex')
     expect(flexContainer).toBeInTheDocument()
   })

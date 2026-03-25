@@ -57,6 +57,12 @@ describe('computeUploadStatusProps', () => {
 })
 
 describe('FileUpload', () => {
+  function getFileInput(): HTMLInputElement {
+    const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
+
+    return dropzone.querySelector('input[type="file"]') as HTMLInputElement
+  }
+
   describe('empty state', () => {
     it('renders dropzone with default text', () => {
       render(<FileUpload />)
@@ -147,9 +153,8 @@ describe('FileUpload', () => {
       const onFilesSelected = vi.fn()
       render(<FileUpload onFilesSelected={onFilesSelected} />)
 
-      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
       const file = new File(['test content'], 'test.png', { type: 'image/png' })
-      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+      const input = getFileInput()
 
       await user.upload(input, file)
 
@@ -190,8 +195,7 @@ describe('FileUpload', () => {
       render(<FileUpload />)
 
       const file = new File(['test content'], 'dropped-file.png', { type: 'image/png' })
-      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
-      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+      const input = getFileInput()
 
       await user.upload(input, file)
 
@@ -206,8 +210,7 @@ describe('FileUpload', () => {
 
       // First add a file
       const file = new File(['test content'], 'to-remove.png', { type: 'image/png' })
-      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
-      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+      const input = getFileInput()
 
       await user.upload(input, file)
       expect(screen.getByText('to-remove.png')).toBeInTheDocument()
@@ -224,8 +227,7 @@ describe('FileUpload', () => {
       const user = userEvent.setup()
       render(<FileUpload />)
 
-      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
-      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+      const input = getFileInput()
 
       // Upload file first time
       const file1 = new File(['content1'], 'same-name.png', { type: 'image/png' })
@@ -284,8 +286,7 @@ describe('FileUpload', () => {
       const user = userEvent.setup()
       render(<FileUpload maxSizeBytes={10} />)
 
-      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
-      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+      const input = getFileInput()
 
       const largeFile = new File(['x'.repeat(100)], 'large-file.png', { type: 'image/png' })
       await user.upload(input, largeFile)
@@ -345,8 +346,7 @@ describe('FileUpload', () => {
       const user = userEvent.setup()
       render(<FileUpload maxFiles={1} />)
 
-      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
-      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+      const input = getFileInput()
 
       const file1 = new File(['a'], 'file1.png', { type: 'image/png' })
       const file2 = new File(['b'], 'file2.png', { type: 'image/png' })
@@ -359,8 +359,7 @@ describe('FileUpload', () => {
       const user = userEvent.setup()
       render(<FileUpload maxSizeBytes={10} />)
 
-      const dropzone = screen.getByText('Drag and drop files here').closest('.pf-v6-c-multiple-file-upload')!
-      const input = dropzone.querySelector('input[type="file"]') as HTMLInputElement
+      const input = getFileInput()
 
       const largeFile = new File(['x'.repeat(100)], 'large.png', { type: 'image/png' })
       await user.upload(input, largeFile)
@@ -388,6 +387,7 @@ describe('FileUpload', () => {
   describe('className prop', () => {
     it('applies custom className to container', () => {
       const { container } = render(<FileUpload className="custom-upload-class" />)
+
       expect(container.querySelector('.custom-upload-class')).toBeInTheDocument()
     })
   })

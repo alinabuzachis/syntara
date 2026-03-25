@@ -157,6 +157,7 @@ describe('AAPNodeForm', () => {
 
     await user.clear(extraVarsInput)
     await user.paste('{"key": "value"}')
+
     const form = document.getElementById('aap-node-form')
     expect(form).toBeInstanceOf(HTMLFormElement)
     ;(form as HTMLFormElement).requestSubmit()

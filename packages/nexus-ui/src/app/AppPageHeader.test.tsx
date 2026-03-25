@@ -20,7 +20,6 @@ describe('AppPageHeader', () => {
   it('renders without toolbar when no children', () => {
     const { container } = render(<AppPageHeader title="No Toolbar" />)
 
-    // Should not have toolbar content when no children
     expect(container.querySelector('.pf-v6-c-toolbar')).not.toBeInTheDocument()
   })
 

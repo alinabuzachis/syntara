@@ -20,8 +20,8 @@ describe('ExecutionStatusBadge', () => {
     const style = badge.getAttribute('style') ?? ''
     expect(style).toContain('border-color: var(--pf-t--global--color--brand--default)')
     expect(style).toContain('border-style: solid')
-    const spinner = container.querySelector('.pf-v6-c-spinner')
-    expect(spinner).toBeInTheDocument()
+
+    expect(container.querySelector('.pf-v6-c-spinner')).toBeInTheDocument()
   })
 
   it('maps completed status to success styling', () => {

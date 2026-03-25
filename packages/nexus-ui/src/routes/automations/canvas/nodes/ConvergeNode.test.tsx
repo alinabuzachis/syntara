@@ -183,7 +183,6 @@ describe('ConvergeNodeComponent', () => {
     it('renders icon with rotation style', () => {
       const { container } = render(<ConvergeNodeComponent {...createNodeProps(baseConvergeNode)} />)
 
-      // The icon wrapper has rotate(90deg) style
       const iconWrapper = container.querySelector('[style*="rotate"]')
       expect(iconWrapper).toBeInTheDocument()
     })

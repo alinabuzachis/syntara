@@ -803,6 +803,7 @@ describe('Approvals Component', () => {
       // Automation name should be displayed but not as a link
       const automationText = screen.getByText('Test Workflow')
       expect(automationText).toBeInTheDocument()
+
       expect(automationText.closest('button')).toBeNull()
     })
 

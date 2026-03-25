@@ -1,5 +1,5 @@
 import { ActivityTypeEnum } from '@ansible/nexus-contracts'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { type Dispatch, type SetStateAction } from 'react'
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest'
 
@@ -139,9 +139,7 @@ describe('useLoopBackNodeTypes', () => {
     const callCount = (setNodes as unknown as Mock).mock.calls.length
 
     mockDetect.mockReturnValue(new Set(['a']))
-    act(() => {
-      rerender({ edges: edge2 })
-    })
+    rerender({ edges: edge2 })
 
     expect((setNodes as unknown as Mock).mock.calls.length).toBeGreaterThan(callCount)
   })

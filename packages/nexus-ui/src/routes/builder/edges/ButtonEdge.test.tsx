@@ -121,6 +121,7 @@ describe('ButtonEdge', () => {
 
   it('uses approval stroke color when sourceHandleId is approved', () => {
     const { container } = render(<ButtonEdge {...defaultProps} sourceHandleId={EdgeHandleEnum.APPROVED} />)
+
     const paths = container.querySelectorAll('path[stroke]')
     const visibleStrokePath = paths[paths.length - 1]
     expect(visibleStrokePath).toHaveAttribute('stroke', 'var(--pf-t--global--color--status--success--default)')
@@ -128,6 +129,7 @@ describe('ButtonEdge', () => {
 
   it('uses rejected stroke color when sourceHandleId is rejected', () => {
     const { container } = render(<ButtonEdge {...defaultProps} sourceHandleId={EdgeHandleEnum.REJECTED} />)
+
     const paths = container.querySelectorAll('path[stroke]')
     const visibleStrokePath = paths[paths.length - 1]
     expect(visibleStrokePath).toHaveAttribute('stroke', 'var(--pf-t--global--color--status--danger--default)')
@@ -141,6 +143,7 @@ describe('ButtonEdge', () => {
         data={{ ...defaultProps.data, sourceHandle: EdgeHandleEnum.APPROVED }}
       />
     )
+
     const paths = container.querySelectorAll('path[stroke]')
     const visibleStrokePath = paths[paths.length - 1]
     expect(visibleStrokePath).toHaveAttribute('stroke', 'var(--pf-t--global--color--status--success--default)')
@@ -153,12 +156,14 @@ describe('ButtonEdge', () => {
 
   it('renders clickable area', () => {
     const { container } = render(<ButtonEdge {...defaultProps} />)
+
     const rect = container.querySelector('rect')
     expect(rect).toBeInTheDocument()
   })
 
   it('calls onButtonClick when clicked', () => {
     const { container } = render(<ButtonEdge {...defaultProps} />)
+
     const rect = container.querySelector('rect')
     fireEvent.click(rect!)
     expect(defaultProps.data.onButtonClick).toHaveBeenCalled()
@@ -196,6 +201,7 @@ describe('ButtonEdge', () => {
 
   it('handles missing data gracefully', () => {
     const { container } = render(<ButtonEdge {...defaultProps} data={undefined} />)
+
     const rect = container.querySelector('rect')
     fireEvent.click(rect!)
     // Should not throw
@@ -224,6 +230,7 @@ describe('ButtonEdge', () => {
 
     afterEach(() => {
       fireEvent.mouseUp(document)
+
       if (mockHandleElement?.parentNode) {
         mockHandleElement.parentNode.removeChild(mockHandleElement)
       }
@@ -233,6 +240,7 @@ describe('ButtonEdge', () => {
       mockGetNode.mockReturnValue(null)
 
       const { container } = render(<ButtonEdge {...defaultProps} />)
+
       const rect = container.querySelector('rect')
       fireEvent.mouseDown(rect!)
 
@@ -245,6 +253,7 @@ describe('ButtonEdge', () => {
       document.body.removeChild(mockHandleElement)
 
       const { container } = render(<ButtonEdge {...defaultProps} />)
+
       const rect = container.querySelector('rect')
       fireEvent.mouseDown(rect!)
 
@@ -260,6 +269,7 @@ describe('ButtonEdge', () => {
       mockFlowToScreenPosition.mockReturnValue({ x: 500, y: 300 })
 
       const { container } = render(<ButtonEdge {...defaultProps} />)
+
       const rect = container.querySelector('rect')
       fireEvent.mouseDown(rect!)
 
@@ -273,6 +283,7 @@ describe('ButtonEdge', () => {
       mockFlowToScreenPosition.mockReturnValue({ x: 500, y: 300 })
 
       const { container } = render(<ButtonEdge {...defaultProps} />)
+
       const rect = container.querySelector('rect')
       fireEvent.mouseDown(rect!)
 
@@ -292,6 +303,7 @@ describe('ButtonEdge', () => {
       document.body.appendChild(trueHandleElement)
 
       const { container } = render(<ButtonEdge {...defaultProps} />)
+
       const rect = container.querySelector('rect')
       fireEvent.mouseDown(rect!)
 
@@ -306,6 +318,7 @@ describe('ButtonEdge', () => {
       mockFlowToScreenPosition.mockReturnValue({ x: 500, y: 300 })
 
       const { container } = render(<ButtonEdge {...defaultProps} />)
+
       const rect = container.querySelector('rect')
 
       // Trigger mousedown
@@ -327,6 +340,7 @@ describe('ButtonEdge', () => {
 
       const onButtonClick = vi.fn()
       const { container } = render(<ButtonEdge {...defaultProps} data={{ ...defaultProps.data, onButtonClick }} />)
+
       const rect = container.querySelector('rect')
 
       // Start dragging

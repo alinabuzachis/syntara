@@ -32,6 +32,7 @@ describe('ActivityStatusLabel', () => {
 
   it('uses PatternFly Label component', () => {
     const { container } = render(<ActivityStatusLabel status="completed" />)
+
     expect(container.querySelector('.pf-v6-c-label')).toBeInTheDocument()
   })
 })

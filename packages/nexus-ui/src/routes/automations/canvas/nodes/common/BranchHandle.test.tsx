@@ -189,6 +189,7 @@ describe('BranchHandle', () => {
   describe('approval handle coloring', () => {
     it('applies success styling when id is approved', () => {
       const { container } = render(<BranchHandle id="approved">Approved</BranchHandle>)
+
       const wrapper = container.firstChild as HTMLElement
       expect(wrapper).toBeInTheDocument()
       expect(wrapper.style.backgroundColor).toContain('var(--pf-t--global--color--status--success--default)')
@@ -197,6 +198,7 @@ describe('BranchHandle', () => {
 
     it('applies danger styling when id is rejected', () => {
       const { container } = render(<BranchHandle id="rejected">Rejected</BranchHandle>)
+
       const wrapper = container.firstChild as HTMLElement
       expect(wrapper).toBeInTheDocument()
       expect(wrapper.style.backgroundColor).toContain('var(--pf-t--global--color--status--danger--default)')
@@ -205,6 +207,7 @@ describe('BranchHandle', () => {
 
     it('does not apply approval styling for other handle ids', () => {
       const { container } = render(<BranchHandle id="true">True</BranchHandle>)
+
       const wrapper = container.firstChild as HTMLElement
       expect(wrapper.style.backgroundColor).toBe('rgba(255, 255, 255, 0.1)')
     })

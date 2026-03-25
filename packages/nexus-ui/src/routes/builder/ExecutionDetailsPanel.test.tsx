@@ -72,6 +72,7 @@ describe('ExecutionDetailsPanel', () => {
 
     it('spans full width', () => {
       const { container } = renderPanel(WORKFLOW_DEF)
+
       expect(container.querySelector('[style*="width"]')).toHaveStyle({ width: '100%' })
     })
   })

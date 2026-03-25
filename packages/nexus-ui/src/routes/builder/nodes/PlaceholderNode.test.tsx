@@ -22,6 +22,7 @@ describe('PlaceholderNode', () => {
 
   it('renders with invisible styling', () => {
     const { container } = render(<PlaceholderNode />)
+
     const div = container.querySelector('div')
     expect(div).toHaveStyle({
       width: '10px',

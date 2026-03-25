@@ -14,6 +14,7 @@ vi.mock('@xyflow/react', () => ({
 describe('EdgeLabel', () => {
   it('returns null when no label is provided', () => {
     const { container } = render(<EdgeLabel labelX={100} labelY={50} />)
+
     expect(container.firstChild).toBeNull()
   })
 
@@ -29,6 +30,7 @@ describe('EdgeLabel', () => {
 
   it('positions label using transform style', () => {
     render(<EdgeLabel labelX={100} labelY={50} label="Test Label" />)
+
     const labelDiv = screen.getByText('Test Label').closest('div')
     expect(labelDiv).toHaveStyle({
       position: 'absolute',

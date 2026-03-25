@@ -124,7 +124,6 @@ describe('IntegrationForm Component', () => {
       expect(screen.getByText('Add integration')).toBeInTheDocument()
       expect(screen.getByText('Cancel')).toBeInTheDocument()
 
-      // CompassPanel layout (PF glass styling)
       const compassPanel = container.querySelector('.pf-v6-c-compass__panel')
       expect(compassPanel).toBeInTheDocument()
     })
@@ -149,7 +148,7 @@ describe('IntegrationForm Component', () => {
 
       const serverNameInput = screen.getByPlaceholderText('Enter server name / ID')
       expect(serverNameInput).toBeInTheDocument()
-      // PF FormGroup shows required indicator (*) in the label, not HTML required attribute
+
       const requiredIndicator = container.querySelector('label[for="name"] .pf-v6-c-form__label-required')
       expect(requiredIndicator).toBeInTheDocument()
     })
@@ -166,7 +165,7 @@ describe('IntegrationForm Component', () => {
 
       const apiUrlInput = screen.getByPlaceholderText('Enter API URL')
       expect(apiUrlInput).toBeInTheDocument()
-      // PF FormGroup shows required indicator (*) in the label, not HTML required attribute
+
       const requiredIndicator = container.querySelector('label[for="base-url"] .pf-v6-c-form__label-required')
       expect(requiredIndicator).toBeInTheDocument()
     })
