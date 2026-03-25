@@ -1,10 +1,9 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "project": ["src/**/*.{ts,tsx}"],
+  "treatConfigHintsAsErrors": true,
   "ignoreDependencies": [
     "@ansible/nexus-contracts",
-    "@eslint/js",
-    "@playwright/test",
     "@vitest/browser",
     "babel-plugin-react-compiler",
     "eslint",

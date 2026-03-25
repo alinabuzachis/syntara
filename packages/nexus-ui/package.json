@@ -17,7 +17,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "knip": "knip",
-    "knip:exports": "knip --include files,exports,duplicates"
+    "knip:exports": "knip --include files,exports,duplicates,enumMembers,namespaceMembers"
   },
   "dependencies": {
     "@ansible/nexus-contracts": "file:../nexus-contracts",
@@ -65,7 +65,7 @@
     "eslint-plugin-unicorn": "^63.0.0",
     "globals": "^17.3.0",
     "jsdom": "^28.1.0",
-    "knip": "^5.85.0",
+    "knip": "^6.0.4",
     "prettier": "^3.8.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
