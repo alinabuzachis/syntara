@@ -896,11 +896,11 @@ describe('Integrations Component', () => {
       const validateButton = await screen.findByRole('button', { name: 'Validate' })
       await user.click(validateButton)
 
-      // Simulate successful mutation by calling onSuccess and onSettled
+      // Simulate successful mutation with valid: true
       const mutationCall = mockValidateMutate.mock.calls[0]
       const callbacks = mutationCall[1]
       act(() => {
-        callbacks.onSuccess()
+        callbacks.onSuccess({ valid: true, provider_type: 'mcp', validated_at: new Date().toISOString() })
         callbacks.onSettled()
       })
 
@@ -908,6 +908,63 @@ describe('Integrations Component', () => {
       await waitFor(() => {
         expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
       })
+      expect(mockRefetch).toHaveBeenCalled()
+    })
+
+    it('shows error alert when validation returns valid: false', async () => {
+      const user = userEvent.setup()
+      const mockValidateMutate = vi.fn()
+      const mockRefetch = vi.fn()
+
+      vi.mocked(toolManagerClient.useQuery).mockReturnValue({
+        data: { resources: mockIntegrations },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: mockRefetch,
+      } as never)
+
+      vi.mocked(toolManagerClient.useMutation).mockImplementation((_method: string, path: string) => {
+        if (path.includes('validate')) {
+          return { mutate: mockValidateMutate, isPending: false } as never
+        }
+        return { mutate: vi.fn(), isPending: false } as never
+      })
+
+      render(<Integrations />, { wrapper })
+
+      // Open validate dialog
+      const actionButtons = screen.getAllByRole('button', { name: 'Kebab toggle' })
+      await user.click(actionButtons[0])
+      const validateOption = await screen.findByRole('menuitem', { name: /validate connection/i })
+      await user.click(validateOption)
+
+      // Click Validate
+      const validateButton = await screen.findByRole('button', { name: 'Validate' })
+      await user.click(validateButton)
+
+      // Simulate HTTP 200 with valid: false
+      const mutationCall = mockValidateMutate.mock.calls[0]
+      const callbacks = mutationCall[1]
+      act(() => {
+        callbacks.onSuccess({
+          valid: false,
+          provider_type: 'mcp',
+          validated_at: new Date().toISOString(),
+          error: 'Connection refused: unable to reach MCP server',
+        })
+        callbacks.onSettled()
+      })
+
+      // Error alert should be shown with validation error
+      await waitFor(() => {
+        expect(screen.getByText('Validation failed')).toBeInTheDocument()
+        expect(screen.getByText(/Connection refused: unable to reach MCP server/)).toBeInTheDocument()
+      })
+
+      // Dialog should close
+      expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+      // Should still refetch to update provider status
       expect(mockRefetch).toHaveBeenCalled()
     })
 

@@ -245,13 +245,22 @@ export default function Integrations() {
     validateProvider(
       { params: { path: { provider_id: providerToValidate.id } } },
       {
-        onSuccess: () => {
-          showAlert({
-            title: 'Validation successful',
-            description: `Provider "${providerToValidate.name}" validated successfully.`,
-            variant: 'success',
-            autoDismiss: true,
-          })
+        onSuccess: (validationResult) => {
+          if (validationResult.valid) {
+            showAlert({
+              title: 'Validation successful',
+              description: `Provider "${providerToValidate.name}" validated successfully.`,
+              variant: 'success',
+              autoDismiss: true,
+            })
+          } else {
+            showAlert({
+              title: 'Validation failed',
+              description: validationResult.error ?? `Provider "${providerToValidate.name}" could not be validated.`,
+              variant: 'error',
+              autoDismiss: true,
+            })
+          }
           void query.refetch()
         },
         onError: (error: unknown) => {

@@ -244,10 +244,10 @@ describe('IntegrationForm Component', () => {
         }
       })
 
-      // Setup validate mutation to call onSuccess callback
+      // Setup validate mutation to call onSuccess with valid: true
       mockValidateMutate.mockImplementation((_variables, options) => {
         if (options?.onSuccess) {
-          options.onSuccess()
+          options.onSuccess({ valid: true, provider_type: 'mcp', validated_at: new Date().toISOString() })
         }
       })
 
@@ -286,6 +286,59 @@ describe('IntegrationForm Component', () => {
       })
     })
 
+    it('shows error and does not refresh tools when validation returns valid: false', async () => {
+      const { navigate } = await import('wouter/use-browser-location')
+      const mockNav = vi.mocked(navigate)
+      const mockProviderId = 'test-provider-invalid'
+
+      // Setup create mutation to call onSuccess callback
+      mockCreateMutate.mockImplementation((_variables, options) => {
+        if (options?.onSuccess) {
+          options.onSuccess({ id: mockProviderId })
+        }
+      })
+
+      // Setup validate mutation to return valid: false
+      mockValidateMutate.mockImplementation((_variables, options) => {
+        if (options?.onSuccess) {
+          options.onSuccess({
+            valid: false,
+            provider_type: 'mcp',
+            validated_at: new Date().toISOString(),
+            error: 'Connection refused: unable to reach MCP server at https://bad-url.example.com',
+          })
+        }
+      })
+
+      render(<IntegrationForm />, { wrapper })
+
+      fireEvent.change(screen.getByPlaceholderText('Enter server name / ID'), {
+        target: { value: 'Bad Server' },
+      })
+      fireEvent.change(screen.getByPlaceholderText('Enter API URL'), {
+        target: { value: 'https://bad-url.example.com' },
+      })
+
+      const submitButton = screen.getByText('Add integration')
+      fireEvent.click(submitButton)
+
+      await waitFor(() => {
+        // Verify create and validate were called
+        expect(mockCreateMutate).toHaveBeenCalled()
+        expect(mockValidateMutate).toHaveBeenCalled()
+        // Refresh tools should NOT be called when validation fails
+        expect(mockRefreshMutate).not.toHaveBeenCalled()
+        // Should navigate to integrations list
+        expect(mockNav).toHaveBeenCalledWith('/configuration/integrations')
+      })
+
+      // Error alert should be visible
+      await waitFor(() => {
+        expect(screen.getByText('Integration created, but validation failed')).toBeInTheDocument()
+        expect(screen.getByText(/Connection refused/)).toBeInTheDocument()
+      })
+    })
+
     it('navigates to integrations list after all API calls complete', async () => {
       const { navigate } = await import('wouter/use-browser-location')
       const mockNav = vi.mocked(navigate)
@@ -300,7 +353,7 @@ describe('IntegrationForm Component', () => {
 
       mockValidateMutate.mockImplementation((_variables, options) => {
         if (options?.onSuccess) {
-          options.onSuccess()
+          options.onSuccess({ valid: true, provider_type: 'mcp', validated_at: new Date().toISOString() })
         }
       })
 
