@@ -430,23 +430,62 @@ class TestRecorderPrometheus:
         )._value.get()
         assert sample_value == pytest.approx(42.0)
 
-    def test_tool_execution_count_updates_counter(self, recorder: MetricsRecorder) -> None:
-        """Recording TOOL_EXECUTION_COUNT increments the component counter."""
+    def test_tool_execution_duration_dispatches_to_histogram_and_counter(self, recorder: MetricsRecorder) -> None:
+        """TOOL_EXECUTION_DURATION updates histogram (observe) and counter (inc)."""
         recorder.record(
-            MetricType.TOOL_EXECUTION_COUNT,
-            1.0,
-            labels={"component": "tool_manager", "tool_id": "search"},
+            MetricType.TOOL_EXECUTION_DURATION,
+            1500.0,
+            unit="ms",
+            labels={"namespaced_name": "github::search_code", "status": "success"},
         )
-        recorder.record(
-            MetricType.TOOL_EXECUTION_COUNT,
-            1.0,
-            labels={"component": "tool_manager", "tool_id": "search"},
-        )
-        sample_value = recorder.prometheus.tool_executions_total.labels(
-            component="tool_manager",
-            tool_id="search",
+        hist_sum = recorder.prometheus.tool_execution_duration_seconds.labels(
+            namespaced_name="github::search_code",
+        )._sum.get()
+        assert hist_sum == pytest.approx(1.5)
+        counter_val = recorder.prometheus.tool_executions_total.labels(
+            namespaced_name="github::search_code",
+            status="success",
         )._value.get()
-        assert sample_value == pytest.approx(2.0)
+        assert counter_val == pytest.approx(1.0)
+
+    def test_tool_execution_status_dispatches_to_counter_only(self, recorder: MetricsRecorder) -> None:
+        """TOOL_EXECUTION_STATUS increments counter only (no histogram)."""
+        recorder.record(
+            MetricType.TOOL_EXECUTION_STATUS,
+            1.0,
+            labels={"namespaced_name": "github::search_code", "status": "error"},
+        )
+        counter_val = recorder.prometheus.tool_executions_total.labels(
+            namespaced_name="github::search_code",
+            status="error",
+        )._value.get()
+        assert counter_val == pytest.approx(1.0)
+
+    def test_tool_execution_missing_namespaced_name_raises(self, recorder: MetricsRecorder) -> None:
+        """Missing namespaced_name label raises ValueError in dispatch."""
+        from nexus.core.exceptions import SafeValueError
+
+        with pytest.raises(SafeValueError, match="namespaced_name"):
+            recorder._dispatch_tool_execution(
+                MetricType.TOOL_EXECUTION_DURATION,
+                500.0,
+                {"status": "success"},
+                recorder.prometheus,
+            )
+
+    def test_tool_execution_missing_status_defaults_to_unknown(self, recorder: MetricsRecorder) -> None:
+        """Missing status label defaults to 'unknown'."""
+        recorder.record(
+            MetricType.TOOL_EXECUTION_DURATION,
+            500.0,
+            unit="ms",
+            labels={"namespaced_name": "github::search_code"},
+        )
+        counter_val = recorder.prometheus.tool_executions_total.labels(
+            namespaced_name="github::search_code",
+            status="unknown",
+        )._value.get()
+        assert counter_val == pytest.approx(1.0)
 
     def test_system_uptime_updates_gauge(self, recorder: MetricsRecorder) -> None:
         """Recording SYSTEM_UPTIME sets the system-wide gauge."""

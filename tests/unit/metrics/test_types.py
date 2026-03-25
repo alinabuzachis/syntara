@@ -71,6 +71,7 @@ class TestMetricType:
             "TOOL_PROVIDER_AVAILABILITY",
             "TOOL_EXECUTION_COUNT",
             "TOOL_ERROR_RATE",
+            "TOOL_EXECUTION_STATUS",
             # Database
             "DATABASE_QUERY_RESPONSE_TIME",
             "DATABASE_CONNECTION_POOL_UTILIZATION",
@@ -94,6 +95,20 @@ class TestMetricType:
         assert MetricType("api_response_time_ms") is MetricType.API_RESPONSE_TIME
         assert MetricType("system_uptime_ratio") is MetricType.SYSTEM_UPTIME
 
+    def test_tool_execution_status_exists(self) -> None:
+        """TOOL_EXECUTION_STATUS enum member exists with correct value."""
+        assert MetricType.TOOL_EXECUTION_STATUS.value == "tool_execution_status"
+
+    def test_tool_category_type_exists(self) -> None:
+        """MetricsCategoryType.TOOL exists with correct value."""
+        assert MetricsCategoryType.TOOL.value == "tool"
+
+    def test_tool_category_contains_both_metric_types(self) -> None:
+        """METRIC_CATEGORIES[TOOL] contains both TOOL_EXECUTION_DURATION and TOOL_EXECUTION_STATUS."""
+        tool_types = METRIC_CATEGORIES[MetricsCategoryType.TOOL]
+        assert MetricType.TOOL_EXECUTION_DURATION in tool_types
+        assert MetricType.TOOL_EXECUTION_STATUS in tool_types
+
     def test_metric_categories_keys(self) -> None:
         """All expected categories are present."""
         expected_categories = {
@@ -107,6 +122,7 @@ class TestMetricType:
             "workflow_engine",
             "temporal_worker",
             "execution_service",
+            "tool",
             "tool_manager",
             "database",
             "system_wide",

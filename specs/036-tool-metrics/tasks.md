@@ -19,9 +19,9 @@
 
 **Purpose**: No new project setup needed — this feature extends existing files. This phase covers the foundational type-system changes that all user stories depend on.
 
-- [ ] T001 Add `TOOL_EXECUTION_STATUS = "tool_execution_status"` to `MetricType` enum in `src/nexus/metrics/types.py`
-- [ ] T002 Add `TOOL = "tool"` to `MetricsCategoryType` enum in `src/nexus/metrics/types.py`
-- [ ] T003 Add `MetricsCategoryType.TOOL` entry to `METRIC_CATEGORIES` dict in `src/nexus/metrics/types.py` with `[MetricType.TOOL_EXECUTION_DURATION, MetricType.TOOL_EXECUTION_STATUS]`
+- [X] T001 Add `TOOL_EXECUTION_STATUS = "tool_execution_status"` to `MetricType` enum in `src/nexus/metrics/types.py`
+- [X] T002 Add `TOOL = "tool"` to `MetricsCategoryType` enum in `src/nexus/metrics/types.py`
+- [X] T003 Add `MetricsCategoryType.TOOL` entry to `METRIC_CATEGORIES` dict in `src/nexus/metrics/types.py` with `[MetricType.TOOL_EXECUTION_DURATION, MetricType.TOOL_EXECUTION_STATUS]`
 
 **Checkpoint**: New metric types and category registered. `make typecheck` passes.
 
@@ -35,16 +35,16 @@
 
 ### Tests (write first, verify they fail)
 
-- [ ] T004 [P] Add unit tests for `TOOL_EXECUTION_STATUS` member existence and `MetricsCategoryType.TOOL` in `tests/unit/metrics/test_types.py`: verify `MetricType.TOOL_EXECUTION_STATUS` exists with value `"tool_execution_status"`, verify `MetricsCategoryType.TOOL` exists with value `"tool"`, verify `METRIC_CATEGORIES[MetricsCategoryType.TOOL]` contains both `TOOL_EXECUTION_DURATION` and `TOOL_EXECUTION_STATUS`
-- [ ] T005 [P] Add unit tests for replaced Prometheus instruments in `tests/unit/metrics/test_prometheus.py`: verify `tool_executions_total` counter has labels `[namespaced_name, status]`, verify `tool_execution_duration_seconds` histogram has labels `[namespaced_name]` and `LATENCY_BUCKETS_MEDIUM` buckets, verify counter increments and histogram observes correctly
-- [ ] T006 [P] Add unit tests for tool metric dispatch in `tests/unit/metrics/test_recorder.py`: verify `TOOL_EXECUTION_DURATION` dispatches to histogram (observe) and counter (inc), verify `TOOL_EXECUTION_STATUS` dispatches to counter only, verify missing `namespaced_name` raises `ValueError`, verify missing `status` defaults to `"unknown"`
+- [X] T004 [P] Add unit tests for `TOOL_EXECUTION_STATUS` member existence and `MetricsCategoryType.TOOL` in `tests/unit/metrics/test_types.py`: verify `MetricType.TOOL_EXECUTION_STATUS` exists with value `"tool_execution_status"`, verify `MetricsCategoryType.TOOL` exists with value `"tool"`, verify `METRIC_CATEGORIES[MetricsCategoryType.TOOL]` contains both `TOOL_EXECUTION_DURATION` and `TOOL_EXECUTION_STATUS`
+- [X] T005 [P] Add unit tests for replaced Prometheus instruments in `tests/unit/metrics/test_prometheus.py`: verify `tool_executions_total` counter has labels `[namespaced_name, status]`, verify `tool_execution_duration_seconds` histogram has labels `[namespaced_name]` and `LATENCY_BUCKETS_MEDIUM` buckets, verify counter increments and histogram observes correctly
+- [X] T006 [P] Add unit tests for tool metric dispatch in `tests/unit/metrics/test_recorder.py`: verify `TOOL_EXECUTION_DURATION` dispatches to histogram (observe) and counter (inc), verify `TOOL_EXECUTION_STATUS` dispatches to counter only, verify missing `namespaced_name` raises `ValueError`, verify missing `status` defaults to `"unknown"`
 
 ### Implementation
 
-- [ ] T007 [P] Replace `tool_executions_total` Counter labels from `["component", "tool_id"]` to `["namespaced_name", "status"]` in `NexusPrometheusMetrics.__init__` in `src/nexus/metrics/prometheus.py`
-- [ ] T008 [P] Replace `tool_execution_duration_seconds` Histogram labels from `["component", "tool_id"]` to `["namespaced_name"]` in `NexusPrometheusMetrics.__init__` in `src/nexus/metrics/prometheus.py`
-- [ ] T009 Remove `TOOL_EXECUTION_DURATION` and `TOOL_EXECUTION_COUNT` entries from `_COMPONENT_METRIC_MAP` in `src/nexus/metrics/recorder.py`; add `_dispatch_tool_execution` static method to `MetricsRecorder`: for `TOOL_EXECUTION_DURATION` — observe histogram (value / 1000) with `namespaced_name` label, increment counter with `namespaced_name` and `status` labels; for `TOOL_EXECUTION_STATUS` — increment counter only with `namespaced_name` and `status` labels; raise `ValueError` if `namespaced_name` is absent, default `status` to `"unknown"` if absent
-- [ ] T010 Update `_dispatch_prometheus` method in `src/nexus/metrics/recorder.py`: add explicit `TOOL_EXECUTION_DURATION` and `TOOL_EXECUTION_STATUS` cases routing to `_dispatch_tool_execution`
+- [X] T007 [P] Replace `tool_executions_total` Counter labels from `["component", "tool_id"]` to `["namespaced_name", "status"]` in `NexusPrometheusMetrics.__init__` in `src/nexus/metrics/prometheus.py`
+- [X] T008 [P] Replace `tool_execution_duration_seconds` Histogram labels from `["component", "tool_id"]` to `["namespaced_name"]` in `NexusPrometheusMetrics.__init__` in `src/nexus/metrics/prometheus.py`
+- [X] T009 Remove `TOOL_EXECUTION_DURATION` and `TOOL_EXECUTION_COUNT` entries from `_COMPONENT_METRIC_MAP` in `src/nexus/metrics/recorder.py`; add `_dispatch_tool_execution` static method to `MetricsRecorder`: for `TOOL_EXECUTION_DURATION` — observe histogram (value / 1000) with `namespaced_name` label, increment counter with `namespaced_name` and `status` labels; for `TOOL_EXECUTION_STATUS` — increment counter only with `namespaced_name` and `status` labels; raise `ValueError` if `namespaced_name` is absent, default `status` to `"unknown"` if absent
+- [X] T010 Update `_dispatch_prometheus` method in `src/nexus/metrics/recorder.py`: add explicit `TOOL_EXECUTION_DURATION` and `TOOL_EXECUTION_STATUS` cases routing to `_dispatch_tool_execution`
 
 **Checkpoint**: All unit tests pass. `make format && make lint && make typecheck && make test-all` passes. Foundation ready.
 
@@ -58,12 +58,12 @@
 
 ### Tests
 
-- [ ] T011 [US1] Add integration test in `tests/integration/metrics/test_router.py`: record `TOOL_EXECUTION_DURATION` with `{namespaced_name: "github::search_code", status: "success"}`, query `GET /api/v1/metrics?category=tool`, verify metric appears in results with correct labels
-- [ ] T012 [US1] Add integration test in `tests/integration/metrics/test_router.py`: query `GET /api/v1/metrics?category=tool` with no tool metrics recorded, verify empty result set (not error)
+- [X] T011 [US1] Add integration test in `tests/integration/metrics/test_router.py`: record `TOOL_EXECUTION_DURATION` with `{namespaced_name: "github::search_code", status: "success"}`, query `GET /api/v1/metrics?category=tool`, verify metric appears in results with correct labels
+- [X] T012 [US1] Add integration test in `tests/integration/metrics/test_router.py`: query `GET /api/v1/metrics?category=tool` with no tool metrics recorded, verify empty result set (not error)
 
 ### Validation
 
-- [ ] T013 [US1] Run full test suite (`make test-all`) and verify US1 acceptance scenarios pass: category=tool returns tool metrics, empty category returns empty set, time-range filtering works
+- [X] T013 [US1] Run full test suite (`make test-all`) and verify US1 acceptance scenarios pass: category=tool returns tool metrics, empty category returns empty set, time-range filtering works
 
 **Checkpoint**: User Story 1 complete. Tool metrics queryable via REST API.
 
@@ -77,12 +77,12 @@
 
 ### Tests
 
-- [ ] T014 [US2] Add integration test in `tests/integration/metrics/test_router.py`: record `TOOL_EXECUTION_DURATION` with namespaced_name/status labels, scrape OpenMetrics endpoint, verify `nexus_tool_executions_total` counter and `nexus_tool_execution_duration_seconds` histogram are present with expected label values
-- [ ] T015 [US2] Add integration test in `tests/integration/metrics/test_router.py`: record tool metrics with `status="error"` and `status="timeout"`, scrape OpenMetrics endpoint, verify counter reflects correct status labels
+- [X] T014 [US2] Add integration test in `tests/integration/metrics/test_router.py`: record `TOOL_EXECUTION_DURATION` with namespaced_name/status labels, scrape OpenMetrics endpoint, verify `nexus_tool_executions_total` counter and `nexus_tool_execution_duration_seconds` histogram are present with expected label values
+- [X] T015 [US2] Add integration test in `tests/integration/metrics/test_router.py`: record tool metrics with `status="error"` and `status="timeout"`, scrape OpenMetrics endpoint, verify counter reflects correct status labels
 
 ### Validation
 
-- [ ] T016 [US2] Run full test suite (`make test-all`) and verify US2 acceptance scenarios pass: coupled dispatch updates both instruments, failure status reflected, distinct label combinations present
+- [X] T016 [US2] Run full test suite (`make test-all`) and verify US2 acceptance scenarios pass: coupled dispatch updates both instruments, failure status reflected, distinct label combinations present
 
 **Checkpoint**: User Story 2 complete. Tool metrics visible in Prometheus scrape output.
 
@@ -96,11 +96,11 @@
 
 ### Tests
 
-- [ ] T017 [US3] Add integration test in `tests/integration/metrics/test_router.py`: record metrics across tool, workflow, and llm categories, query with `category=tool`, verify only tool metrics returned (no workflow or llm metrics)
+- [X] T017 [US3] Add integration test in `tests/integration/metrics/test_router.py`: record metrics across tool, workflow, and llm categories, query with `category=tool`, verify only tool metrics returned (no workflow or llm metrics)
 
 ### Validation
 
-- [ ] T018 [US3] Run full test suite (`make test-all`) and verify US3 acceptance scenarios pass: category filtering isolates tool metrics, invalid category returns validation error
+- [X] T018 [US3] Run full test suite (`make test-all`) and verify US3 acceptance scenarios pass: category filtering isolates tool metrics, invalid category returns validation error
 
 **Checkpoint**: User Story 3 complete. Category filtering works correctly for tool metrics.
 
@@ -110,10 +110,10 @@
 
 **Purpose**: Final validation and cleanup.
 
-- [ ] T019 Verify backward compatibility: run existing metric test suites and confirm no regressions in LLM, cache, workflow, agent, error metrics (`make test-all`)
-- [ ] T020 Verify existing tests referencing `TOOL_EXECUTION_DURATION` and `TOOL_EXECUTION_COUNT` with `[component, tool_id]` labels are updated to use the new `[namespaced_name]` label set
-- [ ] T021 Run `make format && make lint && make typecheck` and fix any issues
-- [ ] T022 Run quickstart.md validation: manually verify the code examples in `specs/036-tool-metrics/quickstart.md` work as documented
+- [X] T019 Verify backward compatibility: run existing metric test suites and confirm no regressions in LLM, cache, workflow, agent, error metrics (`make test-all`)
+- [X] T020 Verify existing tests referencing `TOOL_EXECUTION_DURATION` and `TOOL_EXECUTION_COUNT` with `[component, tool_id]` labels are updated to use the new `[namespaced_name]` label set
+- [X] T021 Run `make format && make lint && make typecheck` and fix any issues
+- [X] T022 Run quickstart.md validation: manually verify the code examples in `specs/036-tool-metrics/quickstart.md` work as documented
 
 ---
 

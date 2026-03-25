@@ -81,6 +81,7 @@ class MetricType(StrEnum):
     TOOL_PROVIDER_AVAILABILITY = "tool_provider_availability_ratio"
     TOOL_EXECUTION_COUNT = "tool_execution_count"
     TOOL_ERROR_RATE = "tool_error_rate"
+    TOOL_EXECUTION_STATUS = "tool_execution_status"
 
     # Database Metrics
     DATABASE_QUERY_RESPONSE_TIME = "database_query_response_time_ms"
@@ -108,6 +109,7 @@ class MetricsCategoryType(StrEnum):
     EXECUTION_SERVICE = "execution_service"
     TOOL_MANAGER = "tool_manager"
     DATABASE = "database"
+    TOOL = "tool"
     SYSTEM_WIDE = "system_wide"
 
 
@@ -162,6 +164,10 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
     MetricsCategoryType.EXECUTION_SERVICE: [
         MetricType.WORKFLOW_START_LATENCY,
         MetricType.WORKFLOW_COMPLETION_RATE,
+    ],
+    MetricsCategoryType.TOOL: [
+        MetricType.TOOL_EXECUTION_DURATION,
+        MetricType.TOOL_EXECUTION_STATUS,
     ],
     MetricsCategoryType.TOOL_MANAGER: [
         MetricType.TOOL_EXECUTION_SUCCESS_RATE,

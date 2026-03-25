@@ -233,7 +233,7 @@ class TestQueryMetrics:
             MetricType.TOOL_EXECUTION_DURATION,
             value=200.0,
             unit="ms",
-            labels={"component": "tool_manager", "tool_id": "search"},
+            labels={"namespaced_name": "github::search_code", "status": "success"},
         )
         resp = client.get(
             "/api/v1/metrics",
@@ -354,6 +354,38 @@ class TestOpenMetricsEndpoint:
             if not line.startswith("#"):
                 assert " " in line or "{" in line, f"Metric line should contain space or labels: {line!r}"
 
+    def test_tool_metrics_appear_in_openmetrics(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """OpenMetrics output includes tool counter and histogram after recording."""
+        recorder.record(
+            MetricType.TOOL_EXECUTION_DURATION,
+            value=1500.0,
+            unit="ms",
+            labels={"namespaced_name": "github::search_code", "status": "success"},
+        )
+        resp = client.get("/api/v1/metrics/openmetrics")
+        content = resp.text
+        assert "nexus_tool_executions_total" in content
+        assert "nexus_tool_execution_duration_seconds" in content
+        assert 'namespaced_name="github::search_code"' in content
+        assert 'status="success"' in content
+
+    def test_tool_error_status_in_openmetrics(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """OpenMetrics output reflects error and timeout status labels."""
+        recorder.record(
+            MetricType.TOOL_EXECUTION_STATUS,
+            value=1.0,
+            labels={"namespaced_name": "github::search_code", "status": "error"},
+        )
+        recorder.record(
+            MetricType.TOOL_EXECUTION_STATUS,
+            value=1.0,
+            labels={"namespaced_name": "github::search_code", "status": "timeout"},
+        )
+        resp = client.get("/api/v1/metrics/openmetrics")
+        content = resp.text
+        assert 'status="error"' in content
+        assert 'status="timeout"' in content
+
     def test_counter_values_appear(self, client: TestClient, recorder: MetricsRecorder) -> None:
         """OpenMetrics output reflects recorded counter values."""
         recorder.record(MetricType.CACHE_HIT, 1.0)
@@ -400,7 +432,7 @@ class TestComponentMetrics:
         recorder.record(
             MetricType.TOOL_EXECUTION_DURATION,
             value=200.0,
-            labels={"component": "tool_manager", "tool_id": "search"},
+            labels={"namespaced_name": "github::search_code", "status": "success"},
         )
 
         resp = client.get("/api/v1/api_service/metrics")
@@ -498,6 +530,45 @@ class TestComponentMetrics:
         body = resp.json()
         assert len(body["resources"]) == 1
         assert body["resources"][0]["labels"]["method"] == "POST"
+
+    def test_tool_category_returns_tool_metrics(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """Recording TOOL_EXECUTION_DURATION and querying category=tool returns it."""
+        recorder.record(
+            MetricType.TOOL_EXECUTION_DURATION,
+            value=1500.0,
+            unit="ms",
+            labels={"namespaced_name": "github::search_code", "status": "success"},
+        )
+        resp = client.get("/api/v1/metrics", params={"category": "tool"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["resources"]) == 1
+        assert body["resources"][0]["metric_type"] == "tool_execution_duration_ms"
+        assert body["resources"][0]["labels"]["namespaced_name"] == "github::search_code"
+
+    def test_tool_category_empty_returns_empty(self, client: TestClient) -> None:
+        """Querying category=tool with no tool metrics returns empty result."""
+        resp = client.get("/api/v1/metrics", params={"category": "tool"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["resources"] == []
+
+    def test_tool_category_isolates_from_other_categories(self, client: TestClient, recorder: MetricsRecorder) -> None:
+        """Filtering by category=tool excludes workflow and llm metrics."""
+        recorder.record(
+            MetricType.TOOL_EXECUTION_DURATION,
+            value=500.0,
+            unit="ms",
+            labels={"namespaced_name": "github::search_code", "status": "success"},
+        )
+        recorder.record(MetricType.WORKFLOW_DURATION, value=3000.0, unit="ms")
+        recorder.record(MetricType.LLM_DURATION, value=200.0, unit="ms", labels={"model": "gpt-4"})
+
+        resp = client.get("/api/v1/metrics", params={"category": "tool"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["resources"]) == 1
+        assert body["resources"][0]["metric_type"] == "tool_execution_duration_ms"
 
     def test_unknown_metric_type_returns_empty(self, client: TestClient, recorder: MetricsRecorder) -> None:
         """A metric_type value that does not exist returns an empty list."""

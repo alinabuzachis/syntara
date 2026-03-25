@@ -155,3 +155,55 @@ class TestBucketConstants:
     def test_slow_buckets_sorted(self) -> None:
         """Slow buckets are in ascending order."""
         assert list(LATENCY_BUCKETS_SLOW) == sorted(LATENCY_BUCKETS_SLOW)
+
+
+# =============================================================================
+# Tool instrument label tests
+# =============================================================================
+
+
+class TestToolInstruments:
+    """Verify tool counter and histogram have correct label sets."""
+
+    def test_tool_executions_total_labels(self, prom: NexusPrometheusMetrics) -> None:
+        """tool_executions_total counter has [namespaced_name, status] labels."""
+        prom.tool_executions_total.labels(
+            namespaced_name="github::search_code",
+            status="success",
+        ).inc()
+        value = prom.tool_executions_total.labels(
+            namespaced_name="github::search_code",
+            status="success",
+        )._value.get()
+        assert value == pytest.approx(1.0)
+
+    def test_tool_execution_duration_seconds_labels(self, prom: NexusPrometheusMetrics) -> None:
+        """tool_execution_duration_seconds histogram has [namespaced_name] labels and LATENCY_BUCKETS_MEDIUM."""
+        prom.tool_execution_duration_seconds.labels(
+            namespaced_name="github::search_code",
+        ).observe(1.5)
+        total = prom.tool_execution_duration_seconds.labels(
+            namespaced_name="github::search_code",
+        )._sum.get()
+        assert total == pytest.approx(1.5)
+
+    def test_tool_counter_increments_correctly(self, prom: NexusPrometheusMetrics) -> None:
+        """Counter increments are tracked per label combination."""
+        prom.tool_executions_total.labels(
+            namespaced_name="github::search_code",
+            status="success",
+        ).inc()
+        prom.tool_executions_total.labels(
+            namespaced_name="github::search_code",
+            status="error",
+        ).inc()
+        success = prom.tool_executions_total.labels(
+            namespaced_name="github::search_code",
+            status="success",
+        )._value.get()
+        error = prom.tool_executions_total.labels(
+            namespaced_name="github::search_code",
+            status="error",
+        )._value.get()
+        assert success == pytest.approx(1.0)
+        assert error == pytest.approx(1.0)

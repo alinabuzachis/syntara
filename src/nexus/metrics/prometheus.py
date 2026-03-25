@@ -218,7 +218,7 @@ class NexusPrometheusMetrics:
         self.tool_execution_duration_seconds = Histogram(
             "nexus_tool_execution_duration_seconds",
             "Tool execution duration in seconds",
-            ["component", "tool_id"],
+            ["namespaced_name"],
             buckets=LATENCY_BUCKETS_MEDIUM,
             registry=self.registry,
         )
@@ -243,7 +243,7 @@ class NexusPrometheusMetrics:
         self.tool_executions_total = Counter(
             "nexus_tool_executions_total",
             "Total tool executions",
-            ["component", "tool_id"],
+            ["namespaced_name", "status"],
             registry=self.registry,
         )
 

@@ -59,9 +59,7 @@ _COMPONENT_METRIC_MAP: dict[MetricType, tuple[str, str, tuple[str, ...]]] = {
     MetricType.WORKFLOW_COMPLETION_RATE: ("workflow_completion_rate", "gauge", ()),
     # Tool Manager
     MetricType.TOOL_EXECUTION_SUCCESS_RATE: ("tool_execution_success_rate", "gauge", ()),
-    MetricType.TOOL_EXECUTION_DURATION: ("tool_execution_duration_seconds", "histogram", ("tool_id",)),
     MetricType.TOOL_PROVIDER_AVAILABILITY: ("tool_provider_availability", "gauge", ()),
-    MetricType.TOOL_EXECUTION_COUNT: ("tool_executions_total", "counter", ("tool_id",)),
     MetricType.TOOL_ERROR_RATE: ("tool_error_rate", "gauge", ()),
     # Database
     MetricType.DATABASE_QUERY_RESPONSE_TIME: ("database_query_response_time_seconds", "histogram", ("table_name",)),
@@ -338,17 +336,13 @@ class MetricsRecorder:
         }:
             MetricsRecorder._dispatch_llm_event(metric_type, value, labels, p)
 
-        elif metric_type == MetricType.CACHE_HIT:
-            p.cache_hits_total.inc()
-
-        elif metric_type == MetricType.CACHE_MISS:
-            p.cache_misses_total.inc()
-
-        elif metric_type == MetricType.CACHE_LOOKUP_DURATION:
-            p.cache_lookup_duration_seconds.observe(value / 1000)
-
-        elif metric_type == MetricType.CACHE_UTILIZATION:
-            p.cache_utilization_ratio.set(value)
+        elif metric_type in {
+            MetricType.CACHE_HIT,
+            MetricType.CACHE_MISS,
+            MetricType.CACHE_LOOKUP_DURATION,
+            MetricType.CACHE_UTILIZATION,
+        }:
+            MetricsRecorder._dispatch_cache(metric_type, value, p)
 
         elif metric_type == MetricType.WORKFLOW_DURATION:
             p.workflow_duration_seconds.observe(value / 1000)
@@ -363,6 +357,12 @@ class MetricsRecorder:
             p.errors_total.labels(
                 error_type=labels.get("error_type", "unknown"),
             ).inc()
+
+        elif metric_type in {
+            MetricType.TOOL_EXECUTION_DURATION,
+            MetricType.TOOL_EXECUTION_STATUS,
+        }:
+            MetricsRecorder._dispatch_tool_execution(metric_type, value, labels, p)
 
         else:
             MetricsRecorder._dispatch_component(metric_type, value, labels, p)
@@ -407,6 +407,50 @@ class MetricsRecorder:
             p.llm_tokens_input_total.labels(model=model).inc(value)
         elif metric_type == MetricType.LLM_TOKENS_OUTPUT:
             p.llm_tokens_output_total.labels(model=model).inc(value)
+
+    @staticmethod
+    def _dispatch_cache(
+        metric_type: MetricType,
+        value: float,
+        p: NexusPrometheusMetrics,
+    ) -> None:
+        """Handle cache metrics (hits, misses, lookup duration, utilization)."""
+        if metric_type == MetricType.CACHE_HIT:
+            p.cache_hits_total.inc()
+        elif metric_type == MetricType.CACHE_MISS:
+            p.cache_misses_total.inc()
+        elif metric_type == MetricType.CACHE_LOOKUP_DURATION:
+            p.cache_lookup_duration_seconds.observe(value / 1000)
+        elif metric_type == MetricType.CACHE_UTILIZATION:
+            p.cache_utilization_ratio.set(value)
+
+    @staticmethod
+    def _dispatch_tool_execution(
+        metric_type: MetricType,
+        value: float,
+        labels: dict[str, str],
+        p: NexusPrometheusMetrics,
+    ) -> None:
+        """Handle tool execution metrics (duration and status)."""
+        namespaced_name = labels.get("namespaced_name")
+        if not namespaced_name:
+            msg = "Tool metrics require a 'namespaced_name' label"
+            raise SafeValueError(msg)
+        status = labels.get("status", "unknown")
+
+        if metric_type == MetricType.TOOL_EXECUTION_DURATION:
+            p.tool_execution_duration_seconds.labels(
+                namespaced_name=namespaced_name,
+            ).observe(value / 1000)
+            p.tool_executions_total.labels(
+                namespaced_name=namespaced_name,
+                status=status,
+            ).inc()
+        elif metric_type == MetricType.TOOL_EXECUTION_STATUS:
+            p.tool_executions_total.labels(
+                namespaced_name=namespaced_name,
+                status=status,
+            ).inc()
 
     @staticmethod
     def _dispatch_component(
