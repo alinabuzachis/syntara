@@ -17,7 +17,7 @@ WORKDIR /opt/app-root
 
 # Install only FastMCP dependency needed for MCP server
 RUN uv init --no-readme --no-workspace --python 3.12
-RUN uv add "fastmcp>=2.13.0"
+RUN uv add "fastmcp>=2.13.0" "structlog>=25.5.0"
 
 # Create necessary directory structure
 RUN mkdir -p tests/fixtures

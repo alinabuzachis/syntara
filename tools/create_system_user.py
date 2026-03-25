@@ -23,10 +23,10 @@ Environment Variables:
 """
 
 import asyncio
-import logging
 import sys
 from pathlib import Path
 
+import structlog
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -37,11 +37,7 @@ from nexus.core.config.base import get_settings
 from nexus.core.models.user import User, UserRole
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-)
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 async def create_system_user() -> None:
@@ -54,7 +50,7 @@ async def create_system_user() -> None:
     settings = get_settings()
     system_user_id = settings.system_user_id
 
-    logger.info("Connecting to database: %s:%s/%s", settings.db_host, settings.db_port, settings.db_name)
+    logger.info("Connecting to database", host=settings.db_host, port=settings.db_port, name=settings.db_name)
 
     # Create async engine
     engine = create_async_engine(
@@ -68,10 +64,7 @@ async def create_system_user() -> None:
             existing_user = await session.get(User, system_user_id)
 
             if existing_user:
-                logger.info("✅ System user already exists: %s", system_user_id)
-                logger.info("   Username: %s", existing_user.username)
-                logger.info("   Email: %s", existing_user.email)
-                logger.info("   Role: %s", existing_user.role.value)
+                logger.info("System user already exists", user_id=system_user_id)
                 return
 
             # Create system user
@@ -88,20 +81,16 @@ async def create_system_user() -> None:
             session.add(system_user)
             await session.commit()
 
-            logger.info("✅ System user created successfully!")
-            logger.info("   ID: %s", system_user_id)
-            logger.info("   Username: system")
-            logger.info("   Email: system@nexus.internal")
-            logger.info("   Role: %s", UserRole.ADMINISTRATOR.value)
+            logger.info("System user created successfully!", user_id=system_user_id)
 
     except OSError as e:
         msg = f"Database connection error: {e}"
-        logger.exception("❌ %s", msg)
+        logger.exception("❌ Database connection error", error=str(e))
         raise RuntimeError(msg) from e
 
     except Exception as e:
         msg = f"Error creating system user: {e}"
-        logger.exception("❌ %s", msg)
+        logger.exception("❌ Error creating system user", error=str(e))
         raise RuntimeError(msg) from e
 
     finally:

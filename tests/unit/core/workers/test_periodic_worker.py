@@ -8,7 +8,6 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import structlog.testing
 
 from nexus.core.workers.periodic import PeriodicWorker
 
@@ -212,20 +211,24 @@ class TestPeriodicWorkerErrorResilience:
             coordinate=False,
         )
 
-        with structlog.testing.capture_logs() as captured:
+        with patch("nexus.core.workers.periodic.logger") as mock_logger:
             worker.start()
             await asyncio.sleep(0.03)
             await worker.stop()
 
-        # Find events containing our worker name
-        worker_events = [log for log in captured if log.get("worker_name") == "log-test-worker"]
-        event_names = {log.get("event") for log in worker_events}
-        assert "periodic_worker_started" in event_names, (
-            f"Expected 'periodic_worker_started' in logs, got events: {event_names}"
-        )
-        assert "periodic_worker_stopped" in event_names, (
-            f"Expected 'periodic_worker_stopped' in logs, got events: {event_names}"
-        )
+        # Check for start and stop log events
+        info_calls = mock_logger.info.call_args_list
+        start_calls = [call for call in info_calls if "periodic_worker_started" in str(call.args)]
+        stop_calls = [call for call in info_calls if "periodic_worker_stopped" in str(call.args)]
+
+        assert len(start_calls) >= 1, f"Expected at least one start log, got: {info_calls}"
+        assert len(stop_calls) >= 1, f"Expected at least one stop log, got: {info_calls}"
+
+        # Verify worker name is included in logs
+        start_call = start_calls[0]
+        stop_call = stop_calls[0]
+        assert "log-test-worker" in str(start_call), f"Expected worker name in start log: {start_call}"
+        assert "log-test-worker" in str(stop_call), f"Expected worker name in stop log: {stop_call}"
 
     @pytest.mark.asyncio
     async def test_callback_error_is_logged(self) -> None:
@@ -243,18 +246,26 @@ class TestPeriodicWorkerErrorResilience:
             coordinate=False,
         )
 
-        with structlog.testing.capture_logs() as captured:
+        with patch("nexus.core.workers.periodic.logger") as mock_logger:
             worker.start()
             await asyncio.sleep(0.04)
             await worker.stop()
 
-        error_events = [
-            log
-            for log in captured
-            if log.get("event") == "periodic_worker_cycle_error" and log.get("worker_name") == "error-log-test"
+        # Check if warning was logged with correct worker name
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if len(call.args) > 0 and "periodic_worker_cycle_error" in str(call.args)
         ]
-        assert len(error_events) >= 1, (
-            f"Expected at least one cycle error log, got: {[entry.get('event') for entry in captured]}"
+        assert len(warning_calls) >= 1, (
+            f"Expected at least one warning log call, got: {mock_logger.warning.call_args_list}"
+        )
+
+        # Verify the warning call includes worker name
+        warning_call = warning_calls[0]
+        assert "worker_name" in str(warning_call), f"Expected worker_name in warning log: {warning_call}"
+        assert "error-log-test" in str(warning_call), (
+            f"Expected worker name 'error-log-test' in warning log: {warning_call}"
         )
 
 

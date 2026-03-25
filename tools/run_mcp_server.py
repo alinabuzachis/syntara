@@ -1,12 +1,13 @@
 """Standalone runner for the example MCP server."""
 
 import asyncio
-import logging
 import os
 import signal
 import sys
 from contextlib import suppress
 from pathlib import Path
+
+import structlog
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent
@@ -14,7 +15,7 @@ sys.path.insert(0, str(project_root))
 
 from tests.fixtures.example_mcp_server import ExampleMCPServer  # noqa: E402
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 async def main() -> None:
@@ -29,14 +30,14 @@ async def main() -> None:
     loop = asyncio.get_running_loop()
 
     def _request_shutdown(sig: signal.Signals) -> None:
-        logger.info("Received %s, shutting down", sig.name)
+        logger.info("Received signal, shutting down", signal=sig.name)
         stop_event.set()
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, _request_shutdown, sig)
 
-    logger.info("Starting MCP server on %s:%s", host, port)
-    logger.info("MCP endpoint: http://%s:%s/mcp", host, port)
+    logger.info("Starting MCP server", host=host, port=port)
+    logger.info("MCP endpoint", endpoint=f"http://{host}:{port}/mcp")
     logger.info("Press Ctrl+C to stop")
 
     try:
@@ -51,5 +52,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     asyncio.run(main())

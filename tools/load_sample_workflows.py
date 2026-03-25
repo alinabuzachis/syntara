@@ -10,11 +10,11 @@ Usage:
 """
 
 import asyncio
-import logging
 import sys
 from pathlib import Path
 from uuid import uuid4
 
+import structlog
 from sqlmodel import select
 
 from nexus.api.auth.dependencies import get_current_user  # type: ignore[import-untyped]
@@ -24,11 +24,7 @@ from nexus.workflows.validators import WorkflowDefinitionValidator  # type: igno
 from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml  # type: ignore[import-untyped]
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 
 async def load_sample_workflows(
@@ -55,7 +51,7 @@ async def load_sample_workflows(
         logger.info("No sample workflow files found in samples directory")
         return
 
-    logger.info("Found %d sample workflow file(s) to load", len(yaml_files))
+    logger.info("Found sample workflow files to load", count=len(yaml_files))
 
     # Create database session
     async with AsyncSessionLocal() as session:
@@ -63,13 +59,13 @@ async def load_sample_workflows(
             # Get or create the current user for workflow ownership
             user = await get_current_user(session)
             creator_id = user.id
-            logger.info("Using user '%s' (ID: %s) as workflow creator", user.username, creator_id)
+            logger.info("Using user as workflow creator", username=user.username, user_id=creator_id)
 
             # First, get existing workflows to check for duplicates
             existing_workflows_result = await session.exec(select(Workflow).filter(Workflow.deleted_at.is_(None)))
             existing_workflows = existing_workflows_result.all()
             existing_names = {w.name for w in existing_workflows}
-            logger.info("Found %d existing workflows in the system", len(existing_names))
+            logger.info("Found existing workflows in the system", count=len(existing_names))
 
             # Load each workflow file
             for yaml_file in yaml_files:
@@ -83,8 +79,8 @@ async def load_sample_workflows(
                     # Check if workflow already exists by name
                     if workflow_definition.metadata.name in existing_names:
                         logger.info(
-                            "Workflow '%s' already exists, skipping",
-                            workflow_definition.metadata.name,
+                            "Workflow already exists, skipping",
+                            workflow_name=workflow_definition.metadata.name,
                         )
                         continue
 
@@ -116,10 +112,10 @@ async def load_sample_workflows(
                     session.add(workflow)
                     session.add(version)
 
-                    logger.info("Successfully loaded sample workflow: %s", workflow_definition.metadata.name)
+                    logger.info("Successfully loaded sample workflow", workflow_name=workflow_definition.metadata.name)
 
                 except Exception:
-                    logger.exception("Failed to load workflow from %s", yaml_file)
+                    logger.exception("Failed to load workflow from file", file_path=str(yaml_file))
                     # Continue loading other workflows even if one fails
                     continue
 
@@ -140,7 +136,7 @@ def main() -> None:
     samples_dir = sys.argv[samples_arg_index] if len(sys.argv) > samples_arg_index else "samples"
 
     logger.info("Starting workflow loading process...")
-    logger.info("Samples directory: %s", samples_dir)
+    logger.info("Samples directory", directory=samples_dir)
 
     try:
         asyncio.run(load_sample_workflows(samples_dir))

@@ -1,7 +1,8 @@
 """Setup logging."""
 
 import json
-from logging import getLevelName
+import logging
+from logging import Formatter
 from typing import Any
 
 import structlog
@@ -13,25 +14,23 @@ from structlog.typing import (
 
 from nexus.core.config.base import get_settings
 
+settings = get_settings()
+
 
 class NexusLogRecordRenderer(JSONRenderer):
-    """Renderer that outputs either JSON or plain text format depending on settings."""
+    """Renderer that outputs JSON."""
 
-    def __init__(self, output_format: str = "json", **kwargs: Any) -> None:  # noqa: ANN401
-        """Initialize renderer with output format.
+    def __init__(self, **kwargs: Any) -> None:  # noqa: ANN401
+        """Initialize renderer.
 
         Args:
-            output_format: Either 'json' or 'text'
             **kwargs: Additional arguments passed to JSONRenderer
 
         """
         super().__init__(**kwargs)
-        self.output_format = output_format
 
     def __call__(self, _: WrappedLogger, __: str, event_dict: EventDict) -> str | bytes:
-        """Render event dictionary as JSON or plain text depending on settings."""
-        if self.output_format == "text":
-            return self._render_text(event_dict)
+        """Render event dictionary as JSON."""
         return self._render_json(event_dict)
 
     def _make_serializable(self, obj: object) -> object:
@@ -53,42 +52,63 @@ class NexusLogRecordRenderer(JSONRenderer):
         serializable_dict = self._make_serializable(event_dict)
         return str(self._dumps(serializable_dict, **self._dumps_kw))
 
-    def _render_text(self, event_dict: EventDict) -> str:
-        """Render event dictionary as plain text."""
-        parts = []
 
-        # Add timestamp if available
-        if "timestamp" in event_dict:
-            parts.append(f"[{event_dict['timestamp']}]")
+def build_nexus_shared_formatters() -> list[Any]:
+    """Build shared formatters for stdlib logging for structured logs."""
+    return [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.ExtraAdder(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.format_exc_info,
+    ]
 
-        # Add log level
-        if "level" in event_dict:
-            parts.append(f"[{event_dict['level'].upper()}]")
 
-        # Add the main event message
-        if "event" in event_dict:
-            parts.append(str(event_dict["event"]))
+def build_nexus_formatter() -> Formatter:
+    """Configure Nexus log formatter."""
+    if settings.log_output_format == "text":
+        return build_nexus_text_formatter()
+    return build_nexus_json_formatter()
 
-        # Add other fields (excluding timestamp, level, and event)
-        excluded_keys = {"timestamp", "level", "event"}
-        for key, value in event_dict.items():
-            if key not in excluded_keys:
-                parts.append(f"{key}={self._make_serializable(value)}")
 
-        return " ".join(parts)
+def build_nexus_text_formatter() -> Formatter:
+    """Build a simple text formatter for plain text logging."""
+    return structlog.stdlib.ProcessorFormatter(
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            structlog.dev.ConsoleRenderer(colors=False),
+        ],
+        foreign_pre_chain=build_nexus_shared_formatters(),
+    )
+
+
+def build_nexus_json_formatter() -> Formatter:
+    """Build a JSON formatter using NexusLogRecordRenderer."""
+    return structlog.stdlib.ProcessorFormatter(
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            NexusLogRecordRenderer(),
+        ],
+        foreign_pre_chain=build_nexus_shared_formatters(),
+    )
 
 
 def configure_structlog() -> None:
-    """Configure structlog with JSON or text output."""
-    settings = get_settings()
-    log_level: int = getLevelName(settings.log_level)
+    """Configure structlog and stdlib logging for structured logs."""
+    handler = logging.StreamHandler()
+    handler.setFormatter(build_nexus_formatter())
+
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(settings.log_level)
+
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso"),
-            NexusLogRecordRenderer(output_format=settings.output_format),
+            *build_nexus_shared_formatters(),
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(log_level),
         logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
     )

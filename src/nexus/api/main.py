@@ -31,7 +31,6 @@ from nexus.core.error_handlers import (
     http_exception_handler as core_http_exception_handler,
 )
 from nexus.core.exception_registry import register_exceptions
-from nexus.core.logging.logging import configure_structlog
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
@@ -45,7 +44,6 @@ from nexus.workflows.error_handlers import (
     temporal_rpc_error_handler,
 )
 
-configure_structlog()
 logger = structlog.stdlib.get_logger(__name__)
 
 
@@ -272,6 +270,7 @@ def main() -> None:
         host=settings.server_host,
         port=settings.server_port,
         reload=settings.server_reload,
+        log_config=settings.uvicorn_logging_config,
         log_level=settings.log_level.lower(),
     )
 

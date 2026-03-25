@@ -17,7 +17,7 @@ Usage:
 import os
 import tempfile
 from functools import lru_cache
-from typing import Self
+from typing import Any, Self
 from urllib.parse import quote_plus
 from uuid import UUID
 
@@ -717,10 +717,39 @@ class LoggingSettings(BaseSettings):
         default="INFO",
         description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     )
-    output_format: str = Field(
+    log_output_format: str = Field(
         default="json",
         description="Log output format (json, text)",
     )
+
+    @property
+    def uvicorn_logging_config(self) -> dict[str, Any]:
+        """Get uvicorn logging configuration with dynamic log level."""
+        return {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "nexus": {
+                    "()": "nexus.core.logging.logging.build_nexus_formatter",
+                },
+            },
+            "handlers": {
+                "nexus": {
+                    "formatter": "nexus",
+                    "class": "logging.StreamHandler",
+                    "stream": "ext://sys.stdout",
+                },
+            },
+            "loggers": {
+                "uvicorn": {"handlers": ["nexus"], "level": self.log_level, "propagate": False},
+                "uvicorn.error": {"handlers": ["nexus"], "level": self.log_level, "propagate": False},
+                "uvicorn.access": {"handlers": ["nexus"], "level": self.log_level, "propagate": False},
+            },
+            "root": {
+                "handlers": ["nexus"],
+                "level": self.log_level,
+            },
+        }
 
 
 # =============================================================================

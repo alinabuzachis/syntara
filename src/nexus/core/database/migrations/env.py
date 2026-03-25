@@ -13,6 +13,7 @@ from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
 from nexus.approvals.models.approval_request import ApprovalRequest
 from nexus.core.config.base import get_settings
+from nexus.core.logging.logging import configure_structlog
 from nexus.core.models import User
 from nexus.core.models.installation import Installation
 from nexus.files.models import FileMetadata
@@ -90,6 +91,7 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     """Run migrations with the given connection."""
+    configure_structlog()
     context.configure(
         connection=connection,
         target_metadata=target_metadata,

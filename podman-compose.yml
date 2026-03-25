@@ -84,7 +84,7 @@ services:
       dockerfile: containers/nexus/Containerfile
     image: ${NEXUS_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, 'uv run alembic upgrade head && uv run tools/load_sample_workflows.py samples && uv run uvicorn nexus.api.main:app --host 0.0.0.0 --port 8000']
+    command: [sh, -c, 'uv run alembic upgrade head && uv run tools/load_sample_workflows.py samples && uv run python -m nexus.api.main']
     ports:
       - ${NEXUS_API_PORT:-8000}:8000
     environment:
@@ -102,6 +102,7 @@ services:
       - NEXUS_OPENROUTER_BASE_URL=${NEXUS_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
       - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
+      - NEXUS_LOG_OUTPUT_FORMAT=${NEXUS_LOG_OUTPUT_FORMAT:-text}
       - NEXUS_SEGMENT_WRITE_KEY=${NEXUS_SEGMENT_WRITE_KEY}
       - NEXUS_ENTITLEMENT_ID=${NEXUS_ENTITLEMENT_ID}
       - NEXUS_COLLECTION_INTERVAL_SECONDS=${NEXUS_COLLECTION_INTERVAL_SECONDS:-300}
