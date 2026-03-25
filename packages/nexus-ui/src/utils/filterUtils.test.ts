@@ -59,19 +59,25 @@ describe('filterUtils', () => {
     })
 
     it('should have all types in VALID_FILTER_TYPES', () => {
-      expect(VALID_FILTER_TYPES).toHaveLength(6)
+      expect(VALID_FILTER_TYPES).toHaveLength(7)
       expect(VALID_FILTER_TYPES).toEqual(
-        expect.arrayContaining(['text', 'select', 'date', 'daterange', 'boolean', 'labels'])
+        expect.arrayContaining(['text', 'select', 'multiselect', 'date', 'daterange', 'boolean', 'labels'])
       )
     })
 
     it('should validate FilterTypeEnum values', () => {
       expect(isValidFilterType(FilterTypeEnum.TEXT)).toBe(true)
       expect(isValidFilterType(FilterTypeEnum.SELECT)).toBe(true)
+      expect(isValidFilterType(FilterTypeEnum.MULTISELECT)).toBe(true)
       expect(isValidFilterType(FilterTypeEnum.DATE)).toBe(true)
       expect(isValidFilterType(FilterTypeEnum.DATERANGE)).toBe(true)
       expect(isValidFilterType(FilterTypeEnum.BOOLEAN)).toBe(true)
       expect(isValidFilterType(FilterTypeEnum.LABELS)).toBe(true)
+    })
+
+    it('should validate multiselect as both string and enum', () => {
+      expect(isValidFilterType('multiselect')).toBe(true)
+      expect(isValidFilterType(FilterTypeEnum.MULTISELECT)).toBe(true)
     })
   })
 

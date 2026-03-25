@@ -14,7 +14,10 @@ import { ArrowRightIcon, FilterIcon } from '@patternfly/react-icons'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
-import { FilterTypeEnum } from '../../types/filters'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
+
+import { DateRangeFilter } from './DateRangeFilter'
+import { parseFilterDate } from './filterBarUtils'
 
 /**
  * Props for TextFilter component
@@ -26,6 +29,8 @@ export interface TextFilterProps {
   filters: FilterConfig[]
   /** Callback when filter changes */
   onFilterChange: (filter: FilterConfig | null, fieldKey?: string) => void
+  /** Callback when date range changes (for DATERANGE fields) */
+  onDateRangeChange?: (fieldKey: string, dateFilters: FilterConfig[]) => void
 }
 
 /**
@@ -108,7 +113,7 @@ function TextFilterInput({
 }
 
 /**
- * Select filter dropdown
+ * Select filter dropdown with search capability (client-side or server-side)
  */
 interface SelectFilterInputProps {
   selectedField: FilterFieldDefinition
@@ -119,12 +124,119 @@ interface SelectFilterInputProps {
 }
 
 function SelectFilterInput({ selectedField, currentFilter, isOpen, onOpenChange, onSelect }: SelectFilterInputProps) {
-  if (!selectedField.options) return null
+  const [searchValue, setSearchValue] = useState('')
+  const [asyncOptions, setAsyncOptions] = useState<{ label: string; value: string }[]>([])
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false)
+  // Store the selected option separately to preserve it when it's not in current async results
+  const [selectedOption, setSelectedOption] = useState<{ label: string; value: string } | null>(null)
+
+  // Determine if this is an async select
+  const isAsync = Boolean(selectedField.asyncOptions)
 
   // Normalize current filter value to string for comparison with option values
-  const activeOption = currentFilter
-    ? selectedField.options.find((opt) => String(opt.value) === String(currentFilter.value))
-    : null
+  const activeOption = useMemo(() => {
+    if (!currentFilter) return null
+    const options = isAsync ? asyncOptions : (selectedField.options ?? [])
+    const found = options.find((opt) => String(opt.value) === String(currentFilter.value))
+    // For async, prefer the stored selected option if the current filter matches but not found in current results
+    if (isAsync && !found && selectedOption && String(selectedOption.value) === String(currentFilter.value)) {
+      return selectedOption
+    }
+    return found
+  }, [currentFilter, isAsync, asyncOptions, selectedField.options, selectedOption])
+
+  // Fetch async options when search value changes (debounced)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const asyncOptionsFn = selectedField.asyncOptions
+  const loadAsyncOptions = useCallback(
+    async (search: string) => {
+      if (!asyncOptionsFn) return
+
+      setIsLoadingOptions(true)
+      try {
+        const options = await asyncOptionsFn(search)
+        setAsyncOptions(options)
+      } catch {
+        // Failed to load options - show empty list
+        setAsyncOptions([])
+      } finally {
+        setIsLoadingOptions(false)
+      }
+    },
+    [asyncOptionsFn]
+  )
+
+  // Handle search value changes
+  const handleSearchChange = useCallback(
+    (_event: React.FormEvent<HTMLInputElement>, value: string) => {
+      setSearchValue(value)
+
+      if (isAsync) {
+        // Debounce async calls
+        if (searchTimeoutRef.current) {
+          clearTimeout(searchTimeoutRef.current)
+        }
+        searchTimeoutRef.current = setTimeout(() => {
+          void loadAsyncOptions(value)
+        }, 300)
+      }
+    },
+    [isAsync, loadAsyncOptions]
+  )
+
+  // Load initial async options on mount
+  React.useEffect(() => {
+    if (isAsync && isOpen && asyncOptions.length === 0) {
+      void loadAsyncOptions('')
+    }
+  }, [isAsync, isOpen, asyncOptions.length, loadAsyncOptions])
+
+  // Client-side filtered options (for static options)
+  const filteredOptions = useMemo(() => {
+    if (isAsync) return asyncOptions
+    if (!searchValue) return selectedField.options ?? []
+    const search = searchValue.toLowerCase()
+    return (selectedField.options ?? []).filter((opt) => opt.label.toLowerCase().includes(search))
+  }, [isAsync, asyncOptions, searchValue, selectedField.options])
+
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setSearchValue('') // Clear search when closing
+      }
+      onOpenChange(open)
+    },
+    [onOpenChange]
+  )
+
+  const handleClearSearch = useCallback(() => {
+    setSearchValue('')
+    if (isAsync) {
+      void loadAsyncOptions('')
+    }
+  }, [isAsync, loadAsyncOptions])
+
+  // Wrap onSelect to capture the selected option for async filters
+  const onOptionSelectedFn = selectedField.onOptionSelected
+  const handleSelect = useCallback(
+    (event: React.MouseEvent | undefined, value: string | number | undefined) => {
+      if (value) {
+        // Find and store the selected option
+        const option = filteredOptions.find((opt) => String(opt.value) === String(value))
+        if (option) {
+          if (isAsync) {
+            setSelectedOption(option)
+          }
+          // Call the onOptionSelected callback if provided
+          onOptionSelectedFn?.(String(value), option.label)
+        }
+      }
+      onSelect(event, value)
+    },
+    [isAsync, filteredOptions, onSelect, onOptionSelectedFn]
+  )
+
+  if (!selectedField.options && !selectedField.asyncOptions) return null
 
   return (
     <ToolbarItem>
@@ -132,25 +244,112 @@ function SelectFilterInput({ selectedField, currentFilter, isOpen, onOpenChange,
         id="attribute-search-value-select"
         isOpen={isOpen}
         selected={activeOption?.value}
-        onSelect={onSelect}
-        onOpenChange={onOpenChange}
+        onSelect={handleSelect}
+        onOpenChange={handleOpenChange}
         toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-          <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)}>
+          <MenuToggle ref={toggleRef} onClick={() => handleOpenChange(!isOpen)}>
             {activeOption
               ? activeOption.label
               : (selectedField.placeholder ?? `Filter by ${selectedField.label.toLowerCase()}`)}
           </MenuToggle>
         )}
       >
+        <SearchInput
+          value={searchValue}
+          onChange={handleSearchChange}
+          onClear={handleClearSearch}
+          placeholder="Search..."
+          style={{ padding: 'var(--pf-t--global--spacer--sm)' }}
+        />
+        <SelectList>
+          {isLoadingOptions ? (
+            <SelectOption isDisabled>Loading...</SelectOption>
+          ) : filteredOptions.length > 0 ? (
+            filteredOptions.map((option) => (
+              <SelectOption key={option.value} value={option.value}>
+                {option.label}
+              </SelectOption>
+            ))
+          ) : (
+            <SelectOption isDisabled>No results found</SelectOption>
+          )}
+        </SelectList>
+      </Select>
+    </ToolbarItem>
+  )
+}
+
+/**
+ * Multi-select filter input with checkboxes
+ */
+interface MultiSelectFilterInputProps {
+  selectedField: FilterFieldDefinition
+  values: string[]
+  isOpen: boolean
+  onOpenChange: (isOpen: boolean) => void
+  onSelect: (_event: React.MouseEvent | undefined, value: string | number | undefined) => void
+}
+
+function MultiSelectFilterInput({
+  selectedField,
+  values,
+  isOpen,
+  onOpenChange,
+  onSelect,
+}: MultiSelectFilterInputProps) {
+  if (!selectedField.options) return null
+
+  return (
+    <ToolbarItem>
+      <Select
+        id="attribute-search-multiselect"
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        onSelect={onSelect}
+        toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+          <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)}>
+            {values.length > 0 ? `${values.length} selected` : (selectedField.placeholder ?? 'Select values')}
+          </MenuToggle>
+        )}
+      >
         <SelectList>
           {selectedField.options.map((option) => (
-            <SelectOption key={option.value} value={option.value}>
+            <SelectOption
+              key={option.value}
+              value={option.value}
+              hasCheckbox
+              isSelected={values.includes(option.value)}
+            >
               {option.label}
             </SelectOption>
           ))}
         </SelectList>
       </Select>
     </ToolbarItem>
+  )
+}
+
+/**
+ * Date range filter with start and end date pickers
+ */
+interface DateRangeFilterInputProps {
+  selectedField: FilterFieldDefinition
+  filters: FilterConfig[]
+  onDateRangeChange: (dateFilters: FilterConfig[]) => void
+}
+
+function DateRangeFilterInput({ selectedField, filters, onDateRangeChange }: DateRangeFilterInputProps) {
+  const gteFilter = filters.find((f) => f.key === selectedField.key && f.operator === 'gte')
+  const lteFilter = filters.find((f) => f.key === selectedField.key && f.operator === 'lte')
+
+  return (
+    <DateRangeFilter
+      fieldKey={selectedField.key}
+      label={selectedField.label}
+      startValue={parseFilterDate(gteFilter?.value)}
+      endValue={parseFilterDate(lteFilter?.value)}
+      onChange={onDateRangeChange}
+    />
   )
 }
 
@@ -231,14 +430,33 @@ function useTextFilterState(
   const handleValueSelect = useCallback(
     (_event: React.MouseEvent | undefined, selectedValue: string | number | undefined) => {
       if (!selectedField || !selectedValue) return
-      const option = selectedField.options?.find((opt) => String(opt.value) === String(selectedValue))
-      if (option) {
-        const operator = selectedField.operators?.[0] ?? selectedField.defaultOperator ?? 'eq'
-        onFilterChange({ key: selectedField.key, operator, value: option.value })
+
+      // Handle multiselect
+      if (selectedField.type === FilterTypeEnum.MULTISELECT) {
+        const currentValues = Array.isArray(currentFilter?.value) ? currentFilter.value : []
+        const stringValue = String(selectedValue)
+        const newValues = currentValues.includes(stringValue)
+          ? currentValues.filter((v) => v !== stringValue)
+          : [...currentValues, stringValue]
+
+        if (newValues.length === 0) {
+          onFilterChange(null, selectedField.key)
+        } else {
+          onFilterChange({
+            key: selectedField.key,
+            operator: FilterOperatorEnum.IN,
+            value: newValues,
+          })
+        }
+        return // Don't close dropdown for multiselect
       }
+
+      // Handle single select - value is already validated by SelectFilterInput
+      const operator = selectedField.operators?.[0] ?? selectedField.defaultOperator ?? 'eq'
+      onFilterChange({ key: selectedField.key, operator, value: selectedValue })
       setIsValueSelectOpen(false)
     },
-    [selectedField, onFilterChange]
+    [selectedField, currentFilter, onFilterChange]
   )
 
   const handleTextInputChange = useCallback((_event: React.FormEvent<HTMLInputElement>, value: string) => {
@@ -314,7 +532,7 @@ function useTextFilterState(
  * />
  * ```
  */
-function TextFilterComponent({ fieldDefinitions, filters, onFilterChange }: TextFilterProps) {
+function TextFilterComponent({ fieldDefinitions, filters, onFilterChange, onDateRangeChange }: TextFilterProps) {
   const {
     selectedField,
     isFieldSelectOpen,
@@ -330,6 +548,15 @@ function TextFilterComponent({ fieldDefinitions, filters, onFilterChange }: Text
     handleKeyDown,
     handleClear,
   } = useTextFilterState(fieldDefinitions, filters, onFilterChange)
+
+  const handleDateRangeChangeInternal = useCallback(
+    (dateFilters: FilterConfig[]) => {
+      if (selectedField && onDateRangeChange) {
+        onDateRangeChange(selectedField.key, dateFilters)
+      }
+    },
+    [selectedField, onDateRangeChange]
+  )
 
   if (!selectedField) return null
 
@@ -361,6 +588,24 @@ function TextFilterComponent({ fieldDefinitions, filters, onFilterChange }: Text
           isOpen={isValueSelectOpen}
           onOpenChange={setIsValueSelectOpen}
           onSelect={handleValueSelect}
+        />
+      )}
+
+      {selectedField.type === FilterTypeEnum.MULTISELECT && (
+        <MultiSelectFilterInput
+          selectedField={selectedField}
+          values={Array.isArray(currentFilter?.value) ? currentFilter.value : []}
+          isOpen={isValueSelectOpen}
+          onOpenChange={setIsValueSelectOpen}
+          onSelect={handleValueSelect}
+        />
+      )}
+
+      {selectedField.type === FilterTypeEnum.DATERANGE && (
+        <DateRangeFilterInput
+          selectedField={selectedField}
+          filters={filters}
+          onDateRangeChange={handleDateRangeChangeInternal}
         />
       )}
     </ToolbarItem>

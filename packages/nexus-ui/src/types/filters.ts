@@ -96,6 +96,7 @@ export interface FilterConfig {
 export const FilterTypeEnum = {
   TEXT: 'text',
   SELECT: 'select',
+  MULTISELECT: 'multiselect',
   DATE: 'date',
   DATERANGE: 'daterange',
   BOOLEAN: 'boolean',
@@ -133,6 +134,18 @@ export type FilterType = (typeof FilterTypeEnum)[keyof typeof FilterTypeEnum]
  *     { label: 'Failed', value: 'failed' }
  *   ]
  * }
+ *
+ * // Async typeahead select
+ * {
+ *   key: 'workflow_id',
+ *   label: 'Automation',
+ *   type: FilterTypeEnum.SELECT,
+ *   asyncOptions: async (searchValue) => {
+ *     const response = await fetch(`/workflows?name[contains]=${searchValue}`)
+ *     return response.resources.map(w => ({ label: w.name, value: w.id }))
+ *   },
+ *   placeholder: 'Search workflows'
+ * }
  * ```
  */
 export interface FilterFieldDefinition {
@@ -146,8 +159,14 @@ export interface FilterFieldDefinition {
   operators?: FilterOperator[]
   /** Default operator for this field - used for keyword search (defaults to FilterOperatorEnum.EQ) */
   defaultOperator?: FilterOperator
-  /** Options for select type filters */
+  /** Options for select type filters (static) */
   options?: { label: string; value: string }[]
+  /** Async function to fetch options based on search value (for server-side typeahead) */
+  asyncOptions?: (searchValue: string) => Promise<{ label: string; value: string }[]>
+  /** Function to resolve a value to its display label (for async filters with stored values) */
+  getOptionLabel?: (value: string) => string | undefined
+  /** Callback when an option is selected (useful for caching async option labels) */
+  onOptionSelected?: (value: string, label: string) => void
   /** Placeholder text for input controls */
   placeholder?: string
 }

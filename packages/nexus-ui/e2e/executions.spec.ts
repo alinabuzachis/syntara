@@ -1,9 +1,9 @@
 import { test, expect, toAppUrl } from './fixtures'
 
 test('user views executions and opens a running execution', async ({ app }) => {
-  // Arrange - Navigate to run history (test assumes mock API has at least one running execution)
+  // Arrange - Navigate to automation runs (test assumes mock API has at least one running execution)
   await app.goto(toAppUrl('/executions'))
-  await expect(app.getByRole('heading', { name: 'Run history' })).toBeVisible()
+  await expect(app.getByRole('heading', { name: 'Automation Runs' })).toBeVisible()
 
   const runningRow = app.getByRole('row', { name: /Running/ }).first()
   const hasRunning = await runningRow
