@@ -1,5 +1,5 @@
 # Stage 1: Builder - uses python-312 image where Python is pre-installed
-FROM registry.access.redhat.com/ubi9/python-312:latest@sha256:b0637633ec1e249fcc47a28b1587a715721783681437e9d5536714c98e03ad6d AS builder
+FROM registry.access.redhat.com/ubi9/python-312:latest@sha256:e95978812895b9abb2bdc109b501078da2a47c8dbb9fa23758af40ed50ab6023 AS builder
 
 # Switch to root to install dependencies
 USER root
