@@ -13,12 +13,11 @@ export interface NodeBodyProps {
  *
  * Features:
  * - Expands/collapses based on NodeExpandedContext
- * - Expands/collapses based on NodeExpandedContext
  * - Uses PatternFly Stack/StackItem components for layout
  */
-export function NodeBody(props: NodeBodyProps) {
+export function NodeBody(props: Readonly<NodeBodyProps>) {
   const expandedState = useContext(NodeExpandedContext)
-  const expanded = expandedState !== null ? expandedState[0] : true
+  const expanded = expandedState === null ? true : expandedState[0]
 
   if (!expanded) {
     return null
@@ -26,6 +25,7 @@ export function NodeBody(props: NodeBodyProps) {
 
   return (
     <StackItem
+      data-testid="node-body"
       className="nodrag nopan"
       style={{
         cursor: 'default', // Override node's draggable cursor - this area is scrollable, not draggable
@@ -34,6 +34,7 @@ export function NodeBody(props: NodeBodyProps) {
     >
       {/* Content container */}
       <div
+        data-testid="node-body-scroll-container"
         className={`nodrag nopan ${props.className ?? ''}`}
         style={{
           paddingLeft: 'var(--pf-t--global--spacer--md)',

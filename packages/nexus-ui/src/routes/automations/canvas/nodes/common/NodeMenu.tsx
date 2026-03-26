@@ -33,6 +33,7 @@ export function NodeMenu(props: Readonly<NodeMenuProps>) {
 
   return (
     <div
+      data-testid="node-menu-wrapper"
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
@@ -69,6 +70,7 @@ export function NodeMenu(props: Readonly<NodeMenuProps>) {
             }
             return (
               <DropdownItem
+                data-testid={`node-menu-item-${action.id}`}
                 key={action.id}
                 onClick={() => {
                   action.onClick()

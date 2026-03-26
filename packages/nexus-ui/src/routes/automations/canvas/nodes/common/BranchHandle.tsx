@@ -4,9 +4,9 @@ import { Handle, Position } from '@xyflow/react'
 
 import { sourceHandleStyle } from './handleStyle'
 
-export function BranchHandles(props: { children: React.ReactNode }) {
+export function BranchHandles(props: Readonly<{ children: React.ReactNode }>) {
   return (
-    <Flex direction={{ default: 'column' }} gap={{ default: 'gapSm' }}>
+    <Flex data-testid="branch-handles" direction={{ default: 'column' }} gap={{ default: 'gapSm' }}>
       {props.children}
     </Flex>
   )
@@ -30,7 +30,7 @@ function getApprovalHandleStyles(id: string): React.CSSProperties | null {
   return null
 }
 
-export function BranchHandle(props: { children: React.ReactNode; id: string; isConnectable?: boolean }) {
+export function BranchHandle(props: Readonly<{ children: React.ReactNode; id: string; isConnectable?: boolean }>) {
   const approvalStyles = getApprovalHandleStyles(props.id)
   const baseStyles: React.CSSProperties = {
     position: 'relative',
@@ -47,6 +47,7 @@ export function BranchHandle(props: { children: React.ReactNode; id: string; isC
   }
   return (
     <div
+      data-testid={`branch-handle-${props.id}`}
       style={{
         ...baseStyles,
         ...approvalStyles,

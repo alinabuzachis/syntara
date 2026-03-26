@@ -147,10 +147,7 @@ describe('StandardNodeHeader', () => {
     await user.click(menuButton)
 
     await waitFor(() => {
-      const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })
-
-      const parentLi = deleteItem.closest('li')
-      expect(parentLi).toHaveClass('pf-m-danger')
+      expect(screen.getByTestId('node-menu-item-delete')).toHaveClass('pf-m-danger')
     })
   })
 

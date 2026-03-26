@@ -30,13 +30,13 @@ describe('NodeHeader', () => {
   })
 
   it('applies padding styles', () => {
-    const { container } = render(
+    render(
       <NodeHeader>
         <span>Content</span>
       </NodeHeader>
     )
 
-    const headerDiv = container.firstChild as HTMLElement
+    const headerDiv = screen.getByTestId('node-header')
     expect(headerDiv).toHaveStyle({
       paddingTop: 'var(--pf-t--global--spacer--md)',
       paddingLeft: 'var(--pf-t--global--spacer--md)',
@@ -45,13 +45,13 @@ describe('NodeHeader', () => {
   })
 
   it('uses Flex layout for children', () => {
-    const { container } = render(
+    render(
       <NodeHeader>
         <span>Content</span>
       </NodeHeader>
     )
 
-    const flexContainer = container.querySelector('.pf-v6-l-flex')
+    const flexContainer = screen.getByTestId('node-header-content')
     expect(flexContainer).toBeInTheDocument()
   })
 

@@ -30,13 +30,13 @@ describe('NodeSidePanel', () => {
   })
 
   it('applies padding styles', () => {
-    const { container } = render(
+    render(
       <NodeSidePanel>
         <div>Content</div>
       </NodeSidePanel>
     )
 
-    const stack = container.querySelector('.pf-v6-l-stack')
+    const stack = screen.getByTestId('node-side-panel')
     expect(stack).toBeInTheDocument()
     expect(stack).toHaveStyle({
       padding: 'var(--pf-t--global--spacer--2xl)',
@@ -44,14 +44,14 @@ describe('NodeSidePanel', () => {
   })
 
   it('has gutter between stacked items', () => {
-    const { container } = render(
+    render(
       <NodeSidePanel>
         <div>Item 1</div>
         <div>Item 2</div>
       </NodeSidePanel>
     )
 
-    const stack = container.querySelector('.pf-v6-l-stack')
+    const stack = screen.getByTestId('node-side-panel')
     expect(stack).toHaveClass('pf-m-gutter')
   })
 

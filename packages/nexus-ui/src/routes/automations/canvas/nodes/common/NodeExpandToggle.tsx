@@ -6,22 +6,31 @@ import { NodeExpandedContext } from './NodeExpandedContext'
 
 export function NodeExpandToggle() {
   const expandedState = useContext(NodeExpandedContext)
-  const expanded = expandedState ? expandedState[0] : false
+  const expanded = expandedState === null ? true : expandedState[0]
   const setExpanded = expandedState ? expandedState[1] : () => {}
   if (!expandedState) return null
+
+  const handleToggle = (event: React.SyntheticEvent) => {
+    event.stopPropagation()
+    setExpanded((expanded) => !expanded)
+  }
+
   return (
     <Icon
-      onClick={(e) => {
-        e.stopPropagation()
-        setExpanded((expanded) => !expanded)
-      }}
+      data-testid="node-expand-toggle"
+      onClick={handleToggle}
       onMouseDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
           e.stopPropagation()
+          setExpanded((expanded) => !expanded)
         }
       }}
       className="nodrag nopan"
+      role="button"
+      tabIndex={0}
+      aria-label={expanded ? 'Collapse node details' : 'Expand node details'}
       style={{
         transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
         transition: 'transform 0.2s ease-out',

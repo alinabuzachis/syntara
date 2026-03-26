@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { NodeBody } from './NodeBody'
-import { NodeExpandedContext } from './NodeExpandedContext'
+import { NodeExpandedContext, type NodeExpandedContextValue } from './NodeExpandedContext'
 
 describe('NodeBody', () => {
   // Helper to render with context
@@ -30,8 +30,10 @@ describe('NodeBody', () => {
     className?: string
   }) => {
     const [expanded, setExpanded] = useState(initialExpanded)
+    const expandedContextValue = useMemo<NodeExpandedContextValue>(() => [expanded, setExpanded], [expanded])
+
     return (
-      <NodeExpandedContext.Provider value={[expanded, setExpanded]}>
+      <NodeExpandedContext.Provider value={expandedContextValue}>
         <div data-testid="expanded-state">{expanded ? 'expanded' : 'collapsed'}</div>
         <NodeBody className={className}>{children}</NodeBody>
       </NodeExpandedContext.Provider>
@@ -68,50 +70,53 @@ describe('NodeBody', () => {
 
   describe('className prop', () => {
     it('applies custom className to scrollable container', () => {
-      const { container } = render(<StatefulWrapper className="custom-class">Content</StatefulWrapper>)
+      render(<StatefulWrapper className="custom-class">Content</StatefulWrapper>)
 
-      const scrollableDiv = container.querySelector('.custom-class')
+      const scrollableDiv = screen.getByTestId('node-body-scroll-container')
       expect(scrollableDiv).toBeInTheDocument()
+      expect(scrollableDiv).toHaveClass('custom-class')
     })
 
     it('includes nodrag nopan classes with custom className', () => {
-      const { container } = render(<StatefulWrapper className="my-class">Content</StatefulWrapper>)
+      render(<StatefulWrapper className="my-class">Content</StatefulWrapper>)
 
-      const scrollableDiv = container.querySelector('.nodrag.nopan.my-class')
+      const scrollableDiv = screen.getByTestId('node-body-scroll-container')
       expect(scrollableDiv).toBeInTheDocument()
+      expect(scrollableDiv).toHaveClass('nodrag', 'nopan', 'my-class')
     })
   })
 
   describe('styling', () => {
     it('has default cursor style on stack item', () => {
-      const { container } = renderWithContext(true, <div>Content</div>)
+      renderWithContext(true, <div>Content</div>)
 
-      const stackItem = container.querySelector('.pf-v6-l-stack__item')
+      const stackItem = screen.getByTestId('node-body')
       expect(stackItem).toBeInTheDocument()
     })
   })
 
   describe('ReactFlow interaction prevention', () => {
     it('has nodrag nopan classes on StackItem', () => {
-      const { container } = renderWithContext(true, <div>Content</div>)
+      renderWithContext(true, <div>Content</div>)
 
-      const stackItem = container.querySelector('.pf-v6-l-stack__item')
+      const stackItem = screen.getByTestId('node-body')
       expect(stackItem).toHaveClass('nodrag')
       expect(stackItem).toHaveClass('nopan')
     })
 
     it('has nodrag nopan classes on scrollable div', () => {
-      const { container } = renderWithContext(true, <div>Content</div>)
+      renderWithContext(true, <div>Content</div>)
 
-      const scrollableDiv = container.querySelector('div.nodrag.nopan')
+      const scrollableDiv = screen.getByTestId('node-body-scroll-container')
       expect(scrollableDiv).toBeInTheDocument()
+      expect(scrollableDiv).toHaveClass('nodrag', 'nopan')
     })
   })
 
   describe('mousedown handling', () => {
     it('stops mousedown propagation on StackItem', () => {
       const parentMouseDownHandler = vi.fn()
-      const { container } = render(
+      render(
         // eslint-disable-next-line jsx-a11y/no-static-element-interactions
         <div onMouseDown={parentMouseDownHandler}>
           <NodeExpandedContext.Provider value={[true, vi.fn()]}>
@@ -122,10 +127,10 @@ describe('NodeBody', () => {
         </div>
       )
 
-      const stackItem = container.querySelector('.pf-v6-l-stack__item')
+      const stackItem = screen.getByTestId('node-body')
       expect(stackItem).toBeInTheDocument()
       const mouseDownEvent = new MouseEvent('mousedown', { bubbles: true })
-      stackItem!.dispatchEvent(mouseDownEvent)
+      stackItem.dispatchEvent(mouseDownEvent)
 
       expect(parentMouseDownHandler).not.toHaveBeenCalled()
     })

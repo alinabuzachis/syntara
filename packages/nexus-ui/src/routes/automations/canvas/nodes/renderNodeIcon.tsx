@@ -37,7 +37,12 @@ export function renderNodeIcon(
   }
 
   return (
-    <Icon size={size} iconSize={iconSize} style={Object.keys(iconStyle).length > 0 ? iconStyle : undefined}>
+    <Icon
+      data-testid="node-icon-wrapper"
+      size={size}
+      iconSize={iconSize}
+      style={Object.keys(iconStyle).length > 0 ? iconStyle : undefined}
+    >
       {isCustomIcon ? (
         (() => {
           const StyledIcon = IconComponent as ComponentType<{ style?: CSSProperties }>

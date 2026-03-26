@@ -60,13 +60,13 @@ describe('BranchHandles', () => {
   })
 
   it('uses column direction for stacking', () => {
-    const { container } = render(
+    render(
       <BranchHandles>
         <div>Content</div>
       </BranchHandles>
     )
 
-    const flexContainer = container.querySelector('.pf-v6-l-flex')
+    const flexContainer = screen.getByTestId('branch-handles')
     expect(flexContainer).toBeInTheDocument()
     expect(flexContainer).toHaveClass('pf-m-column')
   })
@@ -124,9 +124,9 @@ describe('BranchHandle', () => {
 
   describe('styling', () => {
     it('applies border styling', () => {
-      const { container } = render(<BranchHandle id="styled">Styled</BranchHandle>)
+      render(<BranchHandle id="styled">Styled</BranchHandle>)
 
-      const branchDiv = container.firstChild as HTMLElement
+      const branchDiv = screen.getByTestId('branch-handle-styled')
       expect(branchDiv).toHaveStyle({
         position: 'relative',
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -134,9 +134,9 @@ describe('BranchHandle', () => {
     })
 
     it('has rounded left corners', () => {
-      const { container } = render(<BranchHandle id="rounded">Rounded</BranchHandle>)
+      render(<BranchHandle id="rounded">Rounded</BranchHandle>)
 
-      const branchDiv = container.firstChild as HTMLElement
+      const branchDiv = screen.getByTestId('branch-handle-rounded')
       expect(branchDiv).toHaveStyle({
         borderTopLeftRadius: '2rem',
         borderBottomLeftRadius: '2rem',
@@ -144,9 +144,9 @@ describe('BranchHandle', () => {
     })
 
     it('uses flex display for alignment', () => {
-      const { container } = render(<BranchHandle id="flex">Flex</BranchHandle>)
+      render(<BranchHandle id="flex">Flex</BranchHandle>)
 
-      const branchDiv = container.firstChild as HTMLElement
+      const branchDiv = screen.getByTestId('branch-handle-flex')
       expect(branchDiv).toHaveStyle({
         display: 'flex',
         alignItems: 'center',
@@ -188,27 +188,27 @@ describe('BranchHandle', () => {
 
   describe('approval handle coloring', () => {
     it('applies success styling when id is approved', () => {
-      const { container } = render(<BranchHandle id="approved">Approved</BranchHandle>)
+      render(<BranchHandle id="approved">Approved</BranchHandle>)
 
-      const wrapper = container.firstChild as HTMLElement
+      const wrapper = screen.getByTestId('branch-handle-approved')
       expect(wrapper).toBeInTheDocument()
       expect(wrapper.style.backgroundColor).toContain('var(--pf-t--global--color--status--success--default)')
       expect(wrapper.style.color).toContain('status--on-success')
     })
 
     it('applies danger styling when id is rejected', () => {
-      const { container } = render(<BranchHandle id="rejected">Rejected</BranchHandle>)
+      render(<BranchHandle id="rejected">Rejected</BranchHandle>)
 
-      const wrapper = container.firstChild as HTMLElement
+      const wrapper = screen.getByTestId('branch-handle-rejected')
       expect(wrapper).toBeInTheDocument()
       expect(wrapper.style.backgroundColor).toContain('var(--pf-t--global--color--status--danger--default)')
       expect(wrapper.style.color).toContain('status--on-danger')
     })
 
     it('does not apply approval styling for other handle ids', () => {
-      const { container } = render(<BranchHandle id="true">True</BranchHandle>)
+      render(<BranchHandle id="true">True</BranchHandle>)
 
-      const wrapper = container.firstChild as HTMLElement
+      const wrapper = screen.getByTestId('branch-handle-true')
       expect(wrapper.style.backgroundColor).toBe('rgba(255, 255, 255, 0.1)')
     })
   })

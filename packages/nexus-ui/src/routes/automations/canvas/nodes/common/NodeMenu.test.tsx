@@ -29,25 +29,25 @@ describe('NodeMenu', () => {
 
     it('applies custom className', () => {
       const actions = [createMenuAction()]
-      const { container } = render(<NodeMenu menuActions={actions} className="custom-menu-class" />)
+      render(<NodeMenu menuActions={actions} className="custom-menu-class" />)
 
-      const wrapper = container.firstChild as HTMLElement
+      const wrapper = screen.getByTestId('node-menu-wrapper')
       expect(wrapper).toHaveClass('custom-menu-class')
     })
 
     it('applies custom style', () => {
       const actions = [createMenuAction()]
-      const { container } = render(<NodeMenu menuActions={actions} style={{ marginTop: '10px' }} />)
+      render(<NodeMenu menuActions={actions} style={{ marginTop: '10px' }} />)
 
-      const wrapper = container.firstChild as HTMLElement
+      const wrapper = screen.getByTestId('node-menu-wrapper')
       expect(wrapper).toHaveStyle({ marginTop: '10px' })
     })
 
     it('has nodrag nopan classes', () => {
       const actions = [createMenuAction()]
-      const { container } = render(<NodeMenu menuActions={actions} />)
+      render(<NodeMenu menuActions={actions} />)
 
-      const wrapper = container.firstChild as HTMLElement
+      const wrapper = screen.getByTestId('node-menu-wrapper')
       expect(wrapper).toHaveClass('nodrag')
       expect(wrapper).toHaveClass('nopan')
     })
@@ -156,10 +156,8 @@ describe('NodeMenu', () => {
       await user.click(screen.getByRole('button', { name: /node actions menu/i }))
 
       await waitFor(() => {
-        const deleteItem = screen.getByRole('menuitem', { name: 'Delete' })
-
-        const parentLi = deleteItem.closest('li')
-        expect(parentLi).toHaveClass('pf-m-danger')
+        const deleteItem = screen.getByTestId('node-menu-item-test-action')
+        expect(deleteItem.closest('li')).toHaveClass('pf-m-danger')
       })
     })
 
@@ -232,17 +230,17 @@ describe('NodeMenu', () => {
   describe('accessibility', () => {
     it('has button role on wrapper', () => {
       const actions = [createMenuAction()]
-      const { container } = render(<NodeMenu menuActions={actions} />)
+      render(<NodeMenu menuActions={actions} />)
 
-      const wrapper = container.firstChild as HTMLElement
+      const wrapper = screen.getByTestId('node-menu-wrapper')
       expect(wrapper).toHaveAttribute('role', 'button')
     })
 
     it('has tabIndex 0 on wrapper', () => {
       const actions = [createMenuAction()]
-      const { container } = render(<NodeMenu menuActions={actions} />)
+      render(<NodeMenu menuActions={actions} />)
 
-      const wrapper = container.firstChild as HTMLElement
+      const wrapper = screen.getByTestId('node-menu-wrapper')
       expect(wrapper).toHaveAttribute('tabIndex', '0')
     })
 

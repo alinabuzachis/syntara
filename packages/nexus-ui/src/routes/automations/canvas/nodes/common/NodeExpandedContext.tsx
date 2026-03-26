@@ -1,3 +1,5 @@
 import { createContext, type Dispatch, type SetStateAction } from 'react'
 
-export const NodeExpandedContext = createContext<[boolean, Dispatch<SetStateAction<boolean>>] | null>(null)
+export type NodeExpandedContextValue = [boolean, Dispatch<SetStateAction<boolean>>]
+
+export const NodeExpandedContext = createContext<NodeExpandedContextValue | null>(null)
