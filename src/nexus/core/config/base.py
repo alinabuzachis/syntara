@@ -1210,6 +1210,12 @@ class MetricsSettings(BaseSettings):
         ge=1,
     )
 
+    metrics_cleanup_interval_seconds: float = Field(
+        default=3600.0,
+        description="Seconds between periodic in-memory metrics store cleanup cycles",
+        gt=0,
+    )
+
 
 # =============================================================================
 # Workflow Client Configuration

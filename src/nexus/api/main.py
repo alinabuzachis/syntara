@@ -34,6 +34,7 @@ from nexus.core.exception_registry import register_exceptions
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
+from nexus.metrics.cleanup import get_metrics_cleanup_worker
 from nexus.metrics.completion_poller import get_completion_poller
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.middleware import MetricsMiddleware
@@ -103,12 +104,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     completion_poller = get_completion_poller()
     completion_poller.start()
 
+    metrics_cleanup_worker = get_metrics_cleanup_worker()
+    metrics_cleanup_worker.start()
+
     try:
         periodic_collector.start()
         logger.info("Periodic analytics collector started")
 
         yield
     finally:
+        await metrics_cleanup_worker.stop()
+
         await completion_poller.stop()
 
         # Stop periodic analytics collector
