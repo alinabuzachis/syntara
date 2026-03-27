@@ -85,14 +85,14 @@ describe('executionFilters', () => {
       expect(definition.placeholder).toBe('Filter by status')
     })
 
-    it('provides all valid execution status options', () => {
+    it('provides all valid execution status options from API contract', () => {
       const definition = getExecutionStatusFilterDefinition()
 
       expect(definition.options).toBeDefined()
       const statusValues = definition.options!.map((o) => o.value)
 
-      // Verify includes all execution statuses from API
-      expect(statusValues).toEqual(['pending', 'running', 'completed', 'failed', 'cancelled', 'timed_out'])
+      // Values derived from ExecutionStatusEnum in @ansible/nexus-contracts
+      expect(statusValues).toEqual(['pending', 'running', 'paused', 'completed', 'failed', 'cancelled'])
     })
 
     it('provides human-readable labels for status values', () => {
@@ -100,8 +100,7 @@ describe('executionFilters', () => {
 
       const statusLabels = definition.options!.map((o) => o.label)
 
-      // Verify labels are capitalized and user-friendly
-      expect(statusLabels).toEqual(['Pending', 'Running', 'Completed', 'Failed', 'Cancelled', 'Timed Out'])
+      expect(statusLabels).toEqual(['Pending', 'Running', 'Paused', 'Completed', 'Failed', 'Cancelled'])
     })
 
     it('uses exact match query parameter without operator', () => {

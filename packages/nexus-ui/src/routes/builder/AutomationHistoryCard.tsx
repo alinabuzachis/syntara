@@ -17,9 +17,14 @@ import {
   TitleSizes,
 } from '@patternfly/react-core'
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
+import { useMemo } from 'react'
 
+import { EmptyStateFilter } from '../../components/EmptyStateFilter'
+import { FilterBar } from '../../components/filters/FilterBar'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
+import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { formatElapsedTime } from '../../utils/dateUtils'
+import { getExecutionStatusFilterDefinition } from '../executions/executionFilters'
 
 import { StatusLabel } from './ExecutionStatus'
 import { formatHistoryDateTime, getDateGroupLabel } from './historyDateUtils'
@@ -90,12 +95,16 @@ interface AutomationHistoryCardProps {
   onClose: () => void
   onExecutionSelect: (executionId: string) => void
   selectedExecutionId?: string | null
+  filters?: FilterConfig[]
+  onFilterChange?: (filters: FilterConfig[]) => void
 }
 
-export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
-  const { executions, onClose, onExecutionSelect, selectedExecutionId } = props
+const HISTORY_FILTER_FIELDS: FilterFieldDefinition[] = [getExecutionStatusFilterDefinition()]
 
-  const groups = groupExecutionsByDate(executions)
+export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
+  const { executions, onClose, onExecutionSelect, selectedExecutionId, filters = [], onFilterChange } = props
+
+  const groups = useMemo(() => groupExecutionsByDate(executions), [executions])
 
   return (
     <CompassPanel
@@ -114,7 +123,7 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
         <StackItem
           style={{
             flexShrink: 0,
-            padding: 'var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--md)',
+            padding: 'var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--md)',
           }}
         >
           <Flex
@@ -144,8 +153,21 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
           </Flex>
         </StackItem>
 
+        {onFilterChange && (
+          <StackItem style={{ flexShrink: 0, minWidth: 0, overflow: 'hidden' }}>
+            <FilterBar
+              fieldDefinitions={HISTORY_FILTER_FIELDS}
+              filters={filters}
+              onFilterChange={onFilterChange}
+              isCompact
+            />
+          </StackItem>
+        )}
+
         <StackItem isFilled style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          {executions.length === 0 ? (
+          {executions.length === 0 && filters.length > 0 ? (
+            <EmptyStateFilter clearAllFilters={onFilterChange ? () => onFilterChange([]) : undefined} />
+          ) : executions.length === 0 ? (
             <Content
               component={ContentVariants.p}
               style={{
@@ -163,6 +185,8 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
                   paddingBottom: 'var(--pf-t--global--spacer--lg)',
                   '--pf-v6-c-simple-list__item-link--PaddingBlockStart': 'var(--pf-t--global--spacer--md)',
                   '--pf-v6-c-simple-list__item-link--PaddingBlockEnd': 'var(--pf-t--global--spacer--md)',
+                  '--pf-v6-c-simple-list__item-link--PaddingInlineStart': 'var(--pf-t--global--spacer--xl)',
+                  '--pf-v6-c-simple-list__item-link--PaddingInlineEnd': 'var(--pf-t--global--spacer--lg)',
                 } as React.CSSProperties
               }
             >

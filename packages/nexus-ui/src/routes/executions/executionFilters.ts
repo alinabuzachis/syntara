@@ -1,4 +1,5 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
 import createFetchClient from 'openapi-fetch'
 
 import type { FilterFieldDefinition } from '../../types/filters'
@@ -88,18 +89,20 @@ export const getExecutionWorkflowFilterDefinition = (): FilterFieldDefinition =>
  * // Generates query param: status=completed
  * ```
  */
+/**
+ * Status filter options derived from the ExecutionStatusEnum contract.
+ * Labels are auto-capitalized from the enum values (e.g. 'pending' → 'Pending').
+ */
+const EXECUTION_STATUS_OPTIONS = Object.values(ExecutionStatusEnum).map((status) => ({
+  value: status,
+  label: status.charAt(0).toUpperCase() + status.slice(1),
+}))
+
 export const getExecutionStatusFilterDefinition = (): FilterFieldDefinition => ({
   key: 'status',
   label: 'Status',
   type: FilterTypeEnum.SELECT,
-  options: [
-    { value: 'pending', label: 'Pending' },
-    { value: 'running', label: 'Running' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'failed', label: 'Failed' },
-    { value: 'cancelled', label: 'Cancelled' },
-    { value: 'timed_out', label: 'Timed Out' },
-  ],
+  options: EXECUTION_STATUS_OPTIONS,
   placeholder: 'Filter by status',
 })
 

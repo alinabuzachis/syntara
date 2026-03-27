@@ -14,10 +14,12 @@ import { ArrowRightIcon, FilterIcon } from '@patternfly/react-icons'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
-import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
+import { FilterTypeEnum } from '../../types/filters'
+
 
 import { DateRangeFilter } from './DateRangeFilter'
 import { parseFilterDate } from './filterBarUtils'
+import { useTextFilterState } from './useTextFilterState'
 
 /**
  * Props for TextFilter component
@@ -31,6 +33,8 @@ export interface TextFilterProps {
   onFilterChange: (filter: FilterConfig | null, fieldKey?: string) => void
   /** Callback when date range changes (for DATERANGE fields) */
   onDateRangeChange?: (fieldKey: string, dateFilters: FilterConfig[]) => void
+  /** Compact mode constrains dropdown menu width */
+  isCompact?: boolean
 }
 
 /**
@@ -42,9 +46,17 @@ interface FieldSelectorProps {
   isOpen: boolean
   onOpenChange: (isOpen: boolean) => void
   onSelect: (_event: React.MouseEvent | undefined, value: string | number | undefined) => void
+  popperProps?: Record<string, unknown>
 }
 
-function FieldSelector({ selectedField, fieldDefinitions, isOpen, onOpenChange, onSelect }: FieldSelectorProps) {
+function FieldSelector({
+  selectedField,
+  fieldDefinitions,
+  isOpen,
+  onOpenChange,
+  onSelect,
+  popperProps,
+}: FieldSelectorProps) {
   return (
     <Select
       id="attribute-search-field-select"
@@ -52,6 +64,7 @@ function FieldSelector({ selectedField, fieldDefinitions, isOpen, onOpenChange, 
       selected={selectedField.key}
       onSelect={onSelect}
       onOpenChange={onOpenChange}
+      popperProps={popperProps}
       toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
         <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)} icon={<FilterIcon />}>
           {selectedField.label}
@@ -121,9 +134,17 @@ interface SelectFilterInputProps {
   isOpen: boolean
   onOpenChange: (isOpen: boolean) => void
   onSelect: (_event: React.MouseEvent | undefined, value: string | number | undefined) => void
+  popperProps?: Record<string, unknown>
 }
 
-function SelectFilterInput({ selectedField, currentFilter, isOpen, onOpenChange, onSelect }: SelectFilterInputProps) {
+function SelectFilterInput({
+  selectedField,
+  currentFilter,
+  isOpen,
+  onOpenChange,
+  onSelect,
+  popperProps,
+}: SelectFilterInputProps) {
   const [searchValue, setSearchValue] = useState('')
   const [asyncOptions, setAsyncOptions] = useState<{ label: string; value: string }[]>([])
   const [isLoadingOptions, setIsLoadingOptions] = useState(false)
@@ -246,6 +267,7 @@ function SelectFilterInput({ selectedField, currentFilter, isOpen, onOpenChange,
         selected={activeOption?.value}
         onSelect={handleSelect}
         onOpenChange={handleOpenChange}
+        popperProps={popperProps}
         toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
           <MenuToggle ref={toggleRef} onClick={() => handleOpenChange(!isOpen)}>
             {activeOption
@@ -354,164 +376,6 @@ function DateRangeFilterInput({ selectedField, filters, onDateRangeChange }: Dat
 }
 
 /**
- * Determine initial selected field based on active filters
- */
-function getInitialSelectedField(
-  filters: FilterConfig[],
-  fieldDefinitions: FilterFieldDefinition[]
-): FilterFieldDefinition | null {
-  // If there are active filters, select the field of the most recent filter
-  if (filters.length > 0) {
-    const lastFilter = filters[filters.length - 1]
-    const matchingField = fieldDefinitions.find((f) => f.key === lastFilter.key)
-    if (matchingField) return matchingField
-  }
-  // Fall back to first field
-  return fieldDefinitions[0] ?? null
-}
-
-/**
- * Custom hook to manage attribute search state and handlers
- */
-function useTextFilterState(
-  fieldDefinitions: FilterFieldDefinition[],
-  filters: FilterConfig[],
-  onFilterChange: (filter: FilterConfig | null, fieldKey?: string) => void
-) {
-  const [selectedField, setSelectedField] = useState<FilterFieldDefinition | null>(() =>
-    getInitialSelectedField(filters, fieldDefinitions)
-  )
-  const [isFieldSelectOpen, setIsFieldSelectOpen] = useState(false)
-  const [isValueSelectOpen, setIsValueSelectOpen] = useState(false)
-  const [inputValue, setInputValue] = useState('')
-  const lastFilterValueRef = useRef<string>('')
-  const hasUserSelectedFieldRef = useRef(false)
-
-  const currentFilter = useMemo(
-    () => (selectedField ? (filters.find((f) => f.key === selectedField.key) ?? null) : null),
-    [filters, selectedField]
-  )
-
-  // Sync selectedField with fieldDefinitions to handle reference changes
-  React.useEffect(() => {
-    if (!selectedField) return
-    const matchingField = fieldDefinitions.find((f) => f.key === selectedField.key)
-    if (matchingField && matchingField !== selectedField) {
-      setSelectedField(matchingField)
-    } else if (!matchingField) {
-      setSelectedField(fieldDefinitions[0] ?? null)
-      hasUserSelectedFieldRef.current = false
-    }
-  }, [fieldDefinitions, selectedField])
-
-  // Sync input value when filter changes externally
-  React.useEffect(() => {
-    const currentFilterValue = currentFilter ? String(currentFilter.value) : ''
-    if (currentFilterValue !== lastFilterValueRef.current && currentFilterValue !== inputValue) {
-      lastFilterValueRef.current = currentFilterValue
-      setInputValue(currentFilterValue)
-    }
-  }, [currentFilter, inputValue])
-
-  const handleFieldSelect = useCallback(
-    (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
-      const field = fieldDefinitions.find((f) => f.key === value)
-      if (field) {
-        setSelectedField(field)
-        setInputValue('')
-        lastFilterValueRef.current = ''
-        setIsFieldSelectOpen(false)
-        hasUserSelectedFieldRef.current = true
-      }
-    },
-    [fieldDefinitions]
-  )
-
-  const handleValueSelect = useCallback(
-    (_event: React.MouseEvent | undefined, selectedValue: string | number | undefined) => {
-      if (!selectedField || !selectedValue) return
-
-      // Handle multiselect
-      if (selectedField.type === FilterTypeEnum.MULTISELECT) {
-        const currentValues = Array.isArray(currentFilter?.value) ? currentFilter.value : []
-        const stringValue = String(selectedValue)
-        const newValues = currentValues.includes(stringValue)
-          ? currentValues.filter((v) => v !== stringValue)
-          : [...currentValues, stringValue]
-
-        if (newValues.length === 0) {
-          onFilterChange(null, selectedField.key)
-        } else {
-          onFilterChange({
-            key: selectedField.key,
-            operator: FilterOperatorEnum.IN,
-            value: newValues,
-          })
-        }
-        return // Don't close dropdown for multiselect
-      }
-
-      // Handle single select - value is already validated by SelectFilterInput
-      const operator = selectedField.operators?.[0] ?? selectedField.defaultOperator ?? 'eq'
-      onFilterChange({ key: selectedField.key, operator, value: selectedValue })
-      setIsValueSelectOpen(false)
-    },
-    [selectedField, currentFilter, onFilterChange]
-  )
-
-  const handleTextInputChange = useCallback((_event: React.FormEvent<HTMLInputElement>, value: string) => {
-    setInputValue(value)
-  }, [])
-
-  const applyFilter = useCallback(() => {
-    if (!selectedField) return
-    const trimmedValue = inputValue.trim()
-    const existingFilter = filters.find((f) => f.key === selectedField.key)
-    if (trimmedValue && existingFilter?.value !== trimmedValue) {
-      onFilterChange({
-        key: selectedField.key,
-        operator: selectedField.defaultOperator ?? 'contains',
-        value: trimmedValue,
-      })
-    } else if (!trimmedValue && existingFilter) {
-      onFilterChange(null, selectedField.key)
-    }
-    lastFilterValueRef.current = trimmedValue
-  }, [selectedField, inputValue, filters, onFilterChange])
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      if (event.key === 'Enter') applyFilter()
-    },
-    [applyFilter]
-  )
-
-  const handleClear = useCallback(() => {
-    setInputValue('')
-    lastFilterValueRef.current = ''
-    if (selectedField && currentFilter) {
-      onFilterChange(null, selectedField.key)
-    }
-  }, [selectedField, currentFilter, onFilterChange])
-
-  return {
-    selectedField,
-    isFieldSelectOpen,
-    setIsFieldSelectOpen,
-    isValueSelectOpen,
-    setIsValueSelectOpen,
-    inputValue,
-    currentFilter,
-    handleFieldSelect,
-    handleValueSelect,
-    handleTextInputChange,
-    applyFilter,
-    handleKeyDown,
-    handleClear,
-  }
-}
-
-/**
  * Text filter component with field selector dropdown and dynamic input
  *
  * Implements PatternFly's attribute search pattern:
@@ -532,7 +396,16 @@ function useTextFilterState(
  * />
  * ```
  */
-function TextFilterComponent({ fieldDefinitions, filters, onFilterChange, onDateRangeChange }: TextFilterProps) {
+const COMPACT_POPPER_PROPS = { maxWidth: '10rem' }
+
+function TextFilterComponent({
+  fieldDefinitions,
+  filters,
+  onFilterChange,
+  onDateRangeChange,
+  isCompact,
+}: TextFilterProps) {
+  const compactPopperProps = isCompact ? COMPACT_POPPER_PROPS : undefined
   const {
     selectedField,
     isFieldSelectOpen,
@@ -568,6 +441,7 @@ function TextFilterComponent({ fieldDefinitions, filters, onFilterChange, onDate
         isOpen={isFieldSelectOpen}
         onOpenChange={setIsFieldSelectOpen}
         onSelect={handleFieldSelect}
+        popperProps={compactPopperProps}
       />
 
       {selectedField.type === FilterTypeEnum.TEXT && (
@@ -588,6 +462,7 @@ function TextFilterComponent({ fieldDefinitions, filters, onFilterChange, onDate
           isOpen={isValueSelectOpen}
           onOpenChange={setIsValueSelectOpen}
           onSelect={handleValueSelect}
+          popperProps={compactPopperProps}
         />
       )}
 

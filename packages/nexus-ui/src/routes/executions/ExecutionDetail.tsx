@@ -12,7 +12,7 @@ import {
 } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useParams, useSearch } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -21,6 +21,8 @@ import { executionsClient } from '../../client'
 import { ConnectionBanner } from '../../components/ConnectionBanner'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
+import type { FilterConfig } from '../../types/filters'
+import { buildFilterParams } from '../../utils/filterUtils'
 import { useExecutionWebSocket } from '../automations/hooks/useExecutionWebSocket'
 import { useExecutionStore } from '../automations/stores/useExecutionStore'
 import { AutomationHistoryCard } from '../builder/AutomationHistoryCard'
@@ -57,6 +59,8 @@ function ExecutionDetailContent({
   executionsQuery,
   searchParams,
   setLocation,
+  filters,
+  onFilterChange,
 }: {
   historyCardOpen: boolean
   workflow?: ExecutionWorkflow
@@ -71,6 +75,8 @@ function ExecutionDetailContent({
   }
   searchParams: string
   setLocation: (path: string) => void
+  filters: FilterConfig[]
+  onFilterChange: (filters: FilterConfig[]) => void
 }) {
   const isStale = useExecutionStore((state) => state.isStale)
   const isComplete = useExecutionStore((state) => state.isComplete)
@@ -155,6 +161,8 @@ function ExecutionDetailContent({
               const newSearch = params.toString()
               setLocation(`/executions/${selectedId}${newSearch ? `?${newSearch}` : ''}`)
             }}
+            filters={filters}
+            onFilterChange={onFilterChange}
           />
         </FlexItem>
       )}
@@ -218,12 +226,20 @@ export default function ExecutionDetail() {
     return params.get('history') !== 'closed'
   }, [searchParams])
 
+  const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
+
   // Fetch executions for this workflow
+  const executionsQueryParams = useMemo(() => {
+    const params: Record<string, unknown> = { workflow_id: execution?.workflow_id ?? '' }
+    Object.assign(params, buildFilterParams(executionFilters))
+    return params
+  }, [execution?.workflow_id, executionFilters])
+
   const executionsQuery = executionsClient.useQuery(
     'get',
     '/executions',
     {
-      params: { query: { workflow_id: execution?.workflow_id ?? '' } },
+      params: { query: executionsQueryParams },
     },
     {
       enabled: !!execution?.workflow_id,
@@ -366,6 +382,8 @@ export default function ExecutionDetail() {
           executionsQuery={executionsQuery}
           searchParams={searchParams}
           setLocation={setLocation}
+          filters={executionFilters}
+          onFilterChange={setExecutionFilters}
         />
       </StackItem>
     </AppPage>

@@ -1,4 +1,5 @@
 import { Button, Toolbar, ToolbarContent, ToolbarGroup, ToolbarItem, ToolbarFilter } from '@patternfly/react-core'
+import type React from 'react'
 import { useCallback } from 'react'
 
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
@@ -41,6 +42,8 @@ export interface FilterBarProps {
   onFilterChange: (filters: FilterConfig[]) => void
   /** Show "Clear all filters" button */
   showClearAll?: boolean
+  /** Compact mode for narrow panels (reduces padding, hides clear-all) */
+  isCompact?: boolean
 }
 
 /**
@@ -64,7 +67,13 @@ export interface FilterBarProps {
  * ```
  */
 
-export function FilterBar({ fieldDefinitions, filters, onFilterChange, showClearAll = true }: FilterBarProps) {
+export function FilterBar({
+  fieldDefinitions,
+  filters,
+  onFilterChange,
+  showClearAll = true,
+  isCompact = false,
+}: FilterBarProps) {
   // Separate field definitions for TextFilter (TEXT/SELECT/DATERANGE/MULTISELECT) vs other filter types
   const attributeSearchFields = fieldDefinitions.filter(isAttributeSearchField)
   const otherFilterFields = fieldDefinitions.filter((f) => !isAttributeSearchField(f))
@@ -124,11 +133,28 @@ export function FilterBar({ fieldDefinitions, filters, onFilterChange, showClear
     onFilterChange([])
   }, [onFilterChange])
 
+  const effectiveShowClearAll = isCompact ? false : showClearAll
+
+  const compactStyle = isCompact
+    ? ({
+        '--pf-v6-c-toolbar--PaddingBlockStart': 'var(--pf-t--global--spacer--xs)',
+        '--pf-v6-c-toolbar--PaddingBlockEnd': 'var(--pf-t--global--spacer--xs)',
+        '--pf-v6-c-toolbar__content--PaddingInlineEnd': 'var(--pf-t--global--spacer--md)',
+        '--pf-v6-c-toolbar__content--PaddingInlineStart': 'var(--pf-t--global--spacer--md)',
+        minWidth: 0,
+        maxWidth: '100%',
+      } as React.CSSProperties)
+    : undefined
+
+  const compactFilterGroupStyle: React.CSSProperties | undefined = isCompact
+    ? { flexWrap: 'wrap', rowGap: 'var(--pf-t--global--spacer--xs)' }
+    : undefined
+
   return (
-    <Toolbar id="filter-toolbar" clearAllFilters={handleClearAll}>
+    <Toolbar id="filter-toolbar" clearAllFilters={handleClearAll} style={compactStyle}>
       <ToolbarContent>
         {/* Filter Controls Group */}
-        <ToolbarGroup variant="filter-group">
+        <ToolbarGroup variant="filter-group" style={compactFilterGroupStyle}>
           {/* Text Filter - Field Selector + Value Input (TEXT/SELECT/DATERANGE) */}
           {attributeSearchFields.length > 0 && (
             <TextFilter
@@ -137,6 +163,7 @@ export function FilterBar({ fieldDefinitions, filters, onFilterChange, showClear
               filters={filters}
               onFilterChange={handleFilterUpdate}
               onDateRangeChange={handleDateRangeChange}
+              isCompact={isCompact}
             />
           )}
 
@@ -155,7 +182,7 @@ export function FilterBar({ fieldDefinitions, filters, onFilterChange, showClear
         </ToolbarGroup>
 
         {/* Clear All Filters Button */}
-        {showClearAll && hasActiveFilters && (
+        {effectiveShowClearAll && hasActiveFilters && (
           <ToolbarItem>
             <Button variant="link" onClick={handleClearAll} isInline>
               Clear all filters

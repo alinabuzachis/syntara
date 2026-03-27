@@ -67,6 +67,22 @@ export const EdgeHandleEnum = {
 } as const
 
 /**
+ * Constants for execution status discriminators
+ * Use these constants instead of string literals when comparing execution.status values
+ *
+ * Derived from the ExecutionStatus schema in the OpenAPI contract:
+ * `ExecutionsAPI.components['schemas']['ExecutionStatus']`
+ */
+export const ExecutionStatusEnum = {
+  PENDING: 'pending',
+  RUNNING: 'running',
+  PAUSED: 'paused',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+} as const
+
+/**
  * Constants for tool provider status values
  * Use these constants instead of string literals when comparing provider.status values
  */

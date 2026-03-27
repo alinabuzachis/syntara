@@ -115,6 +115,32 @@ describe('FilterBar', () => {
 
       expect(screen.queryByText('Clear all filters')).not.toBeInTheDocument()
     })
+
+    it('hides clear all button in compact mode even when showClearAll is true', () => {
+      const filters: FilterConfig[] = [{ key: 'name', operator: 'contains', value: 'test' }]
+
+      render(<FilterBar {...defaultProps} filters={filters} showClearAll={true} isCompact />)
+
+      expect(screen.queryByText('Clear all filters')).not.toBeInTheDocument()
+    })
+
+    it('applies compact styling when isCompact is true', () => {
+      render(<FilterBar {...defaultProps} isCompact />)
+
+      const toolbar = document.getElementById('filter-toolbar')
+      expect(toolbar).toBeInTheDocument()
+      expect(toolbar?.style.getPropertyValue('--pf-v6-c-toolbar--PaddingBlockStart')).toBe(
+        'var(--pf-t--global--spacer--xs)'
+      )
+    })
+
+    it('does not apply compact styling when isCompact is false', () => {
+      render(<FilterBar {...defaultProps} />)
+
+      const toolbar = document.getElementById('filter-toolbar')
+      expect(toolbar).toBeInTheDocument()
+      expect(toolbar?.style.getPropertyValue('--pf-v6-c-toolbar--PaddingBlockStart')).toBe('')
+    })
   })
 
   describe('attribute search', () => {

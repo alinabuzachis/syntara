@@ -45,7 +45,9 @@ import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { buildFilterParams } from '../../utils/filterUtils'
 import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
@@ -481,6 +483,8 @@ export function BuilderContent(props: BuilderContentProps) {
   } = useWorkflowStore()
   const { registerSaveHandler, unregisterSaveHandler } = useUnsavedChanges()
 
+  const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
+
   const [state, dispatch] = useReducer(builderReducer, getInitialState())
   const {
     confirmDialogOpen,
@@ -520,11 +524,17 @@ export function BuilderContent(props: BuilderContentProps) {
   const isNodeEditorOpen = nodeEditorMode !== null
 
   // Fetch executions for history panel (only if not new workflow)
+  const executionsQueryParams = useMemo(() => {
+    const params: Record<string, unknown> = { workflow_id: workflowId ?? '' }
+    Object.assign(params, buildFilterParams(executionFilters))
+    return params
+  }, [workflowId, executionFilters])
+
   const executionsQuery = executionsClient.useQuery(
     'get',
     '/executions',
     {
-      params: { query: { workflow_id: workflowId ?? '' } },
+      params: { query: executionsQueryParams },
     },
     {
       enabled: !!workflowId && !isNew,
@@ -1435,6 +1445,8 @@ export function BuilderContent(props: BuilderContentProps) {
                         dispatch({ type: 'SET_SELECTED_EXECUTION_ID', payload: id })
                       }}
                       selectedExecutionId={selectedExecutionId}
+                      filters={executionFilters}
+                      onFilterChange={setExecutionFilters}
                     />
                   </FlexItem>
                 )}

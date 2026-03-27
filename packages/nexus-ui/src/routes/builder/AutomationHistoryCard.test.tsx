@@ -1,6 +1,7 @@
 import type { ExecutionsAPI } from '@ansible/nexus-contracts'
 import { SimpleList } from '@patternfly/react-core'
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AutomationHistoryCard, ExecutionHistoryRow } from './AutomationHistoryCard'
@@ -142,6 +143,50 @@ describe('AutomationHistoryCard', () => {
   it('renders a SimpleList when executions are present', () => {
     render(<AutomationHistoryCard {...defaultProps} executions={[baseExecution]} />)
     expect(screen.getByRole('list')).toBeInTheDocument()
+  })
+
+  describe('status filter', () => {
+    it('renders filter bar when onFilterChange is provided', () => {
+      const onFilterChange = vi.fn()
+      render(<AutomationHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
+      expect(screen.getByText('Status')).toBeInTheDocument()
+    })
+
+    it('does not render filter bar when onFilterChange is not provided', () => {
+      render(<AutomationHistoryCard {...defaultProps} />)
+      expect(screen.queryByText('Status')).not.toBeInTheDocument()
+    })
+
+    it('shows status options from API contract when filter dropdown is opened', async () => {
+      const user = userEvent.setup()
+      const onFilterChange = vi.fn()
+      render(<AutomationHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
+
+      // Open the filter value dropdown (second dropdown in attribute-search)
+      const statusToggle = screen.getByText('Filter by status')
+      await user.click(statusToggle)
+
+      expect(screen.getByText('Pending')).toBeInTheDocument()
+      expect(screen.getByText('Running')).toBeInTheDocument()
+      expect(screen.getByText('Paused')).toBeInTheDocument()
+      expect(screen.getByText('Completed')).toBeInTheDocument()
+      expect(screen.getByText('Failed')).toBeInTheDocument()
+      expect(screen.getByText('Cancelled')).toBeInTheDocument()
+    })
+
+    it('calls onFilterChange when a status is selected', async () => {
+      const user = userEvent.setup()
+      const onFilterChange = vi.fn()
+      render(<AutomationHistoryCard {...defaultProps} filters={[]} onFilterChange={onFilterChange} />)
+
+      const statusToggle = screen.getByText('Filter by status')
+      await user.click(statusToggle)
+      await user.click(screen.getByText('Completed'))
+
+      expect(onFilterChange).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ key: 'status', value: 'completed' })])
+      )
+    })
   })
 })
 
