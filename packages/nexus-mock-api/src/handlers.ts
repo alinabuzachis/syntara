@@ -73,11 +73,46 @@ function paginate<T>(items: T[], cursor: string | null, limit: number, includeTo
 }
 
 export const handlers = [
-  http.get('/api/v1/tool_manager/tool_providers', () => {
+  http.get('/api/v1/tool_manager/tool_providers', ({ request }) => {
+    const url = new URL(request.url)
+    const nameContains = url.searchParams.get('name[contains]')
+    const status = url.searchParams.get('status')
+    const providerType = url.searchParams.get('provider_type')
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let resources = providers
+
+    // Apply name filter
+    if (nameContains) {
+      const searchTerm = nameContains.toLowerCase()
+      resources = resources.filter((p) => (p.name ?? '').toLowerCase().includes(searchTerm))
+    }
+
+    // Apply status filter
+    if (status) {
+      resources = resources.filter((p) => p.status === status)
+    }
+
+    // Apply provider_type filter
+    if (providerType) {
+      resources = resources.filter((p) => p.configuration?.provider_type === providerType)
+    }
+
+    // Paginate results
+    const startIndex = parseCursor(cursor)
+    const paginated = resources.slice(startIndex, startIndex + limit)
+    const { next, prev } = generateCursors(startIndex, limit, resources.length)
+
     const body: ToolProvidersResponse = {
-      resources: providers,
-      limit: 20,
-      has_more: false,
+      resources: paginated,
+      limit,
+      has_more: !!next,
+      next,
+      prev,
+      ...(includeTotal && { total: resources.length }),
     }
     return HttpResponse.json(body)
   }),

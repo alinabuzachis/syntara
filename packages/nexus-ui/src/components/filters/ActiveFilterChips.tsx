@@ -64,6 +64,7 @@ export function ActiveFilterChips({
                 handleCategoryClose()
               }
             }}
+            aria-label={categoryName}
           >
             {fieldFilters.map((filter) => {
               const operator = filter.operator ?? 'eq'
