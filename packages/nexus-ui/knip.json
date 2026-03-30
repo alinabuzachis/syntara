@@ -2,13 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "project": ["src/**/*.{ts,tsx}"],
   "treatConfigHintsAsErrors": true,
-  "ignoreDependencies": [
-    "@ansible/nexus-contracts",
-    "@vitest/browser",
-    "babel-plugin-react-compiler",
-    "eslint",
-    "prettier"
-  ],
-  "ignoreBinaries": ["vite", "concurrently", "vitest", "playwright", "tsc", "knip", "eslint"],
+  "ignoreDependencies": ["@vitest/browser", "babel-plugin-react-compiler", "eslint", "prettier", "nyc"],
+  "ignoreBinaries": ["vite", "concurrently", "vitest", "playwright", "tsc", "knip", "eslint", "nyc"],
   "exclude": ["unlisted", "types"]
 }

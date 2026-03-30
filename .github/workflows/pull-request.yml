@@ -17,13 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          # Fetch enough history for Codecov to compare against base branch
-          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22.12.0'
+          node-version: '22.13.0'
           cache: 'npm'
 
       - run: npm ci
@@ -43,9 +40,73 @@ jobs:
         run: npm run knip -- --reporter compact
         working-directory: packages/nexus-ui
 
-      - name: Run tests with coverage
-        run: npm run test:coverage
+  unit-tests:
+    name: Unit Tests (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.13.0'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run unit test shard with coverage
+        id: unit-test-shard
+        run: npm run test:coverage:shard -- --shard=${{ matrix.shard }}/4
         working-directory: packages/nexus-ui
+        env:
+          VITEST_COVERAGE_DIR: coverage/shard-${{ matrix.shard }}
+
+      - name: Upload shard coverage artifact
+        if: steps.unit-test-shard.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-coverage-${{ matrix.shard }}
+          path: packages/nexus-ui/coverage/shard-${{ matrix.shard }}/coverage-final.json
+          if-no-files-found: error
+          retention-days: 7
+
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Fetch enough history for coverage diff against base branch
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.13.0'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Download shard coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: unit-test-coverage-*
+          path: packages/nexus-ui/coverage-artifacts
+
+      - name: Merge shard coverage reports
+        run: npm run test:coverage:merge
+        working-directory: packages/nexus-ui
+
+      - name: Upload merged coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-coverage-report
+          path: packages/nexus-ui/coverage
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Enforce 80% coverage on changed files
         id: coverage-check
