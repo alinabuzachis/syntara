@@ -339,6 +339,11 @@ endif
 # ========================================================
 FORMAT_PATHS := src/ tools/ tests/
 
+.PHONY: api-validation
+api-validation: ## Validate OpenAPI and AsyncAPI spec files
+	@echo "🔍 Validating API specifications..."
+	uv run python tools/ci/validate_api_specs.py
+
 .PHONY: check-path-sequence
 check-path-sequence: ## Validate numbering sequence under specs/
 	@echo "🔢 Validating numbered entries in specs/..."
