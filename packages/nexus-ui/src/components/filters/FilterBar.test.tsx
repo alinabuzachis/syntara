@@ -677,7 +677,7 @@ describe('FilterBar', () => {
       expect(chipWithGamma).toBeInTheDocument()
     })
 
-    it('renders MULTISELECT filter type in TextFilter', async () => {
+    it('renders MULTISELECT filter type via FilterTypeRenderer', async () => {
       const user = userEvent.setup()
       const multiSelectField: FilterFieldDefinition = {
         key: 'tags',
@@ -694,20 +694,16 @@ describe('FilterBar', () => {
         <ControlledFilterBar fieldDefinitions={[multiSelectField]} onFilterChange={vi.fn()} showClearAll={false} />
       )
 
-      // MULTISELECT is rendered in TextFilter dropdown (field selector should show "Tags")
-      expect(screen.getByRole('button', { name: /tags/i })).toBeInTheDocument()
+      // MULTISELECT is rendered as a standalone MultiSelectFilter via FilterTypeRenderer
+      const toggle = screen.getByRole('button', { name: /filter by tags/i })
+      expect(toggle).toBeInTheDocument()
 
-      // Open the value selector (shows multi-select options with checkboxes)
-      const valueSelector = screen.getByRole('button', { name: /select values/i })
-      await user.click(valueSelector)
+      // Open the dropdown and verify checkbox options
+      await user.click(toggle)
 
-      // Wait for options to appear
-      await screen.findByText('Important')
-
-      // Verify multi-select options are rendered
-      expect(screen.getByText('Important')).toBeInTheDocument()
-      expect(screen.getByText('Urgent')).toBeInTheDocument()
-      expect(screen.getByText('Review')).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: 'Important' })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: 'Urgent' })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: 'Review' })).toBeInTheDocument()
     })
 
     it('allows removing all filters for a category via category close button', async () => {
@@ -1822,18 +1818,18 @@ describe('FilterBar', () => {
       expect(screen.getByText('Created Date')).toBeInTheDocument()
     })
 
-    it('filters MULTISELECT type into attributeSearchFields', () => {
+    it('filters MULTISELECT type into otherFilterFields (rendered by FilterTypeRenderer)', () => {
       const multiField: FilterFieldDefinition = {
         key: 'tags',
         label: 'Tags',
         type: FilterTypeEnum.MULTISELECT,
-        options: [],
+        options: [{ label: 'Alpha', value: 'alpha' }],
       }
 
       render(<FilterBar {...defaultProps} fieldDefinitions={[multiField]} filters={[]} />)
 
-      // MULTISELECT should appear in attribute search (line 127 condition: f.type === FilterTypeEnum.MULTISELECT)
-      expect(screen.getByText('Tags')).toBeInTheDocument()
+      // MULTISELECT is rendered by FilterTypeRenderer as a standalone MultiSelectFilter
+      expect(screen.getByRole('button', { name: /filter by tags/i })).toBeInTheDocument()
     })
 
     it('filters BOOLEAN type into otherFilterFields (not attributeSearchFields)', () => {
@@ -1973,6 +1969,51 @@ describe('FilterBar', () => {
 
       // This executes line 152-153: if (operator) branch TRUE
       expect(onFilterChange).toHaveBeenCalled()
+    })
+  })
+
+  describe('multiselect integration', () => {
+    const statusField: FilterFieldDefinition = {
+      key: 'status',
+      label: 'Status',
+      type: FilterTypeEnum.MULTISELECT,
+      options: [
+        { label: 'Running', value: 'running' },
+        { label: 'Completed', value: 'completed' },
+        { label: 'Failed', value: 'failed' },
+      ],
+    }
+
+    it('select values, remove one chip, then remove last chip', async () => {
+      const user = userEvent.setup()
+      const onFilterChange = vi.fn()
+
+      render(
+        <ControlledFilterBar fieldDefinitions={[statusField]} onFilterChange={onFilterChange} showClearAll={false} />
+      )
+
+      // Open the multiselect dropdown and select two values
+      await user.click(screen.getByRole('button', { name: /filter by status/i }))
+      await user.click(screen.getByRole('checkbox', { name: 'Running' }))
+      await user.click(screen.getByRole('checkbox', { name: 'Failed' }))
+
+      // Both chips should appear (use close buttons as unique chip indicators)
+      expect(screen.getByRole('button', { name: 'Close Running' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close Failed' })).toBeInTheDocument()
+
+      // Remove the "Running" chip
+      await user.click(screen.getByRole('button', { name: 'Close Running' }))
+
+      // "Running" chip should be gone, "Failed" should remain
+      expect(screen.queryByRole('button', { name: 'Close Running' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close Failed' })).toBeInTheDocument()
+
+      // Remove the last chip ("Failed")
+      await user.click(screen.getByRole('button', { name: 'Close Failed' }))
+
+      // All chips should be gone — filter is cleared
+      expect(screen.queryByRole('button', { name: 'Close Running' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Close Failed' })).not.toBeInTheDocument()
     })
   })
 })

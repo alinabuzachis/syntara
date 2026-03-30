@@ -1,10 +1,11 @@
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
-import { FilterTypeEnum } from '../../types/filters'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 
 import { BooleanFilter } from './BooleanFilter'
 import { DateRangeFilter } from './DateRangeFilter'
 import { parseFilterDate, parseLabelFilters } from './filterBarUtils'
 import { LabelFilter } from './LabelFilter'
+import { MultiSelectFilter } from './MultiSelectFilter'
 
 /**
  * Props for FilterTypeRenderer component
@@ -23,9 +24,10 @@ export interface FilterTypeRendererProps {
  * Handles rendering for:
  * - BOOLEAN: Toggle switch filter
  * - DATERANGE: Start/end date picker
+ * - MULTISELECT: Checkbox dropdown filter
  * - LABELS: Key-value label filter
  *
- * Note: TEXT, SELECT, DATERANGE, and MULTISELECT types are handled by TextFilter
+ * Note: TEXT, SELECT, and DATERANGE types are handled by TextFilter
  * in the attributeSearchFields section of FilterBar, not by this renderer.
  *
  * @param props - FilterTypeRenderer props
@@ -64,6 +66,22 @@ export function FilterTypeRenderer({
     )
   }
 
+  if (field.type === FilterTypeEnum.MULTISELECT) {
+    const currentFilter = filters.find((f) => f.key === field.key)
+    const selectedValues = currentFilter && Array.isArray(currentFilter.value) ? currentFilter.value : []
+    return (
+      <MultiSelectFilter
+        fieldKey={field.key}
+        label={field.label}
+        options={field.options ?? []}
+        selectedValues={selectedValues}
+        onChange={onFilterUpdate}
+        operator={field.operators?.[0] ?? FilterOperatorEnum.IN}
+        placeholder={field.placeholder}
+      />
+    )
+  }
+
   if (field.type === FilterTypeEnum.LABELS) {
     const labelParams = parseLabelFilters(filters, field.key)
     return (
@@ -75,6 +93,6 @@ export function FilterTypeRenderer({
     )
   }
 
-  // TEXT, SELECT, DATERANGE, MULTISELECT handled by TextFilter
+  // TEXT, SELECT, DATERANGE handled by TextFilter
   return null
 }

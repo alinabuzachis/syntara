@@ -11,8 +11,8 @@ interface ActiveFilterChipsProps {
   filters: FilterConfig[]
   /** Filter field definitions */
   fieldDefinitions: FilterFieldDefinition[]
-  /** Callback when chip is removed */
-  onChipRemove: (fieldKey: string, operator?: FilterOperator) => void
+  /** Callback when chip is removed. Pass value to remove a single item from a multi-select array. */
+  onChipRemove: (fieldKey: string, operator?: FilterOperator, value?: string) => void
   /** Callback when all chips for a category are removed */
   onCategoryRemove?: (fieldKey: string) => void
 }
@@ -57,7 +57,6 @@ export function ActiveFilterChips({
             isClosable
             closeBtnAriaLabel={`Remove all ${categoryName} filters`}
             onClick={(event) => {
-              // Check if the close button was clicked by inspecting the button element
               const target = event.target as HTMLElement
               const closeButton = target.closest('button[aria-label*="Remove all"]')
               if (closeButton) {
@@ -66,12 +65,25 @@ export function ActiveFilterChips({
             }}
             aria-label={categoryName}
           >
-            {fieldFilters.map((filter) => {
+            {fieldFilters.flatMap((filter) => {
               const operator = filter.operator ?? 'eq'
-              // Use composite key to handle duplicate keys (e.g., date ranges with gte/lte)
+
+              if (Array.isArray(filter.value)) {
+                return filter.value.map((val) => {
+                  const displayLabel = field?.options?.find((opt) => opt.value === val)?.label ?? val
+                  return (
+                    <Label
+                      key={`${filter.key}-${operator}-${val}`}
+                      onClose={() => onChipRemove(filter.key, filter.operator, val)}
+                    >
+                      {displayLabel}
+                    </Label>
+                  )
+                })
+              }
+
               const uniqueKey = `${filter.key}-${operator}`
 
-              // Special handling for workflow_id filter - use WorkflowName component
               if (filter.key === 'workflow_id' && typeof filter.value === 'string') {
                 return (
                   <Label key={uniqueKey} onClose={() => onChipRemove(filter.key, filter.operator)}>
@@ -80,35 +92,17 @@ export function ActiveFilterChips({
                 )
               }
 
-              // Map filter value to display label
               const displayValue = (() => {
-                // For IN operator with array values, map each value to its label
-                if (operator === 'in' && Array.isArray(filter.value)) {
-                  if (field?.options) {
-                    const labels = filter.value
-                      .map((val) => {
-                        const option = field.options?.find((opt) => String(opt.value) === String(val))
-                        return option?.label ?? String(val)
-                      })
-                      .filter(Boolean)
-                    return labels.join(', ')
-                  }
-                  return filter.value.join(', ')
-                }
-
-                // If field has options (SELECT type), look up the label
                 if (field?.options) {
                   const option = field.options.find((opt) => String(opt.value) === String(filter.value))
                   if (option) return option.label
                 }
 
-                // If field has getOptionLabel (async SELECT), use it to resolve the label
                 if (field?.getOptionLabel) {
                   const label = field.getOptionLabel(String(filter.value))
                   if (label) return label
                 }
 
-                // For date range filters, add operator prefix to clarify start/end
                 if (operator === 'gte' || operator === 'gt') {
                   return `From: ${String(filter.value)}`
                 }
@@ -116,7 +110,6 @@ export function ActiveFilterChips({
                   return `To: ${String(filter.value)}`
                 }
 
-                // Fall back to raw value for TEXT, BOOLEAN without options, etc.
                 return String(filter.value)
               })()
 

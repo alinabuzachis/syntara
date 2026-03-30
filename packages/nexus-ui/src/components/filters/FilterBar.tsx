@@ -19,14 +19,13 @@ import { TextFilter } from './TextFilter'
 /**
  * Determines if a filter field should be rendered in the attribute search (TextFilter)
  * @param field - The filter field definition to check
- * @returns true if the field should appear in TextFilter (TEXT/SELECT/DATERANGE/MULTISELECT)
+ * @returns true if the field should appear in TextFilter (TEXT/SELECT/DATERANGE)
  */
 function isAttributeSearchField(field: FilterFieldDefinition): boolean {
   return (
     field.type === FilterTypeEnum.TEXT ||
     field.type === FilterTypeEnum.SELECT ||
-    field.type === FilterTypeEnum.DATERANGE ||
-    field.type === FilterTypeEnum.MULTISELECT
+    field.type === FilterTypeEnum.DATERANGE
   )
 }
 
@@ -91,9 +90,21 @@ export function FilterBar({
     [filters, onFilterChange]
   )
 
-  // Handle filter removal
+  // Handle filter removal (supports removing individual values from multi-select arrays)
   const handleFilterRemove = useCallback(
-    (fieldKey: string, operator?: FilterConfig['operator']) => {
+    (fieldKey: string, operator?: FilterConfig['operator'], value?: string) => {
+      if (value) {
+        const filter = filters.find((f) => f.key === fieldKey && f.operator === operator)
+        if (filter && Array.isArray(filter.value)) {
+          const remaining = filter.value.filter((v) => v !== value)
+          if (remaining.length === 0) {
+            onFilterChange(filters.filter((f) => !(f.key === fieldKey && f.operator === operator)))
+          } else {
+            onFilterChange(filters.map((f) => (f === filter ? { ...f, value: remaining } : f)))
+          }
+          return
+        }
+      }
       if (operator) {
         onFilterChange(removeFilterByKeyAndOperator(filters, fieldKey, operator))
       } else {

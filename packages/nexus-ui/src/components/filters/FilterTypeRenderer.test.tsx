@@ -226,17 +226,20 @@ describe('FilterTypeRenderer', () => {
       expect(container.firstChild).toBeNull()
     })
 
-    it('returns null for MULTISELECT type (handled by TextFilter)', () => {
+    it('renders MultiSelectFilter for MULTISELECT type', () => {
       const field: FilterFieldDefinition = {
         key: 'tags',
         label: 'Tags',
         type: FilterTypeEnum.MULTISELECT,
-        options: [],
+        options: [
+          { label: 'Important', value: 'important' },
+          { label: 'Urgent', value: 'urgent' },
+        ],
       }
 
-      const { container } = render(<FilterTypeRenderer {...defaultProps} field={field} />)
+      render(<FilterTypeRenderer {...defaultProps} field={field} />)
 
-      expect(container.firstChild).toBeNull()
+      expect(screen.getByRole('button', { name: /filter by tags/i })).toBeInTheDocument()
     })
   })
 })

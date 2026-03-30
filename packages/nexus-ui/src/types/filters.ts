@@ -127,7 +127,7 @@ export type FilterType = (typeof FilterTypeEnum)[keyof typeof FilterTypeEnum]
  * {
  *   key: 'status',
  *   label: 'Status',
- *   type: FilterTypeEnum.SELECT,
+ *   type: FilterTypeEnum.MULTISELECT,
  *   operators: [FilterOperatorEnum.IN],
  *   options: [
  *     { label: 'Running', value: 'running' },

@@ -19,6 +19,9 @@ export type { BooleanFilterProps } from './BooleanFilter'
 export { LabelFilter } from './LabelFilter'
 export type { LabelFilterProps, LabelPair } from './LabelFilter'
 
+export { MultiSelectFilter } from './MultiSelectFilter'
+export type { MultiSelectFilterProps } from './MultiSelectFilter'
+
 export { FilterBar } from './FilterBar'
 export type { FilterBarProps } from './FilterBar'
 
