@@ -283,6 +283,15 @@ services-clean: ## Stop all services and remove all data (destructive)
 	@echo "✅ All services stopped and data purged"
 
 
+# API spec export
+# ========================================================
+.PHONY: api-spec-export
+api-spec-export: check-deps ## Export OpenAPI spec to JSON without starting the server
+	@echo "📤 Exporting OpenAPI specification..."
+	uv run python tools/export_openapi.py -o docs/openapi.json
+	@echo "✅ OpenAPI spec exported to docs/openapi.json"
+
+
 # Tools
 # ========================================================
 .PHONY: install-cursor-commands
