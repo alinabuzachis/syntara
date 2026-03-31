@@ -38,6 +38,7 @@ from nexus.metrics.cleanup import get_metrics_cleanup_worker
 from nexus.metrics.completion_poller import get_completion_poller
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.middleware import MetricsMiddleware
+from nexus.metrics.openmetrics import openmetrics_endpoint
 from nexus.telemetry.client import flush_telemetry, get_telemetry_registry, initialize_telemetry
 from nexus.telemetry.middleware import AnalyticsMiddleware
 from nexus.telemetry.periodic_collector import PeriodicCollector
@@ -246,6 +247,9 @@ async def health_check(request: Request) -> dict[str, Any]:  # noqa: ARG001
             "database": db_status,
         },
     }
+
+
+app.get("/metrics", tags=["Observability"])(openmetrics_endpoint)
 
 
 @app.get("/", tags=["Root"])

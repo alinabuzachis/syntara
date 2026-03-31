@@ -1189,7 +1189,7 @@ class MetricsSettings(BaseSettings):
 
     metrics_openmetrics_enabled: bool = Field(
         default=True,
-        description="Enable OpenMetrics scrape endpoint (GET /api/v1/metrics/openmetrics)",
+        description="Enable OpenMetrics scrape endpoint (GET /metrics)",
     )
 
     metrics_poller_interval_seconds: float = Field(
