@@ -8,10 +8,10 @@ Usage:
     python -m nexus.workflows.worker
 
 Environment Variables:
-    NEXUS_TEMPORAL_ADDRESS: Temporal server address (default: localhost:7233)
-    NEXUS_TEMPORAL_NAMESPACE: Temporal namespace (default: default)
-    NEXUS_TASK_QUEUE: Task queue name (default: nexus-workflow-queue)
-    NEXUS_LOG_LEVEL: Logging level (default: INFO)
+    APP_TEMPORAL_ADDRESS: Temporal server address (default: localhost:7233)
+    APP_TEMPORAL_NAMESPACE: Temporal namespace (default: default)
+    APP_TASK_QUEUE: Task queue name (default: nexus-workflow-queue)
+    APP_LOG_LEVEL: Logging level (default: INFO)
 
 """
 

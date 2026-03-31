@@ -24,20 +24,20 @@ class TestGetOpenRouterLLM:
     def test_raises_error_when_api_key_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that missing API key raises LLMConfigurationError with helpful message."""
         # Remove API key if it exists from environment
-        monkeypatch.delenv("NEXUS_OPENROUTER_API_KEY", raising=False)
-        # Also need to prevent .env file loading by temporarily removing all NEXUS_OPENROUTER env vars
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "")  # Set to empty string to override .env
+        monkeypatch.delenv("APP_OPENROUTER_API_KEY", raising=False)
+        # Also need to prevent .env file loading by temporarily removing all APP_OPENROUTER env vars
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "")  # Set to empty string to override .env
 
-        with pytest.raises(LLMConfigurationError, match="NEXUS_OPENROUTER_API_KEY environment variable is required"):
+        with pytest.raises(LLMConfigurationError, match="APP_OPENROUTER_API_KEY environment variable is required"):
             get_openrouter_llm()
 
     def test_uses_settings_defaults_when_args_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that get_openrouter_llm respects settings defaults when args are None."""
         # Set environment variables
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "test-key-123")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MODEL", "test/model")
-        monkeypatch.setenv("NEXUS_OPENROUTER_TEMPERATURE", "0.9")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MAX_TOKENS", "1500")
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "test-key-123")
+        monkeypatch.setenv("APP_OPENROUTER_MODEL", "test/model")
+        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "0.9")
+        monkeypatch.setenv("APP_OPENROUTER_MAX_TOKENS", "1500")
 
         # Get LLM without providing arguments
         llm = get_openrouter_llm()
@@ -51,10 +51,10 @@ class TestGetOpenRouterLLM:
     def test_explicit_args_override_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that explicit arguments override settings defaults."""
         # Set environment variables to defaults
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "test-key-123")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MODEL", "default/model")
-        monkeypatch.setenv("NEXUS_OPENROUTER_TEMPERATURE", "0.7")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MAX_TOKENS", "1000")
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "test-key-123")
+        monkeypatch.setenv("APP_OPENROUTER_MODEL", "default/model")
+        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "0.7")
+        monkeypatch.setenv("APP_OPENROUTER_MAX_TOKENS", "1000")
 
         # Get LLM with explicit overrides
         llm = get_openrouter_llm(
@@ -70,10 +70,10 @@ class TestGetOpenRouterLLM:
 
     def test_partial_args_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that partial argument overrides work correctly."""
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "test-key-123")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MODEL", "default/model")
-        monkeypatch.setenv("NEXUS_OPENROUTER_TEMPERATURE", "0.7")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MAX_TOKENS", "1000")
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "test-key-123")
+        monkeypatch.setenv("APP_OPENROUTER_MODEL", "default/model")
+        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "0.7")
+        monkeypatch.setenv("APP_OPENROUTER_MAX_TOKENS", "1000")
 
         # Override only temperature
         llm = get_openrouter_llm(temperature=0.5)
@@ -85,8 +85,8 @@ class TestGetOpenRouterLLM:
 
     def test_zero_temperature_allowed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that temperature=0.0 is correctly handled (not treated as None)."""
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "test-key-123")
-        monkeypatch.setenv("NEXUS_OPENROUTER_TEMPERATURE", "0.7")
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "test-key-123")
+        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "0.7")
 
         # Explicitly set temperature to 0.0
         llm = get_openrouter_llm(temperature=0.0)
@@ -96,8 +96,8 @@ class TestGetOpenRouterLLM:
 
     def test_base_url_from_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that base URL is correctly read from settings."""
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "test-key-123")
-        monkeypatch.setenv("NEXUS_OPENROUTER_BASE_URL", "https://custom.openrouter.ai/api/v1")
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "test-key-123")
+        monkeypatch.setenv("APP_OPENROUTER_BASE_URL", "https://custom.openrouter.ai/api/v1")
 
         llm = get_openrouter_llm()
 
@@ -106,7 +106,7 @@ class TestGetOpenRouterLLM:
 
     def test_default_headers_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that OpenRouter-specific headers are configured."""
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "test-key-123")
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "test-key-123")
 
         llm = get_openrouter_llm()
 
@@ -119,16 +119,16 @@ class TestGetOpenRouterLLM:
 
     def test_settings_temperature_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that invalid temperature in settings is caught by pydantic validation."""
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "test-key-123")
-        monkeypatch.setenv("NEXUS_OPENROUTER_TEMPERATURE", "1.5")  # Invalid: > 1.0
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "test-key-123")
+        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "1.5")  # Invalid: > 1.0
 
         with pytest.raises(ValueError, match="less than or equal to 1"):
             get_openrouter_llm()
 
     def test_settings_max_tokens_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that invalid max_tokens in settings is caught by pydantic validation."""
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "test-key-123")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MAX_TOKENS", "0")  # Invalid: must be >= 1
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "test-key-123")
+        monkeypatch.setenv("APP_OPENROUTER_MAX_TOKENS", "0")  # Invalid: must be >= 1
 
         with pytest.raises(ValueError, match="greater than or equal to 1"):
             get_openrouter_llm()
@@ -137,8 +137,8 @@ class TestGetOpenRouterLLM:
         """Test helper to ensure settings cache doesn't interfere between tests."""
         # This test ensures we're cleaning up properly
         # Set unique values
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "unique-key-789")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MODEL", "unique/model")
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "unique-key-789")
+        monkeypatch.setenv("APP_OPENROUTER_MODEL", "unique/model")
 
         llm = get_openrouter_llm()
 
@@ -150,24 +150,24 @@ class TestOpenRouterIntegration:
     """Integration tests for OpenRouter configuration with settings."""
 
     def test_nexus_prefix_required(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that environment variables require NEXUS_ prefix."""
+        """Test that environment variables require APP_ prefix."""
         # Set non-prefixed env var
         monkeypatch.setenv("OPENROUTER_API_KEY", "should-not-work")
         # Set prefixed env var
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "should-work")
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "should-work")
 
         llm = get_openrouter_llm()
-        # Should use the NEXUS_ prefixed variable
+        # Should use the APP_ prefixed variable
         assert llm.openai_api_key.get_secret_value() == "should-work"  # type: ignore[union-attr]
 
     def test_all_settings_integration(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test full integration of all OpenRouter settings."""
         # Set all OpenRouter settings
-        monkeypatch.setenv("NEXUS_OPENROUTER_API_KEY", "integration-key")
-        monkeypatch.setenv("NEXUS_OPENROUTER_BASE_URL", "https://integration.example.com/v1")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MODEL", "integration/model")
-        monkeypatch.setenv("NEXUS_OPENROUTER_TEMPERATURE", "0.8")
-        monkeypatch.setenv("NEXUS_OPENROUTER_MAX_TOKENS", "1200")
+        monkeypatch.setenv("APP_OPENROUTER_API_KEY", "integration-key")
+        monkeypatch.setenv("APP_OPENROUTER_BASE_URL", "https://integration.example.com/v1")
+        monkeypatch.setenv("APP_OPENROUTER_MODEL", "integration/model")
+        monkeypatch.setenv("APP_OPENROUTER_TEMPERATURE", "0.8")
+        monkeypatch.setenv("APP_OPENROUTER_MAX_TOKENS", "1200")
 
         llm = get_openrouter_llm()
 
@@ -186,7 +186,7 @@ class TestOpenRouterIntegration:
         try:
             # Clear OpenRouter env vars to test defaults
             for key in list(os.environ.keys()):
-                if key.startswith("NEXUS_OPENROUTER"):
+                if key.startswith("APP_OPENROUTER"):
                     del os.environ[key]
 
             settings = get_settings()

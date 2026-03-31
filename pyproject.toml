@@ -137,6 +137,7 @@ ignore = [
     "PLC0415",  # Allow imports within test functions
     "D401",     # Allow non-imperative docstrings in tests
     "PT011",    # Allow broad pytest.raises for contract tests
+    "PT012",    # Allow multi-statement pytest.raises blocks (async generators)
     "PGH003",   # Allow generic type: ignore comments in tests
 ]
 "src/nexus/api/repositories/*.py" = ["ANN401"]  # Allow Any for database row types

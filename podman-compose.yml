@@ -4,11 +4,11 @@ services:
     image: public.ecr.aws/docker/library/postgres:15
     restart: unless-stopped
     ports:
-      - ${NEXUS_DB_PORT:-5432}:5432
+      - ${APP_DB_PORT:-5432}:5432
     environment:
-      POSTGRES_USER: ${NEXUS_DB_USER:-admin}
-      POSTGRES_PASSWORD: ${NEXUS_DB_PASSWORD:-admin}
-      POSTGRES_DB: ${NEXUS_DB_NAME:-nexus_api}
+      POSTGRES_USER: ${APP_DB_USER:-admin}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:-admin}
+      POSTGRES_DB: ${APP_DB_NAME:-nexus_api}
     volumes:
       - nexus_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,13 +18,13 @@ services:
       retries: 5
 
   redis:
-    image: ${NEXUS_CACHE_IMAGE:-public.ecr.aws/docker/library/redis:6}
+    image: ${APP_CACHE_IMAGE:-public.ecr.aws/docker/library/redis:6}
     restart: unless-stopped
     command: sh -c "redis-server --requirepass $${REDIS_PASSWORD:-cache}"
     ports:
-      - ${NEXUS_CACHE_PORT:-6379}:6379
+      - ${APP_CACHE_PORT:-6379}:6379
     environment:
-      REDIS_PASSWORD: ${NEXUS_CACHE_PASSWORD:-cache}
+      REDIS_PASSWORD: ${APP_CACHE_PASSWORD:-cache}
     healthcheck:
       test: [CMD-SHELL, 'redis-cli -h 127.0.0.1 -p 6379 -a $${REDIS_PASSWORD:-cache} ping']
       interval: 10s
@@ -32,12 +32,12 @@ services:
       retries: 5
 
   nexus-ui:
-    image: ${NEXUS_UI_IMAGE:-quay.io/ansible/nexus-ui}:${NEXUS_UI_VERSION:-latest}
+    image: ${APP_UI_IMAGE:-quay.io/ansible/nexus-ui}:${APP_UI_VERSION:-latest}
     restart: unless-stopped
     ports:
-      - ${NEXUS_UI_PORT:-8080}:80
+      - ${APP_UI_PORT:-8080}:80
     environment:
-      - NEXUS_API_URL=${NEXUS_API_URL:-http://nexus:8000}
+      - APP_API_URL=${APP_API_URL:-http://nexus:8000}
     depends_on:
       nexus:
         condition: service_healthy
@@ -46,12 +46,12 @@ services:
     image: mirror.gcr.io/temporalio/auto-setup:1.25.1
     restart: unless-stopped
     ports:
-      - ${NEXUS_TEMPORAL_PORT:-7233}:7233
+      - ${APP_TEMPORAL_PORT:-7233}:7233
     environment:
       - DB=postgres12
       - DB_PORT=5432
-      - POSTGRES_USER=${NEXUS_DB_USER:-admin}
-      - POSTGRES_PWD=${NEXUS_DB_PASSWORD:-admin}
+      - POSTGRES_USER=${APP_DB_USER:-admin}
+      - POSTGRES_PWD=${APP_DB_PASSWORD:-admin}
       - POSTGRES_SEEDS=database
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
     volumes:
@@ -70,7 +70,7 @@ services:
     image: mirror.gcr.io/temporalio/ui:2.31.2
     restart: unless-stopped
     ports:
-      - ${NEXUS_TEMPORAL_UI_PORT:-8081}:8080
+      - ${APP_TEMPORAL_UI_PORT:-8081}:8080
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CORS_ORIGINS=http://localhost:3000
@@ -82,30 +82,30 @@ services:
     build:
       context: .
       dockerfile: containers/nexus/Containerfile
-    image: ${NEXUS_IMAGE:-localhost/nexus:latest}
+    image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
     command: [sh, -c, 'uv run alembic upgrade head && uv run tools/load_sample_workflows.py samples && uv run python -m nexus.api.main']
     ports:
-      - ${NEXUS_API_PORT:-8000}:8000
+      - ${APP_API_PORT:-8000}:8000
     environment:
-      - NEXUS_DB_HOST=database
-      - NEXUS_DB_PORT=5432
-      - NEXUS_DB_USER=${NEXUS_DB_USER:-admin}
-      - NEXUS_DB_PASSWORD=${NEXUS_DB_PASSWORD:-admin}
-      - NEXUS_DB_NAME=${NEXUS_DB_NAME:-nexus_api}
-      - NEXUS_TEMPORAL_ADDRESS=temporal:7233
-      - NEXUS_TEMPORAL_NAMESPACE=default
-      - NEXUS_CACHE_HOST=redis
-      - NEXUS_CACHE_PASSWORD=${NEXUS_CACHE_PASSWORD:-cache}
-      - NEXUS_OPENROUTER_API_KEY=${NEXUS_OPENROUTER_API_KEY}
-      - NEXUS_OPENROUTER_MODEL=${NEXUS_OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
-      - NEXUS_OPENROUTER_BASE_URL=${NEXUS_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
-      - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
-      - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
-      - NEXUS_LOG_OUTPUT_FORMAT=${NEXUS_LOG_OUTPUT_FORMAT:-text}
-      - NEXUS_SEGMENT_WRITE_KEY=${NEXUS_SEGMENT_WRITE_KEY}
-      - NEXUS_ENTITLEMENT_ID=${NEXUS_ENTITLEMENT_ID}
-      - NEXUS_COLLECTION_INTERVAL_SECONDS=${NEXUS_COLLECTION_INTERVAL_SECONDS:-300}
+      - APP_DB_HOST=database
+      - APP_DB_PORT=5432
+      - APP_DB_USER=${APP_DB_USER:-admin}
+      - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
+      - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
+      - APP_TEMPORAL_ADDRESS=temporal:7233
+      - APP_TEMPORAL_NAMESPACE=default
+      - APP_CACHE_HOST=redis
+      - APP_CACHE_PASSWORD=${APP_CACHE_PASSWORD:-cache}
+      - APP_OPENROUTER_API_KEY=${APP_OPENROUTER_API_KEY}
+      - APP_OPENROUTER_MODEL=${APP_OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
+      - APP_OPENROUTER_BASE_URL=${APP_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - APP_ENV_FILE_PATH=${APP_ENV_FILE_PATH:-.env}
+      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
+      - APP_LOG_OUTPUT_FORMAT=${APP_LOG_OUTPUT_FORMAT:-text}
+      - APP_SEGMENT_WRITE_KEY=${APP_SEGMENT_WRITE_KEY}
+      - APP_ENTITLEMENT_ID=${APP_ENTITLEMENT_ID}
+      - APP_COLLECTION_INTERVAL_SECONDS=${APP_COLLECTION_INTERVAL_SECONDS:-300}
 
     volumes:
       - ./src:/opt/app-root/src/src:z
@@ -125,39 +125,39 @@ services:
 
   # Temporal Worker - Executes workflow and activity tasks
   temporal-worker:
-    image: ${NEXUS_IMAGE:-localhost/nexus:latest}
+    image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
     command: [sh, -c, uv run python -m nexus.workflows.worker]
     environment:
       # Database Configuration (for activity sync service)
-      - NEXUS_DB_HOST=database
-      - NEXUS_DB_PORT=5432
-      - NEXUS_DB_USER=${NEXUS_DB_USER:-admin}
-      - NEXUS_DB_PASSWORD=${NEXUS_DB_PASSWORD:-admin}
-      - NEXUS_DB_NAME=${NEXUS_DB_NAME:-nexus_api}
+      - APP_DB_HOST=database
+      - APP_DB_PORT=5432
+      - APP_DB_USER=${APP_DB_USER:-admin}
+      - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
+      - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
       # Temporal Configuration
-      - NEXUS_TEMPORAL_ADDRESS=temporal:7233
-      - NEXUS_TEMPORAL_NAMESPACE=default
-      - NEXUS_TASK_QUEUE=nexus-workflow-queue
-      - NEXUS_ENV_FILE_PATH=${NEXUS_ENV_FILE_PATH:-.env}
-      - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
+      - APP_TEMPORAL_ADDRESS=temporal:7233
+      - APP_TEMPORAL_NAMESPACE=default
+      - APP_TASK_QUEUE=nexus-workflow-queue
+      - APP_ENV_FILE_PATH=${APP_ENV_FILE_PATH:-.env}
+      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
       # Cache Configuration (for activity streaming)
-      - NEXUS_CACHE_HOST=redis
-      - NEXUS_CACHE_PASSWORD=${NEXUS_CACHE_PASSWORD:-cache}
+      - APP_CACHE_HOST=redis
+      - APP_CACHE_PASSWORD=${APP_CACHE_PASSWORD:-cache}
       # Workflow API Base URL (for workflow callback URL generation)
-      - NEXUS_WORKFLOW_BASE_URL=${NEXUS_WORKFLOW_BASE_URL:-http://nexus:8000/api/v1}
+      - APP_WORKFLOW_BASE_URL=${APP_WORKFLOW_BASE_URL:-http://nexus:8000/api/v1}
       # Agent Orchestrator Configuration (for agentic activities)
-      - NEXUS_AGENT_ORCHESTRATOR_BASE_URL=${NEXUS_AGENT_ORCHESTRATOR_BASE_URL:-http://nexus:8000/api/v1}
+      - APP_AGENT_ORCHESTRATOR_BASE_URL=${APP_AGENT_ORCHESTRATOR_BASE_URL:-http://nexus:8000/api/v1}
       # AAP Configuration (for AAP Job Template activity)
-      - NEXUS_AAP_BASE_URL=${NEXUS_AAP_BASE_URL}
-      - NEXUS_AAP_USERNAME=${NEXUS_AAP_USERNAME}
-      - NEXUS_AAP_PASSWORD=${NEXUS_AAP_PASSWORD}
-      - NEXUS_AAP_TOKEN=${NEXUS_AAP_TOKEN}
-      - NEXUS_AAP_TIMEOUT_SECONDS=${NEXUS_AAP_TIMEOUT_SECONDS:-3600}
-      - NEXUS_AAP_POLL_INTERVAL_SECONDS=${NEXUS_AAP_POLL_INTERVAL_SECONDS:-5.0}
-      - NEXUS_AAP_VERIFY_SSL=${NEXUS_AAP_VERIFY_SSL:-true}
-      - NEXUS_SEGMENT_WRITE_KEY=${NEXUS_SEGMENT_WRITE_KEY}
-      - NEXUS_ENTITLEMENT_ID=${NEXUS_ENTITLEMENT_ID}
+      - APP_AAP_BASE_URL=${APP_AAP_BASE_URL}
+      - APP_AAP_USERNAME=${APP_AAP_USERNAME}
+      - APP_AAP_PASSWORD=${APP_AAP_PASSWORD}
+      - APP_AAP_TOKEN=${APP_AAP_TOKEN}
+      - APP_AAP_TIMEOUT_SECONDS=${APP_AAP_TIMEOUT_SECONDS:-3600}
+      - APP_AAP_POLL_INTERVAL_SECONDS=${APP_AAP_POLL_INTERVAL_SECONDS:-5.0}
+      - APP_AAP_VERIFY_SSL=${APP_AAP_VERIFY_SSL:-true}
+      - APP_SEGMENT_WRITE_KEY=${APP_SEGMENT_WRITE_KEY}
+      - APP_ENTITLEMENT_ID=${APP_ENTITLEMENT_ID}
     volumes:
       - ./src:/opt/app-root/src/src:z
     depends_on:
@@ -184,7 +184,7 @@ services:
     ports:
       - ${MCP_PORT:-8765}:8765
     environment:
-      - NEXUS_LOG_LEVEL=${NEXUS_LOG_LEVEL:-INFO}
+      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
       - MCP_HOST=0.0.0.0
       - MCP_PORT=8765
     healthcheck:

@@ -218,10 +218,10 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 # ============================================================================
 
 # Test database configuration
-TEST_DB_USER = os.getenv("NEXUS_DB_USER", "admin")
-TEST_DB_PASSWORD = os.getenv("NEXUS_DB_PASSWORD", "admin")
-TEST_DB_HOST = os.getenv("NEXUS_DB_HOST", "localhost")
-TEST_DB_PORT = os.getenv("NEXUS_DB_PORT", "5432")
+TEST_DB_USER = os.getenv("APP_DB_USER", "admin")
+TEST_DB_PASSWORD = os.getenv("APP_DB_PASSWORD", "admin")
+TEST_DB_HOST = os.getenv("APP_DB_HOST", "localhost")
+TEST_DB_PORT = os.getenv("APP_DB_PORT", "5432")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 

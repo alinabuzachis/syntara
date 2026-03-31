@@ -202,7 +202,7 @@ class ScriptExecutorConfig(TemplateAwareBaseModel):
         language: Script language (bash or python)
         code: Script code to execute
         environment: Optional environment variables for script execution
-        timeout: Timeout for script execution in seconds (default from NEXUS_SCRIPT_TIMEOUT_SECONDS)
+        timeout: Timeout for script execution in seconds (default from APP_SCRIPT_TIMEOUT_SECONDS)
 
     """
 
@@ -213,7 +213,7 @@ class ScriptExecutorConfig(TemplateAwareBaseModel):
         default=constants.DEFAULT_SCRIPT_TIMEOUT_SECONDS,
         ge=1,
         le=3600,
-        description="Timeout in seconds (default from NEXUS_SCRIPT_TIMEOUT_SECONDS, max: 3600)",
+        description="Timeout in seconds (default from APP_SCRIPT_TIMEOUT_SECONDS, max: 3600)",
     )
 
 
@@ -265,7 +265,7 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
         prompt: The prompt template for the agent
         agent: Optional agent identifier for routing
         model: Optional model identifier
-        timeout: Timeout for agent invocation in seconds (default from NEXUS_AGENTIC_TIMEOUT_SECONDS, max: 3600)
+        timeout: Timeout for agent invocation in seconds (default from APP_AGENTIC_TIMEOUT_SECONDS, max: 3600)
         file_ids: List of file IDs to include as context for the agent (max 10)
 
     """
@@ -279,7 +279,7 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
         default=constants.DEFAULT_AGENTIC_TIMEOUT_SECONDS,
         ge=1,
         le=3600,
-        description="Timeout in seconds (default from NEXUS_AGENTIC_TIMEOUT_SECONDS, max: 3600)",
+        description="Timeout in seconds (default from APP_AGENTIC_TIMEOUT_SECONDS, max: 3600)",
     )
     file_ids: list[str] = Field(
         default_factory=list,
@@ -384,7 +384,7 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     timeout: int = Field(
         default=constants.DEFAULT_AAP_TIMEOUT_SECONDS,
         ge=1,
-        description="Timeout for job execution in seconds (default from NEXUS_AAP_TIMEOUT_SECONDS)",
+        description="Timeout for job execution in seconds (default from APP_AAP_TIMEOUT_SECONDS)",
     )
     job_template_name: str | None = Field(
         default=None,

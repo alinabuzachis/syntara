@@ -3,7 +3,7 @@ schemaVersion: 1.0.0
 version: 1
 metadata:
   name: agentic-with-aap
-  description: Workflow combining agentic task and aap task. You would have to configure NEXUS_AAP_BASE_URL,NEXUS_AAP_USERNAME,NEXUS_AAP_PASSWORD and NEXUS_OPENROUTER_API_KEY in your .env file
+  description: Workflow combining agentic task and aap task. You would have to configure APP_AAP_BASE_URL,APP_AAP_USERNAME,APP_AAP_PASSWORD and APP_OPENROUTER_API_KEY in your .env file
   tags:
     - agentic
     - aap

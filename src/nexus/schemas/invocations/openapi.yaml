@@ -150,7 +150,7 @@ paths:
                   summary: OpenRouter API key not configured
                   value:
                     error: service_unavailable
-                    message: NEXUS_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys
+                    message: APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys
     get:
       summary: List Invocations
       description: |
@@ -355,7 +355,7 @@ paths:
                     labels: {}
                     context_data: {}
                     result:
-                    error_message: GenericAgent not configured. Set NEXUS_OPENROUTER_API_KEY environment variable.
+                    error_message: GenericAgent not configured. Set APP_OPENROUTER_API_KEY environment variable.
                     checkpointData:
         '422':
           description: Invalid UUID format or validation error

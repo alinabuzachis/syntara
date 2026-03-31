@@ -238,8 +238,8 @@ class DatabaseSettings(BaseSettings):
     """Database connection configuration settings.
 
     Configures PostgreSQL connection parameters. You can either:
-    1. Set individual NEXUS_DB_* variables (user, password, host, port, name)
-    2. Set NEXUS_DATABASE_URL to override with a full connection string
+    1. Set individual APP_DB_* variables (user, password, host, port, name)
+    2. Set APP_DATABASE_URL to override with a full connection string
 
     The full URL option supports URL-encoded passwords, alternate drivers,
     and extra query params (e.g., sslmode=require).
@@ -297,12 +297,12 @@ class DatabaseSettings(BaseSettings):
     def database_url(self) -> str:
         """Get the database URL.
 
-        If NEXUS_DATABASE_URL env var is set, use it directly.
-        Otherwise, compute from individual NEXUS_DB_* components.
+        If APP_DATABASE_URL env var is set, use it directly.
+        Otherwise, compute from individual APP_DB_* components.
 
         Note: Username and password are URL-encoded to handle special characters.
         """
-        override = os.environ.get("NEXUS_DATABASE_URL")
+        override = os.environ.get("APP_DATABASE_URL")
         if override:
             return override
         user = quote_plus(self.db_user)
@@ -1284,7 +1284,7 @@ class WorkflowClientSettings(BaseSettings):
 
 def _get_env_file() -> str:
     """Get an optional custom .env file path."""
-    return os.getenv("NEXUS_ENV_FILE_PATH", ".env")
+    return os.getenv("APP_ENV_FILE_PATH", ".env")
 
 
 class Settings(
@@ -1319,7 +1319,7 @@ class Settings(
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        env_prefix="NEXUS_",
+        env_prefix="APP_",
     )
 
 

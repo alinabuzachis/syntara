@@ -172,22 +172,22 @@ make db-clean
 
 **Database Configuration**:
 The application uses these environment variables (with defaults):
-- `NEXUS_DB_USER` (default: `admin`)
-- `NEXUS_DB_PASSWORD` (default: `admin`)
-- `NEXUS_DB_HOST` (default: `localhost`)
-- `NEXUS_DB_PORT` (default: `5432`)
-- `NEXUS_DB_NAME` (default: `nexus_api`)
-- `NEXUS_DB_POOL_SIZE` (default: `10`)
-- `NEXUS_DB_MAX_OVERFLOW` (default: `20`)
-- `NEXUS_DB_POOL_TIMEOUT_SECONDS` (default: `30`)
+- `APP_DB_USER` (default: `admin`)
+- `APP_DB_PASSWORD` (default: `admin`)
+- `APP_DB_HOST` (default: `localhost`)
+- `APP_DB_PORT` (default: `5432`)
+- `APP_DB_NAME` (default: `nexus_api`)
+- `APP_DB_POOL_SIZE` (default: `10`)
+- `APP_DB_MAX_OVERFLOW` (default: `20`)
+- `APP_DB_POOL_TIMEOUT_SECONDS` (default: `30`)
 
-You can override individual variables or set `NEXUS_DATABASE_URL` directly:
+You can override individual variables or set `APP_DATABASE_URL` directly:
 ```bash
-export NEXUS_DATABASE_URL="postgresql+asyncpg://user:pass@host:port/dbname?sslmode=require"
+export APP_DATABASE_URL="postgresql+asyncpg://user:pass@host:port/dbname?sslmode=require"
 ```
 
 **Troubleshooting**:
-- **Port conflict**: Copy `.env.example` to `.env` and change `NEXUS_DB_PORT` to another value (e.g., 5433)
+- **Port conflict**: Copy `.env.example` to `.env` and change `APP_DB_PORT` to another value (e.g., 5433)
 - **Container won't start**: Check the logs in the terminal where `make db-run` is running
 - **Reset everything**: Stop the running database (Ctrl+C), then run `make db-clean`
 
@@ -235,11 +235,11 @@ uv run python -m nexus.workflows.worker
 
 **Temporal Configuration**:
 The application uses these environment variables (with defaults):
-- `NEXUS_TEMPORAL_ADDRESS` (default: `localhost:7233`)
-- `NEXUS_TEMPORAL_NAMESPACE` (default: `default`)
-- `NEXUS_TEMPORAL_PORT` (default: `7233`)
-- `NEXUS_TEMPORAL_UI_PORT` (default: `8081`)
-- `NEXUS_TASK_QUEUE` (default: `nexus-workflow-queue`)
+- `APP_TEMPORAL_ADDRESS` (default: `localhost:7233`)
+- `APP_TEMPORAL_NAMESPACE` (default: `default`)
+- `APP_TEMPORAL_PORT` (default: `7233`)
+- `APP_TEMPORAL_UI_PORT` (default: `8081`)
+- `APP_TASK_QUEUE` (default: `nexus-workflow-queue`)
 
 **Access Temporal UI** (Development/Debugging Only):
 Once Temporal is running, access the web UI at: http://localhost:8081
@@ -336,19 +336,19 @@ PODMAN_PROJECT=nexus-dev make services-run
 ```bash
 # For the second instance
 export PODMAN_PROJECT=nexus-dev
-export NEXUS_DB_PORT=5433
-export NEXUS_API_PORT=8001
-export NEXUS_UI_PORT=8081
-export NEXUS_TEMPORAL_PORT=7234
-export NEXUS_TEMPORAL_UI_PORT=8082
-export NEXUS_CACHE_PORT=6380
+export APP_DB_PORT=5433
+export APP_API_PORT=8001
+export APP_UI_PORT=8081
+export APP_TEMPORAL_PORT=7234
+export APP_TEMPORAL_UI_PORT=8082
+export APP_CACHE_PORT=6380
 make services-run
 ```
 
 **Environment Variables**:
 
 All services can be configured via `.env` file or environment variables:
-Set `NEXUS_ENV_FILE_PATH` to point at an alternate `.env` file if you want Nexus to load settings from a non-default location.
+Set `APP_ENV_FILE_PATH` to point at an alternate `.env` file if you want Nexus to load settings from a non-default location.
 
 ```bash
 # Project Configuration
@@ -357,36 +357,36 @@ PODMAN_PROJECT=nexus  # Project name for container orchestration (default: nexus
                       # Example: PODMAN_PROJECT=nexus-dev make services-run
 
 # API Configuration
-NEXUS_API_PORT=8000
+APP_API_PORT=8000
 
 # UI Configuration
-NEXUS_API_URL=http://localhost:8000
-NEXUS_UI_PORT=8080
-NEXUS_UI_IMAGE=ghcr.io/syntara-orchestration/syntara-ui
-NEXUS_UI_VERSION=latest
+APP_API_URL=http://localhost:8000
+APP_UI_PORT=8080
+APP_UI_IMAGE=ghcr.io/syntara-orchestration/syntara-ui
+APP_UI_VERSION=latest
 
 # Database Configuration
-NEXUS_DB_HOST=localhost
-NEXUS_DB_PORT=5432
-NEXUS_DB_USER=admin
-NEXUS_DB_PASSWORD=admin
-NEXUS_DB_NAME=nexus_api
-NEXUS_DB_POOL_SIZE=10
-NEXUS_DB_MAX_OVERFLOW=20
-NEXUS_DB_POOL_TIMEOUT_SECONDS=30
+APP_DB_HOST=localhost
+APP_DB_PORT=5432
+APP_DB_USER=admin
+APP_DB_PASSWORD=admin
+APP_DB_NAME=nexus_api
+APP_DB_POOL_SIZE=10
+APP_DB_MAX_OVERFLOW=20
+APP_DB_POOL_TIMEOUT_SECONDS=30
 
 # Cache Configuration
-NEXUS_CACHE_PORT=6379
+APP_CACHE_PORT=6379
 
 # Temporal Configuration
-NEXUS_TEMPORAL_ADDRESS=localhost:7233
-NEXUS_TEMPORAL_PORT=7233
-NEXUS_TEMPORAL_UI_PORT=8081
-NEXUS_TEMPORAL_NAMESPACE=default
-NEXUS_TASK_QUEUE=nexus-workflow-queue
+APP_TEMPORAL_ADDRESS=localhost:7233
+APP_TEMPORAL_PORT=7233
+APP_TEMPORAL_UI_PORT=8081
+APP_TEMPORAL_NAMESPACE=default
+APP_TASK_QUEUE=nexus-workflow-queue
 
 # Logging
-NEXUS_LOG_LEVEL=INFO
+APP_LOG_LEVEL=INFO
 ```
 
 ### LLM and Agent Configuration
@@ -403,9 +403,9 @@ Nexus uses LangChain with OpenRouter for intelligent agent responses. The Generi
    cp .env.example .env
 
    # Edit .env and add your OpenRouter API key
-   NEXUS_OPENROUTER_API_KEY=your_openrouter_api_key_here
-   NEXUS_OPENROUTER_MODEL=anthropic/claude-3.5-sonnet  # or openai/gpt-4, google/gemini-pro
-   NEXUS_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+   APP_OPENROUTER_API_KEY=your_openrouter_api_key_here
+   APP_OPENROUTER_MODEL=anthropic/claude-3.5-sonnet  # or openai/gpt-4, google/gemini-pro
+   APP_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
    ```
 
 3. **Available models** (see [https://openrouter.ai/models](https://openrouter.ai/models)):
@@ -432,15 +432,15 @@ Nexus automatically routes requests to the appropriate agent:
 
 For development and testing without configuring OpenRouter:
 ```bash
-# The system works without NEXUS_OPENROUTER_API_KEY set
+# The system works without APP_OPENROUTER_API_KEY set
 # GenericAgent will be disabled but other features work normally
 make test-all
 ```
 
 **Environment Variables**:
-- `NEXUS_OPENROUTER_API_KEY` (required for GenericAgent, get from https://openrouter.ai/keys)
-- `NEXUS_OPENROUTER_MODEL` (default: `anthropic/claude-3.5-sonnet`)
-- `NEXUS_OPENROUTER_BASE_URL` (default: `https://openrouter.ai/api/v1`)
+- `APP_OPENROUTER_API_KEY` (required for GenericAgent, get from https://openrouter.ai/keys)
+- `APP_OPENROUTER_MODEL` (default: `anthropic/claude-3.5-sonnet`)
+- `APP_OPENROUTER_BASE_URL` (default: `https://openrouter.ai/api/v1`)
 
 **Example API Usage**:
 
@@ -627,8 +627,8 @@ Telemetry is always enabled and collects workflow execution metrics transmitted 
 
 Telemetry is configured via environment variables:
 
-- `NEXUS_SEGMENT_WRITE_KEY` -- Segment.com write key for event transmission
-- `NEXUS_SEGMENT_ENDPOINT` -- Segment.com endpoint URL
+- `APP_SEGMENT_WRITE_KEY` -- Segment.com write key for event transmission
+- `APP_SEGMENT_ENDPOINT` -- Segment.com endpoint URL
 
 ## Further reading
 

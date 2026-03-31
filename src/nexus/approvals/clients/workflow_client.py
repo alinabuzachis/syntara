@@ -76,7 +76,7 @@ class WorkflowApiClient:
 
         """
         # Retry on connection and timeout errors
-        if isinstance(error, (httpx.ConnectError, httpx.TimeoutException)):
+        if isinstance(error, httpx.ConnectError | httpx.TimeoutException):
             return True
 
         # Retry on server errors (5xx), not client errors (4xx)

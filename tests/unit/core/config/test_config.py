@@ -9,18 +9,18 @@ from nexus.core.config.base import Settings
 
 
 def test_settings_requires_nexus_prefix(monkeypatch: object) -> None:
-    """Test that settings only reads environment variables with NEXUS_ prefix."""
+    """Test that settings only reads environment variables with APP_ prefix."""
     # Set both prefixed and non-prefixed versions
-    os.environ["NEXUS_OPENROUTER_MODEL"] = "prefixed-model"
+    os.environ["APP_OPENROUTER_MODEL"] = "prefixed-model"
 
     try:
         settings = Settings()
 
-        # Should read the NEXUS_ prefixed variable
+        # Should read the APP_ prefixed variable
         assert settings.openrouter_model == "prefixed-model"
     finally:
         # Cleanup
-        os.environ.pop("NEXUS_OPENROUTER_MODEL", None)
+        os.environ.pop("APP_OPENROUTER_MODEL", None)
 
 
 # =============================================================================
@@ -51,91 +51,91 @@ class TestDatabaseSettings:
 
     def test_database_url_with_custom_values(self) -> None:
         """Test database_url with custom configuration values."""
-        os.environ["NEXUS_DB_USER"] = "testuser"
-        os.environ["NEXUS_DB_PASSWORD"] = "testpass"  # noqa: S105
-        os.environ["NEXUS_DB_HOST"] = "dbserver"
-        os.environ["NEXUS_DB_PORT"] = "5433"
-        os.environ["NEXUS_DB_NAME"] = "testdb"
+        os.environ["APP_DB_USER"] = "testuser"
+        os.environ["APP_DB_PASSWORD"] = "testpass"  # noqa: S105
+        os.environ["APP_DB_HOST"] = "dbserver"
+        os.environ["APP_DB_PORT"] = "5433"
+        os.environ["APP_DB_NAME"] = "testdb"
 
         try:
             settings = Settings()
             expected_url = "postgresql+asyncpg://testuser:testpass@dbserver:5433/testdb"
             assert settings.database_url == expected_url
         finally:
-            os.environ.pop("NEXUS_DB_USER", None)
-            os.environ.pop("NEXUS_DB_PASSWORD", None)
-            os.environ.pop("NEXUS_DB_HOST", None)
-            os.environ.pop("NEXUS_DB_PORT", None)
-            os.environ.pop("NEXUS_DB_NAME", None)
+            os.environ.pop("APP_DB_USER", None)
+            os.environ.pop("APP_DB_PASSWORD", None)
+            os.environ.pop("APP_DB_HOST", None)
+            os.environ.pop("APP_DB_PORT", None)
+            os.environ.pop("APP_DB_NAME", None)
 
     def test_database_port_validation(self) -> None:
         """Test that database port validates within valid range."""
-        os.environ["NEXUS_DB_PORT"] = "0"
+        os.environ["APP_DB_PORT"] = "0"
         try:
             with pytest.raises(ValueError, match="greater than or equal to 1"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_DB_PORT", None)
+            os.environ.pop("APP_DB_PORT", None)
 
-        os.environ["NEXUS_DB_PORT"] = "70000"
+        os.environ["APP_DB_PORT"] = "70000"
         try:
             with pytest.raises(ValueError, match="less than or equal to 65535"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_DB_PORT", None)
+            os.environ.pop("APP_DB_PORT", None)
 
     def test_database_url_override(self) -> None:
-        """Test that NEXUS_DATABASE_URL overrides component-based URL."""
+        """Test that APP_DATABASE_URL overrides component-based URL."""
         # Full URL with sslmode param - should be used directly
         override_url = "postgresql+asyncpg://prod:s3cret@db.example.com:5432/proddb?sslmode=require"
-        os.environ["NEXUS_DATABASE_URL"] = override_url
+        os.environ["APP_DATABASE_URL"] = override_url
         try:
             settings = Settings()
             assert settings.database_url == override_url
         finally:
-            os.environ.pop("NEXUS_DATABASE_URL", None)
+            os.environ.pop("APP_DATABASE_URL", None)
 
     def test_database_pool_settings_from_env(self) -> None:
         """Test database pool settings can be configured via environment."""
-        os.environ["NEXUS_DB_POOL_SIZE"] = "25"
-        os.environ["NEXUS_DB_MAX_OVERFLOW"] = "10"
-        os.environ["NEXUS_DB_POOL_TIMEOUT_SECONDS"] = "45"
+        os.environ["APP_DB_POOL_SIZE"] = "25"
+        os.environ["APP_DB_MAX_OVERFLOW"] = "10"
+        os.environ["APP_DB_POOL_TIMEOUT_SECONDS"] = "45"
         try:
             settings = Settings()
             assert settings.db_pool_size == 25
             assert settings.db_max_overflow == 10
             assert settings.db_pool_timeout_seconds == 45
         finally:
-            os.environ.pop("NEXUS_DB_POOL_SIZE", None)
-            os.environ.pop("NEXUS_DB_MAX_OVERFLOW", None)
-            os.environ.pop("NEXUS_DB_POOL_TIMEOUT_SECONDS", None)
+            os.environ.pop("APP_DB_POOL_SIZE", None)
+            os.environ.pop("APP_DB_MAX_OVERFLOW", None)
+            os.environ.pop("APP_DB_POOL_TIMEOUT_SECONDS", None)
 
     def test_database_pool_size_validation(self) -> None:
         """Test that database pool size must be at least 1."""
-        os.environ["NEXUS_DB_POOL_SIZE"] = "0"
+        os.environ["APP_DB_POOL_SIZE"] = "0"
         try:
             with pytest.raises(ValueError, match="greater than or equal to 1"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_DB_POOL_SIZE", None)
+            os.environ.pop("APP_DB_POOL_SIZE", None)
 
     def test_database_max_overflow_validation(self) -> None:
         """Test that database max overflow cannot be negative."""
-        os.environ["NEXUS_DB_MAX_OVERFLOW"] = "-1"
+        os.environ["APP_DB_MAX_OVERFLOW"] = "-1"
         try:
             with pytest.raises(ValueError, match="greater than or equal to 0"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_DB_MAX_OVERFLOW", None)
+            os.environ.pop("APP_DB_MAX_OVERFLOW", None)
 
     def test_database_pool_timeout_validation(self) -> None:
         """Test that database pool timeout must be positive."""
-        os.environ["NEXUS_DB_POOL_TIMEOUT_SECONDS"] = "0"
+        os.environ["APP_DB_POOL_TIMEOUT_SECONDS"] = "0"
         try:
             with pytest.raises(ValueError, match="greater than 0"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_DB_POOL_TIMEOUT_SECONDS", None)
+            os.environ.pop("APP_DB_POOL_TIMEOUT_SECONDS", None)
 
 
 # =============================================================================
@@ -163,9 +163,9 @@ class TestServerSettings:
 
     def test_server_settings_from_env(self) -> None:
         """Test server settings can be configured via environment."""
-        os.environ["NEXUS_SERVER_HOST"] = "127.0.0.1"
-        os.environ["NEXUS_SERVER_PORT"] = "9000"
-        os.environ["NEXUS_SERVER_RELOAD"] = "true"
+        os.environ["APP_SERVER_HOST"] = "127.0.0.1"
+        os.environ["APP_SERVER_PORT"] = "9000"
+        os.environ["APP_SERVER_RELOAD"] = "true"
 
         try:
             settings = Settings()
@@ -173,38 +173,38 @@ class TestServerSettings:
             assert settings.server_port == 9000
             assert settings.server_reload is True
         finally:
-            os.environ.pop("NEXUS_SERVER_HOST", None)
-            os.environ.pop("NEXUS_SERVER_PORT", None)
-            os.environ.pop("NEXUS_SERVER_RELOAD", None)
+            os.environ.pop("APP_SERVER_HOST", None)
+            os.environ.pop("APP_SERVER_PORT", None)
+            os.environ.pop("APP_SERVER_RELOAD", None)
 
     def test_cors_settings_from_env(self) -> None:
         """Test CORS settings can be configured via environment."""
-        os.environ["NEXUS_CORS_ALLOW_ORIGINS"] = '["http://localhost:3000", "http://example.com"]'
-        os.environ["NEXUS_CORS_ALLOW_CREDENTIALS"] = "false"
+        os.environ["APP_CORS_ALLOW_ORIGINS"] = '["http://localhost:3000", "http://example.com"]'
+        os.environ["APP_CORS_ALLOW_CREDENTIALS"] = "false"
 
         try:
             settings = Settings()
             assert settings.cors_allow_origins == ["http://localhost:3000", "http://example.com"]
             assert settings.cors_allow_credentials is False
         finally:
-            os.environ.pop("NEXUS_CORS_ALLOW_ORIGINS", None)
-            os.environ.pop("NEXUS_CORS_ALLOW_CREDENTIALS", None)
+            os.environ.pop("APP_CORS_ALLOW_ORIGINS", None)
+            os.environ.pop("APP_CORS_ALLOW_CREDENTIALS", None)
 
     def test_server_port_validation(self) -> None:
         """Test that server port validates within valid range."""
-        os.environ["NEXUS_SERVER_PORT"] = "0"
+        os.environ["APP_SERVER_PORT"] = "0"
         try:
             with pytest.raises(ValueError, match="greater than or equal to 1"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_SERVER_PORT", None)
+            os.environ.pop("APP_SERVER_PORT", None)
 
-        os.environ["NEXUS_SERVER_PORT"] = "70000"
+        os.environ["APP_SERVER_PORT"] = "70000"
         try:
             with pytest.raises(ValueError, match="less than or equal to 65535"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_SERVER_PORT", None)
+            os.environ.pop("APP_SERVER_PORT", None)
 
 
 # =============================================================================
@@ -222,24 +222,24 @@ class TestLoggingSettings:
 
     def test_log_level_from_env(self) -> None:
         """Test log level can be configured via environment."""
-        os.environ["NEXUS_LOG_LEVEL"] = "DEBUG"
+        os.environ["APP_LOG_LEVEL"] = "DEBUG"
 
         try:
             settings = Settings()
             assert settings.log_level == "DEBUG"
         finally:
-            os.environ.pop("NEXUS_LOG_LEVEL", None)
+            os.environ.pop("APP_LOG_LEVEL", None)
 
     def test_log_level_case_preserved(self) -> None:
         """Test that log level case is preserved as configured."""
-        os.environ["NEXUS_LOG_LEVEL"] = "warning"
+        os.environ["APP_LOG_LEVEL"] = "warning"
 
         try:
             settings = Settings()
             # Case is preserved, caller can use .upper() if needed
             assert settings.log_level == "warning"
         finally:
-            os.environ.pop("NEXUS_LOG_LEVEL", None)
+            os.environ.pop("APP_LOG_LEVEL", None)
 
 
 # =============================================================================
@@ -261,11 +261,11 @@ class TestTemporalSettings:
 
     def test_temporal_settings_from_env(self) -> None:
         """Test Temporal settings can be configured via environment."""
-        os.environ["NEXUS_TEMPORAL_ADDRESS"] = "temporal.example.com:7233"
-        os.environ["NEXUS_TEMPORAL_NAMESPACE"] = "production"
-        os.environ["NEXUS_TASK_QUEUE"] = "prod-queue"
-        os.environ["NEXUS_SYSTEM_USER_ID"] = "12345678-1234-1234-1234-123456789012"
-        os.environ["NEXUS_MAX_LOOP_ITERATIONS"] = "5000"
+        os.environ["APP_TEMPORAL_ADDRESS"] = "temporal.example.com:7233"
+        os.environ["APP_TEMPORAL_NAMESPACE"] = "production"
+        os.environ["APP_TASK_QUEUE"] = "prod-queue"
+        os.environ["APP_SYSTEM_USER_ID"] = "12345678-1234-1234-1234-123456789012"
+        os.environ["APP_MAX_LOOP_ITERATIONS"] = "5000"
 
         try:
             settings = Settings()
@@ -275,20 +275,20 @@ class TestTemporalSettings:
             assert str(settings.system_user_id) == "12345678-1234-1234-1234-123456789012"
             assert settings.max_loop_iterations == 5000
         finally:
-            os.environ.pop("NEXUS_TEMPORAL_ADDRESS", None)
-            os.environ.pop("NEXUS_TEMPORAL_NAMESPACE", None)
-            os.environ.pop("NEXUS_TASK_QUEUE", None)
-            os.environ.pop("NEXUS_SYSTEM_USER_ID", None)
-            os.environ.pop("NEXUS_MAX_LOOP_ITERATIONS", None)
+            os.environ.pop("APP_TEMPORAL_ADDRESS", None)
+            os.environ.pop("APP_TEMPORAL_NAMESPACE", None)
+            os.environ.pop("APP_TASK_QUEUE", None)
+            os.environ.pop("APP_SYSTEM_USER_ID", None)
+            os.environ.pop("APP_MAX_LOOP_ITERATIONS", None)
 
     def test_max_loop_iterations_validation(self) -> None:
         """Test that max_loop_iterations must be at least 1."""
-        os.environ["NEXUS_MAX_LOOP_ITERATIONS"] = "0"
+        os.environ["APP_MAX_LOOP_ITERATIONS"] = "0"
         try:
             with pytest.raises(ValueError, match="greater than or equal to 1"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_MAX_LOOP_ITERATIONS", None)
+            os.environ.pop("APP_MAX_LOOP_ITERATIONS", None)
 
 
 # =============================================================================
@@ -318,10 +318,10 @@ class TestWorkflowEngineSettings:
 
     def test_workflow_engine_settings_from_env(self) -> None:
         """Test workflow engine settings can be configured via environment."""
-        os.environ["NEXUS_API_TIMEOUT_SECONDS"] = "60"
-        os.environ["NEXUS_SCRIPT_TIMEOUT_SECONDS"] = "600"
-        os.environ["NEXUS_AGENTIC_TIMEOUT_SECONDS"] = "600"
-        os.environ["NEXUS_AGENT_ORCHESTRATOR_BASE_URL"] = "http://agent.example.com/api/v1"
+        os.environ["APP_API_TIMEOUT_SECONDS"] = "60"
+        os.environ["APP_SCRIPT_TIMEOUT_SECONDS"] = "600"
+        os.environ["APP_AGENTIC_TIMEOUT_SECONDS"] = "600"
+        os.environ["APP_AGENT_ORCHESTRATOR_BASE_URL"] = "http://agent.example.com/api/v1"
 
         try:
             settings = Settings()
@@ -330,16 +330,16 @@ class TestWorkflowEngineSettings:
             assert settings.agentic_timeout_seconds == 600
             assert str(settings.agent_orchestrator_base_url) == "http://agent.example.com/api/v1"
         finally:
-            os.environ.pop("NEXUS_API_TIMEOUT_SECONDS", None)
-            os.environ.pop("NEXUS_SCRIPT_TIMEOUT_SECONDS", None)
-            os.environ.pop("NEXUS_AGENTIC_TIMEOUT_SECONDS", None)
-            os.environ.pop("NEXUS_AGENT_ORCHESTRATOR_BASE_URL", None)
+            os.environ.pop("APP_API_TIMEOUT_SECONDS", None)
+            os.environ.pop("APP_SCRIPT_TIMEOUT_SECONDS", None)
+            os.environ.pop("APP_AGENTIC_TIMEOUT_SECONDS", None)
+            os.environ.pop("APP_AGENT_ORCHESTRATOR_BASE_URL", None)
 
     def test_duration_limits_allow_zero_for_unlimited(self) -> None:
         """Test that duration limits can be set to 0 (unlimited)."""
-        os.environ["NEXUS_MAX_DURATION_HOURS"] = "0"
-        os.environ["NEXUS_MAX_DURATION_MINUTES"] = "0"
-        os.environ["NEXUS_MAX_DURATION_SECONDS"] = "0"
+        os.environ["APP_MAX_DURATION_HOURS"] = "0"
+        os.environ["APP_MAX_DURATION_MINUTES"] = "0"
+        os.environ["APP_MAX_DURATION_SECONDS"] = "0"
 
         try:
             settings = Settings()
@@ -347,18 +347,18 @@ class TestWorkflowEngineSettings:
             assert settings.max_duration_minutes == 0
             assert settings.max_duration_seconds == 0
         finally:
-            os.environ.pop("NEXUS_MAX_DURATION_HOURS", None)
-            os.environ.pop("NEXUS_MAX_DURATION_MINUTES", None)
-            os.environ.pop("NEXUS_MAX_DURATION_SECONDS", None)
+            os.environ.pop("APP_MAX_DURATION_HOURS", None)
+            os.environ.pop("APP_MAX_DURATION_MINUTES", None)
+            os.environ.pop("APP_MAX_DURATION_SECONDS", None)
 
     def test_timeout_validation(self) -> None:
         """Test that timeout settings enforce minimum values."""
-        os.environ["NEXUS_API_TIMEOUT_SECONDS"] = "0"
+        os.environ["APP_API_TIMEOUT_SECONDS"] = "0"
         try:
             with pytest.raises(ValueError, match="greater than or equal to 1"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_API_TIMEOUT_SECONDS", None)
+            os.environ.pop("APP_API_TIMEOUT_SECONDS", None)
 
 
 # =============================================================================
@@ -377,41 +377,41 @@ class TestOpenRouterSettingsExtended:
 
     def test_openrouter_extended_settings_from_env(self) -> None:
         """Test OpenRouter extended settings can be configured via environment."""
-        os.environ["NEXUS_OPENROUTER_TEMPERATURE"] = "0.5"
-        os.environ["NEXUS_OPENROUTER_MAX_TOKENS"] = "2000"
+        os.environ["APP_OPENROUTER_TEMPERATURE"] = "0.5"
+        os.environ["APP_OPENROUTER_MAX_TOKENS"] = "2000"
 
         try:
             settings = Settings()
             assert settings.openrouter_temperature == pytest.approx(0.5)
             assert settings.openrouter_max_tokens == 2000
         finally:
-            os.environ.pop("NEXUS_OPENROUTER_TEMPERATURE", None)
-            os.environ.pop("NEXUS_OPENROUTER_MAX_TOKENS", None)
+            os.environ.pop("APP_OPENROUTER_TEMPERATURE", None)
+            os.environ.pop("APP_OPENROUTER_MAX_TOKENS", None)
 
     def test_openrouter_temperature_validation(self) -> None:
         """Test that OpenRouter temperature is validated between 0.0 and 1.0."""
-        os.environ["NEXUS_OPENROUTER_TEMPERATURE"] = "-0.1"
+        os.environ["APP_OPENROUTER_TEMPERATURE"] = "-0.1"
         try:
             with pytest.raises(ValueError, match="greater than or equal to 0"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_OPENROUTER_TEMPERATURE", None)
+            os.environ.pop("APP_OPENROUTER_TEMPERATURE", None)
 
-        os.environ["NEXUS_OPENROUTER_TEMPERATURE"] = "1.5"
+        os.environ["APP_OPENROUTER_TEMPERATURE"] = "1.5"
         try:
             with pytest.raises(ValueError, match="less than or equal to 1"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_OPENROUTER_TEMPERATURE", None)
+            os.environ.pop("APP_OPENROUTER_TEMPERATURE", None)
 
     def test_openrouter_max_tokens_validation(self) -> None:
         """Test that OpenRouter max_tokens must be at least 1."""
-        os.environ["NEXUS_OPENROUTER_MAX_TOKENS"] = "0"
+        os.environ["APP_OPENROUTER_MAX_TOKENS"] = "0"
         try:
             with pytest.raises(ValueError, match="greater than or equal to 1"):
                 Settings()
         finally:
-            os.environ.pop("NEXUS_OPENROUTER_MAX_TOKENS", None)
+            os.environ.pop("APP_OPENROUTER_MAX_TOKENS", None)
 
 
 # =============================================================================
@@ -434,12 +434,12 @@ class TestRetrieverServiceSettings:
         assert settings.retriever_keyword_ranking_fuzzy_match_bonus == pytest.approx(0.05)
 
         # Test with custom values that sum to 0.8 (valid range)
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY"] = "0.3"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH"] = "0.2"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY"] = "0.15"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS"] = "0.1"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS"] = "0.04"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS"] = "0.01"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY"] = "0.3"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH"] = "0.2"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY"] = "0.15"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS"] = "0.1"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS"] = "0.04"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS"] = "0.01"
 
         try:
             settings = Settings()
@@ -451,22 +451,22 @@ class TestRetrieverServiceSettings:
             assert settings.retriever_keyword_ranking_exact_match_bonus == pytest.approx(0.04)
             assert settings.retriever_keyword_ranking_fuzzy_match_bonus == pytest.approx(0.01)
         finally:
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", None)
 
     def test_keyword_ranking_weights_sum_failure(self) -> None:
         """Test validation failure when keyword ranking weights sum exceeds valid range."""
         # Test with values that sum to 1.55 (invalid - exceeds 1.0)
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY"] = "0.5"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH"] = "0.4"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY"] = "0.3"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS"] = "0.2"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS"] = "0.1"
-        os.environ["NEXUS_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS"] = "0.05"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY"] = "0.5"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH"] = "0.4"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY"] = "0.3"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS"] = "0.2"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS"] = "0.1"
+        os.environ["APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS"] = "0.05"
 
         try:
             with pytest.raises(ValueError) as exc_info:
@@ -482,22 +482,22 @@ class TestRetrieverServiceSettings:
             assert "retriever_keyword_ranking_exact_match_bonus" in error_msg
             assert "retriever_keyword_ranking_fuzzy_match_bonus" in error_msg
         finally:
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", None)
-            os.environ.pop("NEXUS_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_TERM_FREQUENCY", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_FILENAME_MATCH", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_CONTENT_DENSITY", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", None)
+            os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", None)
 
 
 def test_custom_env_file_path(monkeypatch, tmp_path) -> None:
-    """Ensure NEXUS_ENV_FILE_PATH is honored when loading settings."""
+    """Ensure APP_ENV_FILE_PATH is honored when loading settings."""
     from nexus.core.config import base as config_module
 
     env_file = tmp_path / "custom.env"
-    env_file.write_text("NEXUS_OPENROUTER_MODEL=custom-model")
+    env_file.write_text("APP_OPENROUTER_MODEL=custom-model")
 
-    monkeypatch.setenv("NEXUS_ENV_FILE_PATH", str(env_file))
+    monkeypatch.setenv("APP_ENV_FILE_PATH", str(env_file))
 
     reloaded_config = importlib.reload(config_module)
     reloaded_config.get_settings.cache_clear()
@@ -506,7 +506,7 @@ def test_custom_env_file_path(monkeypatch, tmp_path) -> None:
 
     assert settings.openrouter_model == "custom-model"
 
-    monkeypatch.delenv("NEXUS_ENV_FILE_PATH", raising=False)
+    monkeypatch.delenv("APP_ENV_FILE_PATH", raising=False)
     importlib.reload(config_module).get_settings.cache_clear()
 
 
@@ -520,8 +520,8 @@ class TestAdapterRetrySettings:
 
     def test_adapter_backoff_relationship_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that max_backoff must be >= initial_backoff."""
-        monkeypatch.setenv("NEXUS_ADAPTER_INITIAL_BACKOFF_SECONDS", "10.0")
-        monkeypatch.setenv("NEXUS_ADAPTER_MAX_BACKOFF_SECONDS", "2.0")
+        monkeypatch.setenv("APP_ADAPTER_INITIAL_BACKOFF_SECONDS", "10.0")
+        monkeypatch.setenv("APP_ADAPTER_MAX_BACKOFF_SECONDS", "2.0")
 
         with pytest.raises(ValueError, match="adapter_max_backoff_seconds"):
             Settings()

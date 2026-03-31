@@ -123,7 +123,7 @@ dev: check-deps ## Run development server with auto-reload
 .PHONY: db-run
 db-run: ## Start PostgreSQL database container (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting PostgreSQL database..."
-	@echo "📍 Connection: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
+	@echo "📍 Connection: postgresql://admin:admin@localhost:$${APP_DB_PORT:-5432}/nexus_api"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	$(COMPOSE_FINAL_CMD) up database
@@ -138,7 +138,7 @@ db-clean: ## Stop database and remove all data (destructive)
 .PHONY: cache-run
 cache-run: ## Start cache container (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting cache server..."
-	@echo "📍 Connection: cache://localhost:$${NEXUS_CACHE_PORT:-6379}"
+	@echo "📍 Connection: cache://localhost:$${APP_CACHE_PORT:-6379}"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	$(COMPOSE_FINAL_CMD) up redis
@@ -159,8 +159,8 @@ cache-clean: ## Stop cache and remove data
 .PHONY: temporal-run
 temporal-run: ## Start Temporal server, UI, and worker (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting Temporal server, UI, and worker..."
-	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
-	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
+	@echo "📍 Temporal Server: localhost:$${APP_TEMPORAL_PORT:-7233}"
+	@echo "📍 Temporal UI: http://localhost:$${APP_TEMPORAL_UI_PORT:-8081}"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	$(COMPOSE_FINAL_CMD) up temporal temporal-ui temporal-worker
@@ -183,17 +183,17 @@ build-images: ## Build container images for nexus and temporal-worker
 	@echo "📦 Building nexus image..."
 	$(COMPOSE_FINAL_CMD) build nexus
 	@echo "✅ Container images built successfully"
-	@echo "   Image: $${NEXUS_IMAGE:-localhost/nexus:latest}"
+	@echo "   Image: $${APP_IMAGE:-localhost/nexus:latest}"
 
 .PHONY: run-all
 run-all: ## Start all services (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting all services..."
-	@echo "📍 Nexus API: http://localhost:$${NEXUS_API_PORT:-8000}"
-	@echo "📍 Nexus UI: http://localhost:$${NEXUS_UI_PORT:-8080}"
-	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
-	@echo "📍 Cache: cache://localhost:$${NEXUS_CACHE_PORT:-6379}"
-	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
-	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
+	@echo "📍 Nexus API: http://localhost:$${APP_API_PORT:-8000}"
+	@echo "📍 Nexus UI: http://localhost:$${APP_UI_PORT:-8080}"
+	@echo "📍 Database: postgresql://admin:admin@localhost:$${APP_DB_PORT:-5432}/nexus_api"
+	@echo "📍 Cache: cache://localhost:$${APP_CACHE_PORT:-6379}"
+	@echo "📍 Temporal Server: localhost:$${APP_TEMPORAL_PORT:-7233}"
+	@echo "📍 Temporal UI: http://localhost:$${APP_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
@@ -202,10 +202,10 @@ run-all: ## Start all services (foreground, Ctrl+C to stop)
 .PHONY: services-run
 services-run: ## Start all services (database + cache + temporal + UI + worker + MCP) in background
 	@echo "🚀 Starting all services (database + cache + temporal + UI + worker + MCP)..."
-	@echo "📍 Database: postgresql://admin:admin@localhost:$${NEXUS_DB_PORT:-5432}/nexus_api"
-	@echo "📍 Cache: cache://localhost:$${NEXUS_CACHE_PORT:-6379}"
-	@echo "📍 Temporal Server: localhost:$${NEXUS_TEMPORAL_PORT:-7233}"
-	@echo "📍 Temporal UI: http://localhost:$${NEXUS_TEMPORAL_UI_PORT:-8081}"
+	@echo "📍 Database: postgresql://admin:admin@localhost:$${APP_DB_PORT:-5432}/nexus_api"
+	@echo "📍 Cache: cache://localhost:$${APP_CACHE_PORT:-6379}"
+	@echo "📍 Temporal Server: localhost:$${APP_TEMPORAL_PORT:-7233}"
+	@echo "📍 Temporal UI: http://localhost:$${APP_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
 	$(COMPOSE_FINAL_CMD) up --build --force-recreate -d database redis temporal temporal-ui temporal-worker mcp-server
 	@echo "✅ All services started in background"

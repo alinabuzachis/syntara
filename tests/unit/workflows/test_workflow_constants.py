@@ -82,7 +82,7 @@ class TestConstantsModuleLoading:
     def test_constants_loaded_from_settings_defaults(self) -> None:
         """Test that constants use settings defaults when no env vars are set."""
         # Clear any OpenRouter/Workflow env vars
-        env_vars_to_clear = [k for k in os.environ if k.startswith("NEXUS_")]
+        env_vars_to_clear = [k for k in os.environ if k.startswith("APP_")]
         for key in env_vars_to_clear:
             os.environ.pop(key, None)
 
@@ -109,17 +109,17 @@ class TestConstantsModuleLoading:
     def test_constants_respect_environment_variables(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that constants correctly load from environment variables."""
         # Set environment variables
-        monkeypatch.setenv("NEXUS_MAX_LOOP_ITERATIONS", "5000")
-        monkeypatch.setenv("NEXUS_SCRIPT_TIMEOUT_SECONDS", "600")
-        monkeypatch.setenv("NEXUS_AGENTIC_TIMEOUT_SECONDS", "450")
-        monkeypatch.setenv("NEXUS_API_TIMEOUT_SECONDS", "60")
-        monkeypatch.setenv("NEXUS_MAX_INPUT_VALUE_LENGTH", "20000")
-        monkeypatch.setenv("NEXUS_MAX_TOTAL_INPUT_SIZE", "100000")
-        monkeypatch.setenv("NEXUS_MAX_PROMPT_LENGTH", "200000")
-        monkeypatch.setenv("NEXUS_AGENT_ORCHESTRATOR_BASE_URL", "http://custom.example.com/api/v1")
-        monkeypatch.setenv("NEXUS_SCRIPT_CLEANUP_TERMINATE_TIMEOUT", "2.0")
-        monkeypatch.setenv("NEXUS_SCRIPT_CLEANUP_KILL_TIMEOUT", "1.0")
-        monkeypatch.setenv("NEXUS_MAX_ENV_VAR_LENGTH", "65536")
+        monkeypatch.setenv("APP_MAX_LOOP_ITERATIONS", "5000")
+        monkeypatch.setenv("APP_SCRIPT_TIMEOUT_SECONDS", "600")
+        monkeypatch.setenv("APP_AGENTIC_TIMEOUT_SECONDS", "450")
+        monkeypatch.setenv("APP_API_TIMEOUT_SECONDS", "60")
+        monkeypatch.setenv("APP_MAX_INPUT_VALUE_LENGTH", "20000")
+        monkeypatch.setenv("APP_MAX_TOTAL_INPUT_SIZE", "100000")
+        monkeypatch.setenv("APP_MAX_PROMPT_LENGTH", "200000")
+        monkeypatch.setenv("APP_AGENT_ORCHESTRATOR_BASE_URL", "http://custom.example.com/api/v1")
+        monkeypatch.setenv("APP_SCRIPT_CLEANUP_TERMINATE_TIMEOUT", "2.0")
+        monkeypatch.setenv("APP_SCRIPT_CLEANUP_KILL_TIMEOUT", "1.0")
+        monkeypatch.setenv("APP_MAX_ENV_VAR_LENGTH", "65536")
 
         # Import and reload to ensure settings are read with new env vars
         import nexus.workflows.workflow_engine.constants as constants_module
@@ -203,10 +203,10 @@ class TestConstantsModuleLoading:
     def test_constants_match_settings_exactly(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that constants exactly match settings values at import time."""
         # Set some unique values
-        monkeypatch.setenv("NEXUS_MAX_LOOP_ITERATIONS", "7777")
-        monkeypatch.setenv("NEXUS_SCRIPT_TIMEOUT_SECONDS", "555")
-        monkeypatch.setenv("NEXUS_AGENTIC_TIMEOUT_SECONDS", "333")
-        monkeypatch.setenv("NEXUS_MAX_PROMPT_LENGTH", "99999")
+        monkeypatch.setenv("APP_MAX_LOOP_ITERATIONS", "7777")
+        monkeypatch.setenv("APP_SCRIPT_TIMEOUT_SECONDS", "555")
+        monkeypatch.setenv("APP_AGENTIC_TIMEOUT_SECONDS", "333")
+        monkeypatch.setenv("APP_MAX_PROMPT_LENGTH", "99999")
 
         # Import and reload to ensure settings are read with new env vars
         import nexus.workflows.workflow_engine.constants as constants_module

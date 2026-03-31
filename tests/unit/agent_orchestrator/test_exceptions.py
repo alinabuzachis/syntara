@@ -18,7 +18,7 @@ class TestLLMConfigurationError:
 
     def test_message_is_preserved(self) -> None:
         """Test that exception message is preserved."""
-        message = "NEXUS_OPENROUTER_API_KEY environment variable is required"
+        message = "APP_OPENROUTER_API_KEY environment variable is required"
         error = LLMConfigurationError(message)
         assert str(error) == message
 

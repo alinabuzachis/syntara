@@ -92,7 +92,7 @@ jobs:
       - name: Run tests (excluding MCP) with coverage
         run: make test-coverage
         env:
-          NEXUS_CACHE_PASSWORD: cache
+          APP_CACHE_PASSWORD: cache
 
       - name: Run MCP tests
         run: make test-mcp

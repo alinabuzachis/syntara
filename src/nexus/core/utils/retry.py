@@ -76,11 +76,11 @@ def is_retryable_error(error: Exception) -> bool:
 
     """
     # Check OpenAI SDK exceptions first (primary path)
-    if isinstance(error, (openai.APIConnectionError, openai.APITimeoutError, openai.RateLimitError)):
+    if isinstance(error, openai.APIConnectionError | openai.APITimeoutError | openai.RateLimitError):
         return True
 
     # Check non-retryable OpenAI SDK exceptions
-    if isinstance(error, (openai.AuthenticationError, openai.BadRequestError)):
+    if isinstance(error, openai.AuthenticationError | openai.BadRequestError):
         return False
 
     if isinstance(error, openai.APIStatusError):
@@ -97,13 +97,7 @@ def is_retryable_error(error: Exception) -> bool:
     # Check timeout exceptions
     return isinstance(
         error,
-        (
-            httpx.TimeoutException,
-            httpx.ConnectTimeout,
-            httpx.ReadTimeout,
-            httpx.ConnectError,
-            asyncio.TimeoutError,
-        ),
+        httpx.TimeoutException | httpx.ConnectTimeout | httpx.ReadTimeout | httpx.ConnectError | asyncio.TimeoutError,
     )
 
 

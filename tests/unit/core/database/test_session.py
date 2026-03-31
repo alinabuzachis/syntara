@@ -11,9 +11,9 @@ from nexus.core.database import session as session_module
 @pytest.mark.asyncio
 async def test_engine_pool_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Engine pool settings should reflect configured values."""
-    monkeypatch.setenv("NEXUS_DB_POOL_SIZE", "25")
-    monkeypatch.setenv("NEXUS_DB_MAX_OVERFLOW", "7")
-    monkeypatch.setenv("NEXUS_DB_POOL_TIMEOUT_SECONDS", "45")
+    monkeypatch.setenv("APP_DB_POOL_SIZE", "25")
+    monkeypatch.setenv("APP_DB_MAX_OVERFLOW", "7")
+    monkeypatch.setenv("APP_DB_POOL_TIMEOUT_SECONDS", "45")
 
     try:
         # Ensure no old engine remains alive before reloading module-level engine.

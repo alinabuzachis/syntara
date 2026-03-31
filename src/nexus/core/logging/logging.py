@@ -35,11 +35,11 @@ class NexusLogRecordRenderer(JSONRenderer):
 
     def _make_serializable(self, obj: object) -> object:
         """Recursively convert non-JSON-serializable objects to strings using __repr__."""
-        if isinstance(obj, (str, int, float, bool, type(None))):
+        if isinstance(obj, str | int | float | bool | type(None)):
             return obj
         if isinstance(obj, dict):
             return {k: self._make_serializable(v) for k, v in obj.items()}
-        if isinstance(obj, (list, tuple)):
+        if isinstance(obj, list | tuple):
             return [self._make_serializable(item) for item in obj]
         # Try JSON serialization first, fall back to __repr__ if it fails
         try:

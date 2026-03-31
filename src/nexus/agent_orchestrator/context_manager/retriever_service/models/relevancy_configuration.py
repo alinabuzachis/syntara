@@ -64,7 +64,7 @@ class RelevancyConfiguration(BaseModel):
         """Validate MMR settings parameters."""
         if v.get("enable_mmr", False):
             lambda_param = v.get("lambda_param", 0.5)
-            if not isinstance(lambda_param, (int, float)) or not (0.0 <= lambda_param <= 1.0):
+            if not isinstance(lambda_param, int | float) or not (0.0 <= lambda_param <= 1.0):
                 error_msg = f"MMR lambda_param must be between 0.0 and 1.0, got {lambda_param}"
                 raise SafeValueError(error_msg)
         return v

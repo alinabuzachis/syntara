@@ -15,19 +15,19 @@ Add the following to your `.env` file:
 
 ```bash
 # AAP URL
-NEXUS_AAP_BASE_URL=https://your-aap.example.com
+APP_AAP_BASE_URL=https://your-aap.example.com
 
 # Authentication (choose one method)
 # Option A: Token authentication (recommended)
-NEXUS_AAP_TOKEN=your_api_token_here
+APP_AAP_TOKEN=your_api_token_here
 
 # Option B: Username/password authentication
-# NEXUS_AAP_USERNAME=workflow_user
-# NEXUS_AAP_PASSWORD=secret_password
+# APP_AAP_USERNAME=workflow_user
+# APP_AAP_PASSWORD=secret_password
 
 # Optional: Customize timeouts and polling
-NEXUS_AAP_TIMEOUT_SECONDS=3600
-NEXUS_AAP_POLL_INTERVAL_SECONDS=5.0
+APP_AAP_TIMEOUT_SECONDS=3600
+APP_AAP_POLL_INTERVAL_SECONDS=5.0
 ```
 
 ### 2. Create Job Template in AAP
@@ -240,7 +240,7 @@ curl -k https://your-aap.example.com/api/v2/job_templates/42/ \
 In Nexus, set log level to DEBUG to see detailed AAP activity logs:
 
 ```bash
-NEXUS_LOG_LEVEL=DEBUG
+APP_LOG_LEVEL=DEBUG
 ```
 
 ## Advanced Usage

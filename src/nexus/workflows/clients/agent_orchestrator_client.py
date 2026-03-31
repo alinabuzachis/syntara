@@ -158,7 +158,7 @@ class AgentOrchestratorClient:
 
         """
         # Retry on connection and timeout errors
-        if isinstance(error, (httpx.ConnectError, httpx.TimeoutException)):
+        if isinstance(error, httpx.ConnectError | httpx.TimeoutException):
             return True
 
         # Retry on 5xx server errors (transient), not 4xx client errors (permanent)
@@ -311,7 +311,7 @@ class AgentOrchestratorClient:
             AgentOrchestratorClientError: For HTTP and other errors
 
         """
-        if isinstance(error, (httpx.ConnectError, httpx.TimeoutException)):
+        if isinstance(error, httpx.ConnectError | httpx.TimeoutException):
             msg = f"Failed to connect after {self.max_retries} attempts"
             raise AgentOrchestratorClientConnectionError(msg, details=str(error)) from error
 

@@ -168,7 +168,7 @@ def _get_aap_auth_headers(settings: Settings) -> dict[str, str]:
     if settings.aap_username and settings.aap_password:
         # Basic authentication will be handled via auth parameter
         return {}
-    msg = "AAP authentication not configured. Set NEXUS_AAP_TOKEN or NEXUS_AAP_USERNAME/PASSWORD"
+    msg = "AAP authentication not configured. Set APP_AAP_TOKEN or APP_AAP_USERNAME/PASSWORD"
     raise AAPJobExecutionError(msg)
 
 
@@ -550,7 +550,7 @@ async def execute_aap_job_template_activity(
 
     Important: When scheduling this activity from a workflow, configure heartbeat_timeout
     to detect worker failures during long-running jobs. Recommended value is 30 seconds
-    (6x the default 5s poll interval from NEXUS_AAP_POLL_INTERVAL_SECONDS).
+    (6x the default 5s poll interval from APP_AAP_POLL_INTERVAL_SECONDS).
 
     Example workflow invocation:
         from datetime import timedelta
@@ -595,7 +595,7 @@ async def execute_aap_job_template_activity(
 
     base_url = settings.aap_base_url
     if not base_url:
-        msg = "AAP_BASE_URL not configured. Set NEXUS_AAP_BASE_URL in environment."
+        msg = "AAP_BASE_URL not configured. Set APP_AAP_BASE_URL in environment."
         raise AAPJobExecutionError(msg)
     base_url = base_url.rstrip("/")
 

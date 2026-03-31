@@ -14,12 +14,12 @@ Usage:
     uv run python tools/create_system_user.py
 
 Environment Variables:
-    NEXUS_DB_USER: Database username (default: admin)
-    NEXUS_DB_PASSWORD: Database password (default: admin)
-    NEXUS_DB_HOST: Database host (default: localhost)
-    NEXUS_DB_PORT: Database port (default: 5432)
-    NEXUS_DB_NAME: Database name (default: nexus_api)
-    NEXUS_SYSTEM_USER_ID: System user UUID (default: 00000000-0000-0000-0000-000000000001)
+    APP_DB_USER: Database username (default: admin)
+    APP_DB_PASSWORD: Database password (default: admin)
+    APP_DB_HOST: Database host (default: localhost)
+    APP_DB_PORT: Database port (default: 5432)
+    APP_DB_NAME: Database name (default: nexus_api)
+    APP_SYSTEM_USER_ID: System user UUID (default: 00000000-0000-0000-0000-000000000001)
 """
 
 import asyncio

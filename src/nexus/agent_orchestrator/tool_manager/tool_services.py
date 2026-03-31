@@ -172,7 +172,7 @@ def _create_namespaced_tools(
 async def _handle_provider_errors(provider: ToolProviderWithConfiguration, error: Exception) -> None:
     """Handle different types of provider errors with appropriate logging and provider disabling."""
     # Log the error appropriately based on type
-    if isinstance(error, (ConnectionError, TimeoutError)):
+    if isinstance(error, ConnectionError | TimeoutError):
         logger.warning(
             "Failed to get tools from provider, disabling provider", provider_name=provider.name, error=str(error)
         )

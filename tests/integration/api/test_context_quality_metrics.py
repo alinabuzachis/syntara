@@ -319,8 +319,8 @@ class TestContextQualityMetrics:
         # Verify distinction is clear
         empty_score = result_empty["grounding_score"]
         populated_score = result_populated["grounding_score"]
-        assert isinstance(empty_score, (int, float))
-        assert isinstance(populated_score, (int, float))
+        assert isinstance(empty_score, int | float)
+        assert isinstance(populated_score, int | float)
         assert empty_score < populated_score, "Populated context should have higher grounding score than empty context"
 
     @pytest.mark.asyncio

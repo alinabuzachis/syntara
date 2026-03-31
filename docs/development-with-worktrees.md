@@ -110,19 +110,19 @@ Your original `feature-auth` work remains untouched, and you can switch back any
 **Main Repository** (`~/repos/nexus/.env`):
 ```bash
 PODMAN_PROJECT=nexus
-NEXUS_API_PORT=8000
-NEXUS_DB_PORT=5432
-NEXUS_TEMPORAL_UI_PORT=8081
-NEXUS_CACHE_PORT=6379
+APP_API_PORT=8000
+APP_DB_PORT=5432
+APP_TEMPORAL_UI_PORT=8081
+APP_CACHE_PORT=6379
 ```
 
 **Feature Worktree** (`~/repos/nexus/worktrees/feature-auth/.env`):
 ```bash
 PODMAN_PROJECT=nexus-feature-auth
-NEXUS_API_PORT=8001
-NEXUS_DB_PORT=5433
-NEXUS_TEMPORAL_UI_PORT=8082
-NEXUS_CACHE_PORT=6380
+APP_API_PORT=8001
+APP_DB_PORT=5433
+APP_TEMPORAL_UI_PORT=8082
+APP_CACHE_PORT=6380
 ```
 
 ## Managing Worktrees

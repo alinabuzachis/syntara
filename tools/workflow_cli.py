@@ -231,10 +231,10 @@ Examples:
 
     # Set log level via environment variable if verbose flag is set
     if args.verbose:
-        os.environ["NEXUS_LOG_LEVEL"] = "DEBUG"
+        os.environ["APP_LOG_LEVEL"] = "DEBUG"
         get_settings.cache_clear()
 
-    # Configure logging (will read NEXUS_LOG_LEVEL if set)
+    # Configure logging (will read APP_LOG_LEVEL if set)
     configure_structlog()
 
     # Get logger after configuration

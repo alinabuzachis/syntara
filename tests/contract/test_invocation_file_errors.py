@@ -214,7 +214,7 @@ async def test_llm_not_configured_returns_503(auth_client: AsyncClient, test_use
     # Arrange - Mock get_openrouter_llm to raise LLMConfigurationError
     # Error message must match schema example in openapi.yaml
     error_message = (
-        "NEXUS_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
+        "APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
     )
 
     with patch(

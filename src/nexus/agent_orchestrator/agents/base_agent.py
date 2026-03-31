@@ -138,7 +138,7 @@ class BaseAgent(ABC):
             raise AgentTimeoutError(msg, invocation_id) from error
 
         # Handle configuration and validation errors
-        if isinstance(error, (KeyError, ValueError)):
+        if isinstance(error, KeyError | ValueError):
             msg = f"Configuration or validation error: {error}"
             raise AgentConfigurationError(msg, invocation_id) from error
 

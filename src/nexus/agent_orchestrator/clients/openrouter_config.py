@@ -31,7 +31,7 @@ def get_openrouter_llm(
         Configured ChatOpenAI instance
 
     Raises:
-        LLMConfigurationError: If NEXUS_OPENROUTER_API_KEY is not configured
+        LLMConfigurationError: If APP_OPENROUTER_API_KEY is not configured
 
     """
     # Get configuration from settings
@@ -39,7 +39,9 @@ def get_openrouter_llm(
 
     # Validate required settings
     if not settings.openrouter_api_key:
-        error_msg = "NEXUS_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
+        error_msg = (
+            "APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
+        )
         raise LLMConfigurationError(error_msg)
 
     # Use provided values or defaults from settings

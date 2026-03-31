@@ -14,7 +14,7 @@ def test_get_api_base_url_with_configured_base_url(monkeypatch: pytest.MonkeyPat
     get_settings.cache_clear()
 
     # Set environment variable for workflow base URL
-    monkeypatch.setenv("NEXUS_WORKFLOW_BASE_URL", "https://api.example.com")
+    monkeypatch.setenv("APP_WORKFLOW_BASE_URL", "https://api.example.com")
 
     url = get_api_base_url()
 
@@ -28,7 +28,7 @@ def test_get_api_base_url_with_trailing_slash(monkeypatch: pytest.MonkeyPatch) -
     """Test get_api_base_url strips trailing slash."""
     get_settings.cache_clear()
 
-    monkeypatch.setenv("NEXUS_WORKFLOW_BASE_URL", "https://api.example.com/")
+    monkeypatch.setenv("APP_WORKFLOW_BASE_URL", "https://api.example.com/")
 
     url = get_api_base_url()
 
@@ -43,11 +43,11 @@ def test_get_api_base_url_constructs_from_host_port(monkeypatch: pytest.MonkeyPa
     get_settings.cache_clear()
 
     # Ensure no base URL is set
-    monkeypatch.delenv("NEXUS_WORKFLOW_BASE_URL", raising=False)
+    monkeypatch.delenv("APP_WORKFLOW_BASE_URL", raising=False)
 
     # Set specific host and port
-    monkeypatch.setenv("NEXUS_SERVER_HOST", "localhost")
-    monkeypatch.setenv("NEXUS_SERVER_PORT", "8000")
+    monkeypatch.setenv("APP_SERVER_HOST", "localhost")
+    monkeypatch.setenv("APP_SERVER_PORT", "8000")
 
     url = get_api_base_url()
 
@@ -60,9 +60,9 @@ def test_get_api_base_url_handles_0_0_0_0(monkeypatch: pytest.MonkeyPatch) -> No
     """Test get_api_base_url converts 0.0.0.0 to localhost."""
     get_settings.cache_clear()
 
-    monkeypatch.delenv("NEXUS_WORKFLOW_BASE_URL", raising=False)
-    monkeypatch.setenv("NEXUS_SERVER_HOST", "0.0.0.0")  # noqa: S104
-    monkeypatch.setenv("NEXUS_SERVER_PORT", "8000")
+    monkeypatch.delenv("APP_WORKFLOW_BASE_URL", raising=False)
+    monkeypatch.setenv("APP_SERVER_HOST", "0.0.0.0")  # noqa: S104
+    monkeypatch.setenv("APP_SERVER_PORT", "8000")
 
     url = get_api_base_url()
 
@@ -91,7 +91,7 @@ def test_generate_activity_signal_url_with_configured_base(monkeypatch: pytest.M
     """Test generate_activity_signal_url uses configured base URL."""
     get_settings.cache_clear()
 
-    monkeypatch.setenv("NEXUS_WORKFLOW_BASE_URL", "https://api.example.com")
+    monkeypatch.setenv("APP_WORKFLOW_BASE_URL", "https://api.example.com")
 
     execution_id = UUID("123e4567-e89b-12d3-a456-426614174000")
     activity_id = "approval_step"
