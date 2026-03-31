@@ -17,6 +17,13 @@ export type TaskActivityWithMetadata = TaskActivity & {
   condition?: string
 }
 
+interface ConnectorPromptData {
+  __type?: string
+  connectorId?: string
+  operation?: string
+  parameters?: Record<string, unknown>
+}
+
 export type DetectedNodeTypeResult = {
   detectedExecutorType: string | undefined
   connectorData: {
@@ -46,7 +53,8 @@ export function detectTaskNodeType(data: TaskActivity): DetectedNodeTypeResult {
   // This handles both cases: when metadata exists and when it's missing after save/load
   if (data.task.executor === ExecutorTypeEnum.AGENTIC) {
     try {
-      const parsed = JSON.parse(data.task.config.prompt ?? '{}')
+      const raw: unknown = JSON.parse(data.task.config.prompt ?? '{}')
+      const parsed = raw as ConnectorPromptData
       if (parsed.__type === 'connector') {
         connectorData = {
           connectorId: parsed.connectorId,

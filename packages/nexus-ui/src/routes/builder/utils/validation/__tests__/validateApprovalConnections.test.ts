@@ -109,7 +109,7 @@ describe('validateApprovalConnections', () => {
       severity: 'error',
       rule: 'approval-connections',
       nodeId: 'approval-1',
-      message: expect.stringContaining('Approved'),
+      message: expect.stringContaining('Approved') as unknown as string,
     })
   })
 

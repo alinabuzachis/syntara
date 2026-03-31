@@ -83,7 +83,7 @@ describe('CodeBlock', () => {
     expect(screen.getByRole('button', { name: 'Copy to clipboard' })).toBeInTheDocument()
   })
 
-  it('copies text to clipboard when copy button clicked', async () => {
+  it('copies text to clipboard when copy button clicked', () => {
     render(<CodeBlock enableCopy>code to copy</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
@@ -103,7 +103,7 @@ describe('CodeBlock', () => {
     })
   })
 
-  it('copies JSON object to clipboard', async () => {
+  it('copies JSON object to clipboard', () => {
     const jsonObject = { test: 'value' }
     render(<CodeBlock enableCopy jsonObject={jsonObject} />)
 
@@ -147,7 +147,7 @@ describe('CodeBlock', () => {
     expect(codeBlock).toBeInTheDocument()
   })
 
-  it('does not copy when clipboard is unavailable', async () => {
+  it('does not copy when clipboard is unavailable', () => {
     Object.defineProperty(navigator, 'clipboard', {
       value: undefined,
       writable: true,

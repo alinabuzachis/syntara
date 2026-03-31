@@ -23,8 +23,7 @@ import { NodeRegistry } from '../NodeRegistry'
  * Generate a cryptographically secure random ID suffix
  */
 function generateSecureRandomId(): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const crypto = window.crypto || (window as any).msCrypto
+  const crypto = window.crypto
   const array = new Uint32Array(2)
   crypto.getRandomValues(array)
   return array[0].toString(36) + array[1].toString(36)

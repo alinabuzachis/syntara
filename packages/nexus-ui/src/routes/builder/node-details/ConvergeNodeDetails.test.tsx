@@ -34,11 +34,20 @@ vi.mock('../node-forms/ConvergeNodeForm', () => ({
     onSubmit: (data: Record<string, unknown>) => void
     onCancel: () => void
     submitButtonText?: string
-    initialData?: Record<string, unknown>
+    initialData?: {
+      name?: string
+      timeoutEnabled?: boolean
+      timeoutSeconds?: number
+      timeoutMinutes?: number
+      timeoutHours?: number
+      timeoutDays?: number
+      requiredPathCount?: number
+      [key: string]: unknown
+    }
   }) => {
     return (
       <div data-testid="converge-node-form">
-        <span data-testid="initial-name">{initialData?.name as string}</span>
+        <span data-testid="initial-name">{initialData?.name ?? ''}</span>
         <span data-testid="initial-timeout-enabled">{String(initialData?.timeoutEnabled ?? false)}</span>
         <span data-testid="initial-required-path-count">{String(initialData?.requiredPathCount ?? '')}</span>
         <button
@@ -118,15 +127,19 @@ describe('ConvergeNodeDetails Component', () => {
         name: 'Test Converge',
         converge: expect.objectContaining({
           strategy: 'all',
-          branches: expect.arrayContaining(['branch-1', 'branch-2']),
-          timeout: expect.any(Number),
-          onTimeout: expect.stringMatching(/^(fail|continue)$/),
-        }),
+          branches: expect.arrayContaining(['branch-1', 'branch-2']) as unknown as string[],
+          timeout: expect.any(Number) as unknown as number,
+          onTimeout: expect.stringMatching(/^(fail|continue)$/) as unknown as string,
+        }) as unknown as Record<string, unknown>,
       })
     )
 
     // Verify the actual payload structure from handleSubmit (not just initialData passthrough)
-    const actualPayload = mockUpdateActivity.mock.calls[0][1]
+    const actualPayload = mockUpdateActivity.mock.calls[0][1] as {
+      type: string
+      name: string
+      converge: { strategy: string; branches: string[]; timeout?: number; onTimeout?: string }
+    }
     expect(actualPayload.type).toBe('converge')
     expect(actualPayload.name).toBe('Test Converge')
     expect(actualPayload.converge.strategy).toBe('all')

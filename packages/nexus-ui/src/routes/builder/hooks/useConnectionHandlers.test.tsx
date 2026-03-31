@@ -13,15 +13,15 @@ vi.mock('../../../constants', () => ({
 
 vi.mock('../utils/EdgeFactory', () => ({
   EdgeFactory: {
-    createEdge: vi.fn((params) => ({
+    createEdge: vi.fn((params: { source: string; target: string; [key: string]: unknown }) => ({
       id: `${params.source}-${params.target}`,
       type: 'default',
       ...params,
     })),
-    removeButtonEdge: vi.fn((source, edges) =>
-      edges.filter((e: { id: string }) => !e.id.startsWith(`button-${source}`))
+    removeButtonEdge: vi.fn((source: string, edges: { id: string }[]) =>
+      edges.filter((e) => !e.id.startsWith(`button-${source}`))
     ),
-    addEdge: vi.fn((newEdge, edges) => [...edges, newEdge]),
+    addEdge: vi.fn((newEdge: unknown, edges: unknown[]) => [...edges, newEdge]),
   },
 }))
 
@@ -34,7 +34,7 @@ describe('useConnectionHandlers', () => {
   const mockSetEdges = vi.fn()
   const mockSetPendingEdge = vi.fn()
   const mockOnAddNodeFromEdge = vi.fn()
-  const mockScreenToFlowPosition = vi.fn((pos) => pos)
+  const mockScreenToFlowPosition = vi.fn((pos: { x: number; y: number }) => pos)
 
   const defaultParams = {
     nodes: [] as never[],
@@ -48,12 +48,12 @@ describe('useConnectionHandlers', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
     })
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
@@ -389,7 +389,7 @@ describe('useConnectionHandlers', () => {
       ] as never[]
 
       let capturedNodes: unknown[] = []
-      mockSetNodes.mockImplementation((updater) => {
+      mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
         if (typeof updater === 'function') {
           capturedNodes = updater(nodes)
         }
@@ -424,7 +424,7 @@ describe('useConnectionHandlers', () => {
       ] as never[]
 
       let capturedNodes: unknown[] = []
-      mockSetNodes.mockImplementation((updater) => {
+      mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
         if (typeof updater === 'function') {
           capturedNodes = updater(nodes)
         }
@@ -459,7 +459,7 @@ describe('useConnectionHandlers', () => {
       const nodes = [{ id: 'placeholder-node-1', type: 'placeholder' }] as never[]
 
       let capturedNodes: unknown[] = []
-      mockSetNodes.mockImplementation((updater) => {
+      mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
         if (typeof updater === 'function') {
           capturedNodes = updater(nodes)
         }

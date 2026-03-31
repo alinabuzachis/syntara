@@ -7,7 +7,7 @@ import { ConditionNodeDetails } from './ConditionNodeDetails'
 // Mock the workflow store
 const mockUpdateActivity = vi.fn()
 vi.mock('../../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: vi.fn((selector) => {
+  useWorkflowStore: vi.fn((selector?: (store: { updateActivity: typeof mockUpdateActivity }) => unknown) => {
     const store = {
       updateActivity: mockUpdateActivity,
     }

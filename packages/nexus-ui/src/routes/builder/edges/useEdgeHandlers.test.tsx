@@ -72,17 +72,18 @@ describe('useEdgeHandlers', () => {
   it('handleDelete removes edge from edges array', () => {
     const { result } = renderHook(() => useEdgeHandlers(defaultProps))
 
-    const mockEvent = { stopPropagation: vi.fn() } as unknown as React.MouseEvent
+    const mockStopPropagation = vi.fn()
+    const mockEvent = { stopPropagation: mockStopPropagation } as unknown as React.MouseEvent
 
     act(() => {
       result.current.handleDelete(mockEvent)
     })
 
-    expect(mockEvent.stopPropagation).toHaveBeenCalled()
+    expect(mockStopPropagation).toHaveBeenCalled()
     expect(mockSetEdges).toHaveBeenCalled()
 
     // Test the filter function
-    const filterFn = mockSetEdges.mock.calls[0][0]
+    const filterFn = mockSetEdges.mock.calls[0][0] as (edges: { id: string }[]) => { id: string }[]
     const edges = [{ id: 'edge-1' }, { id: 'edge-2' }]
     const filtered = filterFn(edges)
     expect(filtered).toEqual([{ id: 'edge-2' }])
@@ -97,26 +98,28 @@ describe('useEdgeHandlers', () => {
 
     const { result } = renderHook(() => useEdgeHandlers(props))
 
-    const mockEvent = { stopPropagation: vi.fn() } as unknown as React.MouseEvent
+    const mockStopPropagation = vi.fn()
+    const mockEvent = { stopPropagation: mockStopPropagation } as unknown as React.MouseEvent
 
     act(() => {
       result.current.handleAddNode(mockEvent)
     })
 
-    expect(mockEvent.stopPropagation).toHaveBeenCalled()
+    expect(mockStopPropagation).toHaveBeenCalled()
     expect(mockOnAddNode).toHaveBeenCalledWith('node-1', 'node-2', 'edge-1', 'source-handle')
   })
 
   it('handleAddNode does nothing when data.onAddNode is not defined', () => {
     const { result } = renderHook(() => useEdgeHandlers(defaultProps))
 
-    const mockEvent = { stopPropagation: vi.fn() } as unknown as React.MouseEvent
+    const mockStopPropagation = vi.fn()
+    const mockEvent = { stopPropagation: mockStopPropagation } as unknown as React.MouseEvent
 
     act(() => {
       result.current.handleAddNode(mockEvent)
     })
 
-    expect(mockEvent.stopPropagation).toHaveBeenCalled()
+    expect(mockStopPropagation).toHaveBeenCalled()
     // Should not throw
   })
 

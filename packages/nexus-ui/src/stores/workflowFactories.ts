@@ -1,5 +1,7 @@
 import { ActivityTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
 
+import type { ActivityMetadata } from './workflowStoreTypes'
+
 // ============================================================================
 // Workflow Entity Factory Functions
 // ============================================================================
@@ -135,7 +137,7 @@ export function createScriptActivity(
 
   if (inputs) {
     try {
-      activity.task.inputs = JSON.parse(inputs)
+      activity.task.inputs = JSON.parse(inputs) as { [key: string]: unknown }
     } catch {
       // If inputs is not valid JSON, skip it
     }
@@ -214,7 +216,7 @@ export function createApiActivity(options: CreateApiActivityOptions): TaskActivi
 
   if (inputs) {
     try {
-      activity.task.inputs = JSON.parse(inputs)
+      activity.task.inputs = JSON.parse(inputs) as { [key: string]: unknown }
     } catch {
       // If inputs is not valid JSON, skip it
     }
@@ -283,7 +285,7 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ta
 
   if (inputs) {
     try {
-      activity.task.inputs = JSON.parse(inputs)
+      activity.task.inputs = JSON.parse(inputs) as { [key: string]: unknown }
     } catch {
       // If inputs is not valid JSON, skip it
     }
@@ -447,21 +449,18 @@ export function createAAPJobTemplateActivity(
     verbosity?: number
   }
 ): TaskActivity {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activity: any = {
+  return {
     type: ActivityTypeEnum.TASK,
     id,
     name,
     task: {
-      executor: 'aap_job_template',
+      executor: 'aap_job_template' as TaskActivity['task']['executor'],
       config: {
         jobTemplateId,
         ...config,
       },
     },
-  }
-
-  return activity as TaskActivity
+  } as TaskActivity
 }
 
 /**
@@ -483,7 +482,7 @@ export function createConnectorActivity(
   let parsedParameters: { [key: string]: unknown } | undefined
   if (parameters) {
     try {
-      parsedParameters = JSON.parse(parameters)
+      parsedParameters = JSON.parse(parameters) as { [key: string]: unknown }
     } catch {
       // If parameters is not valid JSON, skip it
     }
@@ -515,22 +514,20 @@ export function createConnectorActivity(
 export function createGenericActivity(id: string, name: string = 'New Node', customMessage?: string): TaskActivity {
   // Generic placeholder node - minimal task structure without executor details
   // The __isGeneric metadata flag marks this as a placeholder that should be replaced
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activity: any = {
+  const activity: TaskActivity & { metadata: ActivityMetadata } = {
     type: ActivityTypeEnum.TASK,
     id,
     name,
     metadata: {
-      __isGeneric: true, // Flag to identify this as a placeholder node
+      __isGeneric: true,
       ...(customMessage ? { __customMessage: customMessage } : {}),
     },
-    // Minimal task config - no executor specified to avoid confusion
     task: {
       config: {},
     },
-  }
+  } as TaskActivity & { metadata: ActivityMetadata }
 
-  return activity as TaskActivity
+  return activity
 }
 
 export interface CreateApprovalActivityOptions {

@@ -9,7 +9,7 @@ import { TriggerNodeDetails } from './TriggerNodeDetails'
 // Mock the workflow store
 const mockUpdateTrigger = vi.fn()
 vi.mock('../../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: vi.fn((selector) => {
+  useWorkflowStore: vi.fn((selector?: (store: { updateTrigger: typeof mockUpdateTrigger }) => unknown) => {
     const store = {
       updateTrigger: mockUpdateTrigger,
     }

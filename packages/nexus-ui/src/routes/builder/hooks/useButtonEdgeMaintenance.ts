@@ -241,13 +241,12 @@ export function useButtonEdgeMaintenance({
           if (!placeholderExists) {
             placeholderNodesToAddRef.current.push({
               id: placeholderId,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              type: 'placeholder' as any,
+              type: FlowNodeType.PLACEHOLDER,
               position: { x: node.position.x + 200, y: node.position.y },
               data: {},
               draggable: false,
               selectable: false,
-            } as NodeType)
+            } as unknown as NodeType)
           }
         }
       })

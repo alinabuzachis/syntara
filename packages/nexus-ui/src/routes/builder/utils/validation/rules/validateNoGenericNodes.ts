@@ -1,13 +1,13 @@
 import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
+import { getActivityMetadata } from '../../../../../stores/useWorkflowStore'
 import type { ValidationError } from '../types'
 
 /**
  * Recursively checks if an activity is a generic placeholder node.
  */
 function isGenericNode(activity: Activity): boolean {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (activity as any).metadata?.__isGeneric === true
+  return getActivityMetadata(activity)?.__isGeneric === true
 }
 
 /**

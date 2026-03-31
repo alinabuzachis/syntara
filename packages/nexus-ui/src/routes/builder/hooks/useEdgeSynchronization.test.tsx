@@ -76,9 +76,9 @@ describe('useEdgeSynchronization', () => {
     rerender({ edges: newEdges })
 
     expect(mockSetStoredEdges).toHaveBeenCalled()
-    const calledWith = mockSetStoredEdges.mock.calls[0][0]
+    const calledWith = mockSetStoredEdges.mock.calls[0][0] as { id: string }[]
     // Verify button edges were filtered out
-    expect(calledWith.every((e: { id: string }) => !e.id.startsWith('button-'))).toBe(true)
+    expect(calledWith.every((e) => !e.id.startsWith('button-'))).toBe(true)
   })
 
   it('filters out placeholder edges', () => {
@@ -106,14 +106,11 @@ describe('useEdgeSynchronization', () => {
     rerender({ edges: newEdges })
 
     expect(mockSetStoredEdges).toHaveBeenCalled()
-    const calledWith = mockSetStoredEdges.mock.calls[0][0]
+    const calledWith = mockSetStoredEdges.mock.calls[0][0] as { source: string; target: string }[]
     // Verify placeholder edges were filtered out
-    expect(
-      calledWith.every(
-        (e: { source: string; target: string }) =>
-          !e.source.startsWith('placeholder') && !e.target.startsWith('placeholder')
-      )
-    ).toBe(true)
+    expect(calledWith.every((e) => !e.source.startsWith('placeholder') && !e.target.startsWith('placeholder'))).toBe(
+      true
+    )
   })
 
   it('returns refs for testing', () => {

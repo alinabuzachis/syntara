@@ -266,8 +266,7 @@ describe('ExecutionHistoryRow', () => {
   it('uses within to check layout structure', () => {
     renderRow(baseExecution)
     const row = screen.getByRole('button')
-    const { getByText } = within(row)
-    expect(getByText(/Jan 15, 2024/)).toBeInTheDocument()
-    expect(getByText('Run ID: 12345678')).toBeInTheDocument()
+    expect(within(row).getByText(/Jan 15, 2024/)).toBeInTheDocument()
+    expect(within(row).getByText('Run ID: 12345678')).toBeInTheDocument()
   })
 })

@@ -67,12 +67,13 @@ vi.mock('../NodeRegistry', () => ({
 import registerLogicNode from './registerLogicNode'
 
 function getHandler() {
-  const definition = mockRegister.mock.calls[0][0]
-  return definition.onSubmit as (
+  type HandlerFn = (
     data: Record<string, unknown>,
     onSuccess: (id?: string) => void,
     onError: (err: string) => void
   ) => void
+  const definition = mockRegister.mock.calls[0][0] as unknown as { onSubmit: HandlerFn }
+  return definition.onSubmit
 }
 
 describe('registerLogicNode', () => {

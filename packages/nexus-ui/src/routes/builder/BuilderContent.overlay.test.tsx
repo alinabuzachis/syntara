@@ -150,7 +150,7 @@ describe('BuilderContent overlay', () => {
   it('renders node editor overlay after selecting a node to add', async () => {
     shouldAutoSelectNode = true
 
-    await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
+    renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
     fireEvent.click(screen.getByRole('button', { name: /add node/i }))
 

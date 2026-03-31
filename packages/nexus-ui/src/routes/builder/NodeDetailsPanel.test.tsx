@@ -7,7 +7,6 @@ import { useNodeMenuActions } from '../automations/canvas/nodes/hooks/useNodeMen
 import type { NodeType } from '../automations/canvas/nodes/NodeType'
 
 import { NodeDetailsPanel } from './NodeDetailsPanel'
-import { NodeRegistry } from './registry/NodeRegistry'
 
 const mockMoveActivityAfter = vi.fn()
 const mockUpdateActivity = vi.fn()
@@ -29,16 +28,20 @@ const mockUseWorkflowStore = vi.hoisted(() => {
   return store
 })
 
-vi.mock('../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: mockUseWorkflowStore,
-  useWorkflowStoreActions: vi.fn(() => ({
-    moveActivityAfter: mockMoveActivityAfter,
-    updateActivity: mockUpdateActivity,
-    replaceActivity: mockReplaceActivity,
-    removeActivity: mockRemoveActivity,
-  })),
-  selectCurrentWorkflow: (state: { currentWorkflow: unknown }) => state.currentWorkflow,
-}))
+vi.mock('../../stores/useWorkflowStore', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../stores/useWorkflowStore')>()
+  return {
+    ...original,
+    useWorkflowStore: mockUseWorkflowStore,
+    useWorkflowStoreActions: vi.fn(() => ({
+      moveActivityAfter: mockMoveActivityAfter,
+      updateActivity: mockUpdateActivity,
+      replaceActivity: mockReplaceActivity,
+      removeActivity: mockRemoveActivity,
+    })),
+    selectCurrentWorkflow: (state: { currentWorkflow: unknown }) => state.currentWorkflow,
+  }
+})
 
 vi.mock('../../components/alerts', () => ({
   useAlerts: vi.fn(() => ({
@@ -46,10 +49,15 @@ vi.mock('../../components/alerts', () => ({
   })),
 }))
 
+const { mockNodeRegistryGetAll, mockNodeRegistryGet } = vi.hoisted(() => ({
+  mockNodeRegistryGetAll: vi.fn(),
+  mockNodeRegistryGet: vi.fn(),
+}))
+
 vi.mock('./registry/NodeRegistry', () => ({
   NodeRegistry: {
-    getAll: vi.fn(),
-    get: vi.fn(),
+    getAll: mockNodeRegistryGetAll,
+    get: mockNodeRegistryGet,
   },
 }))
 
@@ -85,14 +93,14 @@ describe('NodeDetailsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockStoreState.currentWorkflow = { triggers: [], workflow: { activities: [] } }
-    vi.mocked(NodeRegistry.getAll).mockReturnValue([] as never)
+    mockNodeRegistryGetAll.mockReturnValue([] as never)
   })
 
   it('renders add mode form and closes on submit', async () => {
     const user = userEvent.setup()
     const mockOnSubmit = vi.fn((_data, onSuccess: (nodeId?: string) => void) => onSuccess('node-1'))
 
-    vi.mocked(NodeRegistry.get).mockReturnValue({
+    mockNodeRegistryGet.mockReturnValue({
       id: 'action',
       label: 'Action',
       icon: () => <div>ActionIcon</div>,
@@ -131,7 +139,7 @@ describe('NodeDetailsPanel', () => {
       },
     } as never
 
-    vi.mocked(NodeRegistry.get).mockReturnValue({
+    mockNodeRegistryGet.mockReturnValue({
       id: 'action',
       label: 'Action',
       icon: () => <div>ActionIcon</div>,
@@ -185,7 +193,7 @@ describe('NodeDetailsPanel', () => {
       },
     } as never
 
-    vi.mocked(NodeRegistry.get).mockReturnValue({
+    mockNodeRegistryGet.mockReturnValue({
       id: 'action',
       label: 'Action',
       icon: () => <div>ActionIcon</div>,
@@ -222,7 +230,7 @@ describe('NodeDetailsPanel', () => {
     const user = userEvent.setup()
     const mockOnSubmit = vi.fn((_data, _onSuccess, onError: (error: string) => void) => onError('boom'))
 
-    vi.mocked(NodeRegistry.get).mockReturnValue({
+    mockNodeRegistryGet.mockReturnValue({
       id: 'action',
       label: 'Action',
       icon: () => <div>ActionIcon</div>,
@@ -247,7 +255,7 @@ describe('NodeDetailsPanel', () => {
     const mockOnSubmit = vi.fn((_data, onSuccess: (nodeId?: string) => void) => onSuccess('node-2'))
     const mockOnConnect = vi.fn()
 
-    vi.mocked(NodeRegistry.get).mockReturnValue({
+    mockNodeRegistryGet.mockReturnValue({
       id: 'action',
       label: 'Action',
       icon: () => <div>ActionIcon</div>,
@@ -281,7 +289,7 @@ describe('NodeDetailsPanel', () => {
   it('closes when the close button is clicked', async () => {
     const user = userEvent.setup()
 
-    vi.mocked(NodeRegistry.get).mockReturnValue({
+    mockNodeRegistryGet.mockReturnValue({
       id: 'action',
       label: 'Action',
       icon: () => <div>ActionIcon</div>,
@@ -409,7 +417,7 @@ describe('NodeDetailsPanel', () => {
   })
 
   it('hides input panel when adding a trigger', () => {
-    vi.mocked(NodeRegistry.get).mockReturnValue({
+    mockNodeRegistryGet.mockReturnValue({
       id: 'trigger',
       label: 'Trigger',
       icon: () => <div>TriggerIcon</div>,

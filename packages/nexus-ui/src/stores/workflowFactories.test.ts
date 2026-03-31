@@ -1,3 +1,4 @@
+import { type WorkflowAPI } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -15,9 +16,44 @@ import {
   createScheduledTrigger,
   createScriptActivity,
 } from './workflowFactories'
+import type { ActivityMetadata } from './workflowStoreTypes'
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// Using 'any' type in tests to access properties on complex union types returned by factory functions
+type Activity = WorkflowAPI.components['schemas']['activity']
+type TaskActivity = Extract<Activity, { type: 'task' }>
+type LoopActivity = Extract<Activity, { type: 'loop' }>
+
+type ScriptTask = Extract<TaskActivity['task'], { executor: 'script' }>
+type ApiTask = Extract<TaskActivity['task'], { executor: 'api' }>
+type AgenticTask = Extract<TaskActivity['task'], { executor: 'agentic' }>
+type ConnectorTask = Extract<TaskActivity['task'], { executor: 'connector' }>
+
+// The AAP factory spreads its input config params directly, using different property
+// names than the API schema (e.g. 'inventory' vs 'inventoryId').
+interface AAPFactoryTask {
+  executor: 'aap_job_template'
+  config: {
+    jobTemplateId: number
+    inventory?: number
+    credentials?: number[]
+    extraVars?: Record<string, unknown>
+    limit?: string
+    tags?: string
+    skipTags?: string
+    verbosity?: number
+  }
+}
+
+type ForEachLoop = Extract<LoopActivity['loop'], { type: 'forEach' }>
+type WhileLoop = Extract<LoopActivity['loop'], { type: 'while' }>
+
+type ScheduledTriggerResult = ReturnType<typeof createScheduledTrigger>
+type CronSchedule = Extract<ScheduledTriggerResult['schedule'], { scheduleType: 'cron' }>
+type IntervalSchedule = Extract<ScheduledTriggerResult['schedule'], { scheduleType: 'interval' }>
+type ContinuousSchedule = Extract<ScheduledTriggerResult['schedule'], { scheduleType: 'continuous' }>
+
+type GenericMetadata = {
+  metadata: Pick<ActivityMetadata, '__isGeneric' | '__customMessage'>
+}
 
 describe('workflowFactories', () => {
   describe('Trigger Factories', () => {
@@ -53,36 +89,40 @@ describe('workflowFactories', () => {
 
     describe('createScheduledTrigger', () => {
       it('creates a cron scheduled trigger', () => {
-        const trigger = createScheduledTrigger('cron', { cron: '0 9 * * *', timezone: 'UTC' }) as any
+        const trigger = createScheduledTrigger('cron', { cron: '0 9 * * *', timezone: 'UTC' })
+        const schedule = trigger.schedule as CronSchedule
 
         expect(trigger.type).toBe('scheduled')
-        expect(trigger.schedule.scheduleType).toBe('cron')
-        expect(trigger.schedule.cron).toBe('0 9 * * *')
-        expect(trigger.schedule.timezone).toBe('UTC')
+        expect(schedule.scheduleType).toBe('cron')
+        expect(schedule.cron).toBe('0 9 * * *')
+        expect(schedule.timezone).toBe('UTC')
       })
 
       it('creates a cron trigger without timezone', () => {
-        const trigger = createScheduledTrigger('cron', { cron: '0 9 * * *' }) as any
+        const trigger = createScheduledTrigger('cron', { cron: '0 9 * * *' })
+        const schedule = trigger.schedule as CronSchedule
 
-        expect(trigger.schedule.scheduleType).toBe('cron')
-        expect(trigger.schedule.cron).toBe('0 9 * * *')
+        expect(schedule.scheduleType).toBe('cron')
+        expect(schedule.cron).toBe('0 9 * * *')
         expect(trigger.schedule).not.toHaveProperty('timezone')
       })
 
       it('creates an interval scheduled trigger', () => {
         const trigger = createScheduledTrigger('interval', { interval: 'PT1H' })
+        const schedule = trigger.schedule as IntervalSchedule
 
         expect(trigger.type).toBe('scheduled')
-        expect(trigger.schedule.scheduleType).toBe('interval')
-        expect(trigger.schedule.interval).toBe('PT1H')
+        expect(schedule.scheduleType).toBe('interval')
+        expect(schedule.interval).toBe('PT1H')
       })
 
       it('creates a continuous scheduled trigger', () => {
         const trigger = createScheduledTrigger('continuous', {})
+        const schedule = trigger.schedule as ContinuousSchedule
 
         expect(trigger.type).toBe('scheduled')
-        expect(trigger.schedule.scheduleType).toBe('continuous')
-        expect(trigger.schedule.continuous).toBe(true)
+        expect(schedule.scheduleType).toBe('continuous')
+        expect(schedule.continuous).toBe(true)
       })
 
       it('creates a scheduled trigger with name', () => {
@@ -130,20 +170,22 @@ describe('workflowFactories', () => {
   describe('Activity Factories', () => {
     describe('createScriptActivity', () => {
       it('creates a script activity', () => {
-        const activity = createScriptActivity('task-1', 'My Script', 'python', 'print("hello")') as any
+        const activity = createScriptActivity('task-1', 'My Script', 'python', 'print("hello")')
+        const task = activity.task as ScriptTask
 
         expect(activity.type).toBe('task')
         expect(activity.id).toBe('task-1')
         expect(activity.name).toBe('My Script')
-        expect(activity.task.executor).toBe('script')
-        expect(activity.task.config.language).toBe('python')
-        expect(activity.task.config.code).toBe('print("hello")')
+        expect(task.executor).toBe('script')
+        expect(task.config.language).toBe('python')
+        expect(task.config.code).toBe('print("hello")')
       })
 
       it('creates a bash script activity', () => {
-        const activity = createScriptActivity('task-2', 'Bash Script', 'bash', 'echo hello') as any
+        const activity = createScriptActivity('task-2', 'Bash Script', 'bash', 'echo hello')
+        const task = activity.task as ScriptTask
 
-        expect(activity.task.config.language).toBe('bash')
+        expect(task.config.language).toBe('bash')
       })
 
       it('parses valid JSON inputs', () => {
@@ -166,13 +208,14 @@ describe('workflowFactories', () => {
           name: 'API Call',
           method: 'GET',
           url: 'https://api.example.com',
-        }) as any
+        })
+        const task = activity.task as ApiTask
 
         expect(activity.type).toBe('task')
         expect(activity.id).toBe('api-1')
-        expect(activity.task.executor).toBe('api')
-        expect(activity.task.config.method).toBe('GET')
-        expect(activity.task.config.url).toBe('https://api.example.com')
+        expect(task.executor).toBe('api')
+        expect(task.config.method).toBe('GET')
+        expect(task.config.url).toBe('https://api.example.com')
       })
 
       it('creates an API activity with headers', () => {
@@ -182,9 +225,10 @@ describe('workflowFactories', () => {
           method: 'POST',
           url: 'https://api.example.com',
           headers: '{"Authorization": "Bearer token"}',
-        }) as any
+        })
+        const task = activity.task as ApiTask
 
-        expect(activity.task.config.headers).toEqual({ Authorization: 'Bearer token' })
+        expect(task.config.headers).toEqual({ Authorization: 'Bearer token' })
       })
 
       it('merges authentication into headers when provided', () => {
@@ -195,9 +239,10 @@ describe('workflowFactories', () => {
           url: 'https://api.example.com',
           headers: '{"Content-Type": "application/json"}',
           authentication: 'Bearer token',
-        }) as any
+        })
+        const task = activity.task as ApiTask
 
-        expect(activity.task.config.headers).toEqual({
+        expect(task.config.headers).toEqual({
           'Content-Type': 'application/json',
           Authorization: 'Bearer token',
         })
@@ -210,9 +255,10 @@ describe('workflowFactories', () => {
           method: 'POST',
           url: 'https://api.example.com',
           body: '{"data": "value"}',
-        }) as any
+        })
+        const task = activity.task as ApiTask
 
-        expect(activity.task.config.body).toEqual({ data: 'value' })
+        expect(task.config.body).toEqual({ data: 'value' })
       })
 
       it('uses string body when JSON parsing fails', () => {
@@ -222,9 +268,10 @@ describe('workflowFactories', () => {
           method: 'POST',
           url: 'https://api.example.com',
           body: 'plain text body',
-        }) as any
+        })
+        const task = activity.task as ApiTask
 
-        expect(activity.task.config.body).toBe('plain text body')
+        expect(task.config.body).toBe('plain text body')
       })
 
       it('ignores invalid JSON headers', () => {
@@ -234,9 +281,10 @@ describe('workflowFactories', () => {
           method: 'GET',
           url: 'https://api.example.com',
           headers: 'invalid json',
-        }) as any
+        })
+        const task = activity.task as ApiTask
 
-        expect(activity.task.config.headers).toBeUndefined()
+        expect(task.config.headers).toBeUndefined()
       })
 
       it('parses valid JSON inputs', () => {
@@ -254,12 +302,13 @@ describe('workflowFactories', () => {
 
     describe('createAgenticActivity', () => {
       it('creates an agentic activity', () => {
-        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent' }) as any
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent' })
+        const task = activity.task as AgenticTask
 
         expect(activity.type).toBe('task')
         expect(activity.id).toBe('agent-1')
-        expect(activity.task.executor).toBe('agentic')
-        expect(activity.task.config.agent).toBe('')
+        expect(task.executor).toBe('agentic')
+        expect(task.config.agent).toBe('')
       })
 
       it('creates an agentic activity with tools', () => {
@@ -267,9 +316,10 @@ describe('workflowFactories', () => {
           id: 'agent-1',
           name: 'AI Agent',
           tools: ['tool1', 'tool2'],
-        }) as any
+        })
+        const task = activity.task as AgenticTask
 
-        expect(activity.task.config.tools).toEqual(['tool1', 'tool2'])
+        expect(task.config.tools).toEqual(['tool1', 'tool2'])
       })
 
       it('creates an agentic activity with prompt', () => {
@@ -277,9 +327,10 @@ describe('workflowFactories', () => {
           id: 'agent-1',
           name: 'AI Agent',
           prompt: 'Do something',
-        }) as any
+        })
+        const task = activity.task as AgenticTask
 
-        expect(activity.task.config.prompt).toBe('Do something')
+        expect(task.config.prompt).toBe('Do something')
       })
 
       it('creates an agentic activity with model', () => {
@@ -287,9 +338,10 @@ describe('workflowFactories', () => {
           id: 'agent-1',
           name: 'AI Agent',
           model: 'gpt-4',
-        }) as any
+        })
+        const task = activity.task as AgenticTask
 
-        expect(activity.task.config.model).toBe('gpt-4')
+        expect(task.config.model).toBe('gpt-4')
       })
 
       it('creates an agentic activity with fileIds', () => {
@@ -297,15 +349,17 @@ describe('workflowFactories', () => {
           id: 'agent-1',
           name: 'AI Agent',
           fileIds: ['file-1', 'file-2'],
-        }) as any
+        })
+        const task = activity.task as AgenticTask
 
-        expect(activity.task.config.fileIds).toEqual(['file-1', 'file-2'])
+        expect(task.config.fileIds).toEqual(['file-1', 'file-2'])
       })
 
       it('does not include empty tools array', () => {
-        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent', tools: [] }) as any
+        const activity = createAgenticActivity({ id: 'agent-1', name: 'AI Agent', tools: [] })
+        const task = activity.task as AgenticTask
 
-        expect(activity.task.config.tools).toBeUndefined()
+        expect(task.config.tools).toBeUndefined()
       })
 
       it('parses valid JSON inputs', () => {
@@ -338,45 +392,48 @@ describe('workflowFactories', () => {
           items: '{{ items }}',
           itemVariable: 'item',
           indexVariable: 'idx',
-        }) as any
+        })
+        const loop = activity.loop as ForEachLoop
 
         expect(activity.type).toBe('loop')
         expect(activity.id).toBe('loop-1')
-        expect(activity.loop.type).toBe('forEach')
-        expect(activity.loop.items).toBe('{{ items }}')
-        expect(activity.loop.itemVariable).toBe('item')
-        expect(activity.loop.indexVariable).toBe('idx')
+        expect(loop.type).toBe('forEach')
+        expect(loop.items).toBe('{{ items }}')
+        expect(loop.itemVariable).toBe('item')
+        expect(loop.indexVariable).toBe('idx')
       })
 
       it('creates a while loop activity', () => {
         const activity = createLoopActivity('loop-1', 'While Loop', 'while', {
           condition: 'count < 10',
           maxIterations: 100,
-        }) as any
+        })
+        const loop = activity.loop as WhileLoop
 
-        expect(activity.loop.type).toBe('while')
-        expect(activity.loop.condition).toBe('count < 10')
-        expect(activity.loop.maxIterations).toBe(100)
+        expect(loop.type).toBe('while')
+        expect(loop.condition).toBe('count < 10')
+        expect(loop.maxIterations).toBe(100)
       })
 
       it('does not include invalid maxIterations', () => {
         const activity = createLoopActivity('loop-1', 'While Loop', 'while', {
           condition: 'count < 10',
           maxIterations: Number.NaN,
-        }) as any
+        })
 
         expect(activity.loop).not.toHaveProperty('maxIterations')
       })
 
       it('falls back to forEach with empty items when config is missing', () => {
-        const activity = createLoopActivity('loop-1', 'Loop', 'forEach', {}) as any
+        const activity = createLoopActivity('loop-1', 'Loop', 'forEach', {})
+        const loop = activity.loop as ForEachLoop
 
-        expect(activity.loop.type).toBe('forEach')
-        expect(activity.loop.items).toBe('')
+        expect(loop.type).toBe('forEach')
+        expect(loop.items).toBe('')
       })
 
       it('falls back when while has no condition', () => {
-        const activity = createLoopActivity('loop-1', 'Loop', 'while', {}) as any
+        const activity = createLoopActivity('loop-1', 'Loop', 'while', {})
 
         expect(activity.loop.type).toBe('forEach')
       })
@@ -431,12 +488,13 @@ describe('workflowFactories', () => {
 
     describe('createAAPJobTemplateActivity', () => {
       it('creates an AAP job template activity', () => {
-        const activity = createAAPJobTemplateActivity('aap-1', 'Run Playbook', 123) as any
+        const activity = createAAPJobTemplateActivity('aap-1', 'Run Playbook', 123)
+        const task = activity.task as AAPFactoryTask
 
         expect(activity.type).toBe('task')
         expect(activity.id).toBe('aap-1')
-        expect(activity.task.executor).toBe('aap_job_template')
-        expect(activity.task.config.jobTemplateId).toBe(123)
+        expect(task.executor).toBe('aap_job_template')
+        expect(task.config.jobTemplateId).toBe(123)
       })
 
       it('creates an AAP activity with full config', () => {
@@ -448,27 +506,29 @@ describe('workflowFactories', () => {
           tags: 'deploy',
           skipTags: 'test',
           verbosity: 2,
-        }) as any
+        })
+        const task = activity.task as AAPFactoryTask
 
-        expect(activity.task.config.inventory).toBe(456)
-        expect(activity.task.config.credentials).toEqual([789])
-        expect(activity.task.config.extraVars).toEqual({ env: 'prod' })
-        expect(activity.task.config.limit).toBe('web-servers')
-        expect(activity.task.config.tags).toBe('deploy')
-        expect(activity.task.config.skipTags).toBe('test')
-        expect(activity.task.config.verbosity).toBe(2)
+        expect(task.config.inventory).toBe(456)
+        expect(task.config.credentials).toEqual([789])
+        expect(task.config.extraVars).toEqual({ env: 'prod' })
+        expect(task.config.limit).toBe('web-servers')
+        expect(task.config.tags).toBe('deploy')
+        expect(task.config.skipTags).toBe('test')
+        expect(task.config.verbosity).toBe(2)
       })
     })
 
     describe('createConnectorActivity', () => {
       it('creates a connector activity', () => {
-        const activity = createConnectorActivity('conn-1', 'Slack Message', 'slack', 'send_message') as any
+        const activity = createConnectorActivity('conn-1', 'Slack Message', 'slack', 'send_message')
+        const task = activity.task as ConnectorTask
 
         expect(activity.type).toBe('task')
         expect(activity.id).toBe('conn-1')
-        expect(activity.task.executor).toBe('connector')
-        expect(activity.task.config.connectorId).toBe('slack')
-        expect(activity.task.config.operation).toBe('send_message')
+        expect(task.executor).toBe('connector')
+        expect(task.config.connectorId).toBe('slack')
+        expect(task.config.operation).toBe('send_message')
       })
 
       it('creates a connector activity with parameters', () => {
@@ -478,38 +538,42 @@ describe('workflowFactories', () => {
           'slack',
           'send_message',
           '{"channel": "#general"}'
-        ) as any
+        )
+        const task = activity.task as ConnectorTask
 
-        expect(activity.task.config.parameters).toEqual({ channel: '#general' })
+        expect(task.config.parameters).toEqual({ channel: '#general' })
       })
 
       it('ignores invalid JSON parameters', () => {
-        const activity = createConnectorActivity('conn-1', 'Slack Message', 'slack', 'send_message', 'invalid') as any
+        const activity = createConnectorActivity('conn-1', 'Slack Message', 'slack', 'send_message', 'invalid')
+        const task = activity.task as ConnectorTask
 
-        expect(activity.task.config.parameters).toBeUndefined()
+        expect(task.config.parameters).toBeUndefined()
       })
     })
 
     describe('createGenericActivity', () => {
       it('creates a generic placeholder activity', () => {
-        const activity = createGenericActivity('gen-1') as any
+        const activity = createGenericActivity('gen-1')
+        const withMetadata = activity as TaskActivity & GenericMetadata
 
         expect(activity.type).toBe('task')
         expect(activity.id).toBe('gen-1')
         expect(activity.name).toBe('New Node')
-        expect(activity.metadata.__isGeneric).toBe(true)
+        expect(withMetadata.metadata.__isGeneric).toBe(true)
       })
 
       it('creates a generic activity with custom name', () => {
-        const activity = createGenericActivity('gen-1', 'Custom Name') as any
+        const activity = createGenericActivity('gen-1', 'Custom Name')
 
         expect(activity.name).toBe('Custom Name')
       })
 
       it('creates a generic activity with custom message', () => {
-        const activity = createGenericActivity('gen-1', 'Node', 'Select a node type') as any
+        const activity = createGenericActivity('gen-1', 'Node', 'Select a node type')
+        const withMetadata = activity as TaskActivity & GenericMetadata
 
-        expect(activity.metadata.__customMessage).toBe('Select a node type')
+        expect(withMetadata.metadata.__customMessage).toBe('Select a node type')
       })
     })
 
@@ -520,15 +584,15 @@ describe('workflowFactories', () => {
           name: 'Approval Gate',
           approvers: ['admin@example.com'],
           prompt: 'Please approve',
-        }) as any
+        })
 
         expect(activity.type).toBe('approval')
         expect(activity.id).toBe('appr-1')
         expect(activity.name).toBe('Approval Gate')
         expect(activity.onApproved).toEqual([])
         expect(activity.onRejected).toEqual([])
-        expect(activity.approval.approvers).toEqual(['admin@example.com'])
-        expect(activity.approval.prompt).toBe('Please approve')
+        expect(activity.approval?.approvers).toEqual(['admin@example.com'])
+        expect(activity.approval?.prompt).toBe('Please approve')
       })
 
       it('creates an approval activity with timeout', () => {
@@ -538,9 +602,9 @@ describe('workflowFactories', () => {
           approvers: ['admin@example.com'],
           prompt: 'Approve?',
           timeout: 3600,
-        }) as any
+        })
 
-        expect(activity.approval.timeout).toBe(3600)
+        expect(activity.approval?.timeout).toBe(3600)
       })
 
       it('creates an approval activity with onTimeout action', () => {
@@ -551,9 +615,9 @@ describe('workflowFactories', () => {
           prompt: 'Approve?',
           timeout: 3600,
           onTimeout: 'reject',
-        }) as any
+        })
 
-        expect(activity.approval.onTimeout).toBe('reject')
+        expect(activity.approval?.onTimeout).toBe('reject')
       })
     })
   })

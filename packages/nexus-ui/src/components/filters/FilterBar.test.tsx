@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 
-import type { FilterConfig, FilterFieldDefinition, FilterValue } from '../../types/filters'
+import type { FilterConfig, FilterFieldDefinition, FilterType, FilterValue } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
 
 import type { FilterBarProps } from './FilterBar'
@@ -930,8 +930,7 @@ describe('FilterBar', () => {
       const unknownField: FilterFieldDefinition = {
         key: 'unknown',
         label: 'Unknown',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        type: 'INVALID_TYPE' as any, // Force unknown type to test error handling
+        type: 'INVALID_TYPE' as unknown as FilterType,
       }
 
       const { container } = render(<FilterBar {...defaultProps} fieldDefinitions={[unknownField]} />)
@@ -963,7 +962,7 @@ describe('FilterBar', () => {
   describe('callback execution paths', () => {
     it('invokes handleDateRangeChange with multiple date filters', async () => {
       const user = userEvent.setup()
-      const onFilterChange = vi.fn()
+      const onFilterChange = vi.fn<(filters: FilterConfig[]) => void>()
       const dateRangeField: FilterFieldDefinition = {
         key: 'created_at',
         label: 'Created',
@@ -1452,7 +1451,7 @@ describe('FilterBar', () => {
 
     it('invokes handleDateRangeChange callback with date filters', async () => {
       const user = userEvent.setup()
-      const onFilterChange = vi.fn()
+      const onFilterChange = vi.fn<(filters: FilterConfig[]) => void>()
       const dateRangeField: FilterFieldDefinition = {
         key: 'created_at',
         label: 'Created',

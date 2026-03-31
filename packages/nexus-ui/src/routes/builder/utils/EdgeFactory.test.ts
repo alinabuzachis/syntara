@@ -8,7 +8,7 @@ vi.mock('@xyflow/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@xyflow/react')>()
   return {
     ...actual,
-    addEdge: vi.fn((edge, edges) => [...edges, edge]),
+    addEdge: vi.fn((edge: unknown, edges: unknown[]) => [...edges, edge]),
   }
 })
 

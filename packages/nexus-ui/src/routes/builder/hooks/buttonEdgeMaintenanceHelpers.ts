@@ -1,5 +1,6 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 
+import { FlowNodeType } from '../../../constants'
 import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 
 export interface HandlePositionConfig {
@@ -45,13 +46,12 @@ export function processMultiHandleNode(options: ProcessMultiHandleNodeOptions) {
         const xOffset = positionConfig.xOffset ?? 200
         placeholderNodesToAdd.push({
           id: placeholderId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          type: 'placeholder' as any,
+          type: FlowNodeType.PLACEHOLDER,
           position: { x: node.position.x + xOffset, y: node.position.y + yOffset },
           data: {},
           draggable: false,
           selectable: false,
-        } as NodeType)
+        } as unknown as NodeType)
       }
     }
   })

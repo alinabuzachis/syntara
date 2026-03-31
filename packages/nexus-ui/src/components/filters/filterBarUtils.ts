@@ -15,9 +15,13 @@ import type { FilterConfig } from '../../types/filters'
  * ```
  */
 export function parseFilterDate(value: unknown): Date | undefined {
-  if (!value) return undefined
-  const date = new Date(String(value))
-  return Number.isNaN(date.getTime()) ? undefined : date
+  if (value === null || value === undefined || value === '') return undefined
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? undefined : value
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? undefined : date
+  }
+  return undefined
 }
 
 /**

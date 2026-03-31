@@ -207,7 +207,7 @@ describe('validateWorkflow', () => {
   })
 
   describe('error handling', () => {
-    it('catches and reports internal validation errors', async () => {
+    it('catches and reports internal validation errors', () => {
       // Mock console.error to verify it's called
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 

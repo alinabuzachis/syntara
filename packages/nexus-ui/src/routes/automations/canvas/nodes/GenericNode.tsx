@@ -4,6 +4,7 @@ import { RhUiSettingsIcon } from '@patternfly/react-icons'
 import { type Node, type NodeProps } from '@xyflow/react'
 
 import { FlowNodeType } from '../../../../constants'
+import { getActivityMetadata } from '../../../../stores/useWorkflowStore'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
 
@@ -20,17 +21,13 @@ export type GenericNode = { type: typeof FlowNodeType.GENERIC } & Node<TaskActiv
  * When clicked, allows user to select what type of node to convert it to
  */
 export function GenericNodeComponent(props: NodeProps<GenericNode>) {
-  // Check for custom message in metadata
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const customMessage = (props.data as any).metadata?.__customMessage as string | undefined
-  const displayMessage = customMessage || 'Select a node type'
+  const metadata = getActivityMetadata(props.data)
+  const customMessage = metadata?.__customMessage
+  const displayMessage = (typeof customMessage === 'string' ? customMessage : undefined) ?? 'Select a node type'
 
-  // Only show title if no custom message (custom message replaces title)
   const showTitle = !customMessage
 
-  // Check if this generic node should have reversed handles (for loop-back paths)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const reverseHandles = (props.data as any).metadata?.__reverseHandles as boolean | undefined
+  const reverseHandles = typeof metadata?.__reverseHandles === 'boolean' ? metadata.__reverseHandles : undefined
 
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as

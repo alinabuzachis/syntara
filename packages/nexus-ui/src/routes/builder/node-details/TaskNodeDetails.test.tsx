@@ -178,18 +178,20 @@ describe('TaskNodeDetails Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Setup mockCreateAAPJobTemplateActivity to return proper activity structure
-    mockCreateAAPJobTemplateActivity.mockImplementation((id, name, jobTemplateId, config) => ({
-      type: 'task' as const,
-      id,
-      name,
-      task: {
-        executor: 'aap_job_template' as const,
-        config: {
-          jobTemplateId,
-          ...config,
+    mockCreateAAPJobTemplateActivity.mockImplementation(
+      (id: string, name: string, jobTemplateId: string, config: Record<string, unknown>) => ({
+        type: 'task' as const,
+        id,
+        name,
+        task: {
+          executor: 'aap_job_template' as const,
+          config: {
+            jobTemplateId,
+            ...config,
+          },
         },
-      },
-    }))
+      })
+    )
   })
 
   it('renders ActionNodeForm for script task', () => {
@@ -396,8 +398,8 @@ describe('TaskNodeDetails Component', () => {
             tags: 'install',
             skipTags: 'debug',
             verbosity: 3,
-          }),
-        }),
+          }) as Record<string, unknown>,
+        }) as Record<string, unknown>,
       })
     )
   })
@@ -469,8 +471,8 @@ describe('TaskNodeDetails Component', () => {
             url: 'https://api.test.com',
             headers: { 'Content-Type': 'application/json' },
             body: { data: 'test' },
-          }),
-        }),
+          }) as Record<string, unknown>,
+        }) as Record<string, unknown>,
       })
     )
   })
@@ -500,8 +502,8 @@ describe('TaskNodeDetails Component', () => {
         task: expect.objectContaining({
           config: expect.objectContaining({
             body: 'plain text body',
-          }),
-        }),
+          }) as Record<string, unknown>,
+        }) as Record<string, unknown>,
       })
     )
   })

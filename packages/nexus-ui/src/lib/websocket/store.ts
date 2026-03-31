@@ -195,7 +195,10 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => {
 
         socket.onmessage = (event) => {
           try {
-            const message: WebSocketMessage = JSON.parse(event.data)
+            if (typeof event.data !== 'string') return
+            const raw: unknown = JSON.parse(event.data)
+            if (typeof raw !== 'object' || raw === null) return
+            const message = raw as WebSocketMessage
             message.timestamp = message.timestamp ?? Date.now()
             message.channel = channelId
             notifyMessage(channelId, message)

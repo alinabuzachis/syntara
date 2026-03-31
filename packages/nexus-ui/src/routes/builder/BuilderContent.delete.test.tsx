@@ -153,7 +153,7 @@ describe('BuilderContent - Delete Automation', () => {
 
   it('shows delete button in kebab menu for existing workflows', async () => {
     const user = userEvent.setup()
-    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Find and click kebab menu
     const kebabButton = screen.getByLabelText('Automation actions')
@@ -165,8 +165,8 @@ describe('BuilderContent - Delete Automation', () => {
     })
   })
 
-  it('does not show delete button for new workflows', async () => {
-    await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
+  it('does not show delete button for new workflows', () => {
+    renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
     // Kebab menu should not exist for new workflows
     expect(screen.queryByLabelText('Automation actions')).not.toBeInTheDocument()
@@ -174,7 +174,7 @@ describe('BuilderContent - Delete Automation', () => {
 
   it('opens delete confirmation modal when delete is clicked', async () => {
     const user = userEvent.setup()
-    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab menu
     const kebabButton = screen.getByLabelText('Automation actions')
@@ -193,11 +193,13 @@ describe('BuilderContent - Delete Automation', () => {
   })
 
   it('deletes automation and navigates to new workflow page', async () => {
-    const mockDeleteMutate = vi.fn((params, callbacks) => {
-      if (callbacks?.onSuccess) {
-        callbacks.onSuccess(undefined, params, undefined)
+    const mockDeleteMutate = vi.fn(
+      (params: unknown, callbacks?: { onSuccess?: (data: unknown, variables: unknown, context: unknown) => void }) => {
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess(undefined, params, undefined)
+        }
       }
-    })
+    )
 
     vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
       if (method === 'delete') {
@@ -207,7 +209,7 @@ describe('BuilderContent - Delete Automation', () => {
     })
 
     const user = userEvent.setup()
-    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab and click delete
     const kebabButton = screen.getByLabelText('Automation actions')
@@ -234,11 +236,13 @@ describe('BuilderContent - Delete Automation', () => {
   it('handles delete error and shows error alert', async () => {
     const user = userEvent.setup()
     const mockError = { message: 'Cannot delete workflow with active executions' }
-    const mockDeleteMutate = vi.fn((params, callbacks) => {
-      if (callbacks?.onError) {
-        callbacks.onError(mockError, params, undefined)
+    const mockDeleteMutate = vi.fn(
+      (params: unknown, callbacks?: { onError?: (error: unknown, variables: unknown, context: unknown) => void }) => {
+        if (callbacks?.onError) {
+          callbacks.onError(mockError, params, undefined)
+        }
       }
-    })
+    )
 
     vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
       if (method === 'delete') {
@@ -247,7 +251,7 @@ describe('BuilderContent - Delete Automation', () => {
       return createMockMutation()
     })
 
-    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab and click delete
     await user.click(screen.getByLabelText('Automation actions'))
@@ -267,7 +271,7 @@ describe('BuilderContent - Delete Automation', () => {
 
   it('can cancel delete operation', async () => {
     const user = userEvent.setup()
-    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab and click delete
     await user.click(screen.getByLabelText('Automation actions'))

@@ -576,7 +576,7 @@ describe('Approvals Component', () => {
       expect(screen.getByText(/of 50 total/)).toBeInTheDocument()
     })
 
-    it('handles next page navigation', async () => {
+    it('handles next page navigation', () => {
       vi.mocked(approvalsClient.useQuery).mockReturnValue({
         data: {
           resources: mockApprovals,
@@ -596,7 +596,7 @@ describe('Approvals Component', () => {
       expect(nextButton).toBeInTheDocument()
     })
 
-    it('handles previous page navigation', async () => {
+    it('handles previous page navigation', () => {
       vi.mocked(approvalsClient.useQuery).mockReturnValue({
         data: {
           resources: mockApprovals,

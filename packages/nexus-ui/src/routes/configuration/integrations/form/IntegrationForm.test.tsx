@@ -237,25 +237,52 @@ describe('IntegrationForm Component', () => {
       const mockProviderId = 'test-provider-123'
 
       // Setup create mutation to call onSuccess callback
-      mockCreateMutate.mockImplementation((_variables, options) => {
-        if (options?.onSuccess) {
-          options.onSuccess({ id: mockProviderId })
+      mockCreateMutate.mockImplementation(
+        (
+          _variables: unknown,
+          options?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          if (options?.onSuccess) {
+            options.onSuccess({ id: mockProviderId })
+          }
         }
-      })
+      )
 
       // Setup validate mutation to call onSuccess with valid: true
-      mockValidateMutate.mockImplementation((_variables, options) => {
-        if (options?.onSuccess) {
-          options.onSuccess({ valid: true, provider_type: 'mcp', validated_at: new Date().toISOString() })
+      mockValidateMutate.mockImplementation(
+        (
+          _variables: unknown,
+          options?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          if (options?.onSuccess) {
+            options.onSuccess({ valid: true, provider_type: 'mcp', validated_at: new Date().toISOString() })
+          }
         }
-      })
+      )
 
       // Setup refresh mutation to call onSettled callback
-      mockRefreshMutate.mockImplementation((_variables, options) => {
-        if (options?.onSettled) {
-          options.onSettled()
+      mockRefreshMutate.mockImplementation(
+        (
+          _variables: unknown,
+          options?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          if (options?.onSettled) {
+            options.onSettled()
+          }
         }
-      })
+      )
 
       render(<IntegrationForm />, { wrapper })
 
@@ -275,12 +302,12 @@ describe('IntegrationForm Component', () => {
         // Verify validate was called with the provider ID
         expect(mockValidateMutate).toHaveBeenCalledWith(
           { params: { path: { provider_id: mockProviderId } } },
-          expect.objectContaining({ onSuccess: expect.any(Function) })
+          expect.objectContaining({ onSuccess: expect.any(Function) as unknown })
         )
         // Verify refresh-tools was called with the provider ID
         expect(mockRefreshMutate).toHaveBeenCalledWith(
           { params: { path: { provider_id: mockProviderId } } },
-          expect.objectContaining({ onSettled: expect.any(Function) })
+          expect.objectContaining({ onSettled: expect.any(Function) as unknown })
         )
       })
     })
@@ -291,23 +318,41 @@ describe('IntegrationForm Component', () => {
       const mockProviderId = 'test-provider-invalid'
 
       // Setup create mutation to call onSuccess callback
-      mockCreateMutate.mockImplementation((_variables, options) => {
-        if (options?.onSuccess) {
-          options.onSuccess({ id: mockProviderId })
+      mockCreateMutate.mockImplementation(
+        (
+          _variables: unknown,
+          options?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          if (options?.onSuccess) {
+            options.onSuccess({ id: mockProviderId })
+          }
         }
-      })
+      )
 
       // Setup validate mutation to return valid: false
-      mockValidateMutate.mockImplementation((_variables, options) => {
-        if (options?.onSuccess) {
-          options.onSuccess({
-            valid: false,
-            provider_type: 'mcp',
-            validated_at: new Date().toISOString(),
-            error: 'Connection refused: unable to reach MCP server at https://bad-url.example.com',
-          })
+      mockValidateMutate.mockImplementation(
+        (
+          _variables: unknown,
+          options?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          if (options?.onSuccess) {
+            options.onSuccess({
+              valid: false,
+              provider_type: 'mcp',
+              validated_at: new Date().toISOString(),
+              error: 'Connection refused: unable to reach MCP server at https://bad-url.example.com',
+            })
+          }
         }
-      })
+      )
 
       render(<IntegrationForm />, { wrapper })
 
@@ -344,23 +389,50 @@ describe('IntegrationForm Component', () => {
       const mockProviderId = 'test-provider-456'
 
       // Setup mutation chain
-      mockCreateMutate.mockImplementation((_variables, options) => {
-        if (options?.onSuccess) {
-          options.onSuccess({ id: mockProviderId })
+      mockCreateMutate.mockImplementation(
+        (
+          _variables: unknown,
+          options?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          if (options?.onSuccess) {
+            options.onSuccess({ id: mockProviderId })
+          }
         }
-      })
+      )
 
-      mockValidateMutate.mockImplementation((_variables, options) => {
-        if (options?.onSuccess) {
-          options.onSuccess({ valid: true, provider_type: 'mcp', validated_at: new Date().toISOString() })
+      mockValidateMutate.mockImplementation(
+        (
+          _variables: unknown,
+          options?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          if (options?.onSuccess) {
+            options.onSuccess({ valid: true, provider_type: 'mcp', validated_at: new Date().toISOString() })
+          }
         }
-      })
+      )
 
-      mockRefreshMutate.mockImplementation((_variables, options) => {
-        if (options?.onSettled) {
-          options.onSettled()
+      mockRefreshMutate.mockImplementation(
+        (
+          _variables: unknown,
+          options?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          if (options?.onSettled) {
+            options.onSettled()
+          }
         }
-      })
+      )
 
       render(<IntegrationForm />, { wrapper })
 

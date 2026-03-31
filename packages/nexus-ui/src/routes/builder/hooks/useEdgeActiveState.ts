@@ -70,8 +70,8 @@ export function useEdgeActiveState({
       currentEdges.map((edge) => {
         if (edge.type === 'buttonEdge' || edge.id.startsWith('button-')) {
           const nodeId = edge.source
-          // Get the handle from the edge data or extract from edge ID
-          const edgeHandle = edge.data?.sourceHandle ?? edge.sourceHandle ?? 'source'
+          const dataSourceHandle = typeof edge.data?.sourceHandle === 'string' ? edge.data.sourceHandle : undefined
+          const edgeHandle = dataSourceHandle ?? edge.sourceHandle ?? 'source'
 
           // Determine if this button edge should be active
           // For nodes with specific handles (condition: true/false, loop: done/loop, approval: approved/rejected),

@@ -16,7 +16,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
 
-
 import { DateRangeFilter } from './DateRangeFilter'
 import { parseFilterDate } from './filterBarUtils'
 import { useTextFilterState } from './useTextFilterState'

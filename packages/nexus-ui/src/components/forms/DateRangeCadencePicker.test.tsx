@@ -173,7 +173,7 @@ describe('DateRangeCadencePicker', () => {
 
   describe('onChange callbacks', () => {
     it('calls onChange when start date changes', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const startDate = screen.getByLabelText('Start date')
@@ -187,7 +187,7 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when cadence changes', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const cadenceSelect = screen.getByLabelText('Cadence')
@@ -201,7 +201,7 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange with run-once interval (R1/start/PT0S) when cadence is none and start date is set', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const cadenceSelect = screen.getByLabelText('Cadence')
@@ -213,7 +213,7 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when hour changes', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const hourInput = screen.getByLabelText('Hour')
@@ -225,7 +225,7 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when minute changes', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const minuteInput = screen.getByLabelText('Minute')
@@ -237,7 +237,7 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when period changes', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const periodSelect = screen.getByLabelText('Period')
@@ -249,7 +249,7 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('calls onChange when end date changes', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const endDate = screen.getByLabelText('End date')
@@ -295,7 +295,7 @@ describe('DateRangeCadencePicker', () => {
 
   describe('output format', () => {
     it('generates correct ISO 8601 format for daily cadence', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} />)
 
       // Set start date
@@ -314,7 +314,7 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('generates correct format with end date', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const endDate = screen.getByLabelText('End date')
@@ -327,7 +327,7 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('uses monthly duration P1M', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const cadenceSelect = screen.getByLabelText('Cadence')
@@ -340,7 +340,7 @@ describe('DateRangeCadencePicker', () => {
     })
 
     it('uses annual duration P1Y', async () => {
-      const onChange = vi.fn()
+      const onChange = vi.fn<(value: string) => void>()
       render(<DateRangeCadencePicker onChange={onChange} value="R/2024-01-15T10:00:00Z/P1D" />)
 
       const cadenceSelect = screen.getByLabelText('Cadence')

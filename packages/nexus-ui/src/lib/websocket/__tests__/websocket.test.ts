@@ -188,7 +188,7 @@ describe('WebSocket Store', () => {
       const result = useWebSocketStore.getState().sendRaw('test', { input: 'hello' })
 
       expect(result).toBe(true)
-      const sent = JSON.parse(mockWebSocketInstances[0].getSentMessages()[0])
+      const sent: unknown = JSON.parse(mockWebSocketInstances[0].getSentMessages()[0])
       expect(sent).toEqual({ input: 'hello' })
     })
 
@@ -206,7 +206,7 @@ describe('WebSocket Store', () => {
 
       useWebSocketStore.getState().sendRaw('test', { message: 'test' })
 
-      const sent = JSON.parse(mockWebSocketInstances[0].getSentMessages()[0])
+      const sent = JSON.parse(mockWebSocketInstances[0].getSentMessages()[0]) as Record<string, unknown>
       expect(sent).toEqual({ message: 'test' })
       expect(sent.timestamp).toBeUndefined()
     })

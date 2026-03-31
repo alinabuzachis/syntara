@@ -59,7 +59,7 @@ describe('DateRangeFilter', () => {
   describe('start date selection', () => {
     it('emits FilterConfig with gte operator for start date', async () => {
       const user = userEvent.setup()
-      const onChange = vi.fn()
+      const onChange = vi.fn<(filters: FilterConfig[]) => void>()
 
       render(<DateRangeFilter {...defaultProps} onChange={onChange} />)
 
@@ -83,7 +83,7 @@ describe('DateRangeFilter', () => {
 
     it('uses custom startOperator when provided', async () => {
       const user = userEvent.setup()
-      const onChange = vi.fn()
+      const onChange = vi.fn<(filters: FilterConfig[]) => void>()
 
       render(<DateRangeFilter {...defaultProps} onChange={onChange} startOperator="gt" />)
 
@@ -98,7 +98,7 @@ describe('DateRangeFilter', () => {
 
     it('formats start date to ISO 8601', async () => {
       const user = userEvent.setup()
-      const onChange = vi.fn()
+      const onChange = vi.fn<(filters: FilterConfig[]) => void>()
 
       render(<DateRangeFilter {...defaultProps} onChange={onChange} />)
 
@@ -117,7 +117,7 @@ describe('DateRangeFilter', () => {
   describe('end date selection', () => {
     it('emits FilterConfig with lte operator for end date', async () => {
       const user = userEvent.setup()
-      const onChange = vi.fn()
+      const onChange = vi.fn<(filters: FilterConfig[]) => void>()
 
       render(<DateRangeFilter {...defaultProps} onChange={onChange} />)
 
@@ -140,7 +140,7 @@ describe('DateRangeFilter', () => {
 
     it('uses custom endOperator when provided', async () => {
       const user = userEvent.setup()
-      const onChange = vi.fn()
+      const onChange = vi.fn<(filters: FilterConfig[]) => void>()
 
       render(<DateRangeFilter {...defaultProps} onChange={onChange} endOperator="lt" />)
 
@@ -155,7 +155,7 @@ describe('DateRangeFilter', () => {
 
     it('sets end date to end of day (23:59:59.999)', async () => {
       const user = userEvent.setup()
-      const onChange = vi.fn()
+      const onChange = vi.fn<(filters: FilterConfig[]) => void>()
 
       render(<DateRangeFilter {...defaultProps} onChange={onChange} />)
 

@@ -23,7 +23,7 @@ vi.mock('../../../constants', () => ({
 
 vi.mock('../utils/EdgeFactory', () => ({
   EdgeFactory: {
-    createEdge: vi.fn((params) => ({
+    createEdge: vi.fn((params: { source: string; target: string; [key: string]: unknown }) => ({
       id: `${params.source}-${params.target}`,
       ...params,
     })),
@@ -141,12 +141,12 @@ describe('useNodeDeletion', () => {
     vi.clearAllMocks()
     vi.useFakeTimers()
     mockIsDeletingRef.current = false
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
     })
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
@@ -335,7 +335,7 @@ describe('useNodeDeletion', () => {
             target: 'loop-1',
             targetHandle: 'end',
           }),
-        ]),
+        ]) as unknown as unknown[],
       })
     )
   })

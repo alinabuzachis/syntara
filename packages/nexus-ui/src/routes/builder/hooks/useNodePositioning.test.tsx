@@ -28,7 +28,7 @@ describe('useNodePositioning', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     newlyAddedNodeIdsRef.current = new Set()
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
@@ -61,7 +61,7 @@ describe('useNodePositioning', () => {
     newlyAddedNodeIdsRef.current.add('node-1')
 
     let capturedNodes: unknown[] = []
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedNodes = updater(nodes)
       }
@@ -91,7 +91,7 @@ describe('useNodePositioning', () => {
     newlyAddedNodeIdsRef.current.add('loop-1')
     newlyAddedNodeIdsRef.current.add('body-1')
 
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         updater(nodes)
       }
@@ -120,7 +120,7 @@ describe('useNodePositioning', () => {
     const mockOnClear = vi.fn()
 
     let capturedNodes: unknown[] = []
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedNodes = updater(nodes)
       }
@@ -151,7 +151,7 @@ describe('useNodePositioning', () => {
     ] as never[]
     newlyAddedNodeIdsRef.current.add('node-1')
 
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         updater(nodes)
       }
@@ -208,7 +208,7 @@ describe('useNodePositioning', () => {
     const mockOnClear = vi.fn()
 
     let capturedNodes: unknown[] = []
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedNodes = updater(nodes)
       }
@@ -238,7 +238,7 @@ describe('useNodePositioning', () => {
     ] as never[]
     newlyAddedNodeIdsRef.current.add('node-1')
 
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         updater(nodes)
       }

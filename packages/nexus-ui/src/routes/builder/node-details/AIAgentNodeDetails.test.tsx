@@ -8,8 +8,9 @@ import { AIAgentNodeDetails } from './AIAgentNodeDetails'
 
 // Mock the workflow store
 const mockUpdateActivity = vi.fn()
-vi.mock('../../../stores/useWorkflowStore', () => ({
-  useWorkflowStore: vi.fn((selector) => {
+vi.mock('../../../stores/useWorkflowStore', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../stores/useWorkflowStore')>()),
+  useWorkflowStore: vi.fn((selector?: (store: { updateActivity: typeof mockUpdateActivity }) => unknown) => {
     const store = {
       updateActivity: mockUpdateActivity,
     }
@@ -40,7 +41,7 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
           ...(options.model && { model: options.model }),
           ...(options.fileIds && { fileIds: options.fileIds }),
         },
-        ...(options.inputs && { inputs: JSON.parse(options.inputs) }),
+        ...(options.inputs && { inputs: JSON.parse(options.inputs) as Record<string, unknown> }),
       },
     })
   ),
@@ -64,14 +65,14 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
   }: {
     onSubmit: (data: Record<string, unknown>) => void
     onCancel: () => void
-    initialData?: Record<string, unknown>
+    initialData?: { name?: string; model?: string; prompt?: string; tools?: string }
     submitButtonText?: string
   }) => (
     <div data-testid="ai-agent-form">
-      <div data-testid="initial-name">{String(initialData?.name ?? '')}</div>
-      <div data-testid="initial-model">{String(initialData?.model ?? '')}</div>
-      <div data-testid="initial-prompt">{String(initialData?.prompt ?? '')}</div>
-      <div data-testid="initial-tools">{String(initialData?.tools ?? '')}</div>
+      <div data-testid="initial-name">{initialData?.name ?? ''}</div>
+      <div data-testid="initial-model">{initialData?.model ?? ''}</div>
+      <div data-testid="initial-prompt">{initialData?.prompt ?? ''}</div>
+      <div data-testid="initial-tools">{initialData?.tools ?? ''}</div>
       <button
         onClick={() =>
           onSubmit({
@@ -132,8 +133,8 @@ describe('AIAgentNodeDetails Component', () => {
             model: 'gpt-4',
             prompt: 'Updated prompt',
             tools: ['calculator', 'web_search'],
-          }),
-        }),
+          }) as unknown as Record<string, unknown>,
+        }) as unknown as Record<string, unknown>,
       })
     )
   })

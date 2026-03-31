@@ -53,6 +53,12 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
+interface MockMutationCallbacks {
+  onSuccess: (...args: unknown[]) => void
+  onError: (...args: unknown[]) => void
+  onSettled: () => void
+}
+
 describe('Integrations Component', () => {
   const mockIntegrations = [
     {
@@ -897,7 +903,7 @@ describe('Integrations Component', () => {
       await user.click(validateButton)
 
       // Simulate successful mutation with valid: true
-      const mutationCall = mockValidateMutate.mock.calls[0]
+      const mutationCall = mockValidateMutate.mock.calls[0] as [unknown, MockMutationCallbacks]
       const callbacks = mutationCall[1]
       act(() => {
         callbacks.onSuccess({ valid: true, provider_type: 'mcp', validated_at: new Date().toISOString() })
@@ -944,7 +950,7 @@ describe('Integrations Component', () => {
       await user.click(validateButton)
 
       // Simulate HTTP 200 with valid: false
-      const mutationCall = mockValidateMutate.mock.calls[0]
+      const mutationCall = mockValidateMutate.mock.calls[0] as [unknown, MockMutationCallbacks]
       const callbacks = mutationCall[1]
       act(() => {
         callbacks.onSuccess({
@@ -992,7 +998,7 @@ describe('Integrations Component', () => {
       await user.click(validateButton)
 
       // Simulate failed mutation
-      const callbacks = mockValidateMutate.mock.calls[0][1]
+      const callbacks = mockValidateMutate.mock.calls[0][1] as MockMutationCallbacks
       act(() => {
         callbacks.onError(new Error('Connection timeout'))
         callbacks.onSettled()
@@ -1103,7 +1109,7 @@ describe('Integrations Component', () => {
       await user.click(deleteButton)
 
       // Simulate successful mutation
-      const callbacks = mockDeleteMutate.mock.calls[0][1]
+      const callbacks = mockDeleteMutate.mock.calls[0][1] as MockMutationCallbacks
       act(() => {
         callbacks.onSuccess()
         callbacks.onSettled()
@@ -1140,7 +1146,7 @@ describe('Integrations Component', () => {
       await user.click(deleteButton)
 
       // Simulate failed mutation
-      const callbacks = mockDeleteMutate.mock.calls[0][1]
+      const callbacks = mockDeleteMutate.mock.calls[0][1] as MockMutationCallbacks
       act(() => {
         callbacks.onError(new Error('Permission denied'))
         callbacks.onSettled()

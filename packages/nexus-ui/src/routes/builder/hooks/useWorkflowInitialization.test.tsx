@@ -79,7 +79,7 @@ describe('useWorkflowInitialization', () => {
     })
 
     // Wait for the setTimeout delay
-    await act(async () => {
+    act(() => {
       vi.advanceTimersByTime(50)
     })
 
@@ -132,7 +132,7 @@ describe('useWorkflowInitialization', () => {
       await Promise.resolve()
     })
 
-    await act(async () => {
+    act(() => {
       vi.advanceTimersByTime(50)
     })
 

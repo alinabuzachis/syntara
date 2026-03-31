@@ -44,6 +44,32 @@ export type WorkflowDefinition = Omit<WorkflowDefinitionBase, 'triggers'> & {
 export type Activity = WorkflowAPI.components['schemas']['activity']
 export type TaskActivity = Extract<Activity, { type: 'task' }>
 
+/**
+ * Runtime metadata added by the UI to activities (not part of the API contract).
+ * Used for generic placeholder nodes and layout hints.
+ */
+export interface ActivityMetadata {
+  __isGeneric?: boolean
+  __customMessage?: string
+  __reverseHandles?: boolean
+  [key: string]: unknown
+}
+
+/**
+ * Safely extract the `metadata` bag that the UI attaches at runtime.
+ * The API contract `Activity` type does not include `metadata`, so direct
+ * property access would be flagged as unsafe by typescript-eslint.
+ */
+export function getActivityMetadata(activity: unknown): ActivityMetadata | undefined {
+  if (activity && typeof activity === 'object' && Object.prototype.hasOwnProperty.call(activity, 'metadata')) {
+    const meta = (activity as { metadata?: unknown }).metadata
+    if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+      return meta as ActivityMetadata
+    }
+  }
+  return undefined
+}
+
 export interface WorkflowStore {
   currentWorkflow: WorkflowDefinition | null
   workflowVersion: number // Incremented only when setWorkflow is called

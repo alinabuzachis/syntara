@@ -21,7 +21,7 @@ export const aapFormSchema = z
     if (!v) return
 
     try {
-      const parsed = JSON.parse(v)
+      const parsed: unknown = JSON.parse(v)
       if (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object') {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

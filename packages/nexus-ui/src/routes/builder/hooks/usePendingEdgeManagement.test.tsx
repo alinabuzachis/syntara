@@ -15,12 +15,12 @@ describe('usePendingEdgeManagement', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((nodes: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
     })
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((edges: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
@@ -46,14 +46,14 @@ describe('usePendingEdgeManagement', () => {
     const nodesCalls: unknown[][] = []
     const edgesCalls: unknown[][] = []
 
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         const result = updater([])
         nodesCalls.push(result)
         return result
       }
     })
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         const result = updater([])
         edgesCalls.push(result)
@@ -87,12 +87,12 @@ describe('usePendingEdgeManagement', () => {
     let capturedNodes: unknown[] = []
     let capturedEdges: unknown[] = []
 
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedNodes = updater([{ id: 'pending-target-node-1', type: 'placeholder' }])
       }
     })
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedEdges = updater([{ id: 'pending-node-1', type: 'default' }])
       }
@@ -116,7 +116,7 @@ describe('usePendingEdgeManagement', () => {
   it('uses condition handle for button edge ID', () => {
     let capturedEdges: unknown[] = []
 
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedEdges = updater([{ id: 'button-node-1-true', type: 'buttonEdge' }])
       }
@@ -138,7 +138,7 @@ describe('usePendingEdgeManagement', () => {
   it('uses approval handle for button edge ID', () => {
     let capturedEdges: unknown[] = []
 
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedEdges = updater([{ id: 'button-node-1-approved', type: 'buttonEdge' }])
       }
@@ -160,7 +160,7 @@ describe('usePendingEdgeManagement', () => {
   it('removes source placeholder node', () => {
     let lastCapturedNodes: unknown[] = []
 
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         lastCapturedNodes = updater([
           { id: 'placeholder-node-1', type: 'placeholder' },

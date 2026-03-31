@@ -1,6 +1,9 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
+import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { EdgeType } from '../utils/workflowToGraph'
+
 import { useButtonEdgeMaintenance } from './useButtonEdgeMaintenance'
 
 // Mock dependencies
@@ -20,10 +23,20 @@ vi.mock('../utils/filterHelpers', () => ({
     edges.filter((e) => e.type === 'buttonEdge' || e.id?.startsWith('button-')),
 }))
 
+type SetNodesFn = React.Dispatch<React.SetStateAction<NodeType[]>>
+type SetEdgesFn = React.Dispatch<React.SetStateAction<EdgeType[]>>
+type OnAddNodeFn = (
+  sourceNodeId: string,
+  targetNodeId?: string,
+  edgeId?: string,
+  sourceHandle?: string,
+  desiredPosition?: { x: number; y: number }
+) => void
+
 describe('useButtonEdgeMaintenance', () => {
-  const mockSetNodes = vi.fn()
-  const mockSetEdges = vi.fn()
-  const mockOnAddNodeFromEdge = vi.fn()
+  const mockSetNodes = vi.fn<SetNodesFn>()
+  const mockSetEdges = vi.fn<SetEdgesFn>()
+  const mockOnAddNodeFromEdge = vi.fn<OnAddNodeFn>()
 
   const defaultOptions = {
     nodes: [] as never[],
@@ -126,7 +139,9 @@ describe('useButtonEdgeMaintenance', () => {
     let capturedEdges: unknown[] = []
     mockSetEdges.mockImplementation((updater) => {
       if (typeof updater === 'function') {
-        capturedEdges = updater([{ id: 'edge-1', source: 'node-1', target: 'node-2', sourceHandle: 'source' }])
+        capturedEdges = updater([
+          { id: 'edge-1', source: 'node-1', target: 'node-2', sourceHandle: 'source' },
+        ] as unknown as EdgeType[])
       }
       return capturedEdges
     })
@@ -183,7 +198,7 @@ describe('useButtonEdgeMaintenance', () => {
     const nodesCalls: unknown[][] = []
     mockSetNodes.mockImplementation((updater) => {
       if (typeof updater === 'function') {
-        const result = updater([{ id: 'node-1', type: 'task', position: { x: 100, y: 100 } }])
+        const result = updater([{ id: 'node-1', type: 'task', position: { x: 100, y: 100 } }] as unknown as NodeType[])
         nodesCalls.push(result)
         return result
       }
@@ -374,7 +389,7 @@ describe('useButtonEdgeMaintenance', () => {
         const result = updater([
           { id: 'button-node-1', type: 'buttonEdge', source: 'node-1' },
           { id: 'edge-1', source: 'node-1', target: 'node-2', sourceHandle: 'source' },
-        ])
+        ] as unknown as EdgeType[])
         edgesCalls.push(result)
         return result
       }
@@ -411,7 +426,7 @@ describe('useButtonEdgeMaintenance', () => {
         const result = updater([
           { id: 'node-1', type: 'task', position: { x: 100, y: 100 }, className: '' },
           { id: 'node-2', type: 'task', position: { x: 300, y: 100 }, className: '' },
-        ])
+        ] as unknown as NodeType[])
         nodesCalls.push(result)
         return result
       }
@@ -443,7 +458,7 @@ describe('useButtonEdgeMaintenance', () => {
         const result = updater([
           { id: 'node-1', type: 'task', position: { x: 100, y: 100 } },
           { id: 'pending-target-node-1', type: 'placeholder', position: { x: 200, y: 100 } },
-        ])
+        ] as unknown as NodeType[])
         nodesCalls.push(result)
         return result
       }
@@ -498,7 +513,7 @@ describe('useButtonEdgeMaintenance', () => {
             sourceHandle: 'true',
             data: { isActive: false },
           },
-        ])
+        ] as unknown as EdgeType[])
         edgesCalls.push(result)
         return result
       }
@@ -545,7 +560,7 @@ describe('useButtonEdgeMaintenance', () => {
             sourceHandle: 'done',
             data: { isActive: false },
           },
-        ])
+        ] as unknown as EdgeType[])
         edgesCalls.push(result)
         return result
       }
@@ -592,7 +607,7 @@ describe('useButtonEdgeMaintenance', () => {
             sourceHandle: 'approved',
             data: { isActive: false },
           },
-        ])
+        ] as unknown as EdgeType[])
         edgesCalls.push(result)
         return result
       }
@@ -639,7 +654,7 @@ describe('useButtonEdgeMaintenance', () => {
             sourceHandle: 'true',
             data: { isActive: false },
           },
-        ])
+        ] as unknown as EdgeType[])
         edgesCalls.push(result)
         return result
       }
@@ -751,7 +766,7 @@ describe('useButtonEdgeMaintenance', () => {
             targetHandle: 'target',
             data: { isActive: false },
           },
-        ])
+        ] as unknown as EdgeType[])
         edgesCalls.push(result)
         return result
       }
@@ -805,7 +820,7 @@ describe('useButtonEdgeMaintenance', () => {
             targetHandle: 'target',
             data: { isActive: false },
           },
-        ])
+        ] as unknown as EdgeType[])
         edgesCalls.push(result)
         return result
       }
@@ -852,7 +867,7 @@ describe('useButtonEdgeMaintenance', () => {
         const result = updater([
           { id: 'button-node-1', type: 'buttonEdge', source: 'node-1' },
           { id: 'real-edge', source: 'node-1', target: 'node-2', sourceHandle: 'source' },
-        ])
+        ] as unknown as EdgeType[])
         edgesCalls.push(result)
         return result
       }
@@ -883,7 +898,7 @@ describe('useButtonEdgeMaintenance', () => {
     // Regression test: replacing a task node with an approval node must trigger the effect
     // because the approval node needs 'approved'/'rejected' button edges instead of 'source'.
     const setEdgesCalls: unknown[][] = []
-    const captureSetEdges = vi.fn((updater) => {
+    const captureSetEdges = vi.fn<SetEdgesFn>((updater) => {
       if (typeof updater === 'function') {
         const result = updater([])
         setEdgesCalls.push(result)

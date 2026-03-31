@@ -169,7 +169,7 @@ export function applyOperation(
 
     default: {
       const _exhaustive: never = op
-      throw new Error(`Unknown operation: ${_exhaustive}`)
+      throw new Error(`Unknown operation: ${String(_exhaustive)}`)
     }
   }
 }

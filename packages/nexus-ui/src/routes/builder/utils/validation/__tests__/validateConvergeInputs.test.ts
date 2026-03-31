@@ -66,7 +66,7 @@ describe('validateConvergeInputs', () => {
     expect(result[0]).toMatchObject({
       severity: 'error',
       rule: 'converge-inputs',
-      nodeIds: expect.arrayContaining(['J1', 'C1']),
+      nodeIds: expect.arrayContaining(['J1', 'C1']) as unknown as string[],
     })
     expect(result[0].message).toContain('both')
     expect(result[0].message).toContain('Then')
@@ -137,7 +137,7 @@ describe('validateConvergeInputs', () => {
     expect(result).toHaveLength(1)
     expect(result[0]).toMatchObject({
       severity: 'error',
-      nodeIds: expect.arrayContaining(['J1', 'C1']),
+      nodeIds: expect.arrayContaining(['J1', 'C1']) as unknown as string[],
     })
   })
 

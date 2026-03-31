@@ -6,6 +6,29 @@ import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { filterRealEdges, filterRealNodes } from './filterHelpers'
 import type { EdgeType } from './workflowToGraph'
 
+interface DagreNodeLabel {
+  x: number
+  y: number
+}
+
+function isDagreNodeLabel(value: unknown): value is DagreNodeLabel {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return typeof v.x === 'number' && typeof v.y === 'number'
+}
+
+/**
+ * Type-safe wrapper around dagre's `graph.node()` which is typed as `any`.
+ * After `Dagre.layout()`, every node label is guaranteed to carry x/y coords.
+ */
+function getNodeLabel(g: Dagre.graphlib.Graph, nodeId: string): DagreNodeLabel {
+  const raw: unknown = g.node(nodeId)
+  if (!isDagreNodeLabel(raw)) {
+    throw new Error(`Missing Dagre coordinates for node "${nodeId}"`)
+  }
+  return raw
+}
+
 const markerEnd = { type: 'arrowclosed' as const }
 
 interface LayoutOptions {
@@ -36,14 +59,14 @@ function calculateLoopBodyPositions(
 
   loopBodies.forEach((bodyNodeIds, loopId) => {
     const loopNode = realNodes.find((n) => n.id === loopId)
-    const loopPosition = g.node(loopId)
+    const loopPosition = getNodeLabel(g, loopId)
     const loopWidth = loopNode?.measured?.width ?? 0
 
     // Get all body nodes with their Dagre positions (maintain dagre order)
     const bodyNodesWithPositions: BodyNodeWithPosition[] = bodyNodeIds
       .map((nodeId) => {
         const node = realNodes.find((n) => n.id === nodeId)
-        const position = g.node(nodeId)
+        const position = getNodeLabel(g, nodeId)
         return {
           nodeId,
           width: node?.measured?.width ?? 0,
@@ -166,7 +189,7 @@ export function getLayoutedElements(nodes: NodeType[], edges: EdgeType[], option
   return {
     nodes: nodes.map((node) => {
       if (!node.id.startsWith('placeholder-')) {
-        const position = g.node(node.id)
+        const position = getNodeLabel(g, node.id)
         let x = position.x - (node.measured?.width ?? 0) / 2
         let y = position.y - (node.measured?.height ?? 0) / 2
 

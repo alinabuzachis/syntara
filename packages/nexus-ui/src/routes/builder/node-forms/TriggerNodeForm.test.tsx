@@ -72,7 +72,7 @@ describe('TriggerNodeForm Component', () => {
   })
 
   describe('Scheduled Trigger', () => {
-    it('shows schedule options when scheduled trigger is selected', async () => {
+    it('shows schedule options when scheduled trigger is selected', () => {
       renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled' }} />)
 
       expect(screen.getByLabelText('Schedule type')).toBeInTheDocument()
@@ -93,7 +93,7 @@ describe('TriggerNodeForm Component', () => {
       expect(mockOnSubmit).not.toHaveBeenCalled()
     })
 
-    it('shows interval picker for interval schedule type', async () => {
+    it('shows interval picker for interval schedule type', () => {
       renderWithHeader(
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
       )
@@ -101,7 +101,7 @@ describe('TriggerNodeForm Component', () => {
       expect(screen.getByTestId('date-range-cadence-picker')).toBeInTheDocument()
     })
 
-    it('hides interval picker for continuous schedule type', async () => {
+    it('hides interval picker for continuous schedule type', () => {
       renderWithHeader(
         <TriggerNodeForm
           onSubmit={mockOnSubmit}
@@ -192,7 +192,7 @@ describe('TriggerNodeForm Component', () => {
   })
 
   describe('Form State', () => {
-    it('does not show approval checkbox when scheduled trigger is selected', async () => {
+    it('does not show approval checkbox when scheduled trigger is selected', () => {
       renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled' }} />)
 
       expect(screen.queryByLabelText('Requires Approval')).not.toBeInTheDocument()

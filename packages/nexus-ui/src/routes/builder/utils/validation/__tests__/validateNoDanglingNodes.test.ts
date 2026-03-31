@@ -39,7 +39,7 @@ describe('validateNoDanglingNodes', () => {
       severity: 'error',
       rule: 'no-dangling-nodes',
       nodeId: 'C',
-      message: expect.stringContaining('Task C'),
+      message: expect.stringContaining('Task C') as unknown as string,
     })
   })
 

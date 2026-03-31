@@ -14,7 +14,7 @@ describe('useEdgeActiveState', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
@@ -40,7 +40,7 @@ describe('useEdgeActiveState', () => {
   it('updates default edges with onAddNode and markerEnd', () => {
     // Track all calls to setEdges
     const calls: unknown[][] = []
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         const result = updater([{ id: 'edge-1', type: 'default', data: {} }])
         calls.push(result)
@@ -68,7 +68,7 @@ describe('useEdgeActiveState', () => {
   it('sets isActive true when activeEdgeId matches', () => {
     // Track all calls to setEdges
     const calls: unknown[][] = []
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         const result = updater([{ id: 'edge-1', type: 'default', data: {} }])
         calls.push(result)
@@ -95,7 +95,7 @@ describe('useEdgeActiveState', () => {
   it('updates loop edge types', () => {
     // Track all calls to setEdges
     const calls: unknown[][] = []
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         const result = updater([
           { id: 'edge-1', type: 'loopBack', data: {} },
@@ -129,7 +129,7 @@ describe('useEdgeActiveState', () => {
   it('updates button edge active state', () => {
     // Track all calls to setEdges
     const calls: unknown[][] = []
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         const result = updater([{ id: 'button-node-1', type: 'buttonEdge', source: 'node-1', data: {} }])
         calls.push(result)
@@ -160,7 +160,7 @@ describe('useEdgeActiveState', () => {
   it('handles specific handles for condition nodes', () => {
     // Track all calls to setEdges
     const calls: unknown[][] = []
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         const result = updater([
           { id: 'button-node-1-true', type: 'buttonEdge', source: 'node-1', sourceHandle: 'true', data: {} },
@@ -190,7 +190,7 @@ describe('useEdgeActiveState', () => {
   it('does not set active for mismatched specific handle', () => {
     // Track all calls to setEdges
     const calls: unknown[][] = []
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         const result = updater([
           { id: 'button-node-1-true', type: 'buttonEdge', source: 'node-1', sourceHandle: 'true', data: {} },

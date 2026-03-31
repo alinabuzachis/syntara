@@ -59,7 +59,7 @@ function handleXhrLoad(options: HandleXhrLoadOptions): void {
 
   if (xhr.status >= 200 && xhr.status < 300) {
     try {
-      const response: FileUploadResponse = JSON.parse(xhr.responseText)
+      const response = JSON.parse(xhr.responseText) as FileUploadResponse
       resolve(response)
     } catch {
       reportUploadError(setError, reject, createUploadError('parse_error', 'Failed to parse server response'))

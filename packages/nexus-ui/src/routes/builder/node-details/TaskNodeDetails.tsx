@@ -180,14 +180,22 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
                   ...(data.body && {
                     body: (() => {
                       try {
-                        return JSON.parse(data.body)
+                        return JSON.parse(data.body) as unknown
                       } catch {
                         return data.body
                       }
                     })(),
                   }),
                 },
-          ...(data.parameters && { inputs: JSON.parse(data.parameters) }),
+          ...(data.parameters && {
+            inputs: (() => {
+              const parsed: unknown = JSON.parse(data.parameters)
+              if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+                return parsed as { [key: string]: unknown }
+              }
+              return undefined
+            })(),
+          }),
         },
       } as TaskActivity
 

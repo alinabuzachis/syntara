@@ -44,7 +44,7 @@ import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { FlowNodeType } from '../../constants'
-import { useWorkflowStore } from '../../stores/useWorkflowStore'
+import { getActivityMetadata, useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { buildFilterParams } from '../../utils/filterUtils'
@@ -983,8 +983,7 @@ export function BuilderContent(props: BuilderContentProps) {
 
   // v8 ignore start - React Flow callbacks (E2E tested)
   const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node<NodeType['data']>) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const isGeneric = (node.data as any).metadata?.__isGeneric === true
+    const isGeneric = getActivityMetadata(node.data)?.__isGeneric === true
     dispatch({ type: 'NODE_CLICK', payload: { node, isGeneric } })
   }, [])
 
@@ -1083,8 +1082,7 @@ export function BuilderContent(props: BuilderContentProps) {
     (nodeId: string) => {
       const node = reactFlowInstance.getNode(nodeId) as Node<NodeType['data']> | undefined
       if (!node) return
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const isGeneric = (node.data as any).metadata?.__isGeneric === true
+      const isGeneric = getActivityMetadata(node.data)?.__isGeneric === true
       dispatch({ type: 'NODE_CLICK', payload: { node, isGeneric } })
     },
     [reactFlowInstance]

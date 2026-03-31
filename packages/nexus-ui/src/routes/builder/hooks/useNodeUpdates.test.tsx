@@ -67,12 +67,12 @@ describe('useNodeUpdates', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
     })
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([])
       }
@@ -144,7 +144,7 @@ describe('useNodeUpdates', () => {
   })
 
   it('handles node deletion', () => {
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([
           { id: 'node-1', position: { x: 10, y: 20 } },
@@ -180,7 +180,7 @@ describe('useNodeUpdates', () => {
 
   it('preserves existing node positions on update', () => {
     let capturedNodes: unknown[] = []
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedNodes = updater([
           { id: 'node-1', data: { old: true }, position: { x: 100, y: 200 }, measured: { width: 50 } },
@@ -219,7 +219,7 @@ describe('useNodeUpdates', () => {
       { id: 'placeholder-node-1', type: 'placeholder', position: { x: 100, y: 100 } },
     ]
     let capturedNodes: unknown[] = []
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedNodes = updater(prevNodes)
       }
@@ -272,7 +272,7 @@ describe('useNodeUpdates', () => {
   })
 
   it('merges new edges when nodes are added', () => {
-    mockSetEdges.mockImplementation((updater) => {
+    mockSetEdges.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         return updater([{ id: 'edge-1' }])
       }
@@ -312,7 +312,7 @@ describe('useNodeUpdates', () => {
 
   it('handles node deletion with position preservation', () => {
     let capturedNodes: unknown[] = []
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedNodes = updater([
           { id: 'node-1', data: {}, position: { x: 10, y: 20 }, measured: { width: 100 } },
@@ -359,7 +359,7 @@ describe('useNodeUpdates', () => {
 
   it('filters out stale nodes during deletion, keeping only initial and placeholder nodes', () => {
     let capturedNodes: unknown[] = []
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedNodes = updater([
           { id: 'node-1', data: {}, position: { x: 10, y: 20 }, measured: { width: 100 }, type: 'task' },
@@ -405,7 +405,7 @@ describe('useNodeUpdates', () => {
 
   it('handles data-only changes preserving positions', () => {
     let capturedNodes: unknown[] = []
-    mockSetNodes.mockImplementation((updater) => {
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
       if (typeof updater === 'function') {
         capturedNodes = updater([
           { id: 'node-1', data: { name: 'old' }, position: { x: 50, y: 60 }, measured: { width: 100 } },

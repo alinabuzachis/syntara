@@ -7,7 +7,9 @@ import { IntegrationEmptyState } from './IntegrationEmptyState'
 // Mock wouter navigation
 const mockNavigate = vi.fn()
 vi.mock('wouter/use-browser-location', () => ({
-  navigate: (...args: unknown[]) => mockNavigate(...args),
+  navigate: (...args: unknown[]): void => {
+    mockNavigate(...args)
+  },
 }))
 
 describe('IntegrationEmptyState', () => {

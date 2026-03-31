@@ -30,8 +30,8 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
     fileIds?: string[]
   }
 
-  // Get model from environment variable or use default
-  const defaultModel = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet'
+  const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
+  const defaultModel = envModel || 'anthropic/claude-3.5-sonnet'
 
   const initialData: AIAgentFormInitialData = {
     name: taskData.name,

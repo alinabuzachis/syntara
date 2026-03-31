@@ -263,7 +263,7 @@ describe('Executions Component', () => {
           workflow_id: 'workflow-1',
           limit: 20,
           include_total: true,
-        }),
+        }) as unknown,
       },
     })
 
@@ -546,7 +546,7 @@ describe('Executions Component', () => {
       expect(lastStatusCall.get('status')).toBe('completed')
     })
 
-    it('passes created_at date range filters with gte/lte operators (when enabled)', async () => {
+    it('passes created_at date range filters with gte/lte operators (when enabled)', () => {
       // Note: This test documents the expected behavior when date filters are re-enabled
       // Currently date filters are disabled due to backend OR logic bug
       const mockSetSearchParams = vi.fn()
@@ -570,9 +570,9 @@ describe('Executions Component', () => {
       // - created_at[lte]=2024-12-31T23:59:59.999Z (less than or equal)
 
       // Verify the expected shape (when filters are present in URL)
-      const expectedShape = {
-        'created_at[gte]': expect.any(String),
-        'created_at[lte]': expect.any(String),
+      const expectedShape: Record<string, unknown> = {
+        'created_at[gte]': expect.any(String) as unknown,
+        'created_at[lte]': expect.any(String) as unknown,
       }
 
       // This assertion will pass when date filters are re-enabled
@@ -647,7 +647,7 @@ describe('Executions Component', () => {
         params: {
           query: expect.objectContaining({
             workflow_id: 'workflow-1',
-          }),
+          }) as unknown,
         },
       })
 

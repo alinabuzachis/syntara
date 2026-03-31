@@ -2,13 +2,14 @@ import type { ComponentType } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { getCanvasNodeIconDescriptor } from '../../automations/canvas/nodes/nodeIconResolver'
-import { NodeRegistry } from '../registry/NodeRegistry'
 
 import { resolveIconForNode, resolveIconForType } from './nodeIcons'
 
+const mockNodeRegistryGetAll = vi.hoisted(() => vi.fn())
+
 vi.mock('../registry/NodeRegistry', () => ({
   NodeRegistry: {
-    getAll: vi.fn(),
+    getAll: mockNodeRegistryGetAll,
   },
 }))
 
@@ -25,7 +26,7 @@ describe('nodeIcons', () => {
   })
 
   it('resolves icons for registry node types and subtypes', () => {
-    vi.mocked(NodeRegistry.getAll).mockReturnValue([
+    mockNodeRegistryGetAll.mockReturnValue([
       {
         id: 'action',
         icon: IconA,
@@ -41,7 +42,7 @@ describe('nodeIcons', () => {
   })
 
   it('returns undefined icon when no registry match is found', () => {
-    vi.mocked(NodeRegistry.getAll).mockReturnValue([] as never[])
+    mockNodeRegistryGetAll.mockReturnValue([] as never[])
 
     expect(resolveIconForType({ nodeTypeId: 'missing' })).toEqual({ icon: undefined, id: 'missing' })
     expect(resolveIconForType({ nodeTypeId: null, nodeSubtypeId: null })).toEqual({ icon: undefined, id: undefined })

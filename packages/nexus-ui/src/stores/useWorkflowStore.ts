@@ -562,7 +562,15 @@ export {
   removeActivityFromList,
   updateActivityInList,
 } from './workflowActivityHelpers'
-export type { WorkflowStore, WorkflowDefinition, Trigger, Activity, TaskActivity } from './workflowStoreTypes'
+export type {
+  WorkflowStore,
+  WorkflowDefinition,
+  Trigger,
+  Activity,
+  TaskActivity,
+  ActivityMetadata,
+} from './workflowStoreTypes'
+export { getActivityMetadata } from './workflowStoreTypes'
 export * from './workflowStoreSelectors'
 
 // ============================================================================

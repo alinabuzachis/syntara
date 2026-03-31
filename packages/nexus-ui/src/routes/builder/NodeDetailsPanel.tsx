@@ -15,6 +15,7 @@ import {
   useWorkflowStore,
   useWorkflowStoreActions,
   selectCurrentWorkflow,
+  getActivityMetadata,
   type Activity,
 } from '../../stores/useWorkflowStore'
 import { parseTriggerIndex } from '../../utils/triggerNodeIds'
@@ -130,10 +131,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           if (!newActivity) return false
 
           removeActivity(newNodeId)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const cleaned = cleanMetadata((newActivity as any).metadata)
-          // Full replacement — do not merge with the old activity so that
-          // type-specific fields (e.g. condition.then/else) do not bleed through.
+          const cleaned = cleanMetadata(getActivityMetadata(newActivity))
           replaceActivity(replacementNodeId, {
             ...newActivity,
             id: replacementNodeId,
@@ -143,8 +141,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           const genericActivity = findActivityInCurrentWorkflow(replacementNodeId)
           if (!genericActivity) return false
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const cleaned = cleanMetadata((genericActivity as any).metadata)
+          const cleaned = cleanMetadata(getActivityMetadata(genericActivity))
           updateActivity(replacementNodeId, {
             metadata: cleaned,
           } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)

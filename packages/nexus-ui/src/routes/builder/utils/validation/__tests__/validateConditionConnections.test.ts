@@ -53,7 +53,7 @@ describe('validateConditionConnections', () => {
       severity: 'error',
       rule: 'condition-connections',
       nodeId: 'C1',
-      message: expect.stringContaining('Then'),
+      message: expect.stringContaining('Then') as unknown as string,
     })
   })
 
@@ -90,7 +90,7 @@ describe('validateConditionConnections', () => {
       severity: 'error',
       rule: 'condition-connections',
       nodeId: 'C1',
-      message: expect.stringContaining('Then'),
+      message: expect.stringContaining('Then') as unknown as string,
     })
   })
 

@@ -3,12 +3,16 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AddNodePanel, AddNodePanelHeader } from './AddNodePanel'
-import { NodeRegistry } from './registry/NodeRegistry'
+
+const { mockNodeRegistryGetAll, mockNodeRegistryGet } = vi.hoisted(() => ({
+  mockNodeRegistryGetAll: vi.fn(),
+  mockNodeRegistryGet: vi.fn(),
+}))
 
 vi.mock('./registry/NodeRegistry', () => ({
   NodeRegistry: {
-    getAll: vi.fn(),
-    get: vi.fn(),
+    getAll: mockNodeRegistryGetAll,
+    get: mockNodeRegistryGet,
   },
 }))
 
@@ -161,10 +165,8 @@ describe('AddNodePanel Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(NodeRegistry.getAll).mockReturnValue(mockNodeTypes as never[])
-    vi.mocked(NodeRegistry.get).mockImplementation(
-      (id: string) => mockNodeTypes.find((node) => node.id === id) as never
-    )
+    mockNodeRegistryGetAll.mockReturnValue(mockNodeTypes as never[])
+    mockNodeRegistryGet.mockImplementation((id: string) => mockNodeTypes.find((node) => node.id === id) as never)
   })
 
   it('renders the panel with title and close button', () => {

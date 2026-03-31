@@ -1,6 +1,10 @@
 import react from '@vitejs/plugin-react'
-import { playwright } from '@vitest/browser-playwright'
+import { playwright as playwrightUntyped } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
+import type { BrowserProviderOption } from 'vitest/node'
+
+type PlaywrightFactory = (options?: { launchOptions?: { headless?: boolean } }) => BrowserProviderOption
+const playwright = playwrightUntyped as unknown as PlaywrightFactory
 
 // Browser mode configuration for component tests
 // Use this for tests that require real browser APIs (e.g., IntersectionObserver, ResizeObserver)
@@ -20,7 +24,6 @@ export default defineConfig({
       enabled: true,
       provider: playwright({
         launchOptions: {
-          // Run tests headless by default
           headless: true,
         },
       }),

@@ -112,11 +112,16 @@ describe('Automations Component', () => {
     // Mock executionsClient.useMutation for execute automation
     vi.mocked(executionsClient.useMutation).mockReturnValue({
       ...defaultMutationReturn,
-      mutate: vi.fn((body, callbacks) => {
-        if (callbacks?.onSuccess) {
-          callbacks.onSuccess({}, body, undefined)
+      mutate: vi.fn(
+        (
+          body: unknown,
+          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
+        ) => {
+          if (callbacks?.onSuccess) {
+            callbacks.onSuccess({}, body, undefined)
+          }
         }
-      }),
+      ),
     })
 
     // Mock workflowClient.useMutation for delete automation
@@ -329,11 +334,16 @@ describe('Automations Component', () => {
 
   describe('Execute Automation Row Action', () => {
     it('shows success alert when automation executes successfully', async () => {
-      const mockMutate = vi.fn((body, callbacks) => {
-        if (callbacks?.onSuccess) {
-          callbacks.onSuccess({}, body, undefined)
+      const mockMutate = vi.fn(
+        (
+          body: unknown,
+          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
+        ) => {
+          if (callbacks?.onSuccess) {
+            callbacks.onSuccess({}, body, undefined)
+          }
         }
-      })
+      )
 
       vi.mocked(executionsClient.useMutation).mockReturnValue({
         mutate: mockMutate,
@@ -384,8 +394,8 @@ describe('Automations Component', () => {
         expect(mockMutate).toHaveBeenCalledWith(
           { body: { workflow_id: '1', input_data: {} } },
           expect.objectContaining({
-            onSuccess: expect.any(Function),
-            onError: expect.any(Function),
+            onSuccess: expect.any(Function) as unknown,
+            onError: expect.any(Function) as unknown,
           })
         )
       })
@@ -399,11 +409,16 @@ describe('Automations Component', () => {
 
     it('shows error alert when automation execution fails', async () => {
       const mockError = new Error('Network error')
-      const mockMutate = vi.fn((body, callbacks) => {
-        if (callbacks?.onError) {
-          callbacks.onError(mockError, body, undefined)
+      const mockMutate = vi.fn(
+        (
+          body: unknown,
+          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
+        ) => {
+          if (callbacks?.onError) {
+            callbacks.onError(mockError, body, undefined)
+          }
         }
-      })
+      )
 
       vi.mocked(executionsClient.useMutation).mockReturnValue({
         mutate: mockMutate,
@@ -465,11 +480,16 @@ describe('Automations Component', () => {
 
     it('shows error alert with generic message when error has no message', async () => {
       const mockError = {} // Error without message property
-      const mockMutate = vi.fn((body, callbacks) => {
-        if (callbacks?.onError) {
-          callbacks.onError(mockError, body, undefined)
+      const mockMutate = vi.fn(
+        (
+          body: unknown,
+          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
+        ) => {
+          if (callbacks?.onError) {
+            callbacks.onError(mockError, body, undefined)
+          }
         }
-      })
+      )
 
       vi.mocked(executionsClient.useMutation).mockReturnValue({
         mutate: mockMutate,
@@ -926,11 +946,16 @@ describe('Automations Component', () => {
 
     it('deletes automation successfully and shows success alert', async () => {
       const mockRefetch = vi.fn()
-      const mockDeleteMutate = vi.fn((params, callbacks) => {
-        if (callbacks?.onSuccess) {
-          callbacks.onSuccess(undefined, params, undefined)
+      const mockDeleteMutate = vi.fn(
+        (
+          params: unknown,
+          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
+        ) => {
+          if (callbacks?.onSuccess) {
+            callbacks.onSuccess(undefined, params, undefined)
+          }
         }
-      })
+      )
 
       vi.mocked(workflowClient.useQuery).mockReturnValue({
         data: {
@@ -999,11 +1024,16 @@ describe('Automations Component', () => {
 
     it('handles delete error and shows error alert', async () => {
       const mockError = { message: 'Delete failed' }
-      const mockDeleteMutate = vi.fn((params, callbacks) => {
-        if (callbacks?.onError) {
-          callbacks.onError(mockError, params, undefined)
+      const mockDeleteMutate = vi.fn(
+        (
+          params: unknown,
+          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
+        ) => {
+          if (callbacks?.onError) {
+            callbacks.onError(mockError, params, undefined)
+          }
         }
-      })
+      )
 
       vi.mocked(workflowClient.useMutation).mockReturnValue({
         mutate: mockDeleteMutate,

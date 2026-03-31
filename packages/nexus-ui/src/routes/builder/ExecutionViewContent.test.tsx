@@ -101,7 +101,7 @@ describe('ExecutionViewContent', () => {
       expect(mockLoadWorkflowWithEdges).toHaveBeenCalled()
     })
 
-    const [, edges] = mockLoadWorkflowWithEdges.mock.calls[0]
-    expect(edges.some((edge: { id: string }) => edge.id === `${buildTriggerNodeId(0)}-task-1`)).toBe(true)
+    const edges = mockLoadWorkflowWithEdges.mock.calls[0][1] as Array<{ id: string }>
+    expect(edges.some((edge) => edge.id === `${buildTriggerNodeId(0)}-task-1`)).toBe(true)
   })
 })

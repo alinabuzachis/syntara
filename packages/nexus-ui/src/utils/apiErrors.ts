@@ -281,29 +281,37 @@ function extractErrorMessage(value: unknown, fallback: string, visited: WeakSet<
   return unwrapNestedMessage(err, fallback, visited) ?? fallback
 }
 
+function toUnknownArray(value: unknown): unknown[] | undefined {
+  return Array.isArray(value) ? (value as unknown[]) : undefined
+}
+
 function extractValidationDetailArray(error: unknown): unknown[] | undefined {
   if (!error || typeof error !== 'object') return undefined
 
   const err = error as ApiError
 
-  if (Array.isArray(err.detail)) return err.detail
+  const directDetail = toUnknownArray(err.detail)
+  if (directDetail) return directDetail
 
   // openapi-fetch often wraps response body in `cause`
   if (err.cause && typeof err.cause === 'object') {
     const cause = err.cause as { detail?: unknown }
-    if (Array.isArray(cause.detail)) return cause.detail
+    const causeDetail = toUnknownArray(cause.detail)
+    if (causeDetail) return causeDetail
   }
 
   // Some wrappers/envelopes store the body under `data`
   if (err.data && typeof err.data === 'object') {
     const data = err.data as { detail?: unknown }
-    if (Array.isArray(data.detail)) return data.detail
+    const dataDetail = toUnknownArray(data.detail)
+    if (dataDetail) return dataDetail
   }
 
   // nested detail object may contain its own detail array
   if (err.detail && typeof err.detail === 'object') {
     const nested = err.detail as { detail?: unknown }
-    if (Array.isArray(nested.detail)) return nested.detail
+    const nestedDetail = toUnknownArray(nested.detail)
+    if (nestedDetail) return nestedDetail
   }
 
   return undefined

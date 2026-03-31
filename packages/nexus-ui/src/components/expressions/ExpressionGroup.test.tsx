@@ -436,10 +436,11 @@ describe('ExpressionGroup', () => {
     await user.click(removeButtons[0])
 
     // Should call onUpdateChild with updated nested group
+    const childrenMatcher: unknown = expect.arrayContaining([expect.any(Object)])
     expect(onUpdateChild).toHaveBeenCalledWith(
       0,
       expect.objectContaining({
-        children: expect.arrayContaining([expect.any(Object)]),
+        children: childrenMatcher,
       })
     )
   })

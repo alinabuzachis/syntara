@@ -661,20 +661,40 @@ These thresholds are based on industry standards (Code Complete, SonarQube, Biom
 
 Additional code quality rules (enforced as `error` — CI will block violations):
 
-| Rule                                             | What it enforces                                             |
-| ------------------------------------------------ | ------------------------------------------------------------ |
-| `@typescript-eslint/prefer-optional-chain`       | Use `a?.b?.c` instead of `a && a.b && a.b.c`                 |
-| `@typescript-eslint/prefer-nullish-coalescing`   | Use `??` instead of `\|\|` to avoid bugs with `0`/`''`       |
-| `@typescript-eslint/require-array-sort-compare`  | Require a compare function for `Array.sort()`                |
-| `@typescript-eslint/switch-exhaustiveness-check` | Ensure all union/enum cases are handled in switch statements |
-| `@typescript-eslint/prefer-includes`             | Use `.includes()` instead of `.indexOf() !== -1`             |
-| `react-hooks/exhaustive-deps`                    | Require all dependencies in React hook dependency arrays     |
-| `react/jsx-no-useless-fragment`                  | Remove unnecessary `<>{child}</>` wrappers                   |
-| `react/no-array-index-key`                       | Avoid using array index as React `key` prop                  |
-| `react/self-closing-comp`                        | Use `<Icon />` instead of `<Icon></Icon>`                    |
-| `unicorn/no-nested-ternary`                      | Prevent unreadable nested ternary expressions                |
-| `import-x/no-cycle`                              | Detect circular dependencies (max depth: 2)                  |
-| `import-x/no-self-import`                        | Catch accidental self-imports                                |
+| Rule                                             | What it enforces                                               |
+| ------------------------------------------------ | -------------------------------------------------------------- |
+| `eqeqeq`                                         | Use `===`/`!==` instead of `==`/`!=` (null comparisons exempt) |
+| `no-restricted-exports`                          | Prefer named exports over `export default` for refactorability |
+| `@typescript-eslint/prefer-optional-chain`       | Use `a?.b?.c` instead of `a && a.b && a.b.c`                   |
+| `@typescript-eslint/prefer-nullish-coalescing`   | Use `??` instead of `\|\|` to avoid bugs with `0`/`''`         |
+| `@typescript-eslint/require-array-sort-compare`  | Require a compare function for `Array.sort()`                  |
+| `@typescript-eslint/switch-exhaustiveness-check` | Ensure all union/enum cases are handled in switch statements   |
+| `@typescript-eslint/prefer-includes`             | Use `.includes()` instead of `.indexOf() !== -1`               |
+| `react-hooks/exhaustive-deps`                    | Require all dependencies in React hook dependency arrays       |
+| `react/jsx-no-useless-fragment`                  | Remove unnecessary `<>{child}</>` wrappers                     |
+| `react/no-array-index-key`                       | Avoid using array index as React `key` prop                    |
+| `react/self-closing-comp`                        | Use `<Icon />` instead of `<Icon></Icon>`                      |
+| `unicorn/no-nested-ternary`                      | Prevent unreadable nested ternary expressions                  |
+| `import-x/no-cycle`                              | Detect circular dependencies (max depth: 2)                    |
+| `import-x/no-self-import`                        | Catch accidental self-imports                                  |
+
+Type-safe linting rules (enforced as `error` — CI will block violations):
+
+The ESLint config extends `tseslint.configs.recommendedTypeChecked`, which enables type-aware rules that catch bugs string-based linting cannot.
+
+| Rule                                               | What it catches                                     |
+| -------------------------------------------------- | --------------------------------------------------- |
+| `@typescript-eslint/no-unsafe-argument`            | Passing `any`-typed values as function arguments    |
+| `@typescript-eslint/no-unsafe-assignment`          | Assigning `any` to a typed variable                 |
+| `@typescript-eslint/no-unsafe-call`                | Calling a value typed as `any`                      |
+| `@typescript-eslint/no-unsafe-member-access`       | Accessing members on `any`-typed values             |
+| `@typescript-eslint/no-unsafe-return`              | Returning `any` from a typed function               |
+| `@typescript-eslint/await-thenable`                | `await`-ing a non-Promise value                     |
+| `@typescript-eslint/require-await`                 | `async` functions that never `await`                |
+| `@typescript-eslint/unbound-method`                | Passing class methods as callbacks without binding  |
+| `@typescript-eslint/no-base-to-string`             | Objects without meaningful `.toString()` in strings |
+| `@typescript-eslint/restrict-template-expressions` | Only safe types in template literals                |
+| `@typescript-eslint/only-throw-error`              | Only `Error` objects in `throw` statements          |
 
 Blank lines and comments are excluded from counts. Test files are exempt from size limits and complexity.
 

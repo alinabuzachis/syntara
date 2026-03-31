@@ -204,7 +204,8 @@ function AIAgentFormFields({
 }
 
 export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
-  const defaultModel = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet'
+  const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
+  const defaultModel = envModel || 'anthropic/claude-3.5-sonnet'
 
   // Track only newly uploaded files (existing files handled by parent)
   const [completedFiles, setCompletedFiles] = useState<UploadedFile[]>([])

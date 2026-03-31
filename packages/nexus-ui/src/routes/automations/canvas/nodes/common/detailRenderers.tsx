@@ -24,7 +24,7 @@ export function renderOutputs(outputs?: Record<string, unknown>) {
     <Detail label="Outputs">
       <CodeBlock {...nodeCodeBlockProps}>
         {Object.entries(outputs)
-          .map(([key, value]) => `${key}: ${value}`)
+          .map(([key, value]) => `${key}: ${String(value)}`)
           .join('\n')}
       </CodeBlock>
     </Detail>
@@ -40,7 +40,7 @@ export function renderInputs(inputs?: Record<string, unknown>) {
     <Detail label="Inputs">
       <CodeBlock {...nodeCodeBlockProps}>
         {Object.entries(inputs)
-          .map(([key, value]) => `${key}: ${value}`)
+          .map(([key, value]) => `${key}: ${String(value)}`)
           .join('\n')}
       </CodeBlock>
     </Detail>

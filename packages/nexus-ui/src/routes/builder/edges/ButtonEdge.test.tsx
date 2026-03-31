@@ -39,7 +39,9 @@ vi.mock('./edgeUtils', async (importOriginal) => {
 
 const mockSetPendingDragHandle = vi.fn()
 vi.mock('../utils/pendingDragHandle', () => ({
-  setPendingDragHandle: (...args: unknown[]) => mockSetPendingDragHandle(...args),
+  setPendingDragHandle: (...args: unknown[]) => {
+    mockSetPendingDragHandle(...args)
+  },
 }))
 
 describe('calculateStubTarget', () => {

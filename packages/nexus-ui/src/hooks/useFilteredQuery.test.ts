@@ -1,46 +1,52 @@
 import { renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { HttpMethod } from 'openapi-typescript-helpers'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 
 import { useQueryState } from '../components/states/useQueryState'
 import { FilterOperatorEnum } from '../types/filters'
 
-import { useFilteredQuery } from './useFilteredQuery'
+import { useFilteredQuery, type UseFilteredQueryOptions } from './useFilteredQuery'
 
-// Mock useQueryState to avoid rendering components in tests
 vi.mock('../components/states/useQueryState', () => ({
-  useQueryState: vi.fn((state) => {
+  useQueryState: vi.fn((state: { error?: unknown; isPending?: boolean }) => {
     if (state.error) return { type: 'error' }
     if (state.isPending) return { type: 'loading' }
     return null
   }),
 }))
 
+interface MockQueryResult {
+  data: unknown
+  error: Error | null
+  isPending: boolean
+  refetch: () => void
+}
+
+type UseQueryMockFn = (method: string, path: string, init?: Record<string, unknown>) => MockQueryResult
+
+type TestPaths = { '/workflows': Record<HttpMethod, object> }
+type TestClient = UseFilteredQueryOptions<TestPaths, 'get', '/workflows'>['client']
+
 describe('useFilteredQuery', () => {
-  // Mock client with useQuery method
-  // Type assertion needed for test mock - the client type is too complex to mock perfectly
-  const mockClient = {
-    useQuery: vi.fn(),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any
+  const mockUseQuery: Mock<UseQueryMockFn> = vi.fn<UseQueryMockFn>()
+
+  const mockClient = { useQuery: mockUseQuery } as unknown as TestClient & { useQuery: Mock<UseQueryMockFn> }
 
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Default mock return value - can be overridden in individual tests
     mockClient.useQuery.mockReturnValue({
       data: undefined,
       error: null,
       isPending: false,
-      refetch: vi.fn(),
+      refetch: vi.fn<() => void>(),
     })
   })
 
   describe('Query Parameter Building', () => {
     it('should build query params from filters with contains operator', () => {
-      // Arrange
       const filters = [{ key: 'name', operator: FilterOperatorEnum.CONTAINS, value: 'deploy' }]
 
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -50,7 +56,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -61,14 +66,12 @@ describe('useFilteredQuery', () => {
     })
 
     it('should build query params with multiple filters', () => {
-      // Arrange
       const filters = [
         { key: 'name', operator: FilterOperatorEnum.CONTAINS, value: 'test' },
         { key: 'status', operator: FilterOperatorEnum.IN, value: ['running', 'failed'] },
         { key: 'is_enabled', operator: FilterOperatorEnum.EQ, value: true },
       ]
 
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -78,7 +81,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -91,11 +93,9 @@ describe('useFilteredQuery', () => {
     })
 
     it('should handle date filters with gte operator', () => {
-      // Arrange
       const testDate = new Date('2024-01-01T00:00:00.000Z')
       const filters = [{ key: 'created_at', operator: FilterOperatorEnum.GTE, value: testDate }]
 
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -105,7 +105,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -116,8 +115,6 @@ describe('useFilteredQuery', () => {
     })
 
     it('should handle empty filters array', () => {
-      // Arrange
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -127,7 +124,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {},
@@ -136,13 +132,11 @@ describe('useFilteredQuery', () => {
     })
 
     it('should skip filters with empty string values', () => {
-      // Arrange
       const filters = [
         { key: 'name', operator: FilterOperatorEnum.CONTAINS, value: '' },
         { key: 'status', operator: FilterOperatorEnum.EQ, value: 'active' },
       ]
 
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -152,7 +146,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -163,13 +156,11 @@ describe('useFilteredQuery', () => {
     })
 
     it('should skip filters with empty array values', () => {
-      // Arrange
       const filters = [
         { key: 'status', operator: FilterOperatorEnum.IN, value: [] },
         { key: 'name', operator: FilterOperatorEnum.CONTAINS, value: 'test' },
       ]
 
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -179,7 +170,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -192,8 +182,6 @@ describe('useFilteredQuery', () => {
 
   describe('Pagination and Sorting', () => {
     it('should include sort parameter', () => {
-      // Arrange
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -203,7 +191,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -214,8 +201,6 @@ describe('useFilteredQuery', () => {
     })
 
     it('should include limit parameter', () => {
-      // Arrange
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -225,7 +210,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -236,8 +220,6 @@ describe('useFilteredQuery', () => {
     })
 
     it('should include cursor parameter', () => {
-      // Arrange
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -247,7 +229,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -258,8 +239,6 @@ describe('useFilteredQuery', () => {
     })
 
     it('should not include cursor when null', () => {
-      // Arrange
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -269,7 +248,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {},
@@ -278,8 +256,6 @@ describe('useFilteredQuery', () => {
     })
 
     it('should include include_total when includeTotalCount is true', () => {
-      // Arrange
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -289,7 +265,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -300,10 +275,8 @@ describe('useFilteredQuery', () => {
     })
 
     it('should combine filters, sort, limit, cursor, and total count', () => {
-      // Arrange
       const filters = [{ key: 'name', operator: FilterOperatorEnum.CONTAINS, value: 'deploy' }]
 
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -317,7 +290,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -334,17 +306,15 @@ describe('useFilteredQuery', () => {
 
   describe('Query State Handling', () => {
     it('should return data when query succeeds', () => {
-      // Arrange
       const mockData = { resources: [{ id: '1', name: 'Test Workflow' }] }
 
       mockClient.useQuery.mockReturnValue({
         data: mockData,
         error: null,
         isPending: false,
-        refetch: vi.fn(),
+        refetch: vi.fn<() => void>(),
       })
 
-      // Act
       const { result } = renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -353,7 +323,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(result.current.data).toEqual(mockData)
       expect(result.current.error).toBeNull()
       expect(result.current.isPending).toBe(false)
@@ -361,17 +330,15 @@ describe('useFilteredQuery', () => {
     })
 
     it('should return error when query fails', () => {
-      // Arrange
       const mockError = new Error('Network error')
 
       mockClient.useQuery.mockReturnValue({
         data: undefined,
         error: mockError,
         isPending: false,
-        refetch: vi.fn(),
+        refetch: vi.fn<() => void>(),
       })
 
-      // Act
       const { result } = renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -380,24 +347,20 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(result.current.data).toBeUndefined()
       expect(result.current.error).toEqual(mockError)
       expect(result.current.isPending).toBe(false)
-      // queryState should return error component (mocked as <div>Error</div>)
       expect(result.current.queryState).toBeTruthy()
     })
 
     it('should return isPending when query is loading', () => {
-      // Arrange
       mockClient.useQuery.mockReturnValue({
         data: undefined,
         error: null,
         isPending: true,
-        refetch: vi.fn(),
+        refetch: vi.fn<() => void>(),
       })
 
-      // Act
       const { result } = renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -406,17 +369,14 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(result.current.data).toBeUndefined()
       expect(result.current.error).toBeNull()
       expect(result.current.isPending).toBe(true)
-      // queryState should return loading component (mocked as <div>Loading</div>)
       expect(result.current.queryState).toBeTruthy()
     })
 
     it('should provide refetch function', () => {
-      // Arrange
-      const mockRefetch = vi.fn()
+      const mockRefetch = vi.fn<() => void>()
       mockClient.useQuery.mockReturnValue({
         data: undefined,
         error: null,
@@ -424,7 +384,6 @@ describe('useFilteredQuery', () => {
         refetch: mockRefetch,
       })
 
-      // Act
       const { result } = renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -433,17 +392,14 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(result.current.refetch).toBe(mockRefetch)
     })
   })
 
   describe('Query Refetch on Filter Change', () => {
     it('should rebuild query params when filters change', () => {
-      // Arrange
       const initialFilters = [{ key: 'name', operator: FilterOperatorEnum.CONTAINS, value: 'initial' }]
 
-      // Act - initial render
       const { rerender } = renderHook(
         ({ filters }) =>
           useFilteredQuery({
@@ -457,7 +413,6 @@ describe('useFilteredQuery', () => {
         }
       )
 
-      // Assert initial call
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -466,14 +421,11 @@ describe('useFilteredQuery', () => {
         },
       })
 
-      // Clear mock calls
       mockClient.useQuery.mockClear()
 
-      // Act - update filters
       const updatedFilters = [{ key: 'name', operator: FilterOperatorEnum.CONTAINS, value: 'updated' }]
       rerender({ filters: updatedFilters })
 
-      // Assert updated call
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -484,8 +436,6 @@ describe('useFilteredQuery', () => {
     })
 
     it('should rebuild query params when pagination changes', () => {
-      // Arrange
-      // Act - initial render
       const { rerender } = renderHook(
         ({ cursor }: { cursor: string | null }) =>
           useFilteredQuery({
@@ -500,7 +450,6 @@ describe('useFilteredQuery', () => {
         }
       )
 
-      // Assert initial call
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -509,13 +458,10 @@ describe('useFilteredQuery', () => {
         },
       })
 
-      // Clear mock calls
       mockClient.useQuery.mockClear()
 
-      // Act - update cursor
       rerender({ cursor: 'next_page' })
 
-      // Assert updated call
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -529,18 +475,14 @@ describe('useFilteredQuery', () => {
 
   describe('Edge Cases', () => {
     it('should handle undefined filters parameter', () => {
-      // Arrange
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
           method: 'get',
           path: '/workflows',
-          // filters not provided (defaults to [])
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {},
@@ -549,8 +491,6 @@ describe('useFilteredQuery', () => {
     })
 
     it('should handle limit of 0', () => {
-      // Arrange
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -560,7 +500,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert - limit 0 should be included
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -571,7 +510,6 @@ describe('useFilteredQuery', () => {
     })
 
     it('should handle all filter operators', () => {
-      // Arrange
       const filters = [
         { key: 'name', operator: FilterOperatorEnum.EQ, value: 'exact' },
         { key: 'description', operator: FilterOperatorEnum.CONTAINS, value: 'deploy' },
@@ -583,7 +521,6 @@ describe('useFilteredQuery', () => {
         { key: 'status', operator: FilterOperatorEnum.IN, value: ['active', 'pending'] },
       ]
 
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -593,7 +530,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert
       expect(mockClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
         params: {
           query: {
@@ -612,10 +548,9 @@ describe('useFilteredQuery', () => {
   })
 
   describe('Error Options', () => {
-    it('should pass errorOptions to useQueryState', async () => {
-      // Arrange
+    it('should pass errorOptions to useQueryState', () => {
       const mockError = new Error('Test error')
-      const mockRefetch = vi.fn()
+      const mockRefetch = vi.fn<() => void>()
       const mockUseQueryState = vi.mocked(useQueryState)
 
       mockClient.useQuery.mockReturnValue({
@@ -627,10 +562,9 @@ describe('useFilteredQuery', () => {
 
       const errorOptions = {
         title: 'Error loading workflows',
-        onRetry: vi.fn(),
+        onRetry: vi.fn<() => void>(),
       }
 
-      // Act
       renderHook(() =>
         useFilteredQuery({
           client: mockClient,
@@ -640,7 +574,6 @@ describe('useFilteredQuery', () => {
         })
       )
 
-      // Assert - verify useQueryState was called with query result and errorOptions
       expect(mockUseQueryState).toHaveBeenCalledWith(
         {
           data: undefined,

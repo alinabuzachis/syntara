@@ -1079,9 +1079,9 @@ describe('validateSavePath', () => {
     buildSpy.mockRestore()
   })
 
-  it('handles non-Error throws in validateSavePath', () => {
+  it('handles Error throws in validateSavePath', () => {
     const buildSpy = vi.spyOn(buildNestedModule, 'buildNestedConditionStructure').mockImplementation(() => {
-      throw 'string error'
+      throw new Error('string error')
     })
 
     const activities: Activity[] = [

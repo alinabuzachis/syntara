@@ -234,4 +234,77 @@ describe('TextFilter', () => {
       expect(screen.getByText('Name')).toBeInTheDocument()
     })
   })
+
+  describe('multiselect filter', () => {
+    const multiselectFieldDefinition: FilterFieldDefinition = {
+      key: 'tags',
+      label: 'Tags',
+      type: FilterTypeEnum.MULTISELECT,
+      options: [
+        { label: 'Production', value: 'prod' },
+        { label: 'Staging', value: 'staging' },
+        { label: 'Development', value: 'dev' },
+      ],
+      placeholder: 'Select tags',
+    }
+
+    const multiselectProps = {
+      fieldDefinitions: [multiselectFieldDefinition],
+      filters: [],
+      onFilterChange: vi.fn(),
+    }
+
+    it('renders multiselect toggle with placeholder', () => {
+      render(<TextFilter {...multiselectProps} />)
+      expect(screen.getByText('Select tags')).toBeInTheDocument()
+    })
+
+    it('shows options when multiselect is opened', async () => {
+      const user = userEvent.setup()
+      render(<TextFilter {...multiselectProps} />)
+
+      await user.click(screen.getByText('Select tags'))
+
+      expect(screen.getByText('Production')).toBeInTheDocument()
+      expect(screen.getByText('Staging')).toBeInTheDocument()
+      expect(screen.getByText('Development')).toBeInTheDocument()
+    })
+
+    it('selects an option from multiselect', async () => {
+      const user = userEvent.setup()
+      const onFilterChange = vi.fn()
+      render(<TextFilter {...multiselectProps} onFilterChange={onFilterChange} />)
+
+      await user.click(screen.getByText('Select tags'))
+      await user.click(screen.getByText('Production'))
+
+      expect(onFilterChange).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows selected count when filters are present', () => {
+      const filters = [{ key: 'tags', operator: 'in' as const, value: ['prod'] }]
+      render(<TextFilter {...multiselectProps} filters={filters} />)
+
+      expect(screen.getByText('1 selected')).toBeInTheDocument()
+    })
+  })
+
+  describe('select filter close behavior', () => {
+    it('clears search when select is closed', async () => {
+      const user = userEvent.setup()
+      render(<TextFilter {...defaultProps} />)
+
+      const fieldSelector = screen.getByText('Name')
+      await user.click(fieldSelector)
+      await user.click(screen.getByText('Status'))
+
+      const statusToggle = screen.getByText('Filter by status')
+      await user.click(statusToggle)
+      expect(screen.getByText('Enabled')).toBeInTheDocument()
+
+      await user.click(statusToggle)
+
+      expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
+    })
+  })
 })

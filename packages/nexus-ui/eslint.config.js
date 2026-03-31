@@ -17,9 +17,9 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default tseslint.config(
-  { ignores: ['dist', 'playwright.config.ts', 'test-results/**', 'playwright-report/**', 'scripts/**'] },
+  { ignores: ['dist', 'coverage/**', 'playwright.config.ts', 'test-results/**', 'playwright-report/**', 'scripts/**'] },
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
@@ -45,12 +45,14 @@ export default tseslint.config(
       // Baseline accessibility linting for JSX (labels, roles, alt text, etc.)
       ...jsxA11y.configs.recommended.rules,
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
+      eqeqeq: ['error', 'always', { null: 'ignore' }],
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }],
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-private-class-members': 'error',
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       'no-console': 'error',
+      'no-restricted-exports': ['error', { restrictDefaultExports: { direct: true } }],
       'no-only-tests/no-only-tests': 'error',
       'react/no-array-index-key': 'error',
       'react/jsx-no-useless-fragment': ['error', { allowExpressions: true }],
@@ -62,6 +64,18 @@ export default tseslint.config(
       '@typescript-eslint/require-array-sort-compare': 'error',
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
       '@typescript-eslint/prefer-includes': 'error',
+      // Type-checked rules from recommendedTypeChecked preset (adopted from AAP UI)
+      '@typescript-eslint/no-unsafe-argument': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
+      '@typescript-eslint/no-unsafe-call': 'error',
+      '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/require-await': 'error',
+      '@typescript-eslint/unbound-method': 'error',
+      '@typescript-eslint/no-base-to-string': 'error',
+      '@typescript-eslint/restrict-template-expressions': 'error',
+      '@typescript-eslint/only-throw-error': 'error',
       // Readability rules — thresholds based on industry standards (Code Complete, SonarQube, BiomeJS)
       'max-lines': ['error', { max: 500, skipBlankLines: true, skipComments: true }],
       'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true, IIFEs: true }],
@@ -86,6 +100,7 @@ export default tseslint.config(
     files: ['**/index.tsx', '**/main.tsx', '**/vite.config.ts', '**/vitest.config.ts', '**/vitest.browser.config.ts'],
     rules: {
       'no-console': 'off',
+      'no-restricted-exports': 'off',
       'react-refresh/only-export-components': 'off',
     },
   },
@@ -111,11 +126,35 @@ export default tseslint.config(
     },
   },
   {
+    files: [
+      '**/registry/nodes/register*.ts',
+      '**/app/App.tsx',
+      '**/routes/**/Automations.tsx',
+      '**/routes/**/BuilderNew.tsx',
+      '**/routes/**/BuilderEdit.tsx',
+      '**/routes/**/Executions.tsx',
+      '**/routes/**/ExecutionDetail.tsx',
+      '**/routes/**/Integrations.tsx',
+      '**/routes/**/IntegrationTools.tsx',
+      '**/routes/**/Glossary.tsx',
+      '**/routes/**/Approvals.tsx',
+      '**/routes/**/ApprovalDetail.tsx',
+      '**/vite-env.d.ts',
+    ],
+    rules: {
+      'no-restricted-exports': 'off',
+    },
+  },
+  {
     files: ['e2e/**/*.{ts,tsx}'],
     rules: {
       'react-hooks/rules-of-hooks': 'off',
       'react-refresh/only-export-components': 'off',
     },
+  },
+  {
+    files: ['**/*.js'],
+    ...tseslint.configs.disableTypeChecked,
   },
   eslintConfigPrettier
 )

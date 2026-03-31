@@ -53,7 +53,7 @@ export interface WebSocketConfig {
 
 /** Default configuration values */
 export const DEFAULT_CONFIG: WebSocketConfig = {
-  baseUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8000',
+  baseUrl: (import.meta.env.VITE_WS_URL as string | undefined) || 'ws://localhost:8000',
   reconnection: {
     initialDelay: 100,
     maxDelay: 30000,

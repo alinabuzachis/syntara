@@ -126,7 +126,7 @@ describe('ConvergeNodeForm', () => {
 
       const expectedSeconds = timeUnitsToSeconds(30, 5, 2, 1)
       expect(mockOnSubmit).toHaveBeenCalled()
-      const callArgs = mockOnSubmit.mock.calls[0][0]
+      const callArgs: unknown = mockOnSubmit.mock.calls[0][0]
       expect(callArgs).toMatchObject({
         timeout: expectedSeconds,
         onTimeout: 'fail',
@@ -145,7 +145,7 @@ describe('ConvergeNodeForm', () => {
     // Note: "any" strategy is disabled in the current implementation
     // These tests are placeholders for when it's enabled
 
-    it.skip('renders "any" fields when strategy is "any"', async () => {
+    it.skip('renders "any" fields when strategy is "any"', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={{ strategy: 'any' }} />)
 
       expect(screen.getByLabelText(/Required path count/i)).toBeInTheDocument()

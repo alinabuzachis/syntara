@@ -24,8 +24,8 @@ function parseCredentials(value: string): number[] | undefined {
  */
 function parseExtraVars(value: string): Record<string, unknown> | undefined {
   try {
-    const parsed = JSON.parse(value)
-    return typeof parsed === 'object' && parsed !== null ? parsed : undefined
+    const parsed: unknown = JSON.parse(value)
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : undefined
   } catch {
     return undefined
   }
