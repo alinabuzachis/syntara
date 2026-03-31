@@ -439,7 +439,9 @@ def _validate_discovered_routers(app: FastAPI, routers: list[RouterInfo]) -> Non
 def _build_schema_file_list(routers: list[RouterInfo]) -> list[str]:
     """Build list of schema files from discovered routers.
 
-    Follows convention: schemas/{domain}/openapi.{json|yaml}
+    Follows convention:
+    - Primary router (router.py): schemas/{domain}/openapi.{json|yaml}
+    - Sub-router ({prefix}_router.py): schemas/{domain}/{prefix}.openapi.{json|yaml}
 
     Args:
         routers: List of discovered routers
@@ -456,12 +458,22 @@ def _build_schema_file_list(routers: list[RouterInfo]) -> list[str]:
         domain = router_info.domain
         router_prefix = router_info.router_prefix
 
+        # Build schema filename from router prefix.
+        # Primary routers (prefix="") -> openapi.{ext}
+        # Sub-routers (prefix="executions_") -> executions.openapi.{ext}
+        if router_prefix:
+            descriptor = router_prefix.rstrip("_")
+            schema_filename_template = f"{descriptor}.openapi.{{ext}}"
+        else:
+            schema_filename_template = "openapi.{ext}"
+
         # Check for both JSON and YAML schemas
         for ext in ["json", "yaml", "yml"]:
-            schema_resource = schemas_package.joinpath(domain).joinpath(f"{router_prefix}openapi.{ext}")
+            schema_filename = schema_filename_template.format(ext=ext)
+            schema_resource = schemas_package.joinpath(domain).joinpath(schema_filename)
             try:
                 if schema_resource.is_file():
-                    relative_path = f"{domain}/{router_prefix}openapi.{ext}"
+                    relative_path = f"{domain}/{schema_filename}"
                     schema_files.append(relative_path)
                     logger.debug("Found schema", path=relative_path)
                     break  # Use first found format

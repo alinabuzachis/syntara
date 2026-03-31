@@ -49,7 +49,7 @@ OPENAPI_IGNORE_FILES = {
 }
 
 # Directories within schemas/ that don't represent API domains
-SCHEMA_IGNORE_DIRS = {"base"}
+SCHEMA_IGNORE_DIRS = {"base", "schemas"}
 
 
 def find_project_root() -> Path:

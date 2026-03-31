@@ -1,0 +1,114 @@
+---
+openapi: 3.0.3
+info:
+  title: Nexus API
+  version: 0.1.0
+  description: |
+    Aggregated OpenAPI specification for the Nexus platform.
+
+    This is the root specification that references all domain-specific APIs.
+    Each domain spec is authoritative for its own paths and schemas — this file
+    provides a single entry point for documentation and tooling.
+
+    ## Domain Specs
+
+    | Domain | Spec |
+    |--------|------|
+    | Approvals | [approvals/openapi.yaml](approvals/openapi.yaml) |
+    | Files | [files/openapi.yaml](files/openapi.yaml) |
+    | Invocations | [invocations/openapi.yaml](invocations/openapi.yaml) |
+    | Tool Manager | [tool_manager/openapi.yaml](tool_manager/openapi.yaml) |
+    | Tool Metrics | [tool_manager/metrics.openapi.yaml](tool_manager/metrics.openapi.yaml) |
+    | Workflows | [workflows/openapi.yaml](workflows/openapi.yaml) |
+    | Executions | [workflows/executions.openapi.yaml](workflows/executions.openapi.yaml) |
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Approvals
+    description: Human-in-the-loop approval request management
+  - name: Files
+    description: File upload and management
+  - name: Invocations
+    description: Agent invocation and execution
+  - name: Tools
+    description: Tool management
+  - name: ToolProviders
+    description: Tool provider management
+  - name: Workflows
+    description: Workflow definition and versioning
+  - name: Executions
+    description: Workflow execution management
+
+paths:
+  # Approvals
+  /approvals:
+    $ref: "./approvals/openapi.yaml#/paths/~1approvals"
+  /approvals/{approval_id}:
+    $ref: "./approvals/openapi.yaml#/paths/~1approvals~1{approval_id}"
+  /approvals/batch:
+    $ref: "./approvals/openapi.yaml#/paths/~1approvals~1batch"
+
+  # Files
+  /files:
+    $ref: "./files/openapi.yaml#/paths/~1files"
+
+  # Invocations
+  /invocations:
+    $ref: "./invocations/openapi.yaml#/paths/~1invocations"
+  /invocations/{invocation_id}:
+    $ref: "./invocations/openapi.yaml#/paths/~1invocations~1{invocation_id}"
+  /invocations/{invocation_id}/cancel:
+    $ref: "./invocations/openapi.yaml#/paths/~1invocations~1{invocation_id}~1cancel"
+
+  # Tools
+  /tools:
+    $ref: "./tool_manager/openapi.yaml#/paths/~1tools"
+  /tools/{tool_id}:
+    $ref: "./tool_manager/openapi.yaml#/paths/~1tools~1{tool_id}"
+  /tools/bulk_update:
+    $ref: "./tool_manager/openapi.yaml#/paths/~1tools~1bulk_update"
+
+  # Tool Providers
+  /tool_providers:
+    $ref: "./tool_manager/openapi.yaml#/paths/~1tool_providers"
+  /tool_providers/{provider_id}:
+    $ref: "./tool_manager/openapi.yaml#/paths/~1tool_providers~1{provider_id}"
+  /tool_providers/{provider_id}/validate:
+    $ref: "./tool_manager/openapi.yaml#/paths/~1tool_providers~1{provider_id}~1validate"
+  /tool_providers/{provider_id}/refresh_tools:
+    $ref: "./tool_manager/openapi.yaml#/paths/~1tool_providers~1{provider_id}~1refresh_tools"
+  /tool_providers/test:
+    $ref: "./tool_manager/openapi.yaml#/paths/~1tool_providers~1test"
+
+  # Tool Metrics
+  /metrics/tools:
+    $ref: "./tool_manager/metrics.openapi.yaml#/paths/~1metrics~1tools"
+  /metrics/executions:
+    $ref: "./tool_manager/metrics.openapi.yaml#/paths/~1metrics~1executions"
+  /rate-limits:
+    $ref: "./tool_manager/metrics.openapi.yaml#/paths/~1rate-limits"
+  /rate-limits/{limit_id}:
+    $ref: "./tool_manager/metrics.openapi.yaml#/paths/~1rate-limits~1{limit_id}"
+
+  # Workflows
+  /workflows:
+    $ref: "./workflows/openapi.yaml#/paths/~1workflows"
+  /workflows/{workflow_id}:
+    $ref: "./workflows/openapi.yaml#/paths/~1workflows~1{workflow_id}"
+  /workflows/{workflow_id}/versions:
+    $ref: "./workflows/openapi.yaml#/paths/~1workflows~1{workflow_id}~1versions"
+  /workflows/{workflow_id}/versions/{version}:
+    $ref: "./workflows/openapi.yaml#/paths/~1workflows~1{workflow_id}~1versions~1{version}"
+
+  # Executions
+  /executions:
+    $ref: "./workflows/executions.openapi.yaml#/paths/~1executions"
+  /executions/{execution_id}:
+    $ref: "./workflows/executions.openapi.yaml#/paths/~1executions~1{execution_id}"
+  /executions/{execution_id}/activities:
+    $ref: "./workflows/executions.openapi.yaml#/paths/~1executions~1{execution_id}~1activities"
+  /executions/{execution_id}/activities/{activity_id}/signal:
+    $ref: "./workflows/executions.openapi.yaml#/paths/~1executions~1{execution_id}~1activities~1{activity_id}~1signal"

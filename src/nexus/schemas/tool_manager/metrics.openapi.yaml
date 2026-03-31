@@ -17,6 +17,7 @@ x-shared-contracts:
 paths:
   /metrics/tools:
     get:
+      operationId: get_tool_metrics
       summary: Get tool usage metrics
       description: Retrieve usage statistics for tools and providers
       parameters:
@@ -115,6 +116,7 @@ paths:
 
   /metrics/executions:
     get:
+      operationId: get_tool_executions
       summary: Get detailed execution logs
       description: Retrieve detailed execution logs for troubleshooting
       parameters:
@@ -202,6 +204,7 @@ paths:
 
   /rate-limits:
     get:
+      operationId: list_rate_limits
       summary: List rate limit configurations
       description: Retrieve all rate limit configurations
       parameters:
@@ -288,6 +291,7 @@ paths:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
     post:
+      operationId: create_rate_limit
       summary: Create rate limit configuration
       description: Create new rate limit for provider, tool, or user
       requestBody:
@@ -318,6 +322,7 @@ paths:
 
   /rate-limits/{limit_id}:
     get:
+      operationId: get_rate_limit
       summary: Get rate limit details
       description: Retrieve specific rate limit configuration
       parameters:
@@ -348,6 +353,7 @@ paths:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
     put:
+      operationId: update_rate_limit
       summary: Update rate limit configuration
       description: Update existing rate limit configuration
       parameters:
@@ -390,6 +396,7 @@ paths:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
     delete:
+      operationId: delete_rate_limit
       summary: Delete rate limit configuration
       description: Remove rate limit configuration
       parameters:

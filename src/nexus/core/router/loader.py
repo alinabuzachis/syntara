@@ -89,6 +89,10 @@ class OpenAPISchema:
         - schemas/{domain}.yaml -> domain is filename stem (e.g., 'example.yaml' -> 'example')
         - schemas/{domain}/openapi.{json|yaml|yml} -> domain is parent directory
           (e.g., 'example/openapi.yaml' -> 'example')
+        - schemas/{domain}/{descriptor}.openapi.{json|yaml|yml} -> descriptor is domain
+          (e.g., 'workflows/executions.openapi.yaml' -> 'executions')
+        - schemas/{domain}/{descriptor}_openapi.{json|yaml|yml} -> descriptor is domain
+          (e.g., 'workflows/sub_openapi.json' -> 'sub')
         """
         path = Path(self.filename)
 
@@ -96,9 +100,11 @@ class OpenAPISchema:
         if path.stem == "openapi" and path.suffix in {JSON_EXTENSION, YAML_EXTENSION, YML_EXTENSION}:
             return path.parent.name
 
-        # Special case for when a domain contains a sub-router using a different path
+        # Convention for domain sub-routers: {descriptor}.openapi.{ext} or {descriptor}_openapi.{ext}
+        if path.stem.endswith(".openapi") and path.suffix in {JSON_EXTENSION, YAML_EXTENSION, YML_EXTENSION}:
+            return path.stem[: -len(".openapi")]
         if path.stem.endswith("_openapi") and path.suffix in {JSON_EXTENSION, YAML_EXTENSION, YML_EXTENSION}:
-            return path.stem.replace("_openapi", "")
+            return path.stem[: -len("_openapi")]
 
         # Otherwise, use filename stem as domain
         return path.stem
