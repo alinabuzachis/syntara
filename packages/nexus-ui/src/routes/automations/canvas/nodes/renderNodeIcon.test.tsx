@@ -105,6 +105,14 @@ describe('renderNodeIcon', () => {
     expect(iconWrapper).toHaveClass('pf-m-xl')
   })
 
+  it('uses legend variant when specified (md size, compact rows)', () => {
+    const view = buildNodeIconView(MockIcon, 'test-node', 'legend')
+    render(<>{view}</>)
+
+    const iconWrapper = screen.getByTestId('node-icon-wrapper')
+    expect(iconWrapper).toHaveClass('pf-m-md')
+  })
+
   it('uses header variant when specified (xl size)', () => {
     const view = buildNodeIconView(MockIcon, 'test-node', 'header')
     render(<>{view}</>)
@@ -138,5 +146,13 @@ describe('renderNodeIcon', () => {
     const icon = screen.getByTestId('styled-icon')
     // List variant has customIconScale: 1.5
     expect(icon.style.transform).toContain('scale(1.5)')
+  })
+
+  it('applies legend scale for custom icon', () => {
+    const view = buildNodeIconView(MockStyledIcon, RegistryNodeId.AAP, 'legend')
+    render(<>{view}</>)
+
+    const icon = screen.getByTestId('styled-icon')
+    expect(icon.style.transform).toContain('scale(1.25)')
   })
 })

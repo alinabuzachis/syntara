@@ -4,7 +4,7 @@ import type { ComponentType, CSSProperties, ReactNode } from 'react'
 
 import { RegistryNodeId } from '../../../../constants'
 
-export type NodeIconVariant = 'canvas' | 'list' | 'header'
+export type NodeIconVariant = 'canvas' | 'list' | 'header' | 'legend'
 
 export function renderNodeIcon(
   IconComponent?: ComponentType,
@@ -24,6 +24,7 @@ export function renderNodeIcon(
     canvas: { size: 'md', iconSize: 'md', customIconScale: 1.8, customIconOffsetY: 0 },
     list: { size: 'xl', iconSize: 'xl', customIconScale: 1.5, customIconOffsetY: 0 },
     header: { size: 'xl', iconSize: 'xl', customIconScale: 1.8, customIconOffsetY: 1 },
+    legend: { size: 'md', iconSize: 'md', customIconScale: 1.25, customIconOffsetY: 0 },
   }
   const { size, iconSize, customIconScale, customIconOffsetY } = variantConfig[variant]
 

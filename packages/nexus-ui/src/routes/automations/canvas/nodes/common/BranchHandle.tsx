@@ -1,7 +1,8 @@
-import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 import { Flex } from '@patternfly/react-core'
 import { Handle, Position } from '@xyflow/react'
+import type { CSSProperties } from 'react'
 
+import { getApprovalBranchHandleStyles } from './approvalBranchTokens'
 import { sourceHandleStyle } from './handleStyle'
 
 export function BranchHandles(props: Readonly<{ children: React.ReactNode }>) {
@@ -12,27 +13,9 @@ export function BranchHandles(props: Readonly<{ children: React.ReactNode }>) {
   )
 }
 
-function getApprovalHandleStyles(id: string): React.CSSProperties | null {
-  if (id === EdgeHandleEnum.APPROVED) {
-    return {
-      backgroundColor: 'var(--pf-t--global--color--status--success--default)',
-      color: 'var(--pf-t--global--text--color--status--on-success--default)',
-      borderColor: 'var(--pf-t--global--color--status--success--default)',
-    }
-  }
-  if (id === EdgeHandleEnum.REJECTED) {
-    return {
-      backgroundColor: 'var(--pf-t--global--color--status--danger--default)',
-      color: 'var(--pf-t--global--text--color--status--on-danger--default)',
-      borderColor: 'var(--pf-t--global--color--status--danger--default)',
-    }
-  }
-  return null
-}
-
 export function BranchHandle(props: Readonly<{ children: React.ReactNode; id: string; isConnectable?: boolean }>) {
-  const approvalStyles = getApprovalHandleStyles(props.id)
-  const baseStyles: React.CSSProperties = {
+  const approvalStyles = getApprovalBranchHandleStyles(props.id)
+  const baseStyles: CSSProperties = {
     position: 'relative',
     padding: 'var(--pf-t--global--spacer--xs) var(--pf-t--global--spacer--md)',
     paddingRight: 0,

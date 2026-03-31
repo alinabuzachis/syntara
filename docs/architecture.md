@@ -578,14 +578,16 @@ mutation.mutate({ body: workflowPayload })
 
 ### Key files
 
-| File                            | Responsibility                                          |
-| ------------------------------- | ------------------------------------------------------- |
-| `BuilderContent.tsx`            | Orchestrates load/save, wraps canvas                    |
-| `BuilderFlow.tsx`               | Converts store → React Flow nodes/edges, handles layout |
-| `utils/workflowTransform.ts`    | Flatten/nest transformations                            |
-| `utils/loadWorkflow.ts`         | Load + flatten workflow                                 |
-| `utils/buildNestedStructure.ts` | Build nested structure for save                         |
-| `utils/validation/`             | Validation rules                                        |
+| File                                    | Responsibility                                                                       |
+| --------------------------------------- | ------------------------------------------------------------------------------------ |
+| `BuilderContent.tsx`                    | Orchestrates load/save, wraps canvas                                                 |
+| `BuilderFlow.tsx`                       | Converts store → React Flow nodes/edges, handles layout                              |
+| `automations/canvas/CanvasControls.tsx` | Bottom canvas toolbar (zoom, fit, layout, expand/collapse) and toggle for the legend |
+| `automations/canvas/CanvasLegend.tsx`   | Floating legend: node categories and approval branch colors                          |
+| `utils/workflowTransform.ts`            | Flatten/nest transformations                                                         |
+| `utils/loadWorkflow.ts`                 | Load + flatten workflow                                                              |
+| `utils/buildNestedStructure.ts`         | Build nested structure for save                                                      |
+| `utils/validation/`                     | Validation rules                                                                     |
 
 ### Builder internals (advanced): registry, edges, and graph semantics
 
