@@ -505,13 +505,6 @@ curl 'http://localhost:8000/api/v1/invocations?status=completed'
 
 ### Running Tests
 
-**Prerequisites**: PostgreSQL must be running (use `make db-run` in a separate terminal)
-
-Tests use a PostgreSQL test database. Configure with the `TEST_DATABASE_URL` environment variable if needed:
-```bash
-export TEST_DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/nexus_test"
-```
-
 ```bash
 # Run all tests
 make test-all
@@ -521,9 +514,6 @@ make test-coverage
 
 # Run only unit tests
 make test-unit
-
-# Run tests in parallel (requires pytest-xdist)
-make test-all-parallel
 ```
 
 ### Code Quality

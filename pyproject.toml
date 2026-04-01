@@ -82,6 +82,7 @@ dev = [
     "scikit-learn-stubs>=0.0.3",  # type stubs for scikit-learn
     # MCP testing infrastructure
     "fastmcp>=2.13.0,<3.0.0",  # for MCP test server creation
+    "testcontainers[postgres,redis]>=4.14.0",  # for auto-starting PostgreSQL/Redis in tests
 ]
 
 [project.urls]

@@ -73,7 +73,7 @@ def create_completion_event(invocation_id: UUID) -> dict[str, object]:
 
 
 @pytest_asyncio.fixture
-async def test_stream() -> AsyncGenerator[tuple[UUID, str], None]:
+async def test_stream(test_cache: None) -> AsyncGenerator[tuple[UUID, str], None]:
     """Fixture providing invocation stream with auto-cleanup."""
     invocation_id = uuid4()
     stream_id = f"invocation:{invocation_id}:events"

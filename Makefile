@@ -14,6 +14,23 @@ help: ## Show this help message
 # Use podman-compose for container orchestration (via uv)
 # Support multiple project instances via PODMAN_PROJECT environment variable
 PODMAN_PROJECT ?= nexus
+POSTGRES_IMAGE ?= public.ecr.aws/docker/library/postgres:15
+REDIS_IMAGE ?= public.ecr.aws/docker/library/redis:6
+APP_IMAGE ?= localhost/nexus:latest
+APP_UI_IMAGE ?= quay.io/ansible/nexus-ui
+APP_UI_VERSION ?= latest
+ifeq ($(shell uname -s),Darwin)
+# macOS: try podman machine inspect first (works for any machine name),
+# then the standard symlink, then Homebrew's common location
+PODMAN_SOCK ?= $(or \
+	$(wildcard $(HOME)/.local/share/containers/podman/machine/podman.sock),\
+	$(shell podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}' 2>/dev/null),\
+	$(wildcard /var/run/podman/podman.sock)\
+)
+else
+# Linux
+PODMAN_SOCK ?= /run/user/$(shell id -u)/podman/podman.sock
+endif
 COMPOSE_CMD ?= uv run podman-compose
 COMPOSE_ARGS ?= -p $(PODMAN_PROJECT) -f podman-compose.yml
 COMPOSE_FINAL_CMD := $(COMPOSE_CMD) $(COMPOSE_ARGS)
@@ -60,23 +77,46 @@ _check-dependency-binaries: _check-uv
 
 # Testing targets
 # ========================================================
+
+# Run pytest using testcontainers: prefers Podman (local dev), falls back to Docker (CI).
+# Usage: $(call run-tests,<pytest-args>)
+define run-tests
+@if command -v podman >/dev/null 2>&1 && [ -S "$(PODMAN_SOCK)" ]; then \
+	echo "🧪 Running tests with Podman container..."; \
+	DOCKER_HOST="unix://$(PODMAN_SOCK)" TESTCONTAINERS_RYUK_DISABLED=true POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" \
+	uv run pytest $(1); \
+elif command -v docker >/dev/null 2>&1; then \
+	echo "🧪 Running tests with Docker container..."; \
+	TESTCONTAINERS_RYUK_DISABLED=true POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" \
+	uv run pytest $(1); \
+elif command -v podman >/dev/null 2>&1; then \
+	echo "❌ Podman socket not found at $(PODMAN_SOCK)"; \
+	if [ "$$(uname -s)" = "Darwin" ]; then \
+		echo "   Start it with: podman machine start"; \
+	else \
+		echo "   Start it with: systemctl --user enable --now podman.socket"; \
+	fi; \
+	exit 1; \
+else \
+	echo "❌ No container runtime available. Install Podman or Docker."; \
+	exit 1; \
+fi
+endef
+
 .PHONY: test
 test: test-unit ## Alias to unit tests
 
 .PHONY: test-unit
 test-unit: check-deps ## Run unit tests only
-	@echo "🧪 Running unit tests..."
-	uv run pytest tests/unit/ -v
+	$(call run-tests,tests/unit/ -v -n auto)
 
 .PHONY: test-integration
 test-integration: check-deps ## Run integration tests
-	@echo "🧪 Running integration tests..."
-	uv run pytest tests/integration/ -v -m "not mcp"
+	$(call run-tests,tests/integration/ -v -n auto -m "not mcp")
 
 .PHONY: test-mcp
 test-mcp: check-deps ## Run MCP tests only
-	@echo "🧪 Running MCP tests..."
-	uv run pytest tests/ -v -m "mcp"
+	$(call run-tests,tests/ -v -m "mcp")
 
 .PHONY: test-performance
 test-performance: check-deps ## Run performance tests only (excluded from default test runs)
@@ -85,23 +125,19 @@ test-performance: check-deps ## Run performance tests only (excluded from defaul
 
 .PHONY: test-coverage
 test-coverage: check-deps ## Run tests with coverage report (XML)
-	@echo "🧪 Running tests with coverage..."
-	uv run pytest tests/ -n auto -m "not mcp" --cov=src --cov-report=xml --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml
+	$(call run-tests,tests/ -n auto -m "not mcp" --cov=src --cov-report=xml --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
 
 .PHONY: test-coverage-report
 test-coverage-report: check-deps ## Run tests with coverage report (HTML)
-	@echo "🧪 Running tests with coverage..."
-	uv run pytest tests/ -n auto -m "not mcp" --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml
+	$(call run-tests,tests/ -n auto -m "not mcp" --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
 
 .PHONY: test-fast
 test-fast: check-deps ## Run tests with fail-fast and short traceback
-	@echo "🧪 Running fast tests..."
-	uv run pytest tests/ -x --tb=short
+	$(call run-tests,tests/ -x --tb=short)
 
 .PHONY: test-all
 test-all: check-deps ## Run all tests
-	@echo "🧪 Running all tests..."
-	uv run pytest tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml
+	$(call run-tests,tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml)
 
 # Development workflow
 # ========================================================

@@ -43,6 +43,7 @@ jobs:
 
     env:
       UV_PYTHON: ${{ matrix.python-version }}
+      DOCKER_HOST: unix:///var/run/docker.sock
 
     services:
       database:
@@ -55,18 +56,6 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U admin"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: quay.io/sclorg/redis-6-c9s
-        env:
-          REDIS_PASSWORD: cache
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli -a cache PING"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
@@ -91,8 +80,6 @@ jobs:
 
       - name: Run tests (excluding MCP) with coverage
         run: make test-coverage
-        env:
-          APP_CACHE_PASSWORD: cache
 
       - name: Run MCP tests
         run: make test-mcp

@@ -35,6 +35,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
+from testcontainers.postgres import PostgresContainer  # type: ignore[import-untyped]
+from testcontainers.redis import RedisContainer  # type: ignore[import-untyped]
 
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.api.auth.dependencies import get_current_user
@@ -225,25 +227,6 @@ TEST_DB_PORT = os.getenv("APP_DB_PORT", "5432")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
-def get_test_database_url(worker_id: str = "master") -> str:
-    """Get test database URL, with per-worker database for parallel execution.
-
-    Args:
-        worker_id: pytest-xdist worker ID (e.g., 'gw0', 'gw1', or 'master' for non-parallel)
-
-    Returns:
-        Database URL string
-
-    """
-    # Use worker-specific database for parallel execution
-    db_name = f"nexus_test_{worker_id}" if worker_id != "master" else "nexus_test"
-
-    return os.getenv(
-        "TEST_DATABASE_URL",
-        f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/{db_name}",
-    )
-
-
 def _get_alembic_config(db_url: str) -> Config:
     """Build an Alembic Config pointing at the test database."""
     alembic_cfg = Config(str(PROJECT_ROOT / "alembic.ini"))
@@ -268,23 +251,6 @@ async def _upgrade_database_schema(db_url: str) -> None:
         logger.debug("Successfully applied migrations to %s", db_url)
     except Exception:  # pragma: no cover - defensive logging
         logger.exception("Failed to apply migrations to %s", _safe_url(db_url))
-        raise
-
-
-async def _reset_schema(engine: AsyncEngine, schema_name: str = "public") -> None:
-    """Drop and recreate the given schema to ensure a clean slate."""
-    logger.debug("Resetting schema '%s' on %s", schema_name, engine.url)
-    preparer = engine.dialect.identifier_preparer
-    quoted_schema = preparer.quote_schema(schema_name)
-    drop_schema_sql = sqlalchemy.text(f"DROP SCHEMA IF EXISTS {quoted_schema} CASCADE")
-    create_schema_sql = sqlalchemy.text(f"CREATE SCHEMA {quoted_schema}")
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(drop_schema_sql)
-            await conn.execute(create_schema_sql)
-        logger.debug("Schema '%s' reset complete on %s", schema_name, engine.url)
-    except Exception:  # pragma: no cover - defensive logging
-        logger.exception("Failed to reset schema '%s' on %s", schema_name, _safe_url(engine.url))
         raise
 
 
@@ -328,6 +294,9 @@ async def _truncate_all_tables(engine: AsyncEngine) -> None:
 async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
     """Create a test database engine with the migrated schema.
 
+    Auto-starts a PostgreSQL container via testcontainers (requires Docker or Podman).
+    Each xdist worker gets its own container for full isolation.
+
     Args:
         worker_id: pytest-xdist worker ID
 
@@ -335,49 +304,48 @@ async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
         Async engine for test database
 
     """
-    # Get worker-specific database URL
-    test_database_url = get_test_database_url(worker_id)
-    db_name = f"nexus_test_{worker_id}" if worker_id != "master" else "nexus_test"
+    logger.debug("Starting PostgreSQL container for worker '%s'", worker_id)
+    postgres_image = os.getenv("POSTGRES_IMAGE", "public.ecr.aws/docker/library/postgres:15")
+    with PostgresContainer(postgres_image) as pg:
+        test_database_url = pg.get_connection_url(driver="asyncpg")
+        engine = create_async_engine(test_database_url, echo=False, poolclass=NullPool)
+        await _upgrade_database_schema(test_database_url)
+        logger.debug("Test database ready (container) for worker '%s'", worker_id)
+        yield engine
+        await engine.dispose()
 
-    # First, connect to the default database to create test database if needed
-    logger.debug("Ensuring test database exists for worker '%s' (%s)", worker_id, db_name)
-    default_db_url = f"postgresql+asyncpg://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/postgres"
-    temp_engine = create_async_engine(default_db_url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
 
-    try:
-        async with temp_engine.connect() as conn:
-            # Check if test database exists
-            result = await conn.execute(
-                sqlalchemy.text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
-                {"db_name": db_name},
-            )
-            exists = result.scalar() is not None
+@pytest.fixture(scope="session")
+def test_cache(worker_id: str) -> Generator[None, None, None]:
+    """Set up Redis cache for tests.
 
-            if not exists:
-                # Create test database - database names cannot be parameterized
-                # db_name is constructed from trusted sources only (worker_id fixture)
-                await conn.execute(sqlalchemy.text(f"CREATE DATABASE {db_name}"))
-    finally:
-        await temp_engine.dispose()
+    Auto-starts a Redis container via testcontainers (requires Docker or Podman).
+    Patches cache_host, cache_port, and cache_password on the shared Settings
+    instance so that StreamClient and any direct redis.Redis() callers both
+    use the container automatically.
 
-    # Now connect to the test database
-    engine = create_async_engine(
-        test_database_url,
-        echo=False,
-        poolclass=NullPool,
-    )
+    Args:
+        worker_id: pytest-xdist worker ID
 
-    # Ensure a clean schema and apply migrations so tests exercise real DB structure
-    await _reset_schema(engine)
-    await _upgrade_database_schema(test_database_url)
-    logger.debug("Test database ready for worker '%s' at %s", worker_id, test_database_url)
+    Yields:
+        None (fixture effect is applied via settings patch)
 
-    yield engine
-
-    # Clean up schema and dispose engine after session
-    await _reset_schema(engine)
-    logger.debug("Test database schema reset complete for worker '%s'", worker_id)
-    await engine.dispose()
+    """
+    redis_image = os.getenv("REDIS_IMAGE", "public.ecr.aws/docker/library/redis:6")
+    logger.debug("Starting Redis container for worker '%s'", worker_id)
+    with RedisContainer(redis_image, password="cache") as redis_container:  # noqa: S106
+        host = redis_container.get_container_host_ip()
+        port = int(redis_container.get_exposed_port(redis_container.port))
+        logger.debug("Test Redis ready (container) for worker '%s' at %s:%s", worker_id, host, port)
+        os.environ["APP_CACHE_HOST"] = host
+        os.environ["APP_CACHE_PORT"] = str(port)
+        get_settings.cache_clear()
+        try:
+            yield
+        finally:
+            os.environ.pop("APP_CACHE_HOST", None)
+            os.environ.pop("APP_CACHE_PORT", None)
+            get_settings.cache_clear()
 
 
 @pytest_asyncio.fixture
@@ -415,7 +383,7 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
 
 
 @pytest_asyncio.fixture(scope="session")
-async def session_app(worker_id: str) -> AsyncGenerator[FastAPI, None]:
+async def session_app(worker_id: str, test_cache: None) -> AsyncGenerator[FastAPI, None]:
     """Create a session-scoped app with routers discovered once per worker.
 
     This fixture performs router discovery once when the worker starts,
@@ -424,6 +392,7 @@ async def session_app(worker_id: str) -> AsyncGenerator[FastAPI, None]:
 
     Args:
         worker_id: pytest-xdist worker ID
+        test_cache: fixture that ensures the cache is ready
 
     Yields:
         FastAPI application with routers registered

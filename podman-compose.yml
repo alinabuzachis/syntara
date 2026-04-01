@@ -1,7 +1,7 @@
 ---
 services:
   database:
-    image: public.ecr.aws/docker/library/postgres:15
+    image: ${POSTGRES_IMAGE:-public.ecr.aws/docker/library/postgres:15}
     restart: unless-stopped
     ports:
       - ${APP_DB_PORT:-5432}:5432

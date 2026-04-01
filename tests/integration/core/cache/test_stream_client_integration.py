@@ -34,7 +34,7 @@ from nexus.core.config.base import get_settings
 
 
 @pytest_asyncio.fixture(scope="session")
-async def redis_client() -> AsyncGenerator[redis.Redis, None]:
+async def redis_client(test_cache: None) -> AsyncGenerator[redis.Redis, None]:
     """Create a Redis client for integration tests.
 
     Uses settings from environment variables or defaults.
@@ -66,7 +66,7 @@ async def test_stream_id() -> str:
 
 
 @pytest_asyncio.fixture
-async def stream_client() -> AsyncGenerator[StreamClient, None]:
+async def stream_client(test_cache: None) -> AsyncGenerator[StreamClient, None]:
     """Create a StreamClient for integration tests."""
     client = StreamClient()
     yield client
