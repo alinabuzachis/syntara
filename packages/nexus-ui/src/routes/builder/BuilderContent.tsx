@@ -602,12 +602,7 @@ export function BuilderContent(props: BuilderContentProps) {
         })
         // No need for markClean - loadWorkflowWithEdges sets isDirty: false
       })
-    } else if (
-      workflow &&
-      workflow.version?.workflow_definition &&
-      !hasLoadedRef.current &&
-      workflow.id === workflowId
-    ) {
+    } else if (workflow?.version?.workflow_definition && !hasLoadedRef.current && workflow.id === workflowId) {
       // Load existing workflow - ONLY on first load, not during refetch after save
       // This prevents overwriting user-created edges (including ButtonEdges) with saved edges
       // CRITICAL: Only load if workflow.id matches workflowId (prevents loading stale cached workflow)

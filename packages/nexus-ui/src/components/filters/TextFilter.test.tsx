@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 
@@ -304,7 +304,9 @@ describe('TextFilter', () => {
 
       await user.click(statusToggle)
 
-      expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.queryByText('Enabled')).not.toBeInTheDocument()
+      })
     })
   })
 })
