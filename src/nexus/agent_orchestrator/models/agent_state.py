@@ -60,6 +60,10 @@ class AgentState(TypedDict):
     result: dict[str, Any] | None
     """Final result from agent execution"""
 
+    # Token usage tracking (accumulated across LLM calls via operator.add)
+    llm_token_usage_log: Annotated[list[dict[str, Any]], operator.add]
+    """Per-call token usage entries from LLM provider responses"""
+
 
 class AgentStateFactory:
     """Factory for creating AgentState instances."""
@@ -96,4 +100,5 @@ class AgentStateFactory:
             metadata=metadata,
             messages=[HumanMessage(prompt)],
             result=None,
+            llm_token_usage_log=[],
         )

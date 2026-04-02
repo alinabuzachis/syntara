@@ -34,6 +34,7 @@ def sample_agent_state() -> AgentState:
         "metadata": None,
         "messages": [HumanMessage("What is the weather today?")],
         "result": None,
+        "llm_token_usage_log": [],
     }
 
 
@@ -398,6 +399,7 @@ class TestConcurrentRequestsWithIndependentState:
             "metadata": None,
             "messages": [HumanMessage(query)],
             "result": None,
+            "llm_token_usage_log": [],
         }
 
     def _validate_concurrent_retry_results(

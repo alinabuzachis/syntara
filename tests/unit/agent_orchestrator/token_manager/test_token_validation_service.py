@@ -88,6 +88,8 @@ async def test_validate_and_record_within_limit(
         user_id=user_config.user_id,
         token_count=1500,
         session=mock_session,
+        estimated_input_tokens=1500,
+        invocation_id=None,
     )
 
 
@@ -258,3 +260,75 @@ async def test_get_current_usage_no_usage(
     assert result["current_usage"] == 0
     assert result["token_limit"] == 10000
     assert result["remaining"] == 10000
+
+
+# T007: validate_and_record with invocation_id
+
+
+@pytest.mark.asyncio
+async def test_validate_and_record_passes_invocation_id(
+    service: TokenValidationService,
+    mock_calculator: MagicMock,
+    mock_repository: AsyncMock,
+    user_config: UserTokenConfig,
+) -> None:
+    """Test that validate_and_record passes invocation_id to record_usage."""
+    mock_session = AsyncMock()
+    mock_nested = AsyncMock()
+    mock_nested.__aenter__ = AsyncMock(return_value=None)
+    mock_nested.__aexit__ = AsyncMock(return_value=None)
+    mock_session.begin_nested = MagicMock(return_value=mock_nested)
+
+    mock_repository.get_user_config.return_value = user_config
+    mock_repository.get_user_config_with_lock.return_value = user_config
+    mock_repository.calculate_current_usage.return_value = 0
+    mock_calculator.count_tokens.return_value = 1500
+
+    invocation_id = uuid4()
+
+    tokens = await service.validate_and_record(
+        user_id=user_config.user_id,
+        request_text="test request",
+        session=mock_session,
+        invocation_id=invocation_id,
+    )
+
+    assert tokens == 1500
+    mock_repository.record_usage.assert_called_once_with(
+        user_id=user_config.user_id,
+        token_count=1500,
+        session=mock_session,
+        estimated_input_tokens=1500,
+        invocation_id=invocation_id,
+    )
+
+
+@pytest.mark.asyncio
+async def test_validate_and_record_sets_estimated_input_tokens_equal_to_token_count(
+    service: TokenValidationService,
+    mock_calculator: MagicMock,
+    mock_repository: AsyncMock,
+    user_config: UserTokenConfig,
+) -> None:
+    """Test that estimated_input_tokens is set equal to token_count."""
+    mock_session = AsyncMock()
+    mock_nested = AsyncMock()
+    mock_nested.__aenter__ = AsyncMock(return_value=None)
+    mock_nested.__aexit__ = AsyncMock(return_value=None)
+    mock_session.begin_nested = MagicMock(return_value=mock_nested)
+
+    mock_repository.get_user_config.return_value = user_config
+    mock_repository.get_user_config_with_lock.return_value = user_config
+    mock_repository.calculate_current_usage.return_value = 0
+    mock_calculator.count_tokens.return_value = 2000
+
+    tokens = await service.validate_and_record(
+        user_id=user_config.user_id,
+        request_text="test request",
+        session=mock_session,
+    )
+
+    assert tokens == 2000
+    # estimated_input_tokens should equal token_count
+    call_kwargs = mock_repository.record_usage.call_args[1]
+    assert call_kwargs["estimated_input_tokens"] == 2000

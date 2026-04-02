@@ -2,20 +2,27 @@
 
 This module provides TokenUsageRepository for database operations:
 - User token configuration retrieval and updates
-- Token usage record creation
+- Token usage record creation and post-LLM update
 - Rolling window usage calculation
 """
 
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+import structlog
 from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.token_manager.exceptions import UserTokenConfigNotFoundError
-from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
+from nexus.agent_orchestrator.token_manager.models import (
+    TokenUsageRecord,
+    UsageDetailsResult,
+    UserTokenConfig,
+)
 from nexus.core.models import User
+
+logger = structlog.get_logger(__name__)
 
 
 class TokenUsageRepository:
@@ -113,6 +120,12 @@ class TokenUsageRepository:
         This method sums all token usage records for the user that fall within
         the rolling time window (now - window_duration_seconds to now).
 
+        Note on the update model: token_count starts as the tiktoken estimate
+        (budget reservation for in-flight requests) and is updated to the actual
+        total (prompt_tokens + completion_tokens) after the LLM call completes.
+        SUM(token_count) therefore reflects estimates for in-flight invocations
+        and actual totals for completed invocations — no query changes needed.
+
         Args:
             user_id: The user's UUID
             window_duration_seconds: Rolling window duration in seconds
@@ -143,16 +156,21 @@ class TokenUsageRepository:
         token_count: int,
         session: AsyncSession,
         request_text_hash: str | None = None,
+        estimated_input_tokens: int | None = None,
+        invocation_id: UUID | None = None,
     ) -> TokenUsageRecord:
         """Record a new token usage entry.
 
-        Creates an immutable TokenUsageRecord with the current timestamp.
+        Creates a TokenUsageRecord with the current timestamp. The record may
+        later be updated with actual token counts after the LLM call completes.
 
         Args:
             user_id: The user's UUID
-            token_count: Number of tokens in the request
+            token_count: Number of tokens in the request (tiktoken estimate)
             session: Async database session
             request_text_hash: Optional hash of request text
+            estimated_input_tokens: Tiktoken estimate preserved for audit
+            invocation_id: Optional FK to invocations table
 
         Returns:
             The created TokenUsageRecord
@@ -162,6 +180,8 @@ class TokenUsageRepository:
             user_id=user_id,
             token_count=token_count,
             request_text_hash=request_text_hash,
+            estimated_input_tokens=estimated_input_tokens,
+            invocation_id=invocation_id,
         )
 
         session.add(record)
@@ -211,3 +231,76 @@ class TokenUsageRepository:
         await session.refresh(config)
 
         return config
+
+    async def update_with_actual_token_usage(
+        self,
+        invocation_id: UUID,
+        prompt_tokens: int,
+        completion_tokens: int,
+        token_count: int,
+        usage_details: UsageDetailsResult,
+        session: AsyncSession,
+        user_id: UUID | None = None,
+    ) -> bool:
+        """Update a token usage record with actual provider-reported token counts.
+
+        Finds the record by invocation_id and updates it with actual token data
+        from the LLM provider response. If no pre-LLM record exists (e.g., when
+        context assembly had no documents to validate), creates a new record with
+        the actual token counts.
+
+        Args:
+            invocation_id: The invocation UUID to find the record
+            prompt_tokens: Actual input tokens from the provider
+            completion_tokens: Actual output tokens from the provider
+            token_count: Actual total (prompt_tokens + completion_tokens)
+            usage_details: Full provider-reported token breakdown (dict for single
+                call, list of dicts for multiple calls)
+            session: Async database session
+            user_id: User UUID, required when creating a new record
+
+        Returns:
+            True if a record was found/created and updated, False otherwise
+
+        """
+        expected = prompt_tokens + completion_tokens
+        if token_count != expected:
+            msg = f"token_count ({token_count}) must equal prompt_tokens + completion_tokens ({expected})"
+            raise ValueError(msg)
+
+        statement = select(TokenUsageRecord).where(TokenUsageRecord.invocation_id == invocation_id)
+        result = await session.exec(statement)
+        record = result.one_or_none()
+
+        if record is None:
+            if user_id is None:
+                logger.warning(
+                    "No TokenUsageRecord found for invocation_id=%s and no user_id provided, skipping",
+                    invocation_id,
+                )
+                return False
+
+            logger.info(
+                "No pre-LLM TokenUsageRecord found for invocation_id=%s, creating with actual tokens",
+                invocation_id,
+            )
+            record = TokenUsageRecord(
+                user_id=user_id,
+                token_count=token_count,
+                invocation_id=invocation_id,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                usage_details=usage_details,
+            )
+            session.add(record)
+            await session.flush()
+            return True
+
+        record.prompt_tokens = prompt_tokens
+        record.completion_tokens = completion_tokens
+        record.token_count = token_count
+        record.usage_details = usage_details
+
+        await session.flush()
+
+        return True

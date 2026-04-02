@@ -560,3 +560,61 @@ class TestToolEventProcessing:
         assert published_event["data"]["tool_name"] == "calculate_sum"
         # Should extract .content from ToolMessage object
         assert published_event["data"]["tool_output"] == '{"operation": "sum", "result": 8}'
+
+
+# T015: _build_streaming_result with llm_token_usage_log
+
+
+class TestBuildStreamingResultTokenUsage:
+    """Tests for llm_token_usage_log extraction in _build_streaming_result."""
+
+    def test_includes_llm_token_usage_log_from_final_state(self) -> None:
+        """Test that llm_token_usage_log is extracted from final_state."""
+        mock_llm = AsyncMock()
+        mock_llm.model_name = "test-model"
+        mock_context_manager = MagicMock()
+        service = OrchestrationService(mock_llm, mock_context_manager)
+
+        invocation_id = uuid4()
+        final_state = {
+            "result": {"content": "test", "type": "answer"},
+            "llm_token_usage_log": [
+                {"input_tokens": 500, "output_tokens": 100, "usage_details": {}},
+            ],
+        }
+
+        result = service._build_streaming_result(invocation_id, "stream-1", final_state)  # type: ignore[arg-type]
+
+        assert "llm_token_usage_log" in result
+        assert len(result["llm_token_usage_log"]) == 1
+        assert result["llm_token_usage_log"][0]["input_tokens"] == 500
+
+    def test_defaults_to_empty_list_when_no_usage_log(self) -> None:
+        """Test default empty list when final_state has no llm_token_usage_log."""
+        mock_llm = AsyncMock()
+        mock_llm.model_name = "test-model"
+        mock_context_manager = MagicMock()
+        service = OrchestrationService(mock_llm, mock_context_manager)
+
+        invocation_id = uuid4()
+        final_state = {
+            "result": {"content": "test", "type": "answer"},
+        }
+
+        result = service._build_streaming_result(invocation_id, "stream-1", final_state)  # type: ignore[arg-type]
+
+        assert result.get("llm_token_usage_log", []) == []
+
+    def test_handles_final_state_none(self) -> None:
+        """Test graceful handling when final_state is None."""
+        mock_llm = AsyncMock()
+        mock_llm.model_name = "test-model"
+        mock_context_manager = MagicMock()
+        service = OrchestrationService(mock_llm, mock_context_manager)
+
+        invocation_id = uuid4()
+        result = service._build_streaming_result(invocation_id, "stream-1", None)
+
+        # Should return fallback response without crashing
+        assert isinstance(result, dict)
+        assert result.get("llm_token_usage_log", []) == []

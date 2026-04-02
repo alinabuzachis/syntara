@@ -42,6 +42,7 @@ def _make_agent_state(**overrides: object) -> AgentState:
         "context_package": None,
         "metadata": None,
         "result": None,
+        "llm_token_usage_log": [],
     }
     state = copy.deepcopy(defaults)
     state.update(overrides)  # type: ignore[typeddict-item]

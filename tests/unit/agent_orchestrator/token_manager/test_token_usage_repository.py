@@ -1,6 +1,7 @@
 """Unit tests for TokenUsageRepository."""
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
@@ -11,6 +12,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator.token_manager.exceptions import UserTokenConfigNotFoundError
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
+
+if TYPE_CHECKING:
+    from nexus.core.models import User
 
 
 @pytest.fixture
@@ -253,3 +257,188 @@ async def test_update_user_config_create_new(
     result = await test_db_session.exec(select(UserTokenConfig).where(UserTokenConfig.user_id == test_user.id))
     saved_config = result.one()
     assert saved_config.token_limit == 15000
+
+
+# update_with_actual_token_usage Tests (T002)
+
+
+@pytest_asyncio.fixture
+async def token_record_with_invocation(
+    test_db_session: AsyncSession, test_user: "User", user_config: UserTokenConfig
+) -> TokenUsageRecord:
+    """Create a token usage record with invocation_id set (simulating pre-LLM creation)."""
+    from nexus.agent_orchestrator.models import Invocation, InvocationStatus
+
+    invocation = Invocation(
+        prompt="test prompt",
+        created_by=test_user.id,
+        session_id="session-001",
+        status=InvocationStatus.RUNNING,
+    )
+    test_db_session.add(invocation)
+    await test_db_session.flush()
+
+    record = TokenUsageRecord(
+        user_id=test_user.id,
+        token_count=1500,
+        estimated_input_tokens=1500,
+        invocation_id=invocation.id,
+    )
+    test_db_session.add(record)
+    await test_db_session.commit()
+    return record
+
+
+@pytest.mark.asyncio
+async def test_update_with_actual_token_usage(
+    repository: TokenUsageRepository,
+    token_record_with_invocation: TokenUsageRecord,
+    test_db_session: AsyncSession,
+) -> None:
+    """Test updating a record with actual token counts from the LLM provider."""
+    record = token_record_with_invocation
+    assert record.invocation_id is not None
+    usage_details = [{"prompt_tokens": 943, "completion_tokens": 500, "total_tokens": 1443}]
+
+    updated = await repository.update_with_actual_token_usage(
+        invocation_id=record.invocation_id,
+        prompt_tokens=943,
+        completion_tokens=500,
+        token_count=1443,
+        usage_details=usage_details,
+        session=test_db_session,
+    )
+
+    assert updated is True
+
+    # Verify the record was updated in DB
+    await test_db_session.refresh(record)
+    assert record.prompt_tokens == 943
+    assert record.completion_tokens == 500
+    assert record.token_count == 1443
+    assert record.usage_details == usage_details
+    # estimated_input_tokens should be preserved
+    assert record.estimated_input_tokens == 1500
+
+
+@pytest.mark.asyncio
+async def test_update_with_actual_token_usage_no_record_found(
+    repository: TokenUsageRepository,
+    test_db_session: AsyncSession,
+) -> None:
+    """Test that update_with_actual_token_usage returns False when no record matches invocation_id."""
+    non_existent_id = uuid4()
+
+    updated = await repository.update_with_actual_token_usage(
+        invocation_id=non_existent_id,
+        prompt_tokens=943,
+        completion_tokens=500,
+        token_count=1443,
+        usage_details=[{"prompt_tokens": 943}],
+        session=test_db_session,
+    )
+
+    assert updated is False
+
+
+@pytest.mark.asyncio
+async def test_update_with_actual_token_usage_zero_completion(
+    repository: TokenUsageRepository,
+    token_record_with_invocation: TokenUsageRecord,
+    test_db_session: AsyncSession,
+) -> None:
+    """Test updating with zero completion tokens (empty LLM response)."""
+    record = token_record_with_invocation
+    assert record.invocation_id is not None
+
+    updated = await repository.update_with_actual_token_usage(
+        invocation_id=record.invocation_id,
+        prompt_tokens=943,
+        completion_tokens=0,
+        token_count=943,
+        usage_details=[{"prompt_tokens": 943, "completion_tokens": 0, "total_tokens": 943}],
+        session=test_db_session,
+    )
+
+    assert updated is True
+    await test_db_session.refresh(record)
+    assert record.completion_tokens == 0
+    assert record.token_count == 943
+
+
+@pytest.mark.asyncio
+async def test_update_with_actual_token_usage_rejects_mismatched_token_count(
+    repository: TokenUsageRepository,
+    token_record_with_invocation: TokenUsageRecord,
+    test_db_session: AsyncSession,
+) -> None:
+    """Test that token_count must equal prompt_tokens + completion_tokens."""
+    record = token_record_with_invocation
+    assert record.invocation_id is not None
+
+    with pytest.raises(ValueError, match=r"token_count.*must equal"):
+        await repository.update_with_actual_token_usage(
+            invocation_id=record.invocation_id,
+            prompt_tokens=943,
+            completion_tokens=500,
+            token_count=9999,  # mismatch
+            usage_details=[],
+            session=test_db_session,
+        )
+
+
+# T006: record_usage with estimated_input_tokens and invocation_id
+
+
+@pytest.mark.asyncio
+async def test_record_usage_with_estimated_input_tokens(
+    repository: TokenUsageRepository,
+    user_config: UserTokenConfig,
+    test_db_session: AsyncSession,
+) -> None:
+    """Test that record_usage stores estimated_input_tokens when provided."""
+    record = await repository.record_usage(
+        user_id=user_config.user_id,
+        token_count=1500,
+        session=test_db_session,
+        estimated_input_tokens=1500,
+    )
+    await test_db_session.commit()
+
+    assert record.estimated_input_tokens == 1500
+    assert record.token_count == 1500
+
+
+@pytest.mark.asyncio
+async def test_record_usage_with_invocation_id(
+    repository: TokenUsageRepository,
+    user_config: UserTokenConfig,
+    test_db_session: AsyncSession,
+    test_user: "User",
+) -> None:
+    """Test that record_usage stores invocation_id when provided."""
+    from nexus.agent_orchestrator.models import Invocation, InvocationStatus
+
+    invocation = Invocation(
+        prompt="test prompt",
+        created_by=test_user.id,
+        session_id="session-001",
+        status=InvocationStatus.RUNNING,
+    )
+    test_db_session.add(invocation)
+    await test_db_session.flush()
+
+    record = await repository.record_usage(
+        user_id=user_config.user_id,
+        token_count=1500,
+        session=test_db_session,
+        estimated_input_tokens=1500,
+        invocation_id=invocation.id,
+    )
+    await test_db_session.commit()
+
+    assert record.invocation_id == invocation.id
+    assert record.estimated_input_tokens == 1500
+    # Post-LLM fields should still be None
+    assert record.prompt_tokens is None
+    assert record.completion_tokens is None

@@ -492,6 +492,10 @@ class OrchestrationService:
         if final_state and final_state.get("result"):
             enhanced_result = final_state["result"]
             if isinstance(enhanced_result, dict):
+                # Thread token usage log through to InvocationExecutor
+                llm_token_usage_log = final_state.get("llm_token_usage_log", [])
+                if llm_token_usage_log:
+                    enhanced_result["llm_token_usage_log"] = llm_token_usage_log
                 return self._enhance_result_with_streaming_metadata(enhanced_result, stream_id)
 
         # Fallback: Build placeholder response if no final state available

@@ -170,10 +170,11 @@ class AssemblerService:
                     correlation_id=correlation_id,
                     user_id=str(user_id),
                 )
-                original_token_count = await self.token_service.validate_and_record(
+                original_token_count = await self._validate_tokens(
+                    content=combined_content,
                     user_id=user_id,
-                    request_text=combined_content,
                     session=session,
+                    invocation_id=invocation_id,
                 )
                 final_token_count = original_token_count
 
@@ -202,6 +203,7 @@ class AssemblerService:
                     correlation_id=correlation_id,
                     user_id=user_id,
                     session=session,
+                    invocation_id=invocation_id,
                 )
                 compression_applied = True
 
@@ -335,6 +337,35 @@ class AssemblerService:
             "compression_applied": compression_applied,
         }
 
+    async def _validate_tokens(
+        self,
+        content: str,
+        user_id: UUID,
+        session: AsyncSession,
+        invocation_id: UUID | None,
+    ) -> int:
+        """Validate content against token budget via TokenValidationService.
+
+        Args:
+            content: Text to validate
+            user_id: User ID for token usage tracking
+            session: Database session for token validation
+            invocation_id: Optional invocation ID for foreign key reference
+
+        Returns:
+            Token count from validation
+
+        Raises:
+            TokenLimitExceededError: When token validation fails
+
+        """
+        return await self.token_service.validate_and_record(
+            user_id=user_id,
+            request_text=content,
+            session=session,
+            invocation_id=invocation_id,
+        )
+
     async def _compress_with_retry(
         self,
         documents: list[RelevantDocument],
@@ -343,6 +374,7 @@ class AssemblerService:
         correlation_id: str,
         user_id: UUID | None = None,
         session: AsyncSession | None = None,
+        invocation_id: UUID | None = None,
     ) -> tuple[list[Any], int]:
         """Attempt compression with progressive retry loop.
 
@@ -353,6 +385,7 @@ class AssemblerService:
             correlation_id: Correlation ID for tracing
             user_id: Optional user ID for token validation
             session: Optional database session for token validation
+            invocation_id: Optional invocation ID for token tracking
 
         Returns:
             Tuple of (compressed_documents, retry_count)
@@ -401,10 +434,11 @@ class AssemblerService:
                 # Validate compressed content against token budget
                 if user_id is not None and session is not None:
                     # This will raise TokenLimitExceededError if still over budget
-                    await self.token_service.validate_and_record(
+                    await self._validate_tokens(
+                        content=compressed_content,
                         user_id=user_id,
-                        request_text=compressed_content,
                         session=session,
+                        invocation_id=invocation_id,
                     )
 
                 # Create new document with compressed content

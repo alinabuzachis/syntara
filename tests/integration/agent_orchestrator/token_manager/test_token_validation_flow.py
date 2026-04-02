@@ -4,6 +4,7 @@ These tests cover end-to-end scenarios from the specification:
 - T009: Request within limit accepted
 - T010: Request exceeding limit blocked
 - T013: Per-user independence
+- T023: Budget uses actual token_count for completed invocations
 """
 
 import pytest
@@ -12,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.token_manager.exceptions import TokenLimitExceededError
 from nexus.agent_orchestrator.token_manager.models import UserTokenConfig
+from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
 from nexus.agent_orchestrator.token_manager.services import TokenValidationService
 
 
@@ -243,3 +245,69 @@ async def test_per_user_independence(
 
     # User B should have unchanged usage (request blocked)
     assert 4300 <= final_usage_b["current_usage"] <= 4700
+
+
+# T023: Budget uses actual token_count for completed invocations
+
+
+@pytest.mark.asyncio
+async def test_budget_reflects_actual_tokens_after_update(
+    service: TokenValidationService,
+    user_a_config: UserTokenConfig,
+    test_db_session: AsyncSession,
+    test_user,
+) -> None:
+    """US1-S2/US3-S3: Budget uses actual token_count for completed invocations.
+
+    When a record is updated with actual tokens (lower than estimate),
+    the budget should reflect the actual total, freeing up capacity.
+    """
+    from nexus.agent_orchestrator.models import Invocation, InvocationStatus
+
+    # Create an invocation
+    invocation = Invocation(
+        prompt="test prompt",
+        created_by=test_user.id,
+        session_id="session-001",
+        status=InvocationStatus.RUNNING,
+    )
+    test_db_session.add(invocation)
+    await test_db_session.flush()
+
+    # Record usage with estimate of 5000 tokens
+    text_5000 = " ".join(["word"] * 5000)
+    await service.validate_and_record(
+        user_id=user_a_config.user_id,
+        request_text=text_5000,
+        session=test_db_session,
+        invocation_id=invocation.id,
+    )
+    await test_db_session.commit()
+
+    # Verify initial budget includes the estimate
+    usage_before = await service.get_current_usage(
+        user_id=user_a_config.user_id,
+        session=test_db_session,
+    )
+    assert 4800 <= usage_before["current_usage"] <= 5200
+
+    # Simulate post-LLM update with LOWER actual tokens
+    repo = TokenUsageRepository()
+    await repo.update_with_actual_token_usage(
+        invocation_id=invocation.id,
+        prompt_tokens=2000,
+        completion_tokens=500,
+        token_count=2500,  # Much less than the ~5000 estimate
+        usage_details=[{"prompt_tokens": 2000, "completion_tokens": 500}],
+        session=test_db_session,
+    )
+    await test_db_session.commit()
+
+    # Budget should now reflect actual total (2500), not estimate (~5000)
+    usage_after = await service.get_current_usage(
+        user_id=user_a_config.user_id,
+        session=test_db_session,
+    )
+    assert 2300 <= usage_after["current_usage"] <= 2700
+    # User should have more remaining capacity now
+    assert usage_after["remaining"] > usage_before["remaining"]

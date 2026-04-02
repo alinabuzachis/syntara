@@ -4,7 +4,7 @@ import contextlib
 import time
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 import structlog
@@ -15,6 +15,8 @@ from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_ll
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
+from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDetailsResult
+from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
@@ -24,6 +26,35 @@ from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+def _aggregate_token_usage(
+    usage_log: list[dict[str, Any]],
+) -> tuple[int, int, int, UsageDetailsResult]:
+    """Aggregate token counts from LLM call entries and build usage_details.
+
+    Maps extraction-layer field names (input_tokens, output_tokens) to
+    DB-layer field names (prompt_tokens, completion_tokens).
+
+    Args:
+        usage_log: List of token usage entries from GenericAgent.
+
+    Returns:
+        Tuple of (prompt_tokens, completion_tokens, total_tokens, usage_details).
+        usage_details is always a list of per-call details, or None if no
+        provider metadata was captured.
+
+    """
+    prompt_tokens = sum(entry.get("input_tokens", 0) for entry in usage_log)
+    completion_tokens = sum(entry.get("output_tokens", 0) for entry in usage_log)
+    total_tokens = prompt_tokens + completion_tokens
+
+    filtered: list[UsageDetails] = [
+        entry["usage_details"] for entry in usage_log if entry.get("usage_details") is not None
+    ]
+    usage_details: UsageDetailsResult = filtered if filtered else None
+
+    return prompt_tokens, completion_tokens, total_tokens, usage_details
 
 
 class InvocationExecutor:
@@ -37,16 +68,19 @@ class InvocationExecutor:
         self,
         session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db,
         file_manager_factory: Callable[[], FileManager] = get_file_manager,
+        token_usage_repository: TokenUsageRepository | None = None,
     ) -> None:
         """Initialize execution service with database session factory.
 
         Args:
             session_factory: Factory function for creating database sessions
             file_manager_factory: Factory function for creating FileManager
+            token_usage_repository: Optional repository for token usage updates
 
         """
         self.session_factory = session_factory
         self.file_manager = file_manager_factory()
+        self.token_usage_repository = token_usage_repository or TokenUsageRepository()
         # Create async context manager from the session factory
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
 
@@ -128,6 +162,9 @@ class InvocationExecutor:
                     )
                     return  # Don't override the CANCELLED status
 
+                # Update token usage record with actual provider-reported counts
+                await self._update_token_usage(result_dict, invocation, session)
+
                 # Store result and mark as completed (after cancellation check)
                 invocation.result = result_dict
                 invocation.status = InvocationStatus.COMPLETED
@@ -156,7 +193,61 @@ class InvocationExecutor:
                 )
                 await WorkflowSignalClient.send_failure_signal(callback_url, exec_invocation_id, e)
 
-    async def _init_orchestration(self, invocation: Invocation, session: AsyncSession) -> OrchestrationService | None:
+    async def _update_token_usage(
+        self,
+        result_dict: dict[str, Any],
+        invocation: Invocation,
+        session: AsyncSession,
+    ) -> None:
+        """Update TokenUsageRecord with actual provider-reported token counts.
+
+        Pops llm_token_usage_log from result_dict (so it's not stored in invocation.result),
+        aggregates token counts across calls, and updates the record via SAVEPOINT.
+        Non-blocking: logs warning on failure but never raises (FR-007).
+
+        Args:
+            result_dict: Result dictionary (modified in-place to remove llm_token_usage_log)
+            invocation: The Invocation object (provides .id as UUID)
+            session: Async database session
+
+        """
+        usage_log = result_dict.pop("llm_token_usage_log", [])
+        if not usage_log:
+            return
+
+        total_prompt, total_completion, total_tokens, usage_details = _aggregate_token_usage(usage_log)
+
+        try:
+            async with session.begin_nested():
+                await self.token_usage_repository.update_with_actual_token_usage(
+                    invocation_id=invocation.id,
+                    prompt_tokens=total_prompt,
+                    completion_tokens=total_completion,
+                    token_count=total_tokens,
+                    usage_details=usage_details,
+                    session=session,
+                    user_id=invocation.created_by,
+                )
+            logger.info(
+                "Post-LLM token usage updated",
+                user_id=str(invocation.created_by),
+                invocation_id=str(invocation.id),
+                prompt_tokens=total_prompt,
+                completion_tokens=total_completion,
+                token_count=total_tokens,
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "Failed to update post-LLM token usage (non-blocking)",
+                user_id=str(invocation.created_by),
+                invocation_id=str(invocation.id),
+                prompt_tokens=total_prompt,
+                completion_tokens=total_completion,
+                token_count=total_tokens,
+                exc_info=True,
+            )
+
+    async def _init_orchestration(self, invocation: Invocation, session: AsyncSession) -> "OrchestrationService | None":
         """Initialise LLM and OrchestrationService, handling configuration failures.
 
         Returns the OrchestrationService instance or ``None`` on failure.

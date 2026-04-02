@@ -44,6 +44,7 @@ class TestOrchestratorAgentContextIntegration:
             "messages": [HumanMessage("test")],
             "result": None,
             "metadata": None,
+            "llm_token_usage_log": [],
         }
 
         # Act
@@ -83,6 +84,7 @@ class TestOrchestratorAgentContextIntegration:
             "messages": [HumanMessage("test")],
             "result": None,
             "metadata": None,
+            "llm_token_usage_log": [],
         }
 
         # Act
@@ -132,6 +134,7 @@ class TestOrchestratorAgentContextIntegration:
                 "messages": [HumanMessage("test")],
                 "result": None,
                 "metadata": None,
+                "llm_token_usage_log": [],
             }
 
             # Act
@@ -176,6 +179,7 @@ class TestOrchestratorAgentRouting:
                 "messages": [HumanMessage("test")],
                 "result": None,
                 "metadata": None,
+                "llm_token_usage_log": [],
             }
 
             # Act
@@ -214,6 +218,7 @@ class TestOrchestratorAgentRouting:
                 "messages": [HumanMessage("test")],
                 "result": None,
                 "metadata": None,
+                "llm_token_usage_log": [],
             }
 
             # Act
@@ -256,6 +261,7 @@ class TestOrchestratorAgentPromptFormatting:
             "messages": [HumanMessage("test")],
             "result": None,
             "metadata": None,
+            "llm_token_usage_log": [],
         }
 
         # Act
@@ -301,6 +307,7 @@ class TestOrchestratorAgentPromptFormatting:
             "messages": [HumanMessage("test")],
             "result": None,
             "metadata": None,
+            "llm_token_usage_log": [],
         }
 
         # Act
@@ -337,6 +344,7 @@ class TestOrchestratorAgentLogging:
             "messages": [HumanMessage("test")],
             "result": None,
             "metadata": None,
+            "llm_token_usage_log": [],
         }
 
         # Act

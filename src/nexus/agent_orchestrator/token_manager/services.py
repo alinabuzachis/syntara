@@ -153,6 +153,7 @@ class TokenValidationService:
         user_id: UUID,
         request_text: str,
         session: AsyncSession,
+        invocation_id: UUID | None = None,
     ) -> int:
         """Validate token limit and record usage.
 
@@ -172,6 +173,7 @@ class TokenValidationService:
             user_id: The user's UUID
             request_text: The text of the request to validate
             session: Async database session
+            invocation_id: Optional invocation UUID for linking the token usage record
 
         Returns:
             Number of tokens in the request
@@ -219,11 +221,13 @@ class TokenValidationService:
                     request_tokens=request_tokens,
                 )
 
-            # Record the usage
+            # Record the usage with estimated_input_tokens for audit comparison
             await self.repository.record_usage(
                 user_id=user_id,
                 token_count=request_tokens,
                 session=session,
+                estimated_input_tokens=request_tokens,
+                invocation_id=invocation_id,
             )
 
             logger.info(

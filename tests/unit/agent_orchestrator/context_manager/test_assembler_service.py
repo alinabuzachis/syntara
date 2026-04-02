@@ -483,3 +483,59 @@ class TestPackageMetadataRetryCount:
         # Verify retry_count=0 when within budget
         assert result.package_metadata["compression_retry_count"] == 0
         assert result.package_metadata["compression_applied"] is False
+
+
+# T008: AssemblerService passes invocation_id to validate_and_record
+
+
+class TestAssemblerServiceInvocationIdWiring:
+    """Tests verifying invocation_id is passed to validate_and_record."""
+
+    @pytest.fixture
+    def assembler_service(self) -> AssemblerService:
+        """Create AssemblerService with mock token_service."""
+        token_service = AsyncMock()
+        token_service.validate_and_record = AsyncMock(return_value=100)
+        compressor_service = AsyncMock()
+        return AssemblerService(token_service, compressor_service)
+
+    @pytest.mark.asyncio
+    async def test_assemble_passes_invocation_id_to_validate_and_record(
+        self, assembler_service: AssemblerService
+    ) -> None:
+        """Test that invocation_id is forwarded to validate_and_record at first call site."""
+        docs = [
+            RelevantDocument(
+                content="test document content",
+                relevancy_score=0.8,
+                file_metadata=FileMetadata(
+                    id=uuid4(),
+                    filename="test.txt",
+                    size_bytes=100,
+                    mime_type="text/plain",
+                    file_path="/path/to/test.txt",
+                ),
+                source_type="uploaded_file",
+            ),
+        ]
+        user_id = uuid4()
+        invocation_id = uuid4()
+        mock_session = AsyncMock()
+
+        await assembler_service.assemble(
+            documents=docs,
+            correlation_id="test-correlation",
+            max_tokens=10000,
+            compression_loop=0,
+            invocation_id=invocation_id,
+            user_id=user_id,
+            session=mock_session,
+        )
+
+        # Verify validate_and_record was called with invocation_id
+        assembler_service.token_service.validate_and_record.assert_called_once_with(  # type: ignore[attr-defined]
+            user_id=user_id,
+            request_text="test document content",
+            session=mock_session,
+            invocation_id=invocation_id,
+        )
