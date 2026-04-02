@@ -79,6 +79,10 @@ class UsageCounter(UserOwnedResource, table=True):
 
     error_count: int = Field(default=0, ge=0, description="Number of failed requests")
 
+    timeout_count: int = Field(
+        default=0, ge=0, description="Number of timed-out requests", sa_column_kwargs={"server_default": "0"}
+    )
+
     total_duration_ms: int = Field(default=0, ge=0, description="Total execution time in milliseconds")
 
     window_start: datetime = Field(

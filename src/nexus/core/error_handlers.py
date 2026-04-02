@@ -94,7 +94,7 @@ def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse
         RFC 9457 compliant error response
 
     """
-    from nexus.core.utils.retry import is_retryable_error  # noqa: PLC0415
+    from nexus.core.utils.retry import is_retryable_error  # noqa: PLC0415 — circular dep
 
     # Extract detail from HTTPException
     detail_content = exc.detail if isinstance(exc.detail, str) else str(exc.detail)

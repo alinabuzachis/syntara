@@ -54,7 +54,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         with (
             patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
-            patch("nexus.agent_orchestrator.services.orchestration_service.OrchestrationService") as mock_orchestration,
+            patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
         ):
             # Mock execute as async method
             mock_orchestration.return_value.execute = AsyncMock(return_value={"result": "test response"})
@@ -100,7 +100,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         with (
             patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
-            patch("nexus.agent_orchestrator.services.orchestration_service.OrchestrationService") as mock_orchestration,
+            patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
             patch("nexus.agent_orchestrator.executor.invocation_executor.datetime") as mock_datetime,
         ):
             # Mock execute as async method
@@ -183,7 +183,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         with (
             patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
-            patch("nexus.agent_orchestrator.services.orchestration_service.OrchestrationService") as mock_orchestration,
+            patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
         ):
             # Simulate InvocationCancelledError being raised during execution
             mock_orchestration.return_value.execute.side_effect = InvocationCancelledError(
@@ -235,7 +235,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         with (
             patch("nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm"),
             patch("nexus.agent_orchestrator.executor.invocation_executor.ContextManagerPlanner"),
-            patch("nexus.agent_orchestrator.services.orchestration_service.OrchestrationService") as mock_orchestration,
+            patch("nexus.agent_orchestrator.executor.invocation_executor.OrchestrationService") as mock_orchestration,
         ):
             # Mock execute as async method
             mock_orchestration.return_value.execute = AsyncMock(return_value={"result": "test response"})

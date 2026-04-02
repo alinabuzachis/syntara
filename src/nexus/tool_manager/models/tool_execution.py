@@ -42,6 +42,20 @@ class ToolExecution(UserOwnedResource, table=True):
 
     __tablename__ = "tool_executions"
 
+    __filterable_fields__: ClassVar[list[str]] = [
+        *UserOwnedResource.__filterable_fields__,
+        "tool_id",
+        "provider_id",
+        "user_id",
+        "status",
+    ]
+
+    __sortable_fields__: ClassVar[list[str]] = [
+        *UserOwnedResource.__sortable_fields__,
+        "execution_start",
+        "duration_ms",
+    ]
+
     tool_id: UUID = Field(foreign_key="tools.id", description="Foreign key to Tool", index=True)
 
     provider_id: UUID = Field(foreign_key="tool_providers.id", description="Foreign key to Tool Provider", index=True)

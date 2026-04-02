@@ -4,7 +4,7 @@ import contextlib
 import time
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, cast
+from typing import cast
 from uuid import UUID
 
 import structlog
@@ -14,6 +14,7 @@ from nexus.agent_orchestrator import ContextManagerPlanner
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
+from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
@@ -21,9 +22,6 @@ from nexus.files import FileManager, FileStatus, get_file_manager
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
-
-if TYPE_CHECKING:
-    from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -158,16 +156,12 @@ class InvocationExecutor:
                 )
                 await WorkflowSignalClient.send_failure_signal(callback_url, exec_invocation_id, e)
 
-    async def _init_orchestration(self, invocation: Invocation, session: AsyncSession) -> "OrchestrationService | None":
+    async def _init_orchestration(self, invocation: Invocation, session: AsyncSession) -> OrchestrationService | None:
         """Initialise LLM and OrchestrationService, handling configuration failures.
 
         Returns the OrchestrationService instance or ``None`` on failure.
         """
         try:
-            from nexus.agent_orchestrator.services.orchestration_service import (  # noqa: PLC0415
-                OrchestrationService,
-            )
-
             logger.info("Initializing LLM for invocation", invocation_id=invocation.id)
             llm = get_openrouter_llm()
             context_manager_planner = ContextManagerPlanner(session_factory=self.session_factory)

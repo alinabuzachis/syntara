@@ -34,6 +34,7 @@ from filelock import FileLock
 
 from nexus.core.config.base import get_settings
 from nexus.core.exceptions import NexusError
+from nexus.core.router import validate_routes
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -418,9 +419,6 @@ def _validate_discovered_routers(app: FastAPI, routers: list[RouterInfo]) -> Non
         return
 
     try:
-        # Import here to allow dynamic loading - PLC0415 justified for optional validation
-        from nexus.core.router import validate_routes  # noqa: PLC0415
-
         # Build list of schema files based on discovered routers
         schema_files = _build_schema_file_list(routers)
 
@@ -430,8 +428,6 @@ def _validate_discovered_routers(app: FastAPI, routers: list[RouterInfo]) -> Non
         else:
             logger.info("No schema files found for validation")
 
-    except ImportError:
-        logger.warning("OpenAPI validation module not available")
     except Exception:
         logger.exception("Error during router validation")
 

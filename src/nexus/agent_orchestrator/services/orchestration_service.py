@@ -371,6 +371,24 @@ class OrchestrationService:
 
         logger.info("Tool call started", tool_name=tool_name, invocation_id=invocation_id)
 
+        # Detect non-serializable objects leaked by LangChain internals (e.g.
+        # AsyncCallbackManager) so we get actionable diagnostics instead of an
+        # opaque json.dumps TypeError deep in the Redis publish path.
+        _bad = {
+            k: type(v).__name__
+            for k, v in tool_input.items()
+            if not isinstance(v, (str, int, float, bool, list, dict, type(None)))
+        }
+        if _bad:
+            logger.error(
+                "tool_input contains non-JSON-serializable values. "
+                "Stripping offending keys so the event can still be published.",
+                tool_name=tool_name,
+                invocation_id=invocation_id,
+                bad_keys=_bad,
+            )
+            tool_input = {k: v for k, v in tool_input.items() if k not in _bad}
+
         tool_call_data = ToolCallEventData(tool_name=tool_name, tool_input=tool_input)
         tool_call_event = {
             "event_type": "tool_call",

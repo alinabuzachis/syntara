@@ -74,10 +74,11 @@ def enhance_namespaced_tools_with_metadata(
         if namespaced_name in namespaced_name_to_id:
             tool_id = namespaced_name_to_id[namespaced_name]
 
-            # Add tool_id to BaseTool metadata for failure handling
+            # Add tool_id and namespaced_name to BaseTool metadata for failure handling and metrics
             if not hasattr(base_tool, "metadata") or base_tool.metadata is None:
                 base_tool.metadata = {}
             base_tool.metadata["tool_id"] = str(tool_id)
+            base_tool.metadata["namespaced_name"] = namespaced_name
 
             logger.debug("Enhanced tool with metadata", tool_name=namespaced_name, tool_id=tool_id)
         else:

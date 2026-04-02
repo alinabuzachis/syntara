@@ -12,10 +12,12 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
+    _resolve_execution_status,
     create_tool_awrapper,
     create_tool_wrapper,
 )
 from nexus.core.utils.retry import is_retryable_error
+from nexus.tool_manager.models.tool_execution import ExecutionStatus
 
 
 async def _execute_async_wrapper(
@@ -542,3 +544,127 @@ class TestToolWrapperFailureScenarios:
         assert result.tool_call_id == "attr-call-ghi"
         assert result.name == "attr_tool"
         assert result.status == "error"
+
+
+class TestResolveExecutionStatus:
+    """Test _resolve_execution_status maps exceptions to correct ExecutionStatus."""
+
+    def test_none_maps_to_success(self) -> None:
+        assert _resolve_execution_status(None) == ExecutionStatus.SUCCESS
+
+    def test_timeout_error_maps_to_timeout(self) -> None:
+        assert _resolve_execution_status(TimeoutError("timed out")) == ExecutionStatus.TIMEOUT
+
+    def test_asyncio_timeout_error_maps_to_timeout(self) -> None:
+        assert _resolve_execution_status(TimeoutError()) == ExecutionStatus.TIMEOUT
+
+    def test_value_error_maps_to_error(self) -> None:
+        assert _resolve_execution_status(ValueError("bad value")) == ExecutionStatus.ERROR
+
+    def test_runtime_error_maps_to_error(self) -> None:
+        assert _resolve_execution_status(RuntimeError("runtime")) == ExecutionStatus.ERROR
+
+    def test_connection_error_maps_to_error(self) -> None:
+        assert _resolve_execution_status(ConnectionError("conn")) == ExecutionStatus.ERROR
+
+
+class TestMetricsEmissionAndDbPersistence:
+    """Test that tool wrappers emit metrics with correct status and persist to DB."""
+
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._persist_tool_execution_to_db")
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._emit_tool_metrics")
+    async def test_async_wrapper_success_emits_success_status(self, mock_emit: Mock, mock_persist: AsyncMock) -> None:
+        """Test that successful async execution emits SUCCESS status and persists to DB."""
+        tool = Mock(spec=BaseTool)
+        tool.name = "my_tool"
+        tool.metadata = {"tool_id": str(uuid4()), "namespaced_name": "provider::my_tool"}
+
+        await _execute_async_wrapper(
+            tool_name="my_tool",
+            tool_call_id="call-1",
+            exception=None,
+            tool=tool,
+            success_content="OK",
+        )
+
+        mock_emit.assert_called_once()
+        _, _, emit_status = mock_emit.call_args[0]
+        assert emit_status == ExecutionStatus.SUCCESS
+
+        mock_persist.assert_awaited_once()
+        persist_args = mock_persist.call_args
+        assert persist_args[0][0] is tool
+        assert persist_args[0][2] == ExecutionStatus.SUCCESS
+        assert persist_args[1]["error_message"] is None
+
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._persist_tool_execution_to_db")
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._emit_tool_metrics")
+    async def test_async_wrapper_timeout_emits_timeout_status(self, mock_emit: Mock, mock_persist: AsyncMock) -> None:
+        """Test that TimeoutError emits TIMEOUT status and persists with error message."""
+        tool = Mock(spec=BaseTool)
+        tool.name = "slow_tool"
+        tool.metadata = {"tool_id": str(uuid4()), "namespaced_name": "provider::slow_tool"}
+
+        await _execute_async_wrapper(
+            tool_name="slow_tool",
+            tool_call_id="call-2",
+            exception=TimeoutError("Request timed out"),
+            tool=tool,
+        )
+
+        mock_emit.assert_called_once()
+        _, _, emit_status = mock_emit.call_args[0]
+        assert emit_status == ExecutionStatus.TIMEOUT
+
+        mock_persist.assert_awaited_once()
+        persist_args = mock_persist.call_args
+        assert persist_args[0][0] is tool
+        assert persist_args[0][2] == ExecutionStatus.TIMEOUT
+        assert persist_args[1]["error_message"] == "Request timed out"
+
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._persist_tool_execution_to_db")
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._emit_tool_metrics")
+    async def test_async_wrapper_error_emits_error_status(self, mock_emit: Mock, mock_persist: AsyncMock) -> None:
+        """Test that a generic exception emits ERROR status."""
+        tool = Mock(spec=BaseTool)
+        tool.name = "bad_tool"
+        tool.metadata = {"tool_id": str(uuid4()), "namespaced_name": "provider::bad_tool"}
+
+        await _execute_async_wrapper(
+            tool_name="bad_tool",
+            tool_call_id="call-3",
+            exception=ValueError("bad input"),
+            tool=tool,
+        )
+
+        mock_emit.assert_called_once()
+        _, _, emit_status = mock_emit.call_args[0]
+        assert emit_status == ExecutionStatus.ERROR
+
+        mock_persist.assert_awaited_once()
+        assert mock_persist.call_args[0][2] == ExecutionStatus.ERROR
+
+    @pytest.mark.usefixtures("fast_retry_settings")
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._run_coroutine_from_sync")
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._emit_tool_metrics")
+    def test_sync_wrapper_timeout_emits_timeout_status(self, mock_emit: Mock, mock_run_coro: Mock) -> None:
+        """Test that sync wrapper maps TimeoutError to TIMEOUT status."""
+        tool = Mock(spec=BaseTool)
+        tool.name = "sync_slow"
+        tool.metadata = {"tool_id": str(uuid4()), "namespaced_name": "provider::sync_slow"}
+
+        _execute_sync_wrapper(
+            tool_name="sync_slow",
+            tool_call_id="call-5",
+            exception=TimeoutError("sync timeout"),
+            tool=tool,
+        )
+
+        mock_emit.assert_called_once()
+        _, _, emit_status = mock_emit.call_args[0]
+        assert emit_status == ExecutionStatus.TIMEOUT
+
+        # _run_coroutine_from_sync is called twice: once for tool disable, once for DB persistence
+        assert mock_run_coro.call_count == 2
+        persist_call = mock_run_coro.call_args_list[-1]
+        assert persist_call[0][2] == "tool execution DB persistence"

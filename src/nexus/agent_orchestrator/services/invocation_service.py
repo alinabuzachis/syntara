@@ -16,13 +16,16 @@ Key design decisions:
 
 from collections.abc import AsyncGenerator, Callable, Iterable
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import structlog
 from fastapi import BackgroundTasks, UploadFile
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.executor import InvocationExecutor, get_invocation_executor
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.executor import InvocationExecutor
+
 from nexus.agent_orchestrator.models import Invocation, InvocationListResponse, InvocationStatus
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
@@ -57,9 +60,8 @@ class InvocationService(BaseService):
             [Callable[[], AsyncGenerator[AsyncSession, None]]], DocumentConversionTask
         ] = get_document_conversion_task,
         file_manager_factory: Callable[[], FileManager] = get_file_manager,
-        invocation_executor_factory: Callable[
-            [Callable[[], AsyncGenerator[AsyncSession, None]]], InvocationExecutor
-        ] = get_invocation_executor,
+        invocation_executor_factory: Callable[[Callable[[], AsyncGenerator[AsyncSession, None]]], "InvocationExecutor"]
+        | None = None,
     ) -> None:
         """Initialize service with database session.
 
@@ -78,6 +80,10 @@ class InvocationService(BaseService):
         self.background_tasks = background_tasks
         self.session_factory = session_factory
         self.document_conversion_task = document_conversion_task_factory(session_factory)
+        if invocation_executor_factory is None:
+            from nexus.agent_orchestrator.executor import get_invocation_executor  # noqa: PLC0415
+
+            invocation_executor_factory = get_invocation_executor
         self.invocation_executor = invocation_executor_factory(session_factory)
 
     async def _handle_file_uploads(self, files: list[UploadFile]) -> list[FileMetadata]:
@@ -415,7 +421,7 @@ class InvocationService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
-    ) -> "InvocationListResponse":
+    ) -> InvocationListResponse:
         """List invocations with filtering, sorting, and pagination.
 
         Args:

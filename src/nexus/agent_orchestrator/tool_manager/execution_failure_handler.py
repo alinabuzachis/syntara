@@ -19,7 +19,13 @@ from langgraph.types import Command
 from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 from nexus.agent_orchestrator.utils import retry_with_backoff
 from nexus.core.config.base import get_settings
+from nexus.core.database.session import AsyncSessionLocal
+from nexus.core.models import User
+from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.types import MetricType
 from nexus.tool_manager.models.tool import ToolStatus
+from nexus.tool_manager.models.tool_execution import ExecutionStatus
+from nexus.tool_manager.services.tool_metrics_service import ToolMetricsService
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -83,6 +89,90 @@ def _extract_tool_id_from_metadata(base_tool: Any, tool_name: str) -> UUID | Non
         return None
 
 
+def _resolve_execution_status(error: Exception | None) -> ExecutionStatus:
+    """Map an exception to an ExecutionStatus.
+
+    Args:
+        error: The exception from tool execution, or None for success.
+
+    Returns:
+        ExecutionStatus.TIMEOUT for TimeoutError, ERROR for other exceptions, SUCCESS otherwise.
+
+    """
+    if error is None:
+        return ExecutionStatus.SUCCESS
+    if isinstance(error, (TimeoutError, asyncio.TimeoutError)):
+        return ExecutionStatus.TIMEOUT
+    return ExecutionStatus.ERROR
+
+
+def _emit_tool_metrics(base_tool: Any, duration_ms: float, status: ExecutionStatus) -> None:  # noqa: ANN401
+    """Emit tool execution metrics to MetricsRecorder (best-effort).
+
+    Args:
+        base_tool: The BaseTool instance with metadata.
+        duration_ms: Execution duration in milliseconds.
+        status: Resolved execution status.
+
+    """
+    try:
+        recorder = get_metrics_recorder()
+        namespaced_name = base_tool.metadata["namespaced_name"]
+        labels = {"namespaced_name": namespaced_name, "status": status.value}
+        recorder.record(MetricType.TOOL_EXECUTION_DURATION, duration_ms, unit="ms", labels=labels)
+        recorder.record(MetricType.TOOL_EXECUTION_STATUS, 1.0, labels=labels)
+    except Exception:  # noqa: BLE001
+        logger.warning("Failed to emit tool execution metrics", exc_info=True)
+
+
+async def _persist_tool_execution_to_db(
+    base_tool: Any,  # noqa: ANN401
+    duration_ms: float,
+    status: ExecutionStatus,
+    error_message: str | None = None,
+    session_factory: Callable[[], Any] = AsyncSessionLocal,
+) -> None:
+    """Persist a tool execution record to the database (best-effort).
+
+    Opens its own DB session since this runs outside FastAPI request context.
+    Uses the system user for audit fields.
+
+    Args:
+        base_tool: The BaseTool instance with metadata containing namespaced_name.
+        duration_ms: Execution duration in milliseconds.
+        status: Resolved execution status.
+        error_message: Error description for failed executions.
+        session_factory: Injectable async session maker for database access.
+
+    """
+    try:
+        namespaced_name: str = base_tool.metadata["namespaced_name"]
+        settings = get_settings()
+        async with session_factory() as session:
+            user = await session.get(User, settings.system_user_id)
+            if user is None:
+                msg = (
+                    f"System user {settings.system_user_id} not found. "
+                    "Run 'uv run python tools/create_system_user.py' to create it."
+                )
+                raise RuntimeError(msg)  # noqa: TRY301
+
+            try:
+                service = ToolMetricsService(session, user)
+                await service.record_tool_execution(
+                    namespaced_name=namespaced_name,
+                    duration_ms=int(duration_ms),
+                    status=status,
+                    error_message=error_message,
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+    except Exception:  # noqa: BLE001
+        logger.warning("Failed to persist tool execution to DB", exc_info=True)
+
+
 def create_tool_awrapper() -> Callable[
     [ToolCallRequest, Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]]],
     Awaitable[ToolMessage | Command[Any]],
@@ -118,10 +208,14 @@ def create_tool_awrapper() -> Callable[
             ToolMessage or Command result from tool execution
 
         """
+        start_time = time.perf_counter()
+        caught_error: Exception | None = None
         try:
             # Execute the tool normally
             return await _execute(request, execute)
         except Exception as error:
+            caught_error = error
+
             # Extract tool info from request
             tool_name = request.tool_call["name"]
             tool_call_id = request.tool_call["id"]
@@ -141,6 +235,16 @@ def create_tool_awrapper() -> Callable[
 
             # Return standardized error message
             return _create_error_tool_message(error, tool_call_id or "unknown", tool_name)
+        finally:
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            status = _resolve_execution_status(caught_error)
+            _emit_tool_metrics(request.tool, duration_ms, status)
+            await _persist_tool_execution_to_db(
+                request.tool,
+                duration_ms,
+                status,
+                error_message=str(caught_error) if caught_error else None,
+            )
 
     return tool_awrapper
 
@@ -202,10 +306,14 @@ def create_tool_wrapper(
             ToolMessage result from tool execution
 
         """
+        start_time = time.perf_counter()
+        caught_error: Exception | None = None
         try:
             # Execute the tool normally with retry
             return _execute_sync(request, execute)
         except Exception as error:
+            caught_error = error
+
             # Extract tool info from request
             tool_name = request.tool_call["name"]
             tool_call_id = request.tool_call["id"]
@@ -219,51 +327,53 @@ def create_tool_wrapper(
             # Extract and validate tool_id from BaseTool metadata
             tool_id = _extract_tool_id_from_metadata(base_tool, tool_name)
             if tool_id is not None:
-                # In sync context, use the provided loop or fallback
-                _schedule_tool_disable_by_id(tool_id, error, loop)
+                _run_coroutine_from_sync(_disable_tool_by_id(tool_id, error), loop, "tool auto-disable")
 
             # Return standardized error message
             return _create_error_tool_message(error, tool_call_id or "unknown", tool_name)
+        finally:
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            status = _resolve_execution_status(caught_error)
+            _emit_tool_metrics(request.tool, duration_ms, status)
+            _run_coroutine_from_sync(
+                _persist_tool_execution_to_db(
+                    request.tool,
+                    duration_ms,
+                    status,
+                    error_message=str(caught_error) if caught_error else None,
+                ),
+                loop,
+                "tool execution DB persistence",
+            )
 
     return tool_wrapper
 
 
-def _schedule_tool_disable_by_id(
-    tool_id: UUID, error: Exception, loop: asyncio.AbstractEventLoop | None = None
+def _run_coroutine_from_sync(
+    coro: Awaitable[Any],
+    loop: asyncio.AbstractEventLoop | None,
+    description: str,
 ) -> None:
-    """Schedule tool disable operation with explicit event loop for sync contexts.
+    """Run an async coroutine from a synchronous context (best-effort).
+
+    Uses the provided event loop if available, otherwise falls back to ``asyncio.run``.
 
     Args:
-        tool_id: ID of the tool to disable
-        error: The exception that occurred
-        loop: Optional event loop to use for scheduling
+        coro: The coroutine to execute.
+        loop: Optional running event loop for ``run_coroutine_threadsafe``.
+        description: Human-readable label used in warning log messages on failure.
 
     """
     if loop:
-        # Use the provided loop to schedule the task
         try:
-            task = asyncio.run_coroutine_threadsafe(_disable_tool_by_id(tool_id, error), loop)
-            logger.info("Successfully auto-disabled failed tool using provided event loop", tool_id=tool_id)
-            # Don't wait for completion to avoid blocking tool execution
-            _ = task
+            _ = asyncio.run_coroutine_threadsafe(coro, loop)  # type: ignore[arg-type]
         except RuntimeError:
-            logger.warning(
-                "Failed to schedule tool auto-disable operation on provided event loop",
-                tool_id=tool_id,
-                error=f"{error.__class__.__name__}: {error!s}",
-            )
+            logger.warning("Failed to schedule %s on provided event loop", description)
     else:
-        # No loop provided - create a new event loop to run the async operation
         try:
-            asyncio.run(_disable_tool_by_id(tool_id, error))
-            logger.info("Successfully auto-disabled failed tool using new event loop", tool_id=tool_id)
+            asyncio.run(coro)  # type: ignore[arg-type]
         except RuntimeError as e:
-            logger.warning(
-                "Failed to run tool auto-disable operation (no event loop)",
-                tool_id=tool_id,
-                error=f"{error.__class__.__name__}: {error!s}",
-                details=str(e),
-            )
+            logger.warning("Failed to run %s (no event loop)", description, details=str(e))
 
 
 async def _disable_tool_by_id(tool_id: UUID, error: Exception) -> None:
