@@ -107,6 +107,11 @@ describe('useWorkflowInitialization', () => {
 
     rerender({ workflowVersion: 2 })
 
+    // Flush async re-initialization after version reset
+    await act(async () => {
+      await Promise.resolve()
+    })
+
     // The key behavior we're testing is that onVersionChange callback was invoked
     // The isInitialized state may immediately become true again if nodes remain measured
     // but the callback should have been called to notify parent of version change

@@ -83,13 +83,16 @@ describe('CodeBlock', () => {
     expect(screen.getByRole('button', { name: 'Copy to clipboard' })).toBeInTheDocument()
   })
 
-  it('copies text to clipboard when copy button clicked', () => {
+  it('copies text to clipboard when copy button clicked', async () => {
     render(<CodeBlock enableCopy>code to copy</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
     fireEvent.click(copyButton)
 
     expect(mockWriteText).toHaveBeenCalledWith('code to copy')
+    await waitFor(() => {
+      expect(screen.getByText('Copied to clipboard')).toBeInTheDocument()
+    })
   })
 
   it('shows "Copied to clipboard" after successful copy', async () => {
@@ -103,7 +106,7 @@ describe('CodeBlock', () => {
     })
   })
 
-  it('copies JSON object to clipboard', () => {
+  it('copies JSON object to clipboard', async () => {
     const jsonObject = { test: 'value' }
     render(<CodeBlock enableCopy jsonObject={jsonObject} />)
 
@@ -111,6 +114,9 @@ describe('CodeBlock', () => {
     fireEvent.click(copyButton)
 
     expect(mockWriteText).toHaveBeenCalledWith(JSON.stringify(jsonObject, undefined, 2))
+    await waitFor(() => {
+      expect(screen.getByText('Copied to clipboard')).toBeInTheDocument()
+    })
   })
 
   it('handles clipboard write failure gracefully', async () => {
@@ -127,7 +133,6 @@ describe('CodeBlock', () => {
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
     fireEvent.click(copyButton)
 
-    // Even on failure, it should show "Copied" briefly
     await waitFor(() => {
       expect(screen.getByText('Copied to clipboard')).toBeInTheDocument()
     })
@@ -157,7 +162,6 @@ describe('CodeBlock', () => {
     render(<CodeBlock enableCopy>code</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
-    // Should not throw when clicked
     expect(() => fireEvent.click(copyButton)).not.toThrow()
   })
 })

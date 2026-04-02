@@ -57,8 +57,12 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 )
 
-function renderBuilder(props: BuilderContentProps) {
-  return render(<BuilderContent {...props} />, { wrapper })
+async function renderBuilder(props: BuilderContentProps) {
+  const view = render(<BuilderContent {...props} />, { wrapper })
+  await waitFor(() => {
+    expect(screen.getByPlaceholderText('Workflow name')).toBeInTheDocument()
+  })
+  return view
 }
 
 describe('BuilderContent - Delete Automation', () => {
@@ -153,7 +157,7 @@ describe('BuilderContent - Delete Automation', () => {
 
   it('shows delete button in kebab menu for existing workflows', async () => {
     const user = userEvent.setup()
-    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Find and click kebab menu
     const kebabButton = screen.getByLabelText('Automation actions')
@@ -165,8 +169,8 @@ describe('BuilderContent - Delete Automation', () => {
     })
   })
 
-  it('does not show delete button for new workflows', () => {
-    renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
+  it('does not show delete button for new workflows', async () => {
+    await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
     // Kebab menu should not exist for new workflows
     expect(screen.queryByLabelText('Automation actions')).not.toBeInTheDocument()
@@ -174,7 +178,7 @@ describe('BuilderContent - Delete Automation', () => {
 
   it('opens delete confirmation modal when delete is clicked', async () => {
     const user = userEvent.setup()
-    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab menu
     const kebabButton = screen.getByLabelText('Automation actions')
@@ -209,7 +213,7 @@ describe('BuilderContent - Delete Automation', () => {
     })
 
     const user = userEvent.setup()
-    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab and click delete
     const kebabButton = screen.getByLabelText('Automation actions')
@@ -251,7 +255,7 @@ describe('BuilderContent - Delete Automation', () => {
       return createMockMutation()
     })
 
-    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab and click delete
     await user.click(screen.getByLabelText('Automation actions'))
@@ -271,7 +275,7 @@ describe('BuilderContent - Delete Automation', () => {
 
   it('can cancel delete operation', async () => {
     const user = userEvent.setup()
-    renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+    await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
     // Open kebab and click delete
     await user.click(screen.getByLabelText('Automation actions'))
