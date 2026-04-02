@@ -78,6 +78,27 @@ Check whether the changes follow:
 - Workflow nodes use auto-discovery pattern (register\*.ts with default export)
 - No over-engineering (avoid premature abstractions, unnecessary error handling)
 
+### 3a. Recurring Issues Checklist (MANDATORY)
+
+These are the most commonly flagged issues from recent PR reviews. **Check every item** before completing your review:
+
+| #   | Check                                                                                                                    | How to verify                                                                                                                                                                                                                           |
+| --- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **No raw `fetch()` calls** — all API calls use typed clients (`workflowClient`, `credentialsClient`, `authClient`, etc.) | Search for `fetch(` in changed files; flag any that aren't pre-auth                                                                                                                                                                     |
+| 2   | **`useQueryState` uses object form with `onRetry`**                                                                      | Search for `useQueryState` in changed files; flag any using bare string title                                                                                                                                                           |
+| 3   | **No unsafe `as` casts on API responses**                                                                                | Search for `as` type casts in changed files; flag API response casts. Note: if the contract types are wrong (e.g. `resources: unknown[]`), the fix is upstream in the OpenAPI spec — flag for contract update rather than adding a cast |
+| 4   | **New components have `vitest-axe` tests**                                                                               | Check test files for `toHaveNoViolations()`; flag new components without it                                                                                                                                                             |
+| 5   | **Tests use `userEvent`, not `fireEvent`**                                                                               | Search for `fireEvent` in test files; flag and suggest `userEvent.setup()`                                                                                                                                                              |
+| 6   | **Tests use accessible queries**                                                                                         | Search for `getByTestId`, `querySelector`, `querySelectorAll` in tests; suggest `getByRole`/`getByLabelText`                                                                                                                            |
+| 7   | **Errors use `ErrorState` component**                                                                                    | Search for raw error JSX (`<span>Error`, `<p>Error`); flag and suggest `ErrorState`                                                                                                                                                     |
+| 8   | **Forms use Zod + react-hook-form**                                                                                      | Check new forms for manual `useState` per field; flag and suggest Zod schema                                                                                                                                                            |
+| 9   | **Edit modals reset form on open**                                                                                       | Check `useForm` with `defaultValues` in always-rendered modals; verify `reset()` in `useEffect`                                                                                                                                         |
+| 10  | **No duplicated dialog/logic patterns**                                                                                  | Check if confirm dialogs or action handlers are copy-pasted across files; suggest extraction                                                                                                                                            |
+| 11  | **`useQueryState` / `useMutationErrorHandler` used consistently**                                                        | Verify error handling follows the project patterns, not ad-hoc try/catch with custom error display                                                                                                                                      |
+| 12  | **PR size within budget** (see [PR_GUIDELINES.md](../../.github/PR_GUIDELINES.md))                                       | Count changed feature-code lines (soft limit: ≤ 500 lines / ≤ 15 files per PR_GUIDELINES.md); flag if exceeded and suggest stacking                                                                                                     |
+| 13  | **UI PRs include screenshots or screen recordings**                                                                      | PRs that change visible UI (pages, components, layout, modals, empty states) must include screenshots or recordings of key states; reviewers should not need to stand up the full stack to verify visual output                         |
+| 14  | **New API endpoints have mock API handlers**                                                                             | When a PR consumes new backend endpoints, check for corresponding mock handlers in `packages/nexus-mock-api/src/handlers.ts`; if the backend dependency is not yet merged, the PR description should note the exception                 |
+
 ---
 
 ## 4. Detect Re-invented Patterns
@@ -90,6 +111,11 @@ Ask:
 
 Examples:
 
+- Use typed API clients (`workflowClient`, `credentialsClient`, `authClient`) instead of raw `fetch()`
+- Use `ErrorState` component instead of custom error markup
+- Use `useQueryState` with `onRetry` instead of manual loading/error state management
+- Use `useFormMutationErrorHandler` instead of manual 422 error parsing
+- Use `getErrorMessage()` / `isConflictError()` from `apiErrors.ts` instead of manual error field checks
 - Use URLSearchParams instead of manual query parsing
 - Use structuredClone instead of manual deep copy
 - Use AbortController instead of custom cancellation logic

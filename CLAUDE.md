@@ -27,6 +27,183 @@ See **Accessibility Testing** in this file for project tooling (ESLint, axe, E2E
 - **Refactor instead of suppressing**: Prefer clearer control flow, smaller functions, extracted helpers, and stronger types over disabling rules.
 - **Validate before finishing**: After substantive edits, run the relevant lint/type-check commands for the affected package and fix any issues introduced by the change.
 
+### Common PR Mistakes — Prevent Before Submitting
+
+**CRITICAL: These are the most frequently flagged issues in PR reviews. Address ALL of them before opening a PR.**
+
+#### 1. Never use raw `fetch()` — always use the typed API client
+
+Every API endpoint has a type-safe client generated from OpenAPI contracts. Using raw `fetch()` bypasses auth middleware (token refresh, 401 retry), error interceptors, base URL configuration, and TypeScript type safety.
+
+```typescript
+// ❌ BAD: Raw fetch bypasses type safety, auth, and error handling
+const response = await fetch(`/api/v1/credentials/${id}/workflows`, {
+  headers: { Authorization: `Bearer ${token}` },
+})
+const data = (await response.json()) as { id: string; name: string }[]
+
+// ✅ GOOD: Type-safe client with automatic auth and error handling
+const { data } = credentialsClient.useQuery('get', '/credentials/{credential_id}/workflows', {
+  params: { path: { credential_id: id } },
+})
+```
+
+**Exception**: Pre-auth calls (e.g., fetching OIDC providers before login) where no token exists may use `fetch()` with a comment explaining why.
+
+#### 2. Always pass `onRetry` to `useQueryState`
+
+Prefer the `useQueryState` object form with explicit `onRetry` for consistency and clear retry intent. The string form still works (it falls back to `refetch`), but should be avoided in new code.
+
+```typescript
+// ❌ BAD: No retry support for transient failures
+const queryState = useQueryState(query, 'Error loading credentials')
+
+// ✅ GOOD: Enables retry button in ErrorState for 5xx errors
+const queryState = useQueryState(query, {
+  title: 'Error loading credentials',
+  onRetry: () => void query.refetch(),
+})
+```
+
+#### 3. Never use unsafe `as` casts on API responses
+
+The typed API client already returns properly typed data. Unsafe `as` casts hide shape mismatches and bypass TypeScript's safety guarantees. If the response type doesn't match, fix the root cause (contract or types), or use a type guard.
+
+```typescript
+// ❌ BAD: Unsafe cast hides potential shape mismatches
+const credentials = data?.resources as Credential[]
+
+// ✅ GOOD: Use the typed response directly (client already types it)
+const { data } = credentialsClient.useQuery('get', '/credentials')
+const credentials = data?.resources // Already typed as Credential[]
+
+// ✅ GOOD: If narrowing is needed, use a type guard
+function isCredentialArray(value: unknown): value is Credential[] {
+  return Array.isArray(value) && value.every((v) => typeof v === 'object' && v !== null && 'id' in v)
+}
+```
+
+#### 4. Every new component must have a `vitest-axe` accessibility test
+
+All new components must include at least one `toHaveNoViolations()` test. Test multiple states (default, error, loading) for thorough coverage.
+
+```typescript
+import { axe } from 'vitest-axe'
+
+it('has no accessibility violations', async () => {
+  const { container } = render(<MyComponent />, { wrapper })
+  const results = await axe(container)
+  expect(results).toHaveNoViolations()
+})
+```
+
+#### 5. Always use `userEvent` over `fireEvent` in tests
+
+`userEvent` fires the full browser event sequence (focus, keydown, input, keyup, blur) while `fireEvent` dispatches a single synthetic event. Always use `userEvent.setup()`.
+
+```typescript
+// ❌ BAD: Single synthetic event, unrealistic
+fireEvent.change(input, { target: { value: 'new value' } })
+fireEvent.click(button)
+
+// ✅ GOOD: Full event sequence, realistic browser behavior
+const user = userEvent.setup()
+await user.clear(input)
+await user.type(input, 'new value')
+await user.click(button)
+```
+
+#### 6. Use accessible queries — never `getByTestId` or `querySelector` as first choice
+
+Follow the Testing Library query priority: `getByRole` > `getByLabelText` > `getByPlaceholderText` > `getByText` > `getByTestId`. Never use `container.querySelector` for element selection in tests.
+
+```typescript
+// ❌ BAD: DOM queries bypass accessibility semantics
+container.querySelectorAll('.pf-v6-c-switch input')
+screen.getByTestId('loading-state')
+
+// ✅ GOOD: Accessible queries verify real user experience
+screen.getByRole('switch', { name: 'Enabled' })
+screen.getByRole('status') // or screen.getByText(/loading/i)
+screen.getByRole('alert') // for error states
+```
+
+#### 7. Always use `ErrorState` component — never raw error markup
+
+The project has a standard `ErrorState` component that handles retryable errors, displays consistent UI, and shows a retry button automatically for 5xx errors.
+
+```typescript
+// ❌ BAD: Raw error markup, no retry, inconsistent UI
+{error && <span>Unable to load profile information.</span>}
+
+// ✅ GOOD: Consistent error UI with retry support
+<ErrorState
+  title="Unable to load profile"
+  message={getErrorMessage(error)}
+  onRetry={() => refetch()}
+/>
+```
+
+#### 8. Always use Zod + react-hook-form for forms
+
+Never use manual `useState` per field with hand-written validation. The project standard is Zod schemas with `zodResolver` and `useFormMutationErrorHandler` for automatic 422 field error mapping.
+
+```typescript
+// ❌ BAD: Manual state per field, hand-written validation
+const [name, setName] = useState('')
+const [errors, setErrors] = useState({})
+function validate() {
+  if (!name) setErrors({ name: 'Required' })
+}
+
+// ✅ GOOD: Zod + react-hook-form with automatic 422 mapping
+const schema = z.object({ name: z.string().min(1, 'Required') })
+const { register, handleSubmit } = useForm<FormData>({
+  resolver: zodResolver(schema, undefined, { mode: 'sync' }),
+})
+```
+
+#### 9. Handle `useForm` `defaultValues` reset for edit modals
+
+When a form modal is always rendered (not unmounted), `defaultValues` only applies on first mount. Switching between create and edit mode requires explicit reset.
+
+```typescript
+// ❌ BAD: defaultValues only works on first mount — edit mode shows stale data
+const { register } = useForm({ defaultValues: { name: item?.name ?? '' } })
+
+// ✅ GOOD: Reset form when modal opens or item changes
+const { register, reset } = useForm({ defaultValues: { name: '' } })
+
+useEffect(() => {
+  if (isOpen) {
+    reset({ name: item?.name ?? '', description: item?.description ?? '' })
+  }
+}, [isOpen, item, reset])
+```
+
+#### 10. Extract shared UI patterns — avoid duplicate dialogs and logic
+
+When the same dialog (confirm delete, confirm disable) or logic (fetch affected items, toggle enabled) appears in multiple files, extract it into a shared component or hook.
+
+```typescript
+// ❌ BAD: Same disable dialog copy-pasted in 3 files
+// Credentials.tsx: 50 lines of disable dialog JSX
+// CredentialDetail.tsx: 50 lines of nearly identical JSX
+// CredentialTypeDetail.tsx: toggle without dialog (inconsistent!)
+
+// ✅ GOOD: Shared component + hook
+<DisableCredentialDialog credential={selected} isOpen={isOpen} onClose={onClose} />
+const { handleToggle, handleDelete } = useCredentialActions(credential)
+```
+
+#### 11. UI PRs must include screenshots or screen recordings
+
+PRs that change visible UI (new pages, components, layout changes, empty states, modals) must include screenshots or screen recordings showing key states. Reviewers should not need to stand up the full backend stack to verify visual output.
+
+#### 12. New API endpoints should have mock API handlers
+
+When a PR consumes new backend endpoints, include corresponding mock handlers in `packages/nexus-mock-api/src/handlers.ts` so the feature can be tested locally with `npm start`. Note the exception in the PR description if the backend dependency is not yet merged.
+
 ### Pull Request Rules
 
 All changes must follow the PR sizing and slicing policy defined in [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md).

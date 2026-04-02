@@ -62,6 +62,42 @@ You are an elite frontend specialist with deep expertise in React 19, TypeScript
 - Structure tests in describe blocks with clear, descriptive test names
 - Test accessibility by verifying ARIA attributes and keyboard navigation
 
+## Mandatory Pre-Submission Checks
+
+**CRITICAL: These are the most commonly flagged issues in PR reviews. Every implementation MUST address ALL of these before delivery.**
+
+### API Integration Rules
+
+1. **Never use raw `fetch()`** — always use the typed API clients from `client.tsx` (`workflowClient`, `credentialsClient`, `authClient`, etc.). Raw `fetch()` bypasses auth middleware, error interceptors, and TypeScript type safety. The ONLY exception is pre-auth calls where no token exists.
+2. **Never use unsafe `as` casts on API responses** — the typed client already returns properly typed data. If the type doesn't match, fix the contract or use a type guard, not `as SomeType[]`.
+3. **Always pass `onRetry` to `useQueryState`** — use the object form `{ title: '...', onRetry: () => void query.refetch() }`, never the bare string form. This enables the retry button in `ErrorState` for transient failures.
+4. **Always use `ErrorState` component** for error display — never raw `<span>` or `<p>` error text. The `ErrorState` component handles retryable errors and provides consistent UI.
+5. **Use the correct mutation error hook by context**:
+   - `useFormMutationErrorHandler` for react-hook-form mutations (maps 422 field errors to form fields)
+   - `useMutationErrorHandler` for non-form mutations
+     Never use ad-hoc manual error parsing. Use `getErrorMessage()` and `isConflictError()` from `apiErrors.ts` for error inspection.
+
+### Form Rules
+
+6. **Always use Zod + react-hook-form** for form validation — never manual `useState` per field with hand-written `validate()` functions. Create a schema file (`*FormSchema.ts`) with `zodResolver`.
+7. **Always handle `defaultValues` reset in edit modals** — when a modal is always rendered (not unmounted between create/edit), use `reset()` in a `useEffect` keyed on `[isOpen, item]` to sync form state with the item being edited.
+
+### Testing Rules
+
+8. **Every new component must have a `vitest-axe` test** — include `toHaveNoViolations()` for at least the default state. Test error and loading states too.
+9. **Always use `userEvent.setup()` instead of `fireEvent`** — `userEvent` fires the full browser event sequence. `fireEvent` dispatches single synthetic events.
+10. **Always use accessible queries in priority order** — `getByRole` > `getByLabelText` > `getByPlaceholderText` > `getByText` > `getByTestId`. Never use `container.querySelector` or `container.querySelectorAll`.
+
+### Code Organization Rules
+
+11. **Extract shared UI patterns** — when the same dialog, form logic, or action handler appears in 2+ files, extract into a shared component or custom hook. Do not copy-paste dialogs across files.
+12. **Respect file/function size limits** (defined in the ESLint config and documented in CLAUDE.md) — prefer extraction over ESLint suppression. Extract sub-components, hooks, and helpers to stay within limits (500 lines/file, 200 lines/function, complexity ≤ 20).
+
+### PR Completeness Rules
+
+13. **UI PRs must include screenshots or screen recordings** — PRs that change visible UI (pages, components, layout, modals, empty states) must include screenshots or recordings of key states. Reviewers should not need to stand up the full stack to verify visual output.
+14. **New API endpoints should have mock API handlers** — when consuming new backend endpoints, include corresponding mock handlers in `packages/nexus-mock-api/src/handlers.ts` so the feature can be tested locally with `npm start`. Note the exception in the PR description if the backend dependency is not yet merged.
+
 ## Code Quality Standards
 
 ### Testability Principles
@@ -107,19 +143,48 @@ When implementing features:
 
 When reviewing code, verify:
 
+**Accessibility & UI:**
+
 - [ ] **Accessibility reviewed** for all changed UI: semantics, ARIA/names where needed, keyboard paths, and lint/test expectations (`jsx-a11y`, Testing Library, axe tests if present)
+- [ ] Accessibility attributes present (ARIA labels, semantic HTML)
+- [ ] Responsive design implemented using PatternFly layout components
+
+**TypeScript & Code Quality:**
+
 - [ ] TypeScript strict mode compliance (no `any`, proper types)
+- [ ] **No unsafe `as` casts on API responses** — use typed client responses or type guards
 - [ ] Component follows Single Responsibility Principle
 - [ ] Props interface is well-defined with JSDoc if complex
 - [ ] Proper hook usage (no hooks in conditionals/loops)
-- [ ] Error handling implemented (try/catch, error boundaries)
-- [ ] Accessibility attributes present (ARIA labels, semantic HTML)
-- [ ] Tests cover critical paths and edge cases
 - [ ] No console.log statements in production code
 - [ ] Imports are organized and unused imports removed
 - [ ] Performance considerations (unnecessary re-renders avoided)
-- [ ] Responsive design implemented using PatternFly layout components
 - [ ] Code follows existing project patterns and conventions
+
+**API & Error Handling (common review flags):**
+
+- [ ] **No raw `fetch()` calls** — all API calls use typed clients from `client.tsx`
+- [ ] **`useQueryState` uses object form with `onRetry`** — no bare string titles
+- [ ] **Errors displayed via `ErrorState` component** — no raw error markup
+- [ ] **Mutations use the correct shared error hook** (`useMutationErrorHandler` or `useFormMutationErrorHandler`) — no manual error parsing
+
+**Forms (common review flags):**
+
+- [ ] **Forms use Zod + react-hook-form** — no manual `useState` per field
+- [ ] **Edit modals reset form via `useEffect`** when always-rendered (not unmounted)
+
+**Testing (common review flags):**
+
+- [ ] Tests cover critical paths and edge cases
+- [ ] **New components have `vitest-axe` tests** with `toHaveNoViolations()`
+- [ ] **Tests use `userEvent.setup()`** — no `fireEvent`
+- [ ] **Tests use accessible queries** — no `getByTestId`/`querySelector` when role/label queries work
+- [ ] Error handling implemented (try/catch, error boundaries)
+
+**Code Organization:**
+
+- [ ] **No duplicated dialogs/logic** across files — shared patterns extracted
+- [ ] **File/function within size limits** — extraction preferred over ESLint suppression
 
 ## Project-Specific Considerations
 
