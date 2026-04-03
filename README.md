@@ -516,6 +516,16 @@ make test-coverage
 make test-unit
 ```
 
+### Running End to End Tests
+
+```bash
+make test-e2e
+```
+
+If `APP_BASE_URL` is not set, the target automatically starts the database and dev server, waits for the API to be ready, runs the tests, then tears everything down. If `APP_BASE_URL` is already set, it runs the tests against that instance directly.
+
+> **Note:** The E2E tests use an auto-generated Python API client. If you change the OpenAPI schema, regenerate the client with `make generate-api-client` before running E2E tests.
+
 ### Code Quality
 
 This project enforces strict code quality standards:

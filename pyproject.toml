@@ -78,12 +78,18 @@ dev = [
     "types-PyYAML>=6.0.0",  # for mypy type stubs
     "types-jsonschema>=4.0.0",  # for mypy type stubs
     "types-requests>=2.31.0",  # type stubs for requests library
+    "types-python-dateutil>=2.8.0",  # type stubs for python-dateutil
     "psutil>=5.9.0",  # for memory monitoring in performance tests
     "scikit-learn-stubs>=0.0.3",  # type stubs for scikit-learn
+    "openapi-python-client>=0.28.3",  # for API client code generation
     # MCP testing infrastructure
     "fastmcp>=2.13.0,<3.0.0",  # for MCP test server creation
     "testcontainers[postgres,redis]>=4.14.0",  # for auto-starting PostgreSQL/Redis in tests
+    "nexus-api-client",  # local API client for E2E tests
 ]
+
+[tool.uv.sources]
+nexus-api-client = { path = "src/api_client", editable = true }
 
 [project.urls]
 Homepage = "https://github.com/syntara-orchestration/syntara"
@@ -173,6 +179,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "sklearn.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bs4.*"
 ignore_missing_imports = true
 
 # Pytest configuration

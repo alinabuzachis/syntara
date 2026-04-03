@@ -1,0 +1,46 @@
+"""{{ endpoint_collection.tag }} API endpoints."""
+from __future__ import annotations
+
+from typing import Any
+
+from ...client import AuthenticatedClient, Client
+from ...types import Response
+
+{% for endpoint in endpoint_collection.endpoints %}
+from . import {{ endpoint.name.replace('__', '_') }}
+{% endfor %}
+
+{% set tag = endpoint_collection.tag %}
+{% if tag.endswith('s') %}
+{% set singular = tag[:-1] %}
+{% else %}
+{% set singular = tag %}
+{% endif %}
+
+{# First pass: compute all short names to detect collisions #}
+{% set ns = namespace(all_short_names=[]) %}
+{% for endpoint in endpoint_collection.endpoints %}
+{% set prefix = endpoint.name.split('_api_v1_')[0] %}
+{% set short = prefix.replace('_' + singular + '_', '_').replace('_' + tag, '').replace('_' + singular, '') %}
+{% set ns.all_short_names = ns.all_short_names + [short] %}
+{% endfor %}
+
+class {{ class_name(endpoint_collection.tag) }}Api:
+    """Registry for {{ endpoint_collection.tag }} API endpoints."""
+
+    def __init__(self, client: Client | AuthenticatedClient) -> None:
+        self._client = client
+
+{% for endpoint in endpoint_collection.endpoints %}
+{% set prefix = endpoint.name.split('_api_v1_')[0] %}
+{% set short_name = prefix.replace('_' + singular + '_', '_').replace('_' + tag, '').replace('_' + singular, '') %}
+{% if ns.all_short_names | select('equalto', short_name) | list | length > 1 %}
+{% set short_name = prefix %}
+{% endif %}
+    def {{ short_name }}(self, **kwargs: Any) -> Response[Any]:
+        return {{ endpoint.name.replace('__', '_') }}.sync_detailed(client=self._client, **kwargs)
+
+    async def async_{{ short_name }}(self, **kwargs: Any) -> Response[Any]:
+        return await {{ endpoint.name.replace('__', '_') }}.asyncio_detailed(client=self._client, **kwargs)
+
+{% endfor %}

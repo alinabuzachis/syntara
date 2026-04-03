@@ -29,7 +29,7 @@ from nexus.tool_manager.models.tool_provider_validation_result import ToolProvid
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.tool_manager.services.tool_service import ToolService
 
-router = APIRouter(prefix="/tool_manager", tags=["tools", "tool_providers"])
+router = APIRouter(prefix="/tool_manager", tags=["tool_manager"])
 
 logger = structlog.stdlib.get_logger(__name__)
 

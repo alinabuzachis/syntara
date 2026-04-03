@@ -103,6 +103,8 @@ else \
 fi
 endef
 
+E2E_IGNORE := --ignore=tests/e2e
+
 .PHONY: test
 test: test-unit ## Alias to unit tests
 
@@ -116,7 +118,7 @@ test-integration: check-deps ## Run integration tests
 
 .PHONY: test-mcp
 test-mcp: check-deps ## Run MCP tests only
-	$(call run-tests,tests/ -v -m "mcp")
+	$(call run-tests,tests/ -v -m "mcp" $(E2E_IGNORE))
 
 .PHONY: test-performance
 test-performance: check-deps ## Run performance tests only (excluded from default test runs)
@@ -125,19 +127,55 @@ test-performance: check-deps ## Run performance tests only (excluded from defaul
 
 .PHONY: test-coverage
 test-coverage: check-deps ## Run tests with coverage report (XML)
-	$(call run-tests,tests/ -n auto -m "not mcp" --cov=src --cov-report=xml --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
+	$(call run-tests,tests/ -n auto -m "not mcp" $(E2E_IGNORE) --cov=src --cov-report=xml --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
 
 .PHONY: test-coverage-report
 test-coverage-report: check-deps ## Run tests with coverage report (HTML)
-	$(call run-tests,tests/ -n auto -m "not mcp" --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
+	$(call run-tests,tests/ -n auto -m "not mcp" $(E2E_IGNORE) --cov=src --cov-report=html --cov-report=term --cov-config=pyproject.toml --junitxml=pytest-results.xml)
 
 .PHONY: test-fast
 test-fast: check-deps ## Run tests with fail-fast and short traceback
-	$(call run-tests,tests/ -x --tb=short)
+	$(call run-tests,tests/ -x --tb=short $(E2E_IGNORE))
 
 .PHONY: test-all
 test-all: check-deps ## Run all tests
-	$(call run-tests,tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml)
+	$(call run-tests,tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml $(E2E_IGNORE))
+
+.PHONY: test-e2e
+test-e2e: check-deps ## Run End to End tests
+ifndef APP_BASE_URL
+	@$(MAKE) _deps-install-dev
+	@{ \
+		$(MAKE) db-run > /tmp/nexus-e2e-db.log 2>&1 & DB_PID=$$!; \
+		$(MAKE) dev > /tmp/nexus-e2e-dev.log 2>&1 & DEV_PID=$$!; \
+		echo "⏳ Waiting for API server to be ready (logs: /tmp/nexus-e2e-*.log)..."; \
+		TRIES=0; \
+		until curl -sf http://localhost:8000/health 2>/dev/null | grep -q '"status":"healthy"'; do \
+			sleep 1; TRIES=$$((TRIES+1)); \
+			if [ $$TRIES -ge 60 ]; then \
+				echo "❌ API server failed to start after 60s. Last 20 lines of dev log:"; \
+				tail -20 /tmp/nexus-e2e-dev.log; \
+				kill $$DEV_PID 2>/dev/null || true; \
+				kill $$DB_PID 2>/dev/null || true; \
+				wait $$DEV_PID $$DB_PID 2>/dev/null || true; \
+				$(COMPOSE_FINAL_CMD) down > /dev/null 2>&1 || true; \
+				exit 1; \
+			fi; \
+		done; \
+		echo "✅ API server is ready"; \
+		APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} uv run pytest tests/e2e/ -v; \
+		EXIT_CODE=$$?; \
+		echo "🧹 Stopping background services..."; \
+		kill $$DEV_PID 2>/dev/null || true; \
+		kill $$DB_PID 2>/dev/null || true; \
+		wait $$DEV_PID $$DB_PID 2>/dev/null || true; \
+		$(COMPOSE_FINAL_CMD) down > /dev/null 2>&1; \
+		exit $$EXIT_CODE; \
+	}
+else
+	@echo "🧪 Running end to end tests..."
+	uv run pytest tests/e2e/ -v
+endif
 
 # Development workflow
 # ========================================================
@@ -321,11 +359,13 @@ services-clean: ## Stop all services and remove all data (destructive)
 
 # API spec export
 # ========================================================
+OPENAPI_SPEC ?= src/nexus/schemas/openapi.json
+
 .PHONY: api-spec-export
 api-spec-export: check-deps ## Export OpenAPI spec to JSON without starting the server
 	@echo "📤 Exporting OpenAPI specification..."
-	uv run python tools/export_openapi.py -o docs/openapi.json
-	@echo "✅ OpenAPI spec exported to docs/openapi.json"
+	uv run python tools/export_openapi.py -o $(OPENAPI_SPEC)
+	@echo "✅ OpenAPI spec exported to $(OPENAPI_SPEC)"
 
 
 # Tools
@@ -334,6 +374,20 @@ api-spec-export: check-deps ## Export OpenAPI spec to JSON without starting the 
 install-cursor-commands: ## Sync Claude commands to Cursor format
 	@echo "🔄 Syncing commands from .claude/ to .cursor/..."
 	uv run python tools/install_cursor_commands.py
+
+.PHONY: generate-api-client
+generate-api-client: ## Generate the Nexus Python API client from the OpenAPI spec
+	@echo "Generating client from $(OPENAPI_SPEC)..."
+	$(eval TMPDIR := $(shell mktemp -d))
+	uv run openapi-python-client generate \
+		--path $(OPENAPI_SPEC) \
+		--output-path $(TMPDIR)/nexus_api_client \
+		--custom-template-path tools/api_custom_templates \
+		--meta uv
+	@rm -rf src/api_client
+	@mv $(TMPDIR)/nexus_api_client src/api_client
+	@rm -rf $(TMPDIR)
+	@echo "Done. Client written to src/api_client/"
 
 # Capture positional arguments for init-worktree
 WORKTREE_ARGS := $(filter-out init-worktree,$(MAKECMDGOALS))

@@ -132,6 +132,14 @@ jobs:
             $(podman ps -qf "name=nexus-ci_mcp-server")
           echo "✅ All services are healthy"
 
+      - name: Install dependencies
+        run: make install
+
+      - name: Run E2E tests
+        run: make test-e2e
+        env:
+          APP_BASE_URL: http://localhost:8000
+
       - name: Show service logs on failure
         if: failure()
         run: |
