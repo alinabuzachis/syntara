@@ -853,6 +853,10 @@ Additional code quality rules (enforced as `error` — CI will block violations)
 | `react/no-array-index-key`                       | Avoid using array index as React `key` prop                    |
 | `react/self-closing-comp`                        | Use `<Icon />` instead of `<Icon></Icon>`                      |
 | `unicorn/no-nested-ternary`                      | Prevent unreadable nested ternary expressions                  |
+| `unicorn/consistent-template-literal-escape`     | Consistent `\${` escaping in template literals                 |
+| `unicorn/no-useless-iterator-to-array`           | Flag unnecessary `.toArray()` on iterators                     |
+| `unicorn/prefer-simple-condition-first`          | Put simple conditions before complex ones in `&&` chains       |
+| `unicorn/switch-case-break-position`             | Consistent `break` placement inside switch cases               |
 | `import-x/no-cycle`                              | Detect circular dependencies (max depth: 2)                    |
 | `import-x/no-self-import`                        | Catch accidental self-imports                                  |
 
