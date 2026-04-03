@@ -142,7 +142,7 @@ npm run test:coverage  # jsdom tests with coverage report
 Run E2E tests only when needed:
 
 - Multi-step user journeys
-- Integration with the mock API
+- Integration with the mock API or real backend
 - Manual validation before releases
 
 ### Why Not Run Browser Tests on Every Commit?
@@ -182,18 +182,29 @@ E2E tests use Playwright config in `packages/nexus-ui/playwright.config.ts`:
 
 ```typescript
 // File: packages/nexus-ui/e2e/automations.spec.ts
-import { test, expect } from '@playwright/test'
+import { test, expect, toAppUrl } from './fixtures'
+import { buildUniqueName } from './helpers/workflows'
 
-test('user creates an automation', async ({ page }) => {
-  await page.goto('/automations')
-  await page.getByRole('button', { name: 'Create automation' }).click()
-  await page.getByPlaceholder('Workflow name').fill('Example workflow')
-  await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page.getByText('Workflow created successfully')).toBeVisible()
+test('user creates an automation', async ({ app }) => {
+  const workflowName = buildUniqueName('e2e-test')
+
+  try {
+    await app.goto(toAppUrl('/automations'))
+    await app.getByRole('button', { name: 'Create automation' }).click()
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
+    await expect(app.getByText('Workflow created successfully')).toBeVisible()
+  } finally {
+    // Cleanup — delete created resources (especially when testing against real backend)
+    // ... cleanup logic
+  }
 })
 ```
 
-For more examples and guidance, see the [Testing Guidelines in CLAUDE.md](../../CLAUDE.md#testing-guidelines).
+For more examples and guidance, see:
+
+- [Testing Guidelines in CLAUDE.md](../../CLAUDE.md#testing-guidelines)
+- [Comprehensive Playwright E2E Skill](../../.claude/skills/playwright_e2e.md)
 
 ## Troubleshooting
 
@@ -227,17 +238,71 @@ Playwright integration tests live in `packages/nexus-ui/e2e` and exercise full u
 
 ### Environment
 
-Tests run against the mock backend by default.
+Tests run against the **mock backend by default**.
 The Playwright config starts:
 
 - UI on port `4173`
 - Mock API on port `3300`
 
-Override with:
+Override ports:
 
 ```bash
 NEXUS_E2E_PORT=5174 NEXUS_E2E_API_PORT=3301 npm run e2e
 ```
+
+### Real Backend Mode
+
+To test against the real Nexus backend instead of the mock API:
+
+1. Start the real backend (see backend repo README)
+2. Start the UI: `VITE_API_URL=http://localhost:8000 npm run start:ui`
+3. Run tests: `NEXUS_E2E_SKIP_WEB_SERVER=1 NEXUS_E2E_BASE_URL=http://localhost:5173 npm run e2e`
+
+See [`.claude/skills/playwright_e2e.md`](../../.claude/skills/playwright_e2e.md) for comprehensive setup instructions.
+
+### Running E2E Tests
+
+```bash
+# From repository root
+npm run e2e        # Run headless (mock API auto-started)
+npm run e2e:ui     # Run with Playwright UI
+
+# Override ports if needed
+NEXUS_E2E_PORT=5174 NEXUS_E2E_API_PORT=3301 npm run e2e
+```
+
+### Test Isolation (CRITICAL)
+
+**Tests run in parallel** and must be completely independent. Each test must work in any order.
+
+**Golden Rules:**
+
+1. **NEVER hardcode names** — Always use `buildUniqueName(prefix)`
+2. **Create your own resources** — Don't assume data exists
+3. **Clean up in try-finally** — Cleanup must run even if test fails
+4. **No shared state** — Each test is isolated
+
+```typescript
+// ❌ BAD: Hardcoded name + no cleanup
+test('test', async ({ app }) => {
+  const name = 'my-workflow' // Conflicts in parallel execution!
+  await createWorkflow(app, name)
+  // No cleanup - pollutes database!
+})
+
+// ✅ GOOD: Unique name + try-finally cleanup
+test('test', async ({ app }) => {
+  const name = buildUniqueName('e2e-workflow')
+  await createWorkflow(app, name)
+  try {
+    // Test logic
+  } finally {
+    await deleteWorkflow(app, name) // Always runs
+  }
+})
+```
+
+**Why this matters:** With `fullyParallel: true`, tests run concurrently. Without unique names and cleanup, tests interfere with each other and fail randomly.
 
 ### Selector Strategy (Required)
 
@@ -250,16 +315,33 @@ NEXUS_E2E_PORT=5174 NEXUS_E2E_API_PORT=3301 npm run e2e
 ### Example Pattern (AAA)
 
 ```ts
-test('user creates an automation', async ({ page }) => {
+import { test, expect, toAppUrl } from './fixtures'
+import { buildUniqueName } from './helpers/workflows'
+
+test('user creates an automation', async ({ app }) => {
   // Arrange - Start from the list
-  await page.goto('/automations')
+  const workflowName = buildUniqueName('e2e-test')
 
-  // Act - Create a workflow
-  await page.getByRole('button', { name: 'Create automation' }).click()
-  await page.getByPlaceholder('Workflow name').fill('Example workflow')
-  await page.getByRole('button', { name: 'Save' }).click()
+  try {
+    // Act - Create a workflow with unique name
+    await app.goto(toAppUrl('/automations'))
+    await app.getByRole('button', { name: 'Create automation' }).click()
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
 
-  // Assert - Saved workflow appears
-  await expect(page.getByText('Workflow created successfully')).toBeVisible()
+    // Assert - Saved workflow appears
+    await expect(app.getByText('Workflow created successfully')).toBeVisible()
+  } finally {
+    // Cleanup — delete created resources (especially when testing against real backend)
+    // ... cleanup logic
+  }
 })
 ```
+
+**Important:**
+
+- Use `{ app }` fixture (not `{ page }`) — pre-configured with base URL
+- Import from `'./fixtures'` (not `'@playwright/test'`)
+- Clean up created resources when testing against real backend (persistent database)
+
+For comprehensive E2E testing guidance, see [`.claude/skills/playwright_e2e.md`](../../.claude/skills/playwright_e2e.md).

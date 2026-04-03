@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Claude, you have access to the following skills. Use them when appropriate:
 
 - See `.claude/skills/pr_review.md` for PR review steps
+- See `.claude/skills/playwright_e2e.md` for comprehensive E2E testing with Playwright
 
 ### Accessibility review (always)
 
@@ -941,18 +942,22 @@ it('increments counter when button clicked', async () => {
 **Playwright E2E** - Full workflow tests in real browser:
 
 - File naming: `*.spec.ts` under `packages/nexus-ui/e2e`
-- Use for: end-to-end user flows, routing, and integration with mock API
-- Environment: Playwright + Chromium (mock API + UI started by Playwright config)
+- Use for: end-to-end user flows, routing, and integration testing
+- Environment: Playwright + Chromium (mock API by default, real backend supported)
 - Commands:
   - `npm run e2e` - Run headless
   - `npm run e2e:ui` - Run with Playwright UI
+- **Default:** Playwright starts mock API (port 3300) + UI (port 4173)
+- **Real backend:** Set `NEXUS_E2E_SKIP_WEB_SERVER=1` and run UI separately against backend
 
 **When to use Playwright E2E:**
 
 - Multi-step workflows that cross routes or screens
-- Integration with the mock API or real backend flows
+- Integration with mock API or real backend flows
 - Validating full user journeys (create, edit, save, delete)
 - Smoke tests for critical paths before releases
+
+**For comprehensive E2E guidance:** See [`.claude/skills/playwright_e2e.md`](.claude/skills/playwright_e2e.md)
 
 **Default to jsdom** unless you specifically need browser APIs - it's much faster.
 
@@ -967,16 +972,26 @@ it('increments counter when button clicked', async () => {
 ```ts
 // ✅ Use Playwright for a multi-step workflow
 // File: packages/nexus-ui/e2e/automations.spec.ts
-import { test, expect } from '@playwright/test'
+import { test, expect, toAppUrl } from './fixtures'
+import { buildUniqueName } from './helpers/workflows'
 
-test('user creates an automation', async ({ page }) => {
-  await page.goto('/automations')
-  await page.getByRole('button', { name: 'Create automation' }).click()
-  await page.getByPlaceholder('Workflow name').fill('Example workflow')
-  await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page.getByText('Workflow created successfully')).toBeVisible()
+test('user creates an automation', async ({ app }) => {
+  const workflowName = buildUniqueName('e2e-test')
+
+  try {
+    await app.goto(toAppUrl('/automations'))
+    await app.getByRole('button', { name: 'Create automation' }).click()
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
+    await expect(app.getByText('Workflow created successfully')).toBeVisible()
+  } finally {
+    // Cleanup — delete created resources (especially when testing against real backend)
+    // ... cleanup logic
+  }
 })
 ```
+
+**Important:** When running against the real backend, always clean up created resources (they persist in a real database). See the [Playwright E2E skill](.claude/skills/playwright_e2e.md) for both mock API and real backend setup.
 
 **Example - When jsdom is Sufficient:**
 
@@ -1174,11 +1189,13 @@ npm run e2e:ui                       # Run with Playwright UI for debugging
 - Vite build system
 - npm workspaces
 
-### Port Configuration
+### Port Configuration (Development)
 
 - UI: <http://localhost:5173>
 - Mock API: <http://localhost:3000>
 - WebSocket: `ws://localhost:8000` (real backend only; override with `VITE_WS_URL` if needed)
+
+E2E tests use different ports (UI: 4173, mock API: 3300) to avoid conflicts with a running dev server. See the Playwright E2E section above for details.
 
 ## Deployment Considerations
 

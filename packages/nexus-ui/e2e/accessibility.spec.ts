@@ -27,7 +27,7 @@ test.describe('Accessibility', () => {
 
   test('approvals page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/approvals'))
-    await expect(app.getByRole('heading', { name: 'Approvals' })).toBeVisible()
+    await expect(app.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
 
     await expectNoA11yViolations(app)
   })

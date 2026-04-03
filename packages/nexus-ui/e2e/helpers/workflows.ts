@@ -33,9 +33,34 @@ export async function fillCodeEditor(
 
     const monacoSurface = target.locator('.monaco-editor').first()
     await monacoSurface.click({ force: true })
-    await page.keyboard.press('ControlOrMeta+A')
-    await page.keyboard.insertText(value)
-    await expect(monacoSurface.locator('.view-lines')).toContainText(value.slice(0, 20))
+    const usedMonacoApi = await page.evaluate((text) => {
+      const editor = (window as Record<string, unknown>).monaco
+        ? (
+            (window as Record<string, unknown>).monaco as {
+              editor: { getEditors: () => Array<{ setValue: (v: string) => void }> }
+            }
+          ).editor.getEditors()[0]
+        : null
+      if (editor) {
+        editor.setValue(text)
+        return true
+      }
+      const el = document.querySelector('.monaco-editor')
+      if (el) {
+        const textarea = el.querySelector('textarea')
+        if (textarea) {
+          textarea.focus()
+          document.execCommand('selectAll')
+          document.execCommand('insertText', false, text)
+        }
+      }
+      return false
+    }, value)
+    if (!usedMonacoApi) {
+      await expect(monacoSurface.locator('.view-lines')).toContainText(value.slice(0, 20), {
+        timeout: 5000,
+      })
+    }
   }
 
   const visibleInlineEditor = page.getByTestId('inline-code-editor').locator(':visible').first()

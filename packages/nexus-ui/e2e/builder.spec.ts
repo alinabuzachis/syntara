@@ -48,8 +48,9 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
   // Assert - Workflow is persisted in automations list
   await expect(app).toHaveURL(/automation-builder\/.+/)
   await app.goto(toAppUrl('/automations'))
-  await app.getByPlaceholder('Search automations...').fill(workflowName)
-  await expect(app.getByRole('button', { name: workflowName })).toBeVisible()
+  await app.getByPlaceholder('Filter by name').fill(workflowName)
+  await app.getByRole('button', { name: 'Apply filter' }).click()
+  await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
 })
 
 test('user edits an existing workflow and changes persist', async ({ app }) => {
@@ -59,8 +60,9 @@ test('user edits an existing workflow and changes persist', async ({ app }) => {
 
   // Act - Open workflow from automations list
   await app.goto(toAppUrl('/automations'))
-  await app.getByPlaceholder('Search automations...').fill(workflowName)
-  await app.getByRole('button', { name: workflowName }).click()
+  await app.getByPlaceholder('Filter by name').fill(workflowName)
+  await app.getByRole('button', { name: 'Apply filter' }).click()
+  await app.getByRole('button', { name: workflowName, exact: true }).click()
 
   const updatedName = `${workflowName}-updated`
   await app.getByPlaceholder('Workflow name').fill(updatedName)
@@ -68,6 +70,7 @@ test('user edits an existing workflow and changes persist', async ({ app }) => {
 
   // Assert - Updated name persists
   await app.goto(toAppUrl('/automations'))
-  await app.getByPlaceholder('Search automations...').fill(updatedName)
-  await expect(app.getByRole('button', { name: updatedName })).toBeVisible()
+  await app.getByPlaceholder('Filter by name').fill(updatedName)
+  await app.getByRole('button', { name: 'Apply filter' }).click()
+  await expect(app.getByRole('button', { name: updatedName, exact: true })).toBeVisible()
 })
