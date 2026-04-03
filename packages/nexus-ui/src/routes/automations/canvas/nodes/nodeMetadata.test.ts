@@ -142,6 +142,11 @@ describe('executorMetadata', () => {
       expect(executorMetadata.aap_job_template.icon).toBeDefined()
     })
 
+    it('has metadata for internal aap key matching aap_job_template', () => {
+      expect(executorMetadata.aap).toBe(executorMetadata.aap_job_template)
+      expect(executorMetadata.aap.label).toBe('AAP Job')
+    })
+
     it('has metadata for approval executor', () => {
       expect(executorMetadata.approval).toBeDefined()
       expect(executorMetadata.approval.label).toBe('Approval')

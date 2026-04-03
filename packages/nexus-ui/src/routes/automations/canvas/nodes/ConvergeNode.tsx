@@ -7,6 +7,7 @@ import { Details } from '../../../../components/details/Details'
 import { RegistryNodeId } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
+import { semanticZoomActivityTitle } from '../semanticZoom'
 
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -39,6 +40,10 @@ export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
       nodeProps={props}
       executionState={executionState}
       topBarColor={getNodeTypeColor('converge')}
+      semanticZoomSummary={{
+        title: semanticZoomActivityTitle(props.data.name, `Untitled ${metadata.label}`),
+        typeLabel: metadata.label,
+      }}
     >
       <StandardNodeHeader icon={iconNode} title={props.data.name} subtitle={metadata.label} expandable />
       <Flex justifyContent={{ default: 'justifyContentFlexStart' }} style={{ overflow: 'hidden' }}>

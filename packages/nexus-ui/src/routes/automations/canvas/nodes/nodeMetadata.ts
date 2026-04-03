@@ -62,12 +62,19 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
   },
 }
 
+type ExecutorDisplayMetadata = { icon: ComponentType<{ className?: string }>; label: string }
+
+/** Same display as API executor `aap_job_template`; shared with internal `aap` from detectTaskNodeType. */
+const aapJobExecutorDisplay: ExecutorDisplayMetadata = { icon: AnsibleIcon, label: 'AAP Job' }
+
 // Task executor metadata - different tasks have different icons
-export const executorMetadata: Record<string, { icon: ComponentType<{ className?: string }>; label: string }> = {
+export const executorMetadata: Record<string, ExecutorDisplayMetadata> = {
   script: { icon: RhUiCodeIcon, label: 'Script' },
   agentic: { icon: RhUiRobotIcon, label: 'Agentic' },
   api: { icon: RhUiPlugFillIcon, label: 'REST API' },
   connector: { icon: RhUiPlugFillIcon, label: 'Connector' },
-  aap_job_template: { icon: AnsibleIcon, label: 'AAP Job' },
+  aap_job_template: aapJobExecutorDisplay,
+  /** Internal key from detectTaskNodeType (agentic + ansible connector prompt), not an API executor string */
+  aap: aapJobExecutorDisplay,
   approval: { icon: RhUiUserCheckIcon, label: 'Approval' }, // Human approval gate
 }

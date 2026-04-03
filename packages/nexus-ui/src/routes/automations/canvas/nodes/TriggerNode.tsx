@@ -3,9 +3,12 @@ import { FlexItem, Content, ContentVariants, Title, TitleSizes } from '@patternf
 import { type Node, type NodeProps } from '@xyflow/react'
 import type { CSSProperties } from 'react'
 
+import { FlowNodeType } from '../../../../constants'
 import { parseTriggerIndex } from '../../../../utils/triggerNodeIds'
 import { useIsExecutionView } from '../../../builder/ExecutionViewContext'
 import type { ActivityStatus } from '../../execution/types'
+import { getNodeTypeColor } from '../nodeTypeColors'
+import { semanticZoomActivityTitle } from '../semanticZoom'
 
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -61,6 +64,8 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
     ((props.data as Record<string, unknown>).metadata as { __showExecutionBadge?: boolean } | undefined)
       ?.__showExecutionBadge === true
 
+  const triggerTypeLabel = props.data.triggerType === TriggerTypeEnum.SCHEDULED ? 'Scheduled trigger' : 'Manual trigger'
+
   return (
     <NodeComponent
       disableTarget={metadata.disableTarget}
@@ -70,6 +75,11 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
       collapsible={false}
       executionState={executionState}
       showExecutionBadge={showExecutionBadge}
+      topBarColor={getNodeTypeColor(FlowNodeType.TRIGGER)}
+      semanticZoomSummary={{
+        title: semanticZoomActivityTitle(triggerName, `Untitled ${metadata.label}`),
+        typeLabel: triggerTypeLabel,
+      }}
     >
       <TriggerNodeDetails
         node={props.data}

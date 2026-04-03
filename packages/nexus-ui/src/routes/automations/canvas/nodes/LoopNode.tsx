@@ -4,6 +4,7 @@ import { type Node, type NodeProps } from '@xyflow/react'
 
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
+import { semanticZoomActivityTitle } from '../semanticZoom'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { NodeComponent } from './common/NodeComponent'
@@ -42,6 +43,14 @@ export function LoopNodeComponent(props: NodeProps<LoopNode>) {
       nodeProps={props}
       executionState={executionState}
       topBarColor={getNodeTypeColor('loop')}
+      semanticZoomSummary={{
+        title: semanticZoomActivityTitle(props.data.name, `Untitled ${metadata.label}`),
+        typeLabel: metadata.label,
+      }}
+      semanticZoomBranchSources={[
+        { id: 'done', ariaLabel: 'Done branch output' },
+        { id: 'loop', ariaLabel: 'Loop branch output' },
+      ]}
     >
       <StandardNodeHeader
         icon={iconNode}

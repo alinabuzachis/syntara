@@ -11,6 +11,8 @@ vi.mock('@xyflow/react', () => ({
     updateNode: vi.fn(),
     getNode: vi.fn(),
   }),
+  useStore: (selector: (s: { transform: [number, number, number] }) => unknown) => selector({ transform: [0, 0, 1] }),
+  useUpdateNodeInternals: () => vi.fn(),
   Handle: () => null,
   Position: {
     Top: 'top',

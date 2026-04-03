@@ -1,16 +1,20 @@
 import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
 import { CompassPanel } from '@patternfly/react-core'
 import { Handle, type NodeProps, Position } from '@xyflow/react'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 import { FlowNodeType } from '../../../../../constants'
 import { ExecutionStatusBadge } from '../../../../builder/components/ExecutionStatusBadge'
 import type { ActivityStatus } from '../../../execution/types'
+import { NODE_TYPE_COLORS } from '../../nodeTypeColors'
+import type { SemanticZoomBranchSource } from '../../semanticZoomTypes'
+import { useSemanticZoom } from '../hooks/useSemanticZoom'
 
 import { detectTaskNodeType } from './detectTaskNodeType'
 import { targetHandleStyle, sourceHandleStyle } from './handleStyle'
 import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 import { NodeExpandedContext } from './NodeExpandedContext'
+import { NodeSemanticZoomBody } from './NodeSemanticZoomBody'
 
 interface ExecutionState {
   status: ActivityStatus
@@ -64,10 +68,29 @@ export function NodeComponent(props: {
   showExecutionBadge?: boolean
   /** Optional color for the type indicator bar at the top of the node (PatternFly token or CSS color) */
   topBarColor?: string
+  /** When zoomed out, used for tooltip text on the compact color block */
+  semanticZoomSummary?: { title: string; typeLabel: string }
+  /** Branch source handles at semantic zoom (no labels; stacked on the bar edge) */
+  semanticZoomBranchSources?: readonly SemanticZoomBranchSource[]
 }) {
   const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
   const expandedContext = useState(true)
   const isCollapsible = props.collapsible ?? true
+
+  const hasSemanticZoomSummary = props.semanticZoomSummary !== undefined
+  const isSemanticZoom = useSemanticZoom(props.nodeProps.id, hasSemanticZoomSummary)
+
+  const semanticFillColor = props.topBarColor ?? NODE_TYPE_COLORS.generic
+
+  const barRadiusStyle = useMemo(() => {
+    const s = props.style
+    if (!s) return undefined
+    return {
+      borderRadius: s.borderRadius,
+      borderTopLeftRadius: s.borderTopLeftRadius,
+      borderBottomLeftRadius: s.borderBottomLeftRadius,
+    }
+  }, [props.style])
 
   useEffect(() => {
     if (!isCollapsible) return
@@ -88,19 +111,20 @@ export function NodeComponent(props: {
 
   const isSelected = props.nodeProps.selected
   const nodeWidth = isWideTaskNode(props.nodeProps) ? WIDE_NODE_WIDTH : DEFAULT_NODE_WIDTH
+  const summary = props.semanticZoomSummary
 
-  return (
-    <NodeExpandedContext.Provider value={expandedContext}>
-      <CompassPanel
-        hasNoPadding
-        className={props.className}
-        onClick={props.onClick}
-        style={{
-          overflow: 'visible', // Allow execution badge to overflow outside node
-          cursor: props.onClick || props.hasDashedBorder ? 'pointer' : undefined,
-          width: `${nodeWidth}px`, // Fixed width for consistent node sizing
-          minWidth: `${nodeWidth}px`,
-          maxWidth: `${nodeWidth}px`,
+  const panelStyle: React.CSSProperties = {
+    overflow: 'visible', // Allow execution badge to overflow outside node
+    cursor: props.onClick || props.hasDashedBorder ? 'pointer' : undefined,
+    width: `${nodeWidth}px`, // Fixed width for consistent node sizing
+    minWidth: `${nodeWidth}px`,
+    maxWidth: `${nodeWidth}px`,
+    ...(isSemanticZoom
+      ? {
+          border: 'none',
+          ...props.style,
+        }
+      : {
           // Type indicator: top border in type color when not selected (full top bar, no dashed).
           // Use longhands and border: 'none' so the top bar is visible and shorthand doesn't stick after deselect.
           ...(props.topBarColor &&
@@ -130,7 +154,16 @@ export function NodeComponent(props: {
               border: '2px dashed var(--pf-t--global--color--brand--default)',
             }),
           ...props.style, // Merge with custom styles (will override borders if specified)
-        }}
+        }),
+  }
+
+  return (
+    <NodeExpandedContext.Provider value={expandedContext}>
+      <CompassPanel
+        hasNoPadding
+        className={props.className}
+        onClick={props.onClick}
+        style={panelStyle}
         onKeyDown={(e: React.KeyboardEvent) => {
           if (props.onClick && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault()
@@ -140,8 +173,20 @@ export function NodeComponent(props: {
         role={props.onClick ? 'button' : undefined}
         tabIndex={props.onClick ? 0 : undefined}
       >
-        {props.children}
-        {props.showExecutionBadge !== false && props.executionState && (
+        {isSemanticZoom && summary ? (
+          <NodeSemanticZoomBody
+            title={summary.title}
+            typeLabel={summary.typeLabel}
+            backgroundColor={semanticFillColor}
+            branchSources={props.semanticZoomBranchSources}
+            selected={isSelected}
+            hasDashedBorder={props.hasDashedBorder ?? false}
+            barStyle={barRadiusStyle}
+          />
+        ) : (
+          props.children
+        )}
+        {!isSemanticZoom && props.showExecutionBadge !== false && props.executionState && (
           <ExecutionStatusBadge
             status={props.executionState?.status ?? 'pending'}
             retryCount={props.executionState?.retry_count}

@@ -5,6 +5,7 @@ import { type Node, type NodeProps } from '@xyflow/react'
 import { Details } from '../../../../components/details/Details'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
+import { semanticZoomActivityTitle } from '../semanticZoom'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { renderText } from './common/detailRenderers'
@@ -51,6 +52,14 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
       executionState={executionState}
       showExecutionBadge={showExecutionBadge}
       topBarColor={getNodeTypeColor('approval')}
+      semanticZoomSummary={{
+        title: semanticZoomActivityTitle(props.data.name, `Untitled ${taskExecutor}`),
+        typeLabel: taskExecutor,
+      }}
+      semanticZoomBranchSources={[
+        { id: 'approved', ariaLabel: 'Approved branch output' },
+        { id: 'rejected', ariaLabel: 'Rejected branch output' },
+      ]}
     >
       <>
         <StandardNodeHeader

@@ -3,6 +3,7 @@ import { type Node, type NodeProps } from '@xyflow/react'
 
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
+import { semanticZoomActivityTitle } from '../semanticZoom'
 
 import { NodeComponent } from './common/NodeComponent'
 import { StandardNodeHeader } from './common/StandardNodeHeader'
@@ -35,6 +36,10 @@ export function ParallelNodeComponent(props: NodeProps<ParallelNode>) {
       nodeProps={props}
       executionState={executionState}
       topBarColor={getNodeTypeColor('parallel')}
+      semanticZoomSummary={{
+        title: semanticZoomActivityTitle(props.data.name, `Untitled ${metadata.label}`),
+        typeLabel: metadata.label,
+      }}
     >
       <StandardNodeHeader title={props.data.name} subtitle={metadata.label} menuActions={menuActions} />
     </NodeComponent>

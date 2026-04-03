@@ -8,6 +8,7 @@ import { getNodeTypeColor } from '../nodeTypeColors'
 import { NodeComponent } from './common/NodeComponent'
 import { nodeMetadata } from './nodeMetadata'
 import { TaskActivityDetails } from './TaskNode'
+import { getTaskSemanticLabels } from './taskSemanticLabels'
 
 /**
  * TaskReversedNode - A task node with reversed handles (input on right, output on left)
@@ -42,6 +43,7 @@ export function TaskReversedNodeComponent(props: NodeProps<TaskReversedNode>) {
       reverseHandles
       executionState={executionState}
       topBarColor={getNodeTypeColor(FlowNodeType.TASK_REVERSED, props.data)}
+      semanticZoomSummary={getTaskSemanticLabels(props.data)}
     >
       <TaskActivityDetails data={props.data} iconColor={getNodeTypeColor(FlowNodeType.TASK_REVERSED, props.data)} />
     </NodeComponent>

@@ -6,6 +6,7 @@ import { Details } from '../../../../components/details/Details'
 import { RegistryNodeId } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
+import { semanticZoomActivityTitle } from '../semanticZoom'
 
 import { BranchHandle, BranchHandles } from './common/BranchHandle'
 import { renderJson, renderOutputs } from './common/detailRenderers'
@@ -49,6 +50,14 @@ export function ConditionNodeComponent(props: NodeProps<ConditionNode>) {
       disableSource
       executionState={executionState}
       topBarColor={getNodeTypeColor('condition')}
+      semanticZoomSummary={{
+        title: semanticZoomActivityTitle(props.data.name, `Untitled ${metadata.label}`),
+        typeLabel: metadata.label,
+      }}
+      semanticZoomBranchSources={[
+        { id: 'true', ariaLabel: 'True branch output' },
+        { id: 'false', ariaLabel: 'False branch output' },
+      ]}
     >
       <ConditionNodeDetails conditionActivity={props.data} icon={iconNode} menuActions={menuActions}>
         <BranchHandles>

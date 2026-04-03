@@ -578,16 +578,20 @@ mutation.mutate({ body: workflowPayload })
 
 ### Key files
 
-| File                                    | Responsibility                                                                       |
-| --------------------------------------- | ------------------------------------------------------------------------------------ |
-| `BuilderContent.tsx`                    | Orchestrates load/save, wraps canvas                                                 |
-| `BuilderFlow.tsx`                       | Converts store → React Flow nodes/edges, handles layout                              |
-| `automations/canvas/CanvasControls.tsx` | Bottom canvas toolbar (zoom, fit, layout, expand/collapse) and toggle for the legend |
-| `automations/canvas/CanvasLegend.tsx`   | Floating legend: node categories and approval branch colors                          |
-| `utils/workflowTransform.ts`            | Flatten/nest transformations                                                         |
-| `utils/loadWorkflow.ts`                 | Load + flatten workflow                                                              |
-| `utils/buildNestedStructure.ts`         | Build nested structure for save                                                      |
-| `utils/validation/`                     | Validation rules                                                                     |
+| File                                                | Responsibility                                                                                                           |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `BuilderContent.tsx`                                | Orchestrates load/save, wraps canvas                                                                                     |
+| `BuilderFlow.tsx`                                   | Converts store → React Flow nodes/edges, handles layout                                                                  |
+| `automations/canvas/CanvasControls.tsx`             | Bottom canvas toolbar (zoom, fit, layout, expand/collapse) and toggle for the legend                                     |
+| `automations/canvas/CanvasLegend.tsx`               | Floating legend: node categories and approval branch colors                                                              |
+| `automations/canvas/semanticZoom.ts`                | Semantic zoom threshold (`SEMANTIC_ZOOM_MAX_SCALE`) and `semanticZoomActivityTitle()` for consistent empty-name tooltips |
+| `automations/canvas/semanticZoomTypes.ts`           | Shared `SemanticZoomBranchSource` type for branch handles at semantic zoom                                               |
+| `automations/canvas/nodes/hooks/useSemanticZoom.ts` | LOD flag via typed `useStore` selector + `updateNodeInternals` when crossing the zoom threshold                          |
+| `automations/canvas/nodes/common/NodeComponent.tsx` | Shared node shell; semantic zoom swaps to color blocks + tooltips (title + type)                                         |
+| `utils/workflowTransform.ts`                        | Flatten/nest transformations                                                                                             |
+| `utils/loadWorkflow.ts`                             | Load + flatten workflow                                                                                                  |
+| `utils/buildNestedStructure.ts`                     | Build nested structure for save                                                                                          |
+| `utils/validation/`                                 | Validation rules                                                                                                         |
 
 ### Builder internals (advanced): registry, edges, and graph semantics
 
@@ -1055,6 +1059,7 @@ Builder adds extra types like `placeholder` for drop targets.
 **Visual coding (builder canvas):**
 
 - **Type-colored top bar + icon**: `routes/automations/canvas/nodeTypeColors.ts` (`getNodeTypeColor`, `NODE_TYPE_COLORS`) maps node / executor types to PatternFly non-status tokens. `NodeComponent` accepts optional `topBarColor` for a 4px top border; when a node is **selected**, the full brand border replaces the top bar (same as nodes without a type bar). Icons use the same token via `renderNodeIcon(..., color)`.
+- **Semantic zoom (Topology-style LOD)**: When the React Flow viewport `zoom` is at or below `SEMANTIC_ZOOM_MAX_SCALE` (defined in `semanticZoom.ts`), `NodeComponent` renders a compact horizontal block filled with the same accent as `topBarColor`, with a PatternFly `Tooltip` showing **title** (heading weight) and **type** (`semanticZoomSummary` from each node). For performance, LOD logic lives in **`useSemanticZoom`** (`nodes/hooks/useSemanticZoom.ts`): a **`useStore`** selector typed with **`ReactFlowState`** reads `transform[2]` (zoom) and returns a boolean so nodes re-render only when crossing the threshold—not on every pan/zoom frame like **`useViewport`** would (see [React Flow `useStore`](https://reactflow.dev/api-reference/hooks/use-store)). The primary title uses **`semanticZoomActivityTitle`** (trimmed name, else a stable fallback): structural nodes use **`Untitled ${metadata.label}`**; task-shaped nodes use **`Untitled task`** with the executor label on the second line. Tooltip copy uses **`--pf-t--global--text--color--inverse`** for both lines so it stays readable on PatternFly’s inverse tooltip surface (see `NodeSemanticZoomBody.tsx`). Branching nodes pass **`semanticZoomBranchSources`** so multiple source handles stay on the **same bar height** with **no branch labels** (handles on the right edge; `SemanticZoomBranchSourceHandles.tsx`). `useUpdateNodeInternals` runs when toggling so edge anchors stay correct. New semantic-zoom UI should include **`vitest-axe`** coverage per the **Accessibility Testing** section in `CLAUDE.md`.
 - **Add node panel**: `getAddNodePanelColor` uses registry ids; builder registry ids are centralized in `src/constants/registryNodeIds.ts` (`RegistryNodeId`, `RegistryNodeIdUnion`).
 - **Approval branches**: `BranchHandle` and `EdgePath` / `DefaultEdge` / `ButtonEdge` color approved vs rejected handles and edges using success/danger tokens.
 

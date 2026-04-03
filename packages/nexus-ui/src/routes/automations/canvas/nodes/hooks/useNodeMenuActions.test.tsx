@@ -13,6 +13,7 @@ vi.mock('@xyflow/react', () => ({
   useReactFlow: () => ({
     deleteElements: mockDeleteElements,
   }),
+  useUpdateNodeInternals: () => vi.fn(),
 }))
 
 // Mock alerts

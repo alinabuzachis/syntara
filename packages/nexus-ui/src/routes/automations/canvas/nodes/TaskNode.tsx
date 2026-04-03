@@ -16,6 +16,7 @@ import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { getTaskIconDescriptor } from './nodeIconResolver'
 import { nodeMetadata, executorMetadata } from './nodeMetadata'
 import { renderNodeIcon } from './renderNodeIcon'
+import { getTaskSemanticLabels } from './taskSemanticLabels'
 
 type AAPJobTemplateConfig = {
   jobTemplateId?: string | number
@@ -64,6 +65,7 @@ export function TaskNodeComponent(props: NodeProps<TaskNode>) {
       executionState={executionState}
       showExecutionBadge={showExecutionBadge}
       topBarColor={getNodeTypeColor(FlowNodeType.TASK, props.data)}
+      semanticZoomSummary={getTaskSemanticLabels(props.data)}
     >
       <TaskActivityDetails
         data={props.data}

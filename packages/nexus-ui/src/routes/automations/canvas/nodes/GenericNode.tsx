@@ -7,6 +7,7 @@ import { FlowNodeType } from '../../../../constants'
 import { getActivityMetadata } from '../../../../stores/useWorkflowStore'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
+import { semanticZoomActivityTitle } from '../semanticZoom'
 
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -48,6 +49,10 @@ export function GenericNodeComponent(props: NodeProps<GenericNode>) {
       executionState={executionState}
       collapsible={false}
       topBarColor={getNodeTypeColor(FlowNodeType.GENERIC)}
+      semanticZoomSummary={{
+        title: semanticZoomActivityTitle(props.data.name, displayMessage),
+        typeLabel: 'Generic',
+      }}
     >
       <StandardNodeHeader
         icon={renderNodeIcon(RhUiSettingsIcon, FlowNodeType.GENERIC, 'canvas', getNodeTypeColor(FlowNodeType.GENERIC))}
