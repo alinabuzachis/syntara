@@ -56,7 +56,7 @@ export function NodeMenu(props: Readonly<NodeMenuProps>) {
             variant="plain"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             isExpanded={isMenuOpen}
-            aria-label="Node actions menu"
+            aria-label="Step actions menu"
             className="nodrag nopan"
           >
             <RhUiEllipsisVerticalFillIcon />

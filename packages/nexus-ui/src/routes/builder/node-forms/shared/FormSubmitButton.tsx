@@ -18,7 +18,7 @@ export function FormSubmitButton({ submitButtonText, isDisabled }: FormSubmitBut
       }}
     >
       <Button type="submit" variant="secondary" style={{ width: '100%' }} isDisabled={isDisabled}>
-        {submitButtonText ?? 'Add node'}
+        {submitButtonText ?? 'Add step'}
       </Button>
     </StackItem>
   )

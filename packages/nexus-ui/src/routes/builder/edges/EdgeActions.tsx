@@ -41,7 +41,7 @@ export function EdgeActions(props: EdgeActionsProps) {
       >
         <ActionList isIconList>
           <ActionListItem>
-            <Button variant="control" onClick={onAddNode} title="Add node">
+            <Button variant="control" onClick={onAddNode} title="Add step">
               <RhUiAddSquareIcon />
             </Button>
           </ActionListItem>

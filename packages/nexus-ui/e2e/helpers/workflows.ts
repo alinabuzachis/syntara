@@ -6,7 +6,7 @@ export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${Ma
 
 export const addNodePanel = (page: Page) =>
   page.getByRole('region', {
-    name: /add node|select a node|select an action node|select a trigger node/i,
+    name: /add step|select a step|select an action step|select a trigger step/i,
   })
 
 export async function closeNodeEditorPanel(page: Page) {
@@ -86,23 +86,23 @@ export async function fillCodeEditor(
 export async function createBasicWorkflow(page: Page, workflowName: string, actionName: string) {
   // Arrange - Start from the new workflow builder
   await page.goto(toAppUrl('/automation-builder/new'))
-  await expect(page.getByRole('heading', { name: 'Select a trigger node' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
   // Act - Add manual trigger
   await page.getByRole('button', { name: 'Manual trigger' }).click()
   await page.getByLabel('Name').fill('Manual trigger')
-  await page.getByRole('button', { name: /^Add node$/ }).click()
+  await page.getByRole('button', { name: /^Add step$/ }).click()
 
   // Act - Add a connected action node
-  await expect(page.getByRole('button', { name: 'Add connected node' })).toBeVisible()
-  await page.getByRole('button', { name: 'Add connected node' }).click({ force: true })
+  await expect(page.getByRole('button', { name: 'Add connected step' })).toBeVisible()
+  await page.getByRole('button', { name: 'Add connected step' }).click({ force: true })
   const panel = addNodePanel(page)
   await expect(panel).toHaveCount(1)
   await panel.getByRole('button', { name: 'Action', exact: true }).click()
   await panel.getByRole('button', { name: 'Script', exact: true }).click()
   await page.getByLabel('Name').fill(actionName)
   await fillCodeEditor(page, { value: 'print("hello")' })
-  await page.getByRole('button', { name: /^Add node$/ }).click()
+  await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
 
   // Act - Name and save workflow

@@ -1,10 +1,10 @@
-# Quick Start: Adding a New Node
+# Quick Start: Adding a New Step Type
 
-This guide shows you how to quickly add a new node to the workflow builder.
+This guide shows you how to quickly add a new workflow step type to the builder (user-facing **steps**; React Flow still uses **nodes** under the hood).
 
 ## Overview
 
-Adding a new node involves **just 2 simple steps**:
+Adding a new step type involves **just 2 simple steps**:
 
 1. Create a form component
 2. Create a registration file with **default export**
@@ -40,7 +40,7 @@ export function MyNewNodeForm({ onSubmit, onCancel }: BaseNodeFormProps<MyNewNod
   return (
     <form onSubmit={handleSubmit}>
       {/* Your form fields here */}
-      <button type="submit">Add Node</button>
+      <button type="submit">Add Step</button>
       <button type="button" onClick={onCancel}>Cancel</button>
     </form>
   )
@@ -51,7 +51,7 @@ export function MyNewNodeForm({ onSubmit, onCancel }: BaseNodeFormProps<MyNewNod
 
 Choose the appropriate template based on your needs:
 
-### Option A: Simple Node (Direct Registration)
+### Option A: Simple step type (direct registration)
 
 ```typescript
 // registerMyNewNode.ts
@@ -67,7 +67,7 @@ import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 export default function registerMyNewNode() {
   NodeRegistry.register({
     id: 'my-new-node',
-    label: 'My New Node',
+    label: 'My New Step',
     icon: RhUiRobotIcon,
     category: 'action',
     description: 'Does something amazing',
@@ -83,16 +83,16 @@ export default function registerMyNewNode() {
         useWorkflowStore.getState().addActivity(activity)
         onSuccess(activityId)
       } catch (error) {
-        onError(error instanceof Error ? error.message : 'Failed to add node')
+        onError(error instanceof Error ? error.message : 'Failed to add step')
       }
     },
   })
 }
 ```
 
-### Option B: Custom Node (Full Implementation)
+### Option B: Custom step type (full implementation)
 
-For nodes that need to interact with the workflow store or perform complex logic:
+For step types that need to interact with the workflow store or perform complex logic:
 
 ```typescript
 // registerMyNewNode.ts
@@ -109,7 +109,7 @@ export default function registerMyNewNode() {
     createCustomNode<MyNewNodeFormData>(
       {
         id: 'my-new-node',
-        label: 'My New Node',
+        label: 'My New Step',
         icon: RhUiRobotIcon,
         category: 'action', // Type-safe category
         description: 'Does something amazing',
@@ -129,7 +129,7 @@ export default function registerMyNewNode() {
             onError('Invalid configuration. Please check your inputs.')
           }
         } catch (error) {
-          onError(error instanceof Error ? error.message : 'Failed to add node')
+          onError(error instanceof Error ? error.message : 'Failed to add step')
         }
       }
     )
@@ -137,11 +137,11 @@ export default function registerMyNewNode() {
 }
 ```
 
-**That's it!** Your node is automatically discovered and registered. No need to manually edit `index.ts`.
+**That's it!** Your step type is automatically discovered and registered. No need to manually edit `index.ts`.
 
 ## Categories
 
-Choose the appropriate category for your node:
+Choose the appropriate category for your step type:
 
 | Category      | Use Case                      | Examples                               |
 | ------------- | ----------------------------- | -------------------------------------- |
@@ -183,20 +183,20 @@ import MyIcon from '../../../../assets/my-icon.svg?react'
 ### 2. **Provide Good Keywords**
 
 - Include related terms users might search for
-- Think about what the node does and how users describe it
+- Think about what the step does and how users describe it
 - Examples: `['api', 'http', 'rest', 'web', 'fetch']`
 
 ### 3. **Write Clear Descriptions**
 
-- Describe what the node does, not what it is
+- Describe what the step does, not what it is
 - Keep it concise (one sentence)
 - Good: "Execute HTTP API requests with custom headers"
-- Bad: "An HTTP node"
+- Bad: "An HTTP step type"
 
 ### 4. **Set Appropriate Order**
 
 - Lower numbers appear first (default: 100)
-- Group related nodes together
+- Group related step types together
 - Common ranges:
   - Triggers: 10-20
   - AI/Agents: 20-30
@@ -205,11 +205,11 @@ import MyIcon from '../../../../assets/my-icon.svg?react'
 
 ### 5. **Error Handling**
 
-- Always use try/catch in custom nodes
+- Always use try/catch in custom registrations
 - Provide specific error messages
 - Call `onError()` with helpful messages for users
 
-## Testing Your Node
+## Testing your step type
 
 1. **Start the dev server:**
 
@@ -221,19 +221,19 @@ import MyIcon from '../../../../assets/my-icon.svg?react'
    Navigate to `/automation-builder/new`
 
 3. **Test the add panel:**
-   - Click "Add Node"
-   - Search for your node using keywords
+   - Click "Add Step"
+   - Search for your step type using keywords
    - Verify it appears in the correct category
    - Click to open the form
 
 4. **Test the form:**
    - Fill out the form fields
    - Submit and verify no errors
-   - Check that the node appears in the workflow
+   - Check that the step appears on the canvas
 
-## Example: Complete Node Registration
+## Example: Complete step registration
 
-Here's a complete example for a webhook trigger node:
+Here's a complete example for a webhook trigger step type:
 
 ```typescript
 // registerWebhookNode.ts
@@ -245,7 +245,7 @@ import type { WebhookFormData } from '../../node-forms/WebhookForm'
 import { WebhookForm } from '../../node-forms/WebhookForm'
 
 /**
- * Register the Webhook trigger node
+ * Register the Webhook trigger step type
  * IMPORTANT: Must export as default for auto-discovery
  */
 export default function registerWebhookNode() {
@@ -282,7 +282,7 @@ export default function registerWebhookNode() {
 
 ## Troubleshooting
 
-### Node doesn't appear in the panel
+### Step type doesn't appear in the panel
 
 - Ensure your registration file uses `export default function`
 - Verify the file is named `register*.ts` (auto-discovered by glob pattern)

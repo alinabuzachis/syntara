@@ -82,7 +82,7 @@ describe('convergeFormSchema', () => {
     if (!result.success) {
       expect(
         result.error.issues.some(
-          (i) => i.message === 'Behavior of remaining nodes is required' && i.path?.includes('remainingBehavior')
+          (i) => i.message === 'Behavior of remaining paths is required' && i.path?.includes('remainingBehavior')
         )
       ).toBe(true)
     }

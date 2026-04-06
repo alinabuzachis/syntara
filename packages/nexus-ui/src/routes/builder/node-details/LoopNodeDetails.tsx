@@ -19,7 +19,7 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
 
   // Handle potentially malformed loop data
   if (!loopData.loop) {
-    showError('Invalid loop node data', 'Error')
+    showError('Invalid loop step data', 'Error')
     onClose()
     return null
   }
@@ -93,14 +93,14 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
       updateActivity(nodeId, updatedActivity)
       onClose()
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to update node', 'Update Failed')
+      showError(error instanceof Error ? error.message : 'Failed to update step', 'Update Failed')
     }
   }
 
   return (
     <LoopNodeForm
       initialData={initialData}
-      submitButtonText="Update node"
+      submitButtonText="Update step"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
     />

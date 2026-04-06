@@ -23,7 +23,7 @@ describe('buildPanelMenuActions', () => {
       'edit',
       node,
       [
-        { id: 'view-details', label: 'View node details', onClick: vi.fn() },
+        { id: 'view-details', label: 'View step details', onClick: vi.fn() },
         { id: 'delete', label: 'Delete', onClick: vi.fn(), variant: 'danger' },
       ],
       vi.fn()

@@ -39,7 +39,7 @@ describe('ApprovalNodeForm', () => {
     it('displays default submit button text', () => {
       renderWithHeader(<ApprovalNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('button', { name: /Add node/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Add step/i })).toBeInTheDocument()
     })
 
     it('displays custom submit button text when provided', () => {
@@ -146,7 +146,7 @@ describe('ApprovalNodeForm', () => {
       await user.clear(screen.getByLabelText(/Day\(s\)/i))
       await user.type(screen.getByLabelText(/Hour\(s\)/i), '3')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -167,7 +167,7 @@ describe('ApprovalNodeForm', () => {
       await user.clear(screen.getByLabelText(/Day\(s\)/i))
       await user.type(screen.getByLabelText(/Day\(s\)/i), '5')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -188,7 +188,7 @@ describe('ApprovalNodeForm', () => {
       await user.clear(screen.getByLabelText(/Day\(s\)/i))
       await user.type(screen.getByLabelText(/Minute\(s\)/i), '30')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -209,7 +209,7 @@ describe('ApprovalNodeForm', () => {
       await user.clear(screen.getByLabelText(/Day\(s\)/i))
       await user.type(screen.getByLabelText(/Second\(s\)/i), '45')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -229,7 +229,7 @@ describe('ApprovalNodeForm', () => {
       // Clear default day value
       await user.clear(screen.getByLabelText(/Day\(s\)/i))
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: '',
@@ -255,7 +255,7 @@ describe('ApprovalNodeForm', () => {
       await user.type(screen.getByLabelText(/Minute\(s\)/i), '0')
       await user.type(screen.getByLabelText(/Second\(s\)/i), '0')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -280,7 +280,7 @@ describe('ApprovalNodeForm', () => {
       // Clear default timeout values
       await user.clear(screen.getByLabelText(/Day\(s\)/i))
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: '',
@@ -301,7 +301,7 @@ describe('ApprovalNodeForm', () => {
       // Clear default timeout values
       await user.clear(screen.getByLabelText(/Day\(s\)/i))
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: '',
@@ -330,7 +330,7 @@ describe('ApprovalNodeForm', () => {
       await user.type(screen.getByLabelText(/Minute\(s\)/i), '15')
       await user.type(screen.getByLabelText(/Second\(s\)/i), '30')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: '',
@@ -349,7 +349,7 @@ describe('ApprovalNodeForm', () => {
       await user.type(approverInput, '  user1  {Enter}')
       await user.type(screen.getByLabelText(/Message/i), '  Please approve  ')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({

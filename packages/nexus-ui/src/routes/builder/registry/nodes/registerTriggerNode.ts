@@ -11,7 +11,7 @@ import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
- * Register the Trigger node type
+ * Register the Trigger step type
  */
 export default function registerTriggerNode() {
   NodeRegistry.register(
@@ -24,7 +24,7 @@ export default function registerTriggerNode() {
         description: 'Start workflow execution with manual, scheduled, or event triggers',
         keywords: ['start', 'begin', 'manual', 'schedule', 'event', 'webhook'],
         order: 100,
-        selectionTitle: 'Select a trigger node',
+        selectionTitle: 'Select a trigger step',
         subtypes: [
           {
             id: RegistryNodeId.TRIGGER_MANUAL,

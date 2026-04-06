@@ -111,7 +111,7 @@ describe('LogicNodeForm', () => {
       await user.clear(rawInput)
       await user.paste('${x > 5}')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: 'Updated Condition',
@@ -142,7 +142,7 @@ describe('LogicNodeForm', () => {
       await user.clear(nameInput)
       await user.type(nameInput, 'Updated Loop')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalled()
       const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData
@@ -170,7 +170,7 @@ describe('LogicNodeForm', () => {
       await user.clear(nameInput)
       await user.type(nameInput, 'Updated Converge')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalled()
       const submittedData = mockOnSubmit.mock.calls[0][0] as LogicFormData

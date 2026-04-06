@@ -2,6 +2,8 @@
 
 This document explains how workflows are loaded from the API, edited in the builder, and saved back to the API.
 
+**Terminology:** The UI speaks in **steps** on the canvas; this document often uses **activity** / structural names (`condition`, `converge`, `loop`, …) because they match the API and store. React Flow still exposes **`Node` / `nodes[]`** in implementation code—see [architecture.md](./architecture.md) for the Step vs Node glossary.
+
 ---
 
 ## Table of Contents

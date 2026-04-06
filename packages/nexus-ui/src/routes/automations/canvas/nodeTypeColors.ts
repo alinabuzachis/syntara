@@ -5,7 +5,7 @@ import { FlowNodeType, RegistryNodeId } from '../../../constants'
 import { detectTaskNodeType, DetectedExecutorType } from './nodes/common/detectTaskNodeType'
 
 /**
- * PatternFly theme tokens for workflow node type indicators (UX-aligned).
+ * PatternFly theme tokens for workflow step type indicators on the canvas (UX-aligned).
  * Used for the colored bar and icon on each node. Chosen to match UX spec:
  * Logic F89B78 → orange, AI agent 92C5F9 → blue, Action B6A6E9 → purple,
  * Approval 9AD8D8 → teal, AAP E0E0E0 → gray. Approved/Rejected use success/danger.
@@ -24,7 +24,7 @@ export const NODE_TYPE_COLORS = {
 export type NodeTypeColorKey = keyof typeof NODE_TYPE_COLORS
 
 /**
- * Returns the color token for the colored bar at the top of a workflow node.
+ * Returns the color token for the colored bar at the top of a workflow step (React Flow node).
  * Uses node type and, for task nodes, the resolved executor (script, aap, agentic, etc.).
  */
 export function getNodeTypeColor(nodeType: string, data?: { type?: string; task?: { executor?: string } }): string {
@@ -88,7 +88,7 @@ const ADD_PANEL_ACTION_IDS: readonly string[] = [
 ]
 
 /**
- * Returns the accent color for a card in the Add node panel (registry node type or subtype id).
+ * Returns the accent color for a card in the Add step panel (registry node type or subtype id).
  * Trigger has no accent; AAP uses gray; other types match canvas node colors.
  */
 export function getAddNodePanelColor(registryNodeId: string): string | undefined {

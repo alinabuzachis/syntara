@@ -84,14 +84,14 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
         updateActivity(nodeId, updatedActivity)
         onClose()
       } catch (error) {
-        showError(error instanceof Error ? error.message : 'Failed to update node', 'Update Failed')
+        showError(error instanceof Error ? error.message : 'Failed to update step', 'Update Failed')
       }
     }
 
     return (
       <AAPNodeForm
         initialData={aapInitialData}
-        submitButtonText="Update node"
+        submitButtonText="Update step"
         onSubmit={handleAAPSubmit}
         onCancel={onClose}
         onHeaderContentChange={onHeaderContentChange}
@@ -202,14 +202,14 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
       updateActivity(nodeId, updatedActivity)
       onClose()
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to update node', 'Update Failed')
+      showError(error instanceof Error ? error.message : 'Failed to update step', 'Update Failed')
     }
   }
 
   return (
     <ActionNodeForm
       initialData={initialData}
-      submitButtonText="Update node"
+      submitButtonText="Update step"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
     />

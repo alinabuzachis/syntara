@@ -176,10 +176,10 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
           // No-op: nodes are not clickable in execution view
         }}
         onAddNodeFromEdge={() => {
-          // No-op: cannot add nodes in execution view
+          // No-op: cannot add steps in execution view
         }}
         onNodesDeleted={() => {
-          // No-op: cannot delete nodes in execution view
+          // No-op: cannot delete steps in execution view
         }}
       />
     </CompassPanel>

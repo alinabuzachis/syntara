@@ -46,14 +46,14 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose, onHeaderContent
       } as Partial<TaskActivity>)
       onClose()
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to update approval node')
+      showError(error instanceof Error ? error.message : 'Failed to update approval step')
     }
   }
 
   return (
     <ApprovalNodeForm
       onSubmit={handleSubmit}
-      submitButtonText="Update node"
+      submitButtonText="Update step"
       initialData={initialData}
       onHeaderContentChange={onHeaderContentChange}
     />

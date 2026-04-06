@@ -503,7 +503,7 @@ describe('useWorkflowStore', () => {
     it('uses default name when not provided', () => {
       const activity = createGenericActivity('generic-1')
 
-      expect(activity.name).toBe('New Node')
+      expect(activity.name).toBe('New Step')
     })
 
     it('includes custom message in metadata when provided', () => {

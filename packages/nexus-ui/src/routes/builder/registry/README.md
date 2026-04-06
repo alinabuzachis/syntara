@@ -1,6 +1,6 @@
 # Node Registry System
 
-A plugin-based architecture for registering and managing workflow node types.
+A plugin-based architecture for registering and managing **workflow step types** (what users add from the **Add step** panel). Code still uses React Flow **nodes** on the canvas; `NodeRegistry` holds metadata, forms, and submit handlers per step type.
 
 ## Architecture Overview
 
@@ -9,7 +9,7 @@ registry/
 ├── NodeRegistry.ts          # Core registry singleton
 ├── helpers/                 # Node template helpers
 │   └── nodeTemplates.ts
-├── nodes/                   # Node type registrations
+├── nodes/                   # Step type registrations (register*.ts)
 │   ├── index.ts            # Auto-discovery entry point
 │   ├── registerAAPNode.ts
 │   ├── registerActionNode.ts
@@ -25,14 +25,14 @@ registry/
 
 ### 1. Node Registry
 
-- **Singleton pattern** - Single source of truth for all node types
+- **Singleton pattern** - Single source of truth for all step types in the Add panel
 - **Type-safe** - Full TypeScript support
-- **Extensible** - Add new nodes without modifying existing code
+- **Extensible** - Add new step types without modifying existing code
 - **Searchable** - Built-in search by label, keywords, category
 
-### 2. Node Type Definition
+### 2. Step type definition
 
-Each node type consists of:
+Each registered step type consists of:
 
 - **id**: Unique identifier
 - **label**: Display name in UI
@@ -43,17 +43,17 @@ Each node type consists of:
 - **formComponent**: React component for configuration
 - **onSubmit**: Handler function when form is submitted
 - **order**: Display order (lower = earlier)
-- **enabled**: Whether the node type is available
+- **enabled**: Whether the step type is available in the Add step panel
 
 ### 3. Subtypes
 
-Node types can optionally define **subtypes** (e.g. Logic → Conditional/Loop/Converge).
+Step types can optionally define **subtypes** (e.g. Logic → Conditional/Loop/Converge).
 Subtype options are rendered by `order` when provided (lower = earlier). If `order` is
 not set, declaration order is preserved.
 
-Note: the `order` default of `100` applies to top-level node types only, not subtypes.
+Note: the `order` default of `100` applies to top-level step types only, not subtypes.
 
-## How to Add a New Node Type
+## How to Add a New Step Type
 
 ### Step 1: Create Your Form Component
 
@@ -88,7 +88,7 @@ import type { MyCustomFormData } from '../../node-forms/MyCustomForm'
 export default function registerMyNode() {
   NodeRegistry.register<MyCustomFormData>({
     id: 'my-node',
-    label: 'My Custom Node',
+    label: 'My Custom Step',
     icon: RhUiMyIcon,
     category: 'action',
     description: 'Does something custom',
@@ -124,19 +124,19 @@ for (const path in modules) {
 // In main.tsx - called once before React renders
 import { registerAllNodes } from './routes/builder/registry/nodes'
 
-registerAllNodes() // Auto-discovers and registers all nodes
+registerAllNodes() // Auto-discovers and registers all step types
 ```
 
 ## Benefits of This Architecture
 
 ### ✅ **Open/Closed Principle**
 
-- Open for extension (add new nodes)
+- Open for extension (add new step types)
 - Closed for modification (don't change existing code)
 
 ### ✅ **Single Responsibility**
 
-- Each node registration handles one node type
+- Each registration handles one step type
 - Registry handles storage and retrieval
 - UI components handle display
 
@@ -159,7 +159,7 @@ describe('MyNode', () => {
 
 ### ✅ **Plugin System**
 
-- Third-party plugins can register nodes
+- Third-party plugins can register step types
 - No code changes to core required
 - Dynamic loading possible
 
@@ -175,31 +175,31 @@ describe('MyNode', () => {
 
 #### `register<TFormData>(definition: NodeTypeDefinition<TFormData>): void`
 
-Register a new node type.
+Register a new workflow step type.
 
 #### `unregister(id: string): boolean`
 
-Remove a node type from the registry.
+Remove a step type from the registry.
 
 #### `get(id: string): NodeTypeDefinition | undefined`
 
-Get a specific node type by ID.
+Get a specific step type by ID.
 
 #### `getAll(): NodeTypeDefinition[]`
 
-Get all enabled node types, sorted by order.
+Get all enabled step types, sorted by order.
 
 #### `getByCategory(category): NodeTypeDefinition[]`
 
-Get all node types in a specific category.
+Get all step types in a specific category.
 
 #### `search(query: string): NodeTypeDefinition[]`
 
-Search node types by label, keywords, or ID.
+Search step types by label, keywords, or ID.
 
 #### `clear(): void`
 
-Remove all registered nodes (testing only).
+Remove all registrations (testing only).
 
 ## Migration from Old System
 
@@ -216,7 +216,7 @@ const renderForm = () => {
   switch (selectedNodeType) {
     case 'trigger': return <TriggerNodeForm ... />
     case 'action': return <ActionNodeForm ... />
-    // ... switch statement grows with each node
+    // ... switch statement grows with each step type
   }
 }
 ```
@@ -240,8 +240,8 @@ See the existing `register*.ts` files in `nodes/` for working examples (e.g., `r
 
 Possible future improvements:
 
-- **Lazy loading**: Load node modules on demand
-- **Conditional rendering**: Show/hide nodes based on user permissions
-- **Node dependencies**: Require certain nodes before others
-- **Validation hooks**: Validate node configurations before adding
+- **Lazy loading**: Load registration modules on demand
+- **Conditional rendering**: Show/hide step types based on user permissions
+- **Step dependencies**: Require certain step types before others
+- **Validation hooks**: Validate step configurations before adding
 - **Transformation hooks**: Transform data before submission

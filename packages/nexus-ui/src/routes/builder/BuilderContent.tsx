@@ -1210,7 +1210,7 @@ export function BuilderContent(props: BuilderContentProps) {
                       }
                       iconPosition="start"
                     >
-                      Add Node
+                      Add Step
                     </Button>
 
                     {!isNew && workflow?.id && (

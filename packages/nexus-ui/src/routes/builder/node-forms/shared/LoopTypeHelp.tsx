@@ -4,7 +4,7 @@ import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 /**
  * Popover help icon explaining the loop type parameter.
  *
- * Used in Loop nodes.
+ * Used in Loop step forms.
  */
 export function LoopTypeHelp() {
   return (
@@ -13,7 +13,7 @@ export function LoopTypeHelp() {
       headerContent="Loop type"
       bodyContent={
         <Stack hasGutter>
-          <StackItem>Determine how the automation should repeat the tasks contained within this node.</StackItem>
+          <StackItem>Determine how the automation should repeat the tasks contained within this step.</StackItem>
           <StackItem>
             <strong>Options:</strong>
           </StackItem>
@@ -30,7 +30,7 @@ export function LoopTypeHelp() {
             </List>
           </StackItem>
           <StackItem>
-            <strong>Static vs. dynamic:</strong> Use for each when you have a fixed set of data from a previous node.
+            <strong>Static vs. dynamic:</strong> Use for each when you have a fixed set of data from a previous step.
             Use while when you are waiting for an external change or a specific state to be reached.
           </StackItem>
         </Stack>

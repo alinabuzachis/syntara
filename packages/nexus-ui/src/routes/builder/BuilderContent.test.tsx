@@ -303,21 +303,21 @@ describe('BuilderContent', () => {
   })
 
   // ============================================================================
-  // ADD NODE PANEL
+  // ADD STEP PANEL
   // ============================================================================
 
-  describe('Add Node Panel', () => {
-    it('opens Add Node panel when Add Node button is clicked', async () => {
+  describe('Add step panel', () => {
+    it('opens Add step panel when Add Step button is clicked', async () => {
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
-      const addNodeButton = screen.getByRole('button', { name: /add node/i })
+      const addNodeButton = screen.getByRole('button', { name: /add step/i })
       fireEvent.click(addNodeButton)
       await waitFor(() => {
-        expect(screen.getByText('Add node')).toBeInTheDocument()
+        expect(screen.getByText('Add step')).toBeInTheDocument()
       })
     })
 
-    it('closes Add Node panel via close callback', async () => {
-      // Use workflow with nodes - empty workflows force add node panel to stay open
+    it('closes Add step panel via close callback', async () => {
+      // Use workflow with steps - empty workflows force add step panel to stay open
       const workflowWithNodes = {
         ...mockWorkflow,
         version: {
@@ -342,9 +342,9 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
       // Open panel
-      fireEvent.click(screen.getByRole('button', { name: /add node/i }))
+      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
-        expect(screen.getByText('Add node')).toBeInTheDocument()
+        expect(screen.getByText('Add step')).toBeInTheDocument()
       })
 
       // Find close button by aria-label "Close" in the panel
@@ -354,24 +354,24 @@ describe('BuilderContent', () => {
 
       // Panel should close (tests CLOSE_ADD_NODE_PANEL reducer)
       await waitFor(() => {
-        expect(screen.queryByText('Add node')).not.toBeInTheDocument()
+        expect(screen.queryByText('Add step')).not.toBeInTheDocument()
       })
     })
 
-    it('opens node editor when selecting a node type from add panel', async () => {
+    it('opens step editor when selecting a step type from add step panel', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
       })
 
-      // Open add node panel
-      fireEvent.click(screen.getByRole('button', { name: /add node/i }))
+      // Open add step panel
+      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
-        expect(screen.getByText('Add node')).toBeInTheDocument()
+        expect(screen.getByText('Add step')).toBeInTheDocument()
       })
 
-      // Find and click a node type option (tests onSelectNode callback - line 1125)
-      // Look for node options that appear in the panel - try different node names
+      // Find and click a step type option (tests onSelectNode callback - line 1125)
+      // Look for options that appear in the panel - try different labels
       const nodeOptions = ['Script', 'REST API', 'Condition', 'Loop', 'Parallel']
       for (const nodeName of nodeOptions) {
         const option = screen.queryByText(nodeName)
@@ -1388,8 +1388,8 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Reducer State Transitions', () => {
-    // Workflow with at least one node so addNodePanelOpen can be toggled
-    // (empty workflows force the add node panel to stay open)
+    // Workflow with at least one step so addNodePanelOpen can be toggled
+    // (empty workflows force the add step panel to stay open)
     const workflowWithNodes = {
       ...mockWorkflow,
       version: {
@@ -1412,37 +1412,37 @@ describe('BuilderContent', () => {
       },
     } as WorkflowWithVersion
 
-    it('TOGGLE_DETAILS closes add node panel when opening details', async () => {
+    it('TOGGLE_DETAILS closes add step panel when opening details', async () => {
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
-      // First open add node panel
-      fireEvent.click(screen.getByRole('button', { name: /add node/i }))
+      // First open add step panel
+      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
-        expect(screen.getByText('Add node')).toBeInTheDocument()
+        expect(screen.getByText('Add step')).toBeInTheDocument()
       })
 
-      // Now toggle details - should close add node panel
+      // Now toggle details - should close add step panel
       fireEvent.click(screen.getByLabelText('Workflow details'))
 
       await waitFor(() => {
-        expect(screen.queryByText('Add node')).not.toBeInTheDocument()
+        expect(screen.queryByText('Add step')).not.toBeInTheDocument()
       })
     })
 
-    it('TOGGLE_HISTORY closes add node panel when opening history', async () => {
+    it('TOGGLE_HISTORY closes add step panel when opening history', async () => {
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
-      // First open add node panel
-      fireEvent.click(screen.getByRole('button', { name: /add node/i }))
+      // First open add step panel
+      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
       await waitFor(() => {
-        expect(screen.getByText('Add node')).toBeInTheDocument()
+        expect(screen.getByText('Add step')).toBeInTheDocument()
       })
 
-      // Now toggle history - should close add node panel
+      // Now toggle history - should close add step panel
       fireEvent.click(screen.getByLabelText('Run history'))
 
       await waitFor(() => {
-        expect(screen.queryByText('Add node')).not.toBeInTheDocument()
+        expect(screen.queryByText('Add step')).not.toBeInTheDocument()
       })
     })
 
@@ -1607,21 +1607,21 @@ describe('BuilderContent', () => {
   // ============================================================================
 
   describe('Panel Interactions', () => {
-    it('closes details panel when opening add node panel', async () => {
+    it('closes details panel when opening add step panel', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open details first
       fireEvent.click(screen.getByLabelText('Workflow details'))
 
-      // Then open add node panel - should close details
-      fireEvent.click(screen.getByRole('button', { name: /add node/i }))
+      // Then open add step panel - should close details
+      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Add node')).toBeInTheDocument()
+        expect(screen.getByText('Add step')).toBeInTheDocument()
       })
     })
 
-    it('closes history panel when opening add node panel', async () => {
+    it('closes history panel when opening add step panel', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
       // Open history first
@@ -1630,11 +1630,11 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Run History')).toBeInTheDocument()
       })
 
-      // Then open add node panel - should close history
-      fireEvent.click(screen.getByRole('button', { name: /add node/i }))
+      // Then open add step panel - should close history
+      fireEvent.click(screen.getByRole('button', { name: /add step/i }))
 
       await waitFor(() => {
-        expect(screen.getByText('Add node')).toBeInTheDocument()
+        expect(screen.getByText('Add step')).toBeInTheDocument()
         expect(screen.queryByText('Run History')).not.toBeInTheDocument()
       })
     })
@@ -2119,15 +2119,15 @@ describe('BuilderContent', () => {
   })
 
   describe('Panel State Management', () => {
-    it('opens add node panel with source node context', async () => {
+    it('opens add step panel with source step context', async () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
 
-      // Open add node panel
-      const addNodeButton = screen.getByRole('button', { name: /add node/i })
+      // Open add step panel
+      const addNodeButton = screen.getByRole('button', { name: /add step/i })
       fireEvent.click(addNodeButton)
 
       await waitFor(() => {
-        expect(screen.getByText('Add node')).toBeInTheDocument()
+        expect(screen.getByText('Add step')).toBeInTheDocument()
       })
     })
 

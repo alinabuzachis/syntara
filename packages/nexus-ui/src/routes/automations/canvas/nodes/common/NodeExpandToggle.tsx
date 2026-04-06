@@ -30,7 +30,7 @@ export function NodeExpandToggle() {
       className="nodrag nopan"
       role="button"
       tabIndex={0}
-      aria-label={expanded ? 'Collapse node details' : 'Expand node details'}
+      aria-label={expanded ? 'Collapse step details' : 'Expand step details'}
       style={{
         transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
         transition: 'transform 0.2s ease-out',

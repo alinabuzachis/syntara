@@ -282,22 +282,22 @@ For how the UI is structured, see these comprehensive guides:
 
 ### Quick Navigation by Task
 
-| Working on...                | Read this section                                                                                                            |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **API integration**          | [`docs/data-flow.md`](docs/data-flow.md) - OpenAPI contract generation and type-safe clients                                 |
-| **Workflow transformations** | [`docs/data-flow.md`](docs/data-flow.md) - Nested to flat conversions with diagrams                                          |
-| **Node registry**            | [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes"                               |
-| **Builder internals**        | [`docs/architecture.md`](docs/architecture.md) - "Builder internals (advanced)" section                                      |
-| **State management**         | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide                                      |
-| **WebSocket / real-time**    | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - Multi-channel WebSocket infrastructure                  |
-| **Execution visualization**  | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - WebSocket protocol, endpoints, data specs |
-| **PR sizing / stacking**     | [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) - Budget, stacked PR strategy, stop rules                             |
+| Working on...                      | Read this section                                                                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **API integration**                | [`docs/data-flow.md`](docs/data-flow.md) - OpenAPI contract generation and type-safe clients                                 |
+| **Workflow transformations**       | [`docs/data-flow.md`](docs/data-flow.md) - Nested to flat conversions with diagrams                                          |
+| **Step registry (`NodeRegistry`)** | [`docs/architecture.md`](docs/architecture.md) - "How `registerAllNodes()` auto-discovers step types"                        |
+| **Builder internals**              | [`docs/architecture.md`](docs/architecture.md) - "Builder internals (advanced)" section                                      |
+| **State management**               | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Complete Zustand guide                                      |
+| **WebSocket / real-time**          | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - Multi-channel WebSocket infrastructure                  |
+| **Execution visualization**        | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - WebSocket protocol, endpoints, data specs |
+| **PR sizing / stacking**           | [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) - Budget, stacked PR strategy, stop rules                             |
 
 ### Quick Reference: Common Tasks
 
 **New to the codebase?** Here's how to do the most common development tasks:
 
-#### How do I add a new node type to the workflow builder?
+#### How do I add a new workflow step type to the builder?
 
 1. Create file: `packages/nexus-ui/src/routes/builder/registry/nodes/registerMyNode.ts`
 2. Define your registration function (must be a **default export**):
@@ -314,7 +314,7 @@ For how the UI is structured, see these comprehensive guides:
    export default function registerMyNode() {
      NodeRegistry.register({
        id: 'my-node',
-       label: 'My Node',
+       label: 'My Step',
        icon: RhUiMyIcon,
        category: 'action',
        description: 'Does something useful',
@@ -328,7 +328,7 @@ For how the UI is structured, see these comprehensive guides:
            useWorkflowStore.getState().addActivity(activity)
            onSuccess(activityId)
          } catch (error) {
-           onError(error instanceof Error ? error.message : 'Failed to add node')
+           onError(error instanceof Error ? error.message : 'Failed to add step')
          }
        },
      })
@@ -336,9 +336,9 @@ For how the UI is structured, see these comprehensive guides:
    ```
 
 3. That's it! The `registerAllNodes()` auto-discovery finds files matching `register*.ts` pattern
-4. See: [`docs/architecture.md`](docs/architecture.md) - "How registerAllNodes() auto-discovers nodes" for details
+4. See: [`docs/architecture.md`](docs/architecture.md) - "How `registerAllNodes()` auto-discovers step types" for details
 
-#### How do I add a new node form (with Zod)?
+#### How do I add a new step form (with Zod)?
 
 1. Create a schema file next to your form: `packages/nexus-ui/src/routes/builder/node-forms/myNodeFormSchema.ts` — define shape and validation with `z.object()` (use `.superRefine()` for conditional rules, or `z.discriminatedUnion()` for executor-type-style forms). Export the schema and `type MyFormData = z.infer<typeof myNodeFormSchema>`. Import `z` from `'zod'`.
 2. For optional number fields (timeout units, max count, etc.) use `optionalNumber` from `./shared/formSchemaUtils` so empty `valueAsNumber` inputs (NaN) validate
@@ -379,7 +379,7 @@ New workflows use the default name **`new-workflow`**, defined as `DEFAULT_WORKF
 - **React DevTools**: Use the React DevTools browser extension to inspect component props and Zustand state
 - **Direct state inspection**: Call `useWorkflowStore.getState()` in the browser console to inspect the current workflow store
 - **Common issues**:
-  - Nodes not appearing → Check `NodeRegistry` has your node type
+  - Steps not appearing on the canvas → Check `NodeRegistry` has your step type registered
   - Edges not connecting → Verify handle IDs match (sourceHandle/targetHandle)
   - State not updating → Check Zustand store actions are called
 

@@ -36,14 +36,14 @@ export type { ConvergeFormData, ConvergeStrategy, RemainingBehavior }
 
 /** Options for "Continue when criteria" dropdown */
 const CONTINUE_WHEN_CRITERIA_OPTIONS: Array<{ label: string; value: ConvergeStrategy; disabled?: boolean }> = [
-  { label: 'All branches reach this node', value: 'all' },
-  { label: 'Any branches reach this node (not yet implemented)', value: 'any', disabled: true },
+  { label: 'All branches reach this step', value: 'all' },
+  { label: 'Any branches reach this step (not yet implemented)', value: 'any', disabled: true },
 ]
 
-/** Options for "Behavior of remaining nodes" when strategy is 'any' */
+/** Options for "Behavior of remaining paths" when strategy is 'any' */
 const REMAINING_BEHAVIOR_OPTIONS: Array<{ label: string; value: 'continue' | 'cancel' }> = [
   { label: 'Continue running', value: 'continue' },
-  { label: 'Cancel node runs from remaining paths', value: 'cancel' },
+  { label: 'Cancel runs from remaining paths', value: 'cancel' },
 ]
 
 /** Options for "Timeout action" dropdown */
@@ -52,12 +52,12 @@ const TIMEOUT_ACTION_OPTIONS: Array<{ label: string; value: 'fail' | 'continue';
     value: 'fail',
     label: 'Fail',
     description:
-      'The automation will fail if the parameters set on this converge node are not met by the specified timeout time.',
+      'The automation will fail if the parameters set on this converge step are not met by the specified timeout time.',
   },
   {
     value: 'continue',
     label: 'Continue with partial data',
-    description: 'The automation will continue ignoring the parameters set for this converge node.',
+    description: 'The automation will continue ignoring the parameters set for this converge step.',
   },
 ]
 
@@ -175,19 +175,19 @@ function ConvergeFormFields({
           </StackItem>
 
           <StackItem>
-            <FormGroup label="Behavior of remaining nodes" isRequired fieldId="converge-remainingBehavior">
+            <FormGroup label="Behavior of remaining paths" isRequired fieldId="converge-remainingBehavior">
               <Controller
                 control={control}
                 name="remainingBehavior"
                 render={({ field }) => (
                   <FormSelect
                     id="converge-remainingBehavior"
-                    aria-label="Behavior of remaining nodes"
+                    aria-label="Behavior of remaining paths"
                     value={field.value ?? ''}
                     onChange={(_event, value) => field.onChange(value)}
                     isRequired
                   >
-                    <FormSelectOption value="" label="Select behavior of remaining nodes" isPlaceholder />
+                    <FormSelectOption value="" label="Select behavior of remaining paths" isPlaceholder />
                     {REMAINING_BEHAVIOR_OPTIONS.map((option) => (
                       <FormSelectOption key={option.value} value={option.value} label={option.label} />
                     ))}

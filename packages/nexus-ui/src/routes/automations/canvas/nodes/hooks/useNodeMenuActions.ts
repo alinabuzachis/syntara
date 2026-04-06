@@ -27,19 +27,19 @@ interface UseNodeMenuActionsOptions {
 }
 
 /**
- * Custom hook for managing node menu actions in the workflow builder.
- * Provides a flexible, extensible way to define menu items for different node types.
+ * Custom hook for managing the canvas step kebab menu in the workflow builder.
+ * Defines menu items per canvas step category (`MenuNodeType`).
  *
  * Uses React Flow's deleteElements API to ensure proper edge cleanup and ButtonEdge maintenance.
  *
  * When rendered inside a NodeActionsContext.Provider (i.e. within BuilderContent),
  * additional builder-specific actions are automatically included:
- * - View details (all node types)
- * - Run step (activity nodes only — currently a placeholder)
- * - Duplicate (activity nodes only)
- * - Replace (all node types)
+ * - View details (all step types)
+ * - Run step (activity steps only — currently a placeholder)
+ * - Duplicate (activity steps only)
+ * - Replace (activity steps only)
  *
- * @param options Configuration options for the node menu
+ * @param options Configuration options for the step menu (React Flow node id + category)
  * @returns Array of menu actions to display in the kebab menu
  *
  * @example
@@ -116,7 +116,7 @@ export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenu
     ? [
         {
           id: 'view-details',
-          label: 'View node details',
+          label: 'View step details',
           onClick: handleViewDetails,
         },
         ...(nodeType === MenuNodeType.ACTIVITY

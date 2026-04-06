@@ -9,7 +9,7 @@ export interface NodeBodyProps {
 }
 
 /**
- * Collapsible, scrollable content area for workflow nodes.
+ * Collapsible, scrollable content area for workflow steps (React Flow node bodies).
  *
  * Features:
  * - Expands/collapses based on NodeExpandedContext

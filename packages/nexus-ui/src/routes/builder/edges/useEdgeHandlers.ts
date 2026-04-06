@@ -19,7 +19,7 @@ interface UseEdgeHandlersProps {
  * Shared hook that provides all common edge functionality:
  * - Hover state management
  * - Marker end calculation
- * - Delete and add node handlers
+ * - Delete and add step handlers
  */
 export function useEdgeHandlers(props: UseEdgeHandlersProps) {
   const { edgeId, source, target, markerEnd, selected, data } = props

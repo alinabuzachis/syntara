@@ -26,7 +26,7 @@ vi.mock('./AddNodePanel', () => {
           onSelectNode('action', null)
         }
       }, [onSelectNode])
-      return <div>Add node</div>
+      return <div>Add step</div>
     },
   }
 })
@@ -152,7 +152,7 @@ describe('BuilderContent overlay', () => {
 
     renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
-    fireEvent.click(screen.getByRole('button', { name: /add node/i }))
+    fireEvent.click(screen.getByRole('button', { name: /add step/i }))
 
     await waitFor(() => {
       expect(screen.getByTestId('node-editor-overlay')).toBeInTheDocument()

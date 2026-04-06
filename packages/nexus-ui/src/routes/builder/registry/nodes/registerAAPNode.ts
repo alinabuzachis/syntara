@@ -9,7 +9,7 @@ import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
- * Register the AAP (Ansible Automation Platform) Job Execution node type
+ * Register the AAP (Ansible Automation Platform) Job Execution step type
  */
 export default function registerAAPNode() {
   NodeRegistry.register<AAPFormData>({
@@ -38,7 +38,7 @@ export default function registerAAPNode() {
         useWorkflowStore.getState().addActivity(activity)
         onSuccess(activityId)
       } catch (error) {
-        onError(error instanceof Error ? error.message : 'Failed to add AAP node')
+        onError(error instanceof Error ? error.message : 'Failed to add AAP step')
       }
     },
   })

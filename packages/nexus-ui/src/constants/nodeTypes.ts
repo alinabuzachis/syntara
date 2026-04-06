@@ -8,7 +8,7 @@ import type { ValueOf } from './types'
  * import { FlowNodeType } from '@/constants/nodeTypes'
  *
  * if (node.type === FlowNodeType.TRIGGER) {
- *   // Handle trigger node
+ *   // Handle trigger step (React Flow node)
  * }
  */
 export const FlowNodeType = {
@@ -21,7 +21,7 @@ export const FlowNodeType = {
   CONVERGE: 'converge',
   PARALLEL: 'parallel',
   LOOP: 'loop',
-  /** Placeholder until user picks a real node type */
+  /** Placeholder until user picks a real step type */
   GENERIC: 'generic',
   PLACEHOLDER: 'placeholder',
 } as const
@@ -37,11 +37,11 @@ export type FlowNodeTypeUnion = ValueOf<typeof FlowNodeType>
  * import { MenuNodeType } from '@/constants/nodeTypes'
  *
  * if (nodeType === MenuNodeType.ACTIVITY) {
- *   // Handle activity node (Task, Condition, Converge, Loop, Parallel)
+ *   // Handle activity steps (Task, Condition, Converge, Loop, Parallel)
  * }
  */
 export const MenuNodeType = {
-  /** Activity nodes: Task, Condition, Converge, Loop, Parallel */
+  /** Activity steps: Task, Condition, Converge, Loop, Parallel */
   ACTIVITY: 'activity',
   /** Trigger nodes: Manual, Scheduled, Webhook, etc. */
   TRIGGER: 'trigger',

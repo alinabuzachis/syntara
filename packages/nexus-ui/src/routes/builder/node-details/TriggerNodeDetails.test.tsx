@@ -65,7 +65,7 @@ vi.mock('../node-forms/TriggerNodeForm', () => ({
     <div data-testid="trigger-node-form">
       <div data-testid="initial-data">{JSON.stringify(initialData)}</div>
       <button onClick={() => onSubmit(initialData ?? {})} data-testid="submit-button">
-        {submitButtonText ?? 'Add node'}
+        {submitButtonText ?? 'Add step'}
       </button>
       <button onClick={onCancel} data-testid="cancel-button">
         Cancel

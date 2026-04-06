@@ -1,6 +1,6 @@
 /**
- * Central registration point for all node types
- * Auto-discovers and registers all node types using import.meta.glob
+ * Central registration point for all workflow step types (Add step panel).
+ * Auto-discovers registration modules using import.meta.glob (each maps to React Flow node components).
  */
 
 // Auto-discover all registration modules matching the pattern register*.ts
@@ -10,11 +10,10 @@ const nodeModules = import.meta.glob<{ default: () => void }>(['./register*.ts',
 })
 
 /**
- * Register all node types
+ * Register all workflow step types
  * Call this once during app initialization
  *
- * This function automatically discovers and registers all nodes
- * by importing any file matching the pattern register*.ts
+ * Discovers and registers every `register*.ts` module (each defines a canvas step type for the builder).
  */
 export function registerAllNodes() {
   // Iterate through all discovered modules and call their default export
@@ -24,7 +23,7 @@ export function registerAllNodes() {
         module.default()
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.error(`Failed to register node from ${path}:`, error)
+        console.error(`Failed to register step type from ${path}:`, error)
       }
     } else {
       // eslint-disable-next-line no-console
@@ -34,6 +33,6 @@ export function registerAllNodes() {
 
   if (import.meta.env.DEV) {
     // eslint-disable-next-line no-console
-    console.log(`✓ Registered ${Object.keys(nodeModules).length} node types`)
+    console.log(`✓ Registered ${Object.keys(nodeModules).length} workflow step types`)
   }
 }

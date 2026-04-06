@@ -17,14 +17,14 @@ import { renderNodeIcon } from './renderNodeIcon'
 export type GenericNode = { type: typeof FlowNodeType.GENERIC } & Node<TaskActivity>
 
 /**
- * Generic placeholder node component
+ * Generic placeholder **step** on the canvas (React Flow node until configured).
  * Renders a dashed border node with a plus icon
- * When clicked, allows user to select what type of node to convert it to
+ * When clicked, allows the user to pick which step type to convert the placeholder into
  */
 export function GenericNodeComponent(props: NodeProps<GenericNode>) {
   const metadata = getActivityMetadata(props.data)
   const customMessage = metadata?.__customMessage
-  const displayMessage = (typeof customMessage === 'string' ? customMessage : undefined) ?? 'Select a node type'
+  const displayMessage = (typeof customMessage === 'string' ? customMessage : undefined) ?? 'Select a step type'
 
   const showTitle = !customMessage
 

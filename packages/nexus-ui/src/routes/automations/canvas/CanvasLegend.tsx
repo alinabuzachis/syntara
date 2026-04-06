@@ -176,12 +176,12 @@ export function CanvasLegend(props: CanvasLegendProps) {
         <Stack
           component="section"
           hasGutter
-          aria-labelledby={`${props.regionId}-nodes-heading`}
+          aria-labelledby={`${props.regionId}-steps-heading`}
           style={{ marginTop: 'var(--pf-t--global--spacer--md)' }}
         >
           <StackItem>
-            <Content component="h3" id={`${props.regionId}-nodes-heading`} style={LEGEND_SECTION_HEADING_STYLE}>
-              Nodes
+            <Content component="h3" id={`${props.regionId}-steps-heading`} style={LEGEND_SECTION_HEADING_STYLE}>
+              Steps
             </Content>
           </StackItem>
           {LEGEND_ROWS.map((row) => (

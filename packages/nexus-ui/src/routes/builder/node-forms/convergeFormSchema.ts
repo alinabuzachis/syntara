@@ -53,7 +53,7 @@ export const convergeFormSchema = convergeFormSchemaBase.superRefine((data, ctx)
     if (!data.remainingBehavior) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Behavior of remaining nodes is required',
+        message: 'Behavior of remaining paths is required',
         path: ['remainingBehavior'],
       })
     }

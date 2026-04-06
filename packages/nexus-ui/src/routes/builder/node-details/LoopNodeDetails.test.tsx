@@ -51,7 +51,7 @@ vi.mock('../node-forms/LoopNodeForm', () => ({
         }
         data-testid="submit-button"
       >
-        {submitButtonText ?? 'Add node'}
+        {submitButtonText ?? 'Add step'}
       </button>
     </div>
   ),
@@ -110,7 +110,7 @@ describe('LoopNodeDetails Component', () => {
     )
   })
 
-  it('displays "Update node" as submit button text', () => {
+  it('displays "Update step" as submit button text', () => {
     const loopData = {
       type: 'loop' as const,
       id: 'loop-1',
@@ -124,7 +124,7 @@ describe('LoopNodeDetails Component', () => {
 
     render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
 
-    expect(screen.getByText('Update node')).toBeInTheDocument()
+    expect(screen.getByText('Update step')).toBeInTheDocument()
   })
 
   it('passes correct loop type to form initialData', () => {
@@ -156,7 +156,7 @@ describe('LoopNodeDetails Component', () => {
     // @ts-expect-error Testing invalid data
     render(<LoopNodeDetails loopData={loopData} nodeId="loop-1" onClose={mockOnClose} />)
 
-    expect(mockShowError).toHaveBeenCalledWith('Invalid loop node data', 'Error')
+    expect(mockShowError).toHaveBeenCalledWith('Invalid loop step data', 'Error')
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 

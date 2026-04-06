@@ -26,9 +26,9 @@ describe('EdgeActions', () => {
     expect(screen.getByTestId('edge-label-renderer')).toBeInTheDocument()
   })
 
-  it('renders add node button', () => {
+  it('renders add step button', () => {
     render(<EdgeActions {...defaultProps} />)
-    expect(screen.getByTitle('Add node')).toBeInTheDocument()
+    expect(screen.getByTitle('Add step')).toBeInTheDocument()
   })
 
   it('renders delete edge button', () => {
@@ -38,7 +38,7 @@ describe('EdgeActions', () => {
 
   it('calls onAddNode when add button is clicked', () => {
     render(<EdgeActions {...defaultProps} />)
-    fireEvent.click(screen.getByTitle('Add node'))
+    fireEvent.click(screen.getByTitle('Add step'))
     expect(defaultProps.onAddNode).toHaveBeenCalledTimes(1)
   })
 

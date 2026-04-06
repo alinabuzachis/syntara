@@ -1,9 +1,9 @@
-# Data Flow: From OpenAPI to Canvas Nodes
+# Data Flow: From OpenAPI to Canvas Steps
 
 > **Reading time**: ~15 minutes
 > **Audience**: Developers working on the workflow builder or API integration
 
-This document explains **how data flows from the backend API to the UI**, focusing on OpenAPI contract generation, type-safe API calls, and the transformation of backend workflow structures into canvas nodes.
+This document explains **how data flows from the backend API to the UI**, focusing on OpenAPI contract generation, type-safe API calls, and the transformation of backend workflow structures into **canvas steps** (each rendered as a React Flow **node** in code).
 
 ---
 
@@ -346,7 +346,7 @@ function handleSave() {
 }
 ```
 
-**Why flat?** Visual editors work better with a flat node list + explicit edges.
+**Why flat?** Visual editors work better with a flat list of graph vertices (React Flow `nodes[]`) plus explicit edges.
 
 ### Transformation Flow
 
@@ -364,10 +364,10 @@ flowchart TB
     subgraph Edit["Editing"]
         Store2[User edits via canvas]
         Edge[Edge changes]
-        Node[Node changes]
+        Graph[Canvas graph changes]
 
         Store2 --> Edge
-        Store2 --> Node
+        Store2 --> Graph
     end
 
     subgraph Save["Saving Workflow"]
@@ -381,7 +381,7 @@ flowchart TB
 
     Store1 --> Store2
     Edge --> Store3
-    Node --> Store3
+    Graph --> Store3
 ```
 
 ### Flatten Operation
@@ -390,13 +390,13 @@ Located in `packages/nexus-ui/src/routes/builder/utils/workflowTransform.ts`:
 
 > ⚠️ **Complexity Note**: The actual `flatten()` implementation is significantly more sophisticated than the simplified example below. The production code (~550 lines across `flatten()` and its private helpers) includes:
 >
-> - Three-pass algorithm for converge node handling
+> - Three-pass algorithm for converge (join) step handling
 > - Support for partial convergence (not all parallel branches converge)
 > - Backend activity reordering detection
 > - Nested branch activity edge creation
 > - Complex edge tracking for loops, conditions, and approvals
 >
-> The example below shows the conceptual approach. See [`workflow-loading-saving.md`](./workflow-loading-saving.md) for detailed converge node handling documentation.
+> The example below shows the conceptual approach. See [`workflow-loading-saving.md`](./workflow-loading-saving.md) for detailed converge / join handling (`converge` activities and edges).
 
 ```typescript
 /**
@@ -519,10 +519,10 @@ flowchart LR
     L --> RE
 ```
 
-### Node Type Mapping
+### Activity type → React Flow component mapping
 
 ```typescript
-// Each activity type maps to a React Flow node type
+// Each activity type maps to a React Flow node `type` string + component
 const nodeTypes = {
   task: TaskNode,
   condition: ConditionNode,
@@ -552,7 +552,7 @@ flowchart TB
 
     subgraph Dagre["Dagre Algorithm"]
         G[Create directed graph]
-        M[Add nodes with measurements]
+        M[Add steps with measurements]
         AE[Add edges]
         L[Calculate layout]
     end
@@ -571,8 +571,8 @@ flowchart TB
 
 Special handling:
 
-- **Loop nodes**: Body positioned to the right (not below) to avoid circular layout
-- **Button edges**: Inserted between nodes as "add node here" affordances
+- **Loop steps**: Body positioned to the right (not below) to avoid circular layout
+- **Button edges**: Inserted between canvas steps (React Flow nodes) as "add a step here" affordances
 
 ---
 
@@ -601,7 +601,7 @@ export function buildNestedConditionStructure(
  *
  * IMPORTANT: This is a 4-step hierarchical nesting process!
  *
- * The nest() operation processes structural nodes in this specific order:
+ * The nest() operation processes structural activities (condition, loop, converge, etc.) in this specific order:
  * Step 1: PARALLEL - Find and wrap outermost parallel groups recursively (lines 349-356)
  * Step 2: LOOP - Nest loops, which can contain conditions and approvals (lines 360, 614-664)
  * Step 3: APPROVAL - Nest approvals, which can contain conditions (lines 363, 718-805)

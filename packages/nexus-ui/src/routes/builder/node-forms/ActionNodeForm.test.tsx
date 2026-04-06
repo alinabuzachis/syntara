@@ -48,7 +48,7 @@ describe('ActionNodeForm', () => {
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Script')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Script is required')).toBeInTheDocument()
@@ -62,7 +62,7 @@ describe('ActionNodeForm', () => {
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Script')
     await user.type(screen.getByPlaceholderText(/Enter your code/i), 'print("hello")')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -92,7 +92,7 @@ describe('ActionNodeForm', () => {
     await user.type(screen.getByPlaceholderText(/https:\/\/api.example.com/i), 'https://api.test.com/data')
     await user.selectOptions(screen.getByLabelText(/HTTP Method/i), 'POST')
     await user.type(screen.getByPlaceholderText(/Bearer token/i), 'my-secret-token')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -149,9 +149,9 @@ describe('ActionNodeForm', () => {
   })
 
   it('uses custom submit button text when provided', () => {
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} submitButtonText="Update node" />)
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} submitButtonText="Update step" />)
 
-    expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Update step/i })).toBeInTheDocument()
   })
 
   it('validates URL field for API executor', () => {
@@ -167,7 +167,7 @@ describe('ActionNodeForm', () => {
     await user.selectOptions(screen.getByLabelText(/Language/i), 'bash')
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Bash Script')
     await user.type(screen.getByPlaceholderText(/Enter your code/i), 'echo "test"')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -185,7 +185,7 @@ describe('ActionNodeForm', () => {
     const paramsInput = screen.getByPlaceholderText('{"key": "value"}')
     await user.click(paramsInput)
     await user.paste('{"test": 123}')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({

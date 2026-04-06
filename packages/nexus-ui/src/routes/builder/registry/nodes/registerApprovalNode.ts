@@ -9,7 +9,7 @@ import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
- * Register the Approval node type
+ * Register the Approval step type
  * Creates a human approval gate that pauses workflow execution until approved
  */
 export default function registerApprovalNode() {
@@ -40,9 +40,9 @@ export default function registerApprovalNode() {
 
         // Add to workflow store
         useWorkflowStore.getState().addActivity(activity)
-        onSuccess(activityId) // Return the new node ID for canvas placement
+        onSuccess(activityId)
       } catch (error) {
-        onError(error instanceof Error ? error.message : 'Failed to add approval node')
+        onError(error instanceof Error ? error.message : 'Failed to add approval step')
       }
     },
   })

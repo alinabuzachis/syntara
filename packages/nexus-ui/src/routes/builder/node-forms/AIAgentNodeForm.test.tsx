@@ -78,7 +78,7 @@ describe('AIAgentNodeForm', () => {
 
     await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
     await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       name: 'Test Agent',
@@ -94,7 +94,7 @@ describe('AIAgentNodeForm', () => {
     renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} />)
 
     await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Prompt is required')).toBeInTheDocument()
@@ -111,7 +111,7 @@ describe('AIAgentNodeForm', () => {
       screen.getByPlaceholderText(/Natural language instructions/i),
       'Research the topic and provide a summary'
     )
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       name: 'Research Agent',
@@ -141,9 +141,9 @@ describe('AIAgentNodeForm', () => {
   })
 
   it('uses custom submit button text when provided', () => {
-    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} submitButtonText="Update node" />)
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} submitButtonText="Update step" />)
 
-    expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Update step/i })).toBeInTheDocument()
   })
 
   it('has disabled tools dropdown', () => {
@@ -159,7 +159,7 @@ describe('AIAgentNodeForm', () => {
 
     await user.type(screen.getByPlaceholderText(/Enter agent name/i), 'Test Agent')
     await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Test prompt')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     // Verify model is included with default value
     expect(mockOnSubmit).toHaveBeenCalledWith(
@@ -183,7 +183,7 @@ describe('AIAgentNodeForm', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     // Verify custom model is preserved
     expect(mockOnSubmit).toHaveBeenCalledWith(
@@ -227,7 +227,7 @@ describe('AIAgentNodeForm', () => {
     await user.type(screen.getByPlaceholderText(/Natural language instructions/i), 'Process the file')
 
     // Submit
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({

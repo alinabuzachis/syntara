@@ -30,7 +30,7 @@ function generateSecureRandomId(): string {
 }
 
 /**
- * Register the Logic node type
+ * Register the Logic step type (conditional, loop, converge subtypes).
  */
 export default function registerLogicNode() {
   NodeRegistry.register(
@@ -43,7 +43,7 @@ export default function registerLogicNode() {
         description: 'Add conditional logic and branching to workflows',
         keywords: ['if', 'else', 'condition', 'branch', 'switch', 'case', 'decision', 'converge', 'join'],
         order: 50,
-        selectionTitle: 'Select a logic node',
+        selectionTitle: 'Select a logic step',
         formComponent: LogicNodeForm,
         subtypes: [
           {
@@ -121,11 +121,11 @@ export default function registerLogicNode() {
 
             // Create a generic placeholder node for the loop body with custom message
             const genericNodeId = `task_${Date.now()}_${generateSecureRandomId()}`
-            const genericName = getNodeDisplayName('Generic Node')
+            const genericName = getNodeDisplayName('Generic Step')
             const genericActivity = createGenericActivity(
               genericNodeId,
               genericName,
-              'Replace this node to complete the loop' // Custom message
+              'Replace this step to complete the loop' // Custom message
             )
 
             // ATOMIC UPDATE: Add both activities and edges in a single transaction
@@ -162,11 +162,11 @@ export default function registerLogicNode() {
             }
             if (data.strategy === 'any') {
               if (data.requiredPathCount === undefined || data.requiredPathCount < 1) {
-                onError('Required path count must be at least 1 when using "Any branches reach this node"')
+                onError('Required path count must be at least 1 when using "Any branches reach this step"')
                 return
               }
               if (!data.remainingBehavior) {
-                onError('Behavior of remaining nodes is required when using "Any branches reach this node"')
+                onError('Behavior of remaining paths is required when using "Any branches reach this step"')
                 return
               }
             }
@@ -187,7 +187,7 @@ export default function registerLogicNode() {
           useWorkflowStore.getState().addActivity(activity)
           onSuccess(activityId)
         } catch (error) {
-          onError(error instanceof Error ? error.message : 'Failed to add logic node')
+          onError(error instanceof Error ? error.message : 'Failed to add logic step')
         }
       }
     )

@@ -68,8 +68,8 @@ function useButtonEdgeDragHandler(params: { id: string; source: string; sourceX:
 }
 
 /**
- * Edge with a plus button that opens the add node panel
- * Used for adding new nodes connected to existing nodes
+ * Edge with a plus button that opens the add step panel
+ * Used for adding new steps connected to existing steps
  * Creates a short stub edge extending from the source node
  */
 export function ButtonEdge(props: ButtonEdgeProps) {
@@ -139,7 +139,7 @@ export function ButtonEdge(props: ButtonEdgeProps) {
           </Icon>
         </div>
       </EdgeLabelRenderer>
-      {/* Large clickable area (draggable for all node types) */}
+      {/* Large clickable area (draggable for all canvas step types) */}
       <rect
         x={buttonX - 15}
         y={buttonY - 15}
@@ -153,7 +153,7 @@ export function ButtonEdge(props: ButtonEdgeProps) {
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         role="button"
-        aria-label="Add connected node"
+        aria-label="Add connected step"
         tabIndex={0}
         stroke={isFocused ? '#60a5fa' : 'none'}
         strokeWidth={isFocused ? 2 : 0}

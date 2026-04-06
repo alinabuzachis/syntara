@@ -10,7 +10,7 @@ import { createCustomNode } from '../helpers/nodeTemplates'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
- * Register the Action node type
+ * Register the Action step type
  */
 export default function registerActionNode() {
   NodeRegistry.register(
@@ -23,7 +23,7 @@ export default function registerActionNode() {
         description: 'Execute scripts or make API calls',
         keywords: ['script', 'api', 'http', 'python', 'javascript', 'bash', 'rest'],
         order: 30,
-        selectionTitle: 'Select an action node',
+        selectionTitle: 'Select an action step',
         subtypes: [
           {
             id: RegistryNodeId.ACTION_SCRIPT,
@@ -76,7 +76,7 @@ export default function registerActionNode() {
               activity.requiresApproval = true
             }
             useWorkflowStore.getState().addActivity(activity)
-            onSuccess(activityId) // Return the new node ID
+            onSuccess(activityId)
           } else {
             onError('Invalid action configuration. Please check your inputs.')
           }

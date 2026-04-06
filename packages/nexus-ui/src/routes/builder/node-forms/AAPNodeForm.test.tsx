@@ -57,7 +57,7 @@ describe('AAPNodeForm', () => {
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Job')
     await user.type(screen.getByPlaceholderText('123'), '456')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       name: 'Test Job',
@@ -86,7 +86,7 @@ describe('AAPNodeForm', () => {
     await user.type(screen.getByPlaceholderText(/install,configure/i), 'install,configure')
     await user.type(screen.getByPlaceholderText(/testing,debug/i), 'testing,debug')
     await user.selectOptions(screen.getByLabelText(/Verbosity/i), '3')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       name: 'Test Job',
@@ -109,7 +109,7 @@ describe('AAPNodeForm', () => {
     const extraVarsInput = screen.getByPlaceholderText(/version/i)
     await user.click(extraVarsInput)
     await user.paste('invalid json')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).not.toHaveBeenCalled()
   })
@@ -122,7 +122,7 @@ describe('AAPNodeForm', () => {
     const extraVarsInput = screen.getByPlaceholderText(/version/i)
     await user.click(extraVarsInput)
     await user.paste('not valid json')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Invalid JSON format')).toBeInTheDocument()
@@ -152,7 +152,7 @@ describe('AAPNodeForm', () => {
     const extraVarsInput = screen.getByPlaceholderText(/version/i)
     await user.click(extraVarsInput)
     await user.paste('bad json')
-    await user.click(screen.getByRole('button', { name: /Add node/i }))
+    await user.click(screen.getByRole('button', { name: /Add step/i }))
     expect(mockOnSubmit).not.toHaveBeenCalled()
 
     await user.clear(extraVarsInput)
@@ -201,10 +201,10 @@ describe('AAPNodeForm', () => {
         onSubmit={mockOnSubmit}
         onCancel={vi.fn()}
         onHeaderContentChange={vi.fn()}
-        submitButtonText="Update node"
+        submitButtonText="Update step"
       />
     )
 
-    expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Update step/i })).toBeInTheDocument()
   })
 })

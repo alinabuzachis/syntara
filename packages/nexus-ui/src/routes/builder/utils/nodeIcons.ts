@@ -6,7 +6,7 @@ import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import { NodeRegistry } from '../registry/NodeRegistry'
 
 /**
- * Use this when you only have a registry node type/subtype id (Add Node flow).
+ * Use this when you only have a registry node type/subtype id (Add step panel flow).
  */
 export function resolveIconForType({
   nodeTypeId,

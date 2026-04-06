@@ -1,12 +1,14 @@
 # BuilderContent Execution Badge Integration Tests
 
+**Terminology:** This note is about **React Flow `nodes[]`** (implementation). User-facing UI calls them **steps** on the canvas.
+
 ## Overview
 
-This document describes the expected behavior of execution badge rendering across the builder execution-view stack. `BuilderContent.tsx` is responsible for the node-initialization timing fix, while `BuilderFlow.tsx` and `ExecutionStateEnricher.ts` handle enrichment and edge/node execution-state derivation.
+This document describes the expected behavior of execution badge rendering across the builder execution-view stack. `BuilderContent.tsx` is responsible for the React Flow **node** initialization timing fix, while `BuilderFlow.tsx` and `ExecutionStateEnricher.ts` handle enrichment and edge/node execution-state derivation.
 
 ## Context
 
-Execution status badges are visual indicators on workflow nodes showing activity execution status (pending, running, completed, failed, etc.). The implementation had a race condition where:
+Execution status badges are visual indicators on workflow steps (canvas) showing activity execution status (pending, running, completed, failed, etc.). The implementation had a race condition where:
 
 - Activity data loads from REST API quickly
 - React Flow loads nodes asynchronously later via `queueMicrotask()`

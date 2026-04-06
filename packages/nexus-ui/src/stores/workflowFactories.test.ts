@@ -559,7 +559,7 @@ describe('workflowFactories', () => {
 
         expect(activity.type).toBe('task')
         expect(activity.id).toBe('gen-1')
-        expect(activity.name).toBe('New Node')
+        expect(activity.name).toBe('New Step')
         expect(withMetadata.metadata.__isGeneric).toBe(true)
       })
 
@@ -570,10 +570,10 @@ describe('workflowFactories', () => {
       })
 
       it('creates a generic activity with custom message', () => {
-        const activity = createGenericActivity('gen-1', 'Node', 'Select a node type')
+        const activity = createGenericActivity('gen-1', 'Step', 'Select a step type')
         const withMetadata = activity as TaskActivity & GenericMetadata
 
-        expect(withMetadata.metadata.__customMessage).toBe('Select a node type')
+        expect(withMetadata.metadata.__customMessage).toBe('Select a step type')
       })
     })
 

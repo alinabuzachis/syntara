@@ -58,7 +58,7 @@ describe('LoopNodeForm', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'forEach' }} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Loop')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       await waitFor(() => {
         expect(screen.getByText('Items expression is required')).toBeInTheDocument()
@@ -76,7 +76,7 @@ describe('LoopNodeForm', () => {
       await user.type(screen.getByPlaceholderText(/^item$/i), 'element')
       await user.clear(screen.getByPlaceholderText(/^index$/i))
       await user.type(screen.getByPlaceholderText(/^index$/i), 'i')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -95,7 +95,7 @@ describe('LoopNodeForm', () => {
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Another Loop')
       await user.type(screen.getByPlaceholderText(/input.item_list/i), 'items')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const submittedData = mockOnSubmit.mock.calls[0][0] as LoopFormData
       expect(submittedData).not.toHaveProperty('logicType')
@@ -108,7 +108,7 @@ describe('LoopNodeForm', () => {
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Clean Loop')
       await user.type(screen.getByPlaceholderText(/input.item_list/i), 'cleanItems')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const submittedData = mockOnSubmit.mock.calls[0][0] as LoopFormData
       expect(submittedData).not.toHaveProperty('condition')
@@ -123,7 +123,7 @@ describe('LoopNodeForm', () => {
       renderWithHeader(<LoopNodeForm onSubmit={mockOnSubmit} initialData={{ type: 'while' }} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'While Loop')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       await waitFor(() => {
         expect(screen.getByText('Conditional expression is required')).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('LoopNodeForm', () => {
       await user.click(rawInput)
       await user.paste('${x < 100}')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -175,7 +175,7 @@ describe('LoopNodeForm', () => {
       await user.paste('${x < 100}')
 
       await user.type(screen.getByRole('spinbutton', { name: /Max iterations/i }), '60')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -198,7 +198,7 @@ describe('LoopNodeForm', () => {
       await user.click(rawInput)
       await user.paste('${running}')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -218,7 +218,7 @@ describe('LoopNodeForm', () => {
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${done}')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const submittedData = mockOnSubmit.mock.calls[0][0] as LoopFormData
       expect(submittedData).not.toHaveProperty('items')
@@ -236,7 +236,7 @@ describe('LoopNodeForm', () => {
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${active}')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const submittedData = mockOnSubmit.mock.calls[0][0] as LoopFormData
       expect(submittedData.maxIterations).toBeUndefined()
@@ -256,7 +256,7 @@ describe('LoopNodeForm', () => {
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${running}')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const submittedData = mockOnSubmit.mock.calls[0][0] as LoopFormData
       expect(submittedData.maxIterationsBehavior).toBe('fail')
@@ -277,7 +277,7 @@ describe('LoopNodeForm', () => {
       // Test negative value - schema rejects, submit is not called
       await user.clear(maxIterationsInput)
       await user.type(maxIterationsInput, '-1')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
       expect(mockOnSubmit).not.toHaveBeenCalled()
 
       mockOnSubmit.mockClear()
@@ -285,7 +285,7 @@ describe('LoopNodeForm', () => {
       // Test zero value - schema rejects, submit is not called
       await user.clear(maxIterationsInput)
       await user.type(maxIterationsInput, '0')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
       expect(mockOnSubmit).not.toHaveBeenCalled()
 
       mockOnSubmit.mockClear()
@@ -293,7 +293,7 @@ describe('LoopNodeForm', () => {
       // Test decimal value - schema rejects, submit is not called
       await user.clear(maxIterationsInput)
       await user.type(maxIterationsInput, '3.5')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
       expect(mockOnSubmit).not.toHaveBeenCalled()
     })
   })

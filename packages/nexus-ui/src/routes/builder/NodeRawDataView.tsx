@@ -19,11 +19,11 @@ export function NodeRawDataView({ node }: NodeRawDataViewProps) {
   return (
     <DescriptionList>
       <DescriptionListGroup>
-        <DescriptionListTerm>Node Type</DescriptionListTerm>
+        <DescriptionListTerm>Step Type</DescriptionListTerm>
         <DescriptionListDescription>{node.type}</DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
-        <DescriptionListTerm>Node ID</DescriptionListTerm>
+        <DescriptionListTerm>Step ID</DescriptionListTerm>
         <DescriptionListDescription>
           <PFCodeBlock>
             <CodeBlockCode>{node.id}</CodeBlockCode>
@@ -31,7 +31,7 @@ export function NodeRawDataView({ node }: NodeRawDataViewProps) {
         </DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
-        <DescriptionListTerm>Node Data</DescriptionListTerm>
+        <DescriptionListTerm>Step Data</DescriptionListTerm>
         <DescriptionListDescription>
           <CodeBlock jsonObject={node.data} />
         </DescriptionListDescription>

@@ -22,7 +22,7 @@ export function GenericNodeForm({ onSubmit, onCancel, submitButtonText }: BaseNo
     <Stack hasGutter>
       <StackItem>
         <Content component={ContentVariants.p}>
-          A generic placeholder node will be added to the canvas. Click on it to configure the node type.
+          A generic placeholder step will be added to the canvas. Click on it to configure the step type.
         </Content>
       </StackItem>
       <StackItem>
@@ -34,7 +34,7 @@ export function GenericNodeForm({ onSubmit, onCancel, submitButtonText }: BaseNo
           </FlexItem>
           <FlexItem>
             <Button variant="primary" onClick={handleSubmit}>
-              {submitButtonText ?? 'Add Generic Node'}
+              {submitButtonText ?? 'Add Generic Step'}
             </Button>
           </FlexItem>
         </Flex>

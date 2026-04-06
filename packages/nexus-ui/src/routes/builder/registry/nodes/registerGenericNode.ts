@@ -8,16 +8,16 @@ import { NodeRegistry } from '../NodeRegistry'
 
 /**
  * Register the Generic placeholder node type
- * This node is used internally (e.g., for loop bodies) but is not shown in the AddNodePanel
- * Users cannot manually add this node - it's only created programmatically
+ * This step type is used internally (e.g., for loop bodies) but is not shown in the AddNodePanel
+ * Users cannot manually add this step - it's only created programmatically
  */
 export default function registerGenericNode() {
   NodeRegistry.register({
     id: RegistryNodeId.GENERIC,
-    label: 'Generic Node',
+    label: 'Generic Step',
     icon: RhUiAddCircleFillIcon,
     category: 'other',
-    description: 'Placeholder node - click to configure',
+    description: 'Placeholder step — click to configure',
     keywords: ['placeholder', 'generic', 'new', 'configure'],
     order: 1000, // High order to appear last in lists
     enabled: false, // Hide from AddNodePanel - only used programmatically
@@ -25,14 +25,14 @@ export default function registerGenericNode() {
     onSubmit: (_data, onSuccess, onError) => {
       try {
         // Create generic placeholder activity
-        const { activityId, activity } = buildNamedActivity('Generic Node', undefined, (id, name) =>
+        const { activityId, activity } = buildNamedActivity('Generic Step', undefined, (id, name) =>
           createGenericActivity(id, name)
         )
 
         useWorkflowStore.getState().addActivity(activity)
-        onSuccess(activityId) // Return the new node ID
+        onSuccess(activityId)
       } catch (error) {
-        onError(error instanceof Error ? error.message : 'Failed to add generic node')
+        onError(error instanceof Error ? error.message : 'Failed to add generic step')
       }
     },
   })

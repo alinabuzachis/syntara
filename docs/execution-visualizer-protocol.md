@@ -15,7 +15,7 @@
 7. [Implementation](#implementation)
 8. [Update Flow](#update-flow)
 9. [Protocol Rules](#protocol-rules)
-10. [Node State Inference (Client-Side)](#node-state-inference-client-side)
+10. [Step State Inference (Client-Side)](#step-state-inference-client-side)
 
 ---
 
@@ -86,7 +86,7 @@ GET  /api/v1/executions/{execution_id}?include=workflow_definition,activities
     "timestamp": "2025-01-20T10:00:01Z"
   }
   ↓
-  UI: Initialize activityStates Map, render all nodes as "pending"
+  UI: Initialize activityStates Map, render all canvas steps as "pending"
   ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │ STEP 5: Real-Time Activity Patches                              │
@@ -102,7 +102,7 @@ GET  /api/v1/executions/{execution_id}?include=workflow_definition,activities
     "timestamp": "2025-01-20T10:00:02Z"
   }
   ↓
-  UI: Update Map, node border → blue, badge → spinner
+  UI: Update Map, step border → blue, badge → spinner
   ↓
   Message Type: activity_patch (trigger completes, agent starts)
   {
@@ -374,7 +374,7 @@ interface ActivityState {
 | `started_at`           | `startedAt`                | `string \| null` |
 | `completed_at`         | `completedAt`              | `string \| null` |
 
-### ReactFlow Nodes
+### React Flow graph vertices (`nodes[]`)
 
 ```typescript
 const nodes = activities.map((activity) => ({
@@ -392,7 +392,7 @@ const nodes = activities.map((activity) => ({
 
 ### Edge Status (Client-Side Derived)
 
-Edge status is derived based on the type of edge (see Node State Inference section for details):
+Edge status is derived based on the type of edge (see Step State Inference section for details):
 
 ```typescript
 // Simplified - actual implementation handles multiple edge types
@@ -419,7 +419,7 @@ function determineEdgeStatus(edge, activityStates) {
 
 ## Visual Mapping
 
-**Node Status Colors** (theme-agnostic hex values):
+**Step Status Colors** (theme-agnostic hex values):
 
 | Status      | Border           | Badge   | Animation | Style      |
 | ----------- | ---------------- | ------- | --------- | ---------- |
@@ -522,9 +522,9 @@ Update Map: activityStates.set(name, { ...prev, [field]: value })
   ↓
 Zustand triggers React re-render
   ↓
-ReactFlow nodes get new data.activityState
+React Flow `nodes` receive new `data.activityState`
   ↓
-Nodes re-render with new border/badge
+Steps re-render with new border/badge
 ```
 
 ---
@@ -532,22 +532,22 @@ Nodes re-render with new border/badge
 ## Protocol Rules
 
 1. **Always store `event_id`** from every message (for reconnection)
-2. **Backend does NOT send edge status** (derive it client-side from node states and edge type)
+2. **Backend does NOT send edge status** (derive it client-side from step states and edge type)
 3. **No extra GET for live run** (workflow already in Zustand)
 4. **WebSocket closes after `final_snapshot`**
 5. **Reconnect with `?replay={lastEventId}`** to catch up
 
 ---
 
-## Node State Inference (Client-Side)
+## Step State Inference (Client-Side)
 
-The backend only sends status for executable activities (tasks, agent_task, etc.). Structural nodes (loops, conditions, converge) do **not** have direct backend state. The client infers their visual state from connected activities.
+The backend only sends status for executable activities (tasks, agent_task, etc.). Structural steps (loops, conditions, converge) do **not** have direct backend state. The client infers their visual state from connected activities.
 
 ### Inference System Architecture
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                     NODE STATE INFERENCE SYSTEM                              │
+│                     STEP STATE INFERENCE SYSTEM                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │   WebSocket Message                   Workflow Graph                         │
@@ -556,42 +556,42 @@ The backend only sends status for executable activities (tasks, agent_task, etc.
 │     status: "completed" }                  │         │                       │
 │                                            ▼         ▼                       │
 │                                       has backend  inferred from             │
-│                                       state        downstream nodes          │
+│                                       state        downstream steps          │
 │                                                                              │
 │   ExecutionStateEnricher                                                     │
 │   ══════════════════════                                                     │
 │   1. Apply direct backend states                                             │
 │   2. Infer trigger state (first activity started → trigger completed)        │
-│   3. Infer structural node states via type-specific inferrers                │
+│   3. Infer structural step states via type-specific inferrers               │
 │   4. Calculate edge statuses                                                 │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Node Type Inferrers
+### Step type inferrers (structural activities)
 
-| Node Type     | Inferrer Class                       | Logic                                                                |
-| ------------- | ------------------------------------ | -------------------------------------------------------------------- |
-| **Loop**      | `LoopNodeStateInferrer`              | Checks 'done' and 'loop' edges; completed when 'done' target started |
-| **Condition** | `ConditionalNodeStateInferrer`       | Completed when any branch target has started                         |
-| **Approval**  | `ConditionalNodeStateInferrer`       | Same logic as condition (has approved/rejected branches)             |
-| **Converge**  | `ConvergeNodeStateInferrer`          | Completed when the converge node's own `startedAt` is set            |
-| **Trigger**   | Built-in to `ExecutionStateEnricher` | Completed when any downstream activity has started                   |
+| Step / activity type | Inferrer class                       | Logic                                                                |
+| -------------------- | ------------------------------------ | -------------------------------------------------------------------- |
+| **Loop**             | `LoopNodeStateInferrer`              | Checks 'done' and 'loop' edges; completed when 'done' target started |
+| **Condition**        | `ConditionalNodeStateInferrer`       | Completed when any branch target has started                         |
+| **Approval**         | `ConditionalNodeStateInferrer`       | Same logic as condition (has approved/rejected branches)             |
+| **Converge**         | `ConvergeNodeStateInferrer`          | Completed when the converge step's own `startedAt` is set            |
+| **Trigger**          | Built-in to `ExecutionStateEnricher` | Completed when any downstream activity has started                   |
 
 ### Inference Examples
 
-**Loop Node:**
+**Loop step:**
 
 ```typescript
 // Loop is "completed" when execution exits the loop
 // (i.e., when the 'done' edge target has started)
 
 // Edges: loop → body (handle: 'loop'), loop → next (handle: 'done')
-// If 'next' node has startedAt → loop is completed
-// If 'body' node has startedAt but 'next' hasn't → loop is running
+// If 'next' step has startedAt → loop is completed
+// If 'body' step has startedAt but 'next' hasn't → loop is running
 ```
 
-**Condition Node:**
+**Condition step:**
 
 ```typescript
 // Condition is "completed" when a branch was taken
@@ -603,28 +603,28 @@ The backend only sends status for executable activities (tasks, agent_task, etc.
 
 ### Skip Detection (Traversal Algorithm)
 
-Nodes can be marked as "skipped" when they're on a branch that wasn't taken:
+Steps can be marked as "skipped" when they're on a branch that wasn't taken:
 
 ```typescript
 // WorkflowTraversal.shouldMarkAsSkipped(nodeId, activities, edges, activityStates)
 //
 // Returns true if:
-// 1. Node is on a non-taken branch of a completed condition
-// 2. Node is downstream from a skipped node
-// 3. Node has no downstream pending nodes (cascade complete)
+// 1. Step is on a non-taken branch of a completed condition
+// 2. Step is downstream from a skipped step
+// 3. Step has no downstream pending steps (cascade complete)
 ```
 
 **Implementation location:** `packages/nexus-ui/src/routes/builder/utils/executionState/traversal.ts`
 
 ### Edge Status Determination
 
-Edge visual status is derived from node states:
+Edge visual status is derived from step states:
 
 ```typescript
 // Edge is "passed" (solid line) when:
-// - For branching edges (from condition/approval): target node has started
-// - For converge outgoing edges: target node has started
-// - For trigger edges: target has started
+// - For branching edges (from condition/approval): target step has started
+// - For converge outgoing edges: target step has started
+// - For trigger edges: target step has started
 // - For regular edges: source reached a terminal status (completed/failed/cancelled)
 
 // Edge is "pending" (dotted line) otherwise

@@ -38,7 +38,7 @@ vi.mock('../node-forms/ConditionNodeForm', () => ({
   }) => (
     <div data-testid="condition-node-form">
       <button onClick={() => onSubmit({ name: 'Updated Condition', condition: 'true' })} data-testid="submit-button">
-        {submitButtonText ?? 'Add node'}
+        {submitButtonText ?? 'Add step'}
       </button>
     </div>
   ),
@@ -90,7 +90,7 @@ describe('ConditionNodeDetails Component', () => {
     )
   })
 
-  it('displays "Update node" as submit button text', () => {
+  it('displays "Update step" as submit button text', () => {
     const conditionData = {
       type: 'condition' as const,
       id: 'condition-1',
@@ -102,7 +102,7 @@ describe('ConditionNodeDetails Component', () => {
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
 
-    expect(screen.getByText('Update node')).toBeInTheDocument()
+    expect(screen.getByText('Update step')).toBeInTheDocument()
   })
 
   it('shows error when updateActivity throws', async () => {

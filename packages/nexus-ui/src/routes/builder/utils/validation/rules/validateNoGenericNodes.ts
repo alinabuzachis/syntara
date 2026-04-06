@@ -4,7 +4,7 @@ import { getActivityMetadata } from '../../../../../stores/useWorkflowStore'
 import type { ValidationError } from '../types'
 
 /**
- * Recursively checks if an activity is a generic placeholder node.
+ * Recursively checks if an activity is a generic placeholder step (unconfigured canvas placeholder).
  */
 function isGenericNode(activity: Activity): boolean {
   return getActivityMetadata(activity)?.__isGeneric === true
@@ -40,13 +40,13 @@ function findActivities(activities: Activity[], predicate: (activity: Activity) 
 }
 
 /**
- * Validates that the workflow does not contain any generic placeholder nodes.
+ * Validates that the workflow does not contain any generic placeholder steps.
  *
- * Generic nodes are temporary placeholders that should be replaced with actual
- * node types before saving the workflow.
+ * Generic placeholders are temporary canvas steps that should be replaced with actual
+ * step types before saving the workflow.
  *
  * This validation recursively checks all nested structures (loops, conditions, parallels)
- * to ensure no generic nodes are hidden inside.
+ * to ensure no generic placeholders are hidden inside.
  */
 export function validateNoGenericNodes(activities: Activity[]): ValidationError[] {
   const errors: ValidationError[] = []
@@ -57,9 +57,9 @@ export function validateNoGenericNodes(activities: Activity[]): ValidationError[
       id: `generic-node-${activity.id}`,
       severity: 'error',
       rule: 'no-generic-nodes',
-      message: `Placeholder node "${activity.name || 'Untitled'}" must be configured before saving`,
+      message: `Placeholder step "${activity.name || 'Untitled'}" must be configured before saving`,
       nodeId: activity.id,
-      suggestion: 'Click on the placeholder node to select a node type and configure it',
+      suggestion: 'Click on the placeholder step to select a step type and configure it',
     })
   }
 

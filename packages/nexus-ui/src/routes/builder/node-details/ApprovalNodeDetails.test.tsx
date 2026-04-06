@@ -51,7 +51,7 @@ vi.mock('../node-forms/ApprovalNodeForm', () => ({
         }
         data-testid="submit-button"
       >
-        {submitButtonText ?? 'Add node'}
+        {submitButtonText ?? 'Add step'}
       </button>
       <button onClick={onCancel} data-testid="cancel-button">
         Cancel
@@ -126,10 +126,10 @@ describe('ApprovalNodeDetails Component', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
-  it('displays "Update node" as submit button text', () => {
+  it('displays "Update step" as submit button text', () => {
     render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
 
-    expect(screen.getByText('Update node')).toBeInTheDocument()
+    expect(screen.getByText('Update step')).toBeInTheDocument()
   })
 
   it('handles taskData without approval data', () => {

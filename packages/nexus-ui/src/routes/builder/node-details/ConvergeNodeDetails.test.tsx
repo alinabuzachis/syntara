@@ -70,7 +70,7 @@ vi.mock('../node-forms/ConvergeNodeForm', () => ({
           }}
           data-testid="submit-button"
         >
-          {submitButtonText ?? 'Add node'}
+          {submitButtonText ?? 'Add step'}
         </button>
       </div>
     )
@@ -158,10 +158,10 @@ describe('ConvergeNodeDetails Component', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
-  it('displays "Update node" as submit button text', () => {
+  it('displays "Update step" as submit button text', () => {
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
-    expect(screen.getByText('Update node')).toBeInTheDocument()
+    expect(screen.getByText('Update step')).toBeInTheDocument()
   })
 
   it('handles convergeData without converge object', () => {

@@ -237,14 +237,14 @@ For consistent shape and client-side validation, forms can use **Zod** with **@h
 - **Type inference**: Use `z.infer<typeof schema>` for the form type instead of hand-written interfaces.
 - **Backend errors unchanged**: `useFormMutationErrorHandler` and `getValidationFieldErrors` still map 422 field errors to the form; Zod handles client-side rules only.
 
-**Reusable helpers (node forms):**
+**Reusable helpers (builder step forms live under `node-forms/`):**
 
-- **`node-forms/shared/formSchemaUtils.ts`** — Re-exports **`zodResolver`** from `@hookform/resolvers/zod` and **`optionalNumber`** for fields with `valueAsNumber` that can be NaN. Node forms import `zodResolver` and `optionalNumber` from `./shared/formSchemaUtils`. Use `zodResolver(schema, undefined, { mode: 'sync' })` with your Zod schema (import `z` from `'zod'`).
+- **`node-forms/shared/formSchemaUtils.ts`** — Re-exports **`zodResolver`** from `@hookform/resolvers/zod` and **`optionalNumber`** for fields with `valueAsNumber` that can be NaN. Step forms in `node-forms/` import `zodResolver` and `optionalNumber` from `./shared/formSchemaUtils`. Use `zodResolver(schema, undefined, { mode: 'sync' })` with your Zod schema (import `z` from `'zod'`).
 
 **Where it's used:**
 
 - **Integration form:** `packages/nexus-ui/src/routes/configuration/integrations/form/integrationFormSchema.ts` and `IntegrationForm.tsx` (imports `zodResolver` from `@hookform/resolvers/zod`).
-- **Node forms (builder):** Each has a schema file in `packages/nexus-ui/src/routes/builder/node-forms/` and uses `zodResolver(schema, undefined, { mode: 'sync' })` from `shared/formSchemaUtils.ts`:
+- **Step forms (builder):** Each has a schema file in `packages/nexus-ui/src/routes/builder/node-forms/` and uses `zodResolver(schema, undefined, { mode: 'sync' })` from `shared/formSchemaUtils.ts`:
   - AI Agent (`aiAgentFormSchema.ts`), Approval (`approvalFormSchema.ts`), Action (`actionFormSchema.ts`), Loop (`loopFormSchema.ts`), AAP (`aapFormSchema.ts`), Condition (`conditionFormSchema.ts`), Converge (`convergeFormSchema.ts`), Trigger (`triggerFormSchema.ts`).
 
 ### Direct Usage with getErrorMessage

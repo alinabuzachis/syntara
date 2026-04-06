@@ -67,19 +67,18 @@ interface AddNodePanelProps {
   onClose: () => void
   onSelectNode: (nodeTypeId: string, nodeSubtypeId?: string | null) => void
   sourceNodeId?: string | null
-  /** Project has no nodes in the builder */
+  /** Canvas has no workflow steps yet (only trigger selection is shown). */
   hasNoWorkflowNodes?: boolean
-  /** ID of the node to replace (for generic node conversion) */
+  /** React Flow node ID to replace (generic placeholder → real step). */
   replacementNodeId?: string | null
 }
 
 export function AddNodePanel(props: AddNodePanelProps) {
   const [selectedNodeType, setSelectedNodeType] = useState<string | null>(null)
 
-  // Get all registered node types
-  // Filter out trigger nodes when adding via plus icon (sourceNodeId exists)
-  // OR when replacing a generic node (replacementNodeId exists)
-  // because triggers cannot be target nodes
+  // Registered step types from NodeRegistry
+  // Omit triggers when adding from an edge (sourceNodeId) or replacing a generic step (replacementNodeId)
+  // because triggers cannot be connection targets
   const nodeTypes = useMemo(() => {
     const allNodes = NodeRegistry.getAll()
     if (props.hasNoWorkflowNodes) {
@@ -101,13 +100,13 @@ export function AddNodePanel(props: AddNodePanelProps) {
     setSelectedNodeType(null)
   }
 
-  // Get the selected node type definition
+  // Selected step type definition (may show subtype list)
   const enforcedSelectedNodeType = props.hasNoWorkflowNodes ? 'trigger' : selectedNodeType
   const selectedNode = enforcedSelectedNodeType ? NodeRegistry.get(enforcedSelectedNodeType) : null
   const isShowingSubtypeList = !!selectedNode?.subtypes?.length
 
   const panelTitle =
-    isShowingSubtypeList && selectedNode ? (selectedNode.selectionTitle ?? 'Select a node') : 'Add node'
+    isShowingSubtypeList && selectedNode ? (selectedNode.selectionTitle ?? 'Select a step') : 'Add step'
 
   return (
     <CompassPanel

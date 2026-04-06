@@ -28,13 +28,13 @@ describe('ConditionNodeForm', () => {
     it('renders submit button with default text', () => {
       renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('button', { name: /Add node/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Add step/i })).toBeInTheDocument()
     })
 
     it('renders submit button with custom text', () => {
-      renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} submitButtonText="Update node" />)
+      renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} submitButtonText="Update step" />)
 
-      expect(screen.getByRole('button', { name: /Update node/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Update step/i })).toBeInTheDocument()
     })
   })
 
@@ -53,7 +53,7 @@ describe('ConditionNodeForm', () => {
       await user.click(rawInput)
       await user.paste('${result > 0}')
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalled()
       const callArgs: unknown = mockOnSubmit.mock.calls[0][0]
@@ -74,7 +74,7 @@ describe('ConditionNodeForm', () => {
       const rawInput = screen.getByLabelText(/Raw expression/i)
       await user.click(rawInput)
       await user.paste('${x == 5}')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const submittedData = mockOnSubmit.mock.calls[0][0] as ConditionFormData
       expect(submittedData).not.toHaveProperty('logicType')
@@ -89,7 +89,7 @@ describe('ConditionNodeForm', () => {
       renderWithHeader(<ConditionNodeForm onSubmit={mockOnSubmit} />)
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'No Condition')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       // Form should not submit without condition
       expect(mockOnSubmit).not.toHaveBeenCalled()

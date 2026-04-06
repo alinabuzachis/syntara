@@ -7,7 +7,7 @@ import { registerAllNodes } from './routes/builder/registry/nodes'
 
 import './index.css'
 
-// Register all workflow node types before app initialization
+// Register all workflow step types (Add step panel) before app initialization
 registerAllNodes()
 
 const App = lazy(() => import('./app/App.js'))

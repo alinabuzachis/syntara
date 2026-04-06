@@ -15,8 +15,8 @@ interface AIAgentNodeDetailsProps {
 }
 
 /**
- * Node details component for AI Agent nodes (agentic executor).
- * Handles viewing and editing AI agent configuration including MCP server, tools, model, prompt, and files.
+ * Side panel for editing an AI agent **step** (agentic executor on the canvas).
+ * Handles MCP server, tools, model, prompt, and files.
  */
 export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentChange }: AIAgentNodeDetailsProps) {
   const { showError } = useAlerts()
@@ -63,14 +63,14 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
       updateActivity(nodeId, updatedActivity)
       onClose()
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to update AI agent node', 'Update Failed')
+      showError(error instanceof Error ? error.message : 'Failed to update AI agent step', 'Update Failed')
     }
   }
 
   return (
     <AIAgentNodeForm
       initialData={initialData}
-      submitButtonText="Update node"
+      submitButtonText="Update step"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
     />

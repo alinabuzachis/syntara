@@ -75,7 +75,7 @@ Check whether the changes follow:
 - Uses PatternFly 6 for styling and design system
 - TanStack Query for server state, Zustand (useWorkflowStore) for workflow state
 - No `any` types, uses generated OpenAPI types
-- Workflow nodes use auto-discovery pattern (register\*.ts with default export)
+- Workflow step types use auto-discovery (`register*.ts` with default export; canvas still uses React Flow nodes)
 - No over-engineering (avoid premature abstractions, unnecessary error handling)
 
 ### 3a. Recurring Issues Checklist (MANDATORY)

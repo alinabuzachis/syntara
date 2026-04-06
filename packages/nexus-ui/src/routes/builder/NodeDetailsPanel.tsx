@@ -40,8 +40,8 @@ import { getDefaultNodeBaseName, getNodeDisplayName } from './utils/nodeNaming'
 import { buildPanelMenuActions } from './utils/panelMenuActions'
 
 /**
- * IMPORTANT: When adding a new node type, ensure the corresponding NodeDetails component
- * calls onClose() after successfully updating the node. This ensures the side panel
+ * IMPORTANT: When adding a new step type, ensure the corresponding NodeDetails component
+ * calls onClose() after successfully updating the step. This ensures the side panel
  * closes automatically after modifications.
  */
 
@@ -120,7 +120,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
 
       const FormComponent = selectedNode.formComponent
       const subtypeFormProps = selectedSubtype?.formProps ?? {}
-      const submitButtonText = 'Add node'
+      const submitButtonText = 'Add step'
 
       /** Returns true if replacement succeeded, false if lookup failed. */
       const handleReplacement = (newNodeId: string | undefined): boolean => {
@@ -155,7 +155,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           (newNodeId?: string) => {
             if (replacementNodeId) {
               if (!handleReplacement(newNodeId)) {
-                showError('Failed to replace node — activity not found', 'Replacement failed')
+                showError('Failed to replace step — step not found', 'Replacement failed')
                 return
               }
             } else if (sourceNodeId && newNodeId) {
@@ -168,7 +168,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
             onClose()
           },
           (error: string) => {
-            showError(error, 'Failed to add node')
+            showError(error, 'Failed to add step')
           }
         )
       }

@@ -61,7 +61,7 @@ describe('ConvergeNodeForm', () => {
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Join Branches')
       await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), 'all')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -79,7 +79,7 @@ describe('ConvergeNodeForm', () => {
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Another Converge')
       await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), 'all')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const submittedData = mockOnSubmit.mock.calls[0][0] as ConvergeFormData
       expect(submittedData).not.toHaveProperty('logicType')
@@ -98,7 +98,7 @@ describe('ConvergeNodeForm', () => {
       await user.type(screen.getByLabelText(/Minute\(s\)/i), '10')
       await user.click(screen.getByRole('button', { name: /Select timeout action|Fail/i }))
       await user.click(screen.getByRole('option', { name: /Continue with partial data/i }))
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -122,7 +122,7 @@ describe('ConvergeNodeForm', () => {
       await user.type(screen.getByLabelText(/Hour\(s\)/i), '2')
       await user.type(screen.getByLabelText(/Day\(s\)/i), '1')
       // "Fail" is the default, so we don't need to select it
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const expectedSeconds = timeUnitsToSeconds(30, 5, 2, 1)
       expect(mockOnSubmit).toHaveBeenCalled()
@@ -139,7 +139,7 @@ describe('ConvergeNodeForm', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} />)
 
       expect(screen.queryByLabelText(/Required path count/i)).not.toBeInTheDocument()
-      expect(screen.queryByLabelText(/Behavior of remaining nodes/i)).not.toBeInTheDocument()
+      expect(screen.queryByLabelText(/Behavior of remaining paths/i)).not.toBeInTheDocument()
     })
 
     // Note: "any" strategy is disabled in the current implementation
@@ -149,7 +149,7 @@ describe('ConvergeNodeForm', () => {
       renderWithHeader(<ConvergeNodeForm onSubmit={mockOnSubmit} initialData={{ strategy: 'any' }} />)
 
       expect(screen.getByLabelText(/Required path count/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/Behavior of remaining nodes/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Behavior of remaining paths/i)).toBeInTheDocument()
     })
 
     it.skip('submits "any" strategy data with required fields', async () => {
@@ -158,8 +158,8 @@ describe('ConvergeNodeForm', () => {
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Any Strategy')
       await user.type(screen.getByLabelText(/Required path count/i), '3')
-      await user.selectOptions(screen.getByLabelText(/Behavior of remaining nodes/i), 'cancel')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.selectOptions(screen.getByLabelText(/Behavior of remaining paths/i), 'cancel')
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -238,7 +238,7 @@ describe('ConvergeNodeForm', () => {
 
       // Fill in required name field and submit
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test Converge')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       // Verify requiredPathCount defaults to 1 even though it's not visible for 'all' strategy
       expect(mockOnSubmit).toHaveBeenCalledWith(
@@ -258,7 +258,7 @@ describe('ConvergeNodeForm', () => {
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'All Strategy')
       await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), 'all')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const submittedData = mockOnSubmit.mock.calls[0][0] as ConvergeFormData
       expect(submittedData.requiredPathCount).toBeUndefined()
@@ -271,7 +271,7 @@ describe('ConvergeNodeForm', () => {
 
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'No Timeout')
       await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), 'all')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       const submittedData = mockOnSubmit.mock.calls[0][0] as ConvergeFormData
       expect(submittedData.timeout).toBeUndefined()
@@ -311,7 +311,7 @@ describe('ConvergeNodeForm', () => {
       await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'No Strategy')
       // Clear the default 'all' value
       await user.selectOptions(screen.getByLabelText(/Continue when criteria/i), '')
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       // Should show validation error
       expect(screen.getByText(/Continue when criteria is required/i)).toBeInTheDocument()

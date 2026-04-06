@@ -17,19 +17,19 @@ vi.mock('./utils/nodeIcons', () => ({
 }))
 
 const mockNodeTypes: NodeTypeOption[] = [
-  { id: 'action', label: 'Action Node', icon: vi.fn(), description: 'Perform an action' },
-  { id: 'condition', label: 'Condition Node', icon: vi.fn(), description: 'Add conditional logic' },
-  { id: 'loop', label: 'Loop Node', icon: vi.fn() },
+  { id: 'action', label: 'Action Step', icon: vi.fn(), description: 'Perform an action' },
+  { id: 'condition', label: 'Condition Step', icon: vi.fn(), description: 'Add conditional logic' },
+  { id: 'loop', label: 'Loop Step', icon: vi.fn() },
 ]
 
 describe('NodeTypeOptionsList', () => {
-  it('renders all node types with labels and icons', () => {
+  it('renders all step type options with labels and icons', () => {
     const onSelect = vi.fn()
     render(<NodeTypeOptionsList nodeTypes={mockNodeTypes} onSelect={onSelect} />)
 
-    expect(screen.getByText('Action Node')).toBeInTheDocument()
-    expect(screen.getByText('Condition Node')).toBeInTheDocument()
-    expect(screen.getByText('Loop Node')).toBeInTheDocument()
+    expect(screen.getByText('Action Step')).toBeInTheDocument()
+    expect(screen.getByText('Condition Step')).toBeInTheDocument()
+    expect(screen.getByText('Loop Step')).toBeInTheDocument()
 
     expect(screen.getByTestId('icon-action')).toBeInTheDocument()
     expect(screen.getByTestId('icon-condition')).toBeInTheDocument()
@@ -59,10 +59,10 @@ describe('NodeTypeOptionsList', () => {
     const onSelect = vi.fn()
     render(<NodeTypeOptionsList nodeTypes={mockNodeTypes} onSelect={onSelect} />)
 
-    await user.click(screen.getByRole('button', { name: 'Action Node' }))
+    await user.click(screen.getByRole('button', { name: 'Action Step' }))
     expect(onSelect).toHaveBeenCalledWith('action')
 
-    await user.click(screen.getByRole('button', { name: 'Condition Node' }))
+    await user.click(screen.getByRole('button', { name: 'Condition Step' }))
     expect(onSelect).toHaveBeenCalledWith('condition')
   })
 
@@ -71,7 +71,7 @@ describe('NodeTypeOptionsList', () => {
     const onSelect = vi.fn()
     render(<NodeTypeOptionsList nodeTypes={mockNodeTypes} onSelect={onSelect} />)
 
-    const actionButton = screen.getByRole('button', { name: 'Action Node' })
+    const actionButton = screen.getByRole('button', { name: 'Action Step' })
     actionButton.focus()
     await user.keyboard('{Enter}')
 
@@ -83,7 +83,7 @@ describe('NodeTypeOptionsList', () => {
     const onSelect = vi.fn()
     render(<NodeTypeOptionsList nodeTypes={mockNodeTypes} onSelect={onSelect} />)
 
-    const conditionButton = screen.getByRole('button', { name: 'Condition Node' })
+    const conditionButton = screen.getByRole('button', { name: 'Condition Step' })
     conditionButton.focus()
     await user.keyboard(' ')
 

@@ -57,7 +57,7 @@ describe('AddNodePanelHeader', () => {
   it('renders the panel title', () => {
     render(
       <AddNodePanelHeader
-        panelTitle="Add node"
+        panelTitle="Add step"
         isShowingSubtypeList={false}
         hasNoWorkflowNodes={false}
         onBack={mockOnBack}
@@ -65,13 +65,13 @@ describe('AddNodePanelHeader', () => {
       />
     )
 
-    expect(screen.getByText('Add node')).toBeInTheDocument()
+    expect(screen.getByText('Add step')).toBeInTheDocument()
   })
 
   it('shows back button when showing subtypes and not hasNoWorkflowNodes', () => {
     render(
       <AddNodePanelHeader
-        panelTitle="Select a node"
+        panelTitle="Select a step"
         isShowingSubtypeList
         hasNoWorkflowNodes={false}
         onBack={mockOnBack}
@@ -85,7 +85,7 @@ describe('AddNodePanelHeader', () => {
   it('does not show back button when hasNoWorkflowNodes', () => {
     render(
       <AddNodePanelHeader
-        panelTitle="Select a node"
+        panelTitle="Select a step"
         isShowingSubtypeList
         hasNoWorkflowNodes
         onBack={mockOnBack}
@@ -99,7 +99,7 @@ describe('AddNodePanelHeader', () => {
   it('shows close button when not hasNoWorkflowNodes', () => {
     render(
       <AddNodePanelHeader
-        panelTitle="Add node"
+        panelTitle="Add step"
         isShowingSubtypeList={false}
         hasNoWorkflowNodes={false}
         onBack={mockOnBack}
@@ -113,7 +113,7 @@ describe('AddNodePanelHeader', () => {
   it('hides close button when hasNoWorkflowNodes', () => {
     render(
       <AddNodePanelHeader
-        panelTitle="Add node"
+        panelTitle="Add step"
         isShowingSubtypeList={false}
         hasNoWorkflowNodes
         onBack={mockOnBack}
@@ -128,7 +128,7 @@ describe('AddNodePanelHeader', () => {
     const user = userEvent.setup()
     render(
       <AddNodePanelHeader
-        panelTitle="Select a node"
+        panelTitle="Select a step"
         isShowingSubtypeList
         hasNoWorkflowNodes={false}
         onBack={mockOnBack}
@@ -145,7 +145,7 @@ describe('AddNodePanelHeader', () => {
     const user = userEvent.setup()
     render(
       <AddNodePanelHeader
-        panelTitle="Add node"
+        panelTitle="Add step"
         isShowingSubtypeList={false}
         hasNoWorkflowNodes={false}
         onBack={mockOnBack}
@@ -172,7 +172,7 @@ describe('AddNodePanel Component', () => {
   it('renders the panel with title and close button', () => {
     render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} />)
 
-    expect(screen.getByText('Add node')).toBeInTheDocument()
+    expect(screen.getByText('Add step')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Close/i })).toBeInTheDocument()
   })
 
@@ -208,14 +208,14 @@ describe('AddNodePanel Component', () => {
     expect(screen.getByRole('button', { name: 'Action' })).toBeInTheDocument()
   })
 
-  it('filters to trigger nodes when no workflow nodes exist', () => {
+  it('filters to trigger types when the canvas has no workflow steps yet', () => {
     render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} hasNoWorkflowNodes />)
 
     expect(screen.getByRole('button', { name: 'Manual' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Action' })).not.toBeInTheDocument()
   })
 
-  it('hides close and back buttons when no workflow nodes exist', () => {
+  it('hides close and back buttons when the canvas has no workflow steps yet', () => {
     render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} hasNoWorkflowNodes />)
 
     expect(screen.queryByRole('button', { name: /Close/i })).not.toBeInTheDocument()
@@ -229,7 +229,7 @@ describe('AddNodePanel Component', () => {
     expect(screen.getByRole('button', { name: 'Action' })).toBeInTheDocument()
   })
 
-  it('filters out triggers when replacing a generic node', () => {
+  it('filters out triggers when replacing a generic step', () => {
     render(<AddNodePanel onClose={mockOnClose} onSelectNode={mockOnSelectNode} replacementNodeId="node-456" />)
 
     expect(screen.queryByRole('button', { name: 'Trigger' })).not.toBeInTheDocument()

@@ -38,14 +38,14 @@ export function ConditionNodeDetails({
       updateActivity(nodeId, updatedActivity)
       onClose()
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to update node', 'Update Failed')
+      showError(error instanceof Error ? error.message : 'Failed to update step', 'Update Failed')
     }
   }
 
   return (
     <ConditionNodeForm
       initialData={initialData}
-      submitButtonText="Update node"
+      submitButtonText="Update step"
       onSubmit={handleSubmit}
       onHeaderContentChange={onHeaderContentChange}
     />

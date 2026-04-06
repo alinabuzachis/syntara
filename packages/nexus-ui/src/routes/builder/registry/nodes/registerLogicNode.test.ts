@@ -149,7 +149,7 @@ describe('registerLogicNode', () => {
       )
 
       expect(onError).toHaveBeenCalledWith(
-        'Required path count must be at least 1 when using "Any branches reach this node"'
+        'Required path count must be at least 1 when using "Any branches reach this step"'
       )
       expect(onSuccess).not.toHaveBeenCalled()
     })
@@ -169,7 +169,7 @@ describe('registerLogicNode', () => {
       )
 
       expect(onError).toHaveBeenCalledWith(
-        'Behavior of remaining nodes is required when using "Any branches reach this node"'
+        'Behavior of remaining paths is required when using "Any branches reach this step"'
       )
       expect(onSuccess).not.toHaveBeenCalled()
     })

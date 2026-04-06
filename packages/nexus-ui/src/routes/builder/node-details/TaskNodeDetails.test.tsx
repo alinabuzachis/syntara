@@ -66,7 +66,7 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
   }) => (
     <div data-testid="action-node-form">
       <button onClick={() => onSubmit({ name: 'Updated Task', executor: 'script' })} data-testid="submit-button">
-        {submitButtonText ?? 'Add node'}
+        {submitButtonText ?? 'Add step'}
       </button>
       <button
         onClick={() =>
@@ -133,7 +133,7 @@ vi.mock('../node-forms/AAPNodeForm', () => ({
         }
         data-testid="aap-submit-button"
       >
-        {submitButtonText ?? 'Add node'}
+        {submitButtonText ?? 'Add step'}
       </button>
       <button onClick={onCancel} data-testid="aap-cancel-button">
         Cancel
@@ -404,7 +404,7 @@ describe('TaskNodeDetails Component', () => {
     )
   })
 
-  it('displays "Update node" as submit button text', () => {
+  it('displays "Update step" as submit button text', () => {
     const taskData = {
       type: 'task' as const,
       id: 'task-1',
@@ -420,7 +420,7 @@ describe('TaskNodeDetails Component', () => {
 
     renderTaskNodeDetails(taskData, 'task-1')
 
-    expect(screen.getByText('Update node')).toBeInTheDocument()
+    expect(screen.getByText('Update step')).toBeInTheDocument()
   })
 
   it('returns null for approval node (type approval)', () => {

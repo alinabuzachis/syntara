@@ -108,7 +108,7 @@ describe('useNodeMenuActions', () => {
       })
 
       const labels = result.current.map((a) => a.label)
-      expect(labels).toEqual(['View node details', 'Run step', 'Duplicate', 'Replace', 'Delete'])
+      expect(labels).toEqual(['View step details', 'Run step', 'Duplicate', 'Replace', 'Delete'])
     })
 
     it('calls onViewDetails with the node id', () => {
@@ -117,7 +117,7 @@ describe('useNodeMenuActions', () => {
       })
 
       const viewDetails = result.current.find((a) => a.id === 'view-details')
-      expect(viewDetails?.label).toBe('View node details')
+      expect(viewDetails?.label).toBe('View step details')
       act(() => {
         viewDetails?.onClick()
       })

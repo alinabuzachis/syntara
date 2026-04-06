@@ -57,20 +57,20 @@ describe('TriggerNodeComponent', () => {
     draggable: true,
   })
 
-  it('shows the node menu outside execution view', () => {
+  it('shows the step actions menu outside execution view', () => {
     render(<TriggerNodeComponent {...createNodeProps()} />)
 
-    expect(screen.getByLabelText('Node actions menu')).toBeInTheDocument()
+    expect(screen.getByLabelText('Step actions menu')).toBeInTheDocument()
   })
 
-  it('hides the node menu in execution view', () => {
+  it('hides the step actions menu in execution view', () => {
     render(
       <ExecutionViewContext.Provider value={true}>
         <TriggerNodeComponent {...createNodeProps()} />
       </ExecutionViewContext.Provider>
     )
 
-    expect(screen.queryByLabelText('Node actions menu')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Step actions menu')).not.toBeInTheDocument()
   })
 
   it('renders "Manual trigger" when the manual trigger details are shown', () => {

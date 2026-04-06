@@ -24,7 +24,7 @@ describe('NodeMenu', () => {
       const actions = [createMenuAction()]
       render(<NodeMenu menuActions={actions} />)
 
-      expect(screen.getByRole('button', { name: /node actions menu/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /step actions menu/i })).toBeInTheDocument()
     })
 
     it('applies custom className', () => {
@@ -59,7 +59,7 @@ describe('NodeMenu', () => {
       const actions = [createMenuAction({ label: 'Delete' })]
       render(<NodeMenu menuActions={actions} />)
 
-      const toggle = screen.getByRole('button', { name: /node actions menu/i })
+      const toggle = screen.getByRole('button', { name: /step actions menu/i })
       await user.click(toggle)
 
       await waitFor(() => {
@@ -78,7 +78,7 @@ describe('NodeMenu', () => {
       )
 
       // Open menu
-      const toggle = screen.getByRole('button', { name: /node actions menu/i })
+      const toggle = screen.getByRole('button', { name: /step actions menu/i })
       await user.click(toggle)
 
       await waitFor(() => {
@@ -104,7 +104,7 @@ describe('NodeMenu', () => {
       ]
       render(<NodeMenu menuActions={actions} />)
 
-      await user.click(screen.getByRole('button', { name: /node actions menu/i }))
+      await user.click(screen.getByRole('button', { name: /step actions menu/i }))
 
       await waitFor(() => {
         expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
@@ -119,7 +119,7 @@ describe('NodeMenu', () => {
       const actions = [createMenuAction({ label: 'Delete', onClick: onClickHandler })]
       render(<NodeMenu menuActions={actions} />)
 
-      await user.click(screen.getByRole('button', { name: /node actions menu/i }))
+      await user.click(screen.getByRole('button', { name: /step actions menu/i }))
 
       await waitFor(() => {
         expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
@@ -135,7 +135,7 @@ describe('NodeMenu', () => {
       const actions = [createMenuAction({ label: 'Delete' })]
       render(<NodeMenu menuActions={actions} />)
 
-      await user.click(screen.getByRole('button', { name: /node actions menu/i }))
+      await user.click(screen.getByRole('button', { name: /step actions menu/i }))
 
       await waitFor(() => {
         expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
@@ -153,7 +153,7 @@ describe('NodeMenu', () => {
       const actions = [createMenuAction({ label: 'Delete', variant: 'danger' })]
       render(<NodeMenu menuActions={actions} />)
 
-      await user.click(screen.getByRole('button', { name: /node actions menu/i }))
+      await user.click(screen.getByRole('button', { name: /step actions menu/i }))
 
       await waitFor(() => {
         const deleteItem = screen.getByTestId('node-menu-item-test-action')
@@ -167,7 +167,7 @@ describe('NodeMenu', () => {
       const actions = [createMenuAction({ label: 'Edit', icon })]
       render(<NodeMenu menuActions={actions} />)
 
-      await user.click(screen.getByRole('button', { name: /node actions menu/i }))
+      await user.click(screen.getByRole('button', { name: /step actions menu/i }))
 
       await waitFor(() => {
         expect(screen.getByTestId('action-icon')).toBeInTheDocument()
@@ -183,7 +183,7 @@ describe('NodeMenu', () => {
       ]
       render(<NodeMenu menuActions={actions} />)
 
-      await user.click(screen.getByRole('button', { name: /node actions menu/i }))
+      await user.click(screen.getByRole('button', { name: /step actions menu/i }))
 
       await waitFor(() => {
         expect(screen.getByRole('separator')).toBeInTheDocument()
@@ -204,7 +204,7 @@ describe('NodeMenu', () => {
         </div>
       )
 
-      await user.click(screen.getByRole('button', { name: /node actions menu/i }))
+      await user.click(screen.getByRole('button', { name: /step actions menu/i }))
 
       expect(parentClickHandler).not.toHaveBeenCalled()
     })
@@ -221,7 +221,7 @@ describe('NodeMenu', () => {
         </div>
       )
 
-      await user.click(screen.getByRole('button', { name: /node actions menu/i }))
+      await user.click(screen.getByRole('button', { name: /step actions menu/i }))
 
       expect(parentMouseDownHandler).not.toHaveBeenCalled()
     })
@@ -248,7 +248,7 @@ describe('NodeMenu', () => {
       const actions = [createMenuAction()]
       render(<NodeMenu menuActions={actions} />)
 
-      expect(screen.getByRole('button', { name: /node actions menu/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /step actions menu/i })).toBeInTheDocument()
     })
   })
 })

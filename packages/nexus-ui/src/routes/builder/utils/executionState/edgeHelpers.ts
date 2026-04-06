@@ -5,7 +5,7 @@ import type { EdgeConnection } from '../../types/edge'
  * Utility class for common edge operations in execution state inference.
  *
  * This module provides shared utilities for filtering and analyzing edges
- * to determine execution state of workflow nodes.
+ * to determine execution state of workflow steps (React Flow nodes).
  */
 export class EdgeHelpers {
   /**

@@ -10,7 +10,7 @@ import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { NodeRegistry } from '../NodeRegistry'
 
 /**
- * Register the AI Agent node type.
+ * Register the AI Agent step type.
  * Creates activities with agentic executor type for AI-powered task execution
  * via MCP (Model Context Protocol) servers.
  */
@@ -42,7 +42,7 @@ export default function registerAIAgentNode() {
 
         if (activity) {
           useWorkflowStore.getState().addActivity(activity)
-          onSuccess(activityId) // Return the new node ID
+          onSuccess(activityId)
         } else {
           onError('Invalid agent configuration. Please check your inputs.')
         }

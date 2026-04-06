@@ -1,12 +1,12 @@
 # Execution State Enrichment System
 
-This directory contains the execution state inference system for the workflow builder. It enriches workflow activities and edges with execution state information for visualization in the execution view.
+This directory contains the execution state inference system for the workflow builder. It enriches workflow **activities** (canvas **steps**; React Flow **nodes** in UI code) and edges with execution state information for visualization in the execution view.
 
 ## Architecture Overview
 
 The system uses two design patterns:
 
-1. **Strategy Pattern**: Different node types (loop, converge, conditional, approval) have specialized state inferrers
+1. **Strategy Pattern**: Different structural step / activity types (loop, converge, conditional, approval) have specialized state inferrers
 2. **Orchestrator Pattern**: The `ExecutionStateEnricher` class coordinates all inferrers and provides a unified API
 
 ## File Structure
@@ -18,7 +18,7 @@ executionState/
 ├── ExecutionStateEnricher.ts    # Main orchestrator class
 ├── edgeHelpers.ts               # Shared edge utilities
 ├── traversal.ts                 # Workflow graph traversal logic
-├── nodeStateInference.ts        # Node-specific state inferrers
+├── nodeStateInference.ts        # Per–activity-type state inferrers
 └── __tests__/                   # Comprehensive test suite
     ├── ExecutionStateEnricher.test.ts
     ├── edgeHelpers.test.ts
@@ -55,22 +55,22 @@ const edgeStatus = enricher.determineEdgeStatus(
 - `enrichActivity<T>(activity, executionStatus, activityStates, edges): ActivityWithMetadata<T>`
   - Adds execution badge metadata
   - Adds backend state if available
-  - Infers state for structural nodes (loop, converge, conditional)
-  - Marks nodes as skipped when on non-taken branches
-  - Sets default pending state for structural nodes
+  - Infers state for structural activities (loop, converge, conditional)
+  - Marks activities as skipped when on non-taken branches
+  - Sets default pending state for structural activities
 
 - `determineEdgeStatus(edge, activityStates): 'passed' | 'pending'`
   - For branching edges: checks if target has started (indicates branch was taken)
   - For trigger and converge outgoing edges: checks if target has started
   - For regular edges: checks if source reached a terminal status
 
-### Node State Inferrers (Strategy Pattern)
+### State inferrers (Strategy Pattern)
 
-Each structural node type has a dedicated inferrer implementing the `NodeStateInferrer` interface:
+Each structural activity type has a dedicated inferrer implementing the `NodeStateInferrer` interface:
 
 #### LoopNodeStateInferrer
 
-Infers execution state for loop nodes based on their outgoing edges:
+Infers execution state for loop activities based on their outgoing edges:
 
 - **Completed**: Done edge target has started execution
 - **Running**: Loop body edge target has started execution
@@ -78,20 +78,20 @@ Infers execution state for loop nodes based on their outgoing edges:
 
 #### ConvergeNodeStateInferrer
 
-Infers execution state for converge nodes based on incoming nodes:
+Infers execution state for converge activities based on incoming steps:
 
-- **Running**: At least one incoming node is completed or failed
-- **Completed**: All incoming nodes are completed/failed OR any outgoing node has started
-- **Null**: All incoming nodes are pending
+- **Running**: At least one incoming activity is completed or failed
+- **Completed**: All incoming activities are completed/failed OR any outgoing activity has started
+- **Null**: All incoming activities are pending
 
 #### ConditionalNodeStateInferrer
 
-Infers execution state for conditional and approval nodes based on branch targets:
+Infers execution state for conditional and approval activities based on branch targets:
 
 - **Completed**: Any branch target (true/false or approved/rejected) has started
 - **Null**: No branch has been taken yet
 
-Used for both `condition` and `approval` node types.
+Used for both `condition` and `approval` activity types.
 
 ### Edge Helpers
 
@@ -113,15 +113,15 @@ const outgoing = EdgeHelpers.getOutgoingEdges('task-1', edges)
 
 ### Workflow Traversal
 
-Graph traversal utilities for detecting skipped nodes and downstream state:
+Graph traversal utilities for detecting skipped activities and downstream state:
 
 ```typescript
 import { WorkflowTraversal } from './traversal'
 
-// Check if any downstream nodes are pending/running
+// Check if any downstream activities are pending/running
 const hasPending = WorkflowTraversal.hasDownstreamPendingNodes('loop-1', activityStates, edges)
 
-// Check if node should be marked as skipped
+// Check if an activity should be marked as skipped
 const isSkipped = WorkflowTraversal.shouldMarkAsSkipped('task-false', activityStates, edges)
 ```
 
@@ -130,9 +130,9 @@ const isSkipped = WorkflowTraversal.shouldMarkAsSkipped('task-false', activitySt
 The enrichment algorithm follows these steps:
 
 1. **Direct Backend State**: If the activity has state from the backend, use it directly
-2. **Structural Node Inference**: For loop/converge/conditional nodes, use the appropriate inferrer
-3. **Skip Detection**: If node is on a non-taken branch or unreachable, mark as skipped
-4. **Default Pending**: Structural nodes with no other state default to pending
+2. **Structural inference**: For loop/converge/conditional activities, use the appropriate inferrer
+3. **Skip detection**: If an activity is on a non-taken branch or unreachable, mark as skipped
+4. **Default pending**: Structural activities with no other state default to pending
 
 ## Edge Status Determination
 
@@ -145,24 +145,24 @@ Edges can be in two states:
 
 For edges with branch handles (`true`, `false`, `approved`, `rejected`, `done`, `loop`):
 
-- Status determined by checking if **target** node has started
+- Status determined by checking if the **target** activity has started
 - This indicates which branch was actually taken during execution
 
 ### Regular Edges
 
 For normal edges without special handles:
 
-- Status determined by checking if **source** node has reached a terminal status (completed, failed, or cancelled)
+- Status determined by checking if the **source** activity has reached a terminal status (completed, failed, or cancelled)
 
 ### Trigger Edges
 
-Edges from trigger nodes (`trigger-0`, `trigger-1`, etc.):
+Edges from trigger activities (`trigger-0`, `trigger-1`, etc.):
 
-- Marked as `passed` only after the target node has started
+- Marked as `passed` only after the target activity has started
 
-## Adding a New Node Type
+## Adding a new structural step type
 
-To add execution state inference for a new node type:
+To add execution state inference for a new activity / canvas step type:
 
 1. **Create an Inferrer**: Implement `NodeStateInferrer` interface in `nodeStateInference.ts`
 
@@ -199,8 +199,8 @@ To add execution state inference for a new node type:
 
 ### Why Strategy Pattern?
 
-- **Isolated Logic**: Each node type's inference logic is self-contained and testable
-- **Easy Extension**: Adding new node types doesn't require modifying existing code
+- **Isolated logic**: Each activity type's inference logic is self-contained and testable
+- **Easy extension**: Adding new inferrers does not require modifying existing ones
 - **Clear Responsibilities**: Each inferrer has a single, well-defined purpose
 
 ### Why Orchestrator Pattern?

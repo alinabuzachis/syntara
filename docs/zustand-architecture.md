@@ -201,7 +201,7 @@ interface WorkflowStore {
   moveActivityAfter: (activityId: string, afterActivityId: string) => void
   reorderActivitiesFromEdges: () => void
 
-  // Converge node management
+  // Converge branches (join steps) — keeps `converge.branches` in sync with edges
   syncConvergeNodeBranches: () => void
 
   // Atomic batch operations
@@ -227,11 +227,11 @@ interface WorkflowStore {
 │                                markClean()                Clear dirty flag   │
 │                                markDirty()                Set dirty flag     │
 │                                                                              │
-│                                addActivity()              Add node           │
-│                                removeActivity()           Delete node        │
-│                                updateActivity()           Modify node        │
-│                                moveActivityBefore()       Reorder nodes      │
-│                                moveActivityAfter()        Reorder nodes      │
+│                                addActivity()              Add step           │
+│                                removeActivity()           Delete step        │
+│                                updateActivity()           Modify step        │
+│                                moveActivityBefore()       Reorder steps    │
+│                                moveActivityAfter()        Reorder steps    │
 │                                reorderActivitiesFromEdges() Topology sort    │
 │                                                                              │
 │                                addTrigger()               Add trigger        │
@@ -385,9 +385,9 @@ const trigger = createManualTrigger(true) // requiresApproval = true
 Components only re-render when their specific data changes:
 
 ```typescript
-function NodeCount() {
+function StepCount() {
   const count = useActivitiesCount() // Re-renders: only when count changes
-  return <span>{count} nodes</span> // NOT when node names/positions change
+  return <span>{count} steps</span> // NOT when step names/positions change
 }
 ```
 
@@ -403,7 +403,7 @@ No decisions about selectors, memoization, or subscription patterns—it's built
 
 ### Benefit 3: Atomic Updates
 
-Workflow state has interdependencies. Deleting a node must also update edges and converge branches. We handle this atomically:
+Workflow state has interdependencies. Deleting a step (activity) must also update edges and converge branches. We handle this atomically:
 
 ```typescript
 // ✅ All changes happen together, one re-render
@@ -511,7 +511,7 @@ edges ←──references──► activities
 ### The Tight Coupling Problem
 
 1. **Edges reference activities** - An edge's `source` and `target` are activity IDs
-2. **Converge nodes depend on edges** - `converge.branches` is computed from incoming edges
+2. **Converge (join) steps depend on edges** - `converge.branches` is computed from incoming edges
 3. **Parallel containers are auto-generated** - Created based on edge patterns
 4. **Activity ordering depends on edges** - Topological sort uses edge connections
 5. **Deletion cascades** - Removing an activity must update edges AND converge branches
@@ -675,18 +675,18 @@ const { updateActivity } = useWorkflowStoreActions()
 
 ## Quick Reference
 
-| I want to...               | Import                    | Use                                                           |
-| -------------------------- | ------------------------- | ------------------------------------------------------------- |
-| Read activities            | `useActivities`           | `const activities = useActivities()`                          |
-| Read edges                 | `useEdges`                | `const edges = useEdges()`                                    |
-| Check for unsaved changes  | `useIsDirty`              | `const isDirty = useIsDirty()`                                |
-| Check if workflow loaded   | `useHasWorkflow`          | `const loaded = useHasWorkflow()`                             |
-| Load workflow atomically   | `useWorkflowStoreActions` | `const { loadWorkflowWithEdges } = useWorkflowStoreActions()` |
-| Update a node              | `useWorkflowStoreActions` | `const { updateActivity } = useWorkflowStoreActions()`        |
-| Delete nodes atomically    | `useWorkflowStoreActions` | `batchRemoveNodesAndEdges({ nodeIds, edges })`                |
-| Mark workflow as saved     | `useWorkflowStoreActions` | `const { markClean } = useWorkflowStoreActions()`             |
-| Create a new task          | `createScriptActivity`    | `createScriptActivity(id, name, lang, code)`                  |
-| Access state outside React | `useWorkflowStore`        | `useWorkflowStore.getState().currentWorkflow`                 |
+| I want to...               | Import                    | Use                                                             |
+| -------------------------- | ------------------------- | --------------------------------------------------------------- |
+| Read activities            | `useActivities`           | `const activities = useActivities()`                            |
+| Read edges                 | `useEdges`                | `const edges = useEdges()`                                      |
+| Check for unsaved changes  | `useIsDirty`              | `const isDirty = useIsDirty()`                                  |
+| Check if workflow loaded   | `useHasWorkflow`          | `const loaded = useHasWorkflow()`                               |
+| Load workflow atomically   | `useWorkflowStoreActions` | `const { loadWorkflowWithEdges } = useWorkflowStoreActions()`   |
+| Update a step (activity)   | `useWorkflowStoreActions` | `const { updateActivity } = useWorkflowStoreActions()`          |
+| Delete steps atomically    | `useWorkflowStoreActions` | `batchRemoveNodesAndEdges({ nodeIds, edges })` (React Flow IDs) |
+| Mark workflow as saved     | `useWorkflowStoreActions` | `const { markClean } = useWorkflowStoreActions()`               |
+| Create a new task          | `createScriptActivity`    | `createScriptActivity(id, name, lang, code)`                    |
+| Access state outside React | `useWorkflowStore`        | `useWorkflowStore.getState().currentWorkflow`                   |
 
 ---
 

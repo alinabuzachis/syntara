@@ -4,7 +4,7 @@
 > **Diagrams**: 18 Mermaid diagrams for visual learners  
 > **Audience**: New team members joining the Nexus UI project
 
-This document explains **how the Nexus UI is organized**, **how it fetches data from the backend**, and **how backend workflow nodes become React Flow nodes** on the canvas.
+This document explains **how the Nexus UI is organized**, **how it fetches data from the backend**, and **how backend workflow activities become canvas steps** (implemented as React Flow **nodes**) on the builder.
 
 ---
 
@@ -56,8 +56,9 @@ Nice to have (but we'll explain the basics):
 | **Dagre**             | Graph layout algorithm. Automatically positions nodes so the workflow looks organized.                                      | [Dagre wiki](https://github.com/dagrejs/dagre/wiki)        |
 | **useWebSocketStore** | Zustand store that manages WebSocket connections, reconnection, and message routing.                                        | [`websocket-architecture.md`](./websocket-architecture.md) |
 | **Activity**          | A single step in a workflow (e.g., a task, condition, loop). Backend term.                                                  |                                                            |
-| **Node**              | React Flow term for a visual box on the canvas. Activities become nodes.                                                    |                                                            |
-| **Edge**              | React Flow term for a connection line between nodes.                                                                        |                                                            |
+| **Step**              | User-facing term for a workflow unit on the canvas. In code, each step is rendered as a React Flow **node**.                |                                                            |
+| **Node**              | React Flow API term for a vertex on the graph (`Node`, `nodes[]`). Prefer **step** in UI copy and user-facing docs.         |                                                            |
+| **Edge**              | React Flow term for a connection line between nodes (between workflow steps on the canvas).                                 |                                                            |
 
 ---
 
@@ -84,19 +85,19 @@ Nice to have (but we'll explain the basics):
 
 ## Technology Stack
 
-| Layer               | Technology                              | Notes                                      |
-| ------------------- | --------------------------------------- | ------------------------------------------ |
-| **UI Components**   | PatternFly 6                            | Enterprise UI component framework          |
-| **Styling**         | PatternFly 6                            | Enterprise UI component framework          |
-| **Forms**           | react-hook-form                         | Performant form handling                   |
-| **Icons**           | PatternFly Icons (prefer RhUi-prefixed) | PatternFly icon library, prefer RhUi icons |
-| **Workflow Canvas** | React Flow (`@xyflow/react`)            | Node-based editor for workflows            |
-| **State (Server)**  | TanStack Query                          | Caching, fetching, synchronizing API data  |
-| **State (Client)**  | Zustand                                 | Lightweight store for workflow editing     |
-| **WebSocket**       | Pure Zustand store                      | Real-time communication with backend       |
-| **Routing**         | Wouter                                  | Minimal router (~1KB)                      |
-| **Build**           | Vite                                    | Fast dev server and bundler                |
-| **Testing**         | Vitest + Testing Library                | Unit and component testing                 |
+| Layer               | Technology                              | Notes                                         |
+| ------------------- | --------------------------------------- | --------------------------------------------- |
+| **UI Components**   | PatternFly 6                            | Enterprise UI component framework             |
+| **Styling**         | PatternFly 6                            | Enterprise UI component framework             |
+| **Forms**           | react-hook-form                         | Performant form handling                      |
+| **Icons**           | PatternFly Icons (prefer RhUi-prefixed) | PatternFly icon library, prefer RhUi icons    |
+| **Workflow Canvas** | React Flow (`@xyflow/react`)            | Step-based workflow editor (React Flow graph) |
+| **State (Server)**  | TanStack Query                          | Caching, fetching, synchronizing API data     |
+| **State (Client)**  | Zustand                                 | Lightweight store for workflow editing        |
+| **WebSocket**       | Pure Zustand store                      | Real-time communication with backend          |
+| **Routing**         | Wouter                                  | Minimal router (~1KB)                         |
+| **Build**           | Vite                                    | Fast dev server and bundler                   |
+| **Testing**         | Vitest + Testing Library                | Unit and component testing                    |
 
 ---
 
@@ -280,12 +281,12 @@ Within `packages/nexus-ui/src/`:
 
 ```tsx
 // Simplified view of main.tsx
-registerAllNodes() // Auto-discovers and registers workflow node types
+registerAllNodes() // Auto-discovers and registers workflow step types (NodeRegistry)
 const App = lazy(() => import('./app/App'))
 createRoot(document.getElementById('root')!).render(<App />)
 ```
 
-### How `registerAllNodes()` auto-discovers nodes
+### How `registerAllNodes()` auto-discovers step types
 
 `registerAllNodes()` is implemented in `packages/nexus-ui/src/routes/builder/registry/nodes/index.ts`.
 It uses Vite's `import.meta.glob` to synchronously import all registration modules at startup:
@@ -324,7 +325,7 @@ flowchart LR
 - **Export contract**: each `register*.ts` file must `export default function registerXxx() { ... }`
 - **When it runs**: `packages/nexus-ui/src/main.tsx` calls `registerAllNodes()` before rendering the app
 
-This is why adding a new node type is usually just "create a new `registerMyNode.ts` file with a default export"
+This is why adding a new canvas step type is usually just "create a new `registerMyNode.ts` file with a default export"
 —no central list to edit.
 
 **App root**: `packages/nexus-ui/src/app/App.tsx`
@@ -539,7 +540,7 @@ mutation.mutate({ body: workflowPayload })
 | **Nested** | Backend API | `condition: { then: [task1, task2], else: [task3] }`                        |
 | **Flat**   | Builder UI  | `activities: [condition, task1, task2, task3]` + edges encode relationships |
 
-**Why flat?** Easier to add/remove/reorder nodes in a visual editor.
+**Why flat?** Easier to add/remove/reorder steps in a visual editor (each step is a React Flow node under the hood).
 
 ### Builder entry points
 
@@ -583,11 +584,11 @@ mutation.mutate({ body: workflowPayload })
 | `BuilderContent.tsx`                                | Orchestrates load/save, wraps canvas                                                                                     |
 | `BuilderFlow.tsx`                                   | Converts store → React Flow nodes/edges, handles layout                                                                  |
 | `automations/canvas/CanvasControls.tsx`             | Bottom canvas toolbar (zoom, fit, layout, expand/collapse) and toggle for the legend                                     |
-| `automations/canvas/CanvasLegend.tsx`               | Floating legend: node categories and approval branch colors                                                              |
+| `automations/canvas/CanvasLegend.tsx`               | Floating legend: step categories and approval branch colors                                                              |
 | `automations/canvas/semanticZoom.ts`                | Semantic zoom threshold (`SEMANTIC_ZOOM_MAX_SCALE`) and `semanticZoomActivityTitle()` for consistent empty-name tooltips |
 | `automations/canvas/semanticZoomTypes.ts`           | Shared `SemanticZoomBranchSource` type for branch handles at semantic zoom                                               |
 | `automations/canvas/nodes/hooks/useSemanticZoom.ts` | LOD flag via typed `useStore` selector + `updateNodeInternals` when crossing the zoom threshold                          |
-| `automations/canvas/nodes/common/NodeComponent.tsx` | Shared node shell; semantic zoom swaps to color blocks + tooltips (title + type)                                         |
+| `automations/canvas/nodes/common/NodeComponent.tsx` | Shared canvas step shell; semantic zoom swaps to color blocks + tooltips (title + type)                                  |
 | `utils/workflowTransform.ts`                        | Flatten/nest transformations                                                                                             |
 | `utils/loadWorkflow.ts`                             | Load + flatten workflow                                                                                                  |
 | `utils/buildNestedStructure.ts`                     | Build nested structure for save                                                                                          |
@@ -597,13 +598,13 @@ mutation.mutate({ body: workflowPayload })
 
 This section is the “how it really works” view of the builder. It’s here so newcomers can debug issues without spelunking `BuilderFlow.tsx` immediately.
 
-#### Node registry (the "Add node" panel)
+#### Step registry — `NodeRegistry` (the "Add step" panel)
 
-- **Goal**: decouple the "available node types + forms" list from the UI so new nodes can be added without editing a central switch statement.
+- **Goal**: decouple the "available step types + forms" list from the UI so new steps can be added without editing a central switch statement.
 - **Core types**: `routes/builder/registry/NodeRegistry.ts` + helpers in `routes/builder/registry/helpers/`.
 - **Registration flow**:
   - Registration modules live in `routes/builder/registry/nodes/`.
-  - Any file matching **`register*.ts`** is loaded at startup (see "How `registerAllNodes()` auto-discovers nodes" above).
+  - Any file matching **`register*.ts`** is loaded at startup (see "How `registerAllNodes()` auto-discovers step types" above).
   - Each registration module must export a **default** function that calls `NodeRegistry.register(...)`.
 - **Templates**:
   - `createCustomNode(...)`: use this helper when you want shared registration ergonomics plus custom submit logic.
@@ -611,10 +612,10 @@ This section is the “how it really works” view of the builder. It’s here s
 - **Categories**:
   - Categories are type-safe and provide UI metadata (ordering/grouping/search). See `routes/builder/registry/categories.ts`.
 
-**Node Registration System (code examples):**
+**Step registration system (code examples):**
 
 ```typescript
-// Each node type has its own registration file (e.g., registerTriggerNode.ts)
+// Each canvas step type has its own registration file (e.g., registerTriggerNode.ts)
 // Files matching register*.ts are automatically discovered and registered
 // MUST export the registration function as default
 
@@ -637,7 +638,7 @@ export default function registerApprovalNode() {
   })
 }
 
-// Complex nodes (with workflow store integration):
+// Complex registrations (workflow store integration):
 import { createCustomNode } from '../helpers/nodeTemplates'
 
 export default function registerTriggerNode() {
@@ -667,18 +668,18 @@ export default function registerTriggerNode() {
 // all registration functions - no manual imports needed!
 ```
 
-**Adding New Nodes:**
+**Adding new step types:**
 
 1. Create a file matching `register*.ts` in `registry/nodes/`
 2. Export your registration function as **default**
 3. That's it! Auto-discovery handles the rest
 
-**Available Registration Patterns:**
+**Available registration patterns:**
 
 - `NodeRegistry.register({ ... })` - Good for direct/simple registrations
-- `createCustomNode(config, onSubmit)` - Good for nodes with shared helper behavior and custom submission logic
+- `createCustomNode(config, onSubmit)` - Good for step types with shared helper behavior and custom submission logic
 
-**Node Categories (Type-Safe):**
+**Step categories (type-safe):**
 
 Categories are defined in `registry/categories.ts` with full metadata:
 
@@ -689,18 +690,18 @@ Categories are defined in `registry/categories.ts` with full metadata:
 | `logic`       | Conditional branching and control flow | 3     |
 | `integration` | External service integrations          | 4     |
 | `approval`    | Human approval gates                   | 5     |
-| `other`       | Miscellaneous nodes                    | 99    |
+| `other`       | Miscellaneous step types               | 99    |
 
 Access category metadata: `getCategoryMetadata('trigger')` or `CATEGORY_METADATA.trigger`
 
 **Registry API:**
 
 ```typescript
-NodeRegistry.register(definition) // Register a node type
-NodeRegistry.get(id) // Get node by ID
-NodeRegistry.getAll() // Get all enabled nodes
-NodeRegistry.search(query) // Search nodes by label/keywords
-NodeRegistry.getByCategory(cat) // Get nodes by category
+NodeRegistry.register(definition) // Register a step type for the Add panel
+NodeRegistry.get(id) // Get definition by registry id
+NodeRegistry.getAll() // Get all enabled step types
+NodeRegistry.search(query) // Search step types by label/keywords
+NodeRegistry.getByCategory(cat) // Get step types by category
 ```
 
 #### "Flat activities + edges" is the builder's canonical editing model
@@ -858,7 +859,7 @@ The hook uses a re-entrance guard to prevent infinite loops from workflow → ed
 
 #### Button edges (interactive "+" edges)
 
-Builder edges aren't purely visual. `ButtonEdge` is the "add a node here" affordance:
+Builder edges aren't purely visual. `ButtonEdge` is the "add a step here" affordance:
 
 ```mermaid
 flowchart LR
@@ -870,14 +871,14 @@ flowchart LR
   end
 
   subgraph Hook["useButtonEdgeMaintenance"]
-    M1["Monitor nodes/edges changes"]
+    M1["Monitor React Flow nodes/edges"]
     M2["Find valid insertion points"]
     M3["Insert/remove ButtonEdges"]
   end
 
   Canvas <--> Hook
 
-  BE -->|"click"| Panel["Node Selection Panel"]
+  BE -->|"click"| Panel["Add step panel"]
 ```
 
 - **Edge type**: `routes/builder/edges/ButtonEdge.tsx`
@@ -1040,7 +1041,7 @@ flowchart TB
 
 ## React Flow Integration (nodes, edges, and layout)
 
-### Node types
+### Canvas step types (React Flow `nodeTypes`)
 
 Defined in `routes/automations/canvas/nodes/NodeType.tsx`:
 
@@ -1060,7 +1061,7 @@ Builder adds extra types like `placeholder` for drop targets.
 
 - **Type-colored top bar + icon**: `routes/automations/canvas/nodeTypeColors.ts` (`getNodeTypeColor`, `NODE_TYPE_COLORS`) maps node / executor types to PatternFly non-status tokens. `NodeComponent` accepts optional `topBarColor` for a 4px top border; when a node is **selected**, the full brand border replaces the top bar (same as nodes without a type bar). Icons use the same token via `renderNodeIcon(..., color)`.
 - **Semantic zoom (Topology-style LOD)**: When the React Flow viewport `zoom` is at or below `SEMANTIC_ZOOM_MAX_SCALE` (defined in `semanticZoom.ts`), `NodeComponent` renders a compact horizontal block filled with the same accent as `topBarColor`, with a PatternFly `Tooltip` showing **title** (heading weight) and **type** (`semanticZoomSummary` from each node). For performance, LOD logic lives in **`useSemanticZoom`** (`nodes/hooks/useSemanticZoom.ts`): a **`useStore`** selector typed with **`ReactFlowState`** reads `transform[2]` (zoom) and returns a boolean so nodes re-render only when crossing the threshold—not on every pan/zoom frame like **`useViewport`** would (see [React Flow `useStore`](https://reactflow.dev/api-reference/hooks/use-store)). The primary title uses **`semanticZoomActivityTitle`** (trimmed name, else a stable fallback): structural nodes use **`Untitled ${metadata.label}`**; task-shaped nodes use **`Untitled task`** with the executor label on the second line. Tooltip copy uses **`--pf-t--global--text--color--inverse`** for both lines so it stays readable on PatternFly’s inverse tooltip surface (see `NodeSemanticZoomBody.tsx`). Branching nodes pass **`semanticZoomBranchSources`** so multiple source handles stay on the **same bar height** with **no branch labels** (handles on the right edge; `SemanticZoomBranchSourceHandles.tsx`). `useUpdateNodeInternals` runs when toggling so edge anchors stay correct. New semantic-zoom UI should include **`vitest-axe`** coverage per the **Accessibility Testing** section in `CLAUDE.md`.
-- **Add node panel**: `getAddNodePanelColor` uses registry ids; builder registry ids are centralized in `src/constants/registryNodeIds.ts` (`RegistryNodeId`, `RegistryNodeIdUnion`).
+- **Add step panel**: `getAddNodePanelColor` uses registry ids; builder registry ids are centralized in `src/constants/registryNodeIds.ts` (`RegistryNodeId`, `RegistryNodeIdUnion`).
 - **Approval branches**: `BranchHandle` and `EdgePath` / `DefaultEdge` / `ButtonEdge` color approved vs rejected handles and edges using success/danger tokens.
 
 ### Edge types
@@ -1085,7 +1086,7 @@ flowchart TB
 
   subgraph Dagre["Dagre Layout Algorithm"]
     G["Create Graph"]
-    AN["Add nodes with dimensions"]
+    AN["Add steps with dimensions"]
     AE["Add edges"]
     L["dagre.layout()"]
     G --> AN --> AE --> L
@@ -1183,11 +1184,11 @@ const { data } = workflowClient.useQuery('get', '/your-endpoint', { ... })
 queryClient.invalidateQueries({ queryKey: ['get', '/workflows'] })
 ```
 
-### Add a new workflow node type
+### Add a new workflow step type
 
 1. Create `register*.ts` in `routes/builder/registry/nodes/`
-2. Node registry auto-discovers it at startup
-3. Add/extend React Flow node component in `routes/automations/canvas/nodes/`
+2. `NodeRegistry` auto-discovers it at startup
+3. Add/extend the React Flow node component in `routes/automations/canvas/nodes/` (maps activities to canvas steps)
 
 ---
 

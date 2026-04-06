@@ -78,7 +78,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
     expect(screen.getByText('Trigger')).toBeInTheDocument()
 
     // Verify the kebab menu button is present
-    expect(screen.getByRole('button', { name: /node actions menu/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /step actions menu/i })).toBeInTheDocument()
   })
 
   it('opens dropdown menu when kebab button is clicked', async () => {
@@ -99,7 +99,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
     renderWithProviders(<TriggerNodeComponent {...props} />)
 
     // Click the kebab menu button
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     // Verify the dropdown menu opens and shows the Delete option
@@ -127,7 +127,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
     renderWithProviders(<TriggerNodeComponent {...props} />)
 
     // Click the kebab menu button
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     // Wait for menu to open and click Delete
@@ -163,7 +163,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
     renderWithProviders(<TriggerNodeComponent {...props} />)
 
     // Click the kebab menu button
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     // Verify Delete has danger styling (PatternFly applies pf-m-danger to the parent <li>)
@@ -211,7 +211,7 @@ describe('Trigger Node Kebab Menu Delete', () => {
     )
 
     // Click the kebab menu button
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     // Parent should NOT have been clicked due to stopPropagation

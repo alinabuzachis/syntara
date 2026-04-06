@@ -76,8 +76,8 @@ function normalizeStatus(status: ActivityStatus): { visualStatus: VisualStatus; 
 }
 
 /**
- * Visual indicator for activity execution status on workflow nodes.
- * Renders as a circular badge positioned in the bottom-right corner of the node.
+ * Visual indicator for activity execution status on workflow steps (canvas).
+ * Renders as a circular badge positioned in the bottom-right corner of the step.
  */
 export function ExecutionStatusBadge({ status, retryCount }: ExecutionStatusBadgeProps) {
   const normalized = normalizeStatus(status)

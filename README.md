@@ -8,7 +8,7 @@ Nexus UI is a cutting-edge React application designed for building and managing 
 
 - 🚀 Modern React 19 with TypeScript
 - 🎨 Responsive UI with PatternFly 6
-- 🔀 Advanced workflow canvas and node-based automation
+- 🔀 Advanced workflow canvas and step-based automation
 - 🔒 Type-safe API integrations
 - 🧪 Comprehensive testing infrastructure
 - 🚢 Docker/Podman containerization

@@ -506,12 +506,12 @@ export function createConnectorActivity(
 }
 
 /**
- * Create a generic placeholder activity that can be replaced with any node type.
+ * Create a generic placeholder activity that can be replaced with any step type.
  * @param id - Unique activity identifier
- * @param name - Display name (defaults to 'New Node')
+ * @param name - Display name (defaults to 'New Step')
  * @param customMessage - Optional custom message for the placeholder
  */
-export function createGenericActivity(id: string, name: string = 'New Node', customMessage?: string): TaskActivity {
+export function createGenericActivity(id: string, name: string = 'New Step', customMessage?: string): TaskActivity {
   // Generic placeholder node - minimal task structure without executor details
   // The __isGeneric metadata flag marks this as a placeholder that should be replaced
   const activity: TaskActivity & { metadata: ActivityMetadata } = {

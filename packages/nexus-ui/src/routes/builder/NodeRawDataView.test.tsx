@@ -7,7 +7,7 @@ import type { NodeType } from '../automations/canvas/nodes/NodeType'
 import { NodeRawDataView } from './NodeRawDataView'
 
 describe('NodeRawDataView Component', () => {
-  it('renders node type correctly', () => {
+  it('renders step type correctly', () => {
     const node: Node<NodeType['data']> = {
       id: 'test-node-1',
       type: 'converge',
@@ -21,11 +21,11 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    expect(screen.getByText('Node Type')).toBeInTheDocument()
+    expect(screen.getByText('Step Type')).toBeInTheDocument()
     expect(screen.getByText('converge')).toBeInTheDocument()
   })
 
-  it('renders node ID correctly', () => {
+  it('renders Step ID correctly', () => {
     const node: Node<NodeType['data']> = {
       id: 'my-custom-id',
       type: 'parallel',
@@ -35,11 +35,11 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    expect(screen.getByText('Node ID')).toBeInTheDocument()
+    expect(screen.getByText('Step ID')).toBeInTheDocument()
     expect(screen.getByText('my-custom-id')).toBeInTheDocument()
   })
 
-  it('renders node data as formatted JSON', () => {
+  it('renders Step Data as formatted JSON', () => {
     const node: Node<NodeType['data']> = {
       id: 'data-test',
       type: 'converge',
@@ -54,7 +54,7 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    expect(screen.getByText('Node Data')).toBeInTheDocument()
+    expect(screen.getByText('Step Data')).toBeInTheDocument()
 
     // Check that the JSON is displayed
     const preElement = screen.getByText(/Test Data/)
@@ -64,7 +64,7 @@ describe('NodeRawDataView Component', () => {
     expect(preElement.textContent).toContain('"customField": "custom value"')
   })
 
-  it('capitalizes node type in display', () => {
+  it('capitalizes React Flow node type string in display', () => {
     const node: Node<NodeType['data']> = {
       id: 'test',
       type: 'trigger',
@@ -74,11 +74,11 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    const nodeTypeDiv = screen.getByText('trigger')
-    expect(nodeTypeDiv).toBeInTheDocument()
+    const stepTypeValue = screen.getByText('trigger')
+    expect(stepTypeValue).toBeInTheDocument()
   })
 
-  it('uses monospace font for node ID', () => {
+  it('uses monospace font for Step ID value', () => {
     const node: Node<NodeType['data']> = {
       id: 'monospace-test',
       type: 'task',
@@ -89,12 +89,12 @@ describe('NodeRawDataView Component', () => {
     render(<NodeRawDataView node={node} />)
 
     // PatternFly CodeBlock uses monospace by default
-    const nodeIdCode = screen.getByText('monospace-test')
-    expect(nodeIdCode).toBeInTheDocument()
-    expect(nodeIdCode.tagName).toBe('CODE')
+    const stepIdCode = screen.getByText('monospace-test')
+    expect(stepIdCode).toBeInTheDocument()
+    expect(stepIdCode.tagName).toBe('CODE')
   })
 
-  it('handles empty node data', () => {
+  it('handles empty step data', () => {
     const node: Node<NodeType['data']> = {
       id: 'empty-data',
       type: 'converge',
@@ -104,7 +104,7 @@ describe('NodeRawDataView Component', () => {
 
     render(<NodeRawDataView node={node} />)
 
-    expect(screen.getByText('Node Data')).toBeInTheDocument()
+    expect(screen.getByText('Step Data')).toBeInTheDocument()
     const preElement = screen.getByText('{}')
     expect(preElement).toBeInTheDocument()
   })

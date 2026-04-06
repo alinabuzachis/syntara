@@ -10,12 +10,12 @@ vi.mock('../../../assets/ansible-automation-platform.svg?react', () => ({
 import { CanvasLegend } from './CanvasLegend'
 
 describe('CanvasLegend', () => {
-  it('renders node type labels and approval branch hints', () => {
+  it('renders step type labels and approval branch hints', () => {
     render(<CanvasLegend regionId="legend-region" hide={vi.fn()} onClose={vi.fn()} />)
 
     expect(screen.getByTestId('canvas-legend')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Legend', level: 2 })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Nodes', level: 3 })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Steps', level: 3 })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Connectors', level: 3 })).toBeInTheDocument()
     expect(screen.getByText('AI agent')).toBeInTheDocument()
     expect(screen.getByText('Action')).toBeInTheDocument()

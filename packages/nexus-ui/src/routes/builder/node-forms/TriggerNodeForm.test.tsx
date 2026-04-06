@@ -50,7 +50,7 @@ describe('TriggerNodeForm Component', () => {
       const user = userEvent.setup()
       renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} />)
 
-      await user.click(screen.getByRole('button', { name: 'Add node' }))
+      await user.click(screen.getByRole('button', { name: 'Add step' }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: '',
@@ -85,7 +85,7 @@ describe('TriggerNodeForm Component', () => {
         <TriggerNodeForm onSubmit={mockOnSubmit} initialData={{ triggerType: 'scheduled', scheduleType: 'interval' }} />
       )
 
-      await user.click(screen.getByRole('button', { name: /Add node/i }))
+      await user.click(screen.getByRole('button', { name: /Add step/i }))
 
       await waitFor(() => {
         expect(screen.getByTestId('interval-error')).toHaveTextContent('Start date is required')
@@ -134,7 +134,7 @@ describe('TriggerNodeForm Component', () => {
       )
 
       await user.type(screen.getByTestId('interval-input'), 'R/2024-01-01T10:00:00Z/P1D')
-      await user.click(screen.getByRole('button', { name: 'Add node' }))
+      await user.click(screen.getByRole('button', { name: 'Add step' }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: '',
@@ -153,7 +153,7 @@ describe('TriggerNodeForm Component', () => {
         />
       )
 
-      await user.click(screen.getByRole('button', { name: 'Add node' }))
+      await user.click(screen.getByRole('button', { name: 'Add step' }))
 
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: '',
@@ -181,7 +181,7 @@ describe('TriggerNodeForm Component', () => {
     it('displays default submit button text', () => {
       renderWithHeader(<TriggerNodeForm onSubmit={mockOnSubmit} />)
 
-      expect(screen.getByRole('button', { name: 'Add node' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Add step' })).toBeInTheDocument()
     })
 
     it('displays custom submit button text when provided', () => {

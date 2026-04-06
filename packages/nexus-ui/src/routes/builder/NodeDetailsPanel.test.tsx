@@ -226,7 +226,7 @@ describe('NodeDetailsPanel', () => {
     )
   })
 
-  it('shows error when add node fails', async () => {
+  it('shows error when add step fails', async () => {
     const user = userEvent.setup()
     const mockOnSubmit = vi.fn((_data, _onSuccess, onError: (error: string) => void) => onError('boom'))
 
@@ -247,7 +247,7 @@ describe('NodeDetailsPanel', () => {
 
     await user.click(screen.getByRole('button', { name: /Submit/i }))
 
-    expect(mockShowError).toHaveBeenCalledWith('boom', 'Failed to add node')
+    expect(mockShowError).toHaveBeenCalledWith('boom', 'Failed to add step')
   })
 
   it('moves and connects new node when adding from an edge', async () => {
@@ -403,7 +403,7 @@ describe('NodeDetailsPanel', () => {
     expect(screen.getByTestId(testId)).toBeInTheDocument()
   })
 
-  it('renders raw data view for unknown node types', () => {
+  it('renders raw data view for unknown step types', () => {
     const unknownNode = {
       id: 'unknown-1',
       type: 'email',

@@ -1,7 +1,7 @@
 import type { ValueOf } from './types'
 
 /**
- * Node type and subtype identifiers for the builder NodeRegistry (Add node panel).
+ * Node type and subtype identifiers for the builder NodeRegistry (Add step panel).
  * Use these constants instead of string literals when comparing or registering registry ids.
  *
  * @example

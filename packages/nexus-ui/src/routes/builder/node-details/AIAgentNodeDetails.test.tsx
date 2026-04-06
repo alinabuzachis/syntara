@@ -85,7 +85,7 @@ vi.mock('../node-forms/AIAgentNodeForm', () => ({
         }
         data-testid="submit-button"
       >
-        {submitButtonText ?? 'Add node'}
+        {submitButtonText ?? 'Add step'}
       </button>
       <button onClick={onCancel} data-testid="cancel-button">
         Cancel

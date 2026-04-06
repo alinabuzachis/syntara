@@ -22,7 +22,7 @@ Your goal is to author comprehensive, production-grade end-to-end tests using Pl
 - **Navigation:** `toAppUrl('/path')` helper for all URLs
 - **Unique names:** `buildUniqueName(prefix)` for all test data
 - **Locators:** `getByRole` > `getByLabel` > `getByPlaceholder` > `getByText` > `getByTestId`
-- **Helpers:** `createBasicWorkflow`, `addNodePanel`, `fillCodeEditor`, `closeNodeEditorPanel`
+- **Helpers:** `createBasicWorkflow`, `addNodePanel` (opens **Add step** UI), `fillCodeEditor`, `closeNodeEditorPanel`
 
 ### Commands
 
@@ -85,7 +85,7 @@ To test against the real Nexus backend instead of the mock API:
 | Use E2E (Playwright) when…                        | Use Unit/Component (Vitest) when…            |
 | ------------------------------------------------- | -------------------------------------------- |
 | Multi-step workflows crossing routes              | Testing a single component's rendering/logic |
-| Builder interactions (drag, connect nodes)        | Form validation rules                        |
+| Builder interactions (drag, connect steps)        | Form validation rules                        |
 | Verifying URL-based filter state / shareable URLs | Custom hook behavior                         |
 | Testing real API persistence (real backend mode)  | Utility function input → output              |
 | Accessibility scans across full pages             | Component accessibility (`vitest-axe`)       |
@@ -103,7 +103,7 @@ To test against the real Nexus backend instead of the mock API:
 Read all files in `packages/nexus-ui/e2e/`:
 
 - `fixtures.ts` — custom `{ app }` fixture definition and `toAppUrl` helper
-- `helpers/workflows.ts` — `buildUniqueName`, `createBasicWorkflow`, `addNodePanel`, `fillCodeEditor`, `closeNodeEditorPanel`
+- `helpers/workflows.ts` — `buildUniqueName`, `createBasicWorkflow`, `addNodePanel` (Add step panel), `fillCodeEditor`, `closeNodeEditorPanel`
 - All `*.spec.ts` files — naming conventions, structure, assertion style, cleanup patterns
 
 ### Step 2: Extract conventions
@@ -111,7 +111,7 @@ Read all files in `packages/nexus-ui/e2e/`:
 From the existing tests, note:
 
 - **File naming:** `feature-name.spec.ts` (kebab-case)
-- **Test titles:** Descriptive, user-action-based ("user creates and saves a multi-node workflow")
+- **Test titles:** Descriptive, user-action-based ("user creates and saves a multi-step workflow")
 - **Scoping:** Some files use `test.describe()` blocks (accessibility, filtering), others use top-level tests
 - **Conditional skipping:** `test.skip(!condition, 'reason')` for data-dependent tests
 - **Multi-tab testing:** Some tests use `{ app, context }` to test URL sharing across tabs
@@ -129,7 +129,7 @@ From the existing tests, note:
 1. **Routes:** Read `src/app/AppRoute.tsx` and `src/app/navigationItems.tsx`
 2. **Features:** Automations, Builder, Executions, Credentials, Integrations, Approvals
 3. **Critical paths:**
-   - Create workflow → Add nodes → Save → Execute → View results
+   - Create workflow → Add steps → Save → Execute → View results
    - Workflow builder (complex UI state management)
    - CRUD operations on all resource types
 4. **Edge cases:** Empty states, validation errors, loading states, boundary conditions
@@ -265,7 +265,7 @@ test('user creates and verifies a workflow', async ({ app }) => {
 - ✅ Use `{ app }` fixture (NOT `{ page }`)
 - ✅ Use `toAppUrl('/path')` for navigation
 - ✅ Use `buildUniqueName(prefix)` for unique test data
-- ✅ Use existing helpers (`createBasicWorkflow`, `addNodePanel`, etc.)
+- ✅ Use existing helpers (`createBasicWorkflow`, `addNodePanel` for the **Add step** panel, etc.)
 
 **Grouping related tests:**
 
@@ -321,7 +321,7 @@ await app.locator('.pf-v6-c-button').click()
 **Scoping locators to containers:**
 
 ```typescript
-// ✅ Scoped to specific panel (existing helper)
+// ✅ Scoped to Add step panel (helper name is addNodePanel)
 const panel = addNodePanel(app)
 await panel.getByRole('button', { name: 'Action', exact: true }).click()
 
@@ -350,8 +350,8 @@ await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeV
 **Use exact matching to avoid ambiguity:**
 
 ```typescript
-// ✅ Exact match — won't match "Add node panel" or "Add node type"
-await app.getByRole('button', { name: /^Add node$/ }).click()
+// ✅ Exact match — won't match "Add step panel" or "Add step type"
+await app.getByRole('button', { name: /^Add step$/ }).click()
 
 // ✅ Exact flag
 await panel.getByRole('button', { name: 'Script', exact: true }).click()
@@ -401,7 +401,7 @@ await app.getByRole('button', { name: 'Save' }).click()
 await app.getByRole('button', { name: 'Save' }).click()
 
 // ✅ GOOD: Wait for specific UI condition before proceeding
-await expect(app.getByRole('heading', { name: 'Select a trigger node' })).toBeVisible()
+await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 ```
 
 **When you need longer timeouts** (e.g., slow backend operations):

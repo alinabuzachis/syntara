@@ -22,13 +22,13 @@ describe('StandardNodeHeader', () => {
   it('does not render menu when no menuActions provided', () => {
     render(<StandardNodeHeader title="Test Node" subtitle="Task" />)
 
-    expect(screen.queryByRole('button', { name: /node actions menu/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /step actions menu/i })).not.toBeInTheDocument()
   })
 
   it('does not render menu when menuActions is empty', () => {
     render(<StandardNodeHeader title="Test Node" subtitle="Task" menuActions={[]} />)
 
-    expect(screen.queryByRole('button', { name: /node actions menu/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /step actions menu/i })).not.toBeInTheDocument()
   })
 
   it('renders kebab menu button when menuActions provided', () => {
@@ -36,7 +36,7 @@ describe('StandardNodeHeader', () => {
 
     render(<StandardNodeHeader title="Test Node" subtitle="Task" menuActions={menuActions} />)
 
-    expect(screen.getByRole('button', { name: /node actions menu/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /step actions menu/i })).toBeInTheDocument()
   })
 
   it('opens menu dropdown when kebab button is clicked', async () => {
@@ -45,7 +45,7 @@ describe('StandardNodeHeader', () => {
 
     render(<StandardNodeHeader title="Test Node" subtitle="Task" menuActions={menuActions} />)
 
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     await waitFor(() => {
@@ -61,7 +61,7 @@ describe('StandardNodeHeader', () => {
     render(<StandardNodeHeader title="Test Node" subtitle="Task" menuActions={menuActions} />)
 
     // Open menu
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     // Click delete option
@@ -85,7 +85,7 @@ describe('StandardNodeHeader', () => {
     render(<StandardNodeHeader title="Test Node" subtitle="Task" menuActions={menuActions} />)
 
     // Open menu
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     await waitFor(() => {
@@ -106,7 +106,7 @@ describe('StandardNodeHeader', () => {
     render(<StandardNodeHeader title="Test Node" subtitle="Task" menuActions={menuActions} />)
 
     // Open menu
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     await waitFor(() => {
@@ -127,7 +127,7 @@ describe('StandardNodeHeader', () => {
     render(<StandardNodeHeader title="Test Node" subtitle="Task" menuActions={menuActions} />)
 
     // Open menu
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     await waitFor(() => {
@@ -143,7 +143,7 @@ describe('StandardNodeHeader', () => {
     render(<StandardNodeHeader title="Test Node" subtitle="Task" menuActions={menuActions} />)
 
     // Open menu
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     await waitFor(() => {
@@ -164,7 +164,7 @@ describe('StandardNodeHeader', () => {
     )
 
     // Click menu button
-    const menuButton = screen.getByRole('button', { name: /node actions menu/i })
+    const menuButton = screen.getByRole('button', { name: /step actions menu/i })
     await user.click(menuButton)
 
     // Parent click handler should not be called (due to stopPropagation)
