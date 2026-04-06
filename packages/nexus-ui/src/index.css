@@ -8,9 +8,22 @@ html {
 }
 
 /* Sticky header background: fix for `isPlain` setting thead background to transparent,
-   causing table rows to show through it when scrolling. Match CompassPanel's glass effect. */
+   causing table rows to show through it when scrolling. Triple-layer the glass color
+   (~87.5% effective opacity) to keep the glass effect while preventing content bleed. */
 table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
-  background: var(--pf-t--global--background--color--glass--primary--default);
+  background:
+    linear-gradient(
+      var(--pf-t--global--background--color--glass--primary--default),
+      var(--pf-t--global--background--color--glass--primary--default)
+    ),
+    linear-gradient(
+      var(--pf-t--global--background--color--glass--primary--default),
+      var(--pf-t--global--background--color--glass--primary--default)
+    ),
+    linear-gradient(
+      var(--pf-t--global--background--color--glass--primary--default),
+      var(--pf-t--global--background--color--glass--primary--default)
+    );
   backdrop-filter: var(--pf-t--global--background--filter--glass--blur--primary);
 }
 

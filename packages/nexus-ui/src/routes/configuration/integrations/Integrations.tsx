@@ -13,10 +13,10 @@ import {
 } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
-  RhUiViewIcon,
-  RhUiTrashIcon,
-  RhUiSyncIcon,
   RhUiCloseCircleIcon,
+  RhUiSyncIcon,
+  RhUiTrashIcon,
+  RhUiViewIcon,
 } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
@@ -356,71 +356,67 @@ export default function Integrations() {
       ) : (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>
-            <Stack style={{ height: '100%' }}>
-              <StackItem>
-                <FilterBar
-                  fieldDefinitions={filterFieldDefinitions}
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  showClearAll={true}
-                />
-              </StackItem>
+            <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
+              />
 
               {results.length === 0 ? (
                 <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 </StackItem>
               ) : (
-                <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-                  <ScrollableTableContainer
-                    aria-label="Integrations table"
-                    footer={{
-                      content: (
-                        <>
-                          {results.length} {results.length === 1 ? 'integration' : 'integrations'}
-                          {query.data?.total && query.data.total > results.length && (
-                            <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                          )}
-                        </>
-                      ),
-                      prev: query.data?.prev ?? null,
-                      next: query.data?.next ?? null,
-                      onPrev: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.prev ?? null }),
-                      onNext: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.next ?? null }),
-                    }}
-                  >
-                    <Thead>
-                      <Tr>
-                        <Th sort={getSortParams(0)}>Name</Th>
-                        <Th sort={getSortParams(1)}>Status</Th>
-                        <Th sort={getSortParams(2)}>Integration type</Th>
-                        <Th sort={getSortParams(3)}>API URL</Th>
-                        <Th sort={getSortParams(4)}>Tools</Th>
-                        <Th screenReaderText="Actions" />
+                <ScrollableTableContainer
+                  aria-label="Integrations table"
+                  footer={{
+                    content: (
+                      <>
+                        {results.length} {results.length === 1 ? 'integration' : 'integrations'}
+                        {query.data?.total && query.data.total > results.length && (
+                          <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                        )}
+                      </>
+                    ),
+                    prev: query.data?.prev ?? null,
+                    next: query.data?.next ?? null,
+                    onPrev: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.prev ?? null }),
+                    onNext: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.next ?? null }),
+                  }}
+                >
+                  <Thead>
+                    <Tr>
+                      <Th sort={getSortParams(0)}>Name</Th>
+                      <Th sort={getSortParams(1)}>Status</Th>
+                      <Th sort={getSortParams(2)}>Integration type</Th>
+                      <Th sort={getSortParams(3)}>API URL</Th>
+                      <Th sort={getSortParams(4)}>Tools</Th>
+                      <Th screenReaderText="Actions" />
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {results.map((provider) => (
+                      <Tr key={provider.id}>
+                        <Td dataLabel="Name">{provider.name}</Td>
+                        <Td dataLabel="Status">
+                          <StatusLabel status={provider.status ?? 'unknown'} />
+                        </Td>
+                        <Td dataLabel="Integration type">
+                          {PROVIDER_TYPE_LABELS[provider.configuration?.provider_type ?? ''] ??
+                            provider.configuration?.provider_type ??
+                            ''}
+                        </Td>
+                        <Td dataLabel="API URL">{provider.configuration?.base_url ?? ''}</Td>
+                        <Td dataLabel="Tools">{provider.tool_count}</Td>
+                        <Td isActionCell>
+                          <ActionsColumn items={getRowActions(provider)} />
+                        </Td>
                       </Tr>
-                    </Thead>
-                    <Tbody>
-                      {results.map((provider) => (
-                        <Tr key={provider.id}>
-                          <Td dataLabel="Name">{provider.name}</Td>
-                          <Td dataLabel="Status">
-                            <StatusLabel status={provider.status ?? 'unknown'} />
-                          </Td>
-                          <Td dataLabel="Integration type">
-                            {PROVIDER_TYPE_LABELS[provider.configuration?.provider_type ?? ''] ??
-                              provider.configuration?.provider_type ??
-                              ''}
-                          </Td>
-                          <Td dataLabel="API URL">{provider.configuration?.base_url ?? ''}</Td>
-                          <Td dataLabel="Tools">{provider.tool_count}</Td>
-                          <Td isActionCell>
-                            <ActionsColumn items={getRowActions(provider)} />
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </ScrollableTableContainer>
-                </StackItem>
+                    ))}
+                  </Tbody>
+                </ScrollableTableContainer>
               )}
             </Stack>
           </CompassPanel>

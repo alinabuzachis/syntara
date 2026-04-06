@@ -250,98 +250,94 @@ export default function IntegrationTools() {
       ) : (
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>
-            <Stack style={{ height: '100%' }}>
-              <StackItem>
-                <FilterBar
-                  fieldDefinitions={filterFieldDefinitions}
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  showClearAll={true}
-                />
-              </StackItem>
+            <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
+              />
 
               {results.length === 0 ? (
                 <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <EmptyStateFilter clearAllFilters={clearAllFilters} imageSrc={noToolsImage} imageAlt="No results" />
                 </StackItem>
               ) : (
-                <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-                  <ScrollableTableContainer
-                    aria-label="Tools table"
-                    isExpandable
-                    footer={
-                      {
-                        content: (
-                          <>
-                            {selectedToolIds.size > 0 ? (
-                              <>
-                                {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'}{' '}
-                                enabled
-                                {query.data?.total && query.data.total > results.length && (
-                                  <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {results.length} {results.length === 1 ? 'tool' : 'tools'}
-                                {query.data?.total && query.data.total > results.length && (
-                                  <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                                )}
-                              </>
-                            )}
-                          </>
-                        ),
-                        prev: query.data?.prev ?? null,
-                        next: query.data?.next ?? null,
-                        onPrev: () => {
-                          if (query.data?.prev !== undefined) {
-                            setCursor(query.data.prev)
-                          }
-                        },
-                        onNext: () => {
-                          if (query.data?.next !== undefined) {
-                            setCursor(query.data.next)
-                          }
-                        },
-                      } satisfies TableFooterProps
-                    }
-                  >
-                    <Thead>
-                      <Tr>
-                        <Th
+                <ScrollableTableContainer
+                  aria-label="Tools table"
+                  isExpandable
+                  footer={
+                    {
+                      content: (
+                        <>
+                          {selectedToolIds.size > 0 ? (
+                            <>
+                              {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'}{' '}
+                              enabled
+                              {query.data?.total && query.data.total > results.length && (
+                                <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {results.length} {results.length === 1 ? 'tool' : 'tools'}
+                              {query.data?.total && query.data.total > results.length && (
+                                <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
+                              )}
+                            </>
+                          )}
+                        </>
+                      ),
+                      prev: query.data?.prev ?? null,
+                      next: query.data?.next ?? null,
+                      onPrev: () => {
+                        if (query.data?.prev !== undefined) {
+                          setCursor(query.data.prev)
+                        }
+                      },
+                      onNext: () => {
+                        if (query.data?.next !== undefined) {
+                          setCursor(query.data.next)
+                        }
+                      },
+                    } satisfies TableFooterProps
+                  }
+                >
+                  <Thead>
+                    <Tr>
+                      <Th
+                        select={{
+                          onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
+                          isSelected: allSelected,
+                          isHeaderSelectDisabled: results.length === 0,
+                        }}
+                        screenReaderText="Select all tools"
+                      />
+                      <Th sort={getSortParams(0)}>Name</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {results.map((tool, index) => (
+                      <Tr key={tool.id}>
+                        <Td
                           select={{
-                            onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
-                            isSelected: allSelected,
-                            isHeaderSelectDisabled: results.length === 0,
+                            rowIndex: index,
+                            onSelect: (_event, isSelecting) => handleSelectTool(tool, isSelecting),
+                            isSelected: selectedToolIds.has(tool.id),
                           }}
-                          screenReaderText="Select all tools"
                         />
-                        <Th sort={getSortParams(0)}>Name</Th>
+                        <Td dataLabel="Name">
+                          <DescriptionList>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>{tool.namespaced_name}</DescriptionListTerm>
+                              <DescriptionListDescription>{tool.description}</DescriptionListDescription>
+                            </DescriptionListGroup>
+                          </DescriptionList>
+                        </Td>
                       </Tr>
-                    </Thead>
-                    <Tbody>
-                      {results.map((tool, index) => (
-                        <Tr key={tool.id}>
-                          <Td
-                            select={{
-                              rowIndex: index,
-                              onSelect: (_event, isSelecting) => handleSelectTool(tool, isSelecting),
-                              isSelected: selectedToolIds.has(tool.id),
-                            }}
-                          />
-                          <Td dataLabel="Name">
-                            <DescriptionList>
-                              <DescriptionListGroup>
-                                <DescriptionListTerm>{tool.namespaced_name}</DescriptionListTerm>
-                                <DescriptionListDescription>{tool.description}</DescriptionListDescription>
-                              </DescriptionListGroup>
-                            </DescriptionList>
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </ScrollableTableContainer>
-                </StackItem>
+                    ))}
+                  </Tbody>
+                </ScrollableTableContainer>
               )}
             </Stack>
           </CompassPanel>

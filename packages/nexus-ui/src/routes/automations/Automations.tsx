@@ -2,10 +2,6 @@ import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
-  Content,
-  ContentVariants,
-  Flex,
-  FlexItem,
   List,
   ListItem,
   Modal,
@@ -15,15 +11,8 @@ import {
   Stack,
   StackItem,
 } from '@patternfly/react-core'
-import {
-  RhUiCaretLeftIcon,
-  RhUiCaretRightIcon,
-  RhUiEditFillIcon,
-  RhUiHistoryIcon,
-  RhUiPlayIcon,
-  RhUiTrashIcon,
-} from '@patternfly/react-icons'
-import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { RhUiEditFillIcon, RhUiHistoryIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useEffect, useMemo, useReducer } from 'react'
 import { useLocation } from 'wouter'
@@ -40,6 +29,7 @@ import { useQueryState } from '../../components/states/useQueryState'
 import { BadgesCell } from '../../components/table/BadgesCell'
 import { DateCell } from '../../components/table/DateCell'
 import { LinkCell } from '../../components/table/LinkCell'
+import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { SwitchCell } from '../../components/table/SwitchCell.tsx'
 import { createFilterChangeHandler } from '../../hooks/useFilterChangeHandler'
 import { useFilterState } from '../../hooks/useFilterState'
@@ -310,15 +300,13 @@ export default function Automations() {
 
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <CompassPanel isFullHeight>
-          <Stack style={{ height: '100%' }}>
-            <StackItem>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-              />
-            </StackItem>
+          <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
+            <FilterBar
+              fieldDefinitions={filterFieldDefinitions}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              showClearAll={true}
+            />
 
             {automations.length === 0 ? (
               <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -334,104 +322,67 @@ export default function Automations() {
                 )}
               </StackItem>
             ) : (
-              <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-                <Table
-                  aria-label="Automations table"
-                  isPlain
-                  isStickyHeader
-                  style={
-                    {
-                      '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
-                      width: '100%',
-                    } as React.CSSProperties
-                  }
-                >
-                  <Thead>
-                    <Tr>
-                      <Th>Name</Th>
-                      <Th>Created at</Th>
-                      <Th>Updated at</Th>
-                      <Th>Tags</Th>
-                      <Th>State</Th>
-                      <Th screenReaderText="Actions" />
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {automations.map((workflow) => (
-                      <Tr key={workflow.id}>
-                        <Td dataLabel="Name">
-                          <LinkCell href={`/automation-builder/${workflow.id}`}>{workflow.name}</LinkCell>
-                        </Td>
-                        <Td dataLabel="Created at">
-                          <DateCell dateString={getDateField(workflow, 'createdAt')} />
-                        </Td>
-                        <Td dataLabel="Updated at">
-                          <DateCell dateString={getDateField(workflow, 'updatedAt')} />
-                        </Td>
-                        <Td dataLabel="Tags">
-                          <BadgesCell items={getWorkflowTagsForDisplay(workflow)} />
-                        </Td>
-                        <Td dataLabel="State">
-                          <SwitchCell
-                            checked={workflow?.is_enabled}
-                            handleChange={() => {}} // Read-only display - toggle via edit workflow
-                            showLabels
-                            enabledLabel="Enabled"
-                            disabledLabel="Disabled"
-                            readOnly
-                          />
-                        </Td>
-                        <Td isActionCell>
-                          <ActionsColumn items={getRowActions(workflow)} />
-                        </Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
-              </StackItem>
-            )}
-
-            <StackItem
-              style={{
-                flex: '0 0 auto',
-                borderTop: '1px solid rgba(196, 181, 253, 0.2)',
-                padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
-              }}
-            >
-              <Flex
-                justifyContent={{ default: 'justifyContentSpaceBetween' }}
-                alignItems={{ default: 'alignItemsCenter' }}
+              <ScrollableTableContainer
+                aria-label="Automations table"
+                useFixedLayout={false}
+                footer={{
+                  content: (
+                    <>
+                      {automations.length} {automations.length === 1 ? 'automation' : 'automations'}
+                      {workflowsQuery.data?.total && workflowsQuery.data.total > automations.length && (
+                        <span style={{ opacity: 0.6 }}> (of {workflowsQuery.data.total} total)</span>
+                      )}
+                    </>
+                  ),
+                  prev: workflowsQuery.data?.prev ?? null,
+                  next: workflowsQuery.data?.next ?? null,
+                  onPrev: () => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.prev ?? null }),
+                  onNext: () => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.next ?? null }),
+                }}
               >
-                <FlexItem>
-                  <Content component={ContentVariants.p}>
-                    {automations.length} {automations.length === 1 ? 'automation' : 'automations'}
-                    {workflowsQuery.data?.total && workflowsQuery.data.total > automations.length && (
-                      <span style={{ opacity: 0.6 }}> (of {workflowsQuery.data.total} total)</span>
-                    )}
-                  </Content>
-                </FlexItem>
-                {(workflowsQuery.data?.prev || workflowsQuery.data?.next) && (
-                  <Flex gap={{ default: 'gapSm' }}>
-                    <Button
-                      variant="plain"
-                      isDisabled={!workflowsQuery.data?.prev}
-                      onClick={() => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.prev ?? null })}
-                      aria-label="Previous page"
-                    >
-                      <RhUiCaretLeftIcon /> Previous
-                    </Button>
-                    <Button
-                      variant="plain"
-                      isDisabled={!workflowsQuery.data?.next}
-                      onClick={() => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.next ?? null })}
-                      aria-label="Next page"
-                    >
-                      Next <RhUiCaretRightIcon />
-                    </Button>
-                  </Flex>
-                )}
-              </Flex>
-            </StackItem>
+                <Thead>
+                  <Tr>
+                    <Th>Name</Th>
+                    <Th>Created at</Th>
+                    <Th>Updated at</Th>
+                    <Th>Tags</Th>
+                    <Th>State</Th>
+                    <Th screenReaderText="Actions" />
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {automations.map((workflow) => (
+                    <Tr key={workflow.id}>
+                      <Td dataLabel="Name">
+                        <LinkCell href={`/automation-builder/${workflow.id}`}>{workflow.name}</LinkCell>
+                      </Td>
+                      <Td dataLabel="Created at">
+                        <DateCell dateString={getDateField(workflow, 'createdAt')} />
+                      </Td>
+                      <Td dataLabel="Updated at">
+                        <DateCell dateString={getDateField(workflow, 'updatedAt')} />
+                      </Td>
+                      <Td dataLabel="Tags">
+                        <BadgesCell items={getWorkflowTagsForDisplay(workflow)} />
+                      </Td>
+                      <Td dataLabel="State">
+                        <SwitchCell
+                          checked={workflow?.is_enabled}
+                          handleChange={() => {}} // Read-only display - toggle via edit workflow
+                          showLabels
+                          enabledLabel="Enabled"
+                          disabledLabel="Disabled"
+                          readOnly
+                        />
+                      </Td>
+                      <Td isActionCell>
+                        <ActionsColumn items={getRowActions(workflow)} />
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </ScrollableTableContainer>
+            )}
           </Stack>
         </CompassPanel>
       </StackItem>

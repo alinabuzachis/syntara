@@ -820,10 +820,10 @@ describe('Automations Component', () => {
       // Click Next to set internal cursor state
       fireEvent.click(nextButton)
 
-      // Now simulate fetching state with empty data (cursor should NOT be reset)
+      // Now simulate fetching state (cursor should NOT be reset while isFetching)
       vi.mocked(workflowClient.useQuery).mockReturnValue({
         data: {
-          resources: [], // Empty during transition
+          resources: mockWorkflows,
           next: 'next-cursor',
           prev: 'prev-cursor',
           total: 30,

@@ -723,8 +723,7 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      // FilterBar should not be visible - EmptyStateNoData is shown instead
-      expect(screen.queryByRole('button', { name: 'Search automations' })).not.toBeInTheDocument()
+      // FilterBar is always visible; EmptyStateNoData is shown in the table area
       expect(screen.getByText('No executions found')).toBeInTheDocument()
     })
   })

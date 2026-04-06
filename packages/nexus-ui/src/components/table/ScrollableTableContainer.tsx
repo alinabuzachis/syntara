@@ -1,8 +1,8 @@
 import {
   Button,
+  CompassPanel,
   Content,
   ContentVariants,
-  CompassPanel,
   Flex,
   FlexItem,
   Stack,
@@ -50,8 +50,15 @@ export function ScrollableTableContainer({
   useFixedLayout = true,
 }: ScrollableTableContainerProps) {
   return (
-    <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-      <CompassPanel hasNoPadding isFullHeight isScrollable>
+    <StackItem
+      isFilled
+      style={{
+        minHeight: 0,
+        overflow: 'hidden',
+        paddingBottom: 'var(--pf-t--global--spacer--sm)',
+      }}
+    >
+      <CompassPanel hasNoPadding isFullHeight isScrollable style={{ boxShadow: 'none' }}>
         <Stack style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', width: '100%' }}>
           <StackItem
             isFilled
