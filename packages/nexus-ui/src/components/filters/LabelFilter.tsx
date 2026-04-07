@@ -166,8 +166,17 @@ export function LabelFilter({ label, labels = {}, onChange }: LabelFilterProps) 
 
   // Add new empty label pair
   const handleAdd = useCallback(() => {
-    // Generate unique ID for the new empty pair
-    const emptyId = `empty-${crypto.randomUUID()}`
+    const usedIds = new Set(labelPairs.map((p) => p.id))
+    let emptyId: string
+    if (usedIds.has('empty')) {
+      let n = 1
+      while (usedIds.has(`empty-${n}`)) {
+        n += 1
+      }
+      emptyId = `empty-${n}`
+    } else {
+      emptyId = 'empty'
+    }
     // Create new labels from current pairs + new empty pair
     const newLabels: Record<string, string> = {}
     labelPairs.forEach((pair) => {

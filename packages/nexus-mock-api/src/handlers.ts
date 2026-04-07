@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto'
+
 import { http, HttpResponse } from 'msw'
 import { v4 as uuidv4 } from 'uuid'
 import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
@@ -33,7 +35,7 @@ export function randomString(length: number, base = randomCharacters.length, opt
   }
   let text = ''
   for (let i = 0; i < length; i++) {
-    const index = Math.floor(Math.random() * base) % base
+    const index = randomInt(base)
     text += randomChars.charAt(index)
   }
   return text
@@ -122,7 +124,7 @@ export const handlers = [
     newToolProvider.status = 'available'
     newToolProvider.created_at = new Date().toISOString()
     newToolProvider.updated_at = newToolProvider.created_at
-    const toolNumber = Math.floor(Math.random() * 30) + 1
+    const toolNumber = randomInt(1, 31)
     for (let i = 0; i < toolNumber; i++) {
       const toolName = 'Tool' + randomString(6)
       const newTool: Tool = {

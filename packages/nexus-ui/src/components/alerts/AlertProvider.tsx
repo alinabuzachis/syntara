@@ -1,20 +1,45 @@
 import { Alert, AlertActionCloseButton, AlertGroup } from '@patternfly/react-core'
-import { useState, useCallback, type ReactNode } from 'react'
+import { useId, useState, useCallback, useRef, type ReactNode } from 'react'
 
 import { AlertContext, type AlertConfig, type AlertVariant } from './AlertContext'
 
-interface AlertItem extends Omit<AlertConfig, 'variant'> {
-  id: string
+interface AlertItem extends Omit<AlertConfig, 'variant' | 'id'> {
+  /** Stable key for React list + dismiss; optional consumer `config.id` or monotonic instance id */
+  instanceKey: string
   variant: AlertVariant
 }
 
 const DEFAULT_TIMEOUT = 8000
 
+type ToastAlertItemProps = Readonly<{
+  alert: AlertItem
+  onDismiss: (instanceKey: string) => void
+}>
+
+function ToastAlertItem({ alert, onDismiss }: ToastAlertItemProps) {
+  const alertDomId = `nexus-alert-${useId()}`
+
+  return (
+    <Alert
+      id={alertDomId}
+      variant={alert.variant}
+      title={alert.title}
+      timeout={alert.autoDismiss ? (alert.timeout ?? DEFAULT_TIMEOUT) : undefined}
+      onTimeout={() => onDismiss(alert.instanceKey)}
+      actionClose={<AlertActionCloseButton onClose={() => onDismiss(alert.instanceKey)} />}
+    >
+      {alert.description}
+    </Alert>
+  )
+}
+
 export function AlertProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<AlertItem[]>([])
+  const instanceSeqRef = useRef(0)
 
   const showAlert = useCallback((config: AlertConfig) => {
-    const id = config.id || `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const { id, ...rest } = config
+    const instanceKey = id ?? `alert-${++instanceSeqRef.current}`
 
     // Map 'error' to 'danger' for PatternFly compatibility
     let variant: AlertVariant = (config.variant as AlertVariant) || 'info'
@@ -23,8 +48,8 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     }
 
     const newAlert: AlertItem = {
-      ...config,
-      id,
+      ...rest,
+      instanceKey,
       variant,
     }
 
@@ -59,8 +84,8 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     [showAlert]
   )
 
-  const dismissAlert = useCallback((id: string) => {
-    setAlerts((prev) => prev.filter((alert) => alert.id !== id))
+  const dismissAlert = useCallback((instanceKey: string) => {
+    setAlerts((prev) => prev.filter((alert) => alert.instanceKey !== instanceKey))
   }, [])
 
   const clearAllAlerts = useCallback(() => {
@@ -82,16 +107,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
       {children}
       <AlertGroup isToast isLiveRegion hasAnimations>
         {alerts.map((alert) => (
-          <Alert
-            key={alert.id}
-            variant={alert.variant}
-            title={alert.title}
-            timeout={alert.autoDismiss ? (alert.timeout ?? DEFAULT_TIMEOUT) : undefined}
-            onTimeout={() => dismissAlert(alert.id)}
-            actionClose={<AlertActionCloseButton onClose={() => dismissAlert(alert.id)} />}
-          >
-            {alert.description}
-          </Alert>
+          <ToastAlertItem key={alert.instanceKey} alert={alert} onDismiss={dismissAlert} />
         ))}
       </AlertGroup>
     </AlertContext.Provider>

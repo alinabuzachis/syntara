@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto'
+
 import { expect, type Page } from '@playwright/test'
 
 import { toAppUrl } from '../fixtures'
 
-export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${randomUUID()}`
 
 export const addNodePanel = (page: Page) =>
   page.getByRole('region', {
@@ -34,11 +36,10 @@ export async function fillCodeEditor(
     const monacoSurface = target.locator('.monaco-editor').first()
     await monacoSurface.click({ force: true })
     const usedMonacoApi = await page.evaluate((text) => {
-      const editor = (window as Record<string, unknown>).monaco
+      const w = window as unknown as Record<string, unknown>
+      const editor = w.monaco
         ? (
-            (window as Record<string, unknown>).monaco as {
-              editor: { getEditors: () => Array<{ setValue: (v: string) => void }> }
-            }
+            w.monaco as { editor: { getEditors: () => Array<{ setValue: (v: string) => void }> } }
           ).editor.getEditors()[0]
         : null
       if (editor) {

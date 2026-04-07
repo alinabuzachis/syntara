@@ -20,6 +20,22 @@ export default tseslint.config(
   { ignores: ['dist', 'coverage/**', 'playwright.config.ts', 'test-results/**', 'playwright-report/**', 'scripts/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
+  // Align with Sonar typescript:S2245 / CWE-338: Math.random is not suitable for secrets, tokens, or crypto.
+  // Use globalThis.crypto.getRandomValues(), crypto.randomUUID(), node:crypto.randomInt/randomBytes, or the uuid package.
+  {
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'CallExpression[callee.type="MemberExpression"][callee.object.name="Math"][callee.property.name="random"]',
+          message:
+            'Do not use Math.random() — it is not cryptographically secure. Use crypto.getRandomValues(), crypto.randomUUID(), node:crypto.randomInt/randomBytes, or the uuid package. If the value is strictly non-security (e.g. visual jitter), add an eslint-disable-next-line with a short justification.',
+        },
+      ],
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react'
 export type AlertVariant = 'success' | 'danger' | 'warning' | 'info' | 'custom'
 
 export interface AlertConfig {
+  /** Optional stable key for this toast; used with {@link AlertContextType.dismissAlert}. If omitted, an internal monotonic id is assigned. */
   id?: string
   variant?: AlertVariant | 'error' // Accept 'error' and map to 'danger'
   title: string
@@ -17,7 +18,7 @@ export interface AlertContextType {
   showError: (title: string, description?: string) => void
   showWarning: (title: string, description?: string) => void
   showInfo: (title: string, description?: string) => void
-  dismissAlert: (id: string) => void
+  dismissAlert: (instanceKey: string) => void
   clearAllAlerts: () => void
 }
 
