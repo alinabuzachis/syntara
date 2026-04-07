@@ -1,7 +1,7 @@
 """End-to-end test: agentic workflow executes a tool and records metrics.
 
 Requires the full Nexus stack running (API, Temporal, MCP server, OpenRouter).
-Skipped when NEXUS_OPENROUTER_API_KEY is not set.
+Skipped when APP_OPENROUTER_API_KEY is not set.
 
 Run with:
     uv run pytest tests/e2e/test_agentic_workflow_tool_metrics.py -m e2e
@@ -10,42 +10,25 @@ Run with:
 import os
 import time
 from typing import Any
+from uuid import UUID
 
 import httpx
 import pytest
+from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models.execution_create import ExecutionCreate
+from nexus_api_client.models.workflow_create import WorkflowCreate
+from nexus_api_client.models.workflow_update import WorkflowUpdate
 
-BASE_URL = os.environ.get("NEXUS_E2E_BASE_URL", "http://127.0.0.1:8000/api/v1")
+SYSTEM_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
+
 WORKFLOW_NAME = "e2e-agentic-tool-metrics"
 POLL_INTERVAL = 5
 POLL_TIMEOUT = 120
 
 requires_openrouter = pytest.mark.skipif(
-    not os.environ.get("NEXUS_OPENROUTER_API_KEY"),
-    reason="NEXUS_OPENROUTER_API_KEY not set — full stack required",
+    not os.environ.get("APP_OPENROUTER_API_KEY"),
+    reason="APP_OPENROUTER_API_KEY not set — full stack required",
 )
-
-
-def _get(path: str, **kwargs: object) -> dict[str, Any]:
-    r = httpx.get(f"{BASE_URL}{path}", **kwargs)  # type: ignore[arg-type]
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-def _post(path: str, **kwargs: object) -> dict[str, Any]:
-    r = httpx.post(f"{BASE_URL}{path}", **kwargs)  # type: ignore[arg-type]
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-def _patch(path: str, **kwargs: object) -> dict[str, Any]:
-    r = httpx.patch(f"{BASE_URL}{path}", **kwargs)  # type: ignore[arg-type]
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 WORKFLOW_DEFINITION = {
     "schemaVersion": "1.0.0",
@@ -76,37 +59,78 @@ WORKFLOW_DEFINITION = {
 }
 
 
+def _get_metrics(nexus_api: NexusApiRegistry, path: str, **kwargs: object) -> dict[str, Any]:
+    """Fetch tool metrics endpoints directly (not yet wrapped in the API client)."""
+    base_url = nexus_api._client._base_url
+    r = httpx.get(f"{base_url}/api/v1{path}", **kwargs)  # type: ignore[arg-type]
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _require_system_user(nexus_api: NexusApiRegistry) -> None:
+    """Skip the entire module if the system user is not created."""
+    base_url = nexus_api._client._base_url
+    r = httpx.get(
+        f"{base_url}/api/v1/invocations",
+        params={"created_by": str(SYSTEM_USER_ID), "limit": 1},
+    )
+    if r.status_code != 200:
+        pytest.skip("System user not found — run ./tools/create_system_user.py first")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _require_mcp_greeting_tool(nexus_api: NexusApiRegistry) -> None:
+    """Skip the entire module if the mcp::get_greeting tool is not registered."""
+    tools = nexus_api.tool_manager.get_tools().assert_and_get()
+    names = [t["namespaced_name"] for t in tools.resources]
+    if "mcp::get_greeting" not in names:
+        pytest.skip("mcp::get_greeting tool not registered — run ./tools/register_mcp_provider.py first")
+
+
 @pytest.fixture(scope="module")
-def workflow_id():
+def workflow_id(nexus_api: NexusApiRegistry) -> str:
     """Create or update the test workflow, return its ID."""
-    existing = [
-        w for w in _get("/workflows", params={"name": WORKFLOW_NAME})["resources"] if w["name"] == WORKFLOW_NAME
-    ]
-    if existing:
-        wf_id = existing[0]["id"]
-        _patch(f"/workflows/{wf_id}", json={"workflow_definition": WORKFLOW_DEFINITION})
+    existing = nexus_api.workflows.list(
+        additional_params={"name": WORKFLOW_NAME},
+    ).assert_and_get()
+
+    matched = [w for w in existing.resources if w["name"] == WORKFLOW_NAME]
+    if matched:
+        wf_id = str(matched[0]["id"])
+        nexus_api.workflows.update(
+            workflow_id=UUID(wf_id),
+            body=WorkflowUpdate(workflow_definition=WORKFLOW_DEFINITION),
+        ).assert_and_get()
         return wf_id
 
-    data = _post(
-        "/workflows",
-        json={
-            "name": WORKFLOW_NAME,
-            "description": "E2E test: agentic workflow with tool metrics",
-            "is_enabled": True,
-            "workflow_definition": WORKFLOW_DEFINITION,
-        },
-    )
-    return data["id"]
+    data = nexus_api.workflows.create(
+        body=WorkflowCreate(
+            name=WORKFLOW_NAME,
+            description="E2E test: agentic workflow with tool metrics",
+            is_enabled=True,
+            workflow_definition=WORKFLOW_DEFINITION,
+        ),
+    ).assert_and_get()
+    return str(data.id)
 
 
-def _poll_execution(exec_id: str) -> dict[str, Any]:
+def _poll_execution(nexus_api: NexusApiRegistry, exec_id: str) -> Any:  # noqa: ANN401
     """Poll until execution reaches a terminal state."""
     elapsed = 0
     while elapsed < POLL_TIMEOUT:
         time.sleep(POLL_INTERVAL)
         elapsed += POLL_INTERVAL
-        data = _get(f"/executions/{exec_id}", params={"include": "activities"})
-        if data["status"] in ("completed", "failed", "cancelled"):
+        data = nexus_api.executions.get(
+            execution_id=UUID(exec_id),
+            include="activities",
+        ).assert_and_get()
+        if data.status in ("completed", "failed", "cancelled"):
             return data
     pytest.fail(f"Execution {exec_id} did not finish within {POLL_TIMEOUT}s")
 
@@ -118,7 +142,7 @@ def _poll_execution(exec_id: str) -> dict[str, Any]:
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_agentic_workflow_records_tool_metrics(workflow_id):
+def test_agentic_workflow_records_tool_metrics(nexus_api: NexusApiRegistry, workflow_id: str) -> None:
     """Run an agentic workflow and verify tool metrics are recorded.
 
     Checks:
@@ -127,22 +151,24 @@ def test_agentic_workflow_records_tool_metrics(workflow_id):
       - DB tool execution record is created
     """
     # --- Snapshot BEFORE ---
-    summaries_before = _get("/tool_manager/metrics/tools")["resources"]
-    executions_before = _get("/tool_manager/metrics/executions", params={"limit": 100})["resources"]
+    summaries_before = _get_metrics(nexus_api, "/tool_manager/metrics/tools")["resources"]
+    executions_before = _get_metrics(nexus_api, "/tool_manager/metrics/executions", params={"limit": 100})["resources"]
 
     # --- Run workflow ---
-    exec_data = _post("/executions", json={"workflow_id": workflow_id, "input_data": {}})
-    exec_id = exec_data["id"]
-    result = _poll_execution(exec_id)
+    exec_data = nexus_api.executions.create(
+        body=ExecutionCreate(workflow_id=UUID(workflow_id)),
+    ).assert_and_get()
+    exec_id = str(exec_data.id)
+    result = _poll_execution(nexus_api, exec_id)
 
-    assert result["status"] == "completed", f"Execution failed: {result.get('error_details')}"
+    assert result.status == "completed", f"Execution failed: {getattr(result, 'error_details', None)}"
 
     # Wait for async metric writes to flush
     time.sleep(3)
 
     # --- Snapshot AFTER ---
-    summaries_after = _get("/tool_manager/metrics/tools")["resources"]
-    executions_after = _get("/tool_manager/metrics/executions", params={"limit": 100})["resources"]
+    summaries_after = _get_metrics(nexus_api, "/tool_manager/metrics/tools")["resources"]
+    executions_after = _get_metrics(nexus_api, "/tool_manager/metrics/executions", params={"limit": 100})["resources"]
 
     # --- Assert DB tool summary incremented ---
     before_by_name = {t["namespaced_name"]: t for t in summaries_before}
@@ -165,11 +191,10 @@ def test_agentic_workflow_records_tool_metrics(workflow_id):
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_tool_metrics_summary_fields():
+def test_tool_metrics_summary_fields(nexus_api: NexusApiRegistry) -> None:
     """Verify the tool metrics summary response has all expected fields."""
-    summaries = _get("/tool_manager/metrics/tools")["resources"]
+    summaries = _get_metrics(nexus_api, "/tool_manager/metrics/tools")["resources"]
 
-    # If there are any summaries, validate their shape
     for summary in summaries:
         assert "namespaced_name" in summary
         assert "total_executions" in summary
@@ -190,9 +215,9 @@ def test_tool_metrics_summary_fields():
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_tool_execution_records_fields():
+def test_tool_execution_records_fields(nexus_api: NexusApiRegistry) -> None:
     """Verify tool execution records have all expected fields."""
-    executions = _get("/tool_manager/metrics/executions", params={"limit": 5})["resources"]
+    executions = _get_metrics(nexus_api, "/tool_manager/metrics/executions", params={"limit": 5})["resources"]
 
     for ex in executions:
         assert "id" in ex
