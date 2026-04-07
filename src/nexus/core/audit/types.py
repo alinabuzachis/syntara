@@ -1,0 +1,78 @@
+"""Audit event models and types for tracking system activities."""
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
+from uuid import UUID, uuid4
+
+from sqlmodel import Field, SQLModel
+
+
+class EventCategory(StrEnum):
+    """Categories for different types of audit events."""
+
+    USER_ACTION = "user_action"
+    WORKFLOW_EVENT = "workflow_event"
+    AGENT_INTERACTION = "agent_interaction"
+    TOOL_EXECUTION = "tool_execution"
+    LLM_INTERACTION = "llm_interaction"
+    LLM_TOOL_CALL = "llm_tool_call"
+    AGENT_REASONING = "agent_reasoning"
+    LLM_REASONING = "llm_reasoning"
+    SYSTEM_OPERATION = "system_operation"
+    SECURITY_EVENT = "security_event"
+
+
+class ActorType(StrEnum):
+    """Types of actors that can perform audited actions."""
+
+    USER = "user"
+    SYSTEM = "system"
+    SERVICE = "service"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class ActorContext:
+    """Result of actor extraction containing actor information."""
+
+    actor_id: UUID | None
+    actor_type: ActorType = ActorType.USER
+
+
+class AuditEvent(SQLModel):
+    """Audit event model for tracking system activities and user actions.
+
+    Uses SQLModel for consistency and future database persistence migration.
+    Currently not a database table - designed for eventual storage in Postgres.
+    """
+
+    @staticmethod
+    def _utc_now() -> datetime:
+        """Generate UTC timestamp for field defaults."""
+        return datetime.now(UTC)
+
+    # Core identification
+    event_id: UUID = Field(default_factory=uuid4)
+    event_category: EventCategory
+    event_action: str
+
+    # Temporal information
+    event_time: datetime = Field(default_factory=_utc_now)
+
+    # Actor and source information
+    actor_id: UUID | None  # User/system/service that performed action
+    actor_type: ActorType  # Type of actor (user|system|service)
+    source_component: str  # Component that generated event
+
+    # Context tracking
+    workflow_id: UUID | None  # Workflow identifier for workflow-scoped events
+    activity_id: str | None  # Activity identifier for activity-level events
+    execution_id: UUID | None  # Execution identifier for execution tracing
+
+    # Human-readable message
+    event_message: str  # Human-readable description of the event
+
+    # Event data (sanitized)
+    structured_data: dict[str, Any] = Field(default_factory=dict)
