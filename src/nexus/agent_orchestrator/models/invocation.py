@@ -66,6 +66,7 @@ class Invocation(UserOwnedResource, table=True):
         "started_at",
         "completed_at",
         "prompt",
+        "model_name",
     ]
 
     # Define sortable fields for API endpoints - extend base UserOwnedResource fields
@@ -74,6 +75,7 @@ class Invocation(UserOwnedResource, table=True):
         "started_at",
         "completed_at",
         "status",
+        "model_name",
     ]
 
     # Required fields
@@ -139,6 +141,15 @@ class Invocation(UserOwnedResource, table=True):
         default=None,
         sa_type=JSONB,
         description="Checkpoint data for pause/resume",
+    )
+
+    # Model identification
+    model_name: str | None = Field(
+        default=None,
+        max_length=FieldLimits.NAME_MAX_LENGTH,
+        sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
+        description="LLM model name used for the invocation",
+        index=True,
     )
 
     # Optional text fields

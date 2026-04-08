@@ -120,12 +120,17 @@ class TestCollectAndSendFunction:
             patch(
                 "nexus.telemetry.periodic_collector.get_enabled_feature_flags",
             ) as mock_flags,
+            patch(
+                "nexus.telemetry.periodic_collector.query_model_usage",
+                new_callable=AsyncMock,
+            ) as mock_model_usage,
         ):
             # Set up return values
             mock_wf.return_value = MagicMock(total=10, enabled=8, disabled=2)
             mock_exec.return_value = MagicMock(total=100, completed=80, failed=10, running=5, pending=5)
             mock_creds.return_value = MagicMock(total=5)
             mock_flags.return_value = ["feature_a"]
+            mock_model_usage.return_value = []
 
             await _collect_and_send(session_factory, mock_registry)
 
@@ -134,6 +139,7 @@ class TestCollectAndSendFunction:
             mock_exec.assert_called_once()
             mock_creds.assert_called_once()
             mock_flags.assert_called_once()
+            mock_model_usage.assert_called_once()
 
             # Verify event was sent
             mock_registry.send_event.assert_called_once()

@@ -165,8 +165,16 @@ class InvocationExecutor:
                 # Update token usage record with actual provider-reported counts
                 await self._update_token_usage(result_dict, invocation, session)
 
+                # Extract model name from result metadata
+                model_name = None
+                if isinstance(result_dict, dict):
+                    response_metadata = result_dict.get("response_metadata")
+                    if isinstance(response_metadata, dict):
+                        model_name = response_metadata.get("model")
+
                 # Store result and mark as completed (after cancellation check)
                 invocation.result = result_dict
+                invocation.model_name = model_name
                 invocation.status = InvocationStatus.COMPLETED
                 invocation.completed_at = datetime.now(UTC)
                 await session.commit()

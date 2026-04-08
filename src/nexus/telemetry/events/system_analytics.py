@@ -40,6 +40,16 @@ class CredentialCounts(SQLModel):
     total: int = Field(default=0, description="Total tool providers configured")
 
 
+class ModelUsage(SQLModel):
+    """Aggregated token usage for a single LLM model."""
+
+    model: str = Field(description="LLM model name")
+    total_prompt_tokens: int = Field(default=0, description="Total prompt tokens")
+    total_completion_tokens: int = Field(default=0, description="Total completion tokens")
+    total_tokens: int = Field(default=0, description="Total tokens (prompt + completion)")
+    invocation_count: int = Field(default=0, description="Number of invocations")
+
+
 class ConfigInfo(SQLModel):
     """Configuration information for analytics."""
 
@@ -63,3 +73,7 @@ class SystemAnalyticsEvent(BaseTelemetryEvent):
     credentials: CredentialCounts = Field(..., description="Credential aggregates")
     executions: ExecutionCounts = Field(..., description="Execution aggregates")
     config: ConfigInfo = Field(..., description="Configuration info")
+    model_usage: list[ModelUsage] = Field(
+        default_factory=list,
+        description="Aggregated token usage per LLM model",
+    )

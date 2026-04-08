@@ -8,9 +8,12 @@ Soft-deleted records are excluded from all counts.
 from sqlalchemy import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.agent_orchestrator.models.invocation import Invocation
+from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
 from nexus.telemetry.events.system_analytics import (
     CredentialCounts,
     ExecutionCounts,
+    ModelUsage,
     WorkflowCounts,
 )
 from nexus.workflows.models.execution import Execution, ExecutionStatus
@@ -73,13 +76,39 @@ def query_credential_counts() -> CredentialCounts:
     return CredentialCounts(total=0)
 
 
-def query_model_usage() -> list[str]:
+async def query_model_usage(session: AsyncSession) -> list[ModelUsage]:
     """Query aggregated token usage per model from database.
 
-    Currently returns an empty list
-    AAP-68621 - model_usage query will be a future enhancement
+    Joins token_usage_records with invocations to get the model name,
+    then aggregates prompt_tokens, completion_tokens, and invocation count
+    grouped by model. Only includes records with a known model and actual
+    (post-LLM) token counts.
     """
-    return []
+    stmt = (
+        select(  # type: ignore[call-overload]
+            Invocation.model_name,
+            func.coalesce(func.sum(TokenUsageRecord.prompt_tokens), 0),
+            func.coalesce(func.sum(TokenUsageRecord.completion_tokens), 0),
+            func.coalesce(func.count(TokenUsageRecord.id), 0),  # type: ignore[arg-type]
+        )
+        .join(Invocation, TokenUsageRecord.invocation_id == Invocation.id)
+        .where(
+            Invocation.model_name.isnot(None),  # type: ignore[union-attr]
+            TokenUsageRecord.prompt_tokens.isnot(None),  # type: ignore[union-attr]
+        )
+        .group_by(Invocation.model_name)
+    )
+    result = await session.exec(stmt)
+    return [
+        ModelUsage(
+            model=model_name,
+            total_prompt_tokens=int(prompt),
+            total_completion_tokens=int(completion),
+            total_tokens=int(prompt) + int(completion),
+            invocation_count=int(count),
+        )
+        for model_name, prompt, completion, count in result
+    ]
 
 
 def get_enabled_feature_flags() -> list[str]:

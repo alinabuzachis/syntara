@@ -10,11 +10,13 @@ import pytest
 from nexus.telemetry.events.system_analytics import (
     CredentialCounts,
     ExecutionCounts,
+    ModelUsage,
     WorkflowCounts,
 )
 from nexus.telemetry.queries import (
     query_credential_counts,
     query_execution_counts,
+    query_model_usage,
     query_workflow_counts,
 )
 
@@ -94,6 +96,43 @@ class TestQueryExecutionCounts:
         assert result.running == 5
         assert result.completed == 0
         assert result.total == 5
+
+
+class TestQueryModelUsage:
+    """Tests for query_model_usage."""
+
+    async def test_returns_model_usage_list(self, mock_session: AsyncMock):
+        mock_result = MagicMock()
+        mock_result.__iter__ = MagicMock(
+            return_value=iter(
+                [
+                    ("gpt-4", 5000, 2000, 10),
+                    ("claude-3", 3000, 1500, 5),
+                ]
+            )
+        )
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        result = await query_model_usage(mock_session)
+
+        assert len(result) == 2
+        assert isinstance(result[0], ModelUsage)
+        assert result[0].model == "gpt-4"
+        assert result[0].total_prompt_tokens == 5000
+        assert result[0].total_completion_tokens == 2000
+        assert result[0].total_tokens == 7000
+        assert result[0].invocation_count == 10
+        assert result[1].model == "claude-3"
+        assert result[1].total_tokens == 4500
+
+    async def test_returns_empty_list_when_no_usage(self, mock_session: AsyncMock):
+        mock_result = MagicMock()
+        mock_result.__iter__ = MagicMock(return_value=iter([]))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        result = await query_model_usage(mock_session)
+
+        assert result == []
 
 
 class TestQueryCredentialCounts:

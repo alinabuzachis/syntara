@@ -15,16 +15,55 @@ import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord, UserTokenConfig
+from nexus.agent_orchestrator.models.invocation import Invocation
+from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
 from nexus.core.models import User
 from nexus.telemetry.client import TelemetryClientRegistry
 from nexus.telemetry.periodic_collector import _collect_and_send
 from nexus.telemetry.queries import (
     query_execution_counts,
+    query_model_usage,
     query_workflow_counts,
 )
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
+
+
+async def _create_invocations_with_tokens(
+    session: AsyncSession,
+    user: User,
+    timestamp: datetime,
+    models: list[tuple[str, int, int, int]],
+) -> None:
+    """Create invocations with linked token usage records.
+
+    Args:
+        session: Async database session.
+        user: User who owns the invocations.
+        timestamp: Request timestamp for token records.
+        models: List of (model_name, prompt_tokens, completion_tokens, count) tuples.
+
+    """
+    for model_name, prompt_tokens, completion_tokens, count in models:
+        for i in range(count):
+            inv = Invocation(
+                prompt=f"test {model_name} prompt {i}",
+                session_id="test-session",
+                created_by=user.id,
+                model_name=model_name,
+            )
+            session.add(inv)
+            await session.flush()
+            session.add(
+                TokenUsageRecord(
+                    user_id=user.id,
+                    token_count=prompt_tokens + completion_tokens,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    invocation_id=inv.id,
+                    request_timestamp=timestamp,
+                )
+            )
 
 
 class TestPeriodicAnalyticsFlow:
@@ -151,24 +190,13 @@ class TestPeriodicAnalyticsFlow:
         ]
         test_db_session.add_all(executions)
 
-        # Create user token config (required for model_usage join)
-        token_config = UserTokenConfig(
-            user_id=test_user.id,
-            token_limit=100000,
-            window_duration_seconds=3600,
-            model_name="gpt-4",
+        # Create invocations with token usage records for model_usage aggregation
+        await _create_invocations_with_tokens(
+            test_db_session,
+            test_user,
+            now,
+            [("gpt-4", 1000, 500, 3), ("claude-3", 600, 300, 2)],
         )
-        test_db_session.add(token_config)
-
-        # Create token usage records with model_name captured at request time
-        for i in range(5):
-            record = TokenUsageRecord(
-                user_id=test_user.id,
-                token_count=1000 * (i + 1),
-                model_name="gpt-4",
-                request_timestamp=now,
-            )
-            test_db_session.add(record)
 
         await test_db_session.commit()
 
@@ -200,6 +228,19 @@ class TestPeriodicAnalyticsFlow:
         assert props["credentials"]["total"] == 0
 
         assert props["config"]["feature_flags_enabled"] == []
+
+        # Verify model usage aggregation
+        model_usage = props["model_usage"]
+        assert len(model_usage) == 2
+        usage_by_model = {m["model"]: m for m in model_usage}
+        assert usage_by_model["gpt-4"]["total_prompt_tokens"] == 3000
+        assert usage_by_model["gpt-4"]["total_completion_tokens"] == 1500
+        assert usage_by_model["gpt-4"]["total_tokens"] == 4500
+        assert usage_by_model["gpt-4"]["invocation_count"] == 3
+        assert usage_by_model["claude-3"]["total_prompt_tokens"] == 1200
+        assert usage_by_model["claude-3"]["total_completion_tokens"] == 600
+        assert usage_by_model["claude-3"]["total_tokens"] == 1800
+        assert usage_by_model["claude-3"]["invocation_count"] == 2
 
     async def test_no_state_between_cycles(
         self,
@@ -259,6 +300,7 @@ class TestPeriodicAnalyticsFlow:
         assert props["workflows"]["enabled"] == 0
         assert props["executions"]["total"] == 0
         assert props["credentials"]["total"] == 0
+        assert props["model_usage"] == []
 
     async def test_soft_deleted_records_excluded(
         self,
@@ -560,3 +602,127 @@ class TestQueryExecutionCountsRealDB:
 
         # avg of 60 and 120 = 90
         assert result.avg_duration_seconds == pytest.approx(90.0, abs=1.0)
+
+
+class TestQueryModelUsageRealDB:
+    """Integration tests for query_model_usage against real PostgreSQL."""
+
+    async def test_empty_database(self, test_db_session: AsyncSession):
+        result = await query_model_usage(test_db_session)
+        assert result == []
+
+    async def test_aggregates_by_model(self, test_db_session: AsyncSession, test_user: User):
+        """Insert invocations with token records and verify aggregation by model."""
+        now = datetime.now(UTC)
+
+        # Create 2 invocations for gpt-4
+        for i in range(2):
+            inv = Invocation(
+                prompt=f"gpt4 prompt {i}",
+                session_id="test-session",
+                created_by=test_user.id,
+                model_name="gpt-4",
+            )
+            test_db_session.add(inv)
+            await test_db_session.flush()
+            test_db_session.add(
+                TokenUsageRecord(
+                    user_id=test_user.id,
+                    token_count=1500,
+                    prompt_tokens=1000,
+                    completion_tokens=500,
+                    invocation_id=inv.id,
+                    request_timestamp=now,
+                )
+            )
+
+        # Create 1 invocation for claude-3
+        inv = Invocation(
+            prompt="claude prompt",
+            session_id="test-session",
+            created_by=test_user.id,
+            model_name="claude-3",
+        )
+        test_db_session.add(inv)
+        await test_db_session.flush()
+        test_db_session.add(
+            TokenUsageRecord(
+                user_id=test_user.id,
+                token_count=900,
+                prompt_tokens=600,
+                completion_tokens=300,
+                invocation_id=inv.id,
+                request_timestamp=now,
+            )
+        )
+
+        await test_db_session.commit()
+
+        result = await query_model_usage(test_db_session)
+
+        assert len(result) == 2
+        usage_by_model = {m.model: m for m in result}
+        assert usage_by_model["gpt-4"].total_prompt_tokens == 2000
+        assert usage_by_model["gpt-4"].total_completion_tokens == 1000
+        assert usage_by_model["gpt-4"].total_tokens == 3000
+        assert usage_by_model["gpt-4"].invocation_count == 2
+        assert usage_by_model["claude-3"].total_prompt_tokens == 600
+        assert usage_by_model["claude-3"].total_completion_tokens == 300
+        assert usage_by_model["claude-3"].total_tokens == 900
+        assert usage_by_model["claude-3"].invocation_count == 1
+
+    async def test_excludes_records_without_actual_tokens(self, test_db_session: AsyncSession, test_user: User):
+        """Records without post-LLM actual tokens (pre-LLM estimates only) are excluded."""
+        now = datetime.now(UTC)
+
+        inv = Invocation(
+            prompt="in-flight prompt",
+            session_id="test-session",
+            created_by=test_user.id,
+            model_name="gpt-4",
+        )
+        test_db_session.add(inv)
+        await test_db_session.flush()
+        # Pre-LLM record: only estimated tokens, no prompt_tokens
+        test_db_session.add(
+            TokenUsageRecord(
+                user_id=test_user.id,
+                token_count=500,
+                estimated_input_tokens=500,
+                invocation_id=inv.id,
+                request_timestamp=now,
+            )
+        )
+        await test_db_session.commit()
+
+        result = await query_model_usage(test_db_session)
+
+        assert result == []
+
+    async def ***REMOVED***(self, test_db_session: AsyncSession, test_user: User):
+        """Invocations without a model_name are excluded from aggregation."""
+        now = datetime.now(UTC)
+
+        inv = Invocation(
+            prompt="no model prompt",
+            session_id="test-session",
+            created_by=test_user.id,
+            model_name=None,
+        )
+        test_db_session.add(inv)
+        await test_db_session.flush()
+        test_db_session.add(
+            TokenUsageRecord(
+                user_id=test_user.id,
+                token_count=1500,
+                prompt_tokens=1000,
+                completion_tokens=500,
+                invocation_id=inv.id,
+                request_timestamp=now,
+            )
+        )
+        await test_db_session.commit()
+
+        result = await query_model_usage(test_db_session)
+
+        assert result == []
