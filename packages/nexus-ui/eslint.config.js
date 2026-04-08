@@ -8,6 +8,7 @@ import importPlugin from 'eslint-plugin-import-x'
 import noOnlyTests from 'eslint-plugin-no-only-tests'
 import testingLibrary from 'eslint-plugin-testing-library'
 import unicorn from 'eslint-plugin-unicorn'
+import vitest from '@vitest/eslint-plugin'
 import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
 import { fileURLToPath } from 'node:url'
@@ -143,6 +144,28 @@ export default tseslint.config(
       // Many existing tests use container queries / DOM traversal; warn until migrated
       'testing-library/no-container': 'warn',
       'testing-library/no-node-access': 'warn',
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    ignores: ['e2e/**'],
+    plugins: { vitest },
+    rules: {
+      // Aligns with Sonar S2699: every test must contain an explicit assertion call.
+      // Custom URL helpers count as assertions when invoked in the test body.
+      'vitest/expect-expect': [
+        'error',
+        {
+          // expect* matches local helpers like expectStroke in edge/path tests
+          assertFunctionNames: [
+            'expect',
+            'expect*',
+            'assertUrlParam',
+            'assertUrlParamIsNull',
+            'assertSearchParamsWasCalled',
+          ],
+        },
+      ],
     },
   },
   {

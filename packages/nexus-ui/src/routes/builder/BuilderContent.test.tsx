@@ -399,7 +399,9 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       const detailsButton = screen.getByLabelText('Workflow details')
       fireEvent.click(detailsButton)
-      // Tests TOGGLE_DETAILS reducer action
+      await waitFor(() => {
+        expect(screen.getByText('Workflow details')).toBeInTheDocument()
+      })
     })
 
     it('toggles details panel closed', async () => {
@@ -408,9 +410,14 @@ describe('BuilderContent', () => {
 
       // Open
       fireEvent.click(detailsButton)
+      await waitFor(() => {
+        expect(screen.getByText('Workflow details')).toBeInTheDocument()
+      })
       // Close
       fireEvent.click(detailsButton)
-      // Tests TOGGLE_DETAILS reducer (toggle off path)
+      await waitFor(() => {
+        expect(screen.queryByLabelText('Description')).not.toBeInTheDocument()
+      })
     })
 
     it('updates workflow name via sidepanel input', async () => {
@@ -689,7 +696,9 @@ describe('BuilderContent', () => {
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
 
-      // Tests handleSaveWorkflow updateWorkflow path
+      await waitFor(() => {
+        expect(mockUpdateMutate).toHaveBeenCalled()
+      })
     })
 
     it('creates new workflow via POST', async () => {
@@ -711,7 +720,9 @@ describe('BuilderContent', () => {
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
 
-      // Tests handleSaveWorkflow createWorkflow path
+      await waitFor(() => {
+        expect(mockCreateMutate).toHaveBeenCalled()
+      })
     })
 
     it('handles save error', async () => {
@@ -736,7 +747,9 @@ describe('BuilderContent', () => {
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
 
-      // Tests onSaveError path
+      await waitFor(() => {
+        expect(screen.getByText('Failed to update workflow: Server error')).toBeInTheDocument()
+      })
     })
 
     it('handles create error', async () => {
@@ -758,7 +771,9 @@ describe('BuilderContent', () => {
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
 
-      // Tests createWorkflow onError path (line 627)
+      await waitFor(() => {
+        expect(screen.getByText('Failed to create workflow: Create failed')).toBeInTheDocument()
+      })
     })
   })
 
@@ -1464,7 +1479,12 @@ describe('BuilderContent', () => {
       // Open details panel to access description
       fireEvent.click(screen.getByLabelText('Workflow details'))
 
-      // This tests SET_WORKFLOW_DESCRIPTION through the details panel
+      await waitFor(() => {
+        expect(screen.getByLabelText('Description')).toBeInTheDocument()
+      })
+      const descriptionTextarea = screen.getByLabelText('Description')
+      fireEvent.change(descriptionTextarea, { target: { value: 'Updated via reducer test' } })
+      expect(descriptionTextarea).toHaveValue('Updated via reducer test')
     })
 
     it('INIT_WORKFLOW initializes state from workflow prop', async () => {
@@ -1528,10 +1548,25 @@ describe('BuilderContent', () => {
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
 
-      // Validation should fail - tests validateWorkflow path in handleSaveWorkflow
+      await waitFor(() => {
+        expect(screen.getByText('Validation Failed')).toBeInTheDocument()
+      })
     })
 
-    it('shows validation error when workflow has dangling edge', async () => {
+    it('invokes PATCH when saving existing workflow (mock graph passes validation)', async () => {
+      const mockUpdateMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess({ id: 'workflow-1' }, params, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
+        if (method === 'patch') {
+          return createMockMutation(mockUpdateMutate)
+        }
+        return createMockMutation()
+      })
+
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
@@ -1539,9 +1574,26 @@ describe('BuilderContent', () => {
 
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
+
+      await waitFor(() => {
+        expect(mockUpdateMutate).toHaveBeenCalled()
+      })
     })
 
     it('getWorkflowDefinition returns empty workflow when no currentWorkflow', async () => {
+      const mockCreateMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess({ id: 'new-id' }, params, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
+        if (method === 'post') {
+          return createMockMutation(mockCreateMutate)
+        }
+        return createMockMutation()
+      })
+
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       // Change name to trigger the workflow definition getter
@@ -1551,6 +1603,10 @@ describe('BuilderContent', () => {
       // Save triggers getWorkflowDefinition
       const saveButton = screen.getByRole('button', { name: /save/i })
       fireEvent.click(saveButton)
+
+      await waitFor(() => {
+        expect(mockCreateMutate).toHaveBeenCalled()
+      })
     })
   })
 
@@ -1598,7 +1654,9 @@ describe('BuilderContent', () => {
       const detailsButton = screen.getByLabelText('Workflow details')
       fireEvent.click(detailsButton)
 
-      // Tests line 703: reactFlowInstance.setNodes when opening details
+      await waitFor(() => {
+        expect(screen.getByText('Workflow details')).toBeInTheDocument()
+      })
     })
   })
 
@@ -1742,6 +1800,10 @@ describe('BuilderContent', () => {
       })
 
       fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+      await waitFor(() => {
+        expect(mockUpdateMutate).toHaveBeenCalled()
+      })
     })
 
     it('handleSaveWorkflow with new workflow uses POST', async () => {
@@ -1757,6 +1819,10 @@ describe('BuilderContent', () => {
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
       fireEvent.click(screen.getByRole('button', { name: /save/i }))
+
+      await waitFor(() => {
+        expect(mockCreateMutate).toHaveBeenCalled()
+      })
     })
   })
 
@@ -1904,8 +1970,8 @@ describe('BuilderContent', () => {
     it('save success navigates for new workflow', async () => {
       const mockCreateMutate = vi.fn()
 
-      vi.mocked(workflowClient.useMutation).mockImplementation((method, path) => {
-        if (method === 'post' && path === '/workflows') {
+      vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
+        if (method === 'post') {
           return createMockMutation(mockCreateMutate)
         }
         return createMockMutation()
@@ -1913,11 +1979,11 @@ describe('BuilderContent', () => {
 
       await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
 
-      // Click save - validation may fail for empty workflow, but mutation hook is still registered
       fireEvent.click(screen.getByRole('button', { name: /save/i }))
 
-      // The mutation is set up but may not be called if validation fails
-      // This test verifies the mutation hook is properly configured
+      await waitFor(() => {
+        expect(mockCreateMutate).toHaveBeenCalled()
+      })
     })
 
     it('save success invalidates queries for existing workflow', async () => {

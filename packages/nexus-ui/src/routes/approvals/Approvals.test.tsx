@@ -227,15 +227,15 @@ describe('Approvals Component', () => {
     expect(screen.getByText('Error loading approvals')).toBeInTheDocument()
   })
 
-  it('displays approval types', () => {
+  it('displays approval rows (type column removed for RH1)', () => {
     mockApprovalsQuery(mockApprovals)
 
     render(<Approvals />)
 
-    // Approval type column removed for RH1 - may be added back later
-    // expect(screen.getByText('Manual Approval')).toBeInTheDocument()
-    // expect(screen.getByText('Automated Approval')).toBeInTheDocument()
-    // expect(screen.getByText('Policy Approval')).toBeInTheDocument()
+    // Approval type column removed for RH1 — assert rows still render
+    expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
+    expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
+    expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
   })
 
   it('displays automation names', () => {
@@ -465,6 +465,7 @@ describe('Approvals Component', () => {
       await waitFor(() => {
         assertUrlParam(mockSetSearchParams, 'name[contains]', 'test')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
 
     it('applies status filter to API query when selecting option', async () => {
@@ -494,6 +495,7 @@ describe('Approvals Component', () => {
       await waitFor(() => {
         assertUrlParam(mockSetSearchParams, 'status', 'pending')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
 
     it('displays name filter input in toolbar', () => {
@@ -539,6 +541,7 @@ describe('Approvals Component', () => {
       await waitFor(() => {
         assertUrlParamIsNull(mockSetSearchParams, 'cursor')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
   })
 

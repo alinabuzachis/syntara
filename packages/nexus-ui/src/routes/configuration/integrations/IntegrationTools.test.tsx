@@ -99,6 +99,7 @@ describe('IntegrationTools Component', () => {
   beforeEach(() => {
     // Reset mocks before each test - use mockImplementation to return different data per endpoint
     mockMutate.mockClear()
+    mockSetSearchParams.mockClear()
     vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
       if (path === '/tool_providers/{provider_id}') {
         return { ...baseQueryResult, data: mockProvider } as never
@@ -336,6 +337,7 @@ describe('IntegrationTools Component', () => {
       await waitFor(() => {
         assertUrlParamIsNull(mockSetSearchParams, 'cursor')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
   })
 

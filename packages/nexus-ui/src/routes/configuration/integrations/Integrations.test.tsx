@@ -671,6 +671,7 @@ describe('Integrations Component', () => {
       await waitFor(() => {
         assertUrlParam(mockSetSearchParams, 'status', 'available')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
 
     it('applies integration type filter to API query', async () => {
@@ -691,6 +692,7 @@ describe('Integrations Component', () => {
       await waitFor(() => {
         assertUrlParam(mockSetSearchParams, 'provider_type', 'mcp')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
 
     it('applies filter to API query after paginating', async () => {
@@ -725,6 +727,7 @@ describe('Integrations Component', () => {
       await waitFor(() => {
         assertUrlParam(mockSetSearchParams, 'name[contains]', 'test')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
   })
 

@@ -57,7 +57,7 @@ describe('NodeSidePanel', () => {
 
   it('renders without crashing with empty children', () => {
     render(<NodeSidePanel>{null}</NodeSidePanel>)
-    // Should not throw
+    expect(screen.getByTestId('node-side-panel')).toBeInTheDocument()
   })
 
   it('renders form elements as children', () => {

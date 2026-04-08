@@ -204,9 +204,10 @@ describe('ButtonEdge', () => {
   it('handles missing data gracefully', () => {
     const { container } = render(<ButtonEdge {...defaultProps} data={undefined} />)
 
+    expect(screen.getByTestId('base-edge')).toBeInTheDocument()
     const rect = container.querySelector('rect')
+    expect(rect).not.toBeNull()
     fireEvent.click(rect!)
-    // Should not throw
   })
 
   it('handles default source position', () => {

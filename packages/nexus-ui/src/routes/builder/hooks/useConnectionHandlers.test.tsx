@@ -1,6 +1,8 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { consumePendingDragHandle } from '../utils/pendingDragHandle'
+
 import { useConnectionHandlers } from './useConnectionHandlers'
 
 // Mock dependencies
@@ -167,14 +169,12 @@ describe('useConnectionHandlers', () => {
         })
       })
 
-      // Internal state is tracked via ref, we can't directly test it
-      // but we can verify it doesn't throw
+      expect(vi.mocked(consumePendingDragHandle)).toHaveBeenCalled()
     })
 
     it('does nothing for target handles', () => {
       const { result } = renderHook(() => useConnectionHandlers(defaultParams))
 
-      // Should not throw
       act(() => {
         result.current.onConnectStart(null, {
           nodeId: 'node-1',
@@ -182,6 +182,8 @@ describe('useConnectionHandlers', () => {
           handleType: 'target',
         })
       })
+
+      expect(vi.mocked(consumePendingDragHandle)).not.toHaveBeenCalled()
     })
 
     it('prevents connection from loop handle with existing connection', () => {
@@ -194,7 +196,6 @@ describe('useConnectionHandlers', () => {
         })
       )
 
-      // Should not throw and should not set connection state
       act(() => {
         result.current.onConnectStart(null, {
           nodeId: 'loop-1',
@@ -202,6 +203,8 @@ describe('useConnectionHandlers', () => {
           handleType: 'source',
         })
       })
+
+      expect(vi.mocked(consumePendingDragHandle)).toHaveBeenCalled()
     })
   })
 

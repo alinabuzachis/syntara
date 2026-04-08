@@ -57,7 +57,7 @@ describe('NodeHeader', () => {
 
   it('renders without crashing with empty children', () => {
     render(<NodeHeader>{null}</NodeHeader>)
-    // Should not throw
+    expect(screen.getByTestId('node-header-content')).toBeInTheDocument()
   })
 
   it('renders complex nested content', () => {

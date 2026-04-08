@@ -79,6 +79,7 @@ describe('Automations Component', () => {
 
   beforeEach(() => {
     // Reset mocks before each test
+    mockSetSearchParams.mockClear()
     vi.mocked(workflowClient.useQuery).mockReturnValue({
       data: {
         resources: mockWorkflows,
@@ -191,6 +192,7 @@ describe('Automations Component', () => {
       await waitFor(() => {
         assertUrlParam(mockSetSearchParams, 'name[contains]', 'deploy')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
 
     it('applies state filter (is_enabled) to API query when selecting option', async () => {
@@ -211,6 +213,7 @@ describe('Automations Component', () => {
       await waitFor(() => {
         assertUrlParam(mockSetSearchParams, 'is_enabled', 'true')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
 
     it('resets pagination cursor when filters change', async () => {
@@ -241,6 +244,7 @@ describe('Automations Component', () => {
       await waitFor(() => {
         assertUrlParamIsNull(mockSetSearchParams, 'cursor')
       })
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
   })
 
