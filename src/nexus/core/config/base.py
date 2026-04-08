@@ -1171,13 +1171,13 @@ class MetricsSettings(BaseSettings):
     """
 
     metrics_retention_seconds: int = Field(
-        default=86400,
+        default=3600,
         description="How long to retain raw metrics in memory (NFR-003)",
         ge=0,
     )
 
     metrics_max_records: int = Field(
-        default=1_000_000,
+        default=100_000,
         description="Maximum number of raw metrics to store in memory",
         ge=1,
     )
@@ -1211,7 +1211,7 @@ class MetricsSettings(BaseSettings):
     )
 
     metrics_cleanup_interval_seconds: float = Field(
-        default=3600.0,
+        default=300.0,
         description="Seconds between periodic in-memory metrics store cleanup cycles",
         gt=0,
     )

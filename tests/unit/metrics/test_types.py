@@ -1,11 +1,12 @@
-"""Unit tests for metric types, MetricRecord model, and MetricsSummary."""
+"""Unit tests for metric types, MetricRecord dataclass, and MetricsSummary."""
 
+from dataclasses import asdict
 from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
-from pydantic import ValidationError
 
+from nexus.core.exceptions import SafeValueError
 from nexus.metrics.types import (
     COMPONENT_LABELS,
     METRIC_CATEGORIES,
@@ -182,7 +183,7 @@ class TestComponentLabels:
 
 
 class TestMetricRecord:
-    """Tests for the MetricRecord SQLModel."""
+    """Tests for the MetricRecord slotted dataclass."""
 
     def test_creation_with_required_fields(self) -> None:
         """MetricRecord can be created with just metric_type and value."""
@@ -227,15 +228,15 @@ class TestMetricRecord:
         assert record.unit == "tokens"
 
     def test_serialization_roundtrip(self) -> None:
-        """model_dump produces a dict that can recreate the record."""
+        """Asdict produces a dict that can recreate the record."""
         original = MetricRecord(
             metric_type=MetricType.LLM_DURATION,
             value=245.5,
             unit="ms",
             labels={"model": "gpt-4"},
         )
-        data = original.model_dump()
-        restored = MetricRecord.model_validate(data)
+        data = asdict(original)
+        restored = MetricRecord(**data)
         assert restored.metric_type == original.metric_type
         assert restored.value == original.value
         assert restored.unit == original.unit
@@ -246,36 +247,40 @@ class TestMetricRecord:
         record = MetricRecord(
             metric_type=MetricType.LLM_DURATION,
             value=1.0,
-            labels=None,
+            labels=None,  # type: ignore[arg-type]
         )
         assert record.labels == {}
 
     def test_labels_rejects_non_string_keys(self) -> None:
         """Labels with non-string keys are rejected."""
-        with pytest.raises(ValidationError, match="Value error, labels key '1' must be a string, got int"):
+        with pytest.raises(SafeValueError, match="labels key '1' must be a string, got int"):
             MetricRecord(
                 metric_type=MetricType.LLM_DURATION,
                 value=1.0,
-                labels={1: 123},
+                labels={1: 123},  # type: ignore[dict-item]
             )
 
     def test_labels_rejects_non_string_values(self) -> None:
         """Labels with non-string values are rejected."""
-        with pytest.raises(ValidationError, match="Value error, labels value for key 'key' must be a string, got int"):
+        with pytest.raises(SafeValueError, match="labels value for key 'key' must be a string, got int"):
             MetricRecord(
                 metric_type=MetricType.LLM_DURATION,
                 value=1.0,
-                labels={"key": 123},
+                labels={"key": 123},  # type: ignore[dict-item]
             )
 
-    def test_extra_fields_forbidden(self) -> None:
-        """Unknown fields are rejected by the strict model config."""
-        with pytest.raises(ValueError, match="extra"):
+    def test_extra_fields_rejected(self) -> None:
+        """Unknown keyword arguments are rejected by the slotted dataclass."""
+        with pytest.raises(TypeError):
             MetricRecord(
                 metric_type=MetricType.LLM_DURATION,
                 value=1.0,
-                unknown_field="bad",
+                unknown_field="bad",  # type: ignore[call-arg]
             )
+
+    def test_slots_are_defined(self) -> None:
+        """MetricRecord uses __slots__ for memory efficiency."""
+        assert hasattr(MetricRecord, "__slots__")
 
 
 # =============================================================================

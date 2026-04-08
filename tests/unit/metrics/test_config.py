@@ -13,8 +13,8 @@ class TestMetricsSettings:
     def test_metrics_defaults(self) -> None:
         """Test default metrics configuration values."""
         settings = Settings()
-        assert settings.metrics_retention_seconds == 86400
-        assert settings.metrics_max_records == 1_000_000
+        assert settings.metrics_retention_seconds == 3600
+        assert settings.metrics_max_records == 100_000
         assert settings.metrics_enabled is True
         assert settings.metrics_openmetrics_enabled is True
 

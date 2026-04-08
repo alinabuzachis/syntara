@@ -10,6 +10,7 @@ execution from being counted twice regardless of which path fires first.
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 import structlog
@@ -30,9 +31,43 @@ if TYPE_CHECKING:
 
 logger = structlog.stdlib.get_logger(__name__)
 
-# Process-local dedup set shared by the on-read path (ExecutionService) and
-# the background poller so that an execution is emitted at most once.
-emitted_completions: set[UUID] = set()
+DEFAULT_MAX_DEDUP_SIZE = 50_000
+
+
+class _BoundedDedup:
+    """FIFO-bounded deduplication tracker using insertion-ordered eviction.
+
+    When the capacity is exceeded, the oldest entries are evicted first.
+    This replaces the previous plain ``set[UUID]`` which could grow without
+    bound and used non-deterministic iteration order for trimming.
+    """
+
+    __slots__ = ("_data", "_max_size")
+
+    def __init__(self, max_size: int = DEFAULT_MAX_DEDUP_SIZE) -> None:
+        self._data: OrderedDict[UUID, None] = OrderedDict()
+        self._max_size = max_size
+
+    def __contains__(self, item: UUID) -> bool:
+        return item in self._data
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def add(self, item: UUID) -> None:
+        self._data[item] = None
+        while len(self._data) > self._max_size:
+            self._data.popitem(last=False)
+
+    def clear(self) -> None:
+        self._data.clear()
+
+    def difference_update(self, items: set[UUID] | list[UUID]) -> None:
+        for item in items:
+            self._data.pop(item, None)
+
+
+emitted_completions: _BoundedDedup = _BoundedDedup()
 
 
 def reset_emission_trackers() -> None:

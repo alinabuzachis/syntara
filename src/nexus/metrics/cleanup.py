@@ -11,6 +11,9 @@ store and must trim it independently.
 from __future__ import annotations
 
 import asyncio
+import ctypes
+import ctypes.util
+import sys
 from typing import TYPE_CHECKING
 
 import structlog
@@ -26,6 +29,29 @@ if TYPE_CHECKING:
 
 logger = structlog.stdlib.get_logger(__name__)
 
+_libc: ctypes.CDLL | None = None
+if sys.platform == "linux":
+    _libc_name = ctypes.util.find_library("c")
+    if _libc_name:
+        _libc = ctypes.CDLL(_libc_name, use_errno=True)
+
+
+def _release_memory_to_os() -> None:
+    """Ask glibc to return freed heap pages to the OS.
+
+    On Linux, CPython's allocator (pymalloc) and glibc can both retain
+    freed pages in the process address space.  ``malloc_trim(0)`` nudges
+    glibc to release them.  This is a no-op on non-Linux platforms.
+
+    **Caution**: ``malloc_trim`` acquires the glibc arena lock, which
+    momentarily blocks any concurrent ``malloc``/``free`` in the same
+    process.  This is safe at our call frequency (at most once per
+    cleanup cycle, default 5 min) but should *not* be called on a hot
+    path or in a tight loop.
+    """
+    if _libc is not None and hasattr(_libc, "malloc_trim"):
+        _libc.malloc_trim(0)
+
 
 async def cleanup_stale_metrics(
     _session_factory: async_sessionmaker[AsyncSession],
@@ -39,6 +65,7 @@ async def cleanup_stale_metrics(
     recorder = get_metrics_recorder()
     removed = await asyncio.to_thread(recorder.cleanup)
     if removed:
+        _release_memory_to_os()
         logger.debug("metrics_cleanup_completed", records_removed=removed)
 
 

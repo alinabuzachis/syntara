@@ -30,8 +30,8 @@ class MetricsStore:
 
     def __init__(
         self,
-        retention_seconds: int = 86400,
-        max_records: int = 1_000_000,
+        retention_seconds: int = 3600,
+        max_records: int = 100_000,
     ) -> None:
         """Initialise the store with the given retention and capacity limits."""
         self._retention = timedelta(seconds=retention_seconds)

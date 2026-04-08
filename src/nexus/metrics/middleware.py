@@ -5,11 +5,12 @@ Records per-request metrics:
 * Total request duration for every API request.
 * Component timing breakdown labels (endpoint, method).
 * Error counts categorised by type (timeout, rate_limit, validation, internal).
-* Error timestamps and ``correlation_id`` attached to labels.
 
 Each request receives a unique ``correlation_id`` (UUID4) that appears in
-both the metric labels and the ``X-Correlation-ID`` response header, enabling
-end-to-end tracing from the client through to metric records.
+the ``X-Correlation-ID`` response header, enabling end-to-end tracing from
+the client through to server logs.  The correlation_id is intentionally
+*not* stored in metric labels to avoid high-cardinality memory growth in
+the in-memory metrics store.
 """
 
 from __future__ import annotations
@@ -90,12 +91,12 @@ class MetricsMiddleware:
 
     1. Generates a unique ``correlation_id``.
     2. Times the full request lifecycle.
-    3. Records a ``REQUEST_DURATION`` metric with endpoint, method, status,
-       and correlation_id labels.
+    3. Records a ``REQUEST_DURATION`` metric with endpoint, method, and
+       status labels.
     4. For error responses (>= 400), records an ``ERROR`` metric with the
-       classified ``error_type`` and the same correlation_id.
+       classified ``error_type``.
     5. Injects the ``X-Correlation-ID`` response header so clients can
-       correlate their requests to server-side metrics.
+       correlate their requests to server-side logs.
 
     Args:
         app: The next ASGI application in the chain.
@@ -155,11 +156,11 @@ class MetricsMiddleware:
         except Exception:
             status_code = 500
             endpoint = _resolve_endpoint(scope, path)
-            self._record_metrics(endpoint, method, status_code, start, correlation_id)
+            self._record_metrics(endpoint, method, status_code, start)
             raise
 
         endpoint = _resolve_endpoint(scope, path)
-        self._record_metrics(endpoint, method, status_code, start, correlation_id)
+        self._record_metrics(endpoint, method, status_code, start)
 
     def _record_metrics(
         self,
@@ -167,7 +168,6 @@ class MetricsMiddleware:
         method: str,
         status_code: int,
         start: float,
-        correlation_id: str,
     ) -> None:
         """Record request duration and error metrics.
 
@@ -176,7 +176,6 @@ class MetricsMiddleware:
             method: HTTP method.
             status_code: Response status code.
             start: ``time.perf_counter()`` at request start.
-            correlation_id: Unique request identifier.
 
         """
         duration_ms = (time.perf_counter() - start) * 1000
@@ -186,7 +185,6 @@ class MetricsMiddleware:
             "endpoint": path,
             "method": method,
             "status": status_str,
-            "correlation_id": correlation_id,
         }
 
         try:
@@ -207,7 +205,6 @@ class MetricsMiddleware:
                         "error_type": error_type,
                         "endpoint": path,
                         "method": method,
-                        "correlation_id": correlation_id,
                     },
                 )
                 self._recorder.increment("errors")

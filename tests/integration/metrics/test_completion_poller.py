@@ -18,10 +18,7 @@ from prometheus_client import CollectorRegistry
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.metrics.completion_poller import (
-    _trim_dedup_set,
-    poll_completed_executions,
-)
+from nexus.metrics.completion_poller import poll_completed_executions
 from nexus.metrics.emission import emit_completion_metrics, emitted_completions, reset_emission_trackers
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
@@ -233,18 +230,22 @@ class TestPollCompletedExecutions:
 
 
 class TestDedupTrimming:
-    """Tests for dedup set memory management."""
+    """Tests for dedup set memory management via _BoundedDedup."""
 
     def setup_method(self) -> None:
         reset_emission_trackers()
 
-    def test_trim_removes_excess(self) -> None:
+    def test_bounded_dedup_evicts_oldest_on_overflow(self) -> None:
+        from nexus.metrics.emission import _BoundedDedup
+
         max_size = 100
-        for _ in range(max_size + 50):
-            emitted_completions.add(uuid4())
+        dedup = _BoundedDedup(max_size=max_size)
+        ids = [uuid4() for _ in range(max_size + 50)]
+        for uid in ids:
+            dedup.add(uid)
 
-        with patch("nexus.metrics.completion_poller.get_settings") as mock_settings:
-            mock_settings.return_value.metrics_poller_max_dedup_size = max_size
-            _trim_dedup_set()
-
-        assert len(emitted_completions) <= max_size
+        assert len(dedup) == max_size
+        for uid in ids[:50]:
+            assert uid not in dedup
+        for uid in ids[50:]:
+            assert uid in dedup

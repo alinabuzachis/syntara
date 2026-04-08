@@ -10,7 +10,6 @@ Tests cover system overhead and error metrics:
 import asyncio
 from typing import Any
 from unittest.mock import AsyncMock
-from uuid import UUID
 
 import pytest
 from prometheus_client import CollectorRegistry
@@ -216,32 +215,18 @@ class TestMetricsMiddlewareRequestDuration:
 
 
 class TestMetricsMiddlewareCorrelationId:
-    """Correlation IDs included in metric labels."""
+    """Correlation ID in response header (not in metric labels to avoid memory bloat)."""
 
     @pytest.mark.asyncio
-    async def test_correlation_id_in_labels(self, recorder: MetricsRecorder) -> None:
-        """REQUEST_DURATION metrics include a correlation_id label."""
+    async def test_correlation_id_not_in_metric_labels(self, recorder: MetricsRecorder) -> None:
+        """correlation_id is excluded from stored labels to avoid high-cardinality memory growth."""
         app = await _make_app(status_code=200)
         middleware = MetricsMiddleware(app, recorder=recorder)
 
         await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
         results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
-        assert "correlation_id" in results[0].labels
-        UUID(results[0].labels["correlation_id"])
-
-    @pytest.mark.asyncio
-    async def test_correlation_id_unique_per_request(self, recorder: MetricsRecorder) -> None:
-        """Each request gets a unique correlation_id."""
-        app = await _make_app(status_code=200)
-        middleware = MetricsMiddleware(app, recorder=recorder)
-
-        await middleware(_make_scope(), AsyncMock(), AsyncMock())
-        await middleware(_make_scope(), AsyncMock(), AsyncMock())
-
-        results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
-        ids = {r.labels["correlation_id"] for r in results}
-        assert len(ids) == 2
+        assert "correlation_id" not in results[0].labels
 
     @pytest.mark.asyncio
     async def test_correlation_id_in_response_header(self, recorder: MetricsRecorder) -> None:
@@ -293,18 +278,6 @@ class TestMetricsMiddlewareErrors:
         errors = list(recorder.query(metric_types={MetricType.ERROR}))
         assert len(errors) == 1
         assert errors[0].labels["error_type"] == "internal"
-
-    @pytest.mark.asyncio
-    async def test_error_includes_correlation_id(self, recorder: MetricsRecorder) -> None:
-        """Error metrics include correlation_id."""
-        app = await _make_app(status_code=500)
-        middleware = MetricsMiddleware(app, recorder=recorder)
-
-        await middleware(_make_scope(), AsyncMock(), AsyncMock())
-
-        errors = list(recorder.query(metric_types={MetricType.ERROR}))
-        assert "correlation_id" in errors[0].labels
-        UUID(errors[0].labels["correlation_id"])
 
     @pytest.mark.asyncio
     async def test_error_includes_endpoint_and_method(self, recorder: MetricsRecorder) -> None:
