@@ -78,17 +78,16 @@ _check-dependency-binaries: _check-uv
 # Testing targets
 # ========================================================
 
-# Run pytest using testcontainers: prefers Podman (local dev), falls back to Docker (CI).
-# Usage: $(call run-tests,<pytest-args>)
-define run-tests
+# run-with-testcontainers: detect Podman/Docker and run a command with testcontainers env.
+# $(1) = shell command to execute (may include leading env assignments)
+# $(2) = human-readable action label for log messages (e.g. "🧪 Running tests")
+define run-with-testcontainers
 @if command -v podman >/dev/null 2>&1 && [ -S "$(PODMAN_SOCK)" ]; then \
-	echo "🧪 Running tests with Podman container..."; \
-	DOCKER_HOST="unix://$(PODMAN_SOCK)" TESTCONTAINERS_RYUK_DISABLED=true POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" \
-	uv run pytest $(1); \
+	echo "$(2) with Podman..."; \
+	DOCKER_HOST="unix://$(PODMAN_SOCK)" TESTCONTAINERS_RYUK_DISABLED=true $(1); \
 elif command -v docker >/dev/null 2>&1; then \
-	echo "🧪 Running tests with Docker container..."; \
-	TESTCONTAINERS_RYUK_DISABLED=true POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" \
-	uv run pytest $(1); \
+	echo "$(2) with Docker..."; \
+	TESTCONTAINERS_RYUK_DISABLED=true $(1); \
 elif command -v podman >/dev/null 2>&1; then \
 	echo "❌ Podman socket not found at $(PODMAN_SOCK)"; \
 	if [ "$$(uname -s)" = "Darwin" ]; then \
@@ -101,6 +100,12 @@ else \
 	echo "❌ No container runtime available. Install Podman or Docker."; \
 	exit 1; \
 fi
+endef
+
+# run-tests: run pytest with testcontainers (Podman or Docker).
+# Usage: $(call run-tests,<pytest-args>)
+define run-tests
+$(call run-with-testcontainers,POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" uv run pytest $(1),🧪 Running tests)
 endef
 
 E2E_IGNORE := --ignore=tests/e2e
@@ -505,8 +510,8 @@ typecheck: ## Run type checking only with mypy
 	@echo "✅ Type checking completed"
 
 .PHONY: check-migrations
-check-migrations: ## Validate migrations: conflicts, pending changes, and upgrade/downgrade (requires DB)
-	@tools/ci/check_migrations.sh
+check-migrations: ## Validate migrations: conflicts, pending changes, and upgrade/downgrade (uses testcontainers)
+	$(call run-with-testcontainers,POSTGRES_IMAGE="$(POSTGRES_IMAGE)" uv run python tools/ci/check_migrations.py,🔍 Checking migrations)
 
 
 # Pre-commit targets

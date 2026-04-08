@@ -499,6 +499,7 @@ curl 'http://localhost:8000/api/v1/invocations?status=completed'
 | `make install` | Complete setup from scratch |
 | `make dev` | Run development server with auto-reload |
 | `make test-all` | Run all tests |
+| `make check-migrations` | Validate migrations (chain, heads, pending, round-trip) |
 | `make lint` | Run linting and type checking |
 | `make format` | Format code |
 | `make init-worktree` | Initialize a new git worktree for parallel development |
@@ -514,6 +515,9 @@ make test-coverage
 
 # Run only unit tests
 make test-unit
+
+# Validate migrations (spins up a temporary DB via testcontainers)
+make check-migrations
 ```
 
 ### Running End to End Tests
