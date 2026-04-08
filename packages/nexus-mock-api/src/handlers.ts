@@ -1,10 +1,18 @@
-import { randomInt } from 'node:crypto'
-
 import { http, HttpResponse } from 'msw'
 import { v4 as uuidv4 } from 'uuid'
+import type * as ApprovalsAPI from '@ansible/nexus-contracts/src/approvals-api.js'
+import type * as ExecutionsAPI from '@ansible/nexus-contracts/src/executions-api.js'
 import type * as ToolManagerAPI from '@ansible/nexus-contracts/src/tool-manager.js'
 import type * as WorkflowAPI from '@ansible/nexus-contracts/src/workflow-api.js'
-import type { ToolProvider, WorkflowsResponse, Tool, WorkflowWithVersion } from '@ansible/nexus-contracts'
+import type {
+  Approval,
+  Tool,
+  ToolProvider,
+  ToolProviderCreate,
+  ToolProvidersResponse,
+  WorkflowWithVersion,
+  WorkflowsResponse,
+} from '@ansible/nexus-contracts'
 import { providers } from './resources/providers'
 import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
@@ -13,19 +21,66 @@ import { approvals } from './resources/approvals'
 
 // Define response types based on API contract
 type ToolsResponse = ToolManagerAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
-type ToolProvidersResponse = {
-  resources: ToolProvider[]
-  limit: number
-  has_more: boolean
-}
-type ExecutionsResponse = WorkflowAPI.paths['/executions']['get']['responses']['200']['content']['application/json']
-type ApprovalsResponse = WorkflowAPI.paths['/approvals']['get']['responses']['200']['content']['application/json']
+/** Mock adds limit/has_more beyond OpenAPI ResourcesResponseBase */
+type ToolProvidersListBody = ToolProvidersResponse & { limit: number; has_more: boolean }
+type ExecutionsResponse = ExecutionsAPI.paths['/executions']['get']['responses']['200']['content']['application/json']
+type ApprovalsResponse = ApprovalsAPI.paths['/approvals']['get']['responses']['200']['content']['application/json']
 type CreateWorkflowBody = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
 type UpdateWorkflowBody =
   WorkflowAPI.paths['/workflows/{workflow_id}']['patch']['requestBody']['content']['application/json']
 
+type MutableWorkflowWithVersion = { -readonly [K in keyof WorkflowWithVersion]: WorkflowWithVersion[K] }
+
+/** Mock seed data may use camelCase timestamps; API uses snake_case */
+type ApprovalTimestamps = Approval & { createdAt?: string; updatedAt?: string }
+
+function approvalCreatedAt(a: Approval): string | undefined {
+  const row = a as ApprovalTimestamps
+  return row.created_at ?? row.createdAt
+}
+
+function matchesProviderType(provider: ToolProvider, providerType: string): boolean {
+  const cfg = provider.configuration as unknown as { provider_type?: string }
+  return cfg.provider_type === providerType
+}
+
 const randomCharacters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const randomCharactersLowercase = 'abcdefghijklmnopqrstuvwxyz0123456789'
+
+function randomIntBelow(max: number): number {
+  if (max <= 0) return 0
+  const limit = Math.floor(0x100000000 / max) * max
+  let val: number
+  do {
+    const buf = new Uint32Array(1)
+    crypto.getRandomValues(buf)
+    val = buf[0]!
+  } while (val >= limit)
+  return val % max
+}
+
+/** Inclusive min, exclusive max (same as Node `randomInt(min, max)`). */
+function randomIntRange(min: number, maxExclusive: number): number {
+  const span = maxExclusive - min
+  if (span <= 1) return min
+  return min + randomIntBelow(span)
+}
+
+function base64EncodeJson(payload: unknown): string {
+  const json = JSON.stringify(payload)
+  const bytes = new TextEncoder().encode(json)
+  let binary = ''
+  for (const b of bytes) binary += String.fromCharCode(b)
+  return btoa(binary)
+}
+
+function base64DecodeJson(cursor: string): unknown {
+  const binary = atob(cursor)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const json = new TextDecoder().decode(bytes)
+  return JSON.parse(json)
+}
 
 export function randomString(length: number, base = randomCharacters.length, options = { isLowercase: false }): string {
   // We'll use the default for options if it's not provided, which includes isLowercase set to false
@@ -35,7 +90,7 @@ export function randomString(length: number, base = randomCharacters.length, opt
   }
   let text = ''
   for (let i = 0; i < length; i++) {
-    const index = randomInt(base)
+    const index = randomIntBelow(base)
     text += randomChars.charAt(index)
   }
   return text
@@ -45,8 +100,8 @@ export function randomString(length: number, base = randomCharacters.length, opt
 function parseCursor(cursor: string | null): number {
   if (!cursor) return 0
   try {
-    const cursorData = JSON.parse(Buffer.from(cursor, 'base64').toString())
-    return cursorData.index || 0
+    const cursorData = base64DecodeJson(cursor) as { index?: number }
+    return cursorData.index ?? 0
   } catch {
     return 0
   }
@@ -55,10 +110,8 @@ function parseCursor(cursor: string | null): number {
 function generateCursors(startIndex: number, limit: number, totalLength: number) {
   const hasNext = startIndex + limit < totalLength
   const hasPrev = startIndex > 0
-  const next = hasNext ? Buffer.from(JSON.stringify({ index: startIndex + limit })).toString('base64') : null
-  const prev = hasPrev
-    ? Buffer.from(JSON.stringify({ index: Math.max(0, startIndex - limit) })).toString('base64')
-    : null
+  const next = hasNext ? base64EncodeJson({ index: startIndex + limit }) : null
+  const prev = hasPrev ? base64EncodeJson({ index: Math.max(0, startIndex - limit) }) : null
   return { next, prev }
 }
 
@@ -100,7 +153,7 @@ export const handlers = [
 
     // Apply provider_type filter
     if (providerType) {
-      resources = resources.filter((p) => p.configuration?.provider_type === providerType)
+      resources = resources.filter((p) => matchesProviderType(p, providerType))
     }
 
     // Paginate results
@@ -108,7 +161,7 @@ export const handlers = [
     const paginated = resources.slice(startIndex, startIndex + limit)
     const { next, prev } = generateCursors(startIndex, limit, resources.length)
 
-    const body: ToolProvidersResponse = {
+    const body: ToolProvidersListBody = {
       resources: paginated,
       limit,
       has_more: !!next,
@@ -119,27 +172,48 @@ export const handlers = [
     return HttpResponse.json(body)
   }),
   http.post('/api/v1/tool_manager/tool_providers', async (req) => {
-    const newToolProvider = (await req.request.json()) as ToolProvider
-    newToolProvider.id = (providers.length + 1).toString()
-    newToolProvider.status = 'available'
-    newToolProvider.created_at = new Date().toISOString()
-    newToolProvider.updated_at = newToolProvider.created_at
-    const toolNumber = randomInt(1, 31)
+    const payload = (await req.request.json()) as ToolProviderCreate
+    const now = new Date().toISOString()
+    const id = (providers.length + 1).toString()
+    const toolNumber = randomIntRange(1, 31)
     for (let i = 0; i < toolNumber; i++) {
       const toolName = 'Tool' + randomString(6)
       const newTool: Tool = {
         id: (tools.length + 1).toString(),
+        name: toolName,
         namespaced_name: toolName,
         description: 'This is a description for ' + toolName,
         enabled: true,
         status: 'available',
-        execution_count: 0,
         last_refreshed_at: new Date().toISOString(),
-        provider_id: newToolProvider.id,
+        provider_id: id,
+        parameters: [],
+        created_at: now,
+        updated_at: now,
+        created_by: 'user-1',
+        deleted_at: null,
+        deleted_by: null,
+        updated_by: null,
+        labels: {},
       }
       tools.push(newTool)
     }
-    newToolProvider.tool_count = toolNumber
+    const newToolProvider = {
+      id,
+      name: payload.name,
+      description: payload.description ?? null,
+      configuration: payload.configuration as unknown as ToolProvider['configuration'],
+      status: 'available' as const,
+      enabled: true,
+      created_at: now,
+      updated_at: now,
+      created_by: 'user-1',
+      deleted_at: null,
+      deleted_by: null,
+      updated_by: null,
+      labels: {},
+      tool_count: toolNumber,
+    } as ToolProvider
     providers.push(newToolProvider)
     return HttpResponse.json(newToolProvider, { status: 201 })
   }),
@@ -179,9 +253,10 @@ export const handlers = [
 
   http.patch('/api/v1/tool_manager/tools/bulk_update', async (req) => {
     const reqData = (await req.request.json()) as { tool_ids?: string[]; enabled?: boolean }
-    if (reqData?.tool_ids && reqData?.tool_ids?.length > 0) {
+    if (reqData?.tool_ids && reqData.tool_ids.length > 0 && typeof reqData.enabled === 'boolean') {
+      const { enabled } = reqData
       tools.forEach((tool) => {
-        if (reqData?.tool_ids?.includes(tool?.id)) tool.enabled = reqData?.enabled
+        if (reqData.tool_ids?.includes(tool.id)) tool.enabled = enabled
       })
     }
     return HttpResponse.json({}, { status: 201 })
@@ -227,7 +302,7 @@ export const handlers = [
       id: workflowId,
       name: body.name ?? 'new-workflow',
       description: body.description ?? body.name ?? 'New workflow',
-      labels: body.labels ?? {},
+      labels: {},
       is_enabled: body.is_enabled ?? false,
       created_at: now,
       updated_at: now,
@@ -286,20 +361,21 @@ export const handlers = [
     const now = new Date().toISOString()
     const nextVersion = (workflow.version?.version ?? workflow.current_version ?? 1) + 1
 
-    workflow.name = body.name ?? workflow.name
-    workflow.description = body.description ?? workflow.description
-    workflow.is_enabled = body.is_enabled ?? workflow.is_enabled
-    workflow.labels = body.labels ?? workflow.labels
-    workflow.updated_at = now
-    workflow.updated_by = 'user-1'
-    workflow.current_version = nextVersion
+    const mutableWorkflow = workflow as MutableWorkflowWithVersion
+    mutableWorkflow.name = body.name ?? workflow.name
+    mutableWorkflow.description = body.description ?? workflow.description
+    mutableWorkflow.is_enabled = body.is_enabled ?? workflow.is_enabled
+    mutableWorkflow.labels = body.labels ?? workflow.labels
+    mutableWorkflow.updated_at = now
+    mutableWorkflow.updated_by = 'user-1'
+    mutableWorkflow.current_version = nextVersion
     // Tags live only in workflow.labels (above). Keep existing definition when PATCH omits workflow_definition (e.g. details-only edit).
     const nextDefinition = body.workflow_definition ?? workflow.version?.workflow_definition
-    workflow.version = {
+    mutableWorkflow.version = {
       version: nextVersion,
       schema_version: nextDefinition?.schemaVersion ?? workflow.version?.schema_version ?? '1.0.0',
       workflow_definition: nextDefinition,
-      created_by: workflow.updated_by ?? workflow.version?.created_by ?? 'user-1',
+      created_by: mutableWorkflow.updated_by ?? workflow.version?.created_by ?? 'user-1',
       created_at: now,
       change_description: 'Updated via mock API',
     }
@@ -377,9 +453,11 @@ export const handlers = [
         const approvalData = a as unknown as { execution_id?: string }
         if (approvalData.execution_id !== execution_id) return false
       }
-      if (created_at && a.createdAt) {
+      if (created_at) {
+        const ts = approvalCreatedAt(a)
+        if (!ts) return false
         const filterDate = new Date(created_at).toDateString()
-        if (new Date(a.createdAt).toDateString() !== filterDate) return false
+        if (new Date(ts).toDateString() !== filterDate) return false
       }
       if (nameContains) {
         const approvalData = a as unknown as { name?: string }
@@ -397,8 +475,10 @@ export const handlers = [
         let aVal: string | number = ''
         let bVal: string | number = ''
         if (field === 'created_at') {
-          aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0
-          bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0
+          const aTs = approvalCreatedAt(a)
+          const bTs = approvalCreatedAt(b)
+          aVal = aTs ? new Date(aTs).getTime() : 0
+          bVal = bTs ? new Date(bTs).getTime() : 0
         } else if (field === 'name') {
           aVal = (a as unknown as { name?: string }).name || ''
           bVal = (b as unknown as { name?: string }).name || ''
@@ -483,14 +563,16 @@ export const handlers = [
     }
 
     approvalData.status = body.status
-    approvalData.decided_at = new Date().toISOString()
-    approvalData.decision_notes = body.notes || null
+    const decidedNow = new Date().toISOString()
+    approvalData.decided_at = decidedNow
+    approvalData.decision_notes = body.notes ?? null
     // Mock user - in real implementation, this would come from auth context
     approvalData.decided_by = {
       id: '770e8400-e29b-41d4-a716-446655440001',
       name: 'Current User',
     }
-    approvalData.updatedAt = new Date().toISOString()
+    approvalData.updatedAt = decidedNow
+    ;(approval as { updated_at: string }).updated_at = decidedNow
 
     return HttpResponse.json(approval)
   }),
@@ -552,9 +634,10 @@ export const handlers = [
 
       data.status = decision.status
       data.decided_at = now
-      data.decision_notes = decision.notes || null
+      data.decision_notes = decision.notes ?? null
       data.decided_by = mockUser
       data.updatedAt = now
+      ;(approval as { updated_at: string }).updated_at = now
 
       return {
         approval_id: decision.approval_id,
@@ -577,7 +660,7 @@ export const handlers = [
   // File upload mock handler
   http.post('/api/v1/files', async ({ request }) => {
     const formData = await request.formData()
-    const files = formData.getAll('files') as File[]
+    const files = formData.getAll('files').filter((entry): entry is File => entry instanceof File)
 
     const fileResponses = files.map((file) => ({
       file_id: uuidv4(),
