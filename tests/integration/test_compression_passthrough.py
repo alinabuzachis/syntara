@@ -4,13 +4,26 @@ Tests the RH1 binary decision logic where documents within token budget
 pass through unchanged without compression.
 """
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, Mock
 
+import pytest
+
 from nexus.agent_orchestrator.context_manager.compressor import CompressorService
+from tests.conftest import FakeSettingsCache
 
 
 class TestCompressionPassthrough:
-    """Test compression pass-through logic for documents within budget."""
+    """Tests for compression pass-through when documents are within token budget."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_runtime_settings(  # type: ignore[misc]
+        self, override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]]
+    ) -> None:
+        """Auto-mock get_runtime_settings for compressor tests."""
+        with override_runtime_settings():
+            yield
 
     async def test_documents_within_budget_pass_through_unchanged(self, mock_token_calculator: Mock) -> None:
         """Test that documents fitting within token budget pass through without compression."""

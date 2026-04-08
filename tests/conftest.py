@@ -162,6 +162,111 @@ def override_settings() -> Callable[..., AbstractContextManager[object]]:
     return _override
 
 
+class FakeSettingsCache:
+    """In-memory SettingsCache replacement for tests.
+
+    Seeded from SETTINGS_CATALOG defaults, with test-specific overrides applied on top.
+    """
+
+    def __init__(self, overrides: dict[str, object] | None = None) -> None:
+        """Seed from catalog defaults and apply overrides.
+
+        Args:
+            overrides: Mapping of dot-namespaced key to value.
+
+        """
+        from nexus.settings.catalog import SETTINGS_CATALOG
+
+        self._store: dict[str, object] = {entry.key: entry.default_value for entry in SETTINGS_CATALOG}
+        if overrides:
+            unknown = [k for k in overrides if k not in self._store]
+            if unknown:
+                msg = f"Runtime setting(s) not in SETTINGS_CATALOG: {unknown}"
+                raise KeyError(msg)
+            self._store.update(overrides)
+
+    async def get(self, key: str) -> Any:  # noqa: ANN401
+        """Return the setting value, or None if unknown."""
+        return self._store.get(key)
+
+    async def _get_typed(
+        self,
+        key: str,
+        expected_types: type | tuple[type, ...],
+        type_name: str,
+        *,
+        default: Any = None,  # noqa: ANN401
+        reject_bool: bool = False,
+    ) -> Any:  # noqa: ANN401
+        """Fetch a setting and validate its runtime type."""
+        from nexus.settings.exceptions import SettingTypeError
+
+        value = await self.get(key)
+        if value is None:
+            if default is not None:
+                return default
+            raise SettingTypeError(key, type_name, "None")
+        if reject_bool and isinstance(value, bool):
+            raise SettingTypeError(key, type_name, "bool")
+        if not isinstance(value, expected_types):
+            raise SettingTypeError(key, type_name, type(value).__name__)
+        return value
+
+    async def get_int(self, key: str, *, default: int | None = None) -> int:
+        """Return the setting value as an ``int``."""
+        return await self._get_typed(key, int, "int", default=default, reject_bool=True)  # type: ignore[no-any-return]
+
+    async def get_float(self, key: str, *, default: float | None = None) -> float:
+        """Return the setting value as a ``float``."""
+        value = await self._get_typed(key, (int, float), "float", default=default, reject_bool=True)
+        return float(value)
+
+    async def get_str(self, key: str, *, default: str | None = None) -> str:
+        """Return the setting value as a ``str``."""
+        return await self._get_typed(key, str, "str", default=default)  # type: ignore[no-any-return]
+
+    async def get_bool(self, key: str, *, default: bool | None = None) -> bool:
+        """Return the setting value as a ``bool``."""
+        return await self._get_typed(key, bool, "bool", default=default)  # type: ignore[no-any-return]
+
+    def invalidate(self, key: str) -> None:
+        """No-op, matching SettingsCache interface."""
+
+
+@pytest.fixture
+def override_runtime_settings() -> Callable[..., AbstractContextManager[FakeSettingsCache]]:
+    """Temporarily override runtime settings in tests.
+
+    Swaps the process-wide SettingsCache singleton with a FakeSettingsCache
+    seeded from SETTINGS_CATALOG defaults. Only the keys passed in overrides
+    differ from catalog defaults.
+
+    Example:
+        def test_custom_timeout(override_runtime_settings):
+            with override_runtime_settings({"context_manager.request_timeout_seconds": 3}):
+                # All runtime settings return catalog defaults except the override
+                ...
+
+    """
+
+    @contextmanager
+    def _override(
+        overrides: dict[str, object] | None = None,
+        /,
+    ) -> Generator[FakeSettingsCache, None, None]:
+        import nexus.settings.cache.settings_cache as _mod
+
+        original = _mod._runtime_settings
+        fake = FakeSettingsCache(overrides)
+        _mod._runtime_settings = fake  # type: ignore[assignment]
+        try:
+            yield fake
+        finally:
+            _mod._runtime_settings = original
+
+    return _override
+
+
 @pytest.fixture(scope="session")
 def worker_id(request: pytest.FixtureRequest) -> str:
     """Get pytest-xdist worker ID.
@@ -275,7 +380,7 @@ async def _truncate_all_tables(engine: AsyncEngine) -> None:
                 if schema and schema != "public"
                 else preparer.quote(table_name)
                 for schema, table_name in result
-                if table_name not in ("alembic_version", "installation")
+                if table_name not in ("alembic_version", "installation", "runtime_settings")
             ]
 
             if not tables:
@@ -359,7 +464,9 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
         AsyncSession for tests
 
     """
-    # Clear data before each test while keeping the migrated schema intact
+    # Clear data before each test while keeping the migrated schema intact.
+    # runtime_settings is excluded from truncation (like alembic_version)
+    # because it is seeded once before app startup and treated as reference data.
     await _truncate_all_tables(test_db_engine)
     logger.debug("Created clean test session for %s", _safe_url(test_db_engine.url))
 
@@ -383,27 +490,46 @@ async def test_db_session(test_db_engine: AsyncEngine) -> AsyncGenerator[AsyncSe
 
 
 @pytest_asyncio.fixture(scope="session")
-async def session_app(worker_id: str, test_cache: None) -> AsyncGenerator[FastAPI, None]:
+async def session_app(worker_id: str, test_db_engine: AsyncEngine, test_cache: None) -> AsyncGenerator[FastAPI, None]:
     """Create a session-scoped app with routers discovered once per worker.
 
     This fixture performs router discovery once when the worker starts,
     eliminating the need to run discovery for every test. This prevents
     file lock contention and significantly improves test performance.
 
+    The module-level ``AsyncSessionLocal`` and ``engine`` are patched to use
+    the testcontainers database so that lifespan operations (settings seeder,
+    runtime settings cache) use the test database instead of production.
+
     Args:
         worker_id: pytest-xdist worker ID
+        test_db_engine: Test database engine from testcontainers
         test_cache: fixture that ensures the cache is ready
 
     Yields:
         FastAPI application with routers registered
 
     """
-    # Trigger app lifespan startup (which includes router discovery)
-    # This happens once per worker session
-    async with app.router.lifespan_context(app):
-        logger.info("Session app initialized for worker '%s'", worker_id)
+    test_session_factory = async_sessionmaker(test_db_engine, class_=AsyncSession, expire_on_commit=False)
+    # Patch module-level DB objects so the lifespan
+    # (set_runtime_settings, engine.dispose) uses the test database.
+    with (
+        patch("nexus.core.database.session.engine", test_db_engine),
+        patch("nexus.core.database.session.AsyncSessionLocal", test_session_factory),
+        patch("nexus.api.main.engine", test_db_engine),
+        patch("nexus.api.main.AsyncSessionLocal", test_session_factory),
+    ):
+        # Seed settings before app startup (normally done post-migration)
+        from nexus.settings.seeder import seed_settings
 
-        yield app
+        await seed_settings(test_session_factory)
+
+        # Trigger app lifespan startup (which includes router discovery)
+        # This happens once per worker session
+        async with app.router.lifespan_context(app):
+            logger.info("Session app initialized for worker '%s'", worker_id)
+
+            yield app
 
 
 @pytest.fixture
@@ -830,7 +956,13 @@ def sync_test_client(
     app.state.execution_streaming_service = ExecutionStreamingService(session_factory=session_factory)
 
     try:
-        with TestClient(app) as client:
+        with (
+            patch("nexus.core.database.session.engine", test_db_engine),
+            patch("nexus.core.database.session.AsyncSessionLocal", session_factory),
+            patch("nexus.api.main.engine", test_db_engine),
+            patch("nexus.api.main.AsyncSessionLocal", session_factory),
+            TestClient(app) as client,
+        ):
             yield client
     finally:
         if previous_get_db is not None:

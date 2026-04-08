@@ -17,8 +17,8 @@ from nexus.agent_orchestrator.exceptions import InvocationCancelledError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.agent_orchestrator.token_manager import TokenValidationService
 from nexus.api.auth import get_current_user
-from nexus.core.config.base import get_settings
 from nexus.core.database.session import get_db
+from nexus.settings.cache.settings_cache import get_runtime_settings
 
 from .assembler_service import AssemblerService
 from .compressor import CompressorService, get_compressor_service
@@ -51,7 +51,7 @@ class ContextManagerPlanner:
             compressor_service_factory: Factory function for creating CompressorService
 
         """
-        self.settings = get_settings()
+        self.settings = get_runtime_settings()
         self.session_factory = session_factory
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
         self.retriever_service_factory = retriever_service_factory
@@ -146,9 +146,9 @@ class ContextManagerPlanner:
 
         assembly_start = time.time()
 
-        # Get configuration parameters
-        max_tokens = self.settings.context_manager_max_total_tokens
-        compression_loop = getattr(self.settings, "context_manager_compression_loop", 3)
+        # Get configuration parameters from runtime settings
+        max_tokens = await self.settings.get_int("context_manager.max_total_tokens")
+        compression_loop = await self.settings.get_int("context_manager.compression_loop")
 
         # Get database session and current user for token validation
         async with self.get_async_session_context() as session:

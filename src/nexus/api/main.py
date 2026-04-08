@@ -20,7 +20,7 @@ from temporalio.service import RPCError
 
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.core.config.base import get_settings
-from nexus.core.database.session import engine, get_db
+from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (
     generic_exception_handler,
     integrity_error_handler,
@@ -39,6 +39,7 @@ from nexus.metrics.completion_poller import get_completion_poller
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.middleware import MetricsMiddleware
 from nexus.metrics.openmetrics import openmetrics_endpoint
+from nexus.settings.cache.settings_cache import SettingsCache, set_runtime_settings
 from nexus.telemetry.client import flush_telemetry, get_telemetry_registry, initialize_telemetry
 from nexus.telemetry.middleware import AnalyticsMiddleware
 from nexus.telemetry.periodic_collector import PeriodicCollector
@@ -67,6 +68,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         None
 
     """
+    # Initialise the process-wide settings cache (lazy, no background worker).
+    # Settings catalog must be seeded first: uv run python tools/seed_settings.py
+    set_runtime_settings(SettingsCache(session_factory=AsyncSessionLocal))
+
     # Discover and register all routers automatically
     # This replaces manual router imports and registration
     settings = get_settings()

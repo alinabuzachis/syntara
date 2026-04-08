@@ -4,6 +4,8 @@ This module tests the individual service classes (CompressorService, AssemblerSe
 """
 
 import math
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -12,10 +14,20 @@ from nexus.agent_orchestrator.context_manager import (
     AssemblerService,
     CompressorService,
 )
-from nexus.core.config.base import get_settings
+from tests.conftest import FakeSettingsCache
 
 
 class TestCompressorService:
+    """Tests for CompressorService behavior."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_runtime_settings(  # type: ignore[misc]
+        self, override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]]
+    ) -> None:
+        """Auto-mock get_runtime_settings for compressor tests."""
+        with override_runtime_settings():
+            yield
+
     """Test the CompressorService stub implementation."""
 
     def test_compressor_initialization(self) -> None:
@@ -99,38 +111,3 @@ class TestAssemblerService:
 
         assert result is not None
         assert math.isclose(result.grounding_score, 0.0)
-
-
-class TestContextManagerSettings:
-    """Test the Context Manager settings integration."""
-
-    def test_context_manager_settings_accessible(self) -> None:
-        """Test Context Manager settings are accessible via get_settings()."""
-        settings = get_settings()
-
-        # Verify grounding score settings
-        assert hasattr(settings, "context_manager_required_grounding_score")
-        assert hasattr(settings, "context_manager_minimum_grounding_score")
-        assert isinstance(settings.context_manager_required_grounding_score, float)
-        assert isinstance(settings.context_manager_minimum_grounding_score, float)
-
-    def test_context_manager_default_values(self) -> None:
-        """Test Context Manager settings have expected default values."""
-        settings = get_settings()
-
-        # Verify specific default values
-        assert math.isclose(settings.context_manager_required_grounding_score, 0.7)
-        assert math.isclose(settings.context_manager_minimum_grounding_score, 0.5)
-        assert settings.context_manager_max_total_tokens == 4000
-        assert settings.context_manager_max_context_tokens == 3000
-        assert settings.context_manager_default_k == 10
-        assert settings.context_manager_enable_hybrid_search is True
-        assert settings.context_manager_compression_mode == "extractive"
-
-    def test_context_manager_settings_cached(self) -> None:
-        """Test that get_settings() returns the same instance (cached)."""
-        settings1 = get_settings()
-        settings2 = get_settings()
-
-        # Should be the same cached instance
-        assert settings1 is settings2

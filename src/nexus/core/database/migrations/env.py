@@ -17,6 +17,7 @@ from nexus.core.logging.logging import configure_structlog
 from nexus.core.models import User
 from nexus.core.models.installation import Installation
 from nexus.files.models import FileMetadata
+from nexus.settings.models.runtime_setting import RuntimeSetting
 from nexus.tool_manager.models.rate_limit_config import RateLimit
 from nexus.tool_manager.models.tool import Tool, ToolParameter
 from nexus.tool_manager.models.tool_execution import ToolExecution
@@ -46,6 +47,7 @@ _ = (
     TokenUsageRecord,
     FileMetadata,
     ApprovalRequest,
+    RuntimeSetting,
 )
 
 # this is the Alembic Config object, which provides

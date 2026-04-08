@@ -16,9 +16,9 @@ from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.planner import ContextManagerPlanner
 from nexus.agent_orchestrator.exceptions import ContextIntegrationError
 from nexus.agent_orchestrator.models.agent_state import AgentState
-from nexus.core.config.base import get_settings
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import MetricType
+from nexus.settings.cache.settings_cache import get_runtime_settings
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -43,6 +43,7 @@ class OrchestratorAgent:
 
         """
         self.context_manager = context_manager_planner
+        self.settings = get_runtime_settings()
 
     async def execute(self, state: AgentState) -> AgentState:
         """Execute orchestration: context integration and routing.
@@ -83,9 +84,8 @@ class OrchestratorAgent:
         try:
             logger.debug("Calling context manager for session", session_id=state["session_id"])
 
-            # Get timeout from settings
-            settings = get_settings()
-            timeout = settings.context_manager_request_timeout_seconds
+            # Get timeout from runtime settings
+            timeout = await self.settings.get_int("context_manager.request_timeout_seconds")
 
             # Call context manager using PR 168 pattern with configurable timeout
             context_package = await asyncio.wait_for(

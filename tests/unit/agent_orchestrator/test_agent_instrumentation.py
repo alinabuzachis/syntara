@@ -5,6 +5,8 @@ expected metrics records (FR-018 through FR-020).
 """
 
 import copy
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -17,6 +19,7 @@ from nexus.agent_orchestrator.exceptions import AgentOrchestratorError
 from nexus.agent_orchestrator.models.agent_state import AgentState
 from nexus.metrics.recorder import MetricsRecorder
 from nexus.metrics.types import MetricType
+from tests.conftest import FakeSettingsCache
 
 
 @pytest.fixture
@@ -56,6 +59,14 @@ def _make_agent_state(**overrides: object) -> AgentState:
 
 class TestAgentRoutingMetrics:
     """Tests for agent routing duration recording."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_runtime_settings(  # type: ignore[misc]
+        self, override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]]
+    ) -> None:
+        """Auto-mock get_runtime_settings for orchestrator tests."""
+        with override_runtime_settings():
+            yield
 
     def test_route_request_records_duration(self, recorder: MetricsRecorder) -> None:
         """_route_request records an AGENT_ROUTING_DURATION metric."""

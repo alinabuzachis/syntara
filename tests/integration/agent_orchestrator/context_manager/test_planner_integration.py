@@ -7,6 +7,7 @@ verifying proper dependency injection and parameter passing.
 import contextlib
 import math
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -20,6 +21,14 @@ from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_
 from nexus.agent_orchestrator.context_manager.retriever_service.services import RetrieverService
 from nexus.core.models import User
 from nexus.files import FileMetadata
+from tests.conftest import FakeSettingsCache
+
+
+@pytest.fixture(autouse=True)
+def _mock_runtime_settings(override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]]) -> None:  # type: ignore[misc]
+    """Auto-mock get_runtime_settings for all planner integration tests."""
+    with override_runtime_settings():
+        yield
 
 
 def create_test_document(

@@ -5,6 +5,8 @@ and ensures proper workflow execution and error handling with the
 new RetrieverService framework.
 """
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
@@ -14,11 +16,23 @@ from nexus.agent_orchestrator.context_manager import (
     ContextManagerPlanner,
     ContextPackage,
 )
+from nexus.agent_orchestrator.context_manager.compressor import get_compressor_service
+from nexus.agent_orchestrator.context_manager.retriever_service.services import get_retriever_service
+from nexus.core.database.session import get_db
 from nexus.core.models import User, UserRole
+from tests.conftest import FakeSettingsCache
 
 
 class TestContextManagerPlanner:
     """Test the ContextManagerPlanner orchestration logic."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_runtime_settings(  # type: ignore[misc]
+        self, override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]]
+    ) -> None:
+        """Auto-mock get_runtime_settings for all planner tests."""
+        with override_runtime_settings():
+            yield
 
     @pytest.fixture
     def mock_user(self) -> User:
@@ -32,12 +46,12 @@ class TestContextManagerPlanner:
         )
 
     def test_planner_initialization(self) -> None:
-        """Test that ContextManagerPlanner initializes correctly."""
+        """Test that ContextManagerPlanner initializes with correct default factories."""
         planner = ContextManagerPlanner()
 
-        assert planner.settings is not None
-        assert hasattr(planner.settings, "context_manager_required_grounding_score")
-        assert planner.settings.context_manager_required_grounding_score == pytest.approx(0.7)
+        assert planner.session_factory is get_db
+        assert planner.retriever_service_factory is get_retriever_service
+        assert planner.compressor_service_factory is get_compressor_service
 
     @pytest.mark.asyncio
     async def test_plan_request_successful_workflow(self, mock_user: User, mock_compressor) -> None:
@@ -265,6 +279,41 @@ class TestContextManagerPlanner:
             assert "compression_loop" in call_kwargs  # Default: 3
             assert call_kwargs["user_id"] == mock_user.id
             assert "session" in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_plan_request_reads_max_total_tokens_from_settings(
+        self,
+        mock_user: User,
+        mock_compressor,
+        override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]],
+    ) -> None:
+        """plan_request() must read context_manager.max_total_tokens from runtime settings."""
+        mock_context_package = ContextPackage(
+            correlation_id="cache-test",
+            payload={},
+            grounding_score=0.0,
+            citations=[],
+            package_metadata={},
+        )
+
+        with (
+            override_runtime_settings({"context_manager.max_total_tokens": 8000}),
+            patch(
+                "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
+                new_callable=AsyncMock,
+                return_value=mock_context_package,
+            ) as mock_assemble,
+            patch(
+                "nexus.agent_orchestrator.context_manager.planner.get_current_user",
+                new_callable=AsyncMock,
+                return_value=mock_user,
+            ),
+        ):
+            planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
+            await planner.plan_request(correlation_id="cache-test", session_id="test-session", query="cache query")
+
+        call_kwargs = mock_assemble.call_args.kwargs
+        assert call_kwargs["max_tokens"] == 8000
 
     def test_context_package_model_validation(self) -> None:
         """Test ContextPackage model validation."""

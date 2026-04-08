@@ -179,11 +179,18 @@ endif
 
 # Development workflow
 # ========================================================
+.PHONY: db-seed-settings
+db-seed-settings: check-deps ## Seed runtime settings catalog into the database
+	@echo "🌱 Seeding runtime settings..."
+	@uv run tools/seed_settings.py
+	@echo "✅ Seeding complete"
+
 .PHONY: dev
 dev: check-deps ## Run development server with auto-reload
 	@echo "🔄 Running database migrations..."
 	@uv run alembic upgrade head
-	@echo "✅ Migrations complete"
+	@$(MAKE) db-seed-settings
+	@echo "✅ Migrations and seeding complete"
 	@echo "🚀 Starting Nexus API server..."
 	@echo "📍 API URL: http://localhost:8000"
 	@echo "📍 API Docs: http://localhost:8000/docs"

@@ -4,15 +4,26 @@ Tests the RH1 compression logic when documents exceed token budget
 and require LLM summarization with proper citation format.
 """
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from nexus.agent_orchestrator.context_manager.compressor import CompressorService
+from tests.conftest import FakeSettingsCache
 
 
 class TestCompressionWithCitations:
-    """Test LLM compression logic with structured citations."""
+    """Tests for LLM compression with structured citations."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_runtime_settings(  # type: ignore[misc]
+        self, override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]]
+    ) -> None:
+        """Auto-mock get_runtime_settings for compressor tests."""
+        with override_runtime_settings():
+            yield
 
     async def test_documents_exceeding_budget_trigger_compression(self, mock_token_calculator: Mock) -> None:
         """Test that documents exceeding token budget trigger LLM compression."""

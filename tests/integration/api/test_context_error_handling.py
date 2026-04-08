@@ -15,6 +15,7 @@ from httpx import AsyncClient
 from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.core.models import User
+from tests.conftest import FakeSettingsCache
 from tests.helpers.invocations import wait_for_invocation_execution
 
 
@@ -88,7 +89,7 @@ class TestContextErrorHandling:
         self,
         auth_client_with_mocked_llm: AsyncClient,
         test_user: User,
-        override_settings: Callable[..., AbstractContextManager[object]],
+        override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]],
     ) -> None:
         """Test graceful handling of Context Manager timeouts.
 
@@ -102,7 +103,7 @@ class TestContextErrorHandling:
 
         with (
             patch.object(ContextManagerPlanner, "plan_request", side_effect=slow_plan_request),
-            override_settings(context_manager_request_timeout_seconds=3),
+            override_runtime_settings({"context_manager.request_timeout_seconds": 3}),
         ):
             prompt = "Test timeout handling"
             session_id = "timeout-test"

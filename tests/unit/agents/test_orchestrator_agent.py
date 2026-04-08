@@ -1,5 +1,7 @@
 """Unit tests for OrchestratorAgent context integration and routing."""
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -10,9 +12,17 @@ from langchain_core.messages import HumanMessage
 from nexus.agent_orchestrator.agents.orchestrator_agent import OrchestratorAgent
 from nexus.agent_orchestrator.constants import AgentRoutes
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
+from tests.conftest import FakeSettingsCache
 
 if TYPE_CHECKING:
     from nexus.agent_orchestrator.models.agent_state import AgentState
+
+
+@pytest.fixture(autouse=True)
+def _mock_runtime_settings(override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]]) -> None:  # type: ignore[misc]
+    """Auto-mock get_runtime_settings for all orchestrator agent tests."""
+    with override_runtime_settings():
+        yield
 
 
 class TestOrchestratorAgentContextIntegration:
@@ -318,6 +328,39 @@ class TestOrchestratorAgentPromptFormatting:
         assert result_state["prompt"] == original_prompt
         assert result_state["context_package"] is not None
         assert result_state["context_package"]["context_applied"] is True
+
+
+class TestOrchestratorAgentSettings:
+    """Test OrchestratorAgent reads timeout from runtime settings."""
+
+    @pytest.mark.asyncio
+    async def test_integrate_context_reads_timeout_from_settings(
+        self,
+        override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]],
+    ) -> None:
+        """_integrate_context() must read context_manager.request_timeout_seconds from runtime settings."""
+        mock_context_manager = MagicMock()
+        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.5)
+        mock_context_manager.plan_request = AsyncMock(return_value=test_context)
+
+        invocation_id = str(uuid4())
+        state: AgentState = {
+            "prompt": "test query",
+            "original_prompt": "test query",
+            "session_id": "test-session",
+            "correlation_id": "test-correlation",
+            "invocation_id": invocation_id,
+            "context_package": None,
+            "current_agent": "",
+            "messages": [HumanMessage("test")],
+            "result": None,
+            "metadata": None,
+            "llm_token_usage_log": [],
+        }
+
+        with override_runtime_settings({"context_manager.request_timeout_seconds": 45}):
+            orchestrator = OrchestratorAgent(mock_context_manager)
+            await orchestrator.execute(state)
 
 
 class TestOrchestratorAgentLogging:

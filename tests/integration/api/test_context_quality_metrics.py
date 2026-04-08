@@ -4,6 +4,8 @@ Tests that context enhancement provides meaningful quality improvements and metr
 Based on Scenario 4 from quickstart.md.
 """
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from unittest.mock import patch
 
 import pytest
@@ -12,11 +14,20 @@ from httpx import AsyncClient
 from nexus.agent_orchestrator.context_manager import ContextManagerPlanner
 from nexus.agent_orchestrator.context_manager.models import ContextPackage
 from nexus.core.models import User
+from tests.conftest import FakeSettingsCache
 from tests.helpers.invocations import wait_for_invocation_execution
 
 
 class TestContextQualityMetrics:
     """Test suite for context quality validation and grounding score accuracy."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_runtime_settings(  # type: ignore[misc]
+        self, override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]]
+    ) -> None:
+        """Auto-mock get_runtime_settings for all context quality tests."""
+        with override_runtime_settings():
+            yield
 
     @pytest.mark.asyncio
     async def test_grounding_score_reflects_context_quality(
