@@ -1,6 +1,7 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { ReactFlowProvider } from '@xyflow/react'
 import type { ComponentProps, ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
@@ -467,6 +468,34 @@ describe('BuilderContent', () => {
 
       // Verify the description was updated
       expect(descriptionTextarea).toHaveValue('New Description')
+    })
+
+    it('applies automation details from header popover onApply callback', async () => {
+      const user = userEvent.setup()
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('Test Workflow')
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Edit automation details' }))
+      await waitFor(() => {
+        expect(screen.getByLabelText('Description')).toBeInTheDocument()
+      })
+
+      await user.clear(screen.getByLabelText('Description'))
+      await user.type(screen.getByLabelText('Description'), 'Updated via edit details popover')
+      const popoverSurface = screen.getByRole('dialog')
+      const closeButtons = within(popoverSurface).getAllByRole('button', { name: 'Close' })
+      await user.click(closeButtons[closeButtons.length - 1])
+
+      await waitFor(() => {
+        expect(screen.queryByLabelText('Description')).not.toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Edit automation details' }))
+      await waitFor(() => {
+        expect(screen.getByLabelText('Description')).toHaveValue('Updated via edit details popover')
+      })
     })
 
     it('closes sidepanel via its close button', async () => {
@@ -1316,6 +1345,33 @@ describe('BuilderContent', () => {
       expect(addEventListenerSpy).toHaveBeenCalledWith('beforeunload', expect.any(Function))
 
       addEventListenerSpy.mockRestore()
+    })
+
+    it('beforeunload handler prevents default when workflow is dirty', async () => {
+      const addSpy = vi.spyOn(window, 'addEventListener')
+      const prevDirty = useWorkflowStore.getState().isDirty
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      const beforeUnloadCall = addSpy.mock.calls.find((c) => c[0] === 'beforeunload')
+      expect(beforeUnloadCall).toBeDefined()
+      const handler = beforeUnloadCall![1] as (e: BeforeUnloadEvent) => void
+
+      try {
+        act(() => {
+          useWorkflowStore.getState().markDirty()
+        })
+        const event = new Event('beforeunload', { cancelable: true }) as BeforeUnloadEvent
+        act(() => {
+          handler(event)
+        })
+        expect(event.defaultPrevented).toBe(true)
+      } finally {
+        act(() => {
+          useWorkflowStore.setState({ isDirty: prevDirty })
+        })
+      }
+
+      addSpy.mockRestore()
     })
 
     it('unregisters beforeunload handler on unmount', async () => {

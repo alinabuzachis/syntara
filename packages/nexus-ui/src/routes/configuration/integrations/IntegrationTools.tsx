@@ -37,6 +37,27 @@ import { buildFilterParams } from '../../../utils/filterUtils'
 
 import { getIntegrationNameFilterDefinition, createFilterChangeHandler } from './integrationFilters'
 
+/**
+ * Reconcile enabled IDs with the latest API slice: for each tool in `tools`, enabled state comes
+ * only from the payload (so a tool that is now disabled is removed). IDs not present in this
+ * response keep their previous entries so pagination does not lose off-page selections until
+ * those rows load again.
+ */
+function mergeEnabledToolIdsFromApi(previous: Set<string>, tools: Tool[]): Set<string> {
+  const idsOnPage = new Set(tools.map((t) => t.id))
+  const enabledOnPage = new Set(tools.filter((t) => t.enabled).map((t) => t.id))
+  const next = new Set<string>()
+  for (const id of previous) {
+    if (!idsOnPage.has(id)) {
+      next.add(id)
+    }
+  }
+  for (const id of enabledOnPage) {
+    next.add(id)
+  }
+  return next
+}
+
 // eslint-disable-next-line max-lines-per-function, complexity
 export default function IntegrationTools() {
   const params = useParams()
@@ -162,23 +183,15 @@ export default function IntegrationTools() {
   })
   const [refreshDialogOpen, setRefreshDialogOpen] = useState(false)
 
-  // Sync enabledToolIds when tools change (e.g., page navigation, refresh)
-  // This initializes enabledToolIds with tools that are enabled from the API
-  // and preserves user selections when navigating between pages
+  // Sync enabledToolIds when tools change (e.g., page navigation, refresh).
+  // Current page reflects API enabled flags; off-page IDs stay until those tools appear again.
   useEffect(() => {
     // Only update if tools actually changed (not on every sort)
     if (previousResultsRef.current !== tools) {
       previousResultsRef.current = tools
       // Use queueMicrotask to avoid calling setState synchronously within an effect
       queueMicrotask(() => {
-        setEnabledToolIds((prev) => {
-          const updated = new Set(prev)
-          // Add tools that are enabled on the current page (from API)
-          tools.filter((tool) => tool.enabled).forEach((tool) => updated.add(tool.id))
-          // Note: We preserve selections for tools not on the current page
-          // This allows tracking enabled tools across all pages
-          return updated
-        })
+        setEnabledToolIds((prev) => mergeEnabledToolIdsFromApi(prev, tools))
       })
     }
   }, [tools])

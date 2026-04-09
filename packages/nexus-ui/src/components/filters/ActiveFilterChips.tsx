@@ -3,6 +3,67 @@ import { Label, LabelGroup, ToolbarItem } from '@patternfly/react-core'
 import type { FilterConfig, FilterFieldDefinition, FilterOperator } from '../../types/filters'
 import { WorkflowName } from '../WorkflowName'
 
+/** Resolves a filter value to a display label from field options or getOptionLabel. */
+function resolveFilterOptionDisplayLabel(field: FilterFieldDefinition | undefined, value: unknown): string | null {
+  if (field?.options) {
+    const option = field.options.find((opt) => String(opt.value) === String(value))
+    if (option) {
+      return option.label
+    }
+  }
+  if (field?.getOptionLabel) {
+    const label = field.getOptionLabel(String(value))
+    if (label) {
+      return label
+    }
+  }
+  return null
+}
+
+function getScalarFilterDisplayValue(
+  field: FilterFieldDefinition | undefined,
+  filter: FilterConfig,
+  operator: FilterOperator
+): string {
+  const resolved = resolveFilterOptionDisplayLabel(field, filter.value)
+  if (resolved) {
+    return resolved
+  }
+
+  if (operator === 'gte' || operator === 'gt') {
+    return `From: ${String(filter.value)}`
+  }
+  if (operator === 'lte' || operator === 'lt') {
+    return `To: ${String(filter.value)}`
+  }
+
+  return String(filter.value)
+}
+
+/** Label for one multi-select value; matches scalar option resolution, then raw value. */
+function getArrayFilterValueDisplayLabel(field: FilterFieldDefinition | undefined, val: string): string {
+  return resolveFilterOptionDisplayLabel(field, val) ?? val
+}
+
+interface ArrayFilterValueLabelsProps {
+  field: FilterFieldDefinition | undefined
+  filter: FilterConfig
+  operator: FilterOperator
+  values: string[]
+  onChipRemove: (fieldKey: string, operator?: FilterOperator, value?: string) => void
+}
+
+function ArrayFilterValueLabels({ field, filter, operator, values, onChipRemove }: ArrayFilterValueLabelsProps) {
+  return values.map((val) => {
+    const displayLabel = getArrayFilterValueDisplayLabel(field, val)
+    return (
+      <Label key={`${filter.key}-${operator}-${val}`} onClose={() => onChipRemove(filter.key, filter.operator, val)}>
+        {displayLabel}
+      </Label>
+    )
+  })
+}
+
 /**
  * Props for ActiveFilterChips component
  */
@@ -69,17 +130,16 @@ export function ActiveFilterChips({
               const operator = filter.operator ?? 'eq'
 
               if (Array.isArray(filter.value)) {
-                return filter.value.map((val) => {
-                  const displayLabel = field?.options?.find((opt) => opt.value === val)?.label ?? val
-                  return (
-                    <Label
-                      key={`${filter.key}-${operator}-${val}`}
-                      onClose={() => onChipRemove(filter.key, filter.operator, val)}
-                    >
-                      {displayLabel}
-                    </Label>
-                  )
-                })
+                return (
+                  <ArrayFilterValueLabels
+                    key={`${filter.key}-array-${operator}`}
+                    field={field}
+                    filter={filter}
+                    operator={operator}
+                    values={filter.value}
+                    onChipRemove={onChipRemove}
+                  />
+                )
               }
 
               const uniqueKey = `${filter.key}-${operator}`
@@ -92,26 +152,7 @@ export function ActiveFilterChips({
                 )
               }
 
-              const displayValue = (() => {
-                if (field?.options) {
-                  const option = field.options.find((opt) => String(opt.value) === String(filter.value))
-                  if (option) return option.label
-                }
-
-                if (field?.getOptionLabel) {
-                  const label = field.getOptionLabel(String(filter.value))
-                  if (label) return label
-                }
-
-                if (operator === 'gte' || operator === 'gt') {
-                  return `From: ${String(filter.value)}`
-                }
-                if (operator === 'lte' || operator === 'lt') {
-                  return `To: ${String(filter.value)}`
-                }
-
-                return String(filter.value)
-              })()
+              const displayValue = getScalarFilterDisplayValue(field, filter, operator)
 
               return (
                 <Label key={uniqueKey} onClose={() => onChipRemove(filter.key, filter.operator)}>

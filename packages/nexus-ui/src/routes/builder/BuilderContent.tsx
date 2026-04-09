@@ -272,6 +272,7 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [workflowId, setWorkflow, setStoredEdges])
 
   const hasInitedNewWorkflowRef = useRef(false)
+
   useEffect(() => {
     if (isNew) {
       if (hasInitedNewWorkflowRef.current) return
@@ -755,7 +756,6 @@ export function BuilderContent(props: BuilderContentProps) {
   )
   // v8 ignore stop
 
-  // v8 ignore start - Browser events and React Flow state monitoring (E2E tested)
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (useWorkflowStore.getState().isDirty) {
@@ -766,16 +766,25 @@ export function BuilderContent(props: BuilderContentProps) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
+  /* v8 ignore start -- @preserve Mirrors React Flow node list length for execution-view sequencing; builder E2E */
   const [nodeCount, setNodeCount] = useState(0)
 
   useEffect(() => {
-    if (nodesInitialized) {
-      const nodes = reactFlowInstance.getNodes()
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (nodes.length !== nodeCount) setNodeCount(nodes.length)
+    const nodes = reactFlowInstance.getNodes()
+    // Skip until canvas is initialized unless the graph is already empty (so we still clear nodeCount when the last node is removed).
+    if (!nodesInitialized && nodes.length > 0) {
+      return
     }
+    const nextLen = nodes.length
+    if (nextLen === nodeCount) {
+      return
+    }
+    // Defer to avoid synchronous setState in the effect body (react-hooks/set-state-in-effect).
+    queueMicrotask(() => {
+      setNodeCount(nextLen)
+    })
   }, [nodesInitialized, reactFlowInstance, nodeCount])
-  // v8 ignore stop
+  /* v8 ignore stop */
 
   return (
     <NodeActionsContext.Provider value={nodeActionsValue}>

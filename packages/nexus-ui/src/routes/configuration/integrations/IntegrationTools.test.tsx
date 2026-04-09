@@ -215,6 +215,32 @@ describe('IntegrationTools Component', () => {
       expect(toolCheckboxes[2]).not.toBeChecked()
     })
 
+    it('unchecks a tool when a new API payload marks it disabled', async () => {
+      const toolsRef = { list: mockTools.map((t) => ({ ...t })) }
+      vi.mocked(toolManagerClient.useQuery).mockImplementation((_method, path: string) => {
+        if (path === '/tool_providers/{provider_id}') {
+          return { ...baseQueryResult, data: mockProvider } as never
+        }
+        return { ...baseQueryResult, data: { resources: toolsRef.list } } as never
+      })
+
+      const { rerender } = render(<IntegrationTools />, { wrapper })
+
+      const toolOneRow = screen.getByText('test.tool_one').closest('tr')
+      expect(toolOneRow).toBeTruthy()
+      const toolOneCheckbox = within(toolOneRow as HTMLElement).getByRole('checkbox')
+      expect(toolOneCheckbox).toBeChecked()
+
+      toolsRef.list = toolsRef.list.map((t) => (t.id === 'tool-1' ? { ...t, enabled: false } : t))
+      rerender(<IntegrationTools />)
+
+      await waitFor(() => {
+        const row = screen.getByText('test.tool_one').closest('tr')
+        expect(row).toBeTruthy()
+        expect(within(row as HTMLElement).getByRole('checkbox')).not.toBeChecked()
+      })
+    })
+
     it('updates selection count when tools are selected', () => {
       render(<IntegrationTools />, { wrapper })
 

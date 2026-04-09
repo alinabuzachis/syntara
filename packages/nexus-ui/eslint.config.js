@@ -103,6 +103,8 @@ export default tseslint.config(
       complexity: ['error', 20],
       'max-depth': ['error', 4],
       'max-params': ['error', 5],
+      // Limit nested functions/callbacks (e.g. hooks → timeout → setState updater). Complements max-depth
+      // and aligns with Sonar-style “deeply nested functions” maintainability rules. Tests disable this.
       'max-nested-callbacks': ['error', 4],
       'import-x/order': [
         'error',
