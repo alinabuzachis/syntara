@@ -254,6 +254,29 @@ export const handlers = [
     return HttpResponse.json(body)
   }),
 
+  http.delete('/api/v1/tool_manager/tool_providers/:provider_id', (request) => {
+    const providerId = request.params.provider_id as string
+    const index = providers.findIndex((p) => p.id === providerId)
+    if (index === -1) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/provider-not-found',
+          title: 'Provider Not Found',
+          detail: `Integration with id '${providerId}' not found`,
+          code: 'PROVIDER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/tool_manager/tool_providers/${providerId}`,
+        },
+        { status: 404 }
+      )
+    }
+    providers.splice(index, 1)
+    for (let i = tools.length - 1; i >= 0; i--) {
+      if (tools[i].provider_id === providerId) tools.splice(i, 1)
+    }
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.patch('/api/v1/tool_manager/tools/bulk_update', async (req) => {
     const reqData = (await req.request.json()) as { tool_ids?: string[]; enabled?: boolean }
     if (reqData?.tool_ids && reqData.tool_ids.length > 0 && typeof reqData.enabled === 'boolean') {
