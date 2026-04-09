@@ -35,7 +35,7 @@ export default function Glossary() {
           value={search}
           onChange={(_event, value) => setSearch(value)}
           onClear={() => setSearch('')}
-          style={{ width: '250px' }}
+          style={{ width: '16rem' }}
         />
       </AppPageHeader>
       {results.length === 0 ? (

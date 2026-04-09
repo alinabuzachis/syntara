@@ -454,6 +454,7 @@ Before writing any new UI code, follow this checklist:
    - Build accessible components following PatternFly patterns and design system
    - Include comprehensive tests (see existing `.test.tsx` files)
    - Place in `packages/nexus-ui/src/components/` for app-specific components
+   - **Use PF6 design tokens instead of hardcoded pixel values** for spacing, sizing, colors, and icons. Use `var(--pf-t--global--spacer--*)` for margins/padding, `var(--pf-t--global--icon--size--*)` for icon dimensions, `var(--pf-t--global--color--*)` for colors, and content-aware units (`ch`, `rem`) for input widths. Hardcoded `px` values are acceptable only for layout constraints (table column widths, fixed panel heights) where no semantic token applies.
 
 4. **Custom Hooks**
    - Extract reusable logic into custom hooks

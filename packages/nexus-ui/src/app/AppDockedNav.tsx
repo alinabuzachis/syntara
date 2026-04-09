@@ -134,7 +134,13 @@ export function AppDockedNav() {
       <MastheadMain>
         <MastheadBrand>
           <MastheadLogo component="a">
-            <RedhatIcon style={{ height: '24px', width: '24px', color: '#E00' }} />
+            <RedhatIcon
+              style={{
+                height: 'var(--pf-t--global--icon--size--md)',
+                width: 'var(--pf-t--global--icon--size--md)',
+                color: 'var(--pf-t--global--color--brand--default)',
+              }}
+            />
           </MastheadLogo>
         </MastheadBrand>
       </MastheadMain>

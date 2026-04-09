@@ -386,7 +386,7 @@ function TriggerTimeField({
               }}
               min={1}
               max={12}
-              style={{ width: '70px', textAlign: 'center' }}
+              style={{ width: '5ch', textAlign: 'center' }}
               aria-label="Hour"
             />
           </FlexItem>
@@ -403,7 +403,7 @@ function TriggerTimeField({
               }}
               min={0}
               max={59}
-              style={{ width: '70px', textAlign: 'center' }}
+              style={{ width: '5ch', textAlign: 'center' }}
               aria-label="Minute"
             />
           </FlexItem>
@@ -412,7 +412,7 @@ function TriggerTimeField({
               value={triggerPeriod}
               onChange={(_event, value) => dispatch({ type: 'SET_TRIGGER_PERIOD', payload: value as 'AM' | 'PM' })}
               aria-label="Period"
-              style={{ width: '80px' }}
+              style={{ width: '6ch' }}
             >
               <FormSelectOption value="AM" label="AM" />
               <FormSelectOption value="PM" label="PM" />

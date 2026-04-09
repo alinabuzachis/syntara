@@ -32,10 +32,11 @@ export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
   const metadata = isScheduled ? nodeMetadata.scheduledTrigger : nodeMetadata.trigger
   const iconId = isScheduled ? 'trigger-scheduled' : 'trigger-manual'
   const iconNode = renderNodeIcon(metadata.icon, iconId)
+  // 75px border-radius is a layout constraint (pill shape), not a spacing value — no semantic token applies
   const triggerStyle: CSSProperties = {
     borderTopLeftRadius: '75px',
     borderBottomLeftRadius: '75px',
-    paddingLeft: '25px',
+    paddingLeft: 'var(--pf-t--global--spacer--lg)',
   }
 
   // Extract trigger index from node id (format: trigger-0, trigger-1, etc.)

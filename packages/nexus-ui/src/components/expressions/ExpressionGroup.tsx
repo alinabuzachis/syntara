@@ -49,11 +49,16 @@ const RuleHelp = () => (
     bodyContent={
       <div>
         <p>Define the relationship between your top-level conditions and groups.</p>
-        <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+        <ul
+          style={{
+            marginTop: 'var(--pf-t--global--spacer--sm)',
+            paddingLeft: 'var(--pf-t--global--spacer--lg)',
+          }}
+        >
           <li>
             <strong>AND:</strong> All conditions/groups must be true to proceed.
           </li>
-          <li style={{ marginTop: '4px' }}>
+          <li style={{ marginTop: 'var(--pf-t--global--spacer--xs)' }}>
             <strong>OR:</strong> Only one condition/group needs to be true to proceed.
           </li>
         </ul>
@@ -69,11 +74,16 @@ const GroupRuleHelp = () => (
     bodyContent={
       <div>
         <p>Determine the logic for this specific subset of conditions.</p>
-        <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+        <ul
+          style={{
+            marginTop: 'var(--pf-t--global--spacer--sm)',
+            paddingLeft: 'var(--pf-t--global--spacer--lg)',
+          }}
+        >
           <li>
             <strong>AND:</strong> Every condition inside this nested group must be true.
           </li>
-          <li style={{ marginTop: '4px' }}>
+          <li style={{ marginTop: 'var(--pf-t--global--spacer--xs)' }}>
             <strong>OR:</strong> If any single condition inside this group is true, the entire group evaluates as true.
           </li>
         </ul>
