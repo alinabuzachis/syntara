@@ -12,12 +12,12 @@ from tests.helpers.workflow import create_minimal_workflow_definition
 
 
 @pytest.mark.asyncio
-async def test_get_workflows_empty_list(base_client: AsyncClient) -> None:
+async def test_get_workflows_empty_list(jwt_client: AsyncClient) -> None:
     """Test getting workflows when none exist.
 
     Expected: 200 OK with empty array
     """
-    response = await base_client.get("/api/v1/workflows")
+    response = await jwt_client.get("/api/v1/workflows")
 
     assert response.status_code == 200
     data = response.json()
@@ -29,7 +29,7 @@ async def test_get_workflows_empty_list(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_workflows_list_all(base_client: AsyncClient) -> None:
+async def test_get_workflows_list_all(jwt_client: AsyncClient) -> None:
     """Test listing all workflows.
 
     Expected: 200 OK with workflows array
@@ -48,11 +48,11 @@ async def test_get_workflows_list_all(base_client: AsyncClient) -> None:
     ]
 
     for workflow in workflows_to_create:
-        response = await base_client.post("/api/v1/workflows", json=workflow)
+        response = await jwt_client.post("/api/v1/workflows", json=workflow)
         assert response.status_code == 201
 
     # List all workflows
-    response = await base_client.get("/api/v1/workflows")
+    response = await jwt_client.get("/api/v1/workflows")
 
     assert response.status_code == 200
     data = response.json()
@@ -62,7 +62,7 @@ async def test_get_workflows_list_all(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_workflows_filter_by_created_by(base_client: AsyncClient) -> None:
+async def test_get_workflows_filter_by_created_by(jwt_client: AsyncClient) -> None:
     """Test filtering workflows by creator.
 
     Expected: 200 OK with only workflows from specified creator
@@ -76,7 +76,7 @@ async def test_get_workflows_filter_by_created_by(base_client: AsyncClient) -> N
             activity_id="activity_1",
         ),
     }
-    response1 = await base_client.post("/api/v1/workflows", json=workflow1)
+    response1 = await jwt_client.post("/api/v1/workflows", json=workflow1)
     assert response1.status_code == 201
     creator_id = response1.json()["created_by"]
 
@@ -89,11 +89,11 @@ async def test_get_workflows_filter_by_created_by(base_client: AsyncClient) -> N
             activity_id="activity_2",
         ),
     }
-    response2 = await base_client.post("/api/v1/workflows", json=workflow2)
+    response2 = await jwt_client.post("/api/v1/workflows", json=workflow2)
     assert response2.status_code == 201
 
     # Filter by creator - should return both workflows
-    response = await base_client.get(f"/api/v1/workflows?created_by={creator_id}&include_total=true")
+    response = await jwt_client.get(f"/api/v1/workflows?created_by={creator_id}&include_total=true")
     assert response.status_code == 200
     data = response.json()
     assert len(data["resources"]) == 2
@@ -103,12 +103,12 @@ async def test_get_workflows_filter_by_created_by(base_client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
-async def test_get_workflows_filter_by_invalid_uuid(base_client: AsyncClient) -> None:
+async def test_get_workflows_filter_by_invalid_uuid(jwt_client: AsyncClient) -> None:
     """Test filtering by invalid UUID returns validation error.
 
     Expected: 422 Unprocessable Entity
     """
-    response = await base_client.get("/api/v1/workflows?created_by=invalid-uuid")
+    response = await jwt_client.get("/api/v1/workflows?created_by=invalid-uuid")
     assert response.status_code == 422
     assert_error_data(
         response,
@@ -122,12 +122,12 @@ async def test_get_workflows_filter_by_invalid_uuid(base_client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
-async def test_get_workflows_filter_by_is_enabled(base_client: AsyncClient) -> None:
+async def test_get_workflows_filter_by_is_enabled(jwt_client: AsyncClient) -> None:
     """Test filtering workflows by enabled status.
 
     Expected: 200 OK with filtered workflows
     """
-    response = await base_client.get("/api/v1/workflows?is_enabled=true")
+    response = await jwt_client.get("/api/v1/workflows?is_enabled=true")
 
     assert response.status_code == 200
     data = response.json()
@@ -140,7 +140,7 @@ async def test_get_workflows_filter_by_is_enabled(base_client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
-async def test_get_workflows_pagination(base_client: AsyncClient) -> None:
+async def test_get_workflows_pagination(jwt_client: AsyncClient) -> None:
     """Test cursor-based pagination.
 
     Expected: 200 OK with paginated results and next/prev cursors
@@ -155,11 +155,11 @@ async def test_get_workflows_pagination(base_client: AsyncClient) -> None:
                 activity_id=f"activity_{i}",
             ),
         }
-        response = await base_client.post("/api/v1/workflows", json=workflow)
+        response = await jwt_client.post("/api/v1/workflows", json=workflow)
         assert response.status_code == 201
 
     # Get first page (limit=5, include_total to verify count)
-    response = await base_client.get("/api/v1/workflows?limit=5&include_total=true")
+    response = await jwt_client.get("/api/v1/workflows?limit=5&include_total=true")
 
     assert response.status_code == 200
     data = response.json()
@@ -170,7 +170,7 @@ async def test_get_workflows_pagination(base_client: AsyncClient) -> None:
 
     # Get second page using cursor from first page
     next_cursor = data["next"]
-    response = await base_client.get(f"/api/v1/workflows?limit=5&cursor={next_cursor}")
+    response = await jwt_client.get(f"/api/v1/workflows?limit=5&cursor={next_cursor}")
 
     assert response.status_code == 200
     data = response.json()
@@ -179,7 +179,7 @@ async def test_get_workflows_pagination(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_workflows_excludes_soft_deleted(base_client: AsyncClient) -> None:
+async def test_get_workflows_excludes_soft_deleted(jwt_client: AsyncClient) -> None:
     """Test that soft-deleted workflows are excluded by default.
 
     Expected: Deleted workflows not in results
@@ -193,16 +193,16 @@ async def test_get_workflows_excludes_soft_deleted(base_client: AsyncClient) -> 
             activity_id="activity_delete",
         ),
     }
-    create_response = await base_client.post("/api/v1/workflows", json=workflow)
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
     assert create_response.status_code == 201
     workflow_id = create_response.json()["id"]
 
     # Delete workflow (soft delete)
-    delete_response = await base_client.delete(f"/api/v1/workflows/{workflow_id}")
+    delete_response = await jwt_client.delete(f"/api/v1/workflows/{workflow_id}")
     assert delete_response.status_code == 204
 
     # List workflows - should not include deleted one
-    list_response = await base_client.get("/api/v1/workflows")
+    list_response = await jwt_client.get("/api/v1/workflows")
 
     assert list_response.status_code == 200
     data = list_response.json()
@@ -211,7 +211,7 @@ async def test_get_workflows_excludes_soft_deleted(base_client: AsyncClient) -> 
 
 
 @pytest.mark.asyncio
-async def test_get_workflows_filter_by_labels(base_client: AsyncClient) -> None:
+async def test_get_workflows_filter_by_labels(jwt_client: AsyncClient) -> None:
     """Test filtering workflows by labels.
 
     Expected: 200 OK with workflows matching label criteria
@@ -237,11 +237,11 @@ async def test_get_workflows_filter_by_labels(base_client: AsyncClient) -> None:
         "labels": {"environment": "development"},
     }
 
-    await base_client.post("/api/v1/workflows", json=workflow1)
-    await base_client.post("/api/v1/workflows", json=workflow2)
+    await jwt_client.post("/api/v1/workflows", json=workflow1)
+    await jwt_client.post("/api/v1/workflows", json=workflow2)
 
     # Filter by label using key-value format (as per contract spec)
-    response = await base_client.get("/api/v1/workflows?labels[environment]=production")
+    response = await jwt_client.get("/api/v1/workflows?labels[environment]=production")
 
     assert response.status_code == 200
     data = response.json()
@@ -255,7 +255,7 @@ async def test_get_workflows_filter_by_labels(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_workflows_default_page_size(base_client: AsyncClient) -> None:
+async def test_get_workflows_default_page_size(jwt_client: AsyncClient) -> None:
     """Test default page size is 20 items (as per contract).
 
     Expected: 200 OK with maximum 20 workflows when more exist
@@ -270,11 +270,11 @@ async def test_get_workflows_default_page_size(base_client: AsyncClient) -> None
                 activity_id=f"activity_page_{i}",
             ),
         }
-        response = await base_client.post("/api/v1/workflows", json=workflow)
+        response = await jwt_client.post("/api/v1/workflows", json=workflow)
         assert response.status_code == 201
 
     # Get workflows without limit parameter (but with include_total to verify count)
-    response = await base_client.get("/api/v1/workflows?include_total=true")
+    response = await jwt_client.get("/api/v1/workflows?include_total=true")
 
     assert response.status_code == 200
     data = response.json()

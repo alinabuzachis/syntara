@@ -18,8 +18,8 @@ import structlog
 import yaml
 from sqlmodel import select
 
-from nexus.api.auth.dependencies import get_current_user  # type: ignore[import-untyped]
 from nexus.core.database.session import AsyncSessionLocal  # type: ignore[import-untyped]
+from nexus.core.models import User  # type: ignore[import-untyped]
 from nexus.workflows.models import Workflow, WorkflowVersion  # type: ignore[import-untyped]
 from nexus.workflows.validators import workflow_validator  # type: ignore[import-untyped]
 
@@ -56,8 +56,14 @@ async def load_sample_workflows(
     # Create database session
     async with AsyncSessionLocal() as session:
         try:
-            # Get or create the current user for workflow ownership
-            user = await get_current_user(session)
+            # Find the bootstrap admin user for workflow ownership
+            result = await session.exec(
+                select(User).filter(User.username == "admin", User.deleted_at.is_(None))  # type: ignore[arg-type]
+            )
+            user = result.first()
+            if not user:
+                logger.error("No admin user found. Run migrations with APP_ADMIN_PASSWORD_PATH set.")
+                return
             creator_id = user.id
             logger.info("Using user as workflow creator", username=user.username, user_id=creator_id)
 

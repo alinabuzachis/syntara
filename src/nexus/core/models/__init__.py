@@ -4,9 +4,12 @@ This module contains the core SQLModel classes that define the foundation
 for all API resources in the Nexus platform.
 """
 
+from nexus.core.models.group import Group, user_groups
 from nexus.core.models.user import User, UserRole
 
 __all__ = [
+    "Group",
     "User",
     "UserRole",
+    "user_groups",
 ]

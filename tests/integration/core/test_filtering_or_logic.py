@@ -103,10 +103,10 @@ class TestFilteringORLogic:
     @pytest.mark.usefixtures("filtering_test_providers")
     async def test_single_field_filtering(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
     ) -> None:
         """Test filtering on a single field with single value."""
-        response = await base_client.get("/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true"})
+        response = await jwt_client.get("/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true"})
 
         assert response.status_code == 200
         data = response.json()
@@ -127,10 +127,10 @@ class TestFilteringORLogic:
     @pytest.mark.usefixtures("filtering_test_providers")
     async def test_multiple_fields_and_logic(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
     ) -> None:
         """Test filtering on multiple fields using AND logic."""
-        response = await base_client.get(
+        response = await jwt_client.get(
             "/api/v1/tool_manager/tool_providers",
             params={"enabled[eq]": "true", "description[contains]": "Development"},
         )
@@ -155,10 +155,10 @@ class TestFilteringORLogic:
     @pytest.mark.usefixtures("filtering_test_providers")
     async def test_single_field_or_logic(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
     ) -> None:
         """Test filtering on a single field using OR logic (comma-separated values)."""
-        response = await base_client.get(
+        response = await jwt_client.get(
             "/api/v1/tool_manager/tool_providers", params={"name[contains]": "Service,Provider"}
         )
 
@@ -188,10 +188,10 @@ class TestFilteringORLogic:
     @pytest.mark.usefixtures("filtering_test_providers")
     async def test_multiple_fields_mixed_logic(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
     ) -> None:
         """Test filtering with one field using OR and another using AND."""
-        response = await base_client.get(
+        response = await jwt_client.get(
             "/api/v1/tool_manager/tool_providers",
             params={
                 "name[contains]": "Service,Delta",  # OR logic within this field
@@ -220,10 +220,10 @@ class TestFilteringORLogic:
     @pytest.mark.usefixtures("filtering_test_providers")
     async def test_multiple_fields_both_with_or_logic(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
     ) -> None:
         """Test filtering with multiple fields each using OR logic."""
-        response = await base_client.get(
+        response = await jwt_client.get(
             "/api/v1/tool_manager/tool_providers",
             params={
                 "name[contains]": "Alpha,Echo",  # OR within field

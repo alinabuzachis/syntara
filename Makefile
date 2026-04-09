@@ -191,9 +191,9 @@ db-seed-settings: check-deps ## Seed runtime settings catalog into the database
 	@echo "✅ Seeding complete"
 
 .PHONY: dev
-dev: check-deps ## Run development server with auto-reload
+dev: check-deps _ensure-secrets ## Run development server with auto-reload
 	@echo "🔄 Running database migrations..."
-	@uv run alembic upgrade head
+	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head
 	@$(MAKE) db-seed-settings
 	@echo "✅ Migrations and seeding complete"
 	@echo "🚀 Starting Nexus API server..."
@@ -201,6 +201,9 @@ dev: check-deps ## Run development server with auto-reload
 	@echo "📍 API Docs: http://localhost:8000/docs"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
+	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
+	APP_JWT_BACKUP_KEYS='[{"key_id":"nexus-backup","key_path":".secrets/jwt-backup.pem"}]' \
+	APP_DB_ENCRYPTION_KEY_PATH=.secrets/db-encryption-key \
 	uv run python -m nexus.api.main
 
 
@@ -271,8 +274,36 @@ build-images: ## Build container images for nexus and temporal-worker
 	@echo "✅ Container images built successfully"
 	@echo "   Image: $${APP_IMAGE:-localhost/nexus:latest}"
 
+
+# Secrets management
+# ========================================================
+.PHONY: secrets-generate
+secrets-generate: ## Generate JWT signing keys for development
+	@uv run ./tools/generate_secrets.sh
+
+.PHONY: secrets-generate-force
+secrets-generate-force: ## Regenerate JWT signing keys (overwrites existing)
+	@uv run ./tools/generate_secrets.sh --force
+
+.PHONY: secrets-clean
+secrets-clean: ## Remove generated secrets
+	@echo "🗑️  Removing secrets..."
+	@rm -rf .secrets/
+	@echo "✅ Secrets removed"
+
+.PHONY: generate-token
+generate-token: _ensure-secrets ## Generate a JWT token for testing (ROLE=creator|approver|administrator|viewer KEY=primary|backup)
+	@podman-compose exec nexus -- sh -c 'uv run python tools/generate_jwt.py --json $(if $(ROLE),--role $(ROLE)) $(if $(KEY),--key $(KEY))' | jq -r .access_token
+
+.PHONY: _ensure-secrets
+_ensure-secrets:
+	@if [ ! -f .secrets/jwt-primary.pem ] || [ ! -f .secrets/jwt-backup.pem ] || [ ! -f .secrets/admin-password ] || [ ! -f .secrets/db-encryption-key ]; then \
+		echo "🔐 Generating secrets..."; \
+		uv run ./tools/generate_secrets.sh; \
+	fi
+
 .PHONY: run-all
-run-all: ## Start all services (foreground, Ctrl+C to stop)
+run-all: _ensure-secrets ## Start all services (foreground, Ctrl+C to stop)
 	@echo "🚀 Starting all services..."
 	@echo "📍 Nexus API: http://localhost:$${APP_API_PORT:-8000}"
 	@echo "📍 Nexus UI: http://localhost:$${APP_UI_PORT:-8080}"
@@ -286,7 +317,7 @@ run-all: ## Start all services (foreground, Ctrl+C to stop)
 	$(COMPOSE_FINAL_CMD) up --build --force-recreate
 
 .PHONY: services-run
-services-run: ## Start all services (database + cache + temporal + UI + worker + MCP) in background
+services-run: _ensure-secrets ## Start all services (database + cache + temporal + UI + worker + MCP) in background
 	@echo "🚀 Starting all services (database + cache + temporal + UI + worker + MCP)..."
 	@echo "📍 Database: postgresql://admin:admin@localhost:$${APP_DB_PORT:-5432}/nexus_api"
 	@echo "📍 Cache: cache://localhost:$${APP_CACHE_PORT:-6379}"
@@ -510,8 +541,8 @@ typecheck: ## Run type checking only with mypy
 	@echo "✅ Type checking completed"
 
 .PHONY: check-migrations
-check-migrations: ## Validate migrations: conflicts, pending changes, and upgrade/downgrade (uses testcontainers)
-	$(call run-with-testcontainers,POSTGRES_IMAGE="$(POSTGRES_IMAGE)" uv run python tools/ci/check_migrations.py,🔍 Checking migrations)
+check-migrations: _ensure-secrets ## Validate migrations: conflicts, pending changes, and upgrade/downgrade (uses testcontainers)
+	$(call run-with-testcontainers,POSTGRES_IMAGE="$(POSTGRES_IMAGE)" APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run python tools/ci/check_migrations.py,🔍 Checking migrations)
 
 
 # Pre-commit targets

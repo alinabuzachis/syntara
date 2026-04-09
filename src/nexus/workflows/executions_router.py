@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.service import RPCError
 
-from nexus.api.auth import get_current_user
+from nexus.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.workflows.models import ActivitySignalPayload, ExecutionListParams, SignalResponse

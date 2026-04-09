@@ -1,6 +1,7 @@
 """Unit tests for application configuration."""
 
 import os
+import warnings
 
 import pytest
 
@@ -151,14 +152,6 @@ class TestServerSettings:
         assert settings.server_host == "0.0.0.0"  # noqa: S104
         assert settings.server_port == 8000
         assert settings.server_reload is False
-
-    def test_cors_defaults(self) -> None:
-        """Test default CORS configuration values."""
-        settings = Settings()
-        assert settings.cors_allow_origins == ["*"]
-        assert settings.cors_allow_credentials is True
-        assert settings.cors_allow_methods == ["*"]
-        assert settings.cors_allow_headers == ["*"]
 
     def test_server_settings_from_env(self) -> None:
         """Test server settings can be configured via environment."""
@@ -531,3 +524,60 @@ class TestAdapterRetrySettings:
 
         with pytest.raises(ValueError, match="adapter_max_backoff_seconds"):
             Settings()
+
+
+# =============================================================================
+# CORS Production Validation Tests (AAP-71274)
+# =============================================================================
+
+
+class TestCorsProductionValidation:
+    """Tests for CORS origin validation in production mode."""
+
+    def test_warns_when_cors_origins_empty_in_production(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Should warn when server_scheme=https but cors_allow_origins is empty."""
+        monkeypatch.setenv("APP_SERVER_SCHEME", "https")
+        monkeypatch.setenv("APP_CORS_ALLOW_ORIGINS", "[]")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            Settings()
+
+        cors_warnings = [x for x in w if "cors_allow_origins is empty" in str(x.message)]
+        assert len(cors_warnings) == 1
+
+    def test_no_warning_when_cors_origins_set_in_production(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Should not warn when server_scheme=https and cors_allow_origins is configured."""
+        monkeypatch.setenv("APP_SERVER_SCHEME", "https")
+        monkeypatch.setenv("APP_CORS_ALLOW_ORIGINS", '["https://app.example.com"]')
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            Settings()
+
+        cors_warnings = [x for x in w if "cors_allow_origins is empty" in str(x.message)]
+        assert len(cors_warnings) == 0
+
+    def test_no_warning_when_server_scheme_http(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Should not warn when server_scheme=http (local dev mode)."""
+        monkeypatch.setenv("APP_SERVER_SCHEME", "http")
+        monkeypatch.setenv("APP_CORS_ALLOW_ORIGINS", "[]")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            Settings()
+
+        cors_warnings = [x for x in w if "cors_allow_origins is empty" in str(x.message)]
+        assert len(cors_warnings) == 0
+
+    def test_cookie_secure_derived_from_https(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """cookie_secure should be True when server_scheme is https."""
+        monkeypatch.setenv("APP_SERVER_SCHEME", "https")
+        settings = Settings()
+        assert settings.cookie_secure is True
+
+    def test_cookie_secure_derived_from_http(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """cookie_secure should be False when server_scheme is http."""
+        monkeypatch.setenv("APP_SERVER_SCHEME", "http")
+        settings = Settings()
+        assert settings.cookie_secure is False

@@ -17,10 +17,10 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_basic_success(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test basic GET /api/v1/tool_manager/tool_providers returns 200."""
-        response = await base_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
+        response = await jwt_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -46,11 +46,11 @@ class TestToolProvidersListContract:
 
     @pytest.mark.asyncio
     async def test_list_providers_pagination_contract(
-        self, base_client_with_provider_factory: AsyncClient, multiple_test_providers: list[ToolProvider]
+        self, jwt_client_with_provider_factory: AsyncClient, multiple_test_providers: list[ToolProvider]
     ) -> None:
         """Test pagination parameters are accepted and response format is correct."""
         # Test with limit smaller than total count to ensure pagination works
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"limit": "3"}
         )
 
@@ -72,7 +72,7 @@ class TestToolProvidersListContract:
 
         # Test pagination with cursor
         if data["next"]:
-            next_response = await base_client_with_provider_factory.get(
+            next_response = await jwt_client_with_provider_factory.get(
                 "/api/v1/tool_manager/tool_providers", params={"limit": "3", "cursor": data["next"]}
             )
             assert next_response.status_code == 200
@@ -89,11 +89,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_bracket_filters_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test bracket filter notation is accepted."""
         # Test filtering by enabled status
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true"}
         )
         assert response.status_code == 200
@@ -108,7 +108,7 @@ class TestToolProvidersListContract:
         assert len(data["resources"]) == 4
 
         # Test filtering by provider type in configuration
-        mcp_response = await base_client_with_provider_factory.get(
+        mcp_response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"configuration.provider_type[eq]": "mcp"}
         )
         assert mcp_response.status_code == 200
@@ -122,7 +122,7 @@ class TestToolProvidersListContract:
         assert len(mcp_data["resources"]) == 6
 
         # Test name contains filter
-        alpha_response = await base_client_with_provider_factory.get(
+        alpha_response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"name[contains]": "Alpha"}
         )
         assert alpha_response.status_code == 200
@@ -134,10 +134,10 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_include_total_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test include_total parameter returns total count."""
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"include_total": "true"}
         )
 
@@ -154,10 +154,10 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_response_schema_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test response matches OpenAPI specification schema."""
-        response = await base_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
+        response = await jwt_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -195,11 +195,11 @@ class TestToolProvidersListContract:
 
     @pytest.mark.asyncio
     async def test_list_providers_invalid_parameters_contract(
-        self, base_client_with_provider_factory: AsyncClient
+        self, jwt_client_with_provider_factory: AsyncClient
     ) -> None:
         """Test validation of query parameters."""
         # Test with invalid limit parameter
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"limit": "invalid"}
         )
 
@@ -207,9 +207,9 @@ class TestToolProvidersListContract:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_list_providers_empty_result_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
+    async def test_list_providers_empty_result_contract(self, jwt_client_with_provider_factory: AsyncClient) -> None:
         """Test response format when no providers exist."""
-        response = await base_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
+        response = await jwt_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
 
         # Contract: Must return 200 even for empty results
         assert response.status_code == 200
@@ -223,10 +223,10 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_cursor_format_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test cursor token format in response."""
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"limit": "1"}
         )
 
@@ -249,11 +249,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_sorting_by_name_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test sorting providers by name."""
         # Test ascending sort
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"sort": "name"}
         )
         assert response.status_code == 200
@@ -268,7 +268,7 @@ class TestToolProvidersListContract:
         assert names[-1] == "Gamma Provider"  # Last alphabetically
 
         # Test descending sort
-        desc_response = await base_client_with_provider_factory.get(
+        desc_response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"sort": "-name"}
         )
         assert desc_response.status_code == 200
@@ -281,10 +281,10 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_sorting_by_created_at_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test sorting providers by creation date."""
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"sort": "created_at"}
         )
         assert response.status_code == 200
@@ -294,7 +294,7 @@ class TestToolProvidersListContract:
         assert created_dates == sorted(created_dates)
 
         # Test descending sort (newest first)
-        desc_response = await base_client_with_provider_factory.get(
+        desc_response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"sort": "-created_at"}
         )
         assert desc_response.status_code == 200
@@ -307,11 +307,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_combined_filter_and_sort_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "sort": "name"}
         )
         assert response.status_code == 200
@@ -330,11 +330,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_combined_filter_and_sort_contract_disabled(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test combining filters and sorting."""
         # Filter enabled providers and sort by name
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "false", "sort": "-name"}
         )
         assert response.status_code == 200
@@ -353,11 +353,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_filter_by_multiple_criteria_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test filtering by multiple criteria."""
         # Filter enabled MCP providers
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers",
             params={"enabled[eq]": "true", "configuration.provider_type[eq]": "mcp"},
         )
@@ -375,11 +375,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_pagination_with_filters_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test pagination works correctly with filters."""
         # Get enabled providers with pagination
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "limit": "2"}
         )
         assert response.status_code == 200
@@ -393,7 +393,7 @@ class TestToolProvidersListContract:
             assert provider["enabled"] is True
 
         # Get next page
-        next_response = await base_client_with_provider_factory.get(
+        next_response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "limit": "2", "cursor": data["next"]}
         )
         assert next_response.status_code == 200
@@ -406,29 +406,29 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_edge_cases_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test edge cases and boundary conditions."""
         # Test with limit = 0 (should return error)
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"limit": "0"}
         )
         assert response.status_code == 422  # Validation error
 
         # Test with very large limit (should be capped)
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"limit": "1000"}
         )
         assert response.status_code in [200, 422]  # Either capped or validation error
 
         # Test with invalid cursor
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"cursor": "invalid-cursor"}
         )
         assert response.status_code in [200, 422]  # Either ignored or validation error
 
         # Test with invalid sort field
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"sort": "invalid_field"}
         )
         assert response.status_code in [200, 422]  # Either ignored or validation error
@@ -437,11 +437,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_filter_no_results_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test filtering that returns no results."""
         # Filter for non-existent provider type
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"configuration.provider_type[eq]": "nonexistent"}
         )
         assert response.status_code == 200
@@ -461,11 +461,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_complex_configuration_filter_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test filtering by nested configuration properties."""
         # Filter MCP providers by base_url containing 'alpha'
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers",
             params={"configuration.provider_type[eq]": "mcp", "description[contains]": "First"},
         )
@@ -480,11 +480,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_include_total_with_filters_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test include_total works correctly with filters."""
         # Get total for all providers
-        all_response = await base_client_with_provider_factory.get(
+        all_response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"include_total": "true"}
         )
         assert all_response.status_code == 200
@@ -492,7 +492,7 @@ class TestToolProvidersListContract:
         assert all_data["total"] == 6
 
         # Get total for enabled providers only
-        enabled_response = await base_client_with_provider_factory.get(
+        enabled_response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "include_total": "true"}
         )
         assert enabled_response.status_code == 200
@@ -500,7 +500,7 @@ class TestToolProvidersListContract:
         assert enabled_data["total"] == 4  # 4 enabled providers
 
         # Total should be accurate even with pagination
-        paginated_response = await base_client_with_provider_factory.get(
+        paginated_response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"enabled[eq]": "true", "include_total": "true", "limit": "2"}
         )
         assert paginated_response.status_code == 200
@@ -512,11 +512,11 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_filter_invalid_status_enum_contract(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test filtering with invalid ProviderStatus enum value returns 400."""
         # Filter with invalid status value
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             "/api/v1/tool_manager/tool_providers", params={"status[eq]": "nonexistent"}
         )
 
@@ -535,7 +535,7 @@ class TestToolProvidersListContract:
     @pytest.mark.usefixtures("multiple_test_providers")
     async def test_list_providers_configuration_eager_loading(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
     ) -> None:
         """Test that configuration is correctly loaded and typed in list_providers endpoint.
 
@@ -544,7 +544,7 @@ class TestToolProvidersListContract:
         proper deserialization and type safety for API consumers.
         """
         # Make HTTP request to list providers - this is end-to-end testing
-        response = await base_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
+        response = await jwt_client_with_provider_factory.get("/api/v1/tool_manager/tool_providers")
 
         # Verify successful response
         assert response.status_code == 200

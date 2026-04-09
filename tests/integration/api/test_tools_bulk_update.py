@@ -29,12 +29,12 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_disable_success_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test successful bulk disable returns 200."""
         tool_ids = [str(tool.id) for tool in multiple_tools_for_bulk[:2]]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 
@@ -53,13 +53,13 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_enable_success_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test successful bulk enable returns 200."""
         # Use the disabled tool
         tool_ids = [str(multiple_tools_for_bulk[2].id)]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": True}
         )
 
@@ -73,14 +73,14 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_mixed_existing_nonexistent_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test bulk update with mix of existing and non-existent tool IDs."""
         existing_id = str(multiple_tools_for_bulk[0].id)
         nonexistent_ids = [str(uuid4()), str(uuid4())]
         tool_ids = [existing_id, *nonexistent_ids]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 
@@ -93,9 +93,9 @@ class TestToolsBulkUpdateContract:
         assert data["skipped_count"] == 2  # Two non-existent tools
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, base_client: AsyncClient) -> None:
+    async def ***REMOVED***(self, jwt_client: AsyncClient) -> None:
         """Test bulk update with empty tool_ids list returns 400."""
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": [], "enabled": False}
         )
 
@@ -109,12 +109,12 @@ class TestToolsBulkUpdateContract:
         assert isinstance(data["detail"], list) or "cannot be empty" in str(data["detail"])
 
     @pytest.mark.asyncio
-    async def ***REMOVED***(self, base_client: AsyncClient) -> None:
+    async def ***REMOVED***(self, jwt_client: AsyncClient) -> None:
         """Test bulk update with more than 50 tools returns 400."""
         # Create list of 51 tool IDs
         tool_ids = [str(uuid4()) for _ in range(51)]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 
@@ -128,10 +128,10 @@ class TestToolsBulkUpdateContract:
         assert isinstance(data["detail"], list) or "50" in str(data["detail"])
 
     @pytest.mark.asyncio
-    async def test_bulk_update_missing_required_fields_contract(self, base_client: AsyncClient) -> None:
+    async def test_bulk_update_missing_required_fields_contract(self, jwt_client: AsyncClient) -> None:
         """Test bulk update with missing required fields returns 422."""
         # Missing status field
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update",
             json={
                 "tool_ids": [str(uuid4())]
@@ -143,7 +143,7 @@ class TestToolsBulkUpdateContract:
         assert response.status_code == 422
 
         # Missing tool_ids field
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update",
             json={
                 "enabled": False
@@ -155,9 +155,9 @@ class TestToolsBulkUpdateContract:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_bulk_update_invalid_uuid_format_contract(self, base_client: AsyncClient) -> None:
+    async def test_bulk_update_invalid_uuid_format_contract(self, jwt_client: AsyncClient) -> None:
         """Test bulk update with invalid UUID format returns 422."""
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update",
             json={"tool_ids": ["not-a-valid-uuid", "also-invalid"], "enabled": False},
         )
@@ -167,12 +167,12 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_response_format_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test bulk update response has correct format."""
         tool_ids = [str(tool.id) for tool in multiple_tools_for_bulk[:2]]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 
@@ -190,19 +190,19 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_idempotent_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test bulk update is idempotent."""
         tool_ids = [str(multiple_tools_for_bulk[0].id)]
 
         # First update
-        response1 = await base_client.patch(
+        response1 = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
         assert response1.status_code == 200
 
         # Second update with same status
-        response2 = await base_client.patch(
+        response2 = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 
@@ -213,13 +213,13 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_case_insensitivity_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test status values are case-insensitive."""
         tool_ids = [str(multiple_tools_for_bulk[0].id)]
 
         # Test with incorrect case
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update",
             json={
                 "tool_ids": tool_ids,
@@ -231,9 +231,9 @@ class TestToolsBulkUpdateContract:
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_bulk_update_invalid_json_contract(self, base_client: AsyncClient) -> None:
+    async def test_bulk_update_invalid_json_contract(self, jwt_client: AsyncClient) -> None:
         """Test bulk update with invalid JSON returns 422."""
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update",
             content="invalid json",
             headers={"Content-Type": "application/json"},
@@ -244,12 +244,12 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_content_type_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test response has correct content type."""
         tool_ids = [str(multiple_tools_for_bulk[0].id)]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 
@@ -261,7 +261,7 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_max_limit_boundary_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test bulk update at the 50 tool limit."""
         # Create exactly 50 tool IDs (mix of existing and non-existing)
@@ -269,7 +269,7 @@ class TestToolsBulkUpdateContract:
         additional_ids = [str(uuid4()) for _ in range(50 - len(existing_ids))]
         tool_ids = existing_ids + additional_ids
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 
@@ -283,12 +283,12 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_unknown_fields_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test bulk update with unknown fields."""
         tool_ids = [str(multiple_tools_for_bulk[0].id)]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update",
             json={"tool_ids": tool_ids, "enabled": False, "unknown_field": "value"},
         )
@@ -303,13 +303,13 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_duplicate_tool_ids_contract(
-        self, base_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
+        self, jwt_client: AsyncClient, multiple_tools_for_bulk: list[Tool]
     ) -> None:
         """Test bulk update with duplicate tool IDs."""
         tool_id = str(multiple_tools_for_bulk[0].id)
         tool_ids = [tool_id, tool_id, tool_id]  # Same ID repeated
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 
@@ -323,7 +323,7 @@ class TestToolsBulkUpdateContract:
 
     @pytest.mark.asyncio
     async def test_bulk_update_soft_deleted_tool_contract(
-        self, base_client: AsyncClient, test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
+        self, jwt_client: AsyncClient, test_db_session: AsyncSession, test_tool_provider: ToolProvider, test_user: User
     ) -> None:
         """Test bulk update with soft-deleted tool IDs."""
         # Create a tool that will be soft-deleted
@@ -361,7 +361,7 @@ class TestToolsBulkUpdateContract:
         # Attempt to update both soft-deleted and active tool
         tool_ids = [str(soft_deleted_tool.id), str(active_tool.id)]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 
@@ -374,12 +374,12 @@ class TestToolsBulkUpdateContract:
         assert data["skipped_count"] == 1  # The soft-deleted tool
 
     @pytest.mark.asyncio
-    async def test_bulk_update_nonexistent_tool_contract(self, base_client: AsyncClient) -> None:
+    async def test_bulk_update_nonexistent_tool_contract(self, jwt_client: AsyncClient) -> None:
         """Test bulk update with completely non-existent tool IDs."""
         # Generate UUIDs that don't exist in the database
         nonexistent_tool_ids = [str(uuid4()), str(uuid4()), str(uuid4())]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": nonexistent_tool_ids, "enabled": False}
         )
 
@@ -394,7 +394,7 @@ class TestToolsBulkUpdateContract:
     @pytest.mark.asyncio
     async def test_bulk_update_mixed_scenarios_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         test_db_session: AsyncSession,
         test_tool_provider: ToolProvider,
         test_user: User,
@@ -432,7 +432,7 @@ class TestToolsBulkUpdateContract:
             active_tool_id,  # Duplicate active tool
         ]
 
-        response = await base_client.patch(
+        response = await jwt_client.patch(
             "/api/v1/tool_manager/tools/bulk_update", json={"tool_ids": tool_ids, "enabled": False}
         )
 

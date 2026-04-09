@@ -11,6 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from langchain_core.messages import AIMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nexus.auth.services.token_service import TokenService
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 
@@ -194,6 +195,7 @@ async def auth_client_with_tool_aware_mocked_llm(
     - Allows real tool discovery and execution
     - Enables testing of complete tool execution workflow
     - Supports assertions on tool calls and results
+    - Includes valid JWT authentication
 
     Args:
         test_db_session: Test database session
@@ -202,9 +204,16 @@ async def auth_client_with_tool_aware_mocked_llm(
         mock_tool_aware_llm: Tool-aware LLM mock
 
     Yields:
-        AsyncClient with authentication and smart tool calling
+        AsyncClient with JWT authentication and smart tool calling
 
     """
+    # Generate real JWT token for the test user
+    token_service = TokenService()
+    access_token = token_service.create_access_token(
+        user_id=test_user.id,
+        username=test_user.username,
+        email=test_user.email or "",
+    )
 
     # Override database session in the app
     async def override_get_db() -> AsyncIterator[AsyncSession]:
@@ -215,6 +224,7 @@ async def auth_client_with_tool_aware_mocked_llm(
     async with AsyncClient(
         transport=ASGITransport(app=session_app),
         base_url="http://test",
+        headers={"Authorization": f"Bearer {access_token}"},
     ) as client:
         yield client
 

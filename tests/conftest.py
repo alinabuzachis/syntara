@@ -39,12 +39,14 @@ from testcontainers.postgres import PostgresContainer  # type: ignore[import-unt
 from testcontainers.redis import RedisContainer  # type: ignore[import-untyped]
 
 from nexus.agent_orchestrator.models.invocation import Invocation
-from nexus.api.auth.dependencies import get_current_user
 from nexus.api.main import app
+from nexus.auth.dependencies import get_current_user
+from nexus.auth.services.token_service import TokenService
 from nexus.core.config.base import Settings, get_settings
 from nexus.core.database.session import get_db
 from nexus.core.logging.logging import configure_structlog
 from nexus.core.models import User, UserRole
+from nexus.core.models.group import Group
 from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
 from nexus.tool_manager.models import Tool, ToolProvider
@@ -62,7 +64,7 @@ from tests.helpers.approval import ApprovalsFactory
 from tests.helpers.tool_manager import ToolFactory
 from tests.helpers.workflow import ActivitiesFactory, ExecutionsFactory
 
-_ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata)
+_ = (Invocation, User, Workflow, WorkflowVersion, Execution, FileMetadata, Group)
 
 # Configure structlog for consistent test logging
 # This ensures that all tests have proper structlog configuration,
@@ -414,7 +416,19 @@ async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
     with PostgresContainer(postgres_image) as pg:
         test_database_url = pg.get_connection_url(driver="asyncpg")
         engine = create_async_engine(test_database_url, echo=False, poolclass=NullPool)
-        await _upgrade_database_schema(test_database_url)
+
+        # Migrations require APP_ADMIN_PASSWORD_PATH for bootstrap admin seeding.
+        # Create a temporary password file for the test session.
+        with tempfile.NamedTemporaryFile(mode="w", suffix="-admin-pw", delete=False) as pw_file:
+            pw_file.write("test-admin-password")
+            pw_path = pw_file.name
+        try:
+            os.environ["APP_ADMIN_PASSWORD_PATH"] = pw_path
+            await _upgrade_database_schema(test_database_url)
+        finally:
+            os.environ.pop("APP_ADMIN_PASSWORD_PATH", None)
+            Path(pw_path).unlink(missing_ok=True)
+
         logger.debug("Test database ready (container) for worker '%s'", worker_id)
         yield engine
         await engine.dispose()
@@ -696,11 +710,14 @@ async def base_client_with_provider_factory(
 @pytest.fixture
 def default_user_data() -> dict[str, Any]:
     """Provide default user attributes."""
+    from nexus.auth.passwords import hash_password
+
     return {
         "username": "testuser",
         "email": "testuser@example.com",
         "full_name": "Test User",
         "role": UserRole.CREATOR,
+        "password_hash": hash_password("password123"),
     }
 
 
@@ -724,6 +741,21 @@ async def user_factory(
 async def test_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
     """Create test user with default attributes."""
     return await user_factory()
+
+
+@pytest_asyncio.fixture
+async def non_local_user(test_db_session: AsyncSession) -> "User":
+    """Create a non-local (federated) user without a password hash."""
+    user = User(
+        id=uuid4(),
+        username="federateduser",
+        email="federated@example.com",
+        full_name="Federated User",
+        role=UserRole.CREATOR,
+    )
+    test_db_session.add(user)
+    await test_db_session.commit()
+    return user
 
 
 @pytest_asyncio.fixture
@@ -1448,3 +1480,402 @@ def mock_websocket() -> MagicMock:
     websocket.client.port = 12345
     websocket.app.state = MagicMock()
     return websocket
+
+
+# ============================================================================
+# JWT Authentication Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def token_service() -> TokenService:
+    """Create a TokenService instance for generating test tokens.
+
+    Returns:
+        TokenService: Service for creating and validating JWT tokens
+
+    """
+    return TokenService()
+
+
+@pytest_asyncio.fixture
+async def jwt_access_token(test_user: User, token_service: TokenService) -> str:
+    """Generate a valid JWT access token for the test user.
+
+    This fixture creates a real JWT token signed with the server's key,
+    suitable for testing authenticated endpoints without dependency overrides.
+
+    Args:
+        test_user: Test user to create token for
+        token_service: JWT token service
+
+    Returns:
+        str: Encoded JWT access token
+
+    """
+    return token_service.create_access_token(
+        user_id=test_user.id,
+        username=test_user.username,
+        email=test_user.email or "",
+    )
+
+
+@pytest_asyncio.fixture
+async def jwt_auth_headers(jwt_access_token: str) -> dict[str, str]:
+    """Create authorization headers with JWT Bearer token.
+
+    Args:
+        jwt_access_token: Valid JWT access token
+
+    Returns:
+        dict: Headers dictionary with Authorization header
+
+    """
+    return {"Authorization": f"Bearer {jwt_access_token}"}
+
+
+@pytest_asyncio.fixture
+async def jwt_client(
+    test_db_session: AsyncSession,
+    session_app: FastAPI,
+    test_user: User,
+    token_service: TokenService,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Create a test client with real JWT authentication.
+
+    This fixture creates an AsyncClient that includes a valid JWT token
+    in all requests, testing the full authentication flow without
+    dependency overrides.
+
+    Unlike auth_client which overrides get_current_user, this fixture
+    tests the actual JWT validation logic.
+
+    Args:
+        test_db_session: Test database session
+        session_app: Session-scoped FastAPI app
+        test_user: Test user for authentication
+        token_service: JWT token service
+
+    Yields:
+        AsyncClient: HTTP client with JWT authentication
+
+    """
+    # Generate real JWT token for the test user
+    access_token = token_service.create_access_token(
+        user_id=test_user.id,
+        username=test_user.username,
+        email=test_user.email or "",
+    )
+
+    # Override database session for test isolation
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        yield test_db_session
+
+    session_app.dependency_overrides[get_db] = override_get_db
+
+    # Create client with Authorization header
+    async with AsyncClient(
+        transport=ASGITransport(app=session_app),
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {access_token}"},
+    ) as client:
+        yield client
+
+    session_app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def jwt_client_with_mocked_llm(
+    jwt_client: AsyncClient,
+    mock_openrouter_llm: MagicMock,
+) -> AsyncClient:
+    """Create a JWT-authenticated test client with mocked OpenRouter LLM.
+
+    Use this fixture for tests that need real JWT authentication AND a mocked LLM.
+
+    Args:
+        jwt_client: JWT-authenticated test client
+        mock_openrouter_llm: Mock for OpenRouter LLM
+
+    Returns:
+        AsyncClient: JWT-authenticated client with mocked LLM
+
+    """
+    return jwt_client
+
+
+@pytest.fixture
+def create_jwt_for_user(token_service: TokenService) -> Callable[[User], str]:
+    """Factory fixture to create JWT tokens for any user.
+
+    Returns a function that generates JWT tokens, useful for testing
+    different user roles or multiple users in the same test.
+
+    Args:
+        token_service: JWT token service
+
+    Returns:
+        Callable: Function that takes a User and returns a JWT token
+
+    Usage:
+        def test_multiple_users(create_jwt_for_user, admin_user, regular_user):
+            admin_token = create_jwt_for_user(admin_user)
+            user_token = create_jwt_for_user(regular_user)
+
+    """
+
+    def _create_token(user: User) -> str:
+        return token_service.create_access_token(
+            user_id=user.id,
+            username=user.username,
+            email=user.email or "",
+        )
+
+    return _create_token
+
+
+@pytest_asyncio.fixture
+async def jwt_client_with_provider_factory(
+    jwt_client: AsyncClient,
+    test_provider_factory: ProviderFactory,
+) -> AsyncClient:
+    """Create a JWT-authenticated test client with provider factory.
+
+    Use this fixture for tests that need real JWT authentication
+    AND MockMCPProvider registered.
+
+    Args:
+        jwt_client: JWT-authenticated test client
+        test_provider_factory: Provider factory with MockMCPProvider
+
+    Returns:
+        AsyncClient: JWT-authenticated client with provider factory
+
+    """
+
+    async def override_get_provider_factory() -> ProviderFactory:
+        return test_provider_factory
+
+    app.dependency_overrides[get_provider_factory] = override_get_provider_factory
+
+    return jwt_client
+
+
+# ============================================================================
+# User Management Fixtures
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def admin_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
+    """Create admin user with username 'admin'.
+
+    This is the built-in admin user that has special self-disable restrictions.
+
+    Args:
+        user_factory: Factory for creating users
+
+    Returns:
+        User: Admin user instance
+
+    """
+    return await user_factory(
+        username="admin",
+        email="admin@example.com",
+        full_name="Admin User",
+        role=UserRole.ADMINISTRATOR,
+    )
+
+
+@pytest_asyncio.fixture
+async def auth_client_as_admin(base_client: AsyncClient, admin_user: "User") -> AsyncClient:
+    """Create an authenticated test client with admin user.
+
+    Args:
+        base_client: Base test client without authentication
+        admin_user: Admin user for authentication
+
+    Returns:
+        AsyncClient: Authenticated test client as admin
+
+    """
+
+    async def override_get_current_user() -> User:
+        return admin_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    return base_client
+
+
+@pytest_asyncio.fixture
+async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -> list[User]:
+    """Create multiple test users for pagination, filtering, and sorting tests.
+
+    Args:
+        test_db_session: Test database session
+        test_user: Existing test user (dependency ensures it exists)
+
+    Returns:
+        list[User]: List of additional user instances (excludes the base test_user)
+
+    """
+    from nexus.auth.passwords import hash_password
+
+    users = [
+        User(
+            id=uuid4(),
+            username="alice",
+            email="alice@example.com",
+            full_name="Alice Anderson",
+            role=UserRole.CREATOR,
+            password_hash=hash_password("password123"),
+            is_active=True,
+        ),
+        User(
+            id=uuid4(),
+            username="bob",
+            email="bob@example.com",
+            full_name="Bob Brown",
+            role=UserRole.VIEWER,
+            password_hash=hash_password("password123"),
+            is_active=True,
+        ),
+        User(
+            id=uuid4(),
+            username="charlie",
+            email="charlie@example.com",
+            full_name="Charlie Clark",
+            role=UserRole.APPROVER,
+            password_hash=hash_password("password123"),
+            is_active=False,
+        ),
+        User(
+            id=uuid4(),
+            username="diana",
+            email="diana@example.com",
+            full_name="Diana Davis",
+            role=UserRole.ADMINISTRATOR,
+            password_hash=hash_password("password123"),
+            is_active=True,
+        ),
+        User(
+            id=uuid4(),
+            username="edward",
+            email="edward@example.com",
+            full_name="Edward Evans",
+            role=UserRole.CREATOR,
+            password_hash=hash_password("password123"),
+            is_active=True,
+        ),
+        User(
+            id=uuid4(),
+            username="fiona",
+            email="fiona@example.com",
+            full_name="Fiona Foster",
+            role=UserRole.VIEWER,
+            password_hash=hash_password("password123"),
+            is_active=True,
+        ),
+    ]
+
+    for user in users:
+        test_db_session.add(user)
+
+    await test_db_session.commit()
+
+    for user in users:
+        await test_db_session.refresh(user)
+
+    return users
+
+
+# ============================================================================
+# Group Fixtures
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def test_group(test_db_session: AsyncSession, test_user: User) -> Group:
+    """Create a single test group.
+
+    Args:
+        test_db_session: Test database session
+        test_user: Test user who creates the group
+
+    Returns:
+        Group: Test group instance
+
+    """
+    group = Group(
+        id=uuid4(),
+        name="test-group",
+        description="A test group",
+        created_by=test_user.id,
+    )
+    test_db_session.add(group)
+    await test_db_session.commit()
+    await test_db_session.refresh(group)
+    return group
+
+
+@pytest_asyncio.fixture
+async def group_with_members(
+    test_db_session: AsyncSession, test_user: User, test_group: Group, multiple_local_users: list[User]
+) -> tuple[Group, list[User]]:
+    """Create a group with members for membership tests.
+
+    Adds the first 3 users from multiple_local_users to test_group.
+
+    Args:
+        test_db_session: Test database session
+        test_user: Test user (dependency)
+        test_group: Test group to add members to
+        multiple_local_users: List of test users
+
+    Returns:
+        Tuple of (group, list of member users)
+
+    """
+    from sqlalchemy import insert
+
+    from nexus.core.models.group import user_groups
+
+    members = multiple_local_users[:3]
+    for user in members:
+        await test_db_session.execute(insert(user_groups).values(user_id=user.id, group_id=test_group.id))
+    await test_db_session.commit()
+
+    return test_group, members
+
+
+@pytest_asyncio.fixture
+async def multiple_test_groups(test_db_session: AsyncSession, test_user: User) -> list[Group]:
+    """Create multiple test groups for pagination, filtering, and sorting tests.
+
+    Args:
+        test_db_session: Test database session
+        test_user: Test user who creates the groups
+
+    Returns:
+        list[Group]: List of test group instances
+
+    """
+    groups = [
+        Group(id=uuid4(), name="Alpha Group", description="First group", created_by=test_user.id),
+        Group(id=uuid4(), name="Beta Group", description="Second group", created_by=test_user.id),
+        Group(id=uuid4(), name="Gamma Group", description="Third group", created_by=test_user.id),
+        Group(id=uuid4(), name="Delta Group", description="Fourth group", created_by=test_user.id),
+        Group(id=uuid4(), name="Echo Group", description="Fifth group", created_by=test_user.id),
+        Group(id=uuid4(), name="Foxtrot Group", description="Sixth group", created_by=test_user.id),
+    ]
+
+    for group in groups:
+        test_db_session.add(group)
+
+    await test_db_session.commit()
+
+    for group in groups:
+        await test_db_session.refresh(group)
+
+    return groups

@@ -24,8 +24,8 @@ from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProvider
 logger = logging.getLogger(__name__)
 
 
-def create_test_tool_manager_client(base_client: AsyncClient) -> Callable[..., ToolManagerClient]:
-    """Create a ToolManagerClient that uses the same transport as base_client.
+def create_test_tool_manager_client(jwt_client: AsyncClient) -> Callable[..., ToolManagerClient]:
+    """Create a ToolManagerClient that uses the same transport as jwt_client.
 
     This ensures the ToolManagerClient connects to the test app instead of making
     real HTTP requests, following the pattern from existing integration tests.
@@ -34,10 +34,11 @@ def create_test_tool_manager_client(base_client: AsyncClient) -> Callable[..., T
     def _create_client(*_args: object, **_kwargs: object) -> ToolManagerClient:
         # Create the client with test URL
         client = ToolManagerClient(base_url="http://test/api/v1")
-        # Replace its session with one using the test transport
+        # Replace its session with one using the test transport and auth headers
         client.session = AsyncClient(
-            transport=base_client._transport,
+            transport=jwt_client._transport,
             base_url="http://test/api/v1",
+            headers=dict(jwt_client.headers),  # Copy JWT auth headers
         )
         return client
 
@@ -58,7 +59,7 @@ class TestOrchestrationServiceGetTools:
 
     @pytest.fixture
     async def test_tool_provider_with_tools(
-        self, base_client: AsyncClient, test_db_session: AsyncSession, test_user
+        self, jwt_client: AsyncClient, test_db_session: AsyncSession, test_user
     ) -> tuple[str, list[str]]:
         """Create a test tool provider with two tools - one enabled, one disabled.
 
@@ -77,7 +78,7 @@ class TestOrchestrationServiceGetTools:
         }
 
         # Create provider
-        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+        create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201
         provider = create_response.json()
         provider_id = provider["id"]
@@ -123,7 +124,7 @@ class TestOrchestrationServiceGetTools:
         self,
         orchestration_service: OrchestrationService,
         test_tool_provider_with_tools: tuple[str, list[str]],
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
     ) -> None:
         """Test _get_tools when MCP server returns zero tools.
 
@@ -134,14 +135,14 @@ class TestOrchestrationServiceGetTools:
         invocation_id = uuid4()
 
         # Log test setup information for debugging
-        provider_list_response = await base_client.get("/api/v1/tool_manager/tool_providers")
+        provider_list_response = await jwt_client.get("/api/v1/tool_manager/tool_providers")
         providers = provider_list_response.json()["resources"]
         logger.info("All providers: %s", providers)
 
         enabled_providers = [p for p in providers if p["enabled"]]
         logger.info("Enabled providers: %s", enabled_providers)
 
-        tools_response = await base_client.get("/api/v1/tool_manager/tools")
+        tools_response = await jwt_client.get("/api/v1/tool_manager/tools")
         tools = tools_response.json()["resources"]
         enabled_tools = [t for t in tools if t["enabled"]]
         logger.info("Enabled tools: %s", enabled_tools)
@@ -151,7 +152,7 @@ class TestOrchestrationServiceGetTools:
         with (
             patch(
                 "nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient",
-                create_test_tool_manager_client(base_client),
+                create_test_tool_manager_client(jwt_client),
             ),
             patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient") as mock_mcp_client_class,
         ):
@@ -170,7 +171,7 @@ class TestOrchestrationServiceGetTools:
             assert mock_mcp_instance.get_tools.called, "get_tools should have been called"
 
             # Verify that the enabled tool was marked as MISSING
-            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{enabled_tool_id}")
+            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{enabled_tool_id}")
             assert tool_response.status_code == 200
             enabled_tool = tool_response.json()
 
@@ -179,7 +180,7 @@ class TestOrchestrationServiceGetTools:
             assert enabled_tool["enabled"] is False
 
             # Verify that the disabled tool remains unchanged (not processed by sync)
-            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{disabled_tool_id}")
+            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{disabled_tool_id}")
             assert tool_response.status_code == 200
             disabled_tool = tool_response.json()
 
@@ -190,7 +191,7 @@ class TestOrchestrationServiceGetTools:
         self,
         orchestration_service: OrchestrationService,
         test_tool_provider_with_tools: tuple[str, list[str]],
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
     ) -> None:
         """Test _get_tools when MCP server returns the enabled tool.
 
@@ -209,7 +210,7 @@ class TestOrchestrationServiceGetTools:
         with (
             patch(
                 "nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient",
-                create_test_tool_manager_client(base_client),
+                create_test_tool_manager_client(jwt_client),
             ),
             patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient") as mock_mcp_client_class,
         ):
@@ -225,7 +226,7 @@ class TestOrchestrationServiceGetTools:
             assert result_tools[0] is mock_enabled_tool
 
             # Verify that the enabled tool remains available and enabled
-            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{enabled_tool_id}")
+            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{enabled_tool_id}")
             assert tool_response.status_code == 200
             enabled_tool = tool_response.json()
 
@@ -234,7 +235,7 @@ class TestOrchestrationServiceGetTools:
             assert enabled_tool["refresh_error"] is None
 
             # Verify that the disabled tool remains unchanged
-            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{disabled_tool_id}")
+            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{disabled_tool_id}")
             assert tool_response.status_code == 200
             disabled_tool = tool_response.json()
 
@@ -244,7 +245,7 @@ class TestOrchestrationServiceGetTools:
     async def test_missing_tool_re_enablement_when_mcp_server_recovers(
         self,
         orchestration_service: OrchestrationService,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         test_db_session: AsyncSession,
         test_user,
     ) -> None:
@@ -263,7 +264,7 @@ class TestOrchestrationServiceGetTools:
             },
         }
 
-        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+        create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201
         provider = create_response.json()
         provider_id = provider["id"]
@@ -301,7 +302,7 @@ class TestOrchestrationServiceGetTools:
         with (
             patch(
                 "nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient",
-                create_test_tool_manager_client(base_client),
+                create_test_tool_manager_client(jwt_client),
             ),
             patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient") as mock_mcp_client_class,
         ):
@@ -317,7 +318,7 @@ class TestOrchestrationServiceGetTools:
             assert isinstance(result_tools, list)  # May be empty on first run after re-enablement
 
             # Verify the tool was re-enabled in the database
-            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{missing_tool.id}")
+            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{missing_tool.id}")
             assert tool_response.status_code == 200
             recovered_tool = tool_response.json()
 
@@ -333,7 +334,7 @@ class TestOrchestrationServiceGetTools:
     async def test_provider_disabled_when_mcp_server_unreachable(
         self,
         orchestration_service: OrchestrationService,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         test_db_session: AsyncSession,
         test_user,
     ) -> None:
@@ -348,7 +349,7 @@ class TestOrchestrationServiceGetTools:
             },
         }
 
-        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+        create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201
         provider = create_response.json()
         provider_id = provider["id"]
@@ -381,7 +382,7 @@ class TestOrchestrationServiceGetTools:
         with (
             patch(
                 "nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient",
-                create_test_tool_manager_client(base_client),
+                create_test_tool_manager_client(jwt_client),
             ),
             patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient") as mock_mcp_client_class,
         ):
@@ -396,7 +397,7 @@ class TestOrchestrationServiceGetTools:
             assert result_tools == []
 
             # Verify the provider was marked as ERROR
-            provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+            provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
             assert provider_response.status_code == 200
             updated_provider = provider_response.json()
 
@@ -405,7 +406,7 @@ class TestOrchestrationServiceGetTools:
             assert "Connection/timeout error" in updated_provider["validation_error"]
 
             # Tool should be marked as MISSING since provider failed
-            tool_response = await base_client.get(f"/api/v1/tool_manager/tools/{provider_tool.id}")
+            tool_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{provider_tool.id}")
             assert tool_response.status_code == 200
             affected_tool = tool_response.json()
 
@@ -417,7 +418,7 @@ class TestOrchestrationServiceGetTools:
     async def test_provider_re_enablement_when_mcp_server_recovers(
         self,
         orchestration_service: OrchestrationService,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         test_db_session: AsyncSession,
         test_user,
     ) -> None:
@@ -432,7 +433,7 @@ class TestOrchestrationServiceGetTools:
             },
         }
 
-        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+        create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201
         provider = create_response.json()
         provider_id = provider["id"]
@@ -470,7 +471,7 @@ class TestOrchestrationServiceGetTools:
         with (
             patch(
                 "nexus.agent_orchestrator.tool_manager.tool_services.ToolManagerClient",
-                create_test_tool_manager_client(base_client),
+                create_test_tool_manager_client(jwt_client),
             ),
             patch("nexus.tool_manager.lib.providers.mcp.mcp_provider.MultiServerMCPClient") as mock_mcp_client_class,
         ):
@@ -486,7 +487,7 @@ class TestOrchestrationServiceGetTools:
             assert result_tools[0] is mock_provider_tool
 
             # Verify the provider was re-enabled
-            provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+            provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
             assert provider_response.status_code == 200
             recovered_provider = provider_response.json()
 

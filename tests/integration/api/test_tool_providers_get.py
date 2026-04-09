@@ -14,10 +14,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_success_contract(
-        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test successful provider retrieval returns 200."""
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
         )
 
@@ -37,10 +37,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_all_fields_contract(
-        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test response includes all required fields."""
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
         )
 
@@ -68,10 +68,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_last_validated_at_contract(
-        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test response includes last_validated_at field."""
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
         )
 
@@ -86,11 +86,11 @@ class TestToolProvidersGetContract:
             assert isinstance(data["last_validated_at"], str)
 
     @pytest.mark.asyncio
-    async def test_get_provider_not_found_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
+    async def test_get_provider_not_found_contract(self, jwt_client_with_provider_factory: AsyncClient) -> None:
         """Test 404 error for non-existent provider."""
         provider_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+        response = await jwt_client_with_provider_factory.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
 
         # Contract: Must return 404 Not Found
         assert response.status_code == 404
@@ -100,11 +100,11 @@ class TestToolProvidersGetContract:
         assert "error" in data or "detail" in data
 
     @pytest.mark.asyncio
-    async def test_get_provider_invalid_uuid_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
+    async def test_get_provider_invalid_uuid_contract(self, jwt_client_with_provider_factory: AsyncClient) -> None:
         """Test 400 error for invalid UUID format."""
         invalid_id = "not-a-uuid"
 
-        response = await base_client_with_provider_factory.get(f"/api/v1/tool_manager/tool_providers/{invalid_id}")
+        response = await jwt_client_with_provider_factory.get(f"/api/v1/tool_manager/tool_providers/{invalid_id}")
 
         # Contract: Must return 422 Unprocessable Entity for invalid UUID format
         assert response.status_code == 422
@@ -115,10 +115,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_configuration_format_contract(
-        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test configuration field format in response."""
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
         )
 
@@ -136,10 +136,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_status_values_contract(
-        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test status field contains valid values."""
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
         )
 
@@ -154,10 +154,10 @@ class TestToolProvidersGetContract:
 
     @pytest.mark.asyncio
     async def test_get_provider_timestamps_format_contract(
-        self, base_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
+        self, jwt_client_with_provider_factory: AsyncClient, test_tool_provider: ToolProvider
     ) -> None:
         """Test timestamp fields are properly formatted."""
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
         )
 
@@ -176,7 +176,7 @@ class TestToolProvidersGetContract:
     @pytest.mark.asyncio
     async def test_get_provider_configuration_eager_loading(
         self,
-        base_client_with_provider_factory: AsyncClient,
+        jwt_client_with_provider_factory: AsyncClient,
         test_tool_provider: ToolProvider,
     ) -> None:
         """Test that configuration is correctly loaded and typed in get_provider endpoint.
@@ -186,7 +186,7 @@ class TestToolProvidersGetContract:
         proper deserialization and type safety for API consumers.
         """
         # Make HTTP request to get specific provider - this is end-to-end testing
-        response = await base_client_with_provider_factory.get(
+        response = await jwt_client_with_provider_factory.get(
             f"/api/v1/tool_manager/tool_providers/{test_tool_provider.id}"
         )
 

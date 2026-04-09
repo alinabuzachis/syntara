@@ -16,7 +16,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError
 from nexus.agent_orchestrator.models import Invocation, InvocationStatus
 from nexus.agent_orchestrator.token_manager import TokenValidationService
-from nexus.api.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.settings.cache.settings_cache import get_runtime_settings
 
@@ -90,6 +89,7 @@ class ContextManagerPlanner:
         session_id: str,
         query: str,
         invocation_id: UUID | None = None,
+        user_id: UUID | None = None,
     ) -> ContextPackage:
         """Plan and execute a context request.
 
@@ -102,6 +102,7 @@ class ContextManagerPlanner:
             session_id: Session identifier for grouping related invocations
             query: User query string for context retrieval
             invocation_id: Optional invocation ID for cancellation checking
+            user_id: UUID of the user making the request (for context assembly)
 
         Returns:
             ContextPackage: Assembled context ready for LLM consumption
@@ -150,10 +151,8 @@ class ContextManagerPlanner:
         max_tokens = await self.settings.get_int("context_manager.max_total_tokens")
         compression_loop = await self.settings.get_int("context_manager.compression_loop")
 
-        # Get database session and current user for token validation
+        # Get database session for context assembly
         async with self.get_async_session_context() as session:
-            user = await get_current_user(session)
-
             # Create assembler with injected dependencies
             token_service = TokenValidationService()
             compressor_service = self.compressor_service_factory()
@@ -169,7 +168,7 @@ class ContextManagerPlanner:
                 max_tokens=max_tokens,
                 compression_loop=compression_loop,
                 invocation_id=invocation_id,
-                user_id=user.id,
+                user_id=user_id,
                 session=session,
             )
 

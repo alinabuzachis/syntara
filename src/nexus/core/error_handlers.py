@@ -15,6 +15,8 @@ from sqlalchemy.exc import IntegrityError
 
 logger = structlog.stdlib.get_logger(__name__)
 
+_INSTANCE_MAX_LEN = 2048
+
 INTERNAL_SERVER_ERROR: str = "Internal Server Error"
 REQUEST_VALIDATION_ERROR: str = "Request Validation Error"
 
@@ -22,6 +24,8 @@ REQUEST_VALIDATION_ERROR: str = "Request Validation Error"
 PROBLEM_TYPES = {
     "unauthorized": "https://api.nexus.com/errors/unauthorized",
     "forbidden": "https://api.nexus.com/errors/forbidden",
+    "token_expired": "https://api.nexus.com/errors/token-expired",
+    "resource_ownership": "https://api.nexus.com/errors/resource-ownership",
     "resource_not_found": "https://api.nexus.com/errors/resource-not-found",
     "name_conflict": "https://api.nexus.com/errors/name-conflict",
     "resource_conflict": "https://api.nexus.com/errors/resource-conflict",
@@ -64,6 +68,10 @@ def create_problem_details_response(
 
     """
     from nexus.core.models.error import ErrorData  # noqa: PLC0415
+
+    # Truncate instance URI to fit ErrorData max_length (OIDC callbacks can have very long query strings)
+    if instance and len(instance) > _INSTANCE_MAX_LEN:
+        instance = instance[:_INSTANCE_MAX_LEN]
 
     error_data = ErrorData(
         type=problem_type,

@@ -1,0 +1,357 @@
+---
+openapi: 3.0.3
+info:
+  title: Identity Provider Management API
+  description: API for registering and managing external Identity Providers
+  version: 1.0.0
+
+servers:
+  - url: /api/v1/identity_providers
+    description: API server (relative path)
+
+x-shared-contracts:
+  - path: ../base/shared-resources.openapi.yaml
+    namespace: shared
+
+paths:
+  /:
+    get:
+      summary: List identity providers
+      description: Retrieve list of identity providers with filtering and pagination
+      operationId: list_identity_providers
+      parameters:
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by enabled status
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Sort field and direction (e.g., 'name', '-created_at')
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+      responses:
+        '200':
+          description: List of identity providers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityProviderListResponse'
+    post:
+      summary: Create identity provider
+      description: Register a new identity provider
+      operationId: create_identity_provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityProviderCreate'
+      responses:
+        '201':
+          description: Identity provider created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityProviderResponse'
+        '409':
+          description: Name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+  /{provider_id}:
+    get:
+      summary: Get identity provider
+      description: Retrieve identity provider details by ID
+      operationId: get_identity_provider
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Identity provider details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityProviderResponse'
+        '404':
+          description: Identity provider not found
+    patch:
+      summary: Update identity provider
+      description: Partially update an identity provider
+      operationId: patch_identity_provider
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityProviderPatch'
+      responses:
+        '200':
+          description: Updated identity provider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityProviderResponse'
+        '404':
+          description: Identity provider not found
+        '409':
+          description: Name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+    delete:
+      summary: Delete identity provider
+      description: Soft delete an identity provider
+      operationId: delete_identity_provider
+      parameters:
+        - name: provider_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Identity provider deleted
+        '404':
+          description: Identity provider not found
+
+  /test:
+    post:
+      summary: Test identity provider connection
+      description: Test OIDC connection without saving the provider
+      operationId: test_identity_provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityProviderCreate'
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OIDCTestResult'
+
+components:
+  schemas:
+    OIDCConfiguration:
+      type: object
+      required:
+        - provider_type
+        - issuer_url
+        - client_id
+        - client_secret
+        - redirect_uri
+      properties:
+        provider_type:
+          type: string
+          enum: [oidc]
+        auto_discovery:
+          type: boolean
+          default: true
+        issuer_url:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        redirect_uri:
+          type: string
+        scopes:
+          type: string
+          default: "openid profile email"
+        authorization_endpoint:
+          type: string
+          nullable: true
+        token_endpoint:
+          type: string
+          nullable: true
+        jwks_uri:
+          type: string
+          nullable: true
+        userinfo_endpoint:
+          type: string
+          nullable: true
+
+    OIDCConfigurationResponse:
+      type: object
+      properties:
+        provider_type:
+          type: string
+          enum: [oidc]
+        auto_discovery:
+          type: boolean
+          default: true
+        issuer_url:
+          type: string
+        client_id:
+          type: string
+        redirect_uri:
+          type: string
+        scopes:
+          type: string
+          default: "openid profile email"
+        authorization_endpoint:
+          type: string
+          nullable: true
+        token_endpoint:
+          type: string
+          nullable: true
+        jwks_uri:
+          type: string
+          nullable: true
+        userinfo_endpoint:
+          type: string
+          nullable: true
+
+    OIDCConfigurationPatch:
+      type: object
+      required:
+        - provider_type
+        - issuer_url
+        - client_id
+        - redirect_uri
+      properties:
+        provider_type:
+          type: string
+          enum: [oidc]
+        auto_discovery:
+          type: boolean
+          default: true
+        issuer_url:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+          nullable: true
+        redirect_uri:
+          type: string
+        scopes:
+          type: string
+          default: "openid profile email"
+        authorization_endpoint:
+          type: string
+          nullable: true
+        token_endpoint:
+          type: string
+          nullable: true
+        jwks_uri:
+          type: string
+          nullable: true
+        userinfo_endpoint:
+          type: string
+          nullable: true
+
+    IdentityProviderCreate:
+      type: object
+      required:
+        - name
+        - configuration
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+        enabled:
+          type: boolean
+          default: true
+          description: Whether the provider is enabled after creation
+        configuration:
+          $ref: '#/components/schemas/OIDCConfiguration'
+
+    IdentityProviderPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+        configuration:
+          $ref: '#/components/schemas/OIDCConfigurationPatch'
+        enabled:
+          type: boolean
+
+    IdentityProviderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        configuration:
+          $ref: '#/components/schemas/OIDCConfigurationResponse'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    IdentityProviderListResponse:
+      type: object
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/IdentityProviderResponse'
+        next:
+          type: string
+          nullable: true
+        prev:
+          type: string
+          nullable: true
+        total:
+          type: integer
+          nullable: true
+
+    OIDCTestResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string

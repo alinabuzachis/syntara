@@ -22,8 +22,8 @@ from tests.helpers.tool_manager import wait_for_tool_status
 
 
 @pytest.fixture(autouse=True)
-def mock_tool_manager_client(base_client: AsyncClient) -> Generator[None, None, None]:
-    """Override ToolManagerClient creation to use test server transport."""
+def mock_tool_manager_client(jwt_client: AsyncClient) -> Generator[None, None, None]:
+    """Override ToolManagerClient creation to use test server transport with JWT auth."""
     from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManagerClient
 
     # Store the original ToolManagerClient __init__ method
@@ -32,10 +32,11 @@ def mock_tool_manager_client(base_client: AsyncClient) -> Generator[None, None, 
     def patched_init(self, base_url: str, **kwargs: object) -> None:
         # Call original init with test URL - ignore kwargs to avoid type issues
         original_init(self, base_url="http://test/api/v1")
-        # Replace the session with test client's transport
+        # Replace the session with test client's transport and copy auth headers
         self.session = AsyncClient(
-            transport=base_client._transport,
+            transport=jwt_client._transport,
             base_url="http://test/api/v1",
+            headers=dict(jwt_client.headers),  # Copy JWT auth headers
         )
 
     # Patch the ToolManagerClient.__init__ method
@@ -57,7 +58,7 @@ def patch_mcp_provider() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def mock_mcp_provider_for_testing(base_client: AsyncClient, patch_mcp_provider: None) -> Generator[None, None, None]:
+def mock_mcp_provider_for_testing(jwt_client: AsyncClient, patch_mcp_provider: None) -> Generator[None, None, None]:
     """Override MCP provider to use test-compatible methods without real MCP server."""
 
     async def patched_get_base_tools(self) -> list[Any]:
@@ -85,7 +86,7 @@ def mock_mcp_provider_for_testing(base_client: AsyncClient, patch_mcp_provider: 
 
 @pytest.fixture
 def mock_mcp_provider_with_retry_tools(
-    base_client: AsyncClient, patch_mcp_provider: None
+    jwt_client: AsyncClient, patch_mcp_provider: None
 ) -> Generator[None, None, None]:
     """Override MCP provider with tools that support retry testing."""
     # Global state to track tool execution attempts
@@ -129,7 +130,7 @@ def mock_mcp_provider_with_retry_tools(
         yield
 
 
-async def _create_tool_provider(base_client: AsyncClient) -> str:
+async def _create_tool_provider(jwt_client: AsyncClient) -> str:
     """Create a ToolProvider for testing."""
     provider_data = {
         "name": "test-tool-execution",
@@ -141,18 +142,18 @@ async def _create_tool_provider(base_client: AsyncClient) -> str:
     }
 
     # Create provider
-    create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+    create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
     assert create_response.status_code == 201
 
     provider_id = create_response.json()["id"]
 
     # Validate provider
-    validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
+    validate_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
     assert validate_response.status_code == 200
     assert validate_response.json()["valid"] is True
 
     # Refresh tools
-    refresh_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
+    refresh_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
     assert refresh_response.status_code == 200
     assert refresh_response.json()["refreshed_count"] > 0
 

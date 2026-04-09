@@ -32,7 +32,7 @@ from nexus.agent_orchestrator.models import (
 )
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.agent_orchestrator.services import InvocationService
-from nexus.api.auth import get_current_user
+from nexus.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.utils.session_factory import create_session_factory_from_request

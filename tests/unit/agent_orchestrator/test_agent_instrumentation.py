@@ -41,6 +41,7 @@ def _make_agent_state(**overrides: object) -> AgentState:
         "session_id": "sess-1",
         "invocation_id": "inv-1",
         "correlation_id": "corr-1",
+        "user_id": None,
         "current_agent": AgentRoutes.ORCHESTRATOR,
         "context_package": None,
         "metadata": None,

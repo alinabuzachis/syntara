@@ -45,6 +45,24 @@ jobs:
       UV_PYTHON: ${{ matrix.python-version }}
       DOCKER_HOST: unix:///var/run/docker.sock
       TESTCONTAINERS_RYUK_DISABLED: "true"
+      APP_JWT_PRIVATE_KEY_PATH: .secrets/jwt-primary.pem
+      APP_JWT_BACKUP_KEYS: '[{"key_id":"nexus-backup","key_path":".secrets/jwt-backup.pem"}]'
+      APP_ADMIN_PASSWORD_PATH: .secrets/admin-password
+
+    services:
+      database:
+        image: postgres:15
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin
+          POSTGRES_DB: nexus_api
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -60,6 +78,9 @@ jobs:
 
       - name: Install dependencies
         run: make install
+
+      - name: Generate secrets
+        run: make secrets-generate
 
       - name: Check migrations
         run: make check-migrations
@@ -100,6 +121,9 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
+
+      - name: Generate secrets
+        run: make secrets-generate
 
       - name: Start services with podman-compose
         timeout-minutes: 5

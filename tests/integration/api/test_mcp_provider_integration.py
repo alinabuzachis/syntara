@@ -17,9 +17,9 @@ from httpx import AsyncClient
 class TestMCPProviderIntegration:
     """Integration tests for MCP provider with real MCP server."""
 
-    async def _create_and_verify_provider(self, base_client: AsyncClient, provider_data: dict[str, Any]) -> str:
+    async def _create_and_verify_provider(self, jwt_client: AsyncClient, provider_data: dict[str, Any]) -> str:
         """Create provider and verify initial state."""
-        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+        create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
 
         provider_data_response = create_response.json()
@@ -33,16 +33,16 @@ class TestMCPProviderIntegration:
 
         return provider_id
 
-    async def _validate_and_verify_provider(self, base_client: AsyncClient, provider_id: str) -> None:
+    async def _validate_and_verify_provider(self, jwt_client: AsyncClient, provider_id: str) -> None:
         """Validate provider and verify status transition."""
-        validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
+        validate_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
         assert validate_response.status_code == 200, f"Provider validation failed: {validate_response.text}"
 
         validation_result = validate_response.json()
         assert validation_result["valid"] is True, f"Provider validation failed: {validation_result.get('error')}"
 
         # Verify provider status changed to available
-        get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+        get_provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
         assert get_provider_response.status_code == 200
 
         provider_status_data = get_provider_response.json()
@@ -52,16 +52,16 @@ class TestMCPProviderIntegration:
         assert provider_status_data["validation_error"] is None
         assert provider_status_data["last_validated_at"] is not None
 
-    async def _refresh_and_verify_tools(self, base_client: AsyncClient, provider_id: str) -> list[dict[str, Any]]:
+    async def _refresh_and_verify_tools(self, jwt_client: AsyncClient, provider_id: str) -> list[dict[str, Any]]:
         """Refresh tools and return discovered tools."""
-        refresh_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
+        refresh_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
         assert refresh_response.status_code == 200, f"Tool refresh failed: {refresh_response.text}"
 
         refresh_result = refresh_response.json()
         assert refresh_result["refreshed_count"] > 0, "Expected tools to be discovered"
 
         # Query tools for this provider
-        tools_response = await base_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
+        tools_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
         assert tools_response.status_code == 200, f"Tools query failed: {tools_response.text}"
 
         tools_data = tools_response.json()
@@ -95,20 +95,20 @@ class TestMCPProviderIntegration:
             elif tool["name"] == "get_greeting":
                 assert "greeting message" in tool["description"].lower()
 
-    async def _verify_tool_parameters(self, base_client: AsyncClient, tools: list[dict[str, Any]]) -> None:
+    async def _verify_tool_parameters(self, jwt_client: AsyncClient, tools: list[dict[str, Any]]) -> None:
         """Verify tool parameters are properly persisted."""
         sum_tool = next((t for t in tools if t["name"] == "calculate_sum"), None)
         assert sum_tool is not None, "calculate_sum tool not found"
 
-        tool_detail_response = await base_client.get(f"/api/v1/tool_manager/tools/{sum_tool['id']}")
+        tool_detail_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{sum_tool['id']}")
         assert tool_detail_response.status_code == 200
 
         tool_detail = tool_detail_response.json()
         assert "parameters" in tool_detail or len(tool_detail.get("parameters", [])) >= 0
 
-    async def _verify_final_provider_state(self, base_client: AsyncClient, provider_id: str) -> None:
+    async def _verify_final_provider_state(self, jwt_client: AsyncClient, provider_id: str) -> None:
         """Verify final provider state after integration test."""
-        final_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+        final_provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
         assert final_provider_response.status_code == 200
 
         final_provider_data = final_provider_response.json()
@@ -117,7 +117,7 @@ class TestMCPProviderIntegration:
 
     @pytest.mark.mcp
     @pytest.mark.asyncio
-    async def test_create_mcp_provider_with_real_server_integration(self, base_client: AsyncClient) -> None:
+    async def test_create_mcp_provider_with_real_server_integration(self, jwt_client: AsyncClient) -> None:
         """Test complete MCP provider integration with real MCP server."""
         # Test demonstrates that:
         # ✅ MCP provider created via REST API
@@ -148,16 +148,16 @@ class TestMCPProviderIntegration:
             }
 
             # Execute integration test workflow
-            provider_id = await self._create_and_verify_provider(base_client, provider_data)
-            await self._validate_and_verify_provider(base_client, provider_id)
-            tools = await self._refresh_and_verify_tools(base_client, provider_id)
+            provider_id = await self._create_and_verify_provider(jwt_client, provider_data)
+            await self._validate_and_verify_provider(jwt_client, provider_id)
+            tools = await self._refresh_and_verify_tools(jwt_client, provider_id)
             self._verify_discovered_tools(tools, provider_id)
-            await self._verify_tool_parameters(base_client, tools)
-            await self._verify_final_provider_state(base_client, provider_id)
+            await self._verify_tool_parameters(jwt_client, tools)
+            await self._verify_final_provider_state(jwt_client, provider_id)
 
     @pytest.mark.mcp
     @pytest.mark.asyncio
-    async def test_mcp_provider_connection_failure_handling(self, base_client: AsyncClient) -> None:
+    async def test_mcp_provider_connection_failure_handling(self, jwt_client: AsyncClient) -> None:
         """Test MCP provider creation with unreachable server."""
         # Test demonstrates that:
         # ✅ Provider creation succeeds even with unreachable server (starts in VALIDATING status)
@@ -178,7 +178,7 @@ class TestMCPProviderIntegration:
         }
 
         # Create the provider (should succeed with validating status)
-        create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+        create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
         assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
 
         provider_data_response = create_response.json()
@@ -186,7 +186,7 @@ class TestMCPProviderIntegration:
         assert provider_data_response["status"] == "validating"
 
         # Step 2: Validate the provider (expecting failure due to unreachable server)
-        validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
+        validate_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
         assert validate_response.status_code == 200, f"Validation request failed: {validate_response.text}"
 
         validation_result = validate_response.json()
@@ -195,7 +195,7 @@ class TestMCPProviderIntegration:
         assert "All connection attempts failed" in validation_result["error"]
 
         # Step 3: Check provider status - should be in error state
-        get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+        get_provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
         assert get_provider_response.status_code == 200
 
         provider_status = get_provider_response.json()
@@ -203,7 +203,7 @@ class TestMCPProviderIntegration:
         assert provider_status["validation_error"] is not None
 
         # Step 4: Verify no tools were created for failed provider
-        tools_response = await base_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
+        tools_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
         assert tools_response.status_code == 200
 
         tools_data = tools_response.json()
@@ -211,7 +211,7 @@ class TestMCPProviderIntegration:
 
     @pytest.mark.mcp
     @pytest.mark.asyncio
-    async def test_mcp_provider_connection_failure_unauthorized(self, base_client: AsyncClient) -> None:
+    async def test_mcp_provider_connection_failure_unauthorized(self, jwt_client: AsyncClient) -> None:
         """Test MCP provider creation with unauthorised user."""
         # Test demonstrates that:
         # ✅ Provider creation succeeds even with unauthorised user (starts in VALIDATING status)
@@ -244,7 +244,7 @@ class TestMCPProviderIntegration:
             }
 
             # Create the provider (should succeed with validating status)
-            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+            create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
             assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
 
             provider_data_response = create_response.json()
@@ -252,7 +252,7 @@ class TestMCPProviderIntegration:
             assert provider_data_response["status"] == "validating"
 
             # Step 2: Validate the provider (expecting failure due to unauthorised user)
-            validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
+            validate_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
             assert validate_response.status_code == 200, f"Validation request failed: {validate_response.text}"
 
             validation_result = validate_response.json()
@@ -261,7 +261,7 @@ class TestMCPProviderIntegration:
             assert "Unauthorized" in validation_result["error"]
 
             # Step 3: Check provider status - should be in error state
-            get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+            get_provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
             assert get_provider_response.status_code == 200
 
             provider_status = get_provider_response.json()
@@ -269,9 +269,7 @@ class TestMCPProviderIntegration:
             assert "Unauthorized" in provider_status["validation_error"]
 
             # Step 4: Verify no tools were created for failed provider
-            tools_response = await base_client.get(
-                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
-            )
+            tools_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
             assert tools_response.status_code == 200
 
             tools_data = tools_response.json()
@@ -279,7 +277,7 @@ class TestMCPProviderIntegration:
 
     @pytest.mark.mcp
     @pytest.mark.asyncio
-    async def test_mcp_provider_connection_failure_forbidden(self, base_client: AsyncClient) -> None:
+    async def test_mcp_provider_connection_failure_forbidden(self, jwt_client: AsyncClient) -> None:
         """Test MCP provider creation with forbidden user."""
         # Test demonstrates that:
         # ✅ Provider creation succeeds even forbidden users (starts in VALIDATING status)
@@ -309,7 +307,7 @@ class TestMCPProviderIntegration:
             }
 
             # Create the provider (should succeed with validating status)
-            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+            create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
             assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
 
             provider_data_response = create_response.json()
@@ -317,7 +315,7 @@ class TestMCPProviderIntegration:
             assert provider_data_response["status"] == "validating"
 
             # Step 2: Validate the provider (expecting failure due to forbidden user)
-            validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
+            validate_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
             assert validate_response.status_code == 200, f"Validation request failed: {validate_response.text}"
 
             validation_result = validate_response.json()
@@ -326,7 +324,7 @@ class TestMCPProviderIntegration:
             assert "Forbidden" in validation_result["error"]
 
             # Step 3: Check provider status - should be in error state
-            get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+            get_provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
             assert get_provider_response.status_code == 200
 
             provider_status = get_provider_response.json()
@@ -334,9 +332,7 @@ class TestMCPProviderIntegration:
             assert "Forbidden" in provider_status["validation_error"]
 
             # Step 4: Verify no tools were created for failed provider
-            tools_response = await base_client.get(
-                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
-            )
+            tools_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
             assert tools_response.status_code == 200
 
             tools_data = tools_response.json()
@@ -344,7 +340,7 @@ class TestMCPProviderIntegration:
 
     @pytest.mark.mcp
     @pytest.mark.asyncio
-    async def test_mcp_provider_unhandled_exception(self, base_client: AsyncClient) -> None:
+    async def test_mcp_provider_unhandled_exception(self, jwt_client: AsyncClient) -> None:
         """Test MCP provider validation when there's an unexpected exception."""
         # Test demonstrates that:
         # ✅ Provider creation succeeds (starts in VALIDATING status)
@@ -371,7 +367,7 @@ class TestMCPProviderIntegration:
             }
 
             # Create the provider (should succeed with validating status)
-            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+            create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
             assert create_response.status_code == 201, f"Provider creation failed: {create_response.text}"
 
             provider_data_response = create_response.json()
@@ -388,9 +384,7 @@ class TestMCPProviderIntegration:
                 side_effect=mock_get_tools_runtime_error,
             ):
                 # Validate the provider (expecting failure due to runtime exception)
-                validate_response = await base_client.post(
-                    f"/api/v1/tool_manager/tool_providers/{provider_id}/validate"
-                )
+                validate_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
                 assert validate_response.status_code == 200, f"Validation request failed: {validate_response.text}"
 
                 validation_result = validate_response.json()
@@ -399,7 +393,7 @@ class TestMCPProviderIntegration:
                 assert "Unexpected runtime error" in validation_result["error"]
 
             # Step 3: Check provider status - should be in error state
-            get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+            get_provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
             assert get_provider_response.status_code == 200
 
             provider_status = get_provider_response.json()
@@ -407,9 +401,7 @@ class TestMCPProviderIntegration:
             assert "Unexpected runtime error" in provider_status["validation_error"]
 
             # Step 4: Verify no tools were created for failed provider
-            tools_response = await base_client.get(
-                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
-            )
+            tools_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
             assert tools_response.status_code == 200
 
             tools_data = tools_response.json()
@@ -417,7 +409,7 @@ class TestMCPProviderIntegration:
 
     @pytest.mark.mcp
     @pytest.mark.asyncio
-    async def test_mcp_provider_tool_parameters_persistence(self, base_client: AsyncClient) -> None:
+    async def test_mcp_provider_tool_parameters_persistence(self, jwt_client: AsyncClient) -> None:
         """Test that MCP tool parameters are properly persisted to database."""
         # Test demonstrates that:
         # ✅ MCPProvider.refresh_tools() created Tool objects with ToolParameter objects
@@ -446,32 +438,28 @@ class TestMCPProviderIntegration:
                 },
             }
 
-            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+            create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
             assert create_response.status_code == 201
 
             provider_id = create_response.json()["id"]
             assert create_response.json()["status"] == "validating"
 
             # Step 2: Validate the provider
-            validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
+            validate_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
             assert validate_response.status_code == 200
 
             validation_result = validate_response.json()
             assert validation_result["valid"] is True
 
             # Step 3: Refresh tools to discover and persist them
-            refresh_response = await base_client.post(
-                f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools"
-            )
+            refresh_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
             assert refresh_response.status_code == 200
 
             refresh_result = refresh_response.json()
             assert refresh_result["refreshed_count"] > 0
 
             # Step 4: Get tools
-            tools_response = await base_client.get(
-                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
-            )
+            tools_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
             assert tools_response.status_code == 200
 
             tools = tools_response.json()["resources"]
@@ -482,7 +470,7 @@ class TestMCPProviderIntegration:
             assert sum_tool is not None
 
             # Step 6: Get tool details to verify parameters were persisted
-            tool_detail_response = await base_client.get(f"/api/v1/tool_manager/tools/{sum_tool['id']}")
+            tool_detail_response = await jwt_client.get(f"/api/v1/tool_manager/tools/{sum_tool['id']}")
             assert tool_detail_response.status_code == 200
 
             tool_detail = tool_detail_response.json()
@@ -495,7 +483,7 @@ class TestMCPProviderIntegration:
 
     @pytest.mark.mcp
     @pytest.mark.asyncio
-    async def test_mcp_provider_factory_integration(self, base_client: AsyncClient) -> None:
+    async def test_mcp_provider_factory_integration(self, jwt_client: AsyncClient) -> None:
         """Test that MCP provider is properly registered in ProviderFactory."""
         # Test demonstrates that:
         # ✅ ProviderFactory.register_provider_type("mcp", MCPProvider) worked
@@ -524,21 +512,21 @@ class TestMCPProviderIntegration:
                 },
             }
 
-            create_response = await base_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
+            create_response = await jwt_client.post("/api/v1/tool_manager/tool_providers", json=provider_data)
             assert create_response.status_code == 201
 
             provider_id = create_response.json()["id"]
             assert create_response.json()["status"] == "validating"
 
             # Step 2: Validate the provider (proves factory created MCPProvider successfully)
-            validate_response = await base_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
+            validate_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/validate")
             assert validate_response.status_code == 200
 
             validation_result = validate_response.json()
             assert validation_result["valid"] is True
 
             # Step 3: Verify provider status is now available
-            get_provider_response = await base_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
+            get_provider_response = await jwt_client.get(f"/api/v1/tool_manager/tool_providers/{provider_id}")
             assert get_provider_response.status_code == 200
 
             provider = get_provider_response.json()
@@ -546,18 +534,14 @@ class TestMCPProviderIntegration:
             assert provider["configuration"]["provider_type"] == "mcp"
 
             # Step 4: Refresh tools to discover them
-            refresh_response = await base_client.post(
-                f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools"
-            )
+            refresh_response = await jwt_client.post(f"/api/v1/tool_manager/tool_providers/{provider_id}/refresh_tools")
             assert refresh_response.status_code == 200
 
             refresh_result = refresh_response.json()
             assert refresh_result["refreshed_count"] > 0
 
             # Step 5: Verify tools were discovered (proves MCPProvider methods worked)
-            tools_response = await base_client.get(
-                "/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id}
-            )
+            tools_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"provider_id[eq]": provider_id})
             assert tools_response.status_code == 200
 
             tools = tools_response.json()["resources"]

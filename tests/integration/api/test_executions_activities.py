@@ -13,11 +13,11 @@ from nexus.workflows.models.execution import Execution
 
 @pytest.mark.asyncio
 async def test_list_execution_activities_empty_when_temporal_unavailable(
-    base_client: AsyncClient,
+    jwt_client: AsyncClient,
     test_execution: Execution,
 ) -> None:
     """Test listing activities returns empty list when Temporal is unavailable."""
-    response = await base_client.get(f"/api/v1/executions/{test_execution.id}/activities")
+    response = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
 
     assert response.status_code == 200
     data = response.json()
@@ -28,7 +28,7 @@ async def test_list_execution_activities_empty_when_temporal_unavailable(
 
 @pytest.mark.asyncio
 async def test_list_execution_activities_returns_persisted_data(
-    base_client: AsyncClient,
+    jwt_client: AsyncClient,
     test_execution: Execution,
     test_db_session: AsyncSession,
 ) -> None:
@@ -56,7 +56,7 @@ async def test_list_execution_activities_returns_persisted_data(
     await test_db_session.commit()
 
     # List activities via API
-    response = await base_client.get(f"/api/v1/executions/{test_execution.id}/activities")
+    response = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
 
     assert response.status_code == 200
     data = response.json()
@@ -79,7 +79,7 @@ async def test_list_execution_activities_returns_persisted_data(
 
 @pytest.mark.asyncio
 async def test_list_execution_activities_includes_all_fields(
-    base_client: AsyncClient,
+    jwt_client: AsyncClient,
     test_execution: Execution,
     test_db_session: AsyncSession,
 ) -> None:
@@ -112,7 +112,7 @@ async def test_list_execution_activities_includes_all_fields(
     await test_db_session.commit()
 
     # List activities via API
-    response = await base_client.get(f"/api/v1/executions/{test_execution.id}/activities")
+    response = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
 
     assert response.status_code == 200
     data = response.json()
@@ -138,11 +138,11 @@ async def test_list_execution_activities_includes_all_fields(
 
 @pytest.mark.asyncio
 async def test_list_execution_activities_not_found(
-    base_client: AsyncClient,
+    jwt_client: AsyncClient,
 ) -> None:
     """Test listing activities for non-existent execution returns 404."""
     non_existent_id = uuid.uuid4()
-    response = await base_client.get(f"/api/v1/executions/{non_existent_id}/activities")
+    response = await jwt_client.get(f"/api/v1/executions/{non_existent_id}/activities")
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
@@ -150,7 +150,7 @@ async def test_list_execution_activities_not_found(
 
 @pytest.mark.asyncio
 async def test_list_execution_activities_with_different_statuses(
-    base_client: AsyncClient,
+    jwt_client: AsyncClient,
     test_execution: Execution,
     test_db_session: AsyncSession,
 ) -> None:
@@ -176,7 +176,7 @@ async def test_list_execution_activities_with_different_statuses(
     await test_db_session.commit()
 
     # List activities via API
-    response = await base_client.get(f"/api/v1/executions/{test_execution.id}/activities")
+    response = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
 
     assert response.status_code == 200
     data = response.json()
@@ -190,7 +190,7 @@ async def test_list_execution_activities_with_different_statuses(
 
 @pytest.mark.asyncio
 async def test_list_execution_activities_with_nested_activity_definition(
-    base_client: AsyncClient,
+    jwt_client: AsyncClient,
     test_execution: Execution,
     test_db_session: AsyncSession,
 ) -> None:
@@ -230,7 +230,7 @@ async def test_list_execution_activities_with_nested_activity_definition(
     await test_db_session.commit()
 
     # List activities via API
-    response = await base_client.get(f"/api/v1/executions/{test_execution.id}/activities")
+    response = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
 
     assert response.status_code == 200
     data = response.json()
@@ -249,7 +249,7 @@ async def test_list_execution_activities_with_nested_activity_definition(
 
 @pytest.mark.asyncio
 async def test_list_execution_activities_multiple_executions_isolated(
-    base_client: AsyncClient,
+    jwt_client: AsyncClient,
     test_execution: Execution,
     test_db_session: AsyncSession,
 ) -> None:
@@ -287,14 +287,14 @@ async def test_list_execution_activities_multiple_executions_isolated(
     await test_db_session.commit()
 
     # List activities for first execution
-    response1 = await base_client.get(f"/api/v1/executions/{test_execution.id}/activities")
+    response1 = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
     assert response1.status_code == 200
     data1 = response1.json()
     assert len(data1) == 2
     assert all(a["activity_name"].startswith("exec1_") for a in data1)
 
     # List activities for second execution
-    response2 = await base_client.get(f"/api/v1/executions/{execution2.id}/activities")
+    response2 = await jwt_client.get(f"/api/v1/executions/{execution2.id}/activities")
     assert response2.status_code == 200
     data2 = response2.json()
     assert len(data2) == 3

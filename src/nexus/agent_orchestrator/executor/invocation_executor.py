@@ -149,6 +149,7 @@ class InvocationExecutor:
                     invocation_id=exec_invocation_id,
                     correlation_id=correlation_id,
                     metadata=invocation.context_data,
+                    user_id=invocation.created_by,
                 )
 
                 # Check if invocation was cancelled during execution (fix race condition)

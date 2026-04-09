@@ -88,12 +88,14 @@ class OrchestratorAgent:
             timeout = await self.settings.get_int("context_manager.request_timeout_seconds")
 
             # Call context manager using PR 168 pattern with configurable timeout
+            user_id = UUID(state["user_id"]) if state.get("user_id") else None
             context_package = await asyncio.wait_for(
                 self.context_manager.plan_request(
                     correlation_id=state["correlation_id"],
                     session_id=state["session_id"],
                     query=state["original_prompt"],
                     invocation_id=UUID(state["invocation_id"]),
+                    user_id=user_id,
                 ),
                 timeout=timeout,
             )

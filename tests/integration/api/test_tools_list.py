@@ -28,11 +28,11 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_basic_success(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test basic GET /api/v1/tool_manager/tools returns 200."""
-        response = await base_client.get("/api/v1/tool_manager/tools")
+        response = await jwt_client.get("/api/v1/tool_manager/tools")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -58,11 +58,11 @@ class TestToolsListContract:
 
     @pytest.mark.asyncio
     async def test_list_tools_pagination_contract(
-        self, base_client: AsyncClient, multiple_test_tools: list[Tool]
+        self, jwt_client: AsyncClient, multiple_test_tools: list[Tool]
     ) -> None:
         """Test pagination parameters are accepted and response format is correct."""
         # Test with limit smaller than total count to ensure pagination works
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"limit": "3"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"limit": "3"})
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -82,7 +82,7 @@ class TestToolsListContract:
 
         # Test pagination with cursor
         if data["next"]:
-            next_response = await base_client.get(
+            next_response = await jwt_client.get(
                 "/api/v1/tool_manager/tools", params={"limit": "3", "cursor": data["next"]}
             )
             assert next_response.status_code == 200
@@ -98,12 +98,12 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_bracket_filters_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],
     ) -> None:
         """Test bracket filter notation is accepted."""
         # Test filtering by status
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"status[eq]": "available"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"status[eq]": "available"})
         assert response.status_code == 200
         data = response.json()
         assert "resources" in data
@@ -116,7 +116,7 @@ class TestToolsListContract:
         assert len(data["resources"]) == 3
 
         # Test filtering by provider_id
-        provider_response = await base_client.get(
+        provider_response = await jwt_client.get(
             "/api/v1/tool_manager/tools", params={"provider_id[eq]": str(multiple_test_tools[0].provider_id)}
         )
         assert provider_response.status_code == 200
@@ -130,7 +130,7 @@ class TestToolsListContract:
         assert len(provider_data["resources"]) == 6
 
         # Test name contains filter
-        alpha_response = await base_client.get("/api/v1/tool_manager/tools", params={"name[contains]": "Alpha"})
+        alpha_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"name[contains]": "Alpha"})
         assert alpha_response.status_code == 200
         alpha_data = alpha_response.json()
         assert len(alpha_data["resources"]) == 1
@@ -139,11 +139,11 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_include_total_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test include_total parameter returns total count."""
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"include_total": "true"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"include_total": "true"})
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -157,11 +157,11 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_response_schema_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test response matches OpenAPI specification schema."""
-        response = await base_client.get("/api/v1/tool_manager/tools")
+        response = await jwt_client.get("/api/v1/tool_manager/tools")
 
         # Contract: Must return 200 OK
         assert response.status_code == 200
@@ -200,18 +200,18 @@ class TestToolsListContract:
             assert isinstance(tool["status"], str)
 
     @pytest.mark.asyncio
-    async def test_list_tools_invalid_parameters_contract(self, base_client: AsyncClient) -> None:
+    async def test_list_tools_invalid_parameters_contract(self, jwt_client: AsyncClient) -> None:
         """Test validation of query parameters."""
         # Test with invalid limit parameter
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"limit": "invalid"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"limit": "invalid"})
 
         # Contract: Must return 422 Unprocessable Entity for invalid parameters
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_list_tools_empty_result_contract(self, base_client: AsyncClient) -> None:
+    async def test_list_tools_empty_result_contract(self, jwt_client: AsyncClient) -> None:
         """Test response format when no tools exist."""
-        response = await base_client.get("/api/v1/tool_manager/tools")
+        response = await jwt_client.get("/api/v1/tool_manager/tools")
 
         # Contract: Must return 200 even for empty results
         assert response.status_code == 200
@@ -224,12 +224,12 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_sorting_by_name_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test sorting tools by name."""
         # Test ascending sort
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"sort": "name"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"sort": "name"})
         assert response.status_code == 200
 
         data = response.json()
@@ -242,7 +242,7 @@ class TestToolsListContract:
         assert names[-1] == "Gamma Tool"  # Last alphabetically
 
         # Test descending sort
-        desc_response = await base_client.get("/api/v1/tool_manager/tools", params={"sort": "-name"})
+        desc_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"sort": "-name"})
         assert desc_response.status_code == 200
 
         desc_data = desc_response.json()
@@ -252,12 +252,12 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_combined_filter_and_sort_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test combining filters and sorting."""
         # Filter available tools and sort by name
-        response = await base_client.get(
+        response = await jwt_client.get(
             "/api/v1/tool_manager/tools", params={"status[eq]": "available", "sort": "name"}
         )
         assert response.status_code == 200
@@ -275,12 +275,12 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_filter_by_multiple_criteria_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test filtering by multiple criteria."""
         # Filter available tools with execution count >= 5
-        response = await base_client.get(
+        response = await jwt_client.get(
             "/api/v1/tool_manager/tools", params={"status[eq]": "available", "name[contains]": "Alpha"}
         )
         assert response.status_code == 200
@@ -295,12 +295,12 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_filter_no_results_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test filtering that returns no results."""
         # Filter for tools with a name that won't match any test data
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"name[contains]": "NonexistentTool"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"name[contains]": "NonexistentTool"})
         assert response.status_code == 200
 
         data = response.json()
@@ -317,12 +317,12 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_filter_invalid_enum_value_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test filtering with invalid enum value returns 400."""
         # Filter with invalid status value
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"status[eq]": "nonexistent"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"status[eq]": "nonexistent"})
 
         # Contract: Must return 422 Unprocessable Entity for invalid enum value
         assert response.status_code == 422
@@ -338,18 +338,18 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_include_total_with_filters_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test include_total works correctly with filters."""
         # Get total for all tools
-        all_response = await base_client.get("/api/v1/tool_manager/tools", params={"include_total": "true"})
+        all_response = await jwt_client.get("/api/v1/tool_manager/tools", params={"include_total": "true"})
         assert all_response.status_code == 200
         all_data = all_response.json()
         assert all_data["total"] == 6
 
         # Get total for available tools only
-        available_response = await base_client.get(
+        available_response = await jwt_client.get(
             "/api/v1/tool_manager/tools", params={"status[eq]": "available", "include_total": "true"}
         )
         assert available_response.status_code == 200
@@ -357,7 +357,7 @@ class TestToolsListContract:
         assert available_data["total"] == 3  # 3 available tools
 
         # Total should be accurate even with pagination
-        paginated_response = await base_client.get(
+        paginated_response = await jwt_client.get(
             "/api/v1/tool_manager/tools", params={"status[eq]": "available", "include_total": "true", "limit": "2"}
         )
         assert paginated_response.status_code == 200
@@ -368,12 +368,12 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_pagination_with_filters_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test pagination works correctly with filters."""
         # Get available tools with pagination
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"status[eq]": "available", "limit": "2"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"status[eq]": "available", "limit": "2"})
         assert response.status_code == 200
 
         data = response.json()
@@ -385,7 +385,7 @@ class TestToolsListContract:
             assert tool["status"] == "available"
 
         # Get next page
-        next_response = await base_client.get(
+        next_response = await jwt_client.get(
             "/api/v1/tool_manager/tools", params={"status[eq]": "available", "limit": "2", "cursor": data["next"]}
         )
         assert next_response.status_code == 200
@@ -397,30 +397,30 @@ class TestToolsListContract:
     @pytest.mark.asyncio
     async def test_list_tools_edge_cases_contract(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         multiple_test_tools: list[Tool],  # noqa: ARG002
     ) -> None:
         """Test edge cases and boundary conditions."""
         # Test with limit = 0 (should return error)
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"limit": "0"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"limit": "0"})
         assert response.status_code == 422  # Validation error
 
         # Test with very large limit (should be capped)
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"limit": "1000"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"limit": "1000"})
         assert response.status_code in [200, 422]  # Either capped or validation error
 
         # Test with invalid cursor
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"cursor": "invalid-cursor"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"cursor": "invalid-cursor"})
         assert response.status_code in [200, 422]  # Either ignored or validation error
 
         # Test with invalid sort field
-        response = await base_client.get("/api/v1/tool_manager/tools", params={"sort": "invalid_field"})
+        response = await jwt_client.get("/api/v1/tool_manager/tools", params={"sort": "invalid_field"})
         assert response.status_code in [200, 422]  # Either ignored or validation error
 
     @pytest.mark.asyncio
     async def test_list_tools_parameters_eager_loading(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         tool_factory: "ToolFactory",
     ) -> None:
         """Test that ToolParameters are eagerly loaded in list_tools endpoint to avoid N+1 queries.
@@ -432,7 +432,7 @@ class TestToolsListContract:
         await tool_factory.create_tools_with_parameters()
 
         # Make HTTP request to list tools - this is end-to-end testing
-        response = await base_client.get("/api/v1/tool_manager/tools")
+        response = await jwt_client.get("/api/v1/tool_manager/tools")
 
         # Verify successful response
         assert response.status_code == 200

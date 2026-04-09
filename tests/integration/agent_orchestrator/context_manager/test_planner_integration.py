@@ -79,26 +79,19 @@ async def execute_planner_request(
     This helper reduces duplication by encapsulating the common pattern of:
     - Creating async session context manager
     - Patching get_async_session_context
-    - Patching get_current_user
-    - Executing plan_request
+    - Executing plan_request with user_id
     """
 
     @contextlib.asynccontextmanager
     async def mock_session_context() -> AsyncIterator[AsyncSession]:
         yield test_db_session
 
-    with (
-        patch.object(planner, "get_async_session_context", mock_session_context),
-        patch(
-            "nexus.agent_orchestrator.context_manager.planner.get_current_user",
-            new_callable=AsyncMock,
-            return_value=test_user,
-        ),
-    ):
+    with patch.object(planner, "get_async_session_context", mock_session_context):
         return await planner.plan_request(
             correlation_id=correlation_id,
             session_id="test-session",
             query="test query",
+            user_id=test_user.id,
         )
 
 

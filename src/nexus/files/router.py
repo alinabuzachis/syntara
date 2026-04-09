@@ -23,7 +23,7 @@ from fastapi import (
 from pydantic import BaseModel, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.api.auth import get_current_user
+from nexus.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.utils.session_factory import create_session_factory_from_request

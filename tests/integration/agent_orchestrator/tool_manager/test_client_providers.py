@@ -10,23 +10,25 @@ from nexus.tool_manager.models.tool_provider_configuration import MCPConfigurati
 
 
 @pytest_asyncio.fixture
-async def tool_manager_client(base_client: AsyncClient) -> ToolManagerClient:
+async def tool_manager_client(jwt_client: AsyncClient) -> ToolManagerClient:
     """Create ToolManagerClient that uses the test server with small page size.
 
-    The base_client fixture provides an AsyncClient connected to the test FastAPI
-    application via ASGI transport. We reuse this transport for ToolManagerClient.
+    The jwt_client fixture provides an AsyncClient connected to the test FastAPI
+    application via ASGI transport with JWT authentication. We reuse this transport
+    and headers for ToolManagerClient.
     Uses a small page size (3) to test pagination with 6 total providers.
     """
     # Create ToolManagerClient with small page size to test pagination
     client = ToolManagerClient(base_url="http://test/api/v1", limit=3)
     await client.close()
 
-    # Replace the default HTTP client with the test client's transport
-    # Use the same transport as base_client (which connects to the test app)
+    # Replace the default HTTP client with the test client's transport and auth headers
+    # Use the same transport as jwt_client (which connects to the test app)
     # Create a new session using the test transport but with the correct base URL
     client.session = AsyncClient(
-        transport=base_client._transport,
+        transport=jwt_client._transport,
         base_url="http://test/api/v1",
+        headers=dict(jwt_client.headers),  # Copy JWT auth headers
     )
 
     return client

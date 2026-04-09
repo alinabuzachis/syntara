@@ -14,7 +14,7 @@ from tests.helpers.workflow import (
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_versions_list(base_client: AsyncClient) -> None:
+async def test_get_workflow_versions_list(jwt_client: AsyncClient) -> None:
     """Test listing all versions for a workflow.
 
     Expected: 200 OK with versions array ordered by version DESC
@@ -29,7 +29,7 @@ async def test_get_workflow_versions_list(base_client: AsyncClient) -> None:
         ),
     }
 
-    create_response = await base_client.post("/api/v1/workflows", json=workflow)
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # Create additional versions using PATCH (versions are system-managed)
@@ -42,7 +42,7 @@ async def test_get_workflow_versions_list(base_client: AsyncClient) -> None:
         ),
         "change_description": "Version 2",
     }
-    await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data_v2)
+    await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data_v2)
 
     update_data_v3 = {
         "workflow_definition": create_workflow_definition_with_activities(
@@ -71,10 +71,10 @@ async def test_get_workflow_versions_list(base_client: AsyncClient) -> None:
         ),
         "change_description": "Version 3",
     }
-    await base_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data_v3)
+    await jwt_client.patch(f"/api/v1/workflows/{workflow_id}", json=update_data_v3)
 
     # List all versions
-    response = await base_client.get(f"/api/v1/workflows/{workflow_id}/versions")
+    response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}/versions")
 
     assert response.status_code == 200
     data = response.json()
@@ -89,7 +89,7 @@ async def test_get_workflow_versions_list(base_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_versions_empty_list(base_client: AsyncClient) -> None:
+async def test_get_workflow_versions_empty_list(jwt_client: AsyncClient) -> None:
     """Test listing versions for workflow with only initial version.
 
     Expected: 200 OK with single version (the initial one)
@@ -104,11 +104,11 @@ async def test_get_workflow_versions_empty_list(base_client: AsyncClient) -> Non
         ),
     }
 
-    create_response = await base_client.post("/api/v1/workflows", json=workflow)
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # List versions
-    response = await base_client.get(f"/api/v1/workflows/{workflow_id}/versions")
+    response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}/versions")
 
     assert response.status_code == 200
     data = response.json()
@@ -119,20 +119,20 @@ async def test_get_workflow_versions_empty_list(base_client: AsyncClient) -> Non
 
 @pytest.mark.asyncio
 async def test_get_workflow_versions_nonexistent_workflow(
-    base_client: AsyncClient,
+    jwt_client: AsyncClient,
 ) -> None:
     """Test listing versions for non-existent workflow.
 
     Expected: 404 Not Found
     """
     fake_id = "00000000-0000-0000-0000-000000000000"
-    response = await base_client.get(f"/api/v1/workflows/{fake_id}/versions")
+    response = await jwt_client.get(f"/api/v1/workflows/{fake_id}/versions")
 
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_get_workflow_versions_includes_metadata(base_client: AsyncClient) -> None:
+async def test_get_workflow_versions_includes_metadata(jwt_client: AsyncClient) -> None:
     """Test that version list includes metadata.
 
     Expected: Each version includes schema_version, created_at, etc.
@@ -147,11 +147,11 @@ async def test_get_workflow_versions_includes_metadata(base_client: AsyncClient)
         ),
     }
 
-    create_response = await base_client.post("/api/v1/workflows", json=workflow)
+    create_response = await jwt_client.post("/api/v1/workflows", json=workflow)
     workflow_id = create_response.json()["id"]
 
     # List versions
-    response = await base_client.get(f"/api/v1/workflows/{workflow_id}/versions")
+    response = await jwt_client.get(f"/api/v1/workflows/{workflow_id}/versions")
 
     assert response.status_code == 200
     data = response.json()

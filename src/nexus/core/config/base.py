@@ -16,7 +16,9 @@ Usage:
 
 import os
 import tempfile
+import warnings
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Self
 from urllib.parse import quote_plus
 from uuid import UUID
@@ -323,6 +325,12 @@ class ServerSettings(BaseSettings):
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
+    server_scheme: str = Field(
+        default="https",
+        description="Server URL scheme (https or http). Defaults to https for security. "
+        "Set to http for local development without TLS.",
+    )
+
     server_host: str = Field(
         default="0.0.0.0",  # noqa: S104
         description="Server bind host",
@@ -349,10 +357,28 @@ class ServerSettings(BaseSettings):
         ),
     )
 
+    # Database encryption key (Fernet, for encrypting sensitive fields at rest)
+    db_encryption_key: SecretStr | None = Field(
+        default=None,
+        description=(
+            "Fernet encryption key for encrypting sensitive fields at rest (e.g. client secrets). "
+            "Generate with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'. "
+            "Required for encrypting sensitive fields; operations will fail if not configured."
+        ),
+    )
+
+    db_encryption_key_path: str | None = Field(
+        default=None,
+        description=(
+            "Path to a file containing the Fernet encryption key. "
+            "Preferred over db_encryption_key to avoid exposing the key in the process environment."
+        ),
+    )
+
     # CORS configuration
     cors_allow_origins: list[str] = Field(
-        default=["*"],
-        description="Allowed origins for CORS",
+        default_factory=list,
+        description="Allowed origins for CORS (explicit list required when using credential cookies)",
     )
 
     cors_allow_credentials: bool = Field(
@@ -361,14 +387,42 @@ class ServerSettings(BaseSettings):
     )
 
     cors_allow_methods: list[str] = Field(
-        default=["*"],
+        default=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         description="Allowed HTTP methods for CORS",
     )
 
     cors_allow_headers: list[str] = Field(
-        default=["*"],
+        default=["Authorization", "Content-Type", "Accept"],
         description="Allowed headers for CORS",
     )
+
+    # OIDC security
+    oidc_allow_private_networks: bool = Field(
+        default=False,
+        description="Allow OIDC identity providers on private/internal networks. "
+        "Enable for environments with internal IdPs (e.g., corporate Keycloak on a private network). "
+        "When disabled, OIDC issuer URLs that resolve to private, loopback, or link-local IPs are rejected.",
+    )
+
+    @model_validator(mode="after")
+    def _load_db_encryption_key_from_path(self) -> "ServerSettings":
+        """Load ``db_encryption_key`` from file if ``db_encryption_key_path`` is set."""
+        if self.db_encryption_key is None and self.db_encryption_key_path is not None:
+            key_text = Path(self.db_encryption_key_path).read_text().strip()
+            self.db_encryption_key = SecretStr(key_text)
+        return self
+
+    @model_validator(mode="after")
+    def _validate_cors(self) -> "ServerSettings":
+        """Reject wildcard origins when credentials are enabled.
+
+        Per the CORS specification, ``Access-Control-Allow-Origin: *`` is
+        incompatible with ``Access-Control-Allow-Credentials: true``.
+        """
+        if self.cors_allow_credentials and "*" in self.cors_allow_origins:
+            msg = "CORS: cors_allow_origins cannot contain '*' when cors_allow_credentials is True"
+            raise ValueError(msg)
+        return self
 
 
 # =============================================================================
@@ -966,6 +1020,74 @@ class WorkflowEngineSettings(BaseSettings):
 # =============================================================================
 
 
+# =============================================================================
+# JWT Authentication Configuration
+# =============================================================================
+
+
+class JWTSettings(BaseSettings):
+    """JWT authentication configuration settings.
+
+    Configures JWT token creation, validation, and key management for
+    authentication. Uses ES256 (ECDSA P-256) algorithm for signing.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    # JWT Token Configuration
+    jwt_access_token_lifetime_minutes: int = Field(
+        default=15,
+        description="Access token lifetime in minutes",
+        ge=1,
+        le=60,
+    )
+
+    jwt_refresh_token_lifetime_hours: int = Field(
+        default=8,
+        description="Refresh token lifetime in hours",
+        ge=1,
+        le=720,  # 30 days max
+    )
+
+    # Key Management
+    jwt_private_key_path: str | None = Field(
+        default=None,
+        description="Path to ES256 private key PEM file (if not set, generates ephemeral key)",
+    )
+
+    jwt_private_key_base64: SecretStr | None = Field(
+        default=None,
+        description="Base64-encoded ES256 private key PEM (alternative to file path)",
+    )
+
+    jwt_key_id: str = Field(
+        default="nexus-primary",
+        description="Key ID (kid) for JWT header",
+    )
+
+    # Backup Keys for Key Rotation (verification only)
+    jwt_backup_keys: list[dict[str, str]] | None = Field(
+        default=None,
+        description=(
+            "List of backup keys for verification during key rotation. "
+            "Each entry must have 'key_id' and either 'key_path' or 'key_base64'. "
+            "Example: [{'key_id': 'nexus-2024-01', 'key_base64': '...'}]"
+        ),
+    )
+
+    # Refresh-token cookie settings
+    cookie_domain: str | None = Field(
+        default=None,
+        description="Domain attribute for the refresh-token cookie (None = host-only)",
+    )
+
+    # Bootstrap Admin
+    admin_password_path: str | None = Field(
+        default=None,
+        description="Path to file containing the bootstrap admin password (e.g., /run/secrets/admin-password)",
+    )
+
+
 class ToolManagerSettings(BaseSettings):
     """Tool Manager client configuration settings.
 
@@ -1154,6 +1276,7 @@ class Settings(
     LoggingSettings,
     TemporalSettings,
     WorkflowEngineSettings,
+    JWTSettings,
     ToolManagerSettings,
     WorkflowClientSettings,
     TelemetrySettings,
@@ -1173,6 +1296,46 @@ class Settings(
         extra="ignore",
         env_prefix="APP_",
     )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def cookie_secure(self) -> bool:
+        """Derive the Secure flag for the refresh-token cookie from server_scheme.
+
+        HTTPS → Secure=True (browser only sends the cookie over TLS).
+        HTTP  → Secure=False (local development without TLS).
+        """
+        return self.server_scheme == "https"
+
+    @model_validator(mode="after")
+    def _validate_cors_production(self) -> "Settings":
+        """Warn when CORS origins are empty in production mode (AAP-71274).
+
+        An empty ``cors_allow_origins`` with ``server_scheme=https`` means all
+        cross-origin requests carrying cookies will be blocked, which breaks
+        the frontend.  This is a warning rather than an error because CORS
+        origins may eventually be a runtime setting.
+        """
+        if self.cookie_secure and not self.cors_allow_origins:
+            warnings.warn(
+                "CORS: cors_allow_origins is empty while server_scheme is https (production mode). "
+                "Cross-origin requests with credentials will be blocked. "
+                "Set APP_CORS_ALLOW_ORIGINS to the frontend origin(s).",
+                UserWarning,
+                stacklevel=1,
+            )
+        return self
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def jwt_issuer(self) -> str:
+        """JWT issuer claim (iss) derived from server host and port.
+
+        Returns:
+            URL identifying this Nexus instance as the token issuer.
+
+        """
+        return f"{self.server_scheme}://{self.server_host}:{self.server_port}"
 
 
 @lru_cache

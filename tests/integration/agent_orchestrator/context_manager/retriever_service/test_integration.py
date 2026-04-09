@@ -20,7 +20,7 @@ FIXTURES_DIR = Path(__file__).parent.parent.parent.parent.parent / "fixtures" / 
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("mock_relevancy_checker")
+@pytest.mark.usefixtures("mock_relevancy_checker", "test_user_token_config")
 async def test_retriever_service_integration_with_agent_invocation(
     auth_client_with_mocked_llm, test_user, mock_openrouter_llm
 ) -> None:
@@ -71,7 +71,7 @@ async def test_retriever_service_integration_with_agent_invocation(
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("mock_relevancy_checker")
+@pytest.mark.usefixtures("mock_relevancy_checker", "test_user_token_config")
 async def test_file_upload_with_streaming_events(auth_client_with_mocked_llm, test_user, mock_openrouter_llm) -> None:
     """Test complete flow: upload files -> execute -> response streams via Redis.
 

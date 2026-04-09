@@ -11,7 +11,7 @@ from sqlalchemy import select as sa_select
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.api.auth import get_current_user
+from nexus.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.models.pagination import ResourcesResponse

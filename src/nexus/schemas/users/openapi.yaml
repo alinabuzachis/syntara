@@ -1,0 +1,736 @@
+---
+openapi: 3.0.3
+info:
+  title: Nexus Users & Groups API
+  version: 1.0.0
+  description: |
+    User and group management endpoints for the Nexus platform.
+
+    ## Key Features
+    - User CRUD (local user account management)
+    - Group CRUD and membership management
+
+servers:
+  - url: /api/v1
+    description: API server (relative path)
+
+tags:
+  - name: Users
+    description: Local user account management
+  - name: Groups
+    description: Group CRUD and membership management
+
+paths:
+  # ── Users ───────────────────────────────────────────────────────────
+  /users:
+    get:
+      summary: List users
+      description: Retrieve list of users with filtering and pagination
+      operationId: list_users
+      tags:
+        - Users
+      parameters:
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Sort field and direction (e.g., 'username', '-created_at')
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+
+    post:
+      summary: Create a new local user
+      description: Create a new local user account with username and password
+      operationId: create_user
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '409':
+          description: Username or email conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+  /users/{user_id}:
+    get:
+      summary: Get user by ID
+      description: Retrieve a user by their UUID
+      operationId: get_user
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User UUID
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '404':
+          description: User not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+    patch:
+      summary: Update user
+      description: |
+        Partially update a user. Only provided fields are updated.
+        Include the password field to change the user's password.
+      operationId: update_user
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '403':
+          description: Forbidden (e.g., non-admin disabling built-in admin)
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '404':
+          description: User not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '409':
+          description: Email conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+    delete:
+      summary: Delete user
+      description: Soft delete a user account
+      operationId: delete_user
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User UUID
+      responses:
+        '204':
+          description: User deleted
+        '404':
+          description: User not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+  /users/{user_id}/groups:
+    get:
+      summary: List user's groups
+      description: List groups that a user belongs to
+      operationId: list_user_groups
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User UUID
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+      responses:
+        '200':
+          description: List of groups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupListResponse'
+        '404':
+          description: User not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+    put:
+      summary: Set user's group memberships
+      description: |
+        Declaratively set a user's group memberships. The provided list replaces
+        all current memberships. An empty list removes the user from all groups.
+      operationId: set_user_groups
+      tags:
+        - Users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserGroupsSet'
+      responses:
+        '200':
+          description: Updated group memberships
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupListResponse'
+        '404':
+          description: User or group not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+  # ── Groups ──────────────────────────────────────────────────────────
+  /groups:
+    get:
+      summary: List groups
+      description: Retrieve list of groups with filtering and pagination
+      operationId: list_groups
+      tags:
+        - Groups
+      parameters:
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Sort field and direction (e.g., 'name', '-created_at')
+      responses:
+        '200':
+          description: List of groups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupListResponse'
+
+    post:
+      summary: Create a new group
+      description: Create a new group for organizing users
+      operationId: create_group
+      tags:
+        - Groups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupCreate'
+      responses:
+        '201':
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupRead'
+        '409':
+          description: Group name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+  /groups/{group_id}:
+    get:
+      summary: Get group by ID
+      description: Retrieve a group by its UUID
+      operationId: get_group
+      tags:
+        - Groups
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Group UUID
+      responses:
+        '200':
+          description: Group details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupRead'
+        '404':
+          description: Group not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+    patch:
+      summary: Update group
+      description: Partially update a group. Only provided fields are updated.
+      operationId: update_group
+      tags:
+        - Groups
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Group UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupUpdate'
+      responses:
+        '200':
+          description: Updated group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupRead'
+        '404':
+          description: Group not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '409':
+          description: Group name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+    delete:
+      summary: Delete group
+      description: Soft delete a group
+      operationId: delete_group
+      tags:
+        - Groups
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Group UUID
+      responses:
+        '204':
+          description: Group deleted
+        '404':
+          description: Group not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+  /groups/{group_id}/members:
+    get:
+      summary: List group members
+      description: List members of a group with pagination
+      operationId: list_members
+      tags:
+        - Groups
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Group UUID
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+      responses:
+        '200':
+          description: List of group members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '404':
+          description: Group not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+    post:
+      summary: Add member to group
+      description: Add a local user to a group
+      operationId: add_member
+      tags:
+        - Groups
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Group UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupMemberAdd'
+      responses:
+        '201':
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMemberAddResponse'
+        '403':
+          description: User is not a local user
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '404':
+          description: Group or user not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '409':
+          description: User already a member
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+  /groups/{group_id}/members/{user_id}:
+    delete:
+      summary: Remove member from group
+      description: Remove a user from a group
+      operationId: remove_member
+      tags:
+        - Groups
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Group UUID
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User UUID
+      responses:
+        '204':
+          description: Member removed
+        '403':
+          description: User is not a local user
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '404':
+          description: Group not found or user not a member
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+components:
+  schemas:
+    # ── User schemas ────────────────────────────────────────────────
+    UserCreate:
+      type: object
+      required:
+        - username
+        - email
+        - full_name
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Unique username
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Unique email address
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: User's display name
+        password:
+          type: string
+          format: password
+          description: Plaintext password (will be hashed)
+        role:
+          type: string
+          enum: [viewer, creator, approver, administrator]
+          default: viewer
+          description: User role for access control
+        is_active:
+          type: boolean
+          default: true
+          description: Account activation status
+
+    UserUpdate:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Update display name
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Update email address
+        password:
+          type: string
+          format: password
+          description: New password (will be hashed). Omit to keep current password.
+        role:
+          type: string
+          enum: [viewer, creator, approver, administrator]
+          description: Update user role
+        is_active:
+          type: boolean
+          description: Enable or disable user account
+
+    UserRead:
+      type: object
+      required:
+        - id
+        - username
+        - email
+        - full_name
+        - role
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User UUID
+        username:
+          type: string
+          description: Username
+        email:
+          type: string
+          format: email
+          description: Email address
+        full_name:
+          type: string
+          description: Display name
+        role:
+          type: string
+          enum: [viewer, creator, approver, administrator]
+          description: User role
+        is_active:
+          type: boolean
+          description: Account active status
+        last_login:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last login timestamp
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    UserListResponse:
+      allOf:
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponse
+        - type: object
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserRead'
+
+    UserGroupsSet:
+      type: object
+      properties:
+        group_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          default: []
+          description: Complete list of group IDs the user should belong to
+
+    # ── Group schemas ───────────────────────────────────────────────
+    GroupCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Unique group name
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Group description
+
+    GroupUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Update group name
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Update group description
+
+    GroupRead:
+      type: object
+      required:
+        - id
+        - name
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Group UUID
+        name:
+          type: string
+          description: Group name
+        description:
+          type: string
+          nullable: true
+          description: Group description
+        created_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: User who created the group
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    GroupListResponse:
+      allOf:
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponse
+        - type: object
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/GroupRead'
+
+    GroupMemberAdd:
+      type: object
+      required:
+        - user_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: UUID of the user to add to the group
+
+    GroupMemberAddResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          default: Member added successfully
+          description: Confirmation message
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

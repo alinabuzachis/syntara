@@ -40,6 +40,9 @@ class AgentState(TypedDict):
     invocation_id: str
     """UUID of the invocation being processed"""
 
+    user_id: str | None
+    """UUID of the user who initiated the invocation (from JWT claims)"""
+
     # Context management
     context_package: dict[str, Any] | None
     """Context package from ContextManagerPlanner, if available"""
@@ -75,6 +78,7 @@ class AgentStateFactory:
         invocation_id: UUID,
         correlation_id: str | None = None,
         metadata: dict[str, Any] | None = None,
+        user_id: UUID | None = None,
     ) -> AgentState:
         """Create initial state for LangGraph execution.
 
@@ -84,6 +88,7 @@ class AgentStateFactory:
             invocation_id: Invocation UUID
             correlation_id: Optional correlation ID (defaults to invocation_id)
             metadata: Optional metadata from invocation context_data (e.g., callback_url)
+            user_id: Optional UUID of the user who initiated the invocation
 
         Returns:
             Initial AgentState ready for orchestration
@@ -95,6 +100,7 @@ class AgentStateFactory:
             session_id=session_id,
             correlation_id=correlation_id or str(invocation_id),
             invocation_id=str(invocation_id),
+            user_id=str(user_id) if user_id else None,
             context_package=None,
             current_agent=AgentRoutes.ORCHESTRATOR,
             metadata=metadata,

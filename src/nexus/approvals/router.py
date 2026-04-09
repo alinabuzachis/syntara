@@ -6,7 +6,6 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.api.auth import get_current_user
 from nexus.approvals.models import ApprovalRequestRead
 from nexus.approvals.models.api_models import (
     ApprovalCreateRequest,
@@ -17,6 +16,7 @@ from nexus.approvals.models.approval_request import ApprovalListResponse
 from nexus.approvals.models.batch_response import BatchApprovalResponse
 from nexus.approvals.models.query_params import ApprovalListParams
 from nexus.approvals.services.approval_service import ApprovalService
+from nexus.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 

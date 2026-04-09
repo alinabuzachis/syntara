@@ -70,7 +70,7 @@ class ErrorData(SQLModel):
 
     instance: str | None = PydanticField(
         default=None,
-        max_length=500,
+        max_length=2048,
         description="Optional URI reference identifying the specific occurrence",
         examples=[_EXAMPLE_INVOCATION_PATH],
     )

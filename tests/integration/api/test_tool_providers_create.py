@@ -15,7 +15,7 @@ class TestToolProvidersCreateContract:
     """Contract tests for tool providers create endpoint."""
 
     @pytest.mark.asyncio
-    async def test_create_provider_success_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
+    async def test_create_provider_success_contract(self, jwt_client_with_provider_factory: AsyncClient) -> None:
         """Test successful provider registration returns 201."""
         provider_data = {
             "name": "test-mcp-provider",
@@ -27,7 +27,7 @@ class TestToolProvidersCreateContract:
             },
         }
 
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
@@ -48,7 +48,7 @@ class TestToolProvidersCreateContract:
         assert data["status"] == "validating"
 
     @pytest.mark.asyncio
-    async def test_create_provider_with_long_description(self, base_client_with_provider_factory: AsyncClient) -> None:
+    async def test_create_provider_with_long_description(self, jwt_client_with_provider_factory: AsyncClient) -> None:
         """Test successful provider registration returns 422."""
         provider_data = {
             "name": "test-mcp-provider",
@@ -60,7 +60,7 @@ class TestToolProvidersCreateContract:
             },
         }
 
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
@@ -80,7 +80,7 @@ class TestToolProvidersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_provider_without_api_key_success_contract(
-        self, base_client_with_provider_factory: AsyncClient
+        self, jwt_client_with_provider_factory: AsyncClient
     ) -> None:
         """Test successful provider creation without api_key (optional)."""
         provider_data = {
@@ -92,7 +92,7 @@ class TestToolProvidersCreateContract:
             },
         }
 
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
@@ -116,7 +116,7 @@ class TestToolProvidersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_provider_duplicate_name_conflict_contract(
-        self, base_client_with_provider_factory: AsyncClient
+        self, jwt_client_with_provider_factory: AsyncClient
     ) -> None:
         """Test 409 conflict for duplicate provider names."""
         provider_data = {
@@ -125,12 +125,12 @@ class TestToolProvidersCreateContract:
         }
 
         # Create first provider
-        response1 = await base_client_with_provider_factory.post(
+        response1 = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
         # Attempt to create duplicate
-        response2 = await base_client_with_provider_factory.post(
+        response2 = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
@@ -146,12 +146,12 @@ class TestToolProvidersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_provider_missing_configuration_contract(
-        self, base_client_with_provider_factory: AsyncClient
+        self, jwt_client_with_provider_factory: AsyncClient
     ) -> None:
         """Test validation error for missing configuration."""
         provider_data = {"name": "missing-config-test"}
 
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
@@ -164,7 +164,7 @@ class TestToolProvidersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_provider_missing_provider_type_contract(
-        self, base_client_with_provider_factory: AsyncClient
+        self, jwt_client_with_provider_factory: AsyncClient
     ) -> None:
         """Test validation error for missing provider_type."""
         provider_data = {
@@ -172,7 +172,7 @@ class TestToolProvidersCreateContract:
             "configuration": {"base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
@@ -185,9 +185,9 @@ class TestToolProvidersCreateContract:
         assert "provider_type" in error_message.lower()
 
     @pytest.mark.asyncio
-    async def test_create_provider_invalid_json_contract(self, base_client_with_provider_factory: AsyncClient) -> None:
+    async def test_create_provider_invalid_json_contract(self, jwt_client_with_provider_factory: AsyncClient) -> None:
         """Test 422 error for invalid JSON."""
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json={}, headers={"Content-Type": "application/json"}
         )
 
@@ -196,7 +196,7 @@ class TestToolProvidersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_provider_optional_fields_contract(
-        self, base_client_with_provider_factory: AsyncClient
+        self, jwt_client_with_provider_factory: AsyncClient
     ) -> None:
         """Test creation with optional fields."""
         provider_data = {
@@ -204,7 +204,7 @@ class TestToolProvidersCreateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
@@ -221,7 +221,7 @@ class TestToolProvidersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_provider_response_schema_contract(
-        self, base_client_with_provider_factory: AsyncClient
+        self, jwt_client_with_provider_factory: AsyncClient
     ) -> None:
         """Test response matches OpenAPI specification schema."""
         provider_data = {
@@ -229,7 +229,7 @@ class TestToolProvidersCreateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
@@ -244,7 +244,7 @@ class TestToolProvidersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_provider_integrity_error_non_name_conflict_contract(
-        self, base_client_with_provider_factory: AsyncClient, monkeypatch
+        self, jwt_client_with_provider_factory: AsyncClient, monkeypatch
     ) -> None:
         """Test 400 error for IntegrityError that is NOT a name conflict."""
 
@@ -262,7 +262,7 @@ class TestToolProvidersCreateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://example.com/mcp", "api_key": "test-key"},
         }
 
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 
@@ -279,7 +279,7 @@ class TestToolProvidersCreateContract:
 
     @pytest.mark.asyncio
     async def test_create_provider_validation_status_contract(
-        self, base_client_with_provider_factory: AsyncClient
+        self, jwt_client_with_provider_factory: AsyncClient
     ) -> None:
         """Test new provider starts with 'validating' status."""
         provider_data = {
@@ -287,7 +287,7 @@ class TestToolProvidersCreateContract:
             "configuration": {"provider_type": "mcp", "base_url": "https://alpha.example.com", "api_key": "alpha-key"},
         }
 
-        response = await base_client_with_provider_factory.post(
+        response = await jwt_client_with_provider_factory.post(
             "/api/v1/tool_manager/tool_providers", json=provider_data
         )
 

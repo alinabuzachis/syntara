@@ -17,6 +17,7 @@ from nexus.core.logging.logging import configure_structlog
 from nexus.core.models import User
 from nexus.core.models.installation import Installation
 from nexus.files.models import FileMetadata
+from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.settings.models.runtime_setting import RuntimeSetting
 from nexus.tool_manager.models.rate_limit_config import RateLimit
 from nexus.tool_manager.models.tool import Tool, ToolParameter
@@ -47,6 +48,7 @@ _ = (
     TokenUsageRecord,
     FileMetadata,
     ApprovalRequest,
+    IdentityProvider,
     RuntimeSetting,
 )
 

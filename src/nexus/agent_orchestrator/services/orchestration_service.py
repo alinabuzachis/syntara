@@ -140,6 +140,7 @@ class OrchestrationService:
         invocation_id: UUID,
         correlation_id: str | None = None,
         metadata: dict[str, Any] | None = None,
+        user_id: UUID | None = None,
     ) -> dict[str, Any]:
         """Execute agent orchestration with LLM streaming through LangGraph.
 
@@ -152,6 +153,7 @@ class OrchestrationService:
             invocation_id: Invocation UUID
             correlation_id: Optional correlation ID for distributed tracing
             metadata: Optional metadata from invocation context_data (e.g., callback_url)
+            user_id: Optional UUID of the user who initiated the invocation
 
         Returns:
             Agent execution result with context enhancement metadata (dict format for DB storage)
@@ -171,6 +173,7 @@ class OrchestrationService:
             invocation_id=invocation_id,
             correlation_id=correlation_id,
             metadata=metadata,
+            user_id=user_id,
         )
 
         graph: CompiledStateGraph[AgentState, None, Any, Any] = await self._setup_graph(initial_state)

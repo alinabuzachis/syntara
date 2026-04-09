@@ -26,7 +26,7 @@ class TestMalformedCursorHandling:
     )
     async def test_malformed_cursor_returns_422_error(
         self,
-        base_client: AsyncClient,
+        jwt_client: AsyncClient,
         endpoint: str,
     ) -> None:
         """Test that malformed cursor in API endpoints returns 422 Unprocessable Entity."""
@@ -34,7 +34,7 @@ class TestMalformedCursorHandling:
         malformed_cursor = "invalid_base64!!!!"
 
         # Make request to the endpoint with malformed cursor
-        response = await base_client.get(endpoint, params={"cursor": malformed_cursor})
+        response = await jwt_client.get(endpoint, params={"cursor": malformed_cursor})
 
         # Should return 422 Unprocessable Entity for malformed cursor
         assert response.status_code == 422

@@ -21,12 +21,16 @@ info:
     | Tool Metrics | [tool_manager/metrics.openapi.yaml](tool_manager/metrics.openapi.yaml) |
     | Workflows | [workflows/openapi.yaml](workflows/openapi.yaml) |
     | Executions | [workflows/executions.openapi.yaml](workflows/executions.openapi.yaml) |
+    | Authentication | [auth/openapi.yaml](auth/openapi.yaml) |
+    | Identity Providers | [identity_providers/openapi.yaml](identity_providers/openapi.yaml) |
 
 servers:
   - url: /api/v1
     description: API v1
 
 tags:
+  - name: Authentication
+    description: JWT token management and user identity
   - name: Approvals
     description: Human-in-the-loop approval request management
   - name: Files
@@ -43,6 +47,18 @@ tags:
     description: Workflow execution management
 
 paths:
+  # Authentication
+  /auth/login:
+    $ref: "./auth/openapi.yaml#/paths/~1login"
+  /auth/refresh:
+    $ref: "./auth/openapi.yaml#/paths/~1refresh"
+  /auth/logout:
+    $ref: "./auth/openapi.yaml#/paths/~1logout"
+  /auth/me:
+    $ref: "./auth/openapi.yaml#/paths/~1me"
+  /auth/providers:
+    $ref: "./auth/openapi.yaml#/paths/~1providers"
+
   # Approvals
   /approvals:
     $ref: "./approvals/openapi.yaml#/paths/~1approvals"

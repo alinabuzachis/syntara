@@ -166,10 +166,10 @@ async def populated_execution_stream(
 
 
 @pytest_asyncio.fixture
-async def test_execution(base_client: AsyncClient) -> UUID:
+async def test_execution(jwt_client: AsyncClient) -> UUID:
     """Create a test execution in the database."""
     # Create a minimal workflow first
-    workflow_response = await base_client.post(
+    workflow_response = await jwt_client.post(
         "/api/v1/workflows",
         json={
             "name": "test-streaming-workflow",
@@ -184,7 +184,7 @@ async def test_execution(base_client: AsyncClient) -> UUID:
     workflow = workflow_response.json()
 
     # Create an execution
-    execution_response = await base_client.post(
+    execution_response = await jwt_client.post(
         "/api/v1/executions",
         json={
             "workflow_id": workflow["id"],

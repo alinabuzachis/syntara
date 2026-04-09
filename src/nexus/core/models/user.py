@@ -6,7 +6,7 @@ for managing platform users with authentication and role-based access control.
 
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, ClassVar
 
 from sqlalchemy import String
 from sqlmodel import JSON, DateTime, Field, Index, text
@@ -42,6 +42,7 @@ class User(SoftDeletableResource, table=True):
         email: Unique email address
         full_name: User's display name
         role: User role for access control (UserRole enum)
+        password_hash: Argon2id hash for local auth (null for federated-only users)
         is_active: Account activation status
         last_login: Timestamp of last successful login
         preferences: JSON field for user preferences and settings
@@ -49,6 +50,25 @@ class User(SoftDeletableResource, table=True):
     """
 
     __tablename__ = "users"
+
+    # Filterable fields for API list endpoints
+    __filterable_fields__: ClassVar[list[str]] = [
+        "id",
+        "created_at",
+        "updated_at",
+        "username",
+        "email",
+        "role",
+        "is_active",
+    ]
+
+    # Sortable fields for API list endpoints
+    __sortable_fields__: ClassVar[list[str]] = [
+        "created_at",
+        "updated_at",
+        "username",
+        "email",
+    ]
 
     # Required fields
     username: str = Field(
@@ -82,6 +102,13 @@ class User(SoftDeletableResource, table=True):
             create_constraint=True,
         ),
         description="User role for access control",
+    )
+
+    password_hash: str | None = Field(
+        default=None,
+        exclude=True,
+        sa_type=String(255),  # type: ignore[call-overload]
+        description="Argon2id password hash for local authentication (null for federated-only users)",
     )
 
     # Optional fields with defaults

@@ -82,20 +82,16 @@ class TestContextManagerPlanner:
             compressor_service_factory=lambda: mock_compressor,
         )
 
-        with (
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
-                new_callable=AsyncMock,
-                return_value=mock_context_package,
-            ) as mock_assemble,
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.get_current_user",
-                new_callable=AsyncMock,
-                return_value=mock_user,
-            ),
-        ):
+        with patch(
+            "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
+            new_callable=AsyncMock,
+            return_value=mock_context_package,
+        ) as mock_assemble:
             result = await planner.plan_request(
-                correlation_id="test-run-123", session_id="test-session", query="test query"
+                correlation_id="test-run-123",
+                session_id="test-session",
+                query="test query",
+                user_id=mock_user.id,
             )
 
         # Verify return type and structure
@@ -130,20 +126,16 @@ class TestContextManagerPlanner:
 
         planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
 
-        with (
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
-                new_callable=AsyncMock,
-                return_value=mock_context_package,
-            ),
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.get_current_user",
-                new_callable=AsyncMock,
-                return_value=mock_user,
-            ),
+        with patch(
+            "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
+            new_callable=AsyncMock,
+            return_value=mock_context_package,
         ):
             result = await planner.plan_request(
-                correlation_id="different-run", session_id="different-session", query="different query"
+                correlation_id="different-run",
+                session_id="different-session",
+                query="different query",
+                user_id=mock_user.id,
             )
 
         assert result.correlation_id == "different-run"
@@ -166,20 +158,16 @@ class TestContextManagerPlanner:
 
         planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
 
-        with (
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
-                new_callable=AsyncMock,
-                return_value=mock_context_package,
-            ),
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.get_current_user",
-                new_callable=AsyncMock,
-                return_value=mock_user,
-            ),
+        with patch(
+            "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
+            new_callable=AsyncMock,
+            return_value=mock_context_package,
         ):
             result = await planner.plan_request(
-                correlation_id="timing-test", session_id="test-session", query="timing query"
+                correlation_id="timing-test",
+                session_id="test-session",
+                query="timing query",
+                user_id=mock_user.id,
             )
 
         # Verify metadata from AssemblerService is present
@@ -216,24 +204,18 @@ class TestContextManagerPlanner:
             compressor_service_factory=lambda: mock_compressor,
         )
 
-        with (
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
-                new_callable=AsyncMock,
-                return_value=mock_context_package,
-            ) as mock_assemble,
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.get_current_user",
-                new_callable=AsyncMock,
-                return_value=mock_user,
-            ),
-        ):
+        with patch(
+            "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
+            new_callable=AsyncMock,
+            return_value=mock_context_package,
+        ) as mock_assemble:
             # Should not raise exception despite retrieval failure
             result = await planner.plan_request(
                 correlation_id="error-test",
                 session_id="test-session",
                 query="error query",
                 invocation_id=UUID("12345678-1234-5678-1234-567812345678"),
+                user_id=mock_user.id,
             )
 
             # Verify planner still returns a result despite retrieval error
@@ -259,19 +241,17 @@ class TestContextManagerPlanner:
 
         planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
 
-        with (
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
-                new_callable=AsyncMock,
-                return_value=mock_context_package,
-            ) as mock_assemble,
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.get_current_user",
-                new_callable=AsyncMock,
-                return_value=mock_user,
-            ),
-        ):
-            await planner.plan_request(correlation_id="config-test", session_id="test-session", query="config query")
+        with patch(
+            "nexus.agent_orchestrator.context_manager.planner.AssemblerService.assemble",
+            new_callable=AsyncMock,
+            return_value=mock_context_package,
+        ) as mock_assemble:
+            await planner.plan_request(
+                correlation_id="config-test",
+                session_id="test-session",
+                query="config query",
+                user_id=mock_user.id,
+            )
 
             # Verify AssemblerService received config values
             call_kwargs = mock_assemble.call_args.kwargs
@@ -283,7 +263,6 @@ class TestContextManagerPlanner:
     @pytest.mark.asyncio
     async def test_plan_request_reads_max_total_tokens_from_settings(
         self,
-        mock_user: User,
         mock_compressor,
         override_runtime_settings: Callable[..., AbstractContextManager[FakeSettingsCache]],
     ) -> None:
@@ -303,11 +282,6 @@ class TestContextManagerPlanner:
                 new_callable=AsyncMock,
                 return_value=mock_context_package,
             ) as mock_assemble,
-            patch(
-                "nexus.agent_orchestrator.context_manager.planner.get_current_user",
-                new_callable=AsyncMock,
-                return_value=mock_user,
-            ),
         ):
             planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
             await planner.plan_request(correlation_id="cache-test", session_id="test-session", query="cache query")

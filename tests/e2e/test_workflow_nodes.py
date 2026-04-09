@@ -14,12 +14,16 @@ from typing import Any
 import httpx
 import pytest
 
+from .conftest import _generate_e2e_token
+
 BASE_URL = os.environ.get("NEXUS_E2E_BASE_URL", "http://127.0.0.1:8000/api/v1")
 MCP_SERVER_URL = os.environ.get("NEXUS_MCP_SERVER_URL", "http://mcp-server:8765/mcp")
 MCP_PROVIDER_NAME = "mcp"
 POLL_INTERVAL = 3
 POLL_TIMEOUT = 60
 AGENTIC_POLL_TIMEOUT = 120
+
+_AUTH_HEADERS = {"Authorization": f"Bearer {_generate_e2e_token()}"}
 
 requires_openrouter = pytest.mark.skipif(
     not os.environ.get("NEXUS_OPENROUTER_API_KEY"),
@@ -28,19 +32,19 @@ requires_openrouter = pytest.mark.skipif(
 
 
 def _get(path: str, **kwargs: object) -> dict[str, Any]:
-    r = httpx.get(f"{BASE_URL}{path}", **kwargs)  # type: ignore[arg-type]
+    r = httpx.get(f"{BASE_URL}{path}", headers=_AUTH_HEADERS, **kwargs)  # type: ignore[arg-type]
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]
 
 
 def _post(path: str, **kwargs: object) -> dict[str, Any]:
-    r = httpx.post(f"{BASE_URL}{path}", **kwargs)  # type: ignore[arg-type]
+    r = httpx.post(f"{BASE_URL}{path}", headers=_AUTH_HEADERS, **kwargs)  # type: ignore[arg-type]
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]
 
 
 def _patch(path: str, **kwargs: object) -> dict[str, Any]:
-    r = httpx.patch(f"{BASE_URL}{path}", **kwargs)  # type: ignore[arg-type]
+    r = httpx.patch(f"{BASE_URL}{path}", headers=_AUTH_HEADERS, **kwargs)  # type: ignore[arg-type]
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]
 
