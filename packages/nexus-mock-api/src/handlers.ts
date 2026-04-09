@@ -18,6 +18,9 @@ import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
 import { executions } from './resources/executions'
 import { approvals } from './resources/approvals'
+import { identityProviders, type IdentityProvider } from './resources/identityProviders'
+import { users, type UserRead } from './resources/users'
+import { groups, userGroupMemberships, type GroupRead } from './resources/groups'
 
 // Define response types based on API contract
 type ToolsResponse = ToolManagerAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
@@ -655,6 +658,736 @@ export const handlers = [
       total_success: results.filter((r) => r.success).length,
       total_failed: results.filter((r) => !r.success).length,
     })
+  }),
+
+  // Auth providers (public endpoint for login page)
+  http.get('/api/v1/auth/providers', () => {
+    const enabled = identityProviders.filter((p) => p.enabled)
+    return HttpResponse.json({
+      providers: enabled.map((p) => ({
+        id: p.id,
+        name: p.name,
+        provider_type: p.configuration?.provider_type ?? 'oidc',
+      })),
+    })
+  }),
+
+  // Current user (mock profile)
+  http.get('/api/v1/auth/me', () => {
+    return HttpResponse.json({
+      id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      username: 'demo',
+      email: 'demo@nexus.local',
+      role: 'administrator',
+      groups: ['platform-admins'],
+    })
+  }),
+
+  // Identity provider handlers
+  http.get('/api/v1/identity_providers', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const sort = url.searchParams.get('sort')
+
+    let resources = [...identityProviders]
+
+    if (sort) {
+      const isDesc = sort.startsWith('-')
+      const field = isDesc ? sort.slice(1) : sort
+      resources.sort((a, b) => {
+        let aVal = ''
+        let bVal = ''
+        switch (field) {
+          case 'name':
+            aVal = a.name ?? ''
+            bVal = b.name ?? ''
+            break
+          case 'enabled':
+            aVal = a.enabled ? 'Enabled' : 'Disabled'
+            bVal = b.enabled ? 'Enabled' : 'Disabled'
+            break
+          case 'issuer_url':
+            aVal = a.configuration?.issuer_url ?? ''
+            bVal = b.configuration?.issuer_url ?? ''
+            break
+          case 'client_id':
+            aVal = a.configuration?.client_id ?? ''
+            bVal = b.configuration?.client_id ?? ''
+            break
+          default:
+            aVal = a.name ?? ''
+            bVal = b.name ?? ''
+        }
+        const cmp = aVal.localeCompare(bVal)
+        return isDesc ? -cmp : cmp
+      })
+    }
+
+    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
+  }),
+
+  http.post('/api/v1/identity_providers', async ({ request }) => {
+    const body = (await request.json()) as {
+      name?: string
+      description?: string
+      enabled?: boolean
+      configuration?: IdentityProvider['configuration']
+    }
+
+    const existing = identityProviders.find((p) => p.name?.toLowerCase() === body.name?.toLowerCase())
+    if (existing) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/provider-name-conflict',
+          title: 'Provider Name Conflict',
+          detail: `An identity provider named "${body.name}" already exists. Choose a different name.`,
+          code: 'PROVIDER_NAME_CONFLICT',
+          retryable: false,
+          instance: '/api/v1/identity_providers',
+        },
+        { status: 409 }
+      )
+    }
+
+    const now = new Date().toISOString()
+    const provider: IdentityProvider = {
+      id: uuidv4(),
+      name: body.name,
+      description: body.description,
+      enabled: body.enabled ?? true,
+      configuration: body.configuration,
+      created_at: now,
+      updated_at: now,
+    }
+    identityProviders.push(provider)
+    return HttpResponse.json(provider, { status: 201 })
+  }),
+
+  http.get('/api/v1/identity_providers/:providerId', ({ params }) => {
+    const provider = identityProviders.find((p) => p.id === params.providerId)
+    if (!provider) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/provider-not-found',
+          title: 'Provider Not Found',
+          detail: `Identity provider with id '${params.providerId as string}' not found`,
+          code: 'PROVIDER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/identity_providers/${params.providerId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(provider)
+  }),
+
+  http.patch('/api/v1/identity_providers/:providerId', async ({ params, request }) => {
+    const provider = identityProviders.find((p) => p.id === params.providerId)
+    if (!provider) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/provider-not-found',
+          title: 'Provider Not Found',
+          detail: `Identity provider with id '${params.providerId as string}' not found`,
+          code: 'PROVIDER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/identity_providers/${params.providerId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await request.json()) as {
+      name?: string
+      description?: string
+      enabled?: boolean
+      configuration?: IdentityProvider['configuration']
+    }
+
+    if (body.name && body.name.toLowerCase() !== provider.name?.toLowerCase()) {
+      const conflict = identityProviders.find(
+        (p) => p.id !== provider.id && p.name?.toLowerCase() === body.name?.toLowerCase()
+      )
+      if (conflict) {
+        return HttpResponse.json(
+          {
+            type: 'https://api.nexus.com/errors/provider-name-conflict',
+            title: 'Provider Name Conflict',
+            detail: `An identity provider named "${body.name}" already exists. Choose a different name.`,
+            code: 'PROVIDER_NAME_CONFLICT',
+            retryable: false,
+            instance: `/api/v1/identity_providers/${params.providerId as string}`,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
+    const index = identityProviders.indexOf(provider)
+    const updated: IdentityProvider = {
+      ...provider,
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.description !== undefined && { description: body.description }),
+      ...(body.enabled !== undefined && { enabled: body.enabled }),
+      ...(body.configuration !== undefined && { configuration: body.configuration }),
+      updated_at: new Date().toISOString(),
+    }
+    identityProviders[index] = updated
+
+    return HttpResponse.json(updated)
+  }),
+
+  http.delete('/api/v1/identity_providers/:providerId', ({ params }) => {
+    const index = identityProviders.findIndex((p) => p.id === params.providerId)
+    if (index === -1) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/provider-not-found',
+          title: 'Provider Not Found',
+          detail: `Identity provider with id '${params.providerId as string}' not found`,
+          code: 'PROVIDER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/identity_providers/${params.providerId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+    identityProviders.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post('/api/v1/identity_providers/test', async ({ request }) => {
+    const body = (await request.json()) as { configuration?: { issuer_url?: string } }
+    const issuerUrl = body.configuration?.issuer_url ?? ''
+
+    if (!issuerUrl) {
+      return HttpResponse.json({ success: false, message: 'Issuer URL is required' })
+    }
+
+    return HttpResponse.json({
+      success: true,
+      message: `Successfully connected to ${issuerUrl}`,
+      metadata: { issuer: issuerUrl },
+    })
+  }),
+
+  // User handlers
+  http.get('/api/v1/users', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const sort = url.searchParams.get('sort')
+    const usernameContains = url.searchParams.get('username[contains]')
+    const role = url.searchParams.get('role')
+
+    let resources = [...users]
+
+    if (usernameContains) {
+      const searchTerm = usernameContains.toLowerCase()
+      resources = resources.filter((u) => u.username.toLowerCase().includes(searchTerm))
+    }
+
+    if (role) {
+      resources = resources.filter((u) => u.role === role)
+    }
+
+    if (sort) {
+      const isDesc = sort.startsWith('-')
+      const field = isDesc ? sort.slice(1) : sort
+      resources.sort((a, b) => {
+        let aVal = ''
+        let bVal = ''
+        switch (field) {
+          case 'username':
+            aVal = a.username
+            bVal = b.username
+            break
+          case 'full_name':
+            aVal = a.full_name
+            bVal = b.full_name
+            break
+          case 'email':
+            aVal = a.email
+            bVal = b.email
+            break
+          case 'role':
+            aVal = a.role
+            bVal = b.role
+            break
+          default:
+            aVal = a.username
+            bVal = b.username
+        }
+        const cmp = aVal.localeCompare(bVal)
+        return isDesc ? -cmp : cmp
+      })
+    }
+
+    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
+  }),
+
+  http.post('/api/v1/users', async ({ request }) => {
+    const body = (await request.json()) as {
+      username?: string
+      email?: string
+      full_name?: string
+      password?: string
+      role?: UserRead['role']
+      is_active?: boolean
+    }
+
+    const existing = users.find(
+      (u) =>
+        u.username.toLowerCase() === body.username?.toLowerCase() || u.email.toLowerCase() === body.email?.toLowerCase()
+    )
+    if (existing) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/user-conflict',
+          title: 'User Conflict',
+          detail: `A user with that username or email already exists.`,
+          code: 'USER_CONFLICT',
+          retryable: false,
+          instance: '/api/v1/users',
+        },
+        { status: 409 }
+      )
+    }
+
+    const now = new Date().toISOString()
+    const newUser: UserRead = {
+      id: uuidv4(),
+      username: body.username ?? '',
+      email: body.email ?? '',
+      full_name: body.full_name ?? '',
+      role: body.role ?? 'viewer',
+      is_active: body.is_active ?? true,
+      last_login: null,
+      created_at: now,
+      updated_at: now,
+    }
+    users.push(newUser)
+    return HttpResponse.json(newUser, { status: 201 })
+  }),
+
+  http.get('/api/v1/users/:userId', ({ params }) => {
+    const user = users.find((u) => u.id === params.userId)
+    if (!user) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/user-not-found',
+          title: 'User Not Found',
+          detail: `User with id '${params.userId as string}' not found`,
+          code: 'USER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(user)
+  }),
+
+  http.patch('/api/v1/users/:userId', async ({ params, request }) => {
+    const user = users.find((u) => u.id === params.userId)
+    if (!user) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/user-not-found',
+          title: 'User Not Found',
+          detail: `User with id '${params.userId as string}' not found`,
+          code: 'USER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await request.json()) as {
+      full_name?: string
+      email?: string
+      password?: string
+      role?: UserRead['role']
+      is_active?: boolean
+    }
+
+    if (body.email && body.email.toLowerCase() !== user.email.toLowerCase()) {
+      const conflict = users.find((u) => u.id !== user.id && u.email.toLowerCase() === body.email?.toLowerCase())
+      if (conflict) {
+        return HttpResponse.json(
+          {
+            type: 'https://api.nexus.com/errors/user-conflict',
+            title: 'Email Conflict',
+            detail: `A user with that email already exists.`,
+            code: 'USER_CONFLICT',
+            retryable: false,
+            instance: `/api/v1/users/${params.userId as string}`,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
+    const index = users.indexOf(user)
+    const updated: UserRead = {
+      ...user,
+      ...(body.full_name !== undefined && { full_name: body.full_name }),
+      ...(body.email !== undefined && { email: body.email }),
+      ...(body.role !== undefined && { role: body.role }),
+      ...(body.is_active !== undefined && { is_active: body.is_active }),
+      updated_at: new Date().toISOString(),
+    }
+    users[index] = updated
+    return HttpResponse.json(updated)
+  }),
+
+  http.delete('/api/v1/users/:userId', ({ params }) => {
+    const index = users.findIndex((u) => u.id === params.userId)
+    if (index === -1) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/user-not-found',
+          title: 'User Not Found',
+          detail: `User with id '${params.userId as string}' not found`,
+          code: 'USER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+    users.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get('/api/v1/users/:userId/groups', ({ params, request }) => {
+    const user = users.find((u) => u.id === params.userId)
+    if (!user) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/user-not-found',
+          title: 'User Not Found',
+          detail: `User with id '${params.userId as string}' not found`,
+          code: 'USER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}/groups`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+
+    const memberGroupIds = userGroupMemberships[user.id] ?? []
+    const userGroups = groups.filter((g) => memberGroupIds.includes(g.id))
+
+    return HttpResponse.json(paginate(userGroups, cursor, limit, false))
+  }),
+
+  http.put('/api/v1/users/:userId/groups', async ({ params, request }) => {
+    const user = users.find((u) => u.id === params.userId)
+    if (!user) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/user-not-found',
+          title: 'User Not Found',
+          detail: `User with id '${params.userId as string}' not found`,
+          code: 'USER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/users/${params.userId as string}/groups`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await request.json()) as { group_ids?: string[] }
+    userGroupMemberships[user.id] = body.group_ids ?? []
+
+    const userGroups = groups.filter((g) => (body.group_ids ?? []).includes(g.id))
+    return HttpResponse.json({ resources: userGroups, next: null, prev: null })
+  }),
+
+  // Group handlers
+  http.get('/api/v1/groups', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const sort = url.searchParams.get('sort')
+    const nameContains = url.searchParams.get('name[contains]')
+
+    let resources = [...groups]
+
+    if (nameContains) {
+      const searchTerm = nameContains.toLowerCase()
+      resources = resources.filter((g) => (g.name ?? '').toLowerCase().includes(searchTerm))
+    }
+
+    if (sort) {
+      const isDesc = sort.startsWith('-')
+      const field = isDesc ? sort.slice(1) : sort
+      resources.sort((a, b) => {
+        let aVal = ''
+        let bVal = ''
+        switch (field) {
+          case 'name':
+            aVal = a.name ?? ''
+            bVal = b.name ?? ''
+            break
+          case 'description':
+            aVal = a.description ?? ''
+            bVal = b.description ?? ''
+            break
+          default:
+            aVal = a.name ?? ''
+            bVal = b.name ?? ''
+        }
+        const cmp = aVal.localeCompare(bVal)
+        return isDesc ? -cmp : cmp
+      })
+    }
+
+    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
+  }),
+
+  http.post('/api/v1/groups', async ({ request }) => {
+    const body = (await request.json()) as { name?: string; description?: string | null }
+
+    const existing = groups.find((g) => g.name?.toLowerCase() === body.name?.toLowerCase())
+    if (existing) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/group-name-conflict',
+          title: 'Group Name Conflict',
+          detail: `A group named "${body.name}" already exists.`,
+          code: 'GROUP_NAME_CONFLICT',
+          retryable: false,
+          instance: '/api/v1/groups',
+        },
+        { status: 409 }
+      )
+    }
+
+    const now = new Date().toISOString()
+    const newGroup: GroupRead = {
+      id: uuidv4(),
+      name: body.name ?? '',
+      description: body.description ?? null,
+      created_by: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+      created_at: now,
+      updated_at: now,
+    }
+    groups.push(newGroup)
+    return HttpResponse.json(newGroup, { status: 201 })
+  }),
+
+  http.get('/api/v1/groups/:groupId', ({ params }) => {
+    const group = groups.find((g) => g.id === params.groupId)
+    if (!group) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/group-not-found',
+          title: 'Group Not Found',
+          detail: `Group with id '${params.groupId as string}' not found`,
+          code: 'GROUP_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/groups/${params.groupId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(group)
+  }),
+
+  http.patch('/api/v1/groups/:groupId', async ({ params, request }) => {
+    const group = groups.find((g) => g.id === params.groupId)
+    if (!group) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/group-not-found',
+          title: 'Group Not Found',
+          detail: `Group with id '${params.groupId as string}' not found`,
+          code: 'GROUP_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/groups/${params.groupId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await request.json()) as { name?: string; description?: string | null }
+
+    if (body.name && body.name.toLowerCase() !== group.name?.toLowerCase()) {
+      const conflict = groups.find((g) => g.id !== group.id && g.name?.toLowerCase() === body.name?.toLowerCase())
+      if (conflict) {
+        return HttpResponse.json(
+          {
+            type: 'https://api.nexus.com/errors/group-name-conflict',
+            title: 'Group Name Conflict',
+            detail: `A group named "${body.name}" already exists.`,
+            code: 'GROUP_NAME_CONFLICT',
+            retryable: false,
+            instance: `/api/v1/groups/${params.groupId as string}`,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
+    const index = groups.indexOf(group)
+    const updated: GroupRead = {
+      ...group,
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.description !== undefined && { description: body.description }),
+      updated_at: new Date().toISOString(),
+    }
+    groups[index] = updated
+    return HttpResponse.json(updated)
+  }),
+
+  http.delete('/api/v1/groups/:groupId', ({ params }) => {
+    const index = groups.findIndex((g) => g.id === params.groupId)
+    if (index === -1) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/group-not-found',
+          title: 'Group Not Found',
+          detail: `Group with id '${params.groupId as string}' not found`,
+          code: 'GROUP_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/groups/${params.groupId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+    groups.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get('/api/v1/groups/:groupId/members', ({ params, request }) => {
+    const group = groups.find((g) => g.id === params.groupId)
+    if (!group) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/group-not-found',
+          title: 'Group Not Found',
+          detail: `Group with id '${params.groupId as string}' not found`,
+          code: 'GROUP_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/groups/${params.groupId as string}/members`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+
+    const memberUserIds = Object.entries(userGroupMemberships)
+      .filter(([, groupIds]) => groupIds.includes(group.id))
+      .map(([userId]) => userId)
+    const members = users.filter((u) => memberUserIds.includes(u.id))
+
+    return HttpResponse.json(paginate(members, cursor, limit, false))
+  }),
+
+  http.post('/api/v1/groups/:groupId/members', async ({ params, request }) => {
+    const group = groups.find((g) => g.id === params.groupId)
+    if (!group) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/group-not-found',
+          title: 'Group Not Found',
+          detail: `Group with id '${params.groupId as string}' not found`,
+          code: 'GROUP_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/groups/${params.groupId as string}/members`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await request.json()) as { user_id?: string }
+    const user = users.find((u) => u.id === body.user_id)
+    if (!user) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/user-not-found',
+          title: 'User Not Found',
+          detail: `User with id '${body.user_id ?? ''}' not found`,
+          code: 'USER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/groups/${params.groupId as string}/members`,
+        },
+        { status: 404 }
+      )
+    }
+
+    if (!userGroupMemberships[user.id]) {
+      userGroupMemberships[user.id] = []
+    }
+    if (userGroupMemberships[user.id].includes(group.id)) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/member-conflict',
+          title: 'Member Conflict',
+          detail: 'User is already a member of this group',
+          code: 'MEMBER_CONFLICT',
+          retryable: false,
+          instance: `/api/v1/groups/${params.groupId as string}/members`,
+        },
+        { status: 409 }
+      )
+    }
+    userGroupMemberships[user.id].push(group.id)
+    return HttpResponse.json({ message: 'Member added successfully' }, { status: 201 })
+  }),
+
+  http.delete('/api/v1/groups/:groupId/members/:userId', ({ params }) => {
+    const group = groups.find((g) => g.id === params.groupId)
+    if (!group) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/group-not-found',
+          title: 'Group Not Found',
+          detail: `Group with id '${params.groupId as string}' not found`,
+          code: 'GROUP_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/groups/${params.groupId as string}/members/${params.userId as string}`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const userId = params.userId as string
+    const memberGroupIds = userGroupMemberships[userId]
+    if (!memberGroupIds || !memberGroupIds.includes(group.id)) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/member-not-found',
+          title: 'Member Not Found',
+          detail: 'User is not a member of this group',
+          code: 'MEMBER_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/groups/${params.groupId as string}/members/${userId}`,
+        },
+        { status: 404 }
+      )
+    }
+    userGroupMemberships[userId] = memberGroupIds.filter((id) => id !== group.id)
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // File upload mock handler

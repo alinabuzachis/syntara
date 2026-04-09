@@ -1,15 +1,109 @@
-import type { ApprovalsAPI, ExecutionsAPI, ToolManagerAPI, WorkflowAPI } from '@ansible/nexus-contracts'
-import createFetchClient from 'openapi-fetch'
+import type {
+  ApprovalsAPI,
+  AuthAPI,
+  ExecutionsAPI,
+  IdentityProvidersAPI,
+  ToolManagerAPI,
+  UsersAPI,
+  WorkflowAPI,
+} from '@ansible/nexus-contracts'
+import createFetchClient, { type Middleware } from 'openapi-fetch'
 import createClient from 'openapi-react-query'
 
+import { useAuthStore } from './stores/useAuthStore'
+
+// ============================================================================
+// Auth Middleware
+// ============================================================================
+
+/**
+ * openapi-fetch middleware that:
+ * 1. Ensures a valid access token before every request (refreshing if needed)
+ * 2. Injects the Authorization header
+ * 3. On 401 response: attempts a single refresh then retries the request
+ */
+const authMiddleware: Middleware = {
+  async onRequest({ request }) {
+    const store = useAuthStore.getState()
+
+    try {
+      await store.ensureValidToken()
+    } catch {
+      // If we can't get a valid token, let the request proceed without auth
+      // The server will return 401 and onResponse will handle it
+      return request
+    }
+
+    const { accessToken } = useAuthStore.getState()
+    if (accessToken) {
+      request.headers.set('Authorization', `Bearer ${accessToken}`)
+    }
+
+    return request
+  },
+
+  async onResponse({ request, response }) {
+    if (response.status !== 401) {
+      return response
+    }
+
+    // Attempt one refresh
+    const store = useAuthStore.getState()
+    try {
+      await store.refresh()
+    } catch {
+      // Refresh failed — clear auth state
+      store.clearAuth()
+      return response
+    }
+
+    const { accessToken } = useAuthStore.getState()
+    if (!accessToken) {
+      return response
+    }
+
+    // Retry the original request with the new token
+    const retryRequest = new Request(request, {
+      headers: new Headers(request.headers),
+    })
+    retryRequest.headers.set('Authorization', `Bearer ${accessToken}`)
+    return fetch(retryRequest)
+  },
+}
+
+// Exported for testing
+export { authMiddleware }
+
+// ============================================================================
+// API Clients
+// ============================================================================
+
 const workflowFetchClient = createFetchClient<WorkflowAPI.paths>({ baseUrl: '/api/v1/' })
+workflowFetchClient.use(authMiddleware)
 export const workflowClient = createClient(workflowFetchClient)
 
 const executionsFetchClient = createFetchClient<ExecutionsAPI.paths>({ baseUrl: '/api/v1/' })
+executionsFetchClient.use(authMiddleware)
 export const executionsClient = createClient(executionsFetchClient)
 
 const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({ baseUrl: '/api/v1/tool_manager/' })
+toolManagerFetchClient.use(authMiddleware)
 export const toolManagerClient = createClient(toolManagerFetchClient)
 
 const approvalsFetchClient = createFetchClient<ApprovalsAPI.paths>({ baseUrl: '/api/v1/' })
+approvalsFetchClient.use(authMiddleware)
 export const approvalsClient = createClient(approvalsFetchClient)
+
+const identityProvidersFetchClient = createFetchClient<IdentityProvidersAPI.paths>({
+  baseUrl: '/api/v1/identity_providers',
+})
+identityProvidersFetchClient.use(authMiddleware)
+export const identityProvidersClient = createClient(identityProvidersFetchClient)
+
+const authFetchClient = createFetchClient<AuthAPI.paths>({ baseUrl: '/api/v1/auth' })
+authFetchClient.use(authMiddleware)
+export const authClient = createClient(authFetchClient)
+
+const usersFetchClient = createFetchClient<UsersAPI.paths>({ baseUrl: '/api/v1' })
+usersFetchClient.use(authMiddleware)
+export const usersClient = createClient(usersFetchClient)

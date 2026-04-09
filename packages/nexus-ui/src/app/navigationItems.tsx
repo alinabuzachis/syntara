@@ -1,16 +1,26 @@
+import { RhUiKeyIcon, ShieldAltIcon } from '@patternfly/react-icons'
+
 import { AppRoute } from './AppRoute'
 import {
+  AccessManagement,
+  AddIdentityProvider,
   ApprovalDetail,
+  CreateUser,
   Approvals,
+  Authentication,
   Automations,
   BuilderEdit,
   BuilderNew,
+  EditIdentityProvider,
+  EditUser,
   ExecutionDetail,
+  UserDetail,
   Executions,
   Glossary,
   IntegrationForm,
   IntegrationTools,
   Integrations,
+  MyProfile,
 } from './lazyRoutes'
 
 export type INavigationItem = {
@@ -20,6 +30,8 @@ export type INavigationItem = {
   children?: INavigationItem[]
   hidden?: boolean // Hide from navigation but keep for routing
   matchPattern?: string // Optional pattern to match for active state (e.g., "/automation-builder/:workflowId")
+  separatorBefore?: boolean // Render a divider above this item in the nav
+  icon?: React.ReactNode // Icon to display next to the label in dropdown menus
 }
 
 export const navigationItems: INavigationItem[] = [
@@ -52,13 +64,69 @@ export const navigationItems: INavigationItem[] = [
     hidden: true,
   },
   {
+    label: 'Access Management',
+    path: AppRoute.AccessManagement.Root,
+    children: [
+      {
+        label: 'Access Management',
+        path: AppRoute.AccessManagement.Root,
+        icon: <ShieldAltIcon />,
+        element: <AccessManagement />,
+        children: [
+          {
+            label: 'Users',
+            path: AppRoute.AccessManagement.Users,
+            element: <AccessManagement />,
+          },
+          {
+            label: 'Groups',
+            path: AppRoute.AccessManagement.Groups,
+            element: <AccessManagement />,
+          },
+          {
+            label: 'Create User',
+            path: AppRoute.AccessManagement.CreateUser,
+            element: <CreateUser />,
+            hidden: true,
+          },
+          {
+            label: 'User Detail',
+            path: AppRoute.AccessManagement.UserDetail,
+            element: <UserDetail />,
+            hidden: true,
+          },
+          {
+            label: 'Edit User',
+            path: AppRoute.AccessManagement.EditUser,
+            element: <EditUser />,
+            hidden: true,
+          },
+        ],
+      },
+      {
+        label: 'Identity Providers',
+        path: AppRoute.AccessManagement.Authentication.Root,
+        icon: <RhUiKeyIcon />,
+        element: <Authentication />,
+        children: [
+          {
+            label: 'Add Identity Provider',
+            path: AppRoute.AccessManagement.Authentication.AddIdentityProvider,
+            element: <AddIdentityProvider />,
+          },
+          {
+            label: 'Edit Identity Provider',
+            path: AppRoute.AccessManagement.Authentication.EditIdentityProvider,
+            element: <EditIdentityProvider />,
+          },
+        ],
+      },
+    ],
+  },
+  {
     label: 'Configuration',
     path: AppRoute.Configuration.Integrations.Root,
     children: [
-      {
-        label: 'Overview',
-        path: AppRoute.Configuration.Overview,
-      },
       {
         label: 'Integrations',
         path: AppRoute.Configuration.Integrations.Root,
@@ -75,14 +143,6 @@ export const navigationItems: INavigationItem[] = [
             element: <IntegrationTools />,
           },
         ],
-      },
-      {
-        label: 'Credentials',
-        path: AppRoute.Configuration.Credentials,
-      },
-      {
-        label: 'Settings',
-        path: AppRoute.Configuration.Settings,
       },
     ],
   },
@@ -106,6 +166,12 @@ export const navigationItems: INavigationItem[] = [
     ],
   },
   // Hidden routes (not shown in navigation, but needed for routing)
+  {
+    label: 'My Profile',
+    path: AppRoute.Profile,
+    element: <MyProfile />,
+    hidden: true,
+  },
   {
     label: 'Edit Workflow',
     path: AppRoute.AutomationBuilder.Edit,

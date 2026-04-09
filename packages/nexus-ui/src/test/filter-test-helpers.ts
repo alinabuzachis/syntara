@@ -1,3 +1,4 @@
+import { expect } from 'vitest'
 import type { Mock } from 'vitest'
 
 /**
@@ -69,17 +70,8 @@ export function getLastSearchParams(mockSetSearchParams: Mock): URLSearchParams 
 export function assertUrlParam(mockSetSearchParams: Mock, key: string, expectedValue: string): void {
   const params = getLastSearchParams(mockSetSearchParams)
 
-  if (!params) {
-    throw new Error(
-      `Expected setSearchParams to be called, but it was not called. ` + `Cannot verify URL parameter "${key}"`
-    )
-  }
-
-  const actualValue = params.get(key)
-
-  if (actualValue !== expectedValue) {
-    throw new Error(`Expected URL parameter "${key}" to be "${expectedValue}", ` + `but got "${actualValue}"`)
-  }
+  expect(params).toBeDefined()
+  expect(params?.get(key)).toBe(expectedValue)
 }
 
 /**
@@ -105,17 +97,8 @@ export function assertUrlParam(mockSetSearchParams: Mock, key: string, expectedV
 export function assertUrlParamIsNull(mockSetSearchParams: Mock, key: string): void {
   const params = getLastSearchParams(mockSetSearchParams)
 
-  if (!params) {
-    throw new Error(
-      `Expected setSearchParams to be called, but it was not called. ` + `Cannot verify URL parameter "${key}" is null`
-    )
-  }
-
-  const actualValue = params.get(key)
-
-  if (actualValue !== null) {
-    throw new Error(`Expected URL parameter "${key}" to be null, but got "${actualValue}"`)
-  }
+  expect(params).toBeDefined()
+  expect(params?.get(key)).toBeNull()
 }
 
 /**
@@ -135,7 +118,5 @@ export function assertUrlParamIsNull(mockSetSearchParams: Mock, key: string): vo
  * ```
  */
 export function assertSearchParamsWasCalled(mockSetSearchParams: Mock): void {
-  if (mockSetSearchParams.mock.calls.length === 0) {
-    throw new Error('Expected setSearchParams to be called, but it was not called')
-  }
+  expect(mockSetSearchParams).toHaveBeenCalled()
 }

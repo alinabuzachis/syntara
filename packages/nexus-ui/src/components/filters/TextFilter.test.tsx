@@ -7,6 +7,12 @@ import { FilterTypeEnum } from '../../types/filters'
 
 import { TextFilter } from './TextFilter'
 
+vi.mock('./DateRangeFilter', () => ({
+  DateRangeFilter: (props: { fieldKey: string; label: string }) => (
+    <div data-testid="date-range-filter">{props.label} date range</div>
+  ),
+}))
+
 describe('TextFilter', () => {
   const textFieldDefinition: FilterFieldDefinition = {
     key: 'name',

@@ -11,6 +11,9 @@
   "scripts": {
     "gen": "npm run nexus:checkout && concurrently npm:gen:* -c auto && npm run nexus:clean && cd ../.. && npm run format",
     "nexus:checkout": "rm -rf nexus && git clone git@github.com:syntara-orchestration/syntara.git",
+    "gen:auth": "npx openapi-typescript ./nexus/src/nexus/schemas/auth/openapi.yaml --output ./src/auth-api.ts --default-non-nullable false",
+    "gen:users": "npx openapi-typescript ./nexus/src/nexus/schemas/users/openapi.yaml --output ./src/users-api.ts --default-non-nullable false",
+    "gen:identity-providers": "npx openapi-typescript ./nexus/src/nexus/schemas/identity_providers/openapi.yaml --output ./src/identity-providers-api.ts --default-non-nullable false",
     "gen:tool-manager": "npx openapi-typescript ./nexus/src/nexus/schemas/tool_manager/openapi.yaml --output ./src/tool-manager.ts --default-non-nullable false",
     "gen:workflow": "npx openapi-typescript ./nexus/src/nexus/schemas/workflows/v2/openapi.yaml --output ./src/workflow-api.ts --default-non-nullable false",
     "gen:files": "npx openapi-typescript ./nexus/src/nexus/schemas/files/openapi.yaml --output ./src/files-api.ts --default-non-nullable false",

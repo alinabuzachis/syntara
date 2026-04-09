@@ -1,10 +1,36 @@
 /* PatternFly base CSS */
 @import '@patternfly/react-core/dist/styles/base.css';
 
+/* Semantic token for Red Hat logo color */
+:root {
+  --pf-t--custom--color--redhat-logo: #e00;
+}
+
 /* Prevent horizontal scrollbar from PF portaled menus (Select/Dropdown) that
    extend past the viewport edge. The app requires ≥1200px viewport anyway. */
 html {
   overflow-x: hidden;
+}
+
+/* Docked masthead glass background: PF prerelease.45 sets the docked masthead background
+   to transparent (expecting Compass dock to provide it), but Compass dock has no background
+   styles. Restore the glass effect using PF's own design tokens.
+   Note: backdrop-filter is set to none to prevent creating a stacking context that would
+   trap NavItem flyout menus behind the main content panel. */
+.pf-v6-c-masthead.pf-m-docked {
+  background-color: var(--pf-v6-c-masthead--m-docked--BackgroundColor);
+  backdrop-filter: none !important;
+}
+
+/* Docked masthead logo: PF prerelease.45 hides the full logo at ≥62rem in favour of
+   a compact variant. Since this app only uses a single icon logo, always treat it as
+   compact so it stays visible and centered. The brand flex container also needs
+   justify-content so the logo is horizontally centered within the bar. */
+.pf-v6-c-masthead.pf-m-docked .pf-v6-c-masthead__main {
+  align-items: center;
+}
+.pf-v6-c-masthead.pf-m-docked .pf-v6-c-masthead__brand {
+  justify-content: center;
 }
 
 /* Sticky header background: fix for `isPlain` setting thead background to transparent,
@@ -32,6 +58,49 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
  */
 .pf-v6-c-alert-group.pf-m-toast {
   inset-block-start: 132px;
+}
+
+/**
+ * Fix z-index for NavItem flyout menus in docked vertical navigation.
+ * Ensures the flyout menu appears above the main content panel.
+ */
+.pf-v6-c-menu__container,
+.pf-v6-c-popper {
+  z-index: 9999 !important;
+}
+
+/**
+ * Ensure menu items in nav flyouts are visible with proper styling.
+ * Set minimum width to accommodate both icons and text labels.
+ */
+.pf-v6-c-nav.pf-m-docked .pf-v6-c-menu {
+  min-width: 200px;
+  width: max-content;
+}
+
+.pf-v6-c-nav.pf-m-docked .pf-v6-c-menu__list-item {
+  min-height: 44px;
+}
+
+.pf-v6-c-nav.pf-m-docked .pf-v6-c-menu__item {
+  color: var(--pf-t--global--text--color--regular);
+  white-space: nowrap;
+}
+
+/**
+ * Hide the flyout arrow indicator in the docked nav.
+ * The docked nav uses icon-only items where the arrow disrupts alignment.
+ */
+.pf-v6-c-nav.pf-m-docked .pf-v6-c-nav__toggle {
+  display: none;
+}
+
+/**
+ * Hide the Popper arrow on all flyout menus.
+ * The arrow is unnecessary and can cause visual clutter.
+ */
+.pf-v6-c-popper__arrow {
+  display: none !important;
 }
 
 /* Disable Compass screen warning above 720px, show custom warning below. */

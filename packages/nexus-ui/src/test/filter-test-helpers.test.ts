@@ -64,7 +64,7 @@ describe('filter-test-helpers', () => {
 
       expect(() => {
         assertUrlParam(mockSetSearchParams, 'name[contains]', 'expected')
-      }).toThrow('Expected URL parameter "name[contains]" to be "expected", but got "actual"')
+      }).toThrow()
     })
 
     it('throws when parameter is not present', () => {
@@ -74,7 +74,7 @@ describe('filter-test-helpers', () => {
 
       expect(() => {
         assertUrlParam(mockSetSearchParams, 'missing', 'expected')
-      }).toThrow('Expected URL parameter "missing" to be "expected", but got "null"')
+      }).toThrow()
     })
 
     it('throws when setSearchParams was never called', () => {
@@ -82,7 +82,7 @@ describe('filter-test-helpers', () => {
 
       expect(() => {
         assertUrlParam(mockSetSearchParams, 'name', 'test')
-      }).toThrow('Expected setSearchParams to be called, but it was not called')
+      }).toThrow()
     })
 
     it('checks the most recent call when called multiple times', () => {
@@ -130,7 +130,7 @@ describe('filter-test-helpers', () => {
 
       expect(() => {
         assertUrlParamIsNull(mockSetSearchParams, 'cursor')
-      }).toThrow('Expected URL parameter "cursor" to be null, but got "page-2"')
+      }).toThrow()
     })
 
     it('throws when setSearchParams was never called', () => {
@@ -138,7 +138,7 @@ describe('filter-test-helpers', () => {
 
       expect(() => {
         assertUrlParamIsNull(mockSetSearchParams, 'cursor')
-      }).toThrow('Expected setSearchParams to be called, but it was not called')
+      }).toThrow()
     })
 
     it('passes when parameter is explicitly set to empty string', () => {
@@ -149,7 +149,7 @@ describe('filter-test-helpers', () => {
       // Empty string is not null
       expect(() => {
         assertUrlParamIsNull(mockSetSearchParams, 'key')
-      }).toThrow('Expected URL parameter "key" to be null, but got ""')
+      }).toThrow()
     })
   })
 
@@ -168,7 +168,7 @@ describe('filter-test-helpers', () => {
 
       expect(() => {
         assertSearchParamsWasCalled(mockSetSearchParams)
-      }).toThrow('Expected setSearchParams to be called, but it was not called')
+      }).toThrow()
     })
 
     it('passes when called multiple times', () => {

@@ -1,7 +1,11 @@
 import * as ApprovalsAPI from './approvals-api.js'
 import * as ExecutionsAPI from './executions-api.js'
 import * as ToolManagerAPI from './tool-manager.js'
+import * as UsersAPI from './users-api.js'
 import * as WorkflowAPI from './workflow-api.js'
+
+export type Group = UsersAPI.components['schemas']['GroupRead']
+export type User = UsersAPI.components['schemas']['UserRead']
 
 export type Execution = ExecutionsAPI.components['schemas']['Execution']
 export type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']

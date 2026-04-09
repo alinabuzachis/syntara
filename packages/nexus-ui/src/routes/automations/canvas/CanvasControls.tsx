@@ -16,7 +16,7 @@ import { NodeExpandedAllContext } from './nodes/common/NodeExpandedAllContext'
 
 const LEGEND_REGION_ID = 'workflow-canvas-legend'
 
-export function CanvasControls(props: { onLayout: () => void; hideLayout?: boolean }) {
+export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayout?: boolean }>) {
   const { fitView, zoomIn, zoomOut } = useReactFlow()
   const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
   const [legendOpen, setLegendOpen] = useState(false)

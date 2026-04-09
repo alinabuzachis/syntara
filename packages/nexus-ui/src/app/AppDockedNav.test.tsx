@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 
 import { AppDockedNav } from './AppDockedNav'
 
@@ -87,11 +88,12 @@ describe('AppDockedNav', () => {
     expect(mockRequestNavigation).toHaveBeenCalled()
   })
 
-  it('navigates when nav item is selected', () => {
+  it('navigates when nav item is selected', async () => {
+    const user = userEvent.setup()
     render(<AppDockedNav />)
 
     const navItem = screen.getByLabelText('Automations')
-    fireEvent.click(navItem)
+    await user.click(navItem)
     expect(mockRequestNavigation).toHaveBeenCalled()
   })
 
@@ -103,9 +105,66 @@ describe('AppDockedNav', () => {
     expect(nav).toBeInTheDocument()
   })
 
-  it('renders Red Hat icon in masthead', () => {
+  it('renders masthead', () => {
+    render(<AppDockedNav />)
+
+    expect(screen.getByRole('banner')).toBeInTheDocument()
+  })
+
+  it('navigates to Integrations when Configuration is clicked', async () => {
+    const user = userEvent.setup()
+    render(<AppDockedNav />)
+
+    const configItem = screen.getByLabelText('Configuration')
+    await user.click(configItem)
+
+    expect(mockRequestNavigation).toHaveBeenCalledWith('/configuration/integrations')
+  })
+
+  it('shows dropdown with Access Management and Authentication when Access Management is clicked', async () => {
+    const user = userEvent.setup()
+    render(<AppDockedNav />)
+
+    const navButton = screen.getByRole('button', { name: 'Access Management' })
+    await user.click(navButton)
+
+    // Verify flyout menu appears with menu items (Users and Groups)
+    const menu = screen.getByRole('menu')
+    const menuItems = within(menu).getAllByRole('menuitem')
+
+    // Access Management has 2 child items: Users and Groups
+    expect(menuItems.length).toBe(2)
+    expect(menu).toBeInTheDocument()
+  })
+
+  it('navigates to Access Management from Access Management dropdown', async () => {
+    const user = userEvent.setup()
+    render(<AppDockedNav />)
+
+    const navButton = screen.getByRole('button', { name: 'Access Management' })
+    await user.click(navButton)
+
+    const menu = screen.getByRole('menu')
+    const menuItems = within(menu).getAllByRole('menuitem')
+    await user.click(menuItems[0])
+    expect(mockRequestNavigation).toHaveBeenCalledWith('/access-management')
+  })
+
+  it('navigates to Authentication from Access Management dropdown', async () => {
+    const user = userEvent.setup()
+    render(<AppDockedNav />)
+
+    const navButton = screen.getByRole('button', { name: 'Access Management' })
+    await user.click(navButton)
+
+    await user.click(screen.getByText('Identity Providers'))
+    expect(mockRequestNavigation).toHaveBeenCalledWith('/access-management/authentication')
+  })
+
+  it('has no accessibility violations', async () => {
     const { container } = render(<AppDockedNav />)
 
-    expect(container.querySelector('#docked-masthead')).toBeInTheDocument()
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
   })
 })

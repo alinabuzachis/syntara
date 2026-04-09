@@ -184,6 +184,7 @@ export default tseslint.config(
       '**/routes/**/Glossary.tsx',
       '**/routes/**/Approvals.tsx',
       '**/routes/**/ApprovalDetail.tsx',
+      '**/routes/**/Authentication.tsx',
       '**/vite-env.d.ts',
     ],
     rules: {
