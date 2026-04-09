@@ -181,6 +181,14 @@ The pre-commit configuration file is located at `.pre-commit-config.yaml` in the
 
 4. **Link related issues** - Reference any related issues in your pull request
 
+## CI Commands for Maintainers
+
+Maintainers (organization owners and members) can trigger CI actions via PR comments:
+
+| Command | Description |
+|---------|-------------|
+| `/build-pr-image` | Builds the container image for the PR and pushes it to the container registry. |
+
 ## Code Guidelines
 
 ### General Principles
