@@ -43,12 +43,19 @@ def redact_by_partial_key(patterns: list[str]) -> PIIDetector:
 
         for pattern in patterns_lower:
             # Check for pattern with underscore boundaries or at start/end of key
+            # Handle patterns that already include underscores to avoid double-underscore issues
+
+            # Determine prefix and suffix for boundary checks
+            start_check = pattern + ("" if pattern.endswith("_") else "_")
+            end_check = ("" if pattern.startswith("_") else "_") + pattern
+            middle_check = ("" if pattern.startswith("_") else "_") + pattern + ("" if pattern.endswith("_") else "_")
+
             if (
                 key_lower == pattern  # exact match
-                or key_lower.startswith(pattern + "_")  # pattern_*
-                or key_lower.endswith("_" + pattern)  # *_pattern
-                or ("_" + pattern + "_") in key_lower
-            ):  # *_pattern_*
+                or key_lower.startswith(start_check)  # pattern_* (don't add _ if pattern already ends with _)
+                or key_lower.endswith(end_check)  # *_pattern (don't add _ if pattern already starts with _)
+                or (middle_check in key_lower)  # *_pattern_* (smart underscore handling)
+            ):
                 return "[REDACTED]"
 
         return None
