@@ -24,7 +24,7 @@ function makeTaskNode(
     id,
     type,
     position: { x: 0, y: 0 },
-    data: { type: ActivityTypeEnum.TASK, id, name: id, task: { executor: 'script', config: {} } },
+    data: { type: ActivityTypeEnum.SCRIPT, id, name: id, config: {} },
   } as unknown as NodeType
 }
 
@@ -37,7 +37,7 @@ function makeGenericNode(id: string, reverseHandles = false): NodeType {
     id,
     type: FlowNodeType.GENERIC,
     position: { x: 0, y: 0 },
-    data: { type: ActivityTypeEnum.TASK, id, name: id, task: { config: {} }, metadata },
+    data: { type: ActivityTypeEnum.SCRIPT, id, name: id, config: {}, metadata },
   } as unknown as NodeType
 }
 
@@ -87,7 +87,7 @@ describe('useLoopBackNodeTypes', () => {
 
     renderHook(() => useLoopBackNodeTypes({ edges: [] as EdgeType[], isInitialized: true, setNodes }))
 
-    expect(currentNodes[0].type).toBe(ActivityTypeEnum.TASK)
+    expect(currentNodes[0].type).toBe(FlowNodeType.TASK)
   })
 
   it('adds __reverseHandles to generic node when in loop-back path', () => {

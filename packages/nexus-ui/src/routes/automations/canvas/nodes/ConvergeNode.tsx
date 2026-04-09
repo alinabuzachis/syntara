@@ -1,4 +1,4 @@
-import type { ConvergeActivity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type ConvergeActivity } from '@ansible/nexus-contracts'
 import { Flex } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
@@ -19,9 +19,15 @@ export type ConvergeNode = { type: 'converge' } & Node<ConvergeActivity>
 
 export function ConvergeNodeComponent(props: NodeProps<ConvergeNode>) {
   const metadata = nodeMetadata.converge
-  const iconNode = renderNodeIcon(metadata.icon, RegistryNodeId.LOGIC_CONVERGE, 'canvas', getNodeTypeColor('converge'))
-  const strategy = props.data.converge?.strategy as 'all' | 'any' | undefined
-  const strategyLabel = strategy === 'any' ? 'Any' : 'All'
+  const iconNode = renderNodeIcon(
+    metadata.icon,
+    RegistryNodeId.LOGIC_CONVERGE,
+    'canvas',
+    getNodeTypeColor(ActivityTypeEnum.CONVERGE)
+  )
+  // In v2, strategy is at config.strategy (not converge.strategy)
+  const config = (props.data.config ?? {}) as { strategy?: 'all' | 'any' }
+  const strategyLabel = config.strategy === 'any' ? 'Any' : 'All'
 
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as

@@ -1,6 +1,7 @@
 import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import { create } from 'zustand'
 
+import { buildTriggerIndexRemappping, remapTriggerIdsInEdges } from '../routes/builder/utils/triggerIndexRemapping'
 import { generateActivityId } from '../utils/generateUUID'
 
 import {
@@ -85,12 +86,28 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       if (!state.currentWorkflow?.triggers) return state
 
       const triggers = [...state.currentWorkflow.triggers]
+      const deletedTrigger = triggers[index]
+
+      // Guard: if index is out of bounds, return unchanged state
+      if (!deletedTrigger) return state
+
       triggers.splice(index, 1)
+
+      // Get the real ID of the deleted trigger (e.g., "activity_fb2060fd_...")
+      // Edges use real trigger IDs, not display IDs like "trigger-0"
+      const deletedTriggerRealId = (deletedTrigger as { id?: string }).id
+
+      // Filter out edges that reference the deleted trigger by its real ID
+      const edges = deletedTriggerRealId
+        ? state.edges.filter((edge) => edge.source !== deletedTriggerRealId && edge.target !== deletedTriggerRealId)
+        : state.edges
+
       return {
         currentWorkflow: {
           ...state.currentWorkflow,
           triggers,
         },
+        edges,
         isDirty: true,
       }
     })
@@ -177,38 +194,8 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
     set((state) => {
       if (!state.currentWorkflow) return state
 
-      let activities = [...state.currentWorkflow.workflow.activities]
-
-      // Check if we're removing a converge activity
-      const activityToRemove = findActivityById(activities, activityId)
-      if (activityToRemove?.type === ActivityTypeEnum.CONVERGE) {
-        // Find and cleanup the associated parallel container
-        const parallelId = `parallel_for_${activityId}`
-        const parallelIndex = activities.findIndex((a) => a.id === parallelId)
-
-        if (parallelIndex !== -1) {
-          const parallelActivity = activities[parallelIndex] as Extract<Activity, { type: 'parallel' }>
-
-          // Extract all activities from the parallel's branches
-          const branchActivities = parallelActivity.branches ?? []
-
-          // Remove the parallel activity
-          activities = activities.filter((a) => a.id !== parallelId)
-
-          // Add the branch activities back to main activities array (before where the converge was)
-          if (branchActivities.length > 0) {
-            const activityIndex = activities.findIndex((a) => a.id === activityId)
-            if (activityIndex !== -1) {
-              activities.splice(activityIndex, 0, ...branchActivities)
-            } else {
-              activities.push(...branchActivities)
-            }
-          }
-        }
-      }
-
-      // Now remove the activity itself
-      activities = removeActivityFromList(activities, activityId)
+      // v2: flat list, simply remove the activity
+      const activities = removeActivityFromList(state.currentWorkflow.workflow.activities, activityId)
 
       return {
         currentWorkflow: {
@@ -277,76 +264,23 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
       const activities = [...state.currentWorkflow.workflow.activities]
       const convergeActivities = activities.filter((a) => a.type === ActivityTypeEnum.CONVERGE)
 
-      // Build a map of activity ID → parallel container ID
-      // This allows us to detect when multiple incoming edges belong to the same parallel group
-      const activityToParallelMap = new Map<string, string>()
-      activities.forEach((activity) => {
-        if (activity.type === ActivityTypeEnum.PARALLEL && activity.branches) {
-          activity.branches.forEach((branch) => {
-            // For each activity in the parallel branch, map it to the parallel container ID
-            const collectActivityIds = (act: Activity): void => {
-              activityToParallelMap.set(act.id, activity.id)
-              if (act.type === ActivityTypeEnum.SEQUENCE && act.steps) {
-                act.steps.forEach(collectActivityIds)
-              } else if (act.type === ActivityTypeEnum.CONDITION) {
-                ;(act.then ?? []).forEach(collectActivityIds)
-                ;(act.else ?? []).forEach(collectActivityIds)
-              } else if (act.type === ActivityTypeEnum.LOOP && act.loop.do) {
-                act.loop.do.forEach(collectActivityIds)
-              }
-            }
-            collectActivityIds(branch)
-          })
-        }
-      })
-
+      // v2: no parallel containers — all nodes are flat.
+      // Converge branches are determined by incoming edges.
       for (const convergeActivity of convergeActivities) {
-        // Find all edges that target this converge activity
         const incomingEdges = state.edges.filter((edge) => edge.target === convergeActivity.id)
-        const sourceActivityIds = incomingEdges.map((edge) => edge.source)
+        const branchIds = incomingEdges.map((edge) => edge.source)
 
-        // Group sources by their parallel container (if any)
-        const parallelGroups = new Map<string, string[]>()
-        const standaloneActivities: string[] = []
-
-        for (const sourceId of sourceActivityIds) {
-          const parallelId = activityToParallelMap.get(sourceId)
-          if (parallelId) {
-            // This source belongs to a parallel container
-            if (!parallelGroups.has(parallelId)) {
-              parallelGroups.set(parallelId, [])
-            }
-            parallelGroups.get(parallelId)!.push(sourceId)
-          } else {
-            // This source is a standalone activity
-            standaloneActivities.push(sourceId)
-          }
-        }
-
-        // Build the final branches array
-        // CRITICAL: converge.branches should ALWAYS contain individual activity IDs,
-        // NOT parallel container IDs. The API schema expects the IDs of the actual
-        // branch endpoint activities, not their container.
-        const branchIds: string[] = []
-
-        parallelGroups.forEach((sources) => {
-          // Always use individual source activity IDs, regardless of how many there are
-          branchIds.push(...sources)
-        })
-
-        branchIds.push(...standaloneActivities)
-
-        // Update converge.branches with the deduplicated branch IDs
         const convergeIndex = activities.findIndex((a) => a.id === convergeActivity.id)
         if (convergeIndex !== -1) {
-          const existing = convergeActivity
+          // v2: converge config is at activity.config (flat)
+          const existingConfig = convergeActivity.config ?? {}
           activities[convergeIndex] = {
-            ...existing,
-            converge: {
-              ...existing.converge,
+            ...convergeActivity,
+            config: {
+              ...existingConfig,
               branches: branchIds,
             },
-          }
+          } as Activity
         }
       }
 
@@ -465,45 +399,22 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
     set((state) => {
       if (!state.currentWorkflow) return state
 
-      let activities = [...state.currentWorkflow.workflow.activities]
-
       // Remove triggers immutably
       const triggerIndicesToRemove = new Set(triggerIndices)
       const triggers = state.currentWorkflow.triggers
         ? state.currentWorkflow.triggers.filter((_, index) => !triggerIndicesToRemove.has(index))
         : []
 
-      // Remove each activity
-      nodeIds.forEach((nodeId) => {
-        // Check if we're removing a converge activity
-        const activityToRemove = findActivityById(activities, nodeId)
-        if (activityToRemove?.type === ActivityTypeEnum.CONVERGE) {
-          // Find and cleanup the associated parallel container
-          const parallelId = `parallel_for_${nodeId}`
-          const parallelIndex = activities.findIndex((a) => a.id === parallelId)
+      // v2: flat list — just filter out the removed node IDs
+      const nodeIdSet = new Set(nodeIds)
+      const activities = state.currentWorkflow.workflow.activities.filter((a) => !nodeIdSet.has(a.id))
 
-          if (parallelIndex !== -1) {
-            const parallelActivity = activities[parallelIndex] as Extract<Activity, { type: 'parallel' }>
-            const branchActivities = parallelActivity.branches ?? []
+      // Build trigger index remapping using shared utility
+      const originalTriggerCount = state.currentWorkflow.triggers?.length ?? 0
+      const triggerIndexRemap = buildTriggerIndexRemappping(triggerIndicesToRemove, originalTriggerCount)
 
-            // Remove the parallel activity
-            activities = activities.filter((a) => a.id !== parallelId)
-
-            // Add the branch activities back to main activities array
-            if (branchActivities.length > 0) {
-              const convergeIndex = activities.findIndex((a) => a.id === nodeId)
-              if (convergeIndex !== -1) {
-                activities.splice(convergeIndex, 0, ...branchActivities)
-              } else {
-                activities.push(...branchActivities)
-              }
-            }
-          }
-        }
-
-        // Remove the activity itself
-        activities = removeActivityFromList(activities, nodeId)
-      })
+      // Remap trigger display IDs in edges using shared utility
+      const updatedEdges = remapTriggerIdsInEdges(edges, triggerIndexRemap)
 
       // Update state atomically - all changes in one transaction
       return {
@@ -515,7 +426,7 @@ export const useWorkflowStore = create<WorkflowStore>((set) => ({
             activities,
           },
         },
-        edges,
+        edges: updatedEdges,
         isDirty: true,
       }
     })
@@ -567,7 +478,7 @@ export type {
   WorkflowDefinition,
   Trigger,
   Activity,
-  TaskActivity,
+  ActivityWithMetadata,
   ActivityMetadata,
 } from './workflowStoreTypes'
 export { getActivityMetadata } from './workflowStoreTypes'
@@ -590,7 +501,6 @@ export {
   createLoopActivity,
   createConvergeActivity,
   createAAPJobTemplateActivity,
-  createConnectorActivity,
   createGenericActivity,
   createApprovalActivity,
 } from './workflowFactories'

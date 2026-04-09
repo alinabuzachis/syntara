@@ -11,7 +11,7 @@ export interface TriggerFormData {
 
 export interface ActionFormData {
   name: string
-  executor: 'script' | 'api'
+  executor: 'script' | 'http_request'
   // Allow legacy or custom values to round-trip existing data.
   language?: string
   code?: string

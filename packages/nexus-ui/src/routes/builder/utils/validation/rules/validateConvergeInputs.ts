@@ -1,6 +1,6 @@
 import { ActivityTypeEnum, EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 
-import type { EdgeConnection } from '../../workflowTransform'
+import type { EdgeConnection } from '../../../types/edge'
 import type { ValidationError } from '../types'
 
 /**

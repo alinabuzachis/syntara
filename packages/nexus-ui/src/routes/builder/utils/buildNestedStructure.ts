@@ -1,28 +1,19 @@
 import type { Activity } from '@ansible/nexus-contracts'
 
-import { WorkflowTransform, type EdgeConnection } from './workflowTransform'
+import type { EdgeConnection } from '../types/edge'
 
 /**
- * Builds nested condition structures from flat activities and edges.
+ * Converts flat activities to the structure expected by the API for saving.
  *
- * This function uses the symmetric WorkflowTransform.nest() operation to convert
- * the flat representation (used during editing) into the nested structure expected by the API.
- *
- * The symmetric design makes this operation:
- * - Easy to understand (clear inverse of loadWorkflow)
- * - Testable (can validate round-trip correctness)
- * - Maintainable (transformation logic in one place)
- *
- * For each condition activity:
- * - Finds edges from its true/false handles
- * - Recursively collects all downstream activities
- * - Moves them into then/else arrays
- * - Removes them from the top-level activities array
+ * In v2, the API format IS flat (nodes + edges), so this is an identity operation
+ * that returns activities as-is. Kept as a named function to mark the save-path
+ * call site clearly.
  *
  * @param activities - Flat array of all activities
- * @param edges - Array of edge connections
- * @returns Activities with condition nodes containing nested then/else branches
+ * @param _edges - Array of edge connections (unused in v2 — edges are saved separately)
+ * @returns Activities unchanged
  */
-export function buildNestedConditionStructure(activities: Activity[], edges: EdgeConnection[]): Activity[] {
-  return WorkflowTransform.nest(activities, edges)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function buildNestedConditionStructure(activities: Activity[], _edges: EdgeConnection[]): Activity[] {
+  return [...activities]
 }

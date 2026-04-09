@@ -19,7 +19,9 @@ export interface paths {
     put?: never
     /**
      * Create workflow
-     * @description Create a new workflow entity with its initial version. The workflow definition is validated and stored as version 1.
+     * @description Create a new workflow entity with its initial version.
+     *     The workflow definition must conform to the v2 graph-based schema (schema_version: "2.0.0")
+     *     with triggers, nodes, and edges. The definition is validated and stored as version 1.
      */
     post: operations['create_workflow']
     delete?: never
@@ -202,8 +204,12 @@ export interface components {
       /** @description Specific version details */
       version?: {
         version?: number
+        /**
+         * @description Always "2.0.0" for v2 workflows
+         * @example 2.0.0
+         */
         schema_version?: string
-        workflow_definition?: components['schemas']['workflow-definition.schema']
+        workflow_definition?: components['schemas']['workflow_definition.schema']
         /** Format: uuid */
         created_by?: string
         /** Format: date-time */
@@ -228,10 +234,13 @@ export interface components {
       workflow_id: string
       /** @description Version number */
       version: number
-      /** @description YAML schema version (e.g., "1.0.0") */
+      /**
+       * @description Schema version (always "2.0.0" for v2 workflows)
+       * @example 2.0.0
+       */
       schema_version: string
-      /** @description Workflow definition object conforming to workflow-definition.schema.json */
-      workflow_definition: components['schemas']['workflow-definition.schema']
+      /** @description V2 graph-based workflow definition with triggers, nodes, and edges */
+      workflow_definition: components['schemas']['workflow_definition.schema']
       /**
        * Format: uuid
        * @description User who created this version
@@ -270,12 +279,12 @@ export interface components {
     }
     /**
      * Create Workflow Request
-     * @description Request payload for creating a new workflow from workflow definition
+     * @description Request payload for creating a new workflow from a v2 graph-based workflow definition
      */
     CreateWorkflowRequest: {
       name: string
       description?: string
-      workflow_definition: components['schemas']['workflow-definition.schema']
+      workflow_definition: components['schemas']['workflow_definition.schema']
       /**
        * @description Enable workflow for execution (defaults to true if not specified)
        * @default true
@@ -289,7 +298,6 @@ export interface components {
      *     - With workflow_definition: Validates workflow definition, compares with current version, and creates new WorkflowVersion only if definition differs (change detection)
      *
      *     Note: WorkflowVersion entities are read-only and managed automatically by the system.
-     *     API accepts JSON objects for workflow_definition field.
      */
     PatchWorkflowRequest: {
       /** @description Update workflow name (metadata only, no version created) */
@@ -303,7 +311,7 @@ export interface components {
         [key: string]: string
       }
       /** @description New workflow definition - creates new version only if definition differs from current version (change detection) */
-      workflow_definition?: components['schemas']['workflow-definition.schema']
+      workflow_definition?: components['schemas']['workflow_definition.schema']
       /** @description Description of changes (used when creating new version via workflow_definition) */
       change_description?: string
     }
@@ -331,57 +339,13 @@ export interface components {
        */
       total?: number | null
     }
-    /** @description Manual trigger - user initiates workflow execution */
-    manualTrigger: {
-      /** @constant */
-      type: 'manual'
-      /**
-       * @description Whether manual execution requires approval
-       * @default false
-       */
-      requiresApproval?: boolean
-    }
-    /** @description Human approval configuration */
-    approvalDefinition: {
-      /** @description List of users or roles who can approve */
-      approvers: string[]
-      /** @description Approval prompt/question to display */
-      prompt: string
-      /**
-       * @description Time to wait for approval in seconds
-       * @example 3600
-       * @example 86400
-       */
-      timeout?: number
-      /**
-       * @description Action to take if approval times out
-       * @default fail
-       * @enum {string}
-       */
-      onTimeout?: 'approve' | 'reject' | 'fail'
-      /** @description Additional context to display to approvers */
-      metadata?: {
-        [key: string]: unknown
-      }
-      /** @description Output values from approval (e.g., approved, rejected, approver, timestamp) */
-      outputs?: {
-        /** @description Whether the approval was granted */
-        approved?: boolean
-        /** @description User who approved or rejected */
-        approver?: string
-        /** @description When approval/rejection occurred */
-        timestamp?: string
-        /** @description Optional comments from approver */
-        comments?: string
-      }
-    }
-    /** @description Retry configuration for failed activities */
-    retryPolicy: {
+    /** @description Retry configuration for failed node execution */
+    retry_policy: {
       /**
        * @description Maximum number of retry attempts
        * @default 3
        */
-      maxAttempts?: number
+      max_attempts?: number
       /**
        * @description Backoff strategy between retries
        * @default exponential
@@ -391,24 +355,17 @@ export interface components {
       /**
        * @description Initial retry interval in seconds
        * @default 1
-       * @example 1
-       * @example 5
-       * @example 10
        */
-      initialInterval?: number
-      /**
-       * @description Maximum retry interval in seconds
-       * @example 60
-       * @example 300
-       */
-      maxInterval?: number
+      initial_interval?: number
+      /** @description Maximum retry interval in seconds */
+      max_interval?: number
       /**
        * @description Backoff multiplier for exponential strategy
        * @default 2
        */
       multiplier?: number
       /**
-       * @description HTTP status codes or exit codes that should trigger retry (whitelist approach). If not specified, defaults to: [408, 429, 500, 502, 503, 504]. Supported code types: HTTP status codes (e.g., 500, 503) and process exit codes (e.g., 2, 3). Only errors with codes in this list will be retried - all other errors fail immediately. Use empty array [] to disable retries for all errors.
+       * @description HTTP status codes or exit codes that should trigger retry (whitelist approach)
        * @default [
        *       408,
        *       429,
@@ -417,496 +374,414 @@ export interface components {
        *       503,
        *       504
        *     ]
-       * @example [
-       *       500,
-       *       502,
-       *       503,
-       *       504
-       *     ]
-       * @example [
-       *       429,
-       *       500,
-       *       503
-       *     ]
-       * @example [
-       *       2,
-       *       3
-       *     ]
-       * @example [
-       *       408,
-       *       429,
-       *       500,
-       *       502,
-       *       503,
-       *       504
-       *     ]
        */
-      retryableErrors?: number[]
+      retryable_errors?: number[]
     }
-    /** @description Base properties common to all activity types */
-    baseActivity: {
-      /** @description Unique identifier for the activity within the workflow */
+    /** @description Base node properties shared by all node types */
+    node_base: {
+      /** @description Unique identifier for the node within the workflow */
       id: string
-      /** @description Human-readable name for the activity */
+      /** @description Human-readable name for the node (display only) */
       name?: string
+      /** @description Human-readable description of the node purpose */
+      description?: string
+      /** @description Node type identifier */
+      type: string
+      /** @description Type-specific configuration - see individual node type schemas for details */
+      config: Record<string, never>
       /**
-       * @description Whether this activity requires human approval before execution
-       * @default false
+       * @description Output extraction mapping (optional - defaults to full result). Reserved field names 'status' and 'error' cannot be used.
+       * @example {
+       *       "job_id": "${result.job_id}",
+       *       "job_status": "${result.job_status}"
+       *     }
+       * @example {
+       *       "first_server": "${result.artifacts.servers[0]}",
+       *       "second_server": "${result.artifacts.servers[1]}"
+       *     }
+       * @example {
+       *       "summary": "${result.output.summary}",
+       *       "priority": "${result.output.priority}"
+       *     }
        */
-      requiresApproval?: boolean
-      /** @description Human approval configuration (required if requiresApproval is true) */
-      approval?: components['schemas']['approvalDefinition']
-      retryPolicy?: components['schemas']['retryPolicy']
-      /** @description Activity timeout in seconds */
-      timeout?: number
-      /** @description Output schema definition for this activity */
-      outputs?: {
-        [key: string]: {
-          /**
-           * @description Expected output type
-           * @enum {string}
-           */
-          type?: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array'
-          /** @description Description of this output */
-          description?: string
-        }
-      }
-    }
-    /** @description Base properties common to all task executor types */
-    baseTaskDefinition: {
-      /** @description Input mapping for the task (can reference workflow inputs or previous outputs) */
-      inputs?: {
-        [key: string]: unknown
-      }
-      /** @description Output mapping from the task */
       outputs?: {
         [key: string]: string
       }
+      /** @description Node-specific retry policy. If not specified, defaults to unlimited retries with exponential backoff until timeout is reached. */
+      retry_policy?: components['schemas']['retry_policy']
+      /** @description Node execution timeout in seconds. If not specified, the platform default for the node's executor type is used. */
+      timeout?: number
     }
-    agenticTask: {
+    configSchema: {
+      /** @description JSON Schema defining the structure and validation rules for manual trigger inputs */
+      input_schema?: {
+        [key: string]: unknown
+      }
+    }
+    trigger_node: components['schemas']['node_base'] & {
+      /** @constant */
+      type?: 'manual_trigger'
+      config?: components['schemas']['configSchema']
+    }
+    /** @description Job template must be specified by ID or name. When both are provided, ID takes precedence. */
+    'aap_job_template.schema_configSchema':
+      | ({
+          /** @description AAP job template ID to launch (takes precedence over name) */
+          job_template_id?: number
+          /** @description AAP job template name (requires organization_name) */
+          job_template_name?: string
+          /** @description AAP organization name (required with name-based lookup) */
+          organization_name?: string
+          /** @description Override default inventory by ID */
+          inventory_id?: number
+          /** @description Override default inventory by name (requires organization_name) */
+          inventory_name?: string
+          /** @description List of credential IDs to use */
+          credentials?: number[]
+          /** @description Extra variables to pass to the job (supports templating) */
+          extra_vars?: {
+            [key: string]: unknown
+          }
+          /** @description Limit job execution to specific hosts */
+          limit?: string
+          /** @description Ansible tags to run (comma-separated) */
+          tags?: string
+          /** @description Ansible tags to skip (comma-separated) */
+          skip_tags?: string
+          /**
+           * @description Job verbosity level (0-5)
+           * @default 0
+           */
+          verbosity?: number
+        } & unknown)
+      | unknown
+      | unknown
+    'http_request.schema_configSchema': {
       /**
-       * @description Task executor type
-       * @constant
+       * @description HTTP method
+       * @enum {string}
        */
-      executor: 'agentic'
-      config: {
-        /** @description Agent identifier or MCP server endpoint */
-        agent: string
-        /** @description List of tools available to the agent */
-        tools?: string[]
-        /** @description Natural language prompt for the agent */
-        prompt?: string
+      method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+      /**
+       * @description API endpoint URL (value supports templating)
+       * @example https://api.example.com/v1/resource
+       * @example ${trigger.api_base_url}/endpoint
+       */
+      url: string
+      /** @description HTTP headers (values support templating) */
+      headers?: {
+        [key: string]: string
+      }
+      /** @description URL query parameters (values support templating) */
+      query_params?: {
+        [key: string]: string | number | boolean | null
+      }
+      /** @description Request body (supports templating). Can be object (serialized as JSON), string (sent as-is), array, or null. */
+      body?: Record<string, never> | string | unknown[] | null
+      /** @description Authentication configuration */
+      authentication?: {
         /**
-         * @description LLM model to use
-         * @example gpt-4
-         * @example claude-3-opus
-         * @example gemini-pro
+         * @description Authentication type
+         * @enum {string}
          */
-        model?: string
+        type: 'basic' | 'bearer' | 'api_key' | 'oauth2'
+        /** @description Reference to stored credentials */
+        credentials?: string
       } & {
         [key: string]: unknown
       }
-    } & (components['schemas']['baseTaskDefinition'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      executor: 'agentic'
-    })
-    scriptTask: {
-      /**
-       * @description Task executor type
-       * @constant
-       */
-      executor: 'script'
-      config: {
-        /**
-         * @description Script language
-         * @enum {string}
-         */
-        language: 'python' | 'bash'
-        /** @description Script code to execute */
-        code: string
-        /** @description Environment variables for script execution */
-        environment?: {
-          [key: string]: string
-        }
-      }
-    } & (components['schemas']['baseTaskDefinition'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      executor: 'script'
-    })
-    apiTask: {
-      /**
-       * @description Task executor type
-       * @constant
-       */
-      executor: 'api'
-      config: {
-        /**
-         * @description HTTP method
-         * @enum {string}
-         */
-        method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-        /**
-         * Format: uri
-         * @description API endpoint URL
-         */
-        url: string
-        /** @description HTTP headers */
-        headers?: {
-          [key: string]: string
-        }
-        /** @description URL query parameters */
-        queryParams?: {
-          [key: string]: unknown
-        }
-        /** @description Request body (can use template expressions) */
-        body?: unknown
-        /** @description Authentication configuration */
-        authentication?: {
-          /**
-           * @description Authentication type
-           * @enum {string}
-           */
-          type: 'basic' | 'bearer' | 'apiKey' | 'oauth2'
-          /** @description Reference to stored credentials */
-          credentials?: string
-        } & {
-          [key: string]: unknown
-        }
-      }
-    } & (components['schemas']['baseTaskDefinition'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      executor: 'api'
-    })
-    connectorTask: {
-      /**
-       * @description Task executor type
-       * @constant
-       */
-      executor: 'connector'
-      config: {
-        /** @description Registered connector identifier */
-        connectorId: string
-        /** @description Operation to execute on the connector */
-        operation: string
-        /** @description Connector operation parameters */
-        parameters?: {
-          [key: string]: unknown
-        }
-      }
-    } & (components['schemas']['baseTaskDefinition'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      executor: 'connector'
-    })
-    aapJobTemplateTask: {
-      /**
-       * @description Task executor type - Ansible Automation Platform Job Template
-       * @constant
-       */
-      executor: 'aap_job_template'
-      /** @description Configuration for AAP job template execution. Job template must be specified by ID or name. When both are provided, ID takes precedence. Inventory can be specified by ID or name; when both are provided, ID takes precedence. */
-      config: {
-        /** @description AAP job template ID to launch. Takes precedence over jobTemplateName if both are provided. */
-        jobTemplateId?: number
-        /** @description AAP job template name. Requires organizationName. Ignored if jobTemplateId is also provided. */
-        jobTemplateName?: string
-        /** @description AAP organization name. Required when using jobTemplateName or inventoryName for name-based lookups. */
-        organizationName?: string
-        /** @description Override default inventory by ID. Takes precedence over inventoryName if both are provided. */
-        inventoryId?: number
-        /** @description Override default inventory by name. Requires organizationName. Ignored if inventoryId is also provided. */
-        inventoryName?: string
-        /** @description List of credential IDs to use */
-        credentials?: number[]
-        /** @description Extra variables to pass to the job (can use expressions like ${input.version}) */
-        extraVars?: {
-          [key: string]: unknown
-        }
-        /** @description Limit job execution to specific hosts */
-        limit?: string
-        /** @description Ansible tags to run (comma-separated) */
-        tags?: string
-        /** @description Ansible tags to skip (comma-separated) */
-        skipTags?: string
-        /**
-         * @description Job verbosity level
-         * @default 0
-         */
-        verbosity?: number
-      } & ((unknown | unknown) & unknown & unknown)
-    } & (components['schemas']['baseTaskDefinition'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      executor: 'aap_job_template'
-    })
-    taskDefinition:
-      | components['schemas']['agenticTask']
-      | components['schemas']['scriptTask']
-      | components['schemas']['apiTask']
-      | components['schemas']['connectorTask']
-      | components['schemas']['aapJobTemplateTask']
-    taskActivity: {
-      /** @constant */
-      type: 'task'
-      /** @description Task definition */
-      task: components['schemas']['taskDefinition']
-    } & (components['schemas']['baseActivity'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: 'task'
-    })
-    activity:
-      | components['schemas']['taskActivity']
-      | components['schemas']['parallelActivity']
-      | components['schemas']['sequenceActivity']
-      | components['schemas']['conditionActivity']
-      | components['schemas']['loopActivity']
-      | components['schemas']['convergeActivity']
-      | components['schemas']['approvalActivity']
-    parallelActivity: {
-      /** @constant */
-      type: 'parallel'
-      /** @description Activities to execute in parallel */
-      branches: components['schemas']['activity'][]
-    } & (components['schemas']['baseActivity'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: 'parallel'
-    })
-    sequenceActivity: {
-      /** @constant */
-      type: 'sequence'
-      /** @description Activities to execute sequentially */
-      steps: components['schemas']['activity'][]
-    } & (components['schemas']['baseActivity'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: 'sequence'
-    })
-    conditionActivity: {
-      /** @constant */
-      type: 'condition'
-      /**
-       * @description Conditional expression
-       * @example ${output.status == 'success'}
-       * @example ${input.amount > 1000}
-       */
-      condition: string
-      /** @description Activities to execute if condition is true */
-      then: components['schemas']['activity'][]
-      /** @description Activities to execute if condition is false */
-      else?: components['schemas']['activity'][]
-    } & (components['schemas']['baseActivity'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: 'condition'
-    })
-    /** @description Base properties common to all loop types */
-    baseLoop: {
-      /** @description Activities to execute in each iteration */
-      do: components['schemas']['activity'][]
     }
-    forEachLoop: {
-      /** @constant */
-      type: 'forEach'
+    'agentic.schema_configSchema': ({
+      /** @description Optional agent identifier for routing */
+      agent?: string
+      /** @description Natural language prompt for the agent */
+      prompt: string
       /**
-       * @description Expression referencing array to iterate over
-       * @example ${input.users}
-       * @example ${output.results}
+       * @description LLM model to use
+       * @example gpt-4
+       * @example claude-3-opus
+       * @example gemini-pro
        */
-      items: string
+      model?: string
       /**
-       * @description Variable name for current item
-       * @default item
-       */
-      itemVariable?: string
-      /**
-       * @description Variable name for current index
-       * @default index
-       */
-      indexVariable?: string
-    } & (components['schemas']['baseLoop'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
+       * @description Strategy for tool selection: ALL (all enabled tools), NONE (no tools), or SELECTED (specific tools from tool_selections)
+       * @default NONE
        * @enum {string}
        */
-      type: 'forEach'
-    })
-    whileLoop: {
-      /** @constant */
-      type: 'while'
+      tool_selection_strategy?: 'ALL' | 'NONE' | 'SELECTED'
+      /** @description List of tool UUIDs when tool_selection_strategy is SELECTED. Required when strategy is SELECTED. */
+      tool_selections?: string[]
       /**
-       * @description Condition expression to evaluate before each iteration
-       * @example ${counter < 10}
-       * @example ${!completed}
+       * @description JSON Schema Draft 2020-12 for structured response output. When defined, agent output will conform to this schema structure.
+       * @example {
+       *       "type": "object",
+       *       "properties": {
+       *         "summary": {
+       *           "type": "string",
+       *           "description": "Brief summary of the task"
+       *         },
+       *         "priority": {
+       *           "type": "string",
+       *           "enum": [
+       *             "low",
+       *             "medium",
+       *             "high"
+       *           ]
+       *         }
+       *       },
+       *       "required": [
+       *         "summary",
+       *         "priority"
+       *       ]
+       *     }
+       */
+      response_schema?: {
+        [key: string]: unknown
+      }
+      /** @description File references for the agent */
+      file_ids?: string[]
+    } & {
+      [key: string]: unknown
+    }) &
+      unknown
+    'script.schema_configSchema': {
+      /**
+       * @description Script language/runtime
+       * @enum {string}
+       */
+      language: 'python' | 'bash'
+      /** @description Script code to execute */
+      code: string
+      /** @description Environment variables to set during script execution */
+      environment?: {
+        [key: string]: string
+      }
+    }
+    'approval.schema_configSchema': {
+      /**
+       * @description Time limit in seconds for approver to respond. If the timeout expires, the decision is set to 'expired' and the workflow follows the rejection path. If not set, waits indefinitely until approved, rejected, or workflow is cancelled.
+       * @example 604800
+       * @example 86400
+       * @example 3600
+       */
+      approver_timeout?: number
+    }
+    'condition.schema_configSchema': {
+      /**
+       * @description Expression that evaluates to boolean
+       * @example ${trigger.environment} == "prod"
+       * @example ${previous_node.status} == "success"
+       * @example ${check_status.count} > 5
        */
       condition: string
+    }
+    'loop.schema_configSchema':
+      | {
+          /** @constant */
+          type: 'for_each'
+          /**
+           * @description Array to iterate over. The current item is available as ${loop.item} and the current index as ${loop.index} in loop body nodes.
+           * @example ${trigger.server_list}
+           * @example ${previous_node.items}
+           * @example ["server1", "server2", "server3"]
+           */
+          items: string
+        }
+      | {
+          /** @constant */
+          type: 'do_while'
+          /**
+           * @description Expression that evaluates to boolean AFTER each iteration. Must reference nodes inside the loop body. Loop continues while condition is true.
+           * @example ${process_item.remaining_count} > 0
+           * @example ${check_status.should_continue} == true
+           */
+          condition: string
+          /**
+           * @description Maximum number of iterations (safety limit)
+           * @default 1000
+           */
+          max_iterations?: number
+        }
+    /** @description Converge configuration controls how parallel branches are synchronized */
+    'converge.schema_configSchema': {
       /**
-       * @description Maximum number of iterations to prevent infinite loops
-       * @default 1000
-       */
-      maxIterations?: number
-    } & (components['schemas']['baseLoop'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: 'while'
-    })
-    loopDefinition: components['schemas']['forEachLoop'] | components['schemas']['whileLoop']
-    loopActivity: {
-      /** @constant */
-      type: 'loop'
-      /** @description Loop definition */
-      loop: components['schemas']['loopDefinition']
-    } & (components['schemas']['baseActivity'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: 'loop'
-    })
-    /** @description Converge pattern configuration - waits for specific activities to complete before proceeding */
-    convergeDefinition: {
-      /** @description List of activity IDs to wait for */
-      branches: string[]
-      /**
-       * @description Converge strategy: 'all' waits for all specified branches
+       * @description Convergence strategy: 'all' waits for all incoming branches to complete
        * @default all
        * @enum {string}
        */
       strategy?: 'all'
       /**
-       * @description Maximum time to wait for converge condition in seconds
-       * @example 300
-       * @example 1800
-       * @example 3600
-       */
-      timeout?: number
-      /**
-       * @description Action to take if timeout is reached before converge condition is met
+       * @description Action to take if timeout is reached before convergence condition is met
        * @default fail
        * @enum {string}
        */
-      onTimeout?: 'continue' | 'fail'
-      /**
-       * @description Whether to aggregate outputs from completed branches into an object keyed by activity ID
-       * @default true
-       */
-      aggregateOutputs?: boolean
+      on_timeout?: 'continue' | 'fail'
     }
-    convergeActivity: {
-      /** @constant */
-      type: 'converge'
-      /** @description Converge definition */
-      converge: components['schemas']['convergeDefinition']
-    } & (components['schemas']['baseActivity'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: 'converge'
-    })
-    /** @description Human approval node - pauses branch execution until approved or rejected */
-    approvalActivity: {
-      /** @constant */
-      type: 'approval'
-      /** @description Activities to execute when approval is granted */
-      onApproved: components['schemas']['activity'][]
-      /** @description Activities to execute when approval is rejected or expires */
-      onRejected?: components['schemas']['activity'][]
-    } & (components['schemas']['baseActivity'] & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: 'approval'
-    })
+    node:
+      | (components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'aap_job_template'
+          config?: components['schemas']['aap_job_template.schema_configSchema']
+        })
+      | (components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'http_request'
+          config?: components['schemas']['http_request.schema_configSchema']
+        })
+      | (components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'agentic'
+          config?: components['schemas']['agentic.schema_configSchema']
+        })
+      | (components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'script'
+          config?: components['schemas']['script.schema_configSchema']
+        })
+      | (components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'approval'
+          config?: components['schemas']['approval.schema_configSchema']
+        })
+      | (components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'condition'
+          config?: components['schemas']['condition.schema_configSchema']
+        })
+      | (components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'loop'
+          config?: components['schemas']['loop.schema_configSchema']
+        })
+      | (components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'converge'
+          config?: components['schemas']['converge.schema_configSchema']
+        })
+    /** @description Edge connecting two nodes or a trigger and a node */
+    edge: {
+      /** @description Source node or trigger ID */
+      from: string
+      /** @description Target node ID (triggers cannot be edge targets) */
+      to: string
+      /** @description Output port on the source. Required for multi-output nodes (condition, loop) to specify which execution path this edge represents. Condition nodes use 'true'/'false', loop nodes use 'iterate'/'complete'. Port-to-node-type consistency is enforced at the application level. */
+      from_port?: string & ('true' | 'false' | 'iterate' | 'complete')
+      /** @description Input port on the target node. Used to distinguish how an edge arrives at a node. */
+      to_port?: string & 'iterate'
+    }
     /**
-     * Workflow Definition Schema
-     * @description JSON Schema for workflow YAML definitions in the Nexus Workflow Engine
+     * Workflow Definition Schema v2
+     * @description JSON Schema for graph-based workflow definitions in the Nexus Workflow Engine v2
      */
-    'workflow-definition.schema': {
+    'workflow_definition.schema': {
       /**
-       * @description Schema version that this workflow definition conforms to (semver format)
-       * @example 1.0.0
-       * @example 1.1.0
-       * @example 2.0.0
+       * @description Schema version that this workflow definition conforms to
+       * @constant
        */
-      schemaVersion: string
-      /**
-       * @description Workflow definition version number (increments with each change)
-       * @example 1
-       * @example 2
-       * @example 3
-       */
-      version: number
-      /** @description Workflow metadata and configuration */
-      metadata: {
-        /** @description Unique name for the workflow */
-        name: string
-        /** @description Human-readable description of the workflow purpose */
-        description: string
-        /** @description Tags for categorization and search */
-        tags?: string[]
-        /** @description User or team responsible for the workflow */
-        owner?: string
-        /**
-         * @description Maximum workflow execution time in seconds - applies to entire workflow
-         * @example 3600
-         * @example 86400
-         * @example 1800
-         */
-        timeout?: number
-      }
-      /** @description Workflow trigger configuration - manual trigger only */
-      triggers?: components['schemas']['manualTrigger'][]
-      /** @description Input parameter definitions for the workflow */
-      inputs?: {
-        [key: string]: unknown
-      }
-      /** @description Workflow-level variables that can be referenced throughout the workflow */
-      variables?: {
-        [key: string]: string | number | boolean | null | Record<string, never> | unknown[]
-      }
-      /** @description Secret references for credentials and sensitive data (values stored securely, not in workflow definition) */
-      secrets?: {
-        [key: string]: {
-          /** @description Reference to secret stored in secret manager */
-          secretId: string
+      schema_version: '2.0.0'
+      /** @description Workflow name */
+      name: string
+      /** @description Human-readable description of the workflow's purpose */
+      description?: string
+      /** @description Trigger nodes that define how the workflow is initiated. Must contain at least one trigger. Trigger nodes must be graph entry points (no incoming edges) — enforced by application-level validation. */
+      triggers: components['schemas']['trigger_node'][]
+      /** @description Execution and control nodes in the workflow graph */
+      nodes: components['schemas']['node'][]
+      /** @description List of directed edges connecting triggers and nodes in the workflow graph */
+      edges: components['schemas']['edge'][]
+      $defs: {
+        /** @description Base node properties shared by all node types */
+        node_base: {
+          /** @description Unique identifier for the node within the workflow */
+          id: string
+          /** @description Human-readable name for the node (display only) */
+          name?: string
+          /** @description Human-readable description of the node purpose */
+          description?: string
+          /** @description Node type identifier */
+          type: string
+          /** @description Type-specific configuration - see individual node type schemas for details */
+          config: Record<string, never>
           /**
-           * @description Type of secret for validation
-           * @default custom
-           * @enum {string}
+           * @description Output extraction mapping (optional - defaults to full result). Reserved field names 'status' and 'error' cannot be used.
+           * @example {
+           *       "job_id": "${result.job_id}",
+           *       "job_status": "${result.job_status}"
+           *     }
+           * @example {
+           *       "first_server": "${result.artifacts.servers[0]}",
+           *       "second_server": "${result.artifacts.servers[1]}"
+           *     }
+           * @example {
+           *       "summary": "${result.output.summary}",
+           *       "priority": "${result.output.priority}"
+           *     }
            */
-          type?: 'api_key' | 'bearer_token' | 'basic_auth' | 'oauth2' | 'custom'
+          outputs?: {
+            [key: string]: string
+          }
+          /** @description Node-specific retry policy. If not specified, defaults to unlimited retries with exponential backoff until timeout is reached. */
+          retry_policy?: components['schemas']['retry_policy']
+          /** @description Node execution timeout in seconds. If not specified, the platform default for the node's executor type is used. */
+          timeout?: number
         }
-      }
-      /** @description The workflow execution definition */
-      workflow: {
-        /** @description List of activities to execute in the workflow */
-        activities: components['schemas']['activity'][]
+        trigger_node: components['schemas']['node_base'] & {
+          /** @constant */
+          type?: 'manual_trigger'
+          config?: components['schemas']['configSchema']
+        }
+        node:
+          | (components['schemas']['node_base'] & {
+              /** @constant */
+              type?: 'aap_job_template'
+              config?: components['schemas']['aap_job_template.schema_configSchema']
+            })
+          | (components['schemas']['node_base'] & {
+              /** @constant */
+              type?: 'http_request'
+              config?: components['schemas']['http_request.schema_configSchema']
+            })
+          | (components['schemas']['node_base'] & {
+              /** @constant */
+              type?: 'agentic'
+              config?: components['schemas']['agentic.schema_configSchema']
+            })
+          | (components['schemas']['node_base'] & {
+              /** @constant */
+              type?: 'script'
+              config?: components['schemas']['script.schema_configSchema']
+            })
+          | (components['schemas']['node_base'] & {
+              /** @constant */
+              type?: 'approval'
+              config?: components['schemas']['approval.schema_configSchema']
+            })
+          | (components['schemas']['node_base'] & {
+              /** @constant */
+              type?: 'condition'
+              config?: components['schemas']['condition.schema_configSchema']
+            })
+          | (components['schemas']['node_base'] & {
+              /** @constant */
+              type?: 'loop'
+              config?: components['schemas']['loop.schema_configSchema']
+            })
+          | (components['schemas']['node_base'] & {
+              /** @constant */
+              type?: 'converge'
+              config?: components['schemas']['converge.schema_configSchema']
+            })
+        /** @description Edge connecting two nodes or a trigger and a node */
+        edge: {
+          /** @description Source node or trigger ID */
+          from: string
+          /** @description Target node ID (triggers cannot be edge targets) */
+          to: string
+          /** @description Output port on the source. Required for multi-output nodes (condition, loop) to specify which execution path this edge represents. Condition nodes use 'true'/'false', loop nodes use 'iterate'/'complete'. Port-to-node-type consistency is enforced at the application level. */
+          from_port?: string & ('true' | 'false' | 'iterate' | 'complete')
+          /** @description Input port on the target node. Used to distinguish how an edge arrives at a node. */
+          to_port?: string & 'iterate'
+        }
       }
     }
     /**

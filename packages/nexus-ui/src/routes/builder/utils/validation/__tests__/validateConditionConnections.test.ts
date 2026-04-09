@@ -1,25 +1,15 @@
 import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
-import type { EdgeConnection } from '../../workflowTransform'
+import type { EdgeConnection } from '../../../types/edge'
 import { validateConditionConnections } from '../rules/validateConditionConnections'
 
 describe('validateConditionConnections', () => {
   it('returns no errors for condition with both branches connected', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', condition: 'x > 10', then: [], else: [] },
-      {
-        type: 'task',
-        id: 'T1',
-        name: 'Task 1',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-      {
-        type: 'task',
-        id: 'T2',
-        name: 'Task 2',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
+      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
+      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
+      { type: 'script', id: 'T2', name: 'Task 2', config: { language: 'python', code: '' } },
     ]
 
     const edges: EdgeConnection[] = [
@@ -33,18 +23,12 @@ describe('validateConditionConnections', () => {
 
   it('detects missing Then branch connection', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', condition: 'x > 10', then: [], else: [] },
-      {
-        type: 'task',
-        id: 'T1',
-        name: 'Task 1',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
+      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
+      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
     ]
 
     const edges: EdgeConnection[] = [
       { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'false', targetHandle: 'target' },
-      // Missing 'true' (then) branch
     ]
 
     const result = validateConditionConnections(activities, edges)
@@ -59,18 +43,12 @@ describe('validateConditionConnections', () => {
 
   it('allows missing Else branch connection (else is optional)', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', condition: 'x > 10', then: [], else: [] },
-      {
-        type: 'task',
-        id: 'T1',
-        name: 'Task 1',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
+      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
+      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
     ]
 
     const edges: EdgeConnection[] = [
       { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'true', targetHandle: 'target' },
-      // Missing 'false' (else) branch - this is now allowed
     ]
 
     const result = validateConditionConnections(activities, edges)
@@ -79,7 +57,7 @@ describe('validateConditionConnections', () => {
 
   it('detects missing Then branch (only Then is required)', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', condition: 'x > 10', then: [], else: [] },
+      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
     ]
 
     const edges: EdgeConnection[] = []
@@ -96,33 +74,16 @@ describe('validateConditionConnections', () => {
 
   it('handles multiple condition nodes', () => {
     const activities: Activity[] = [
-      { type: 'condition', id: 'C1', name: 'Condition 1', condition: 'x > 10', then: [], else: [] },
-      { type: 'condition', id: 'C2', name: 'Condition 2', condition: 'y < 5', then: [], else: [] },
-      {
-        type: 'task',
-        id: 'T1',
-        name: 'Task 1',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-      {
-        type: 'task',
-        id: 'T2',
-        name: 'Task 2',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-      {
-        type: 'task',
-        id: 'T3',
-        name: 'Task 3',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
+      { type: 'condition', id: 'C1', name: 'Condition 1', config: { condition: 'x > 10' } },
+      { type: 'condition', id: 'C2', name: 'Condition 2', config: { condition: 'y < 5' } },
+      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
+      { type: 'script', id: 'T2', name: 'Task 2', config: { language: 'python', code: '' } },
+      { type: 'script', id: 'T3', name: 'Task 3', config: { language: 'python', code: '' } },
     ]
 
     const edges: EdgeConnection[] = [
-      // C1: both branches connected
       { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'true', targetHandle: 'target' },
       { id: 'C1-T2', source: 'C1', target: 'T2', sourceHandle: 'false', targetHandle: 'target' },
-      // C2: only then branch connected (valid since else is optional)
       { id: 'C2-T3', source: 'C2', target: 'T3', sourceHandle: 'true', targetHandle: 'target' },
     ]
 
@@ -132,18 +93,8 @@ describe('validateConditionConnections', () => {
 
   it('ignores non-condition nodes', () => {
     const activities: Activity[] = [
-      {
-        type: 'task',
-        id: 'T1',
-        name: 'Task 1',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-      {
-        type: 'task',
-        id: 'T2',
-        name: 'Task 2',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
+      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
+      { type: 'script', id: 'T2', name: 'Task 2', config: { language: 'python', code: '' } },
     ]
 
     const edges: EdgeConnection[] = [

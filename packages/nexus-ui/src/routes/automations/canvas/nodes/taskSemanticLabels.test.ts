@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest'
 
 import { getTaskSemanticLabels } from './taskSemanticLabels'
 
-function makeTask(overrides: Partial<TaskActivity> & Pick<TaskActivity, 'name' | 'task'>): TaskActivity {
+function makeTask(
+  overrides: Partial<TaskActivity> & Pick<TaskActivity, 'name' | 'type'> & { config: Record<string, unknown> }
+): TaskActivity {
   return {
-    type: 'task',
     id: 'a1',
     ...overrides,
   } as TaskActivity
@@ -15,10 +16,8 @@ describe('getTaskSemanticLabels', () => {
   it('uses activity name and executor metadata label for script', () => {
     const data = makeTask({
       name: 'Run script',
-      task: {
-        executor: ExecutorTypeEnum.SCRIPT,
-        config: { language: 'python', code: 'x' },
-      },
+      type: ExecutorTypeEnum.SCRIPT,
+      config: { language: 'python', code: 'x' },
     })
     expect(getTaskSemanticLabels(data)).toEqual({
       title: 'Run script',
@@ -29,10 +28,8 @@ describe('getTaskSemanticLabels', () => {
   it('falls back to Untitled task when name missing', () => {
     const data = makeTask({
       name: '',
-      task: {
-        executor: ExecutorTypeEnum.API,
-        config: { method: 'GET', url: 'https://example.com' },
-      },
+      type: ExecutorTypeEnum.HTTP_REQUEST,
+      config: { method: 'GET', url: 'https://example.com' },
     })
     expect(getTaskSemanticLabels(data).title).toBe('Untitled task')
     expect(getTaskSemanticLabels(data).typeLabel).toBe('REST API')
@@ -41,10 +38,8 @@ describe('getTaskSemanticLabels', () => {
   it('falls back when name is whitespace-only', () => {
     const data = makeTask({
       name: '  \t',
-      task: {
-        executor: ExecutorTypeEnum.SCRIPT,
-        config: { language: 'python', code: 'x' },
-      },
+      type: ExecutorTypeEnum.SCRIPT,
+      config: { language: 'python', code: 'x' },
     })
     expect(getTaskSemanticLabels(data).title).toBe('Untitled task')
   })
@@ -62,17 +57,15 @@ describe('getTaskSemanticLabels', () => {
   it('uses AAP Job when detectTaskNodeType resolves agentic+ansible connector to actualExecutor aap', () => {
     const data = makeTask({
       name: 'Run job',
-      task: {
-        executor: ExecutorTypeEnum.AGENTIC,
-        config: {
-          agent: 'default-agent',
-          prompt: JSON.stringify({
-            __type: 'connector',
-            connectorId: 'ansible-automation-platform',
-            operation: 'run-job',
-            parameters: { jobId: '123' },
-          }),
-        },
+      type: ExecutorTypeEnum.AGENTIC,
+      config: {
+        agent: 'default-agent',
+        prompt: JSON.stringify({
+          __type: 'connector',
+          connectorId: 'ansible-automation-platform',
+          operation: 'run-job',
+          parameters: { jobId: '123' },
+        }),
       },
     })
     expect(getTaskSemanticLabels(data)).toEqual({

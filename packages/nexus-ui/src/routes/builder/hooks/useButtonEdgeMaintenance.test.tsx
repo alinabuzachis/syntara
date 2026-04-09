@@ -268,11 +268,21 @@ describe('useButtonEdgeMaintenance', () => {
 
   it('handles loop nodes with done and loop handles', () => {
     let capturedEdges: unknown[] = []
+    const nodesCalls: unknown[][] = []
+
     mockSetEdges.mockImplementation((updater) => {
       if (typeof updater === 'function') {
         capturedEdges = updater([])
       }
       return capturedEdges
+    })
+
+    mockSetNodes.mockImplementation((updater) => {
+      if (typeof updater === 'function') {
+        const result = updater([{ id: 'loop-1', type: 'loop', position: { x: 100, y: 100 } }] as unknown as NodeType[])
+        nodesCalls.push(result)
+        return result
+      }
     })
 
     renderHook(() =>
@@ -290,6 +300,14 @@ describe('useButtonEdgeMaintenance', () => {
     const loopEdge = capturedEdges.find((e) => (e as { id: string }).id === 'button-loop-1-loop')
     expect(doneEdge).toBeDefined()
     expect(loopEdge).toBeDefined()
+
+    // Regression test: Verify loop handle yOffset is 30
+    const allNodes = nodesCalls.flat()
+    const loopPlaceholder = allNodes.find((n) => (n as { id: string }).id === 'placeholder-loop-1-loop') as
+      | { position: { x: number; y: number } }
+      | undefined
+    expect(loopPlaceholder).toBeDefined()
+    expect(loopPlaceholder?.position.y).toBe(130) // node.y (100) + yOffset (30)
   })
 
   it('handles approval nodes with approved and rejected handles', () => {

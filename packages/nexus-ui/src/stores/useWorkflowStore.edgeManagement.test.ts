@@ -1,4 +1,3 @@
-import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it, beforeEach } from 'vitest'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
@@ -9,6 +8,18 @@ import {
   createConvergeActivity,
   createConditionActivity,
 } from './useWorkflowStore'
+import type { Activity, WorkflowDefinition } from './workflowStoreTypes'
+
+// Helper to create a v2 WorkflowDefinition for tests
+function makeWorkflow(name: string, activities: Activity[] = []): WorkflowDefinition {
+  return {
+    schema_version: '2.0.0',
+    name,
+    description: '',
+    triggers: [],
+    workflow: { activities },
+  }
+}
 
 describe('useWorkflowStore - Edge Management', () => {
   beforeEach(() => {
@@ -93,15 +104,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [condition, taskB, taskC],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [condition, taskB, taskC]),
         workflowVersion: 1,
         edges,
       })
@@ -126,15 +129,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [conditionA, conditionB, taskC, taskD],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [conditionA, conditionB, taskC, taskD]),
         workflowVersion: 1,
         edges,
       })
@@ -157,15 +152,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [taskA, taskB, taskC, joinJ],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, taskC, joinJ]),
         workflowVersion: 1,
         edges,
       })
@@ -188,15 +175,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [taskA, taskB, joinJ, taskC],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, joinJ, taskC]),
         workflowVersion: 1,
         edges,
       })
@@ -211,7 +190,7 @@ describe('useWorkflowStore - Edge Management', () => {
       expect(storedEdges.find((e) => e.source === 'J')).toBeDefined()
     })
 
-    it('preserves edges during parallel container creation', () => {
+    it('preserves edges during converge sync', () => {
       const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const joinJ = createConvergeActivity('J', 'Converge J')
@@ -222,20 +201,12 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [taskA, taskB, joinJ],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, joinJ]),
         workflowVersion: 1,
         edges,
       })
 
-      // Sync join branches (creates parallel container)
+      // Sync join branches
       useWorkflowStore.getState().syncConvergeNodeBranches()
 
       // Edges should be preserved
@@ -275,15 +246,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [taskA, taskB, taskC],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, taskC]),
         workflowVersion: 1,
         edges,
       })
@@ -312,15 +275,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [condition, taskB, taskC],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [condition, taskB, taskC]),
         workflowVersion: 1,
         edges,
       })
@@ -350,15 +305,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [taskA, taskB, taskC, taskD],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, taskC, taskD]),
         workflowVersion: 1,
         edges,
       })
@@ -396,15 +343,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [taskA, taskB, taskC, convergeJ1, taskD, taskE, convergeJ2],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, taskC, convergeJ1, taskD, taskE, convergeJ2]),
         workflowVersion: 1,
         edges,
       })
@@ -440,15 +379,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [condition, taskB, taskC, joinJ, taskD],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [condition, taskB, taskC, joinJ, taskD]),
         workflowVersion: 1,
         edges,
       })
@@ -520,15 +451,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [taskA, taskB, taskC],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, taskC]),
         workflowVersion: 1,
         edges,
       })
@@ -551,15 +474,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [taskC, taskA, taskB], // Wrong order
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskC, taskA, taskB]),
         workflowVersion: 1,
         edges,
       })
@@ -582,15 +497,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [taskA, taskB, joinJ],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, joinJ]),
         workflowVersion: 1,
         edges,
       })
@@ -602,37 +509,19 @@ describe('useWorkflowStore - Edge Management', () => {
       expect(useWorkflowStore.getState().edges).toEqual(edges)
     })
 
-    it('sets converge.branches to individual activity IDs when branches from same parallel converge', () => {
-      // Create a workflow with parallel execution that converges
-      // Structure: parallel(A, B) → J
+    it('sets converge config.branches to individual activity IDs when branches converge', () => {
       const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const joinJ = createConvergeActivity('J', 'Converge J')
 
-      // Create parallel container manually (simulating what WorkflowTransform.nest() does)
-      const parallel: Extract<Activity, { type: 'parallel' }> = {
-        type: 'parallel',
-        id: 'parallel_1',
-        name: 'Parallel execution',
-        branches: [taskA, taskB],
-      }
-
-      // Edges from parallel branches to converge
+      // Edges from activities to converge
       const edges: EdgeConnection[] = [
         { id: 'A-J', source: 'A', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
         { id: 'B-J', source: 'B', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [parallel, joinJ],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, joinJ]),
         workflowVersion: 1,
         edges,
       })
@@ -642,28 +531,18 @@ describe('useWorkflowStore - Edge Management', () => {
 
       // Get the updated converge activity
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities
-      const converge = activities?.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }> | undefined
+      const converge = activities?.find((a) => a.id === 'J')
 
-      // CRITICAL: converge.branches should contain individual activity IDs (A, B),
-      // NOT the parallel container ID. This matches the API schema expectation.
-      expect(converge?.converge?.branches).toContain('A')
-      expect(converge?.converge?.branches).toContain('B')
-      expect(converge?.converge?.branches).toHaveLength(2)
+      // v2: converge.config.branches should contain individual activity IDs
+      expect(converge?.config.branches).toContain('A')
+      expect(converge?.config.branches).toContain('B')
+      expect(converge?.config.branches).toHaveLength(2)
     })
 
-    it('handles partial convergence from parallel execution', () => {
-      // Create a workflow where only ONE branch from a parallel converges
-      // Structure: parallel(A, B) → J, with only A converging to J
+    it('handles partial convergence', () => {
       const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const joinJ = createConvergeActivity('J', 'Converge J')
-
-      const parallel: Extract<Activity, { type: 'parallel' }> = {
-        type: 'parallel',
-        id: 'parallel_1',
-        name: 'Parallel execution',
-        branches: [taskA, taskB],
-      }
 
       // Only A converges to J (B doesn't)
       const edges: EdgeConnection[] = [
@@ -671,15 +550,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [parallel, joinJ],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, joinJ]),
         workflowVersion: 1,
         edges,
       })
@@ -689,26 +560,16 @@ describe('useWorkflowStore - Edge Management', () => {
 
       // Get the updated converge activity
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities
-      const converge = activities?.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }> | undefined
+      const converge = activities?.find((a) => a.id === 'J')
 
-      // For partial convergence, should reference the individual branch, not the parallel container
-      expect(converge?.converge?.branches).toEqual(['A'])
+      expect(converge?.config.branches).toEqual(['A'])
     })
 
-    it('handles mixed convergence from parallel and standalone activities', () => {
-      // Create a workflow with both parallel branches AND standalone activities converging
-      // Structure: parallel(A, B) + C → J
+    it('handles mixed convergence from multiple activities', () => {
       const taskA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const taskB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const taskC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
       const joinJ = createConvergeActivity('J', 'Converge J')
-
-      const parallel: Extract<Activity, { type: 'parallel' }> = {
-        type: 'parallel',
-        id: 'parallel_1',
-        name: 'Parallel execution',
-        branches: [taskA, taskB],
-      }
 
       // All three converge to J
       const edges: EdgeConnection[] = [
@@ -718,15 +579,7 @@ describe('useWorkflowStore - Edge Management', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [parallel, taskC, joinJ],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [taskA, taskB, taskC, joinJ]),
         workflowVersion: 1,
         edges,
       })
@@ -736,13 +589,13 @@ describe('useWorkflowStore - Edge Management', () => {
 
       // Get the updated converge activity
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities
-      const converge = activities?.find((a) => a.id === 'J') as Extract<Activity, { type: 'converge' }> | undefined
+      const converge = activities?.find((a) => a.id === 'J')
 
-      // Should reference ALL individual activity IDs (A, B, C), not the parallel container
-      expect(converge?.converge?.branches).toContain('A')
-      expect(converge?.converge?.branches).toContain('B')
-      expect(converge?.converge?.branches).toContain('C')
-      expect(converge?.converge?.branches).toHaveLength(3)
+      // Should reference ALL individual activity IDs
+      expect(converge?.config.branches).toContain('A')
+      expect(converge?.config.branches).toContain('B')
+      expect(converge?.config.branches).toContain('C')
+      expect(converge?.config.branches).toHaveLength(3)
     })
   })
 })

@@ -75,7 +75,7 @@ describe('ActionNodeForm', () => {
   })
 
   it('renders API fields when initialData sets executor to api', () => {
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'api' }} />)
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
 
     expect(screen.queryByLabelText(/Action type/i)).not.toBeInTheDocument()
     expect(screen.getByLabelText(/URL/i)).toBeInTheDocument()
@@ -86,7 +86,7 @@ describe('ActionNodeForm', () => {
 
   it('submits API form data', async () => {
     const user = userEvent.setup()
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'api' }} />)
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
 
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test API')
     await user.type(screen.getByPlaceholderText(/https:\/\/api.example.com/i), 'https://api.test.com/data')
@@ -97,7 +97,7 @@ describe('ActionNodeForm', () => {
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Test API',
-        executor: 'api',
+        executor: 'http_request',
         method: 'POST',
         url: 'https://api.test.com/data',
         authentication: 'my-secret-token',
@@ -131,7 +131,7 @@ describe('ActionNodeForm', () => {
         onSubmit={mockOnSubmit}
         initialData={{
           name: 'Existing API',
-          executor: 'api',
+          executor: 'http_request',
           method: 'POST',
           url: 'https://example.com/api',
           authentication: 'Bearer token123',
@@ -155,7 +155,7 @@ describe('ActionNodeForm', () => {
   })
 
   it('validates URL field for API executor', () => {
-    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'api' }} />)
+    renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} />)
 
     expect(screen.getByPlaceholderText(/https:\/\/api.example.com/i)).toHaveAttribute('type', 'url')
   })

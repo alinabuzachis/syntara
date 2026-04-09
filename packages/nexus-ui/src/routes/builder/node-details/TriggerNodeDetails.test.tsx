@@ -1,7 +1,9 @@
+import { TriggerTypeEnum } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import * as TriggerNodeFormModule from '../node-forms/TriggerNodeForm'
 import type { Trigger } from '../utils/workflowToGraph'
 
 import { TriggerNodeDetails } from './TriggerNodeDetails'
@@ -19,18 +21,20 @@ vi.mock('../../../stores/useWorkflowStore', () => ({
     updateTrigger: mockUpdateTrigger,
   })),
   createManualTrigger: vi.fn((_requiresApproval?: boolean, name?: string) => ({
-    type: 'manual',
-    requiresApproval: false,
-    ...(name ? { name } : {}),
+    id: 'manual_trigger',
+    type: 'manual_trigger',
+    name: name ?? 'Manual Trigger',
+    config: {},
   })),
   createScheduledTrigger: vi.fn(
     (scheduleType: 'interval' | 'continuous', options?: { interval?: string }, name?: string) => ({
+      id: 'scheduled_trigger',
       type: 'scheduled',
-      schedule:
-        scheduleType === 'interval'
-          ? { scheduleType: 'interval', interval: options?.interval ?? '' }
-          : { scheduleType: 'continuous' },
-      ...(name ? { name } : {}),
+      name: name ?? 'Scheduled Trigger',
+      config: {
+        schedule_type: scheduleType,
+        ...(scheduleType === 'interval' && { interval: options?.interval ?? '' }),
+      },
     })
   ),
 }))
@@ -84,9 +88,9 @@ describe('TriggerNodeDetails Component', () => {
   describe('Manual Trigger', () => {
     it('renders TriggerNodeForm with manual trigger data', () => {
       const trigger = {
-        type: 'manual' as const,
-        requiresApproval: false,
+        type: 'manual_trigger' as const,
         name: 'Trigger',
+        config: {},
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -95,7 +99,7 @@ describe('TriggerNodeDetails Component', () => {
       expect(screen.getByTestId('initial-data')).toHaveTextContent(
         JSON.stringify({
           name: 'Trigger',
-          triggerType: 'manual',
+          triggerType: 'manual_trigger',
         })
       )
     })
@@ -103,9 +107,9 @@ describe('TriggerNodeDetails Component', () => {
     it('calls updateTrigger with manual trigger on form submission', async () => {
       const user = userEvent.setup()
       const trigger = {
-        type: 'manual' as const,
-        requiresApproval: false,
+        type: 'manual_trigger' as const,
         name: 'Trigger',
+        config: {},
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -113,9 +117,10 @@ describe('TriggerNodeDetails Component', () => {
       await user.click(screen.getByTestId('submit-button'))
 
       expect(mockUpdateTrigger).toHaveBeenCalledWith(0, {
-        type: 'manual',
-        requiresApproval: false,
+        id: 'manual_trigger',
+        type: 'manual_trigger',
         name: 'Trigger',
+        config: {},
       })
       expect(mockOnClose).toHaveBeenCalledTimes(1)
     })
@@ -125,11 +130,11 @@ describe('TriggerNodeDetails Component', () => {
     it('renders TriggerNodeForm with interval scheduled trigger data', () => {
       const trigger = {
         type: 'scheduled' as const,
-        schedule: {
-          scheduleType: 'interval' as const,
+        name: 'Trigger',
+        config: {
+          schedule_type: 'interval',
           interval: 'R/2024-01-01T10:00:00Z/P1D',
         },
-        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -148,11 +153,11 @@ describe('TriggerNodeDetails Component', () => {
       const user = userEvent.setup()
       const trigger = {
         type: 'scheduled' as const,
-        schedule: {
-          scheduleType: 'interval' as const,
+        name: 'Trigger',
+        config: {
+          schedule_type: 'interval',
           interval: 'R/2024-01-01T10:00:00Z/P1D',
         },
-        name: 'Trigger',
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={1} onClose={mockOnClose} />)
@@ -160,12 +165,13 @@ describe('TriggerNodeDetails Component', () => {
       await user.click(screen.getByTestId('submit-button'))
 
       expect(mockUpdateTrigger).toHaveBeenCalledWith(1, {
+        id: 'scheduled_trigger',
         type: 'scheduled',
-        schedule: {
-          scheduleType: 'interval',
+        name: 'Trigger',
+        config: {
+          schedule_type: 'interval',
           interval: 'R/2024-01-01T10:00:00Z/P1D',
         },
-        name: 'Trigger',
       })
       expect(mockOnClose).toHaveBeenCalledTimes(1)
     })
@@ -175,10 +181,10 @@ describe('TriggerNodeDetails Component', () => {
     it('renders TriggerNodeForm with continuous scheduled trigger data', () => {
       const trigger = {
         type: 'scheduled' as const,
-        schedule: {
-          scheduleType: 'continuous' as const,
-        },
         name: 'Trigger',
+        config: {
+          schedule_type: 'continuous',
+        },
       } as unknown as Trigger
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -196,10 +202,10 @@ describe('TriggerNodeDetails Component', () => {
       const user = userEvent.setup()
       const trigger = {
         type: 'scheduled' as const,
-        schedule: {
-          scheduleType: 'continuous' as const,
-        },
         name: 'Trigger',
+        config: {
+          schedule_type: 'continuous',
+        },
       } as unknown as Trigger
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={2} onClose={mockOnClose} />)
@@ -207,11 +213,12 @@ describe('TriggerNodeDetails Component', () => {
       await user.click(screen.getByTestId('submit-button'))
 
       expect(mockUpdateTrigger).toHaveBeenCalledWith(2, {
+        id: 'scheduled_trigger',
         type: 'scheduled',
-        schedule: {
-          scheduleType: 'continuous',
-        },
         name: 'Trigger',
+        config: {
+          schedule_type: 'continuous',
+        },
       })
       expect(mockOnClose).toHaveBeenCalledTimes(1)
     })
@@ -220,9 +227,9 @@ describe('TriggerNodeDetails Component', () => {
   describe('Error Handling', () => {
     it('handles invalid trigger type gracefully', () => {
       const trigger = {
-        type: 'manual' as const,
-        requiresApproval: false,
+        type: 'manual_trigger' as const,
         name: 'Trigger',
+        config: {},
       }
 
       // This test just verifies the component renders without errors
@@ -232,14 +239,303 @@ describe('TriggerNodeDetails Component', () => {
 
       expect(screen.getByTestId('trigger-node-form')).toBeInTheDocument()
     })
+
+    it('rejects invalid ISO 8601 interval format', () => {
+      // Spy on the module export
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-invalid"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'invalid-format', // Invalid format
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        type: 'scheduled' as const,
+        name: 'Trigger',
+        config: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-invalid')
+      submitButton.click()
+
+      expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Invalid interval format'), 'Update Failed')
+      expect(mockOnClose).not.toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('rejects empty ISO 8601 duration (P or PT)', () => {
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-empty-duration"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'PT', // Empty duration
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        type: 'scheduled' as const,
+        name: 'Trigger',
+        config: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-empty-duration')
+      submitButton.click()
+
+      expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Invalid interval format'), 'Update Failed')
+      expect(mockOnClose).not.toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('accepts valid simple ISO 8601 duration', () => {
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-valid-duration"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'PT1H', // Valid simple duration
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        type: 'scheduled' as const,
+        name: 'Trigger',
+        config: { schedule_type: 'interval', interval: 'PT30M' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-valid-duration')
+      submitButton.click()
+
+      expect(mockShowError).not.toHaveBeenCalled()
+      expect(mockOnClose).toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('accepts valid compound ISO 8601 duration', () => {
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-compound-duration"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'P1DT12H30M', // Valid compound duration (1 day, 12 hours, 30 minutes)
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        type: 'scheduled' as const,
+        name: 'Trigger',
+        config: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-compound-duration')
+      submitButton.click()
+
+      expect(mockShowError).not.toHaveBeenCalled()
+      expect(mockOnClose).toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('rejects malformed recurring interval with invalid duration', () => {
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-malformed-recurring"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'R/2024-01-01T00:00:00Z/Pgarbage', // Malformed: invalid duration part
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        type: 'scheduled' as const,
+        name: 'Trigger',
+        config: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-malformed-recurring')
+      submitButton.click()
+
+      expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Invalid interval format'), 'Update Failed')
+      expect(mockOnClose).not.toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('rejects recurring interval with empty duration', () => {
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-empty-recurring-duration"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'R/2024-01-01T00:00:00Z/P', // Empty duration part
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        type: 'scheduled' as const,
+        name: 'Trigger',
+        config: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-empty-recurring-duration')
+      submitButton.click()
+
+      expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Invalid interval format'), 'Update Failed')
+      expect(mockOnClose).not.toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('accepts valid recurring interval with compound duration', () => {
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-valid-recurring"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'R/2024-01-01T00:00:00Z/P1DT12H', // Valid recurring with compound duration
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        type: 'scheduled' as const,
+        name: 'Trigger',
+        config: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-valid-recurring')
+      submitButton.click()
+
+      expect(mockShowError).not.toHaveBeenCalled()
+      expect(mockOnClose).toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
+
+    it('accepts valid recurring ISO 8601 interval', () => {
+      const formSpy = vi.spyOn(TriggerNodeFormModule, 'TriggerNodeForm')
+      formSpy.mockImplementation(({ onSubmit }) => (
+        <button
+          data-testid="submit-valid-recurring"
+          onClick={() => {
+            onSubmit({
+              name: 'Test',
+              triggerType: TriggerTypeEnum.SCHEDULED,
+              scheduleType: 'interval',
+              interval: 'R/2024-01-01T10:00:00Z/P1D', // Valid recurring interval
+            })
+          }}
+          type="button"
+        >
+          Submit
+        </button>
+      ))
+
+      const trigger = {
+        type: 'scheduled' as const,
+        name: 'Trigger',
+        config: { schedule_type: 'interval', interval: 'PT1H' },
+      }
+
+      render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
+
+      const submitButton = screen.getByTestId('submit-valid-recurring')
+      submitButton.click()
+
+      expect(mockShowError).not.toHaveBeenCalled()
+      expect(mockOnClose).toHaveBeenCalled()
+
+      formSpy.mockRestore()
+    })
   })
 
   describe('Submit Button', () => {
     it('displays "Update trigger" as submit button text', () => {
       const trigger = {
-        type: 'manual' as const,
-        requiresApproval: false,
+        type: 'manual_trigger' as const,
         name: 'Trigger',
+        config: {},
       }
 
       render(<TriggerNodeDetails trigger={trigger} triggerIndex={0} onClose={mockOnClose} />)
@@ -261,7 +557,7 @@ describe('TriggerNodeDetails Component', () => {
       expect(screen.getByTestId('initial-data')).toHaveTextContent(
         JSON.stringify({
           name: 'Trigger',
-          triggerType: 'manual',
+          triggerType: 'manual_trigger',
         })
       )
     })

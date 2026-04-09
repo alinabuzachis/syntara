@@ -1,5 +1,52 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 
+/** Map from React Flow handle IDs to v2 API port names. */
+const handleToPortMap: Record<string, string> = {
+  [EdgeHandleEnum.LOOP]: 'iterate',
+  [EdgeHandleEnum.DONE]: 'complete',
+  [EdgeHandleEnum.END]: 'end',
+}
+
+/** Map from v2 API port names to React Flow handle IDs. */
+const portToHandleMap: Record<string, string> = {
+  iterate: EdgeHandleEnum.LOOP,
+  complete: EdgeHandleEnum.DONE,
+  end: EdgeHandleEnum.END,
+}
+
+/** Set of React Flow handles that represent meaningful v2 edge ports. */
+const v2PortHandles: Set<string> = new Set([
+  EdgeHandleEnum.TRUE,
+  EdgeHandleEnum.FALSE,
+  EdgeHandleEnum.APPROVED,
+  EdgeHandleEnum.REJECTED,
+  EdgeHandleEnum.LOOP,
+  EdgeHandleEnum.DONE,
+  EdgeHandleEnum.END,
+])
+
+/**
+ * Converts a React Flow source handle to a v2 API from_port value.
+ * - `loop` → `iterate`, `done` → `complete`
+ * - `true`, `false`, `approved`, `rejected` pass through unchanged
+ * - Non-port handles (e.g. `source`) return `undefined`
+ */
+export function handleToV2Port(handle: string | null | undefined): string | undefined {
+  if (!handle || !v2PortHandles.has(handle)) return undefined
+  return handleToPortMap[handle] ?? handle
+}
+
+/**
+ * Converts a v2 API from_port value to a React Flow source handle.
+ * - `iterate` → `loop`, `complete` → `done`
+ * - `true`, `false`, `approved`, `rejected` pass through unchanged
+ * - `undefined` returns `source` (default React Flow handle)
+ */
+export function v2PortToHandle(port: string | null | undefined): string {
+  if (!port) return EdgeHandleEnum.SOURCE
+  return portToHandleMap[port] ?? port
+}
+
 /**
  * Checks if a handle is a conditional branch handle (true/false).
  */

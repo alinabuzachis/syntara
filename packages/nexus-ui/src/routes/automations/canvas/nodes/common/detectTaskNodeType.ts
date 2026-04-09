@@ -1,4 +1,6 @@
-import { ExecutorTypeEnum, type TaskActivity } from '@ansible/nexus-contracts'
+import type { TaskActivity } from '@ansible/nexus-contracts'
+
+import { API_EXECUTOR_TYPES, type ApiExecutorType } from '../../../../../constants/executorTypes'
 
 /**
  * Resolved executor strings produced by {@link detectTaskNodeType} (not API contract values).
@@ -9,6 +11,16 @@ export const DetectedExecutorType = {
   AAP: 'aap',
 } as const
 
+/**
+ * SECURITY: Validates metadata.__executorType against API-only executor types.
+ * Uses API_EXECUTOR_TYPES (not VALID_EXECUTOR_TYPES) to prevent untrusted workflow JSON
+ * from injecting internal-only types like 'aap' via metadata overrides.
+ * The 'aap' type is only set internally by detectAAPConnectorFromPrompt after validation.
+ */
+function isValidExecutorType(executorType: string | undefined): executorType is ApiExecutorType {
+  return executorType !== undefined && API_EXECUTOR_TYPES.has(executorType as ApiExecutorType)
+}
+
 // Extended types for internal metadata and non-standard executors
 export type TaskActivityWithMetadata = TaskActivity & {
   metadata?: {
@@ -17,69 +29,104 @@ export type TaskActivityWithMetadata = TaskActivity & {
   condition?: string
 }
 
-interface ConnectorPromptData {
-  __type?: string
-  connectorId?: string
-  operation?: string
-  parameters?: Record<string, unknown>
-}
-
 export type DetectedNodeTypeResult = {
   detectedExecutorType: string | undefined
-  connectorData: {
-    connectorId?: string
-    operation?: string
-    parameters?: Record<string, unknown>
-  } | null
+  connectorData: null
   actualExecutor: string
 }
 
 /**
+ * Checks if a parsed connector object is an AAP connector.
+ * SECURITY: Uses hasOwnProperty to check only own properties, preventing prototype pollution.
+ */
+function isAAPConnector(parsed: unknown): boolean {
+  return (
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    Object.prototype.hasOwnProperty.call(parsed, '__type') &&
+    (parsed as Record<string, unknown>).__type === 'connector' &&
+    Object.prototype.hasOwnProperty.call(parsed, 'connectorId') &&
+    (parsed as Record<string, unknown>).connectorId === 'ansible-automation-platform'
+  )
+}
+
+/**
+ * JSON.parse reviver function that strips dangerous keys during parsing.
+ * SECURITY: Prevents prototype pollution by rejecting dangerous keys at parse time.
+ * More robust than post-parse deletion since it operates during object construction.
+ */
+function safeJSONReviver(key: string, value: unknown): unknown {
+  // Reject dangerous keys that could pollute prototypes
+  if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+    return undefined // Skip this property
+  }
+  return value
+}
+
+/**
+ * Attempts to detect AAP connector from agentic node's prompt field.
+ * Returns DetectedExecutorType.AAP if found, undefined otherwise.
+ */
+function detectAAPConnectorFromPrompt(data: TaskActivity): string | undefined {
+  const prompt = (data as Record<string, unknown>).config
+    ? ((data as Record<string, unknown>).config as Record<string, unknown>).prompt
+    : undefined
+
+  if (typeof prompt !== 'string') {
+    return undefined
+  }
+
+  try {
+    // SECURITY: Use reviver function to strip dangerous keys during parsing
+    const parsed = JSON.parse(prompt, safeJSONReviver) as unknown
+
+    // SECURITY: Verify parsed result has a clean prototype chain.
+    // JSON.parse constructs intermediate objects before the reviver runs,
+    // so we confirm the result wasn't somehow assigned a polluted prototype.
+    if (typeof parsed === 'object' && parsed !== null && Object.getPrototypeOf(parsed) !== Object.prototype) {
+      return undefined
+    }
+
+    const isAAP = isAAPConnector(parsed)
+    return isAAP ? DetectedExecutorType.AAP : undefined
+  } catch {
+    // prompt is not JSON — leave as agentic
+    return undefined
+  }
+}
+
+/**
  * Detects the actual node type from a TaskActivity.
- * This handles various workarounds where the backend stores nodes in non-standard formats:
- * - AAP/Connector nodes stored as agentic executors
- * - Override executor types in metadata
+ * In v2, `activity.type` is the executor directly (e.g. 'script', 'http_request', 'agentic', 'aap_job_template').
+ * No more `task.executor` wrapper — the type IS the executor name.
+ *
+ * For agentic nodes, checks `config.prompt` for a connector payload. If the prompt
+ * is a JSON string with `__type: 'connector'` and `connectorId: 'ansible-automation-platform'`,
+ * the node is resolved to the internal `aap` executor type so it renders with the AAP icon/label.
+ *
+ * SECURITY: Validates metadata.__executorType against an allowlist to prevent arbitrary
+ * executor type injection from untrusted workflow JSON.
  */
 export function detectTaskNodeType(data: TaskActivity): DetectedNodeTypeResult {
-  // Check if this is an AAP/connector node disguised as agentic (workaround for backend)
   const dataWithMetadata = data as TaskActivityWithMetadata
-  const overrideExecutorType = dataWithMetadata.metadata?.__executorType
+  const metadataExecutorType = dataWithMetadata.metadata?.__executorType
 
-  // Parse connector data if it's the workaround format (agentic executor with connector data in prompt)
-  let connectorData: { connectorId?: string; operation?: string; parameters?: Record<string, unknown> } | null = null
-  let detectedExecutorType: string | undefined = overrideExecutorType
+  // SECURITY: Validate metadata override against allowlist
+  const validatedOverride = isValidExecutorType(metadataExecutorType) ? metadataExecutorType : undefined
 
-  // If executor is agentic, check the prompt to detect connector/AAP nodes
-  // This handles both cases: when metadata exists and when it's missing after save/load
-  if (data.task.executor === ExecutorTypeEnum.AGENTIC) {
-    try {
-      const raw: unknown = JSON.parse(data.task.config.prompt ?? '{}')
-      const parsed = raw as ConnectorPromptData
-      if (parsed.__type === 'connector') {
-        connectorData = {
-          connectorId: parsed.connectorId,
-          operation: parsed.operation,
-          parameters: parsed.parameters,
-        }
-        // If metadata is missing, detect AAP nodes from connectorId
-        // Check if this is an AAP connector (ansible-automation-platform)
-        if (
-          !detectedExecutorType &&
-          (parsed.connectorId === 'ansible-automation-platform' || parsed.connectorId?.includes('ansible'))
-        ) {
-          detectedExecutorType = DetectedExecutorType.AAP
-        }
-      }
-    } catch {
-      // Fallthrough
+  let resolvedExecutor: string = validatedOverride ?? data.type ?? ''
+
+  // Detect ansible connector inside agentic nodes
+  if (!validatedOverride && data.type === 'agentic') {
+    const aapExecutor = detectAAPConnectorFromPrompt(data)
+    if (aapExecutor) {
+      resolvedExecutor = aapExecutor
     }
   }
 
-  const actualExecutor = detectedExecutorType || data.task.executor
-
   return {
-    detectedExecutorType,
-    connectorData,
-    actualExecutor,
+    detectedExecutorType: resolvedExecutor,
+    connectorData: null,
+    actualExecutor: resolvedExecutor,
   }
 }

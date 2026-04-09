@@ -254,4 +254,160 @@ describe('useNodePositioning', () => {
 
     expect(mockSetNodes).toHaveBeenCalled()
   })
+
+  it('calls updateNode for positioned loop nodes after timeout', () => {
+    vi.useFakeTimers()
+
+    const nodes = [
+      { id: 'loop-1', type: 'loop', position: { x: 0, y: 0 }, measured: { width: 240, height: 100 } },
+      { id: 'body-1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 100, height: 50 } },
+    ] as never[]
+    const edges = [{ id: 'e1', source: 'loop-1', target: 'body-1', sourceHandle: 'loop' }] as never[]
+
+    newlyAddedNodeIdsRef.current.add('loop-1')
+    newlyAddedNodeIdsRef.current.add('body-1')
+
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
+      if (typeof updater === 'function') {
+        updater(nodes)
+      }
+    })
+
+    renderHook(() =>
+      useNodePositioning({
+        ...defaultParams,
+        nodes,
+        edges,
+      })
+    )
+
+    // Fast-forward the 100ms timeout
+    vi.advanceTimersByTime(100)
+
+    // updateNode should have been called for positioned nodes
+    expect(mockUpdateNode).toHaveBeenCalled()
+
+    vi.useRealTimers()
+  })
+
+  it('positions loop body node relative to loop node', () => {
+    const nodes = [
+      { id: 'loop-1', type: 'loop', position: { x: 0, y: 0 }, measured: { width: 240, height: 100 } },
+      { id: 'body-1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 100, height: 50 } },
+    ] as never[]
+    const edges = [{ id: 'e1', source: 'loop-1', target: 'body-1', sourceHandle: 'loop' }] as never[]
+
+    newlyAddedNodeIdsRef.current.add('loop-1')
+    newlyAddedNodeIdsRef.current.add('body-1')
+
+    let capturedNodes: unknown[] = []
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
+      if (typeof updater === 'function') {
+        capturedNodes = updater(nodes)
+      }
+    })
+
+    renderHook(() =>
+      useNodePositioning({
+        ...defaultParams,
+        nodes,
+        edges,
+      })
+    )
+
+    expect(mockSetNodes).toHaveBeenCalled()
+    const positionedBody = capturedNodes.find((n) => (n as { id: string }).id === 'body-1') as {
+      position: { x: number; y: number }
+    }
+    // Body node should be positioned to the right (240 + 80) and below (0 + 100) the loop
+    expect(positionedBody?.position.x).toBeGreaterThan(240)
+    expect(positionedBody?.position.y).toBeGreaterThan(0)
+  })
+
+  it('does not position loop body node if loop position is not found', () => {
+    const nodes = [
+      { id: 'body-1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 100, height: 50 } },
+    ] as never[]
+    const edges = [{ id: 'e1', source: 'loop-missing', target: 'body-1', sourceHandle: 'loop' }] as never[]
+
+    newlyAddedNodeIdsRef.current.add('body-1')
+
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
+      if (typeof updater === 'function') {
+        updater(nodes)
+      }
+    })
+
+    renderHook(() =>
+      useNodePositioning({
+        ...defaultParams,
+        nodes,
+        edges,
+      })
+    )
+
+    // Body node should not be positioned if loop is not found
+    expect(newlyAddedNodeIdsRef.current.has('body-1')).toBe(true)
+  })
+
+  it('clears desiredPosition only in loop branch', () => {
+    const nodes = [
+      { id: 'loop-1', type: 'loop', position: { x: 0, y: 0 }, measured: { width: 240, height: 100 } },
+      { id: 'body-1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 100, height: 50 } },
+    ] as never[]
+    const edges = [{ id: 'e1', source: 'loop-1', target: 'body-1', sourceHandle: 'loop' }] as never[]
+    newlyAddedNodeIdsRef.current.add('loop-1')
+    newlyAddedNodeIdsRef.current.add('body-1')
+    const desiredPosition = { x: 200, y: 150 }
+    const mockOnClear = vi.fn()
+
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
+      if (typeof updater === 'function') {
+        updater(nodes)
+      }
+    })
+
+    renderHook(() =>
+      useNodePositioning({
+        ...defaultParams,
+        nodes,
+        edges,
+        desiredPosition,
+        onClearDesiredPosition: mockOnClear,
+      })
+    )
+
+    // Should clear desiredPosition even if not used for first loop
+    expect(mockOnClear).toHaveBeenCalled()
+  })
+
+  it('positions non-loop body nodes without loop body map', () => {
+    const nodes = [
+      { id: 'task-1', type: 'task', position: { x: 0, y: 0 }, measured: { width: 100, height: 50 } },
+      { id: 'task-2', type: 'task', position: { x: 0, y: 0 }, measured: { width: 100, height: 50 } },
+    ] as never[]
+    const edges = [{ id: 'e1', source: 'task-1', target: 'task-2', sourceHandle: 'source' }] as never[]
+
+    newlyAddedNodeIdsRef.current.add('task-1')
+    newlyAddedNodeIdsRef.current.add('task-2')
+
+    let capturedNodes: unknown[] = []
+    mockSetNodes.mockImplementation((updater: ((items: unknown[]) => unknown[]) | unknown[]) => {
+      if (typeof updater === 'function') {
+        capturedNodes = updater(nodes)
+      }
+    })
+
+    renderHook(() =>
+      useNodePositioning({
+        ...defaultParams,
+        nodes,
+        edges,
+      })
+    )
+
+    expect(mockSetNodes).toHaveBeenCalled()
+    // Both nodes should be positioned
+    expect(capturedNodes.length).toBe(2)
+  })
 })

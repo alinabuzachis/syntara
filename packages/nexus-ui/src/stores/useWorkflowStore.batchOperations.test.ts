@@ -1,11 +1,20 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { describe, expect, it, beforeEach } from 'vitest'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
 
 import { useWorkflowStore, createScriptActivity, createConvergeActivity, createManualTrigger } from './useWorkflowStore'
+import type { Activity, WorkflowDefinition } from './workflowStoreTypes'
 
-type Activity = WorkflowAPI.components['schemas']['activity']
+// Helper to create a v2 WorkflowDefinition for tests
+function makeWorkflow(name: string, activities: Activity[] = [], triggers?: Activity[]): WorkflowDefinition {
+  return {
+    schema_version: '2.0.0',
+    name,
+    description: '',
+    triggers: triggers ?? [],
+    workflow: { activities },
+  }
+}
 
 describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
   beforeEach(() => {
@@ -28,15 +37,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       ]
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityA, activityB, activityC],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityA, activityB, activityC]),
         workflowVersion: 1,
         edges,
       })
@@ -69,15 +70,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityA, activityB, activityC, activityD],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityA, activityB, activityC, activityD]),
         workflowVersion: 1,
         edges: [],
       })
@@ -94,27 +87,13 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
   })
 
   describe('Converge node cleanup', () => {
-    it('removes join and cleans up parallel container', () => {
+    it('removes converge from flat list', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-      const parallelActivity: Activity = {
-        type: 'parallel',
-        id: 'parallel_for_J',
-        name: 'Parallel for J',
-        branches: [activityB, activityC],
-      }
       const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [parallelActivity, convergeActivity],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityB, activityC, convergeActivity]),
         workflowVersion: 1,
         edges: [
           { id: 'B-J', source: 'B', target: 'J', sourceHandle: 'source', targetHandle: 'target' },
@@ -132,46 +111,22 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       // Join should be removed
       expect(activities.find((a) => a.id === 'J')).toBeUndefined()
 
-      // Parallel container should be removed
-      expect(activities.find((a) => a.id === 'parallel_for_J')).toBeUndefined()
-
-      // Branch activities should be restored
+      // Branch activities should remain
       expect(activities.find((a) => a.id === 'B')).toBeDefined()
       expect(activities.find((a) => a.id === 'C')).toBeDefined()
     })
 
-    it('handles multiple join removals', () => {
+    it('handles multiple converge removals', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
       const activityD = createScriptActivity('D', 'Task D', 'python', 'print("D")')
       const activityE = createScriptActivity('E', 'Task E', 'python', 'print("E")')
 
-      const parallel1: Activity = {
-        type: 'parallel',
-        id: 'parallel_for_J1',
-        name: 'Parallel for J1',
-        branches: [activityB, activityC],
-      }
-      const parallel2: Activity = {
-        type: 'parallel',
-        id: 'parallel_for_J2',
-        name: 'Parallel for J2',
-        branches: [activityD, activityE],
-      }
-
       const convergeJ1 = createConvergeActivity('J1', 'Converge 1')
       const convergeJ2 = createConvergeActivity('J2', 'Converge 2')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [parallel1, convergeJ1, parallel2, convergeJ2],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityB, activityC, convergeJ1, activityD, activityE, convergeJ2]),
         workflowVersion: 1,
         edges: [],
       })
@@ -183,32 +138,25 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
-      // All joins and parallels should be removed
+      // All joins should be removed
       expect(activities.find((a) => a.id === 'J1')).toBeUndefined()
       expect(activities.find((a) => a.id === 'J2')).toBeUndefined()
-      expect(activities.find((a) => a.id === 'parallel_for_J1')).toBeUndefined()
-      expect(activities.find((a) => a.id === 'parallel_for_J2')).toBeUndefined()
 
-      // All branch activities should be restored
+      // All branch activities should remain
       expect(activities.map((a) => a.id).sort()).toEqual(['B', 'C', 'D', 'E'])
     })
   })
 
   describe('Trigger removal', () => {
     it('removes triggers by index', () => {
-      const trigger1 = createManualTrigger(false)
-      const trigger2 = createManualTrigger(true)
-      const trigger3 = createManualTrigger(false)
+      const trigger1 = createManualTrigger('test-trigger-1', false)
+      const trigger2 = createManualTrigger('test-trigger-2', true)
+      const trigger3 = createManualTrigger('test-trigger-1', false)
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
+          ...makeWorkflow('Test'),
           triggers: [trigger1, trigger2, trigger3],
-          workflow: {
-            activities: [],
-          },
         },
         workflowVersion: 1,
         edges: [],
@@ -226,19 +174,14 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     })
 
     it('removes multiple triggers', () => {
-      const trigger1 = createManualTrigger(false)
-      const trigger2 = createManualTrigger(true)
-      const trigger3 = createManualTrigger(false)
+      const trigger1 = createManualTrigger('test-trigger-1', false)
+      const trigger2 = createManualTrigger('test-trigger-2', true)
+      const trigger3 = createManualTrigger('test-trigger-1', false)
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
+          ...makeWorkflow('Test'),
           triggers: [trigger1, trigger2, trigger3],
-          workflow: {
-            activities: [],
-          },
         },
         workflowVersion: 1,
         edges: [],
@@ -256,18 +199,13 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     })
 
     it('removes all triggers', () => {
-      const trigger1 = createManualTrigger(false)
-      const trigger2 = createManualTrigger(true)
+      const trigger1 = createManualTrigger('test-trigger-1', false)
+      const trigger2 = createManualTrigger('test-trigger-2', true)
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
+          ...makeWorkflow('Test'),
           triggers: [trigger1, trigger2],
-          workflow: {
-            activities: [],
-          },
         },
         workflowVersion: 1,
         edges: [],
@@ -286,20 +224,15 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
   describe('Combined operations', () => {
     it('removes both activities and triggers atomically', () => {
-      const trigger1 = createManualTrigger(false)
-      const trigger2 = createManualTrigger(true)
+      const trigger1 = createManualTrigger('test-trigger-1', false)
+      const trigger2 = createManualTrigger('test-trigger-2', true)
       const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
+          ...makeWorkflow('Test', [activityA, activityB]),
           triggers: [trigger1, trigger2],
-          workflow: {
-            activities: [activityA, activityB],
-          },
         },
         workflowVersion: 1,
         edges: [{ id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' }],
@@ -325,28 +258,16 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     })
 
     it('handles complex scenario with converges, triggers, and edges', () => {
-      const trigger = createManualTrigger(false)
+      const trigger = createManualTrigger('test-trigger-1', false)
       const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-
-      const parallel: Activity = {
-        type: 'parallel',
-        id: 'parallel_for_J',
-        name: 'Parallel for J',
-        branches: [activityB, activityC],
-      }
       const convergeActivity = createConvergeActivity('J', 'Converge J')
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
+          ...makeWorkflow('Test', [activityA, activityB, activityC, convergeActivity]),
           triggers: [trigger],
-          workflow: {
-            activities: [activityA, parallel, convergeActivity],
-          },
         },
         workflowVersion: 1,
         edges: [
@@ -367,7 +288,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       const state = useWorkflowStore.getState()
       const activities = state.currentWorkflow?.workflow.activities ?? []
 
-      // Should have B and C (restored from parallel), no A, no J, no parallel
+      // Should have B and C remaining
       expect(activities.map((a) => a.id).sort()).toEqual(['B', 'C'])
       expect(state.currentWorkflow?.triggers).toBeUndefined()
       expect(state.edges).toEqual([])
@@ -375,29 +296,18 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
   })
 
   describe('Nested activity removal', () => {
-    it('removes activity from condition then branch', () => {
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-
-      const condition: Extract<Activity, { type: 'condition' }> = {
+    it('removes activity from flat list (v2 has no nesting)', () => {
+      const conditionActivity: Activity = {
         type: 'condition',
         id: 'A',
         name: 'Condition A',
-        condition: 'input.value > 10',
-        then: [activityB],
-        else: [activityC],
+        config: { condition: 'input.value > 10' },
       }
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [condition],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [conditionActivity, activityB, activityC]),
         workflowVersion: 1,
         edges: [],
       })
@@ -408,35 +318,21 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       })
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
-      const updatedCondition = activities[0] as Extract<Activity, { type: 'condition' }>
-
-      expect(updatedCondition.then).toHaveLength(0)
-      expect(updatedCondition.else).toHaveLength(1)
-      expect(updatedCondition.else![0].id).toBe('C')
+      expect(activities).toHaveLength(2)
+      expect(activities.map((a) => a.id)).toEqual(['A', 'C'])
     })
 
     it('removes entire condition with nested activities', () => {
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-
-      const condition: Extract<Activity, { type: 'condition' }> = {
+      const conditionActivity: Activity = {
         type: 'condition',
         id: 'A',
         name: 'Condition A',
-        condition: 'input.value > 10',
-        then: [activityB],
-        else: [],
+        config: { condition: 'input.value > 10' },
       }
+      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [condition],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [conditionActivity, activityB]),
         workflowVersion: 1,
         edges: [],
       })
@@ -447,7 +343,8 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       })
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
-      expect(activities).toHaveLength(0)
+      expect(activities).toHaveLength(1)
+      expect(activities[0].id).toBe('B')
     })
   })
 
@@ -469,15 +366,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityA],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityA]),
         workflowVersion: 1,
         edges: [],
       })
@@ -496,15 +385,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityA],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityA]),
         workflowVersion: 1,
         edges: [],
       })
@@ -520,17 +401,12 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
     })
 
     it('handles invalid trigger indices', () => {
-      const trigger = createManualTrigger(false)
+      const trigger = createManualTrigger('test-trigger-1', false)
 
       useWorkflowStore.setState({
         currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
+          ...makeWorkflow('Test'),
           triggers: [trigger],
-          workflow: {
-            activities: [],
-          },
         },
         workflowVersion: 1,
         edges: [],
@@ -553,15 +429,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test Workflow', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityA, activityB],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test Workflow', [activityA, activityB]),
         workflowVersion: 1,
         edges: [{ id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' }],
       })
@@ -575,7 +443,7 @@ describe('useWorkflowStore - batchRemoveNodesAndEdges', () => {
 
       // Workflow structure should be intact
       expect(workflow).toBeDefined()
-      expect(workflow?.metadata?.name).toBe('Test Workflow')
+      expect(workflow?.name).toBe('Test Workflow')
       expect(workflow?.workflow).toBeDefined()
       expect(workflow?.workflow.activities).toBeDefined()
     })

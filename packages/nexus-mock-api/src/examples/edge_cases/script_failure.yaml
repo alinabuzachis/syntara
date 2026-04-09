@@ -1,25 +1,21 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: script-failure-test
-  description: Test script execution failure
+schema_version: "2.0.0"
+name: script-failure-test
+description: Test script execution failure
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: failing_script
-      name: Script That Fails
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "This script will fail" >&2
-            exit 1
-        outputs:
-          result: $.stdout
+nodes:
+  - id: failing_script
+    name: Script That Fails
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "This script will fail" >&2
+        exit 1
+    outputs:
+      result: $.stdout
+edges: []

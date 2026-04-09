@@ -144,7 +144,7 @@ function ActionParametersContent(props: {
           </StackItem>
         </>
       )}
-      {executor === ExecutorTypeEnum.API && (
+      {executor === ExecutorTypeEnum.HTTP_REQUEST && (
         <>
           <StackItem>
             <FormGroup label="URL" isRequired fieldId="action-url">
@@ -311,11 +311,12 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
       executor: data.executor,
       language: data.executor === ExecutorTypeEnum.SCRIPT ? data.language : undefined,
       code: data.executor === ExecutorTypeEnum.SCRIPT ? data.code : undefined,
-      method: data.executor === ExecutorTypeEnum.API ? data.method : undefined,
-      url: data.executor === ExecutorTypeEnum.API ? data.url : undefined,
-      authentication: data.executor === ExecutorTypeEnum.API && data.authentication ? data.authentication : undefined,
-      headers: data.executor === ExecutorTypeEnum.API ? data.headers : undefined,
-      body: data.executor === ExecutorTypeEnum.API ? data.body : undefined,
+      method: data.executor === ExecutorTypeEnum.HTTP_REQUEST ? data.method : undefined,
+      url: data.executor === ExecutorTypeEnum.HTTP_REQUEST ? data.url : undefined,
+      authentication:
+        data.executor === ExecutorTypeEnum.HTTP_REQUEST && data.authentication ? data.authentication : undefined,
+      headers: data.executor === ExecutorTypeEnum.HTTP_REQUEST ? data.headers : undefined,
+      body: data.executor === ExecutorTypeEnum.HTTP_REQUEST ? data.body : undefined,
       parameters: data.parameters ?? undefined,
       requiresApproval: props.initialData?.requiresApproval,
     }

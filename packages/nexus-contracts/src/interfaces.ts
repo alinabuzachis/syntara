@@ -1,4 +1,3 @@
-import * as ActivityTypesAPI from './activity-types-api.js'
 import * as ApprovalsAPI from './approvals-api.js'
 import * as ExecutionsAPI from './executions-api.js'
 import * as ToolManagerAPI from './tool-manager.js'
@@ -9,43 +8,42 @@ export type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExe
 export type Approval = ApprovalsAPI.components['schemas']['ApprovalRequest']
 export type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 export type ApprovalStatus = ApprovalsAPI.components['schemas']['ApprovalStatus']
-export type ActivityType = ActivityTypesAPI.components['schemas']['ActivityType']
 export type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
 /**
- * Constants for activity type discriminators
- * Use these constants instead of string literals when comparing activity.type values
+ * Constants for node type discriminators (v2)
+ * In v2, executor types are first-class node types — no 'task' wrapper.
  */
 export const ActivityTypeEnum = {
-  TASK: 'task',
-  PARALLEL: 'parallel',
-  SEQUENCE: 'sequence',
+  SCRIPT: 'script',
+  HTTP_REQUEST: 'http_request',
+  AGENTIC: 'agentic',
+  AAP_JOB_TEMPLATE: 'aap_job_template',
+  APPROVAL: 'approval',
   CONDITION: 'condition',
   LOOP: 'loop',
   CONVERGE: 'converge',
-  APPROVAL: 'approval',
 } as const
 
 /**
- * Constants for trigger type discriminators
- * Use these constants instead of string literals when comparing trigger.type values
+ * Constants for trigger type discriminators (v2)
  */
 export const TriggerTypeEnum = {
-  MANUAL: 'manual',
+  MANUAL_TRIGGER: 'manual_trigger',
   SCHEDULED: 'scheduled',
   EVENT: 'event',
 } as const
 
 /**
- * Constants for task executor types
- * Use these constants instead of string literals when comparing task.executor values
+ * Constants for executor node types (v2)
+ * In v2, executor types are the node type directly — no task.executor wrapper.
  */
 export const ExecutorTypeEnum = {
   SCRIPT: 'script',
-  API: 'api',
+  HTTP_REQUEST: 'http_request',
   AGENTIC: 'agentic',
-  CONNECTOR: 'connector',
   AAP_JOB_TEMPLATE: 'aap_job_template',
+  APPROVAL: 'approval',
 } as const
 
 /**
@@ -104,10 +102,179 @@ export type ToolProviderCreate = ToolManagerAPI.components['schemas']['ToolProvi
 export type ToolProvidersResponse =
   ToolManagerAPI.paths['/tool_providers']['get']['responses']['200']['content']['application/json']
 
-export type Activity = WorkflowAPI.components['schemas']['activity']
-export type ConditionActivity = WorkflowAPI.components['schemas']['conditionActivity']
-export type TaskActivity = WorkflowAPI.components['schemas']['taskActivity']
-export type SequenceActivity = WorkflowAPI.components['schemas']['sequenceActivity']
-export type ParallelActivity = WorkflowAPI.components['schemas']['parallelActivity']
-export type LoopActivity = WorkflowAPI.components['schemas']['loopActivity']
-export type ConvergeActivity = WorkflowAPI.components['schemas']['convergeActivity']
+// V2 node types — generated from v2 OpenAPI spec
+export type V2Node = WorkflowAPI.components['schemas']['node']
+export type V2NodeBase = WorkflowAPI.components['schemas']['node_base']
+export type V2TriggerNode = WorkflowAPI.components['schemas']['trigger_node']
+export type V2Edge = WorkflowAPI.components['schemas']['edge']
+export type V2WorkflowDefinition = WorkflowAPI.components['schemas']['workflow_definition.schema']
+export type V2RetryPolicy = WorkflowAPI.components['schemas']['retry_policy']
+
+// ============================================================================
+// Config Type Aliases (extracted from generated schemas)
+// ============================================================================
+
+/** Script node configuration */
+export type ScriptConfig = WorkflowAPI.components['schemas']['script.schema_configSchema']
+
+/** HTTP request node configuration */
+export type HttpRequestConfig = WorkflowAPI.components['schemas']['http_request.schema_configSchema']
+
+/** Agentic (AI agent) node configuration */
+export type AgenticConfig = WorkflowAPI.components['schemas']['agentic.schema_configSchema']
+
+/** AAP job template node configuration */
+export type AAPJobTemplateConfig = WorkflowAPI.components['schemas']['aap_job_template.schema_configSchema']
+
+/** Approval node configuration */
+export type ApprovalConfig = WorkflowAPI.components['schemas']['approval.schema_configSchema']
+
+/** Condition node configuration */
+export type ConditionConfig = WorkflowAPI.components['schemas']['condition.schema_configSchema']
+
+/** Loop node configuration (discriminated union: for_each | do_while) */
+export type LoopConfig = WorkflowAPI.components['schemas']['loop.schema_configSchema']
+
+/** Converge node configuration */
+export type ConvergeConfig = WorkflowAPI.components['schemas']['converge.schema_configSchema']
+
+// ============================================================================
+// Activity Base Interface
+// ============================================================================
+
+/** Base properties shared by all activity types */
+interface ActivityBase {
+  id: string
+  name?: string
+  description?: string
+  outputs?: Record<string, string>
+  retry_policy?: V2RetryPolicy
+  timeout?: number
+  inputs?: Record<string, unknown>
+  metadata?: Record<string, unknown>
+  // SECURITY NOTE: Index signature allows arbitrary properties but TypedActivity interfaces
+  // provide type safety for known activity types. Always use TypedActivity discriminated union
+  // (ScriptActivity, HttpRequestActivity, etc.) instead of generic Activity type.
+  // The index signature is kept for backward compatibility with existing code.
+  [key: string]: unknown
+}
+
+// ============================================================================
+// Typed Activity Interfaces (one per node type)
+// ============================================================================
+
+/** Script execution node */
+export interface ScriptActivity extends ActivityBase {
+  type: 'script'
+  config: ScriptConfig & { [key: string]: unknown }
+}
+
+/** HTTP request node */
+export interface HttpRequestActivity extends ActivityBase {
+  type: 'http_request'
+  config: HttpRequestConfig & { [key: string]: unknown }
+}
+
+/** AI agent node */
+export interface AgenticActivity extends ActivityBase {
+  type: 'agentic'
+  config: AgenticConfig & { [key: string]: unknown }
+}
+
+/** AAP job template node */
+export interface AAPJobTemplateActivity extends ActivityBase {
+  type: 'aap_job_template'
+  config: AAPJobTemplateConfig & { [key: string]: unknown }
+}
+
+/** Approval gate node */
+export interface ApprovalActivity extends ActivityBase {
+  type: 'approval'
+  config: ApprovalConfig & { [key: string]: unknown }
+}
+
+/** Conditional branch node */
+export interface ConditionActivity extends ActivityBase {
+  type: 'condition'
+  config: ConditionConfig & { [key: string]: unknown }
+}
+
+/** Loop iteration node */
+export interface LoopActivity extends ActivityBase {
+  type: 'loop'
+  config: LoopConfig & { [key: string]: unknown }
+}
+
+/** Parallel branch convergence node */
+export interface ConvergeActivity extends ActivityBase {
+  type: 'converge'
+  config: ConvergeConfig & { [key: string]: unknown }
+}
+
+// ============================================================================
+// Activity Discriminated Union (Typed - Opt-In)
+// ============================================================================
+
+/**
+ * Typed activity discriminated union - provides type safety for node configs.
+ *
+ * TypeScript can narrow the config type based on the 'type' discriminator:
+ *
+ * @example
+ * function processActivity(activity: TypedActivity) {
+ *   if (activity.type === 'script') {
+ *     // activity.config is now ScriptConfig
+ *     const language = activity.config.language  // ✅ Type-safe!
+ *   }
+ * }
+ *
+ * @example
+ * function getExecutor(activity: TypedActivity): string {
+ *   switch (activity.type) {
+ *     case 'script':
+ *       return `${activity.config.language} script`  // ✅ config is ScriptConfig
+ *     case 'http_request':
+ *       return `HTTP ${activity.config.method}`  // ✅ config is HttpRequestConfig
+ *     // ... TypeScript ensures all cases are handled
+ *   }
+ * }
+ */
+export type TypedActivity =
+  | ScriptActivity
+  | HttpRequestActivity
+  | AgenticActivity
+  | AAPJobTemplateActivity
+  | ApprovalActivity
+  | ConditionActivity
+  | LoopActivity
+  | ConvergeActivity
+
+// ============================================================================
+// Activity (Loose - Backward Compatible)
+// ============================================================================
+
+/**
+ * Loose activity type for backward compatibility with existing code.
+ *
+ * Use TypedActivity for new code to get full type safety.
+ *
+ * @deprecated Prefer TypedActivity for type-safe config access
+ */
+export interface Activity {
+  id: string
+  type: string
+  name?: string
+  description?: string
+  config: Record<string, unknown>
+  outputs?: Record<string, string>
+  retry_policy?: V2RetryPolicy
+  timeout?: number
+  [key: string]: unknown
+}
+
+// ============================================================================
+// Convenience Type Aliases
+// ============================================================================
+
+/** Executor nodes (nodes that perform work) */
+export type TaskActivity = ScriptActivity | HttpRequestActivity | AgenticActivity | AAPJobTemplateActivity

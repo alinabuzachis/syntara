@@ -1,13 +1,11 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: retry-demo
-  description: Demonstrates retry policies with exponential backoff
+schema_version: "2.0.0"
+name: retry-demo
+description: Demonstrates retry policies with exponential backoff
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
 inputs:
   failure_rate:
@@ -27,120 +25,118 @@ inputs:
       In production, omit this parameter to use true randomness.
     required: false
 
-workflow:
-  activities:
-    - id: unreliable_service
-      name: Simulate Unreliable Service
-      type: task
-      timeout: 10
-      retryPolicy:
-        maxAttempts: 5
-        backoff: exponential
-        multiplier: 2.0
-        initialInterval: 1
-        maxInterval: 10
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            ATTEMPT_NUMBER=${INPUT_ATTEMPT:-1}
+nodes:
+  - id: unreliable_service
+    name: Simulate Unreliable Service
+    type: script
+    config:
+      language: bash
+      code: |
+        ATTEMPT_NUMBER=${INPUT_ATTEMPT:-1}
 
-            echo "Attempt #$ATTEMPT_NUMBER: Calling unreliable service..."
-            echo "Failure rate: ${INPUT_FAILURE_RATE}%"
+        echo "Attempt #$ATTEMPT_NUMBER: Calling unreliable service..."
+        echo "Failure rate: ${INPUT_FAILURE_RATE}%"
 
-            # Seed RANDOM for deterministic testing if seed provided
-            # Advance seed by attempt number to get different values on each retry
-            if [ -n "$INPUT_SEED" ]; then
-              ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
-              RANDOM_NUM=$(python3 -c "import random, os; seed = int(os.getenv('INPUT_SEED', 0)); attempt = int(os.getenv('INPUT_TEMPORAL_ATTEMPT', 1)); random.seed(seed + attempt - 1); print(random.randint(0, 99))")
-            else
-              RANDOM_NUM=$((RANDOM % 100))
-            fi
-            echo "Random roll: $RANDOM_NUM (need > $INPUT_FAILURE_RATE to succeed)"
+        # Seed RANDOM for deterministic testing if seed provided
+        # Advance seed by attempt number to get different values on each retry
+        if [ -n "$INPUT_SEED" ]; then
+          ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
+          RANDOM_NUM=$(python3 -c "import random, os; seed = int(os.getenv('INPUT_SEED', 0)); attempt = int(os.getenv('INPUT_TEMPORAL_ATTEMPT', 1)); random.seed(seed + attempt - 1); print(random.randint(0, 99))")
+        else
+          RANDOM_NUM=$((RANDOM % 100))
+        fi
+        echo "Random roll: $RANDOM_NUM (need > $INPUT_FAILURE_RATE to succeed)"
 
-            if [ "$RANDOM_NUM" -gt "$INPUT_FAILURE_RATE" ]; then
-              echo "✓ Success! Service responded correctly"
-              echo "{\"status\": \"success\", \"attempt\": $ATTEMPT_NUMBER, \"random\": $RANDOM_NUM}"
-              exit 0
-            else
-              echo "✗ Failed! Service error (will retry with backoff)"
-              echo "{\"status\": \"failed\", \"attempt\": $ATTEMPT_NUMBER, \"random\": $RANDOM_NUM}" >&2
-              exit 1
-            fi
-        inputs:
-          failure_rate: ${input.failure_rate}
-          attempt: '1'
-          seed: ${input.seed}
-        outputs:
-          result: $.stdout
+        if [ "$RANDOM_NUM" -gt "$INPUT_FAILURE_RATE" ]; then
+          echo "✓ Success! Service responded correctly"
+          echo "{\"status\": \"success\", \"attempt\": $ATTEMPT_NUMBER, \"random\": $RANDOM_NUM}"
+          exit 0
+        else
+          echo "✗ Failed! Service error (will retry with backoff)"
+          echo "{\"status\": \"failed\", \"attempt\": $ATTEMPT_NUMBER, \"random\": $RANDOM_NUM}" >&2
+          exit 1
+        fi
+    inputs:
+      failure_rate: ${input.failure_rate}
+      attempt: '1'
+      seed: ${input.seed}
+    outputs:
+      result: $.stdout
+    timeout: 10
+    retry_policy:
+      maxAttempts: 5
+      backoff: exponential
+      multiplier: 2.0
+      initialInterval: 1
+      maxInterval: 10
 
-    - id: process_result
-      name: Process Successful Result
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo ""
-            echo "=== Service Call Completed ==="
-            echo "Final status: $INPUT_STATUS"
-            echo "Succeeded after attempt: $INPUT_ATTEMPT"
-            echo "============================="
-            echo ""
-            echo "Key learnings:"
-            echo "  ✓ Retry policies help handle transient failures"
-            echo "  ✓ Exponential backoff prevents overwhelming failing services"
-            echo "  ✓ Timeouts prevent indefinite waiting"
-        inputs:
-          status: ${unreliable_service.output.result.status}
-          attempt: ${unreliable_service.output.result.attempt}
+  - id: process_result
+    name: Process Successful Result
+    type: script
+    config:
+      language: bash
+      code: |
+        echo ""
+        echo "=== Service Call Completed ==="
+        echo "Final status: $INPUT_STATUS"
+        echo "Succeeded after attempt: $INPUT_ATTEMPT"
+        echo "============================="
+        echo ""
+        echo "Key learnings:"
+        echo "  ✓ Retry policies help handle transient failures"
+        echo "  ✓ Exponential backoff prevents overwhelming failing services"
+        echo "  ✓ Timeouts prevent indefinite waiting"
+    inputs:
+      status: ${unreliable_service.output.result.status}
+      attempt: ${unreliable_service.output.result.attempt}
 
-    - id: fixed_backoff_example
-      name: Fixed Backoff Example
-      type: task
-      timeout: 5
-      retryPolicy:
-        maxAttempts: 3
-        backoff: fixed
-        initialInterval: 2
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "This task uses fixed backoff (2 seconds between retries)"
-            echo "If it fails, it will retry after exactly 2s, then 2s again"
-            echo ""
-            echo "Comparing backoff strategies:"
-            echo "  - Fixed: Same interval every time (2s, 2s, 2s)"
-            echo "  - Exponential: Increasing intervals (1s, 2s, 4s, 8s)"
-            echo "  - Linear: Linear increase (1s, 2s, 3s, 4s)"
+  - id: fixed_backoff_example
+    name: Fixed Backoff Example
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "This task uses fixed backoff (2 seconds between retries)"
+        echo "If it fails, it will retry after exactly 2s, then 2s again"
+        echo ""
+        echo "Comparing backoff strategies:"
+        echo "  - Fixed: Same interval every time (2s, 2s, 2s)"
+        echo "  - Exponential: Increasing intervals (1s, 2s, 4s, 8s)"
+        echo "  - Linear: Linear increase (1s, 2s, 3s, 4s)"
+    timeout: 5
+    retry_policy:
+      maxAttempts: 3
+      backoff: fixed
+      initialInterval: 2
 
-    - id: summary
-      name: Retry Summary
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo ""
-            echo "=== Retry Demo Complete ==="
-            echo ""
-            echo "This workflow demonstrated:"
-            echo "  1. Exponential backoff retry policy (1s → 2s → 4s → 8s)"
-            echo "  2. Maximum retry attempts (5)"
-            echo "  3. Activity timeouts (10s)"
-            echo "  4. Fixed backoff as alternative strategy"
-            echo ""
-            echo "Retry policies are essential for:"
-            echo "  • Handling transient network failures"
-            echo "  • Dealing with rate-limited APIs"
-            echo "  • Managing unreliable external services"
-            echo "  • Improving workflow resilience"
-            echo ""
-            echo "Try running with different failure rates:"
-            echo "  --inputs '{\"failure_rate\": 30}'  (easier to succeed)"
-            echo "  --inputs '{\"failure_rate\": 90}'  (harder to succeed)"
+  - id: summary
+    name: Retry Summary
+    type: script
+    config:
+      language: bash
+      code: |
+        echo ""
+        echo "=== Retry Demo Complete ==="
+        echo ""
+        echo "This workflow demonstrated:"
+        echo "  1. Exponential backoff retry policy (1s → 2s → 4s → 8s)"
+        echo "  2. Maximum retry attempts (5)"
+        echo "  3. Activity timeouts (10s)"
+        echo "  4. Fixed backoff as alternative strategy"
+        echo ""
+        echo "Retry policies are essential for:"
+        echo "  • Handling transient network failures"
+        echo "  • Dealing with rate-limited APIs"
+        echo "  • Managing unreliable external services"
+        echo "  • Improving workflow resilience"
+        echo ""
+        echo "Try running with different failure rates:"
+        echo "  --inputs '{\"failure_rate\": 30}'  (easier to succeed)"
+        echo "  --inputs '{\"failure_rate\": 90}'  (harder to succeed)"
+edges:
+  - source: unreliable_service
+    target: process_result
+  - source: process_result
+    target: fixed_backoff_example
+  - source: fixed_backoff_example
+    target: summary

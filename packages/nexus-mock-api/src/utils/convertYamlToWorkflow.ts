@@ -14,9 +14,11 @@ export function convertYamlToWorkflow(yamlFilePath: string, id: string, createdB
   const yamlContent = readFileSync(yamlFilePath, 'utf-8')
   const workflowDefinition = yaml.load(yamlContent) as WorkflowDefinition
 
-  // Extract filename for default name
+  // Extract filename for default name (v2: top-level name, v1 fallback: metadata.name)
   const filename = basename(yamlFilePath, '.yaml')
-  const name = workflowDefinition.metadata?.name || filename
+  const def = workflowDefinition as Record<string, unknown>
+  const name = (def.name as string) || workflowDefinition.metadata?.name || filename
+  const description = (def.description as string) || workflowDefinition.metadata?.description || `Workflow: ${name}`
 
   // Generate timestamps
   const timestamp = new Date().toISOString()
@@ -24,7 +26,7 @@ export function convertYamlToWorkflow(yamlFilePath: string, id: string, createdB
   return {
     id,
     name,
-    description: workflowDefinition.metadata?.description || `Workflow: ${name}`,
+    description,
     created_at: timestamp,
     updated_at: timestamp,
     created_by: createdBy,

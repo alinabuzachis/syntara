@@ -13,8 +13,8 @@ describe('ExecutionStateEnricher', () => {
       const activity: Activity = {
         id: 'task-1',
         name: 'Task 1',
-        type: 'task',
-        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
+        type: 'script',
+        config: { language: 'python', code: '' },
       }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
@@ -29,8 +29,8 @@ describe('ExecutionStateEnricher', () => {
       const activity: Activity = {
         id: 'task-1',
         name: 'Task 1',
-        type: 'task',
-        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
+        type: 'script',
+        config: { language: 'python', code: '' },
       }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
@@ -43,11 +43,11 @@ describe('ExecutionStateEnricher', () => {
     })
 
     it('preserves existing metadata when adding badge flag', () => {
-      const activity: Activity = {
+      const activity = {
         id: 'task-1',
         name: 'Task 1',
-        type: 'task',
-        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
+        type: 'script',
+        config: { language: 'python', code: '' },
         metadata: { customProp: 'value' },
       } as unknown as Activity
       const edges: EdgeConnection[] = []
@@ -65,8 +65,8 @@ describe('ExecutionStateEnricher', () => {
       const activity: Activity = {
         id: 'task-1',
         name: 'Task 1',
-        type: 'task',
-        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
+        type: 'script',
+        config: { language: 'python', code: '' },
       }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>([
@@ -88,7 +88,7 @@ describe('ExecutionStateEnricher', () => {
         id: 'loop-1',
         name: 'Loop',
         type: 'loop',
-        loop: { type: 'forEach', items: '[1,2,3]', do: [] },
+        config: { type: 'for_each', items: '[1,2,3]' },
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'loop-1', target: 'task-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -111,7 +111,7 @@ describe('ExecutionStateEnricher', () => {
         id: 'converge-1',
         name: 'Converge',
         type: 'converge',
-        converge: { branches: ['task-a', 'task-b'], strategy: 'all' },
+        config: { strategy: 'all' },
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'task-a', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
@@ -140,9 +140,7 @@ describe('ExecutionStateEnricher', () => {
         id: 'cond-1',
         name: 'Conditional',
         type: 'condition',
-        condition: 'x > 5',
-        then: [],
-        else: [],
+        config: { condition: 'x > 5' },
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'cond-1', target: 'task-true', sourceHandle: 'true', targetHandle: 'target' },
@@ -164,8 +162,8 @@ describe('ExecutionStateEnricher', () => {
       const activity: Activity = {
         id: 'task-false',
         name: 'Task False',
-        type: 'task',
-        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
+        type: 'script',
+        config: { language: 'python', code: '' },
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'cond-1', target: 'task-true', sourceHandle: 'true', targetHandle: 'target' },
@@ -202,7 +200,7 @@ describe('ExecutionStateEnricher', () => {
         id: 'loop-1',
         name: 'Loop',
         type: 'loop',
-        loop: { type: 'forEach', items: '[1,2,3]', do: [] },
+        config: { type: 'for_each', items: '[1,2,3]' },
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'loop-1', target: 'task-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -219,8 +217,8 @@ describe('ExecutionStateEnricher', () => {
       const activity: Activity = {
         id: 'task-1',
         name: 'Task 1',
-        type: 'task',
-        task: { executor: 'script', config: {} } as unknown as Extract<Activity, { type: 'task' }>['task'],
+        type: 'script',
+        config: { language: 'python', code: '' },
       }
       const edges: EdgeConnection[] = []
       const activityStates = new Map<string, ActivityState>()
@@ -236,8 +234,7 @@ describe('ExecutionStateEnricher', () => {
         id: 'approval-1',
         name: 'Approval',
         type: 'approval',
-        onApproved: [],
-        onRejected: [],
+        config: {},
       }
       const edges: EdgeConnection[] = [
         { id: '1', source: 'approval-1', target: 'task-approved', sourceHandle: 'approved', targetHandle: 'target' },

@@ -1,10 +1,7 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: post-with-body
-  description: HTTP POST request with JSON body and headers
+schema_version: "2.0.0"
+name: post-with-body
+description: HTTP POST request with JSON body and headers
 
 inputs:
   data:
@@ -15,20 +12,19 @@ inputs:
       value: 123
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: create_resource
-      type: task
-      task:
-        executor: api
-        config:
-          method: POST
-          url: http://test-api.example.com/api/create
-          headers:
-            Content-Type: application/json
-            X-Custom-Header: test-value
-          body: ${input.data}
-        inputs:
-          data: ${inputs.data}
+nodes:
+  - id: create_resource
+    type: http_request
+    config:
+      method: POST
+      url: http://test-api.example.com/api/create
+      headers:
+        Content-Type: application/json
+        X-Custom-Header: test-value
+      body: ${input.data}
+    inputs:
+      data: ${inputs.data}
+edges: []

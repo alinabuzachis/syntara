@@ -1,10 +1,7 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: authenticated-request
-  description: API request with Authorization header from inputs
+schema_version: "2.0.0"
+name: authenticated-request
+description: API request with Authorization header from inputs
 
 inputs:
   apiToken:
@@ -13,18 +10,17 @@ inputs:
     default: Bearer test-token-123
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: authenticated_fetch
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: http://test-api.example.com/api/auth
-          headers:
-            Authorization: ${input.apiToken}
-        inputs:
-          apiToken: ${inputs.apiToken}
+nodes:
+  - id: authenticated_fetch
+    type: http_request
+    config:
+      method: GET
+      url: http://test-api.example.com/api/auth
+      headers:
+        Authorization: ${input.apiToken}
+    inputs:
+      apiToken: ${inputs.apiToken}
+edges: []

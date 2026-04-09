@@ -25,18 +25,15 @@ vi.mock('@xyflow/react', () => ({
 }))
 
 describe('TaskReversedNodeComponent', () => {
-  const baseTaskNode: TaskActivity = {
-    type: 'task',
+  const baseTaskNode = {
+    type: 'script',
     id: 'task-reversed-1',
     name: 'Loop Back Task',
-    task: {
-      executor: 'script',
-      config: {
-        language: 'python',
-        code: 'print("hello")',
-      },
+    config: {
+      language: 'python',
+      code: 'print("hello")',
     },
-  }
+  } as TaskActivity
 
   const createNodeProps = (data: TaskActivity) => ({
     id: data.id,
@@ -71,18 +68,15 @@ describe('TaskReversedNodeComponent', () => {
 
   describe('Different Executors', () => {
     it('renders agentic executor', () => {
-      const agenticTask: TaskActivity = {
-        type: 'task',
+      const agenticTask = {
+        type: 'agentic',
         id: 'task-reversed-2',
         name: 'AI Task',
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: 'Do something smart',
-          },
+        config: {
+          prompt: 'Do something smart',
+          model: 'claude-3-sonnet',
         },
-      }
+      } as TaskActivity
 
       render(<TaskReversedNodeComponent {...createNodeProps(agenticTask)} />)
 
@@ -90,21 +84,18 @@ describe('TaskReversedNodeComponent', () => {
       expect(screen.getByText('Agentic')).toBeInTheDocument()
     })
 
-    it('renders api executor', () => {
-      const apiTask: TaskActivity = {
-        type: 'task',
+    it('renders http_request executor', () => {
+      const httpTask = {
+        type: 'http_request',
         id: 'task-reversed-3',
         name: 'API Call',
-        task: {
-          executor: 'api',
-          config: {
-            url: 'https://example.com',
-            method: 'GET',
-          },
+        config: {
+          url: 'https://example.com',
+          method: 'GET',
         },
-      }
+      } as TaskActivity
 
-      render(<TaskReversedNodeComponent {...createNodeProps(apiTask)} />)
+      render(<TaskReversedNodeComponent {...createNodeProps(httpTask)} />)
 
       expect(screen.getByText('API Call')).toBeInTheDocument()
     })
@@ -171,36 +162,6 @@ describe('TaskReversedNodeComponent', () => {
       props.selected = true
 
       render(<TaskReversedNodeComponent {...props} />)
-
-      expect(screen.getByText('Loop Back Task')).toBeInTheDocument()
-    })
-  })
-
-  describe('Task with inputs/outputs', () => {
-    it('renders task with inputs', () => {
-      const taskWithInputs: TaskActivity = {
-        ...baseTaskNode,
-        task: {
-          ...baseTaskNode.task,
-          inputs: { value: 'test' },
-        },
-      }
-
-      render(<TaskReversedNodeComponent {...createNodeProps(taskWithInputs)} />)
-
-      expect(screen.getByText('Loop Back Task')).toBeInTheDocument()
-    })
-
-    it('renders task with outputs', () => {
-      const taskWithOutputs: TaskActivity = {
-        ...baseTaskNode,
-        task: {
-          ...baseTaskNode.task,
-          outputs: { result: 'success' },
-        },
-      }
-
-      render(<TaskReversedNodeComponent {...createNodeProps(taskWithOutputs)} />)
 
       expect(screen.getByText('Loop Back Task')).toBeInTheDocument()
     })

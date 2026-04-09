@@ -17,28 +17,84 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
 
-  // Handle potentially malformed loop data
-  if (!loopData.loop) {
-    showError('Invalid loop step data', 'Error')
-    onClose()
-    return null
+  // In v2, loop config is at activity.config (not activity.loop)
+  const loopConfig = (loopData.config ?? {}) as {
+    type?: string
+    items?: string
+    condition?: string
+    max_iterations?: number
+    maxIterations?: number
+    maxIterationsBehavior?: 'continue' | 'fail'
+    indexVariable?: string
+    itemVariable?: string
   }
 
-  // Runtime guard: only allow valid loop types
-  const loopType = loopData.loop.type === 'forEach' || loopData.loop.type === 'while' ? loopData.loop.type : 'while'
+  // Preserve the original loop type to avoid losing 'while' vs 'do_while' distinction
+  const originalLoopType = loopConfig.type
+
+  // Handle v2 loop types: 'for_each'/'forEach' and 'while'/'do_while'
+  // Map to UI types: 'forEach' and 'while'
+  const loopType: 'forEach' | 'while' =
+    loopConfig.type === 'for_each' || loopConfig.type === 'forEach' ? 'forEach' : 'while'
+
+  const maxIterations = loopConfig.max_iterations ?? loopConfig.maxIterations
 
   const initialData = {
     name: loopData.name,
     type: loopType,
-    items: loopType === 'forEach' && 'items' in loopData.loop ? loopData.loop.items : undefined,
-    condition: loopType === 'while' && 'condition' in loopData.loop ? loopData.loop.condition : undefined,
-    maxIterations: loopType === 'while' && 'maxIterations' in loopData.loop ? loopData.loop.maxIterations : undefined,
-    maxIterationsBehavior:
-      loopType === 'while' && 'maxIterationsBehavior' in loopData.loop
-        ? (loopData.loop.maxIterationsBehavior as 'continue' | 'fail')
-        : undefined,
-    indexVariable: loopType === 'forEach' && 'indexVariable' in loopData.loop ? loopData.loop.indexVariable : undefined,
-    itemVariable: loopType === 'forEach' && 'itemVariable' in loopData.loop ? loopData.loop.itemVariable : undefined,
+    items: loopType === 'forEach' ? loopConfig.items : undefined,
+    condition: loopType === 'while' ? loopConfig.condition : undefined,
+    maxIterations: loopType === 'while' ? maxIterations : undefined,
+    maxIterationsBehavior: loopType === 'while' ? loopConfig.maxIterationsBehavior : undefined,
+    indexVariable: loopType === 'forEach' ? loopConfig.indexVariable : undefined,
+    itemVariable: loopType === 'forEach' ? loopConfig.itemVariable : undefined,
+  }
+
+  // Determine config type preserving original backend type when possible
+  const determineConfigType = (selectedType: string): string => {
+    if (selectedType === 'forEach') {
+      return originalLoopType === 'forEach' || originalLoopType === 'for_each' ? originalLoopType : 'for_each'
+    }
+
+    // User selected while - preserve 'while' or 'do_while' or default to 'while'
+    if (originalLoopType === 'while' || originalLoopType === 'do_while') {
+      return originalLoopType
+    }
+
+    return 'while'
+  }
+
+  const buildForEachConfig = (data: { items?: string; indexVariable?: string; itemVariable?: string }) => ({
+    items: data.items ?? '',
+    ...(data.indexVariable && { indexVariable: data.indexVariable }),
+    ...(data.itemVariable && { itemVariable: data.itemVariable }),
+    condition: undefined,
+    max_iterations: undefined,
+    maxIterations: undefined,
+    maxIterationsBehavior: undefined,
+  })
+
+  const buildWhileConfig = (data: {
+    condition?: string
+    maxIterations?: number
+    maxIterationsBehavior?: 'continue' | 'fail'
+  }) => ({
+    condition: data.condition ?? '',
+    ...(typeof data.maxIterations === 'number' &&
+      Number.isInteger(data.maxIterations) &&
+      data.maxIterations > 0 && { max_iterations: data.maxIterations }),
+    ...(data.maxIterationsBehavior && { maxIterationsBehavior: data.maxIterationsBehavior }),
+    items: undefined,
+    indexVariable: undefined,
+    itemVariable: undefined,
+  })
+
+  const cleanUndefinedFields = (obj: Record<string, unknown>): void => {
+    Object.keys(obj).forEach((key) => {
+      if (obj[key] === undefined) {
+        delete obj[key]
+      }
+    })
   }
 
   const handleSubmit = (data: {
@@ -52,43 +108,26 @@ export function LoopNodeDetails({ loopData, nodeId, onClose, onHeaderContentChan
     itemVariable?: string
   }) => {
     try {
-      // Validate type before casting
       if (!data.type || (data.type !== 'forEach' && data.type !== 'while')) {
         throw new Error('Invalid loop type')
       }
 
-      // Build fresh loop object based on type to avoid stale fields
-      const loopType = data.type
-      const baseLoop = {
-        type: loopType,
-        do: loopData.loop.do,
+      const configType = determineConfigType(data.type)
+      const typeSpecificConfig = data.type === 'forEach' ? buildForEachConfig(data) : buildWhileConfig(data)
+
+      const config: Record<string, unknown> = {
+        ...loopConfig,
+        type: configType,
+        ...typeSpecificConfig,
       }
 
-      const loop =
-        loopType === 'forEach'
-          ? {
-              ...baseLoop,
-              type: 'forEach' as const,
-              items: data.items ?? '',
-              indexVariable: data.indexVariable,
-              itemVariable: data.itemVariable,
-            }
-          : {
-              ...baseLoop,
-              type: 'while' as const,
-              condition: data.condition ?? '',
-              maxIterations:
-                typeof data.maxIterations === 'number' && Number.isInteger(data.maxIterations) && data.maxIterations > 0
-                  ? data.maxIterations
-                  : undefined,
-              maxIterationsBehavior: data.maxIterationsBehavior ?? 'continue',
-            }
+      cleanUndefinedFields(config)
 
       const updatedActivity: LoopActivity = {
         ...loopData,
         name: data.name,
-        loop,
-      }
+        config,
+      } as LoopActivity
 
       updateActivity(nodeId, updatedActivity)
       onClose()

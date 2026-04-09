@@ -57,7 +57,7 @@ describe('layoutEngine', () => {
 
       expect(result.nodes).toHaveLength(2)
       expect(result.edges).toHaveLength(1)
-      expect(mockSetGraph).toHaveBeenCalledWith({ rankdir: 'TB', ranksep: 120 })
+      expect(mockSetGraph).toHaveBeenCalledWith({ rankdir: 'TB', ranksep: 120, ranker: 'tight-tree' })
     })
 
     it('filters out placeholder nodes from layout', () => {
@@ -94,9 +94,9 @@ describe('layoutEngine', () => {
 
       getLayoutedElements(nodes, edges, { direction: 'TB' })
 
-      // Only real edge should be added
+      // Only real edge should be added (with empty edge config since no special handles)
       expect(mockSetEdge).toHaveBeenCalledTimes(1)
-      expect(mockSetEdge).toHaveBeenCalledWith('task-1', 'task-2')
+      expect(mockSetEdge).toHaveBeenCalledWith('task-1', 'task-2', {})
     })
 
     it('excludes loop-back edges from layout', () => {
@@ -113,8 +113,9 @@ describe('layoutEngine', () => {
       getLayoutedElements(nodes, edges, { direction: 'TB' })
 
       // Loop-back edge (targetHandle: 'end') should not be added
+      // Loop edge (sourceHandle: 'loop') gets no special weight
       expect(mockSetEdge).toHaveBeenCalledTimes(1)
-      expect(mockSetEdge).toHaveBeenCalledWith('loop-1', 'task-in-loop')
+      expect(mockSetEdge).toHaveBeenCalledWith('loop-1', 'task-in-loop', {})
     })
 
     it('preserves placeholder nodes position', () => {
@@ -162,7 +163,7 @@ describe('layoutEngine', () => {
 
       getLayoutedElements(nodes, edges, { direction: 'LR' })
 
-      expect(mockSetGraph).toHaveBeenCalledWith({ rankdir: 'LR', ranksep: 120 })
+      expect(mockSetGraph).toHaveBeenCalledWith({ rankdir: 'LR', ranksep: 120, ranker: 'tight-tree' })
     })
 
     it('handles nodes without measured dimensions', () => {

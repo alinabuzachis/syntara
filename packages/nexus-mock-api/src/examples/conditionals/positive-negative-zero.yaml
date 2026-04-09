@@ -1,66 +1,62 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: conditional-test
-  description: Test conditional branching with positive/negative/zero values
-
+schema_version: "2.0.0"
+name: conditional-test
+description: Test conditional branching with positive/negative/zero values
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
+    config:
+      inputs:
+        number:
+          type: integer
+          description: Number to check (positive, negative, or zero)
+          default: 10
+nodes:
+  - id: check_value
+    name: Check Value
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Value is: $INPUT_VALUE"
+        echo "{\"value\": $INPUT_VALUE}"
+    inputs:
+      value: ${input.number}
+    outputs:
+      result: $.stdout
 
-inputs:
-  number:
-    type: integer
-    description: Number to check (positive, negative, or zero)
-    default: 10
+  - id: positive_branch
+    name: Positive Branch
+    type: script
+    condition: ${input.number} > 0
+    config:
+      language: bash
+      code: |
+        echo "Value is positive"
 
-workflow:
-  activities:
-    - id: check_value
-      name: Check Value
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Value is: $INPUT_VALUE"
-            echo "{\"value\": $INPUT_VALUE}"
-        inputs:
-          value: ${input.number}
-        outputs:
-          result: $.stdout
+  - id: negative_branch
+    name: Negative Branch
+    type: script
+    condition: ${input.number} < 0
+    config:
+      language: bash
+      code: |
+        echo "Value is negative"
 
-    - id: positive_branch
-      name: Positive Branch
-      type: task
-      condition: ${input.number} > 0
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Value is positive"
-
-    - id: negative_branch
-      name: Negative Branch
-      type: task
-      condition: ${input.number} < 0
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Value is negative"
-
-    - id: zero_branch
-      name: Zero Branch
-      type: task
-      condition: ${input.number} == 0
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Value is zero"
+  - id: zero_branch
+    name: Zero Branch
+    type: script
+    condition: ${input.number} == 0
+    config:
+      language: bash
+      code: |
+        echo "Value is zero"
+edges:
+  - from: trigger_manual
+    to: check_value
+  - from: check_value
+    to: positive_branch
+  - from: positive_branch
+    to: negative_branch
+  - from: negative_branch
+    to: zero_branch

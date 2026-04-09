@@ -72,7 +72,7 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
         onClick={() =>
           onSubmit({
             name: 'Updated API Task',
-            executor: 'api',
+            executor: 'http_request',
             method: 'POST',
             url: 'https://api.test.com',
             headers: '{"Content-Type": "application/json"}',
@@ -87,7 +87,7 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
         onClick={() =>
           onSubmit({
             name: 'API with Invalid Body',
-            executor: 'api',
+            executor: 'http_request',
             method: 'POST',
             url: 'https://api.test.com',
             body: 'plain text body',
@@ -96,6 +96,20 @@ vi.mock('../node-forms/ActionNodeForm', () => ({
         data-testid="submit-api-plain-body-button"
       >
         Submit API Plain Body
+      </button>
+      <button
+        onClick={() =>
+          onSubmit({
+            name: 'API with Invalid Headers',
+            executor: 'http_request',
+            method: 'POST',
+            url: 'https://api.test.com',
+            headers: '{ invalid json',
+          })
+        }
+        data-testid="submit-api-invalid-headers-button"
+      >
+        Submit API Invalid Headers
       </button>
       <button onClick={onCancel} data-testid="cancel-button">
         Cancel
@@ -167,28 +181,20 @@ describe('TaskNodeDetails Component', () => {
   const mockOnClose = vi.fn()
   const renderTaskNodeDetails = (taskData: TaskActivity, nodeId: string) =>
     render(
-      <TaskNodeDetails
-        taskData={taskData as TaskActivity & { task: { executor: string; config: unknown } }}
-        nodeId={nodeId}
-        onClose={mockOnClose}
-        onHeaderContentChange={vi.fn()}
-      />
+      <TaskNodeDetails taskData={taskData} nodeId={nodeId} onClose={mockOnClose} onHeaderContentChange={vi.fn()} />
     )
 
   beforeEach(() => {
     vi.clearAllMocks()
     // Setup mockCreateAAPJobTemplateActivity to return proper activity structure
     mockCreateAAPJobTemplateActivity.mockImplementation(
-      (id: string, name: string, jobTemplateId: string, config: Record<string, unknown>) => ({
-        type: 'task' as const,
+      (id: string, name: string, jobTemplateId: number, config?: Record<string, unknown>) => ({
+        type: 'aap_job_template' as const,
         id,
         name,
-        task: {
-          executor: 'aap_job_template' as const,
-          config: {
-            jobTemplateId,
-            ...config,
-          },
+        config: {
+          job_template_id: jobTemplateId,
+          ...config,
         },
       })
     )
@@ -196,15 +202,12 @@ describe('TaskNodeDetails Component', () => {
 
   it('renders ActionNodeForm for script task', () => {
     const taskData = {
-      type: 'task' as const,
+      type: 'script' as const,
       id: 'task-1',
       name: 'Script Task',
-      task: {
-        executor: 'script' as const,
-        config: {
-          language: 'python' as const,
-          code: 'print("hello")',
-        },
+      config: {
+        language: 'python' as const,
+        code: 'print("hello")',
       },
     }
 
@@ -215,15 +218,12 @@ describe('TaskNodeDetails Component', () => {
 
   it('renders ActionNodeForm for API task', () => {
     const taskData = {
-      type: 'task' as const,
+      type: 'http_request' as const,
       id: 'task-2',
       name: 'API Task',
-      task: {
-        executor: 'api' as const,
-        config: {
-          method: 'GET' as const,
-          url: 'https://api.example.com',
-        },
+      config: {
+        method: 'GET' as const,
+        url: 'https://api.example.com',
       },
     }
 
@@ -234,16 +234,13 @@ describe('TaskNodeDetails Component', () => {
 
   it('renders AAPNodeForm for aap_job_template task', () => {
     const taskData = {
-      type: 'task' as const,
+      type: 'aap_job_template' as const,
       id: 'task-aap',
       name: 'AAP Task',
-      task: {
-        executor: 'aap_job_template' as const,
-        config: {
-          jobTemplateId: 123,
-          inventory: 456,
-          extraVars: { foo: 'bar' },
-        },
+      config: {
+        job_template_id: 123,
+        inventory_id: 456,
+        extra_vars: { foo: 'bar' },
       },
     }
 
@@ -252,17 +249,13 @@ describe('TaskNodeDetails Component', () => {
     expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
   })
 
-  it('renders AAPNodeForm with minimal config (only jobTemplateId)', () => {
+  it('renders AAPNodeForm with minimal config (only job_template_id)', () => {
     const taskData = {
-      type: 'task' as const,
+      type: 'aap_job_template' as const,
       id: 'task-aap-minimal',
       name: 'Minimal AAP Task',
-      task: {
-        executor: 'aap_job_template' as const,
-        config: {
-          jobTemplateId: 789,
-          // No inventory, credentials, extraVars, etc.
-        },
+      config: {
+        job_template_id: 789,
       },
     }
 
@@ -273,17 +266,13 @@ describe('TaskNodeDetails Component', () => {
 
   it('renders AIAgentNodeDetails for agentic task', () => {
     const taskData = {
-      type: 'task' as const,
+      type: 'agentic' as const,
       id: 'task-agent',
       name: 'AI Agent Task',
-      task: {
-        executor: 'agentic' as const,
-        config: {
-          agent: '',
-          model: 'claude-3-sonnet',
-          prompt: 'Analyze the data',
-          tools: ['calculator', 'web_search'],
-        },
+      config: {
+        model: 'claude-3-sonnet',
+        prompt: 'Analyze the data',
+        tool_selections: ['calculator', 'web_search'],
       },
     }
 
@@ -294,40 +283,12 @@ describe('TaskNodeDetails Component', () => {
     expect(screen.getByTestId('agent-task-name')).toHaveTextContent('AI Agent Task')
   })
 
-  it('renders AAPNodeForm for connector-backed AAP task (executor still agentic)', () => {
-    const taskData = {
-      type: 'task' as const,
-      id: 'task-aap-connector',
-      name: 'AAP via connector',
-      task: {
-        executor: 'agentic' as const,
-        config: {
-          agent: 'default-agent',
-          prompt: JSON.stringify({
-            __type: 'connector',
-            connectorId: 'ansible-automation-platform',
-            operation: 'run-job',
-            parameters: { jobId: '123' },
-          }),
-        },
-      },
-    }
-
-    renderTaskNodeDetails(taskData, 'task-aap-connector')
-
-    expect(screen.getByTestId('aap-node-form')).toBeInTheDocument()
-    expect(screen.queryByTestId('ai-agent-node-details')).not.toBeInTheDocument()
-  })
-
   it('returns null for unsupported executor type', () => {
     const taskData = {
-      type: 'task' as const,
+      type: 'unsupported' as never,
       id: 'task-3',
       name: 'Unsupported Task',
-      task: {
-        executor: 'unsupported' as never,
-        config: {} as never,
-      },
+      config: {},
     }
 
     const { container } = renderTaskNodeDetails(taskData, 'task-3')
@@ -338,15 +299,12 @@ describe('TaskNodeDetails Component', () => {
   it('calls updateActivity on successful form submission', async () => {
     const user = userEvent.setup()
     const taskData = {
-      type: 'task' as const,
+      type: 'script' as const,
       id: 'task-1',
       name: 'Original Task',
-      task: {
-        executor: 'script' as const,
-        config: {
-          language: 'python' as const,
-          code: 'print("original")',
-        },
+      config: {
+        language: 'python' as const,
+        code: 'print("original")',
       },
     }
 
@@ -360,21 +318,18 @@ describe('TaskNodeDetails Component', () => {
   it('calls updateActivity on successful AAP form submission', async () => {
     const user = userEvent.setup()
     const taskData = {
-      type: 'task' as const,
+      type: 'aap_job_template' as const,
       id: 'task-aap',
       name: 'AAP Task',
-      task: {
-        executor: 'aap_job_template' as const,
-        config: {
-          jobTemplateId: 123,
-          inventory: 456,
-          credentials: [1, 2, 3],
-          extraVars: { env: 'prod' },
-          limit: 'webservers',
-          tags: 'deploy',
-          skipTags: 'testing',
-          verbosity: 2,
-        },
+      config: {
+        job_template_id: 123,
+        inventory_id: 456,
+        credentials: [1, 2, 3],
+        extra_vars: { env: 'prod' },
+        limit: 'webservers',
+        tags: 'deploy',
+        skip_tags: 'testing',
+        verbosity: 2,
       },
     }
 
@@ -382,39 +337,27 @@ describe('TaskNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('aap-submit-button'))
 
-    // AAP nodes use aap_job_template executor
+    // AAP nodes use aap_job_template type directly in v2
     expect(mockUpdateActivity).toHaveBeenCalledWith(
       'task-aap',
       expect.objectContaining({
         name: 'Updated AAP Task',
-        task: expect.objectContaining({
-          executor: 'aap_job_template',
-          config: expect.objectContaining({
-            jobTemplateId: 456,
-            inventory: 789,
-            credentials: [10, 20],
-            extraVars: { key: 'value' },
-            limit: 'servers',
-            tags: 'install',
-            skipTags: 'debug',
-            verbosity: 3,
-          }) as Record<string, unknown>,
-        }) as Record<string, unknown>,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        config: expect.objectContaining({
+          job_template_id: 456,
+        }),
       })
     )
   })
 
   it('displays "Update step" as submit button text', () => {
     const taskData = {
-      type: 'task' as const,
+      type: 'script' as const,
       id: 'task-1',
       name: 'Task',
-      task: {
-        executor: 'script' as const,
-        config: {
-          language: 'python' as const,
-          code: 'print("test")',
-        },
+      config: {
+        language: 'python' as const,
+        code: 'print("test")',
       },
     }
 
@@ -428,11 +371,8 @@ describe('TaskNodeDetails Component', () => {
       type: 'approval' as const,
       id: 'task-approval',
       name: 'Approval Task',
-      onApproved: [],
-      onRejected: [],
-      approval: {
-        approvers: ['admin'],
-        prompt: 'Please approve',
+      config: {
+        approver_timeout: 3600,
       },
     } as unknown as TaskActivity
 
@@ -444,15 +384,12 @@ describe('TaskNodeDetails Component', () => {
   it('handles API form submission with headers and body', async () => {
     const user = userEvent.setup()
     const taskData = {
-      type: 'task' as const,
+      type: 'http_request' as const,
       id: 'task-api',
       name: 'API Task',
-      task: {
-        executor: 'api' as const,
-        config: {
-          method: 'GET' as const,
-          url: 'https://api.example.com',
-        },
+      config: {
+        method: 'GET' as const,
+        url: 'https://api.example.com',
       },
     }
 
@@ -464,15 +401,13 @@ describe('TaskNodeDetails Component', () => {
       'task-api',
       expect.objectContaining({
         name: 'Updated API Task',
-        task: expect.objectContaining({
-          executor: 'api',
-          config: expect.objectContaining({
-            method: 'POST',
-            url: 'https://api.test.com',
-            headers: { 'Content-Type': 'application/json' },
-            body: { data: 'test' },
-          }) as Record<string, unknown>,
-        }) as Record<string, unknown>,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        config: expect.objectContaining({
+          method: 'POST',
+          url: 'https://api.test.com',
+          headers: { 'Content-Type': 'application/json' },
+          body: { data: 'test' },
+        }),
       })
     )
   })
@@ -480,15 +415,12 @@ describe('TaskNodeDetails Component', () => {
   it('handles API form submission with plain text body', async () => {
     const user = userEvent.setup()
     const taskData = {
-      type: 'task' as const,
+      type: 'http_request' as const,
       id: 'task-api',
       name: 'API Task',
-      task: {
-        executor: 'api' as const,
-        config: {
-          method: 'GET' as const,
-          url: 'https://api.example.com',
-        },
+      config: {
+        method: 'GET' as const,
+        url: 'https://api.example.com',
       },
     }
 
@@ -499,30 +431,26 @@ describe('TaskNodeDetails Component', () => {
     expect(mockUpdateActivity).toHaveBeenCalledWith(
       'task-api',
       expect.objectContaining({
-        task: expect.objectContaining({
-          config: expect.objectContaining({
-            body: 'plain text body',
-          }) as Record<string, unknown>,
-        }) as Record<string, unknown>,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        config: expect.objectContaining({
+          body: 'plain text body',
+        }),
       })
     )
   })
 
   it('renders API task with inputs/parameters', () => {
     const taskData = {
-      type: 'task' as const,
+      type: 'http_request' as const,
       id: 'task-api-params',
       name: 'API Task with Params',
-      task: {
-        executor: 'api' as const,
-        config: {
-          method: 'POST' as const,
-          url: 'https://api.example.com',
-        },
-        inputs: {
-          userId: '{{user.id}}',
-          timestamp: '{{now}}',
-        },
+      config: {
+        method: 'POST' as const,
+        url: 'https://api.example.com',
+      },
+      inputs: {
+        userId: '{{user.id}}',
+        timestamp: '{{now}}',
       },
     }
 
@@ -533,16 +461,13 @@ describe('TaskNodeDetails Component', () => {
 
   it('renders API task with string body in config', () => {
     const taskData = {
-      type: 'task' as const,
+      type: 'http_request' as const,
       id: 'task-api-string-body',
       name: 'API Task with String Body',
-      task: {
-        executor: 'api' as const,
-        config: {
-          method: 'POST' as const,
-          url: 'https://api.example.com',
-          body: 'raw string body',
-        },
+      config: {
+        method: 'POST' as const,
+        url: 'https://api.example.com',
+        body: 'raw string body',
       },
     }
 
@@ -557,15 +482,12 @@ describe('TaskNodeDetails Component', () => {
       throw new Error('Update failed')
     })
     const taskData = {
-      type: 'task' as const,
+      type: 'script' as const,
       id: 'task-1',
       name: 'Task',
-      task: {
-        executor: 'script' as const,
-        config: {
-          language: 'python' as const,
-          code: 'print("test")',
-        },
+      config: {
+        language: 'python' as const,
+        code: 'print("test")',
       },
     }
 
@@ -574,5 +496,31 @@ describe('TaskNodeDetails Component', () => {
     await user.click(screen.getByTestId('submit-button'))
 
     expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Update Failed')
+  })
+
+  it('shows error when submitting API form with invalid headers JSON', async () => {
+    const user = userEvent.setup()
+    const taskData = {
+      type: 'http_request' as const,
+      id: 'task-api',
+      name: 'API Task',
+      config: {
+        method: 'GET' as const,
+        url: 'https://api.example.com',
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-api')
+
+    await user.click(screen.getByTestId('submit-api-invalid-headers-button'))
+
+    // Invalid headers JSON should show an error and prevent save
+    expect(mockShowError).toHaveBeenCalledWith(
+      'Invalid Headers Format',
+      'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type": "application/json"}'
+    )
+
+    // updateActivity should NOT be called when headers are invalid
+    expect(mockUpdateActivity).not.toHaveBeenCalled()
   })
 })

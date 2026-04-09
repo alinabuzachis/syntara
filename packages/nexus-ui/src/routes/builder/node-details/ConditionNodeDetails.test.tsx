@@ -56,9 +56,7 @@ describe('ConditionNodeDetails Component', () => {
       type: 'condition' as const,
       id: 'condition-1',
       name: 'Test Condition',
-      condition: 'input.value > 10',
-      then: [],
-      else: [],
+      config: { condition: 'input.value > 10' },
     }
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
@@ -72,9 +70,7 @@ describe('ConditionNodeDetails Component', () => {
       type: 'condition' as const,
       id: 'condition-1',
       name: 'Original Condition',
-      condition: 'input.value > 5',
-      then: [],
-      else: [],
+      config: { condition: 'input.value > 5' },
     }
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
@@ -84,8 +80,13 @@ describe('ConditionNodeDetails Component', () => {
     expect(mockUpdateActivity).toHaveBeenCalledWith(
       'condition-1',
       expect.objectContaining({
+        id: 'condition-1',
+        type: 'condition',
         name: 'Updated Condition',
-        condition: 'true',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        config: expect.objectContaining({
+          condition: 'true',
+        }),
       })
     )
   })
@@ -95,9 +96,7 @@ describe('ConditionNodeDetails Component', () => {
       type: 'condition' as const,
       id: 'condition-1',
       name: 'Condition',
-      condition: 'test',
-      then: [],
-      else: [],
+      config: { condition: 'test' },
     }
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)
@@ -114,9 +113,7 @@ describe('ConditionNodeDetails Component', () => {
       type: 'condition' as const,
       id: 'condition-1',
       name: 'Condition',
-      condition: 'test',
-      then: [],
-      else: [],
+      config: { condition: 'test' },
     }
 
     render(<ConditionNodeDetails conditionData={conditionData} nodeId="condition-1" onClose={mockOnClose} />)

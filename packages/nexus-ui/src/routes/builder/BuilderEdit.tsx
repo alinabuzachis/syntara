@@ -1,3 +1,4 @@
+import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
 import { CompassPanel, StackItem } from '@patternfly/react-core'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -62,7 +63,7 @@ export default function BuilderEdit() {
 
   return (
     <ReactFlowProvider key={workflowId}>
-      <BuilderContent workflow={workflowQuery.data} isNew={false} workflowId={workflowId} />
+      <BuilderContent workflow={workflowQuery.data as WorkflowWithVersion} isNew={false} workflowId={workflowId} />
     </ReactFlowProvider>
   )
 }

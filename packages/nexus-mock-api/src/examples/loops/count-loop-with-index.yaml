@@ -1,33 +1,32 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: count-loop-index-test
-  description: Test count loop with custom indexVariable
-
+schema_version: "2.0.0"
+name: count-loop-index-test
+description: Test count loop with custom indexVariable
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: count_with_index
+    name: Count Loop with Index Variable
+    type: loop
+    config:
+      type: count
+      count: 3
+      indexVariable: iteration_num
 
-workflow:
-  activities:
-    - id: count_with_index
-      name: Count Loop with Index Variable
-      type: loop
-      loop:
-        type: count
-        count: 3
-        indexVariable: iteration_num
-        do:
-          - id: indexed_task
-            type: task
-            task:
-              executor: script
-              config:
-                language: bash
-                code: |
-                  echo "Iteration number: ${INPUT_ITERATION_NUM}"
-              inputs:
-                iteration_num: ${iteration_num}
-              outputs:
-                result: $.stdout
+  - id: indexed_task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Iteration number: ${INPUT_ITERATION_NUM}"
+    inputs:
+      iteration_num: ${iteration_num}
+    outputs:
+      result: $.stdout
+edges:
+  - from: trigger_manual
+    to: count_with_index
+  - from: count_with_index
+    to: indexed_task
+    from_port: iterate

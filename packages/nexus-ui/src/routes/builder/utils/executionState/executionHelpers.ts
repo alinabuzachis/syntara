@@ -46,21 +46,19 @@ export function isBranchHandle(handle: string | null | undefined): boolean {
 }
 
 /**
- * Activity type literal values used in workflow structure.
+ * Activity type literal values used in workflow structure (v2 schema).
  *
  * These constants represent the different types of activities that can appear
- * in a workflow definition. Using these constants instead of string literals
+ * in a v2 workflow definition. Using these constants instead of string literals
  * prevents typos and provides better type safety.
  *
  * @example
- * if (activity.type === ACTIVITY_TYPES.PARALLEL) {
- *   // Handle parallel activity
+ * if (activity.type === ACTIVITY_TYPES.CONDITION) {
+ *   // Handle condition activity
  * }
  */
 export const ACTIVITY_TYPES = {
   TASK: 'task',
-  PARALLEL: 'parallel',
-  SEQUENCE: 'sequence',
   LOOP: 'loop',
   CONDITION: 'condition',
   CONVERGE: 'converge',

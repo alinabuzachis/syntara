@@ -39,12 +39,6 @@ describe('nodeMetadata', () => {
       expect(nodeMetadata.loop.icon).toBeDefined()
     })
 
-    it('has metadata for parallel node', () => {
-      expect(nodeMetadata.parallel).toBeDefined()
-      expect(nodeMetadata.parallel.label).toBe('Parallel')
-      expect(nodeMetadata.parallel.expandable).toBe(false)
-    })
-
     it('has metadata for converge node', () => {
       expect(nodeMetadata.converge).toBeDefined()
       expect(nodeMetadata.converge.label).toBe('Converge')
@@ -124,16 +118,10 @@ describe('executorMetadata', () => {
       expect(executorMetadata.agentic.icon).toBeDefined()
     })
 
-    it('has metadata for api executor', () => {
-      expect(executorMetadata.api).toBeDefined()
-      expect(executorMetadata.api.label).toBe('REST API')
-      expect(executorMetadata.api.icon).toBeDefined()
-    })
-
-    it('has metadata for connector executor', () => {
-      expect(executorMetadata.connector).toBeDefined()
-      expect(executorMetadata.connector.label).toBe('Connector')
-      expect(executorMetadata.connector.icon).toBeDefined()
+    it('has metadata for http_request executor', () => {
+      expect(executorMetadata.http_request).toBeDefined()
+      expect(executorMetadata.http_request.label).toBe('REST API')
+      expect(executorMetadata.http_request.icon).toBeDefined()
     })
 
     it('has metadata for aap_job_template executor', () => {

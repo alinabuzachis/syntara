@@ -86,10 +86,11 @@ function positionLoopBodyNode(
 
     if (loopPos) {
       // Match getLayoutedElements behavior:
-      // Body node's top-left Y is positioned at loop node's center Y
-      const horizontalSpacing = 50
+      // Body node is positioned to the right and below the loop node
+      const horizontalSpacing = 80 // Increased to clear button edge
+      const verticalOffset = 100 // Increased for better visual separation
       const calculatedX = loopPos.x + loopPos.width + horizontalSpacing
-      const calculatedY = loopPos.y + loopPos.height / 2
+      const calculatedY = loopPos.y + verticalOffset
 
       newlyAddedNodeIdsRef.current.delete(node.id)
       const updatedNode = {
@@ -135,17 +136,10 @@ export function useNodePositioning({
         }
       })
 
-      // For loop body nodes, they start with x: 340 (offset), so we check for that OR x: 0
-      // For all other nodes, they start with x: 0
+      // All nodes (including loop body nodes) start at (0, 0)
+      // Filter for newly added nodes that haven't been positioned yet
       const nodesToPosition = nodes.filter((node) => {
         if (!newlyAddedNodeIdsRef.current.has(node.id) || !node.measured) return false
-
-        // Loop body nodes have an initial offset position (340, 0)
-        if (loopBodyNodeMap.has(node.id)) {
-          return node.position.x > 0 && node.position.y === 0
-        }
-
-        // All other nodes start at (0, 0)
         return node.position.x === 0 && node.position.y === 0
       })
 

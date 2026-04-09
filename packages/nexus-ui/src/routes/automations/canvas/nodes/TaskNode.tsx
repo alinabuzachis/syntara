@@ -7,7 +7,7 @@ import { FlowNodeType, RegistryNodeId } from '../../../../constants'
 import type { ActivityStatus } from '../../execution/types'
 import { getNodeTypeColor } from '../nodeTypeColors'
 
-import { renderCondition, renderJson, renderObject, renderText } from './common/detailRenderers'
+import { renderCondition, renderJson, renderText } from './common/detailRenderers'
 import { detectTaskNodeType, type TaskActivityWithMetadata } from './common/detectTaskNodeType'
 import { NodeBody } from './common/NodeBody'
 import { NodeComponent } from './common/NodeComponent'
@@ -19,20 +19,15 @@ import { renderNodeIcon } from './renderNodeIcon'
 import { getTaskSemanticLabels } from './taskSemanticLabels'
 
 type AAPJobTemplateConfig = {
-  jobTemplateId?: string | number
-  inventory?: string | number
-  extraVars?: Record<string, unknown>
+  job_template_id?: number
+  job_template_name?: string
+  inventory_id?: number
+  inventory_name?: string
 }
 
-type AAPJobTemplateTask = {
-  task: {
-    executor: string
-    config: AAPJobTemplateConfig
-  }
-}
-
-type AgenticTaskConfig = {
-  tools?: string[]
+type AgenticConfig = {
+  tool_selections?: string[]
+  tool_selection_strategy?: string
 }
 
 export type TaskNode = { type: typeof FlowNodeType.TASK } & Node<TaskActivity>
@@ -86,23 +81,24 @@ export function TaskActivityDetails(
     iconColor?: string
   }>
 ) {
-  // Detect the actual node type and extract any connector data
-  const { connectorData, actualExecutor } = detectTaskNodeType(props.data)
+  // Detect the actual node type — in v2, activity.type IS the executor
+  const { actualExecutor } = detectTaskNodeType(props.data)
   const dataWithMetadata = props.data as TaskActivityWithMetadata
 
-  const executorMeta = executorMetadata[actualExecutor] || executorMetadata[props.data.task.executor]
+  const executorMeta = executorMetadata[actualExecutor] ?? executorMetadata[props.data.type ?? '']
   const { id: iconId } = getTaskIconDescriptor(props.data)
   const iconNode = renderNodeIcon(executorMeta?.icon, iconId, 'canvas', props.iconColor)
-  const taskExecutorLabel = executorMeta?.label || 'Task'
-  const taskExecutor = actualExecutor || props.data.task.executor
-  const aapTask = iconId === RegistryNodeId.AAP ? (props.data as unknown as AAPJobTemplateTask) : null
-  const agentConfig =
-    props.data.task.executor === ExecutorTypeEnum.AGENTIC ? (props.data.task.config as AgenticTaskConfig) : undefined
+  const taskExecutorLabel = executorMeta?.label ?? 'Task'
+  const taskExecutor = actualExecutor || (props.data.type ?? '')
+  const config = props.data.config ?? {}
+  const isAap = iconId === RegistryNodeId.AAP
+  const aapConfig = isAap ? (config as AAPJobTemplateConfig) : null
+  const agentConfig = taskExecutor === ExecutorTypeEnum.AGENTIC ? (config as AgenticConfig) : undefined
 
   const formatCount = (count: number, singular: string, plural = `${singular}s`) =>
     `${count} ${count === 1 ? singular : plural}`
 
-  const toolsCount = agentConfig?.tools?.length
+  const toolsCount = agentConfig?.tool_selections?.length
   const toolsText = toolsCount !== undefined ? formatCount(toolsCount, 'tool') : undefined
   const notScopedForGaBadge =
     taskExecutor === ExecutorTypeEnum.SCRIPT ? (
@@ -125,49 +121,26 @@ export function TaskActivityDetails(
         <Details>
           {renderCondition(dataWithMetadata.condition)}
           {taskExecutor === ExecutorTypeEnum.SCRIPT && (
-            <>{renderText('Language', (props.data.task.config as { language: string }).language)}</>
+            <>{renderText('Language', (config as { language: string }).language)}</>
           )}
-          {taskExecutor === ExecutorTypeEnum.API && (
+          {taskExecutor === ExecutorTypeEnum.HTTP_REQUEST && (
             <>
-              {renderText('Method', (props.data.task.config as { method: string }).method)}
-              {renderText('URL', (props.data.task.config as { url: string }).url)}
+              {renderText('Method', (config as { method: string }).method)}
+              {renderText('URL', (config as { url: string }).url)}
             </>
           )}
-          {aapTask && (
+          {aapConfig && (
             <>
-              {renderText('Job Template ID', aapTask.task.config.jobTemplateId?.toString())}
-              {renderText('Inventory ID', aapTask.task.config.inventory?.toString())}
-            </>
-          )}
-          {taskExecutor === ExecutorTypeEnum.CONNECTOR && (
-            <>
-              {renderText('Connector', (props.data.task.config as { connectorId: string }).connectorId)}
-              {renderText('Operation', (props.data.task.config as { operation: string }).operation)}
-              {renderObject(
-                'Parameters',
-                (props.data.task.config as { parameters?: Record<string, unknown> }).parameters
-              )}
+              {renderText('Job Template ID', aapConfig.job_template_id?.toString())}
+              {renderText('Job Template Name', aapConfig.job_template_name)}
+              {renderText('Inventory ID', aapConfig.inventory_id?.toString())}
             </>
           )}
           {/* Render agentic task details */}
-          {taskExecutor === ExecutorTypeEnum.AGENTIC && !connectorData && (
+          {taskExecutor === ExecutorTypeEnum.AGENTIC && (
             <>
-              {renderText('Model', (props.data.task.config as { model?: string }).model)}
+              {renderText('Model', (config as { model?: string }).model)}
               {renderText('Tools', toolsText)}
-              {(() => {
-                const fileIds = (props.data.task.config as { fileIds?: string[] }).fileIds
-                return fileIds && fileIds.length > 0
-                  ? renderText('Agent context', `${fileIds.length} file${fileIds.length === 1 ? '' : 's'}`)
-                  : null
-              })()}
-            </>
-          )}
-          {/* Render connector details for workaround format (agentic executor with connector data) */}
-          {connectorData && (
-            <>
-              {renderText('Connector', connectorData.connectorId)}
-              {renderText('Operation', connectorData.operation)}
-              {renderObject('Parameters', connectorData.parameters)}
             </>
           )}
           {taskExecutor !== ExecutorTypeEnum.SCRIPT && renderJson(props.data, props.showJson)}

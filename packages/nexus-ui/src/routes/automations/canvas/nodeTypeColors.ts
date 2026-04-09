@@ -15,6 +15,7 @@ export const NODE_TYPE_COLORS = {
   logic: 'var(--pf-t--global--color--nonstatus--orangered--200)',
   approval: 'var(--pf-t--global--color--nonstatus--teal--100)',
   actionScript: 'var(--pf-t--global--color--nonstatus--purple--200)',
+  actionHttpRequest: 'var(--pf-t--global--color--nonstatus--purple--200)',
   actionAap: 'var(--pf-t--global--color--nonstatus--gray--100)',
   actionAgentic: 'var(--pf-t--global--color--nonstatus--blue--200)',
   actionDefault: 'var(--pf-t--global--color--nonstatus--purple--200)',
@@ -24,10 +25,10 @@ export const NODE_TYPE_COLORS = {
 export type NodeTypeColorKey = keyof typeof NODE_TYPE_COLORS
 
 /**
- * Returns the color token for the colored bar at the top of a workflow step (React Flow node).
- * Uses node type and, for task nodes, the resolved executor (script, aap, agentic, etc.).
+ * Returns the color token for the colored bar at the top of a workflow step.
+ * In v2, node type IS the executor (e.g. 'script', 'http_request', 'agentic', 'aap_job_template', 'approval').
  */
-export function getNodeTypeColor(nodeType: string, data?: { type?: string; task?: { executor?: string } }): string {
+export function getNodeTypeColor(nodeType: string, data?: { type?: string }): string {
   if (nodeType === FlowNodeType.TRIGGER) {
     return NODE_TYPE_COLORS.trigger
   }
@@ -37,8 +38,7 @@ export function getNodeTypeColor(nodeType: string, data?: { type?: string; task?
   if (
     nodeType === ActivityTypeEnum.CONDITION ||
     nodeType === ActivityTypeEnum.LOOP ||
-    nodeType === ActivityTypeEnum.CONVERGE ||
-    nodeType === ActivityTypeEnum.PARALLEL
+    nodeType === ActivityTypeEnum.CONVERGE
   ) {
     return NODE_TYPE_COLORS.logic
   }
@@ -52,12 +52,15 @@ export function getNodeTypeColor(nodeType: string, data?: { type?: string; task?
 }
 
 function getTaskNodeColor(data: TaskActivity | undefined): string {
-  if (!data?.task?.executor) {
+  if (!data?.type) {
     return NODE_TYPE_COLORS.actionDefault
   }
   const { actualExecutor } = detectTaskNodeType(data)
   if (actualExecutor === ExecutorTypeEnum.SCRIPT) {
     return NODE_TYPE_COLORS.actionScript
+  }
+  if (actualExecutor === ExecutorTypeEnum.HTTP_REQUEST) {
+    return NODE_TYPE_COLORS.actionHttpRequest
   }
   if (actualExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE || actualExecutor === DetectedExecutorType.AAP) {
     return NODE_TYPE_COLORS.actionAap

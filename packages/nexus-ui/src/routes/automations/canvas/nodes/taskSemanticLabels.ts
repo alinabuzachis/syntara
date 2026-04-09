@@ -10,7 +10,7 @@ import { executorMetadata } from './nodeMetadata'
  */
 export function getTaskSemanticLabels(data: TaskActivity): { title: string; typeLabel: string } {
   const { actualExecutor } = detectTaskNodeType(data)
-  const executorMeta = executorMetadata[actualExecutor] ?? executorMetadata[data.task.executor]
+  const executorMeta = executorMetadata[actualExecutor]
   const typeLabel = executorMeta?.label ?? 'Task'
 
   return {

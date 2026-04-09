@@ -12,6 +12,7 @@ import {
 } from '@xyflow/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { useAlerts } from '../../components/alerts'
 import {
   useWorkflowStore,
   useWorkflowStoreActions,
@@ -98,6 +99,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Access actions without subscribing to state changes
   const { setEdges: setStoredEdges } = useWorkflowStoreActions()
   const reactFlowInstance = useReactFlow()
+  const { showError } = useAlerts()
   const { fitView, getViewport, screenToFlowPosition, updateNode } = reactFlowInstance
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -208,8 +210,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
       // CRITICAL: Check if ALL edges reference activities in this workflow
       // If ANY edge references an activity not in this workflow, edges are stale
       const allEdgesValid = initialEdges.every((edge) => {
-        const sourceValid = activityIds.has(edge.source) || edge.source.startsWith('placeholder-')
-        const targetValid = activityIds.has(edge.target) || edge.target.startsWith('placeholder-')
+        const sourceValid =
+          edge.source != null && (activityIds.has(edge.source) || edge.source.startsWith('placeholder-'))
+        const targetValid =
+          edge.target != null && (activityIds.has(edge.target) || edge.target.startsWith('placeholder-'))
         return sourceValid && targetValid
       })
       edgesMatchWorkflow = allEdgesValid
@@ -285,6 +289,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     isDeletingRef,
     onAddNodeFromEdge,
     onNodesDeleted,
+    onError: showError,
   })
 
   // Use custom hook for node positioning
@@ -365,6 +370,83 @@ export function BuilderFlow(props: BuilderFlowProps) {
     setNodes,
     setEdges,
   })
+
+  // Helper to check if execution state changed (shallow comparison)
+  const hasExecutionStateChanged = useCallback(
+    (
+      currentState: { status?: string; started_at?: string; completed_at?: string } | undefined,
+      newState: { status?: string; started_at?: string; completed_at?: string } | undefined
+    ): boolean => {
+      return (
+        currentState !== newState &&
+        (currentState?.status !== newState?.status ||
+          currentState?.started_at !== newState?.started_at ||
+          currentState?.completed_at !== newState?.completed_at)
+      )
+    },
+    []
+  )
+
+  /**
+   * Apply enriched data to a node if execution state changed.
+   * Centralizes the state extraction, comparison, and node update logic.
+   */
+  const applyEnrichedData = useCallback(
+    (node: NodeType, enriched: Record<string, unknown>, anyChangedRef: { current: boolean }): NodeType => {
+      const currentState = (node.data as Record<string, unknown>).__executionState as
+        | { status?: string; started_at?: string; completed_at?: string }
+        | undefined
+      const newState = enriched.__executionState as
+        | { status?: string; started_at?: string; completed_at?: string }
+        | undefined
+      if (hasExecutionStateChanged(currentState, newState)) {
+        anyChangedRef.current = true
+        return { ...node, data: enriched } as unknown as NodeType
+      }
+      return node
+    },
+    [hasExecutionStateChanged]
+  )
+
+  // Update node execution state when activity states change (e.g., after REST load or WebSocket)
+  useEffect(() => {
+    if (!executionStatus || !isInitialized) return
+    if (activityStates.size === 0) return
+
+    // Pre-index activities by ID for O(1) lookup instead of O(n) find
+    const activities = currentWorkflow?.workflow.activities ?? []
+    const activitiesById = new Map(activities.map((a) => [a.id, a]))
+    const storedEdges = useWorkflowStore.getState().edges
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing node execution state from activity states
+    setNodes((currentNodes) => {
+      const anyChangedRef = { current: false }
+      const updatedNodes = currentNodes.map((node) => {
+        // Enrich trigger nodes
+        if (node.id.startsWith('trigger-')) {
+          const enriched = executionStateEnricher.enrichTriggerNode(
+            node.id,
+            node.data as Record<string, unknown>,
+            executionStatus,
+            storedEdges,
+            activityStates
+          )
+          return applyEnrichedData(node, enriched, anyChangedRef)
+        }
+
+        // Enrich activity nodes
+        const activity = activitiesById.get(node.id)
+        if (activity) {
+          const enriched = executionStateEnricher.enrichActivity(activity, executionStatus, activityStates, storedEdges)
+          return applyEnrichedData(node, enriched, anyChangedRef)
+        }
+        return node
+      })
+
+      // Only return new array if something actually changed
+      return anyChangedRef.current ? updatedNodes : currentNodes
+    })
+  }, [activityStates, executionStatus, isInitialized, currentWorkflow, applyEnrichedData])
 
   // Update edge execution status when activity states change (for WebSocket updates)
   useEffect(() => {

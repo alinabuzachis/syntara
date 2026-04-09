@@ -61,11 +61,10 @@ describe('Trigger Node Kebab Menu Delete', () => {
 
   it('renders trigger node with kebab menu button', () => {
     // Setup workflow with a trigger
-    const trigger = createManualTrigger()
+    const trigger = createManualTrigger('trigger-1')
     useWorkflowStore.getState().setWorkflow({
-      schemaVersion: '1.0.0',
-      version: 1,
-      metadata: { name: 'Test', description: 'Test' },
+      schema_version: '2.0.0' as const,
+      name: 'Test',
       triggers: [trigger],
       workflow: { activities: [] },
     })
@@ -85,11 +84,10 @@ describe('Trigger Node Kebab Menu Delete', () => {
     const user = userEvent.setup()
 
     // Setup workflow with a trigger
-    const trigger = createManualTrigger()
+    const trigger = createManualTrigger('trigger-1')
     useWorkflowStore.getState().setWorkflow({
-      schemaVersion: '1.0.0',
-      version: 1,
-      metadata: { name: 'Test', description: 'Test' },
+      schema_version: '2.0.0' as const,
+      name: 'Test',
       triggers: [trigger],
       workflow: { activities: [] },
     })
@@ -112,12 +110,11 @@ describe('Trigger Node Kebab Menu Delete', () => {
     const user = userEvent.setup()
 
     // Setup workflow with two triggers
-    const trigger1 = createManualTrigger()
-    const trigger2 = createManualTrigger(true)
+    const trigger1 = createManualTrigger('trigger-1')
+    const trigger2 = createManualTrigger('trigger-2', true)
     useWorkflowStore.getState().setWorkflow({
-      schemaVersion: '1.0.0',
-      version: 1,
-      metadata: { name: 'Test', description: 'Test' },
+      schema_version: '2.0.0' as const,
+      name: 'Test',
       triggers: [trigger1, trigger2],
       workflow: { activities: [] },
     })
@@ -149,11 +146,10 @@ describe('Trigger Node Kebab Menu Delete', () => {
     const user = userEvent.setup()
 
     // Setup workflow with a trigger
-    const trigger = createManualTrigger()
+    const trigger = createManualTrigger('trigger-1')
     useWorkflowStore.getState().setWorkflow({
-      schemaVersion: '1.0.0',
-      version: 1,
-      metadata: { name: 'Test', description: 'Test' },
+      schema_version: '2.0.0' as const,
+      name: 'Test',
       triggers: [trigger],
       workflow: { activities: [] },
     })
@@ -179,11 +175,10 @@ describe('Trigger Node Kebab Menu Delete', () => {
     const user = userEvent.setup()
 
     // Setup workflow with a trigger
-    const trigger = createManualTrigger()
+    const trigger = createManualTrigger('trigger-1')
     useWorkflowStore.getState().setWorkflow({
-      schemaVersion: '1.0.0',
-      version: 1,
-      metadata: { name: 'Test', description: 'Test' },
+      schema_version: '2.0.0' as const,
+      name: 'Test',
       triggers: [trigger],
       workflow: { activities: [] },
     })

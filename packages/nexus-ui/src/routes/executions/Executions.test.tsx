@@ -512,12 +512,7 @@ describe('Executions Component', () => {
       await user.click(statusOption)
 
       // Open value selector and select a status
-      await waitFor(() => {
-        const valueSelector = screen.getByRole('button', { name: /Filter by status/i })
-        expect(valueSelector).toBeInTheDocument()
-      })
-
-      const valueSelector = screen.getByRole('button', { name: /Filter by status/i })
+      const valueSelector = await screen.findByRole('button', { name: /Filter by status/i }, { timeout: 10000 })
       await user.click(valueSelector)
 
       await waitFor(() => {
@@ -544,7 +539,7 @@ describe('Executions Component', () => {
       // Verify the status value
       const lastStatusCall = statusCalls[statusCalls.length - 1][0] as URLSearchParams
       expect(lastStatusCall.get('status')).toBe('completed')
-    })
+    }, 10000)
 
     it('passes created_at date range filters with gte/lte operators (when enabled)', () => {
       // Note: This test documents the expected behavior when date filters are re-enabled

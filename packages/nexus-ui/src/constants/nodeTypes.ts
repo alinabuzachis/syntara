@@ -19,7 +19,6 @@ export const FlowNodeType = {
   APPROVAL: 'approval',
   CONDITION: 'condition',
   CONVERGE: 'converge',
-  PARALLEL: 'parallel',
   LOOP: 'loop',
   /** Placeholder until user picks a real step type */
   GENERIC: 'generic',
@@ -41,7 +40,7 @@ export type FlowNodeTypeUnion = ValueOf<typeof FlowNodeType>
  * }
  */
 export const MenuNodeType = {
-  /** Activity steps: Task, Condition, Converge, Loop, Parallel */
+  /** Activity steps: Task, Condition, Converge, Loop */
   ACTIVITY: 'activity',
   /** Trigger nodes: Manual, Scheduled, Webhook, etc. */
   TRIGGER: 'trigger',

@@ -40,7 +40,7 @@ export interface paths {
      * @description Retrieve details of a specific execution with optional includes.
      *
      *     **Include Parameters**:
-     *     - `workflow_definition`: Include the workflow definition from the executed version (for building visualization graph)
+     *     - `workflow_definition`: Include the v2 workflow definition from the executed version (for building visualization graph)
      *     - `activities`: Include the list of activities with their current status (for completed executions or fallback)
      *
      *     **Usage**:
@@ -94,8 +94,9 @@ export interface paths {
      * @description Send a signal to a specific activity within a running workflow execution.
      *
      *     This endpoint allows external systems to send arbitrary signals to
-     *     activities that are waiting for external events. The activity must be
-     *     designed to handle signals via the workflow's signal handler.
+     *     activities that are waiting for external events. Used by:
+     *     - Agent Orchestrator to deliver agentic activity results
+     *     - Approval service to deliver approval decisions
      *
      *     The signal is durable - if the workflow is temporarily unavailable,
      *     the signal will be delivered when it becomes available again.
@@ -209,9 +210,9 @@ export interface components {
        * @description Parent execution ID
        */
       execution_id?: string
-      /** @description Activity ID from workflow definition */
+      /** @description Node ID from workflow definition */
       activity_name?: string
-      /** @description Snapshot of the activity configuration from workflow definition at execution time, including executor, config, retry policy, timeout, approval settings */
+      /** @description Snapshot of the node definition from workflow at execution time, including type, config, retry policy, timeout, output mapping */
       activity_definition?: Record<string, never>
       /** @description Temporal activity execution ID */
       temporal_activity_id?: string
@@ -226,9 +227,9 @@ export interface components {
        * @description When activity reached terminal state (completed, failed)
        */
       completed_at?: string | null
-      /** @description Runtime input parameters */
+      /** @description Resolved config values passed to the activity at runtime */
       input_data?: Record<string, never>
-      /** @description Activity results */
+      /** @description Activity results (after output mapping applied) */
       output_data?: Record<string, never> | null
       /** @description Error information if failed */
       error_details?: string | null
@@ -253,7 +254,7 @@ export interface components {
        * @description ID of the workflow to execute
        */
       workflow_id: string
-      /** @description Input parameters for the workflow execution */
+      /** @description Input parameters for the workflow execution (validated against trigger's input_schema if defined) */
       input_data?: Record<string, never>
     }
     /**
@@ -279,19 +280,32 @@ export interface components {
     }
     /**
      * Activity Signal Payload
-     * @description Generic signal payload for sending arbitrary data to a specific activity
-     *     within a running workflow execution.
+     * @description Signal payload for delivering results to an async activity.
+     *
+     *     For agentic activities, the signal_data should conform to the agentic
+     *     resultSchema (status, output, tool_calls, etc.).
+     *
+     *     For approval activities, the signal_data should conform to the approval
+     *     resultSchema (status, approver, decision, timestamp, etc.).
+     *
+     *     See the individual node type schemas in the v2 schema directory for
+     *     the expected signal_data structure per node type.
      */
     ActivitySignalPayload: {
       /**
-       * @description Arbitrary JSON data to send to the activity. The structure depends
-       *     on what the activity expects to receive.
+       * @description Result data to deliver to the activity. Structure must conform to
+       *     the resultSchema of the target node type.
        * @example {
-       *       "action": "resume",
        *       "status": "completed",
-       *       "result": {
-       *         "value": 42
-       *       }
+       *       "output": "Analysis complete. Found 3 issues.",
+       *       "tool_calls": [
+       *         {
+       *           "tool_id": "550e8400-e29b-41d4-a716-446655440000",
+       *           "tool_name": "code_scanner",
+       *           "duration_ms": 1500,
+       *           "status": "success"
+       *         }
+       *       ]
        *     }
        */
       signal_data: {
@@ -334,8 +348,8 @@ export interface components {
      */
     ActivityData: {
       /**
-       * @description Activity ID from workflow definition
-       * @example process_data
+       * @description Node ID from workflow definition
+       * @example patch_servers
        */
       activity_id: string
       status: components['schemas']['ActivityStatus']
@@ -780,7 +794,7 @@ export interface operations {
       path: {
         /** @description Execution ID of the running workflow */
         execution_id: string
-        /** @description Activity ID from the workflow definition */
+        /** @description Node ID from the workflow definition */
         activity_id: string
       }
       cookie?: never

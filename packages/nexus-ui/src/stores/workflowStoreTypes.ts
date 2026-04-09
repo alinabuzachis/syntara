@@ -1,78 +1,125 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { Activity, WorkflowAPI } from '@ansible/nexus-contracts'
 
+import { API_EXECUTOR_TYPES, type ApiExecutorType } from '../constants/executorTypes'
 import type { EdgeConnection } from '../routes/builder/types/edge'
 
-// Type aliases from API contracts
-export type WorkflowDefinitionBase = WorkflowAPI.components['schemas']['workflow-definition.schema']
-export type ManualTrigger = WorkflowAPI.components['schemas']['manualTrigger']
+// Re-export v2 node types for backward compatibility
+export type { Activity, TaskActivity } from '@ansible/nexus-contracts'
 
-// Custom trigger types (not yet in API schema but used in the codebase)
-export type ScheduledTrigger = {
-  type: 'scheduled'
-  schedule:
-    | {
-        scheduleType: 'cron'
-        cron: string
-        timezone?: string
-      }
-    | {
-        scheduleType: 'interval'
-        interval: string
-      }
-    | {
-        scheduleType: 'continuous'
-        continuous: true
-      }
-}
+// Type aliases from API contracts (v2)
+export type WorkflowDefinitionBase = WorkflowAPI.components['schemas']['workflow_definition.schema']
 
-export type EventTrigger = {
-  type: 'event'
-  event: {
-    source: string
-    eventType: string
-    filter?: Record<string, unknown>
-  }
-}
+// V2 trigger — uses the practical Activity interface (not the generated type
+// which has config: Record<string, never>)
+export type Trigger = Activity
 
-export type Trigger = ManualTrigger | ScheduledTrigger | EventTrigger
-
-// Extended workflow definition that supports all trigger types
-export type WorkflowDefinition = Omit<WorkflowDefinitionBase, 'triggers'> & {
+/**
+ * Extended workflow definition used by the store.
+ *
+ * The v2 API schema uses `nodes` for the activities array, but the store
+ * keeps the `workflow.activities` shape internally for backward-compatible
+ * access across the codebase.  The `triggers` field is widened to accept
+ * v2 trigger nodes.
+ */
+export type WorkflowDefinition = Omit<WorkflowDefinitionBase, 'triggers' | 'nodes' | 'edges' | '$defs'> & {
   triggers?: Trigger[]
+  /** Internal store representation — maps to v2 `nodes` on save */
+  workflow: {
+    activities: Activity[]
+  }
+  /** Optional metadata from the API (labels, etc.) */
+  metadata?: Record<string, unknown>
 }
-
-export type Activity = WorkflowAPI.components['schemas']['activity']
-export type TaskActivity = Extract<Activity, { type: 'task' }>
 
 /**
  * Runtime metadata added by the UI to activities (not part of the API contract).
  * Used for generic placeholder nodes and layout hints.
+ *
+ * SECURITY: This interface is intentionally restrictive. Only explicitly
+ * listed properties are allowed. Do NOT add a catch-all index signature
+ * like `[key: string]: unknown` as it would allow arbitrary metadata
+ * injection that could bypass type safety in security-sensitive code
+ * paths (e.g., executor type detection in detectTaskNodeType).
  */
 export interface ActivityMetadata {
   __isGeneric?: boolean
   __customMessage?: string
   __reverseHandles?: boolean
-  [key: string]: unknown
+  /**
+   * Executor type override for display purposes only.
+   * SECURITY: Type-restricted to allowlist for compile-time safety.
+   * Runtime validation also exists in detectTaskNodeType().
+   */
+  __executorType?: ApiExecutorType
 }
 
 /**
- * Safely extract the `metadata` bag that the UI attaches at runtime.
+ * Activity extended with UI-only runtime metadata.
+ * Use this type when creating activities with metadata in the UI.
+ * Avoids unsafe `as Activity` casts that bypass type checking.
+ */
+export type ActivityWithMetadata = Activity & {
+  metadata?: ActivityMetadata
+}
+
+/**
+ * Sanitizes a raw metadata object by copying only allowlisted properties.
+ * SECURITY: Prevents metadata injection from untrusted API responses.
+ */
+function sanitizeMetadata(raw: Record<string, unknown>): ActivityMetadata {
+  const sanitized: ActivityMetadata = {}
+
+  if ('__isGeneric' in raw) {
+    sanitized.__isGeneric = Boolean(raw.__isGeneric)
+  }
+  if ('__customMessage' in raw && typeof raw.__customMessage === 'string') {
+    sanitized.__customMessage = raw.__customMessage
+  }
+  if ('__reverseHandles' in raw) {
+    sanitized.__reverseHandles = Boolean(raw.__reverseHandles)
+  }
+  if (
+    '__executorType' in raw &&
+    typeof raw.__executorType === 'string' &&
+    API_EXECUTOR_TYPES.has(raw.__executorType as ApiExecutorType)
+  ) {
+    sanitized.__executorType = raw.__executorType as ApiExecutorType
+  }
+
+  return sanitized
+}
+
+/**
+ * Safely extract and sanitize the `metadata` bag from untrusted activity data.
+ * SECURITY: Only allowlisted properties are copied to prevent metadata injection.
  * The API contract `Activity` type does not include `metadata`, so direct
  * property access would be flagged as unsafe by typescript-eslint.
  */
 export function getActivityMetadata(activity: unknown): ActivityMetadata | undefined {
-  if (activity && typeof activity === 'object' && Object.prototype.hasOwnProperty.call(activity, 'metadata')) {
-    const meta = (activity as { metadata?: unknown }).metadata
-    if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
-      return meta as ActivityMetadata
-    }
+  if (!activity || typeof activity !== 'object') {
+    return undefined
   }
-  return undefined
+
+  if (!Object.hasOwn(activity, 'metadata')) {
+    return undefined
+  }
+
+  const raw = (activity as { metadata?: unknown }).metadata
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined
+  }
+
+  return sanitizeMetadata(raw as Record<string, unknown>)
 }
 
 export interface WorkflowStore {
   currentWorkflow: WorkflowDefinition | null
-  workflowVersion: number // Incremented only when setWorkflow is called
+  /**
+   * UI-only counter to force React Flow recomputation.
+   * Incremented when setWorkflow/loadWorkflowWithEdges/batchAddActivitiesAndEdges is called.
+   * NOT related to backend workflow.version or workflow.current_version fields.
+   */
+  workflowVersion: number
   edges: EdgeConnection[]
   isDirty: boolean // Tracks whether changes have been made since last save/load
   setWorkflow: (workflow: WorkflowDefinition | null) => void

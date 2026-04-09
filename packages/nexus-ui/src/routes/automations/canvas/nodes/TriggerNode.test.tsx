@@ -41,7 +41,7 @@ describe('TriggerNodeComponent', () => {
     data: {
       name: 'Trigger',
       details: 'Manual',
-      triggerType: 'manual',
+      triggerType: 'manual_trigger',
       ...dataOverrides,
     },
     type: 'trigger' as const,
@@ -78,8 +78,8 @@ describe('TriggerNodeComponent', () => {
       <TriggerNodeComponent
         {...createNodeProps({
           name: 'Trigger',
-          details: 'Manual',
-          triggerType: 'manual',
+          details: null,
+          triggerType: 'manual_trigger',
         })}
       />
     )
@@ -108,7 +108,7 @@ describe('TriggerNodeComponent', () => {
         {...createNodeProps({
           name: 'Hello(World)',
           details: 'Manual',
-          triggerType: 'manual',
+          triggerType: 'manual_trigger',
         })}
       />
     )

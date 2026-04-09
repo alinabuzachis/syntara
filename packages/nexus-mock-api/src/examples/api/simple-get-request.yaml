@@ -1,20 +1,16 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: simple-get-request
-  description: Execute a simple HTTP GET request
+schema_version: "2.0.0"
+name: simple-get-request
+description: Execute a simple HTTP GET request
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: fetch_data
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: http://test-api.example.com/api/data
+nodes:
+  - id: fetch_data
+    type: http_request
+    config:
+      method: GET
+      url: http://test-api.example.com/api/data
+edges: []

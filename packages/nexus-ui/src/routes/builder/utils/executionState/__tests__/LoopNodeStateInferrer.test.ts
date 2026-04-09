@@ -13,7 +13,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
+      config: { type: 'for_each', items: '[1,2,3]' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -45,7 +45,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
+      config: { type: 'for_each', items: '[1,2,3]' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -69,7 +69,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
+      config: { type: 'for_each', items: '[1,2,3]' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -90,7 +90,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
+      config: { type: 'for_each', items: '[1,2,3]' },
     }
     const edges: EdgeConnection[] = []
     const activityStates = new Map<string, ActivityState>()
@@ -105,7 +105,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
+      config: { type: 'for_each', items: '[1,2,3]' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },
@@ -123,7 +123,7 @@ describe('LoopNodeStateInferrer', () => {
       id: 'loop-1',
       name: 'Loop',
       type: 'loop',
-      loop: { type: 'forEach', items: '[1,2,3]', do: [] },
+      config: { type: 'for_each', items: '[1,2,3]' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'loop-1', target: 'task-loop-body', sourceHandle: 'loop', targetHandle: 'target' },

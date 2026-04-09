@@ -10,9 +10,9 @@ import { useExecutionStoreActions } from '../automations/stores/useExecutionStor
 
 import { BuilderFlow } from './BuilderFlow'
 import { ExecutionViewContext } from './ExecutionViewContext'
-import { ACTIVITY_TYPES } from './utils/executionState/executionHelpers'
-import { loadWorkflow } from './utils/loadWorkflow'
-import { WorkflowTransform } from './utils/workflowTransform'
+import type { EdgeConnection } from './types/edge'
+import { v2PortToHandle } from './utils/edgeHelpers'
+// loadWorkflow removed — v2 activities are already flat
 
 type ActivityData = ExecutionsAPI.components['schemas']['ActivityData']
 type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
@@ -87,67 +87,65 @@ function ExecutionViewContentInner(props: ExecutionViewContentProps) {
       // Extract workflow definition - handle both direct workflow and version.workflow_definition structures
       const workflowDef = (workflow.version?.workflow_definition ?? workflow) as ExecutionWorkflow
 
-      // Safety check - ensure we have the workflow structure
-      if (!workflowDef?.workflow?.activities) {
+      // V2: workflow definition has nodes/edges/triggers at top level
+      const v2Def = workflowDef as unknown as Record<string, unknown>
+      const nodes = (v2Def.nodes ??
+        (v2Def.workflow as Record<string, unknown> | undefined)?.activities ??
+        []) as Activity[]
+      const v2Edges = (v2Def.edges ?? []) as Array<{ from: string; to: string; from_port?: string; to_port?: string }>
+      const triggers = (v2Def.triggers ?? []) as Array<{
+        id?: string
+        type: string
+        name?: string
+        config?: Record<string, unknown>
+      }>
+
+      if (nodes.length === 0 && triggers.length === 0) {
         // eslint-disable-next-line no-console
-        console.warn('ExecutionViewContent: Invalid workflow structure', workflow)
+        console.warn('ExecutionViewContent: No nodes or triggers in workflow', workflow)
         return
       }
 
-      // Use loadWorkflow to flatten and generate edges
-      const { activities: flattenedActivities, edges: generatedEdges } = loadWorkflow(workflowDef.workflow.activities)
+      // V2 activities are already flat — no nesting to flatten
+      const flattenedActivities = nodes
 
-      // Generate trigger edges (triggers connect to first activities)
-      const triggers = workflowDef.triggers ?? []
-      if (triggers.length > 0 && workflowDef.workflow.activities.length > 0) {
-        const firstActivity = workflowDef.workflow.activities[0]
+      // Build map: trigger definition ID → React Flow display ID
+      const triggerIdToDisplayId = new Map<string, string>()
+      triggers.forEach((t, index: number) => {
+        const defId = (t as { id?: string }).id
+        if (defId) {
+          triggerIdToDisplayId.set(defId, buildTriggerNodeId(index))
+        }
+      })
 
-        triggers.forEach((_: unknown, index: number) => {
-          // If first activity is a parallel, connect to its branches
-          if (firstActivity.type === ACTIVITY_TYPES.PARALLEL) {
-            const branches = firstActivity.branches ?? []
-            branches.forEach((branch: Activity) => {
-              // Use getFirstActivityId to handle sequence wrappers that will be flattened away
-              const targetId = WorkflowTransform.getFirstActivityId(branch)
-              const triggerId = buildTriggerNodeId(index)
-              generatedEdges.push({
-                id: `${triggerId}-${targetId}`,
-                source: triggerId,
-                target: targetId,
-                sourceHandle: 'source',
-                targetHandle: 'target',
-              })
-            })
-          } else {
-            // Regular activity - use getFirstActivityId to handle sequences
-            const targetId = WorkflowTransform.getFirstActivityId(firstActivity)
-            const triggerId = buildTriggerNodeId(index)
-            generatedEdges.push({
-              id: `${triggerId}-${targetId}`,
-              source: triggerId,
-              target: targetId,
-              sourceHandle: 'source',
-              targetHandle: 'target',
-            })
-          }
-        })
-      }
+      // Convert v2 edges to React Flow edges, mapping trigger IDs to display IDs
+      const generatedEdges: EdgeConnection[] = v2Edges.map((e) => {
+        const source = triggerIdToDisplayId.get(e.from) ?? e.from
+        const target = triggerIdToDisplayId.get(e.to) ?? e.to
+        const portSuffix = e.from_port ? `-${e.from_port}` : ''
+        return {
+          id: `${source}-${target}${portSuffix}`,
+          source,
+          target,
+          sourceHandle: v2PortToHandle(e.from_port),
+          targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target',
+        }
+      })
 
-      const allEdges = generatedEdges
-
-      // Create flattened workflow with activities in execution order
-      const flattenedWorkflow = {
-        ...workflowDef,
+      // Build store workflow from v2 definition
+      const storeWorkflow = {
+        schema_version: '2.0.0' as const,
+        name: (v2Def.name as string) ?? '',
+        description: v2Def.description as string | undefined,
+        triggers,
         workflow: {
-          ...workflowDef.workflow,
           activities: flattenedActivities,
         },
       }
 
       // Load workflow and edges into store
-      // Execution-derived workflows may not have all WorkflowDefinition fields (schemaVersion, metadata)
       queueMicrotask(() => {
-        loadWorkflowWithEdges(flattenedWorkflow as unknown as Parameters<typeof loadWorkflowWithEdges>[0], allEdges)
+        loadWorkflowWithEdges(storeWorkflow as unknown as Parameters<typeof loadWorkflowWithEdges>[0], generatedEdges)
         hasLoadedRef.current = true
       })
     }

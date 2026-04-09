@@ -1,5 +1,5 @@
 /* eslint-disable max-lines */
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { Activity, WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
@@ -43,7 +43,6 @@ import { AppPageHeader } from '../../app/AppPageHeader'
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
-import { FlowNodeType } from '../../constants'
 import { getActivityMetadata, useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -55,6 +54,7 @@ import type { NodeType } from '../automations/canvas/nodes/NodeType'
 import { AddNodePanel } from './AddNodePanel'
 import { AutomationHistoryCard } from './AutomationHistoryCard'
 import { BuilderFlow } from './BuilderFlow'
+import { builderReducer, getInitialBuilderState } from './builderReducer'
 import { NodeEditorOverlay } from './components/NodeEditorOverlay'
 import { EditAutomationDetailsPopover } from './EditAutomationDetailsPopover'
 import { ExecutionDetailsPanel } from './ExecutionDetailsPanel'
@@ -63,22 +63,21 @@ import { formatHistoryDateTime } from './historyDateUtils'
 import { NodeActionsContext, type NodeActionsContextValue } from './NodeActionsContext'
 import { RunHistoryToggleButton } from './RunHistoryToggleButton'
 import type { FlowPosition } from './types'
-import { buildNestedConditionStructure } from './utils/buildNestedStructure'
-import { EdgeFactory } from './utils/EdgeFactory'
-import { ACTIVITY_TYPES } from './utils/executionState/executionHelpers'
-import { loadWorkflow } from './utils/loadWorkflow'
-import { validateRoundTrip, validateSavePath } from './utils/validateRoundTrip'
+import type { EdgeConnection } from './types/edge'
+// buildNestedConditionStructure removed — v2 uses flat nodes + edges
+import { calculateEdgeConnection, applyEdgeConnection } from './utils/edgeConnectionHelpers'
+import { v2PortToHandle } from './utils/edgeHelpers'
+// loadWorkflow and validateRoundTrip removed — v2 activities are already flat
 import { validateWorkflow } from './utils/validation'
+import { buildWorkflowDefinition } from './utils/workflowDefinitionBuilder'
 import { WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME } from './utils/workflowListQuery'
 import { DEFAULT_WORKFLOW_NAME, getNextDefaultWorkflowName } from './utils/workflowNaming'
-import type { EdgeType } from './utils/workflowToGraph'
-import { WorkflowTransform } from './utils/workflowTransform'
 import { WorkflowSidepanel } from './WorkflowSidepanel'
 
 // Type aliases from API contracts
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 type WorkflowInput = WorkflowAPI.paths['/workflows']['post']['requestBody']['content']['application/json']
-type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
+type WorkflowDefinition = import('../../stores/workflowStoreTypes').WorkflowDefinition
 
 interface BuilderContentProps {
   workflow?: WorkflowWithVersion
@@ -87,23 +86,6 @@ interface BuilderContentProps {
 }
 
 // v8 ignore start - Helper functions only called from React Flow callbacks (E2E tested)
-function hasConditionNodePlaceholders(nodes: Node[], sourceId: string): boolean {
-  return nodes.some((n) => n.id === `placeholder-${sourceId}-true` || n.id === `placeholder-${sourceId}-false`)
-}
-
-function hasLoopNodePlaceholders(nodes: Node[], sourceId: string): boolean {
-  return nodes.some((n) => n.id === `placeholder-${sourceId}-done` || n.id === `placeholder-${sourceId}-loop`)
-}
-
-function removeButtonEdgeClass(nodes: Node[], sourceId: string): Node[] {
-  return nodes.map((n) => {
-    if (n.id === sourceId) {
-      const className = (n.className ?? '').replace('has-button-edge', '').trim()
-      return { ...n, className }
-    }
-    return n
-  })
-}
 
 const DUPLICATE_GAP = 120
 const DUPLICATE_COLLISION_PADDING = 20
@@ -178,292 +160,6 @@ function isWorkflowQuery(query: Query): boolean {
   )
 }
 // v8 ignore stop
-
-// State interface for useReducer
-interface BuilderState {
-  confirmDialogOpen: boolean
-  deleteDialogOpen: boolean
-  detailsOpen: boolean
-  historyCardOpen: boolean
-  selectedExecutionId: string | null
-  isKebabOpen: boolean
-  addNodePanelOpen: boolean
-  nodeEditorMode: 'add' | 'edit' | null
-  nodeEditorNodeTypeId: string | null
-  nodeEditorNodeSubtypeId: string | null
-  selectedNode: Node<NodeType['data']> | null
-  sourceNodeId: string | null
-  targetNodeId: string | null
-  edgeIdToReplace: string | null
-  sourceHandle: string | undefined
-  targetHandle: string | undefined
-  replacementNodeId: string | null
-  newNodeDesiredPosition: FlowPosition | null
-  workflowName: string
-  workflowDescription: string
-  workflowTags: string[]
-  isEnabled: boolean
-}
-
-// Action types for reducer
-type BuilderAction =
-  | { type: 'SET_CONFIRM_DIALOG'; payload: boolean }
-  | { type: 'SET_DELETE_DIALOG'; payload: boolean }
-  | { type: 'SET_DETAILS_OPEN'; payload: boolean }
-  | { type: 'TOGGLE_DETAILS' }
-  | { type: 'SET_HISTORY_CARD_OPEN'; payload: boolean }
-  | { type: 'TOGGLE_HISTORY' }
-  | { type: 'SET_SELECTED_EXECUTION_ID'; payload: string | null }
-  | { type: 'SET_KEBAB_OPEN'; payload: boolean }
-  | { type: 'SET_ADD_NODE_PANEL'; payload: boolean }
-  | { type: 'OPEN_NODE_EDITOR_ADD'; payload: { nodeTypeId: string; nodeSubtypeId: string | null } }
-  | { type: 'CLOSE_NODE_EDITOR' }
-  | { type: 'SET_SELECTED_NODE'; payload: Node<NodeType['data']> | null }
-  | { type: 'SET_SOURCE_NODE_ID'; payload: string | null }
-  | { type: 'SET_TARGET_NODE_ID'; payload: string | null }
-  | { type: 'SET_EDGE_ID_TO_REPLACE'; payload: string | null }
-  | { type: 'SET_SOURCE_HANDLE'; payload: string | undefined }
-  | { type: 'SET_TARGET_HANDLE'; payload: string | undefined }
-  | { type: 'SET_REPLACEMENT_NODE_ID'; payload: string | null }
-  | { type: 'SET_WORKFLOW_NAME'; payload: string }
-  | { type: 'SET_WORKFLOW_DESCRIPTION'; payload: string }
-  | { type: 'SET_WORKFLOW_TAGS'; payload: string[] }
-  | { type: 'SET_IS_ENABLED'; payload: boolean }
-  | {
-      type: 'OPEN_ADD_NODE_FROM_EDGE'
-      payload: {
-        sourceId: string
-        targetId?: string
-        edgeId?: string
-        handle?: string
-        targetHandle?: string
-        desiredPosition?: FlowPosition
-      }
-    }
-  | { type: 'CLEAR_NEW_NODE_DESIRED_POSITION' }
-  | { type: 'SET_NEW_NODE_DESIRED_POSITION'; payload: FlowPosition }
-  | { type: 'OPEN_ADD_NODE_PANEL'; payload: { sourceNodeId: string | null; replacementNodeId: string | null } }
-  | { type: 'CLOSE_ADD_NODE_PANEL' }
-  | { type: 'CLOSE_OTHER_PANELS' }
-  | { type: 'NODE_CLICK'; payload: { node: Node<NodeType['data']>; isGeneric: boolean } }
-  | { type: 'CLEAR_SELECTED_IF_DELETED'; payload: string[] }
-  | { type: 'INIT_WORKFLOW'; payload: { name: string; description: string; tags: string[]; isEnabled: boolean } }
-
-// Reducer function
-// eslint-disable-next-line complexity
-function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
-  switch (action.type) {
-    case 'SET_CONFIRM_DIALOG':
-      return { ...state, confirmDialogOpen: action.payload }
-    case 'SET_DELETE_DIALOG':
-      return { ...state, deleteDialogOpen: action.payload }
-    case 'SET_DETAILS_OPEN':
-      return { ...state, detailsOpen: action.payload }
-    case 'TOGGLE_DETAILS':
-      return {
-        ...state,
-        detailsOpen: !state.detailsOpen,
-        addNodePanelOpen: !state.detailsOpen ? false : state.addNodePanelOpen,
-        historyCardOpen: !state.detailsOpen ? false : state.historyCardOpen,
-        selectedNode: !state.detailsOpen ? null : state.selectedNode,
-        nodeEditorMode: !state.detailsOpen ? null : state.nodeEditorMode,
-        nodeEditorNodeTypeId: !state.detailsOpen ? null : state.nodeEditorNodeTypeId,
-        nodeEditorNodeSubtypeId: !state.detailsOpen ? null : state.nodeEditorNodeSubtypeId,
-      }
-    case 'SET_HISTORY_CARD_OPEN':
-      return { ...state, historyCardOpen: action.payload }
-    case 'TOGGLE_HISTORY':
-      return {
-        ...state,
-        historyCardOpen: !state.historyCardOpen,
-        addNodePanelOpen: !state.historyCardOpen ? false : state.addNodePanelOpen,
-        detailsOpen: !state.historyCardOpen ? false : state.detailsOpen,
-        selectedNode: !state.historyCardOpen ? null : state.selectedNode,
-        nodeEditorMode: !state.historyCardOpen ? null : state.nodeEditorMode,
-        nodeEditorNodeTypeId: !state.historyCardOpen ? null : state.nodeEditorNodeTypeId,
-        nodeEditorNodeSubtypeId: !state.historyCardOpen ? null : state.nodeEditorNodeSubtypeId,
-      }
-    case 'SET_SELECTED_EXECUTION_ID':
-      return { ...state, selectedExecutionId: action.payload }
-    case 'SET_KEBAB_OPEN':
-      return { ...state, isKebabOpen: action.payload }
-    case 'SET_ADD_NODE_PANEL':
-      return { ...state, addNodePanelOpen: action.payload }
-    case 'OPEN_NODE_EDITOR_ADD':
-      return {
-        ...state,
-        nodeEditorMode: 'add',
-        nodeEditorNodeTypeId: action.payload.nodeTypeId,
-        nodeEditorNodeSubtypeId: action.payload.nodeSubtypeId,
-        selectedNode: null,
-        addNodePanelOpen: false,
-      }
-    case 'CLOSE_NODE_EDITOR':
-      return {
-        ...state,
-        nodeEditorMode: null,
-        nodeEditorNodeTypeId: null,
-        nodeEditorNodeSubtypeId: null,
-        selectedNode: null,
-      }
-    case 'SET_SELECTED_NODE':
-      return { ...state, selectedNode: action.payload }
-    case 'SET_SOURCE_NODE_ID':
-      return { ...state, sourceNodeId: action.payload }
-    case 'SET_TARGET_NODE_ID':
-      return { ...state, targetNodeId: action.payload }
-    case 'SET_EDGE_ID_TO_REPLACE':
-      return { ...state, edgeIdToReplace: action.payload }
-    case 'SET_SOURCE_HANDLE':
-      return { ...state, sourceHandle: action.payload }
-    case 'SET_TARGET_HANDLE':
-      return { ...state, targetHandle: action.payload }
-    case 'SET_REPLACEMENT_NODE_ID':
-      return { ...state, replacementNodeId: action.payload }
-    case 'SET_WORKFLOW_NAME':
-      return { ...state, workflowName: action.payload }
-    case 'SET_WORKFLOW_DESCRIPTION':
-      return { ...state, workflowDescription: action.payload }
-    case 'SET_WORKFLOW_TAGS':
-      return { ...state, workflowTags: action.payload }
-    case 'SET_IS_ENABLED':
-      return { ...state, isEnabled: action.payload }
-    case 'OPEN_ADD_NODE_FROM_EDGE':
-      return {
-        ...state,
-        nodeEditorMode: null,
-        nodeEditorNodeTypeId: null,
-        nodeEditorNodeSubtypeId: null,
-        selectedNode: null,
-        detailsOpen: false,
-        historyCardOpen: false,
-        sourceNodeId: action.payload.sourceId,
-        targetNodeId: action.payload.targetId ?? null,
-        edgeIdToReplace: action.payload.edgeId ?? null,
-        sourceHandle: action.payload.handle ?? undefined,
-        targetHandle: action.payload.targetHandle,
-        replacementNodeId: null,
-        newNodeDesiredPosition: action.payload.desiredPosition ?? null,
-        addNodePanelOpen: true,
-      }
-    case 'CLEAR_NEW_NODE_DESIRED_POSITION':
-      return { ...state, newNodeDesiredPosition: null }
-    case 'SET_NEW_NODE_DESIRED_POSITION':
-      return { ...state, newNodeDesiredPosition: action.payload }
-    case 'OPEN_ADD_NODE_PANEL':
-      return {
-        ...state,
-        nodeEditorMode: null,
-        nodeEditorNodeTypeId: null,
-        nodeEditorNodeSubtypeId: null,
-        selectedNode: null,
-        detailsOpen: false,
-        historyCardOpen: false,
-        sourceNodeId: action.payload.sourceNodeId,
-        targetNodeId: null,
-        edgeIdToReplace: null,
-        sourceHandle: undefined,
-        targetHandle: undefined,
-        replacementNodeId: action.payload.replacementNodeId,
-        newNodeDesiredPosition: null,
-        addNodePanelOpen: true,
-      }
-    case 'CLOSE_ADD_NODE_PANEL':
-      return {
-        ...state,
-        addNodePanelOpen: false,
-        nodeEditorMode: null,
-        nodeEditorNodeTypeId: null,
-        nodeEditorNodeSubtypeId: null,
-        sourceNodeId: null,
-        targetNodeId: null,
-        edgeIdToReplace: null,
-        sourceHandle: undefined,
-        targetHandle: undefined,
-        replacementNodeId: null,
-        newNodeDesiredPosition: null,
-      }
-    case 'CLOSE_OTHER_PANELS':
-      return {
-        ...state,
-        selectedNode: null,
-        detailsOpen: false,
-        historyCardOpen: false,
-      }
-    case 'NODE_CLICK':
-      if (action.payload.isGeneric) {
-        return {
-          ...state,
-          nodeEditorMode: null,
-          nodeEditorNodeTypeId: null,
-          nodeEditorNodeSubtypeId: null,
-          selectedNode: null,
-          detailsOpen: false,
-          historyCardOpen: false,
-          sourceNodeId: null,
-          replacementNodeId: action.payload.node.id,
-          newNodeDesiredPosition: null,
-          addNodePanelOpen: true,
-        }
-      } else {
-        return {
-          ...state,
-          selectedNode: action.payload.node,
-          nodeEditorMode: 'edit',
-          nodeEditorNodeTypeId: null,
-          nodeEditorNodeSubtypeId: null,
-          addNodePanelOpen: false,
-          detailsOpen: false,
-          historyCardOpen: false,
-          replacementNodeId: null,
-        }
-      }
-    case 'CLEAR_SELECTED_IF_DELETED':
-      if (state.selectedNode && action.payload.includes(state.selectedNode.id)) {
-        return { ...state, selectedNode: null }
-      }
-      return state
-    case 'INIT_WORKFLOW':
-      return {
-        ...state,
-        workflowName: action.payload.name,
-        workflowDescription: action.payload.description,
-        workflowTags: action.payload.tags,
-        isEnabled: action.payload.isEnabled,
-      }
-    default:
-      return state
-  }
-}
-
-// Initial state factory
-function getInitialState(): BuilderState {
-  return {
-    confirmDialogOpen: false,
-    deleteDialogOpen: false,
-    detailsOpen: false,
-    historyCardOpen: false,
-    selectedExecutionId: null,
-    isKebabOpen: false,
-    addNodePanelOpen: false,
-    nodeEditorMode: null,
-    nodeEditorNodeTypeId: null,
-    nodeEditorNodeSubtypeId: null,
-    selectedNode: null,
-    sourceNodeId: null,
-    targetNodeId: null,
-    edgeIdToReplace: null,
-    sourceHandle: undefined,
-    targetHandle: undefined,
-    replacementNodeId: null,
-    newNodeDesiredPosition: null,
-    workflowName: DEFAULT_WORKFLOW_NAME,
-    workflowDescription: 'New workflow',
-    workflowTags: [],
-    isEnabled: false,
-  }
-}
-
 // eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId } = props
@@ -485,7 +181,7 @@ export function BuilderContent(props: BuilderContentProps) {
 
   const [executionFilters, setExecutionFilters] = useState<FilterConfig[]>([])
 
-  const [state, dispatch] = useReducer(builderReducer, getInitialState())
+  const [state, dispatch] = useReducer(builderReducer, getInitialBuilderState())
   const {
     confirmDialogOpen,
     deleteDialogOpen,
@@ -583,12 +279,9 @@ export function BuilderContent(props: BuilderContentProps) {
       const resources = workflowsListQuery.data?.resources ?? []
       const defaultName = getNextDefaultWorkflowName(resources)
       const newWorkflow: WorkflowDefinition = {
-        schemaVersion: '1.0.0',
-        version: 1,
-        metadata: {
-          name: defaultName,
-          description: 'New workflow',
-        },
+        schema_version: '2.0.0',
+        name: defaultName,
+        description: 'New workflow',
         workflow: {
           activities: [],
         },
@@ -608,57 +301,92 @@ export function BuilderContent(props: BuilderContentProps) {
       // CRITICAL: Only load if workflow.id matches workflowId (prevents loading stale cached workflow)
       const workflowDef = workflow.version.workflow_definition
 
-      // Use combined load function - performs edge generation AND flattening in single pass
-      // This is more efficient than calling generateEdgesFromStructure + flattenConditionStructure separately
-      const { activities: flattenedActivities, edges: generatedEdges } = loadWorkflow(workflowDef.workflow.activities)
+      // V2: activities are at workflowDef.nodes, edges at workflowDef.edges
+      const nodes = (workflowDef.nodes ?? []) as Activity[]
+      const v2Edges = (workflowDef.edges ?? []) as Array<{
+        from: string
+        to: string
+        from_port?: string
+        to_port?: string
+      }>
+      // SECURITY: Ensure all triggers have IDs at load time.
+      // If any trigger loaded from the API lacks an ID, generate one from its type and index.
+      // This prevents display IDs (trigger-0) from leaking to the backend at save time.
+      const triggers = (workflowDef.triggers ?? []).map((t, index) => {
+        const trigger = t as { id?: string; type?: string }
+        if (!trigger.id) {
+          return { ...t, id: `${trigger.type ?? 'trigger'}_${index}` }
+        }
+        return t
+      })
 
-      // Generate trigger edges (triggers connect to first activities)
-      const triggers = workflowDef.triggers ?? []
-      if (triggers.length > 0 && workflowDef.workflow.activities.length > 0) {
-        const firstActivity = workflowDef.workflow.activities[0]
+      // Activities are already flat in v2 - sanitize metadata on the write path
+      // SECURITY: Sanitize metadata when loading from API to enforce allowlist
+      const flattenedActivities = nodes.map((a) => {
+        const meta = getActivityMetadata(a)
+        // SECURITY: If meta is defined, replace with sanitized version.
+        // If meta is undefined, strip any raw metadata from the API to prevent
+        // unsanitized properties from reaching the UI.
+        if (meta) return { ...a, metadata: meta }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructuring to strip metadata
+        const { metadata: _unsanitized, ...rest } = a as Activity & { metadata?: unknown }
+        return rest as Activity
+      })
 
-        triggers.forEach((_, index) => {
-          // If first activity is a parallel (either auto-generated wrapper OR user-created), connect to its branches
-          if (firstActivity.type === ACTIVITY_TYPES.PARALLEL) {
-            const branches = firstActivity.branches || []
-            branches.forEach((branch) => {
-              // CRITICAL: Use getFirstActivityId to handle sequence wrappers that will be flattened away
-              const targetId = WorkflowTransform.getFirstActivityId(branch)
-              const triggerId = buildTriggerNodeId(index)
-              generatedEdges.push({
-                id: `${triggerId}-${targetId}`,
-                source: triggerId,
-                target: targetId,
-                sourceHandle: 'source',
-                targetHandle: 'target',
-              })
-            })
-          } else {
-            // Regular activity - use getFirstActivityId to handle sequences
-            const targetId = WorkflowTransform.getFirstActivityId(firstActivity)
-            const triggerId = buildTriggerNodeId(index)
-            generatedEdges.push({
-              id: `${triggerId}-${targetId}`,
-              source: triggerId,
-              target: targetId,
-              sourceHandle: 'source',
-              targetHandle: 'target',
-            })
+      // Build map: trigger definition ID → React Flow display ID
+      // e.g. "manual_trigger" → "trigger-0"
+      const triggerIdToDisplayId = new Map<string, string>()
+      triggers.forEach((t, index) => {
+        const defId = (t as { id?: string }).id
+        if (defId) {
+          triggerIdToDisplayId.set(defId, buildTriggerNodeId(index))
+        }
+      })
+
+      // Build set of valid node IDs (activities + triggers)
+      const validNodeIds = new Set<string>()
+      flattenedActivities.forEach((a) => validNodeIds.add(a.id))
+      triggers.forEach((_, index) => validNodeIds.add(buildTriggerNodeId(index)))
+
+      // Convert v2 edges to React Flow edges, mapping trigger IDs to display IDs
+      // Filter out orphaned edges (edges referencing non-existent nodes)
+      const generatedEdges: EdgeConnection[] = v2Edges
+        .map((e) => {
+          const source = triggerIdToDisplayId.get(e.from) ?? e.from
+          const target = triggerIdToDisplayId.get(e.to) ?? e.to
+          const portSuffix = e.from_port ? `-${e.from_port}` : ''
+          return {
+            id: `${source}-${target}${portSuffix}`,
+            source,
+            target,
+            sourceHandle: v2PortToHandle(e.from_port),
+            targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target',
           }
         })
-      }
+        .filter((edge) => {
+          // Filter out edges that reference non-existent nodes
+          const sourceExists = validNodeIds.has(edge.source)
+          const targetExists = validNodeIds.has(edge.target)
+          const isValid = sourceExists && targetExists
 
-      // Validate round-trip conversion (development only)
-      // This ensures the workflow structure is preserved during load → edit → save
-      validateRoundTrip(workflowDef.workflow.activities, generatedEdges)
+          if (!isValid) {
+            // eslint-disable-next-line no-console
+            console.warn(`Filtered orphaned edge: ${edge.id} (${edge.source} -> ${edge.target})`, {
+              sourceExists,
+              targetExists,
+            })
+          }
 
-      const flattenedWorkflow: WorkflowDefinition = {
+          return isValid
+        })
+
+      // Build internal store representation with workflow.activities wrapper
+      const flattenedWorkflow = {
         ...workflowDef,
         workflow: {
-          ...workflowDef.workflow,
           activities: flattenedActivities,
         },
-      }
+      } as unknown as WorkflowDefinition
 
       queueMicrotask(() => {
         // Use atomic operation to set both workflow and edges together
@@ -737,47 +465,12 @@ export function BuilderContent(props: BuilderContentProps) {
   const isPending = isCreating || isUpdating
 
   // Get workflow definition for API submission (plain object - no serialization needed)
-  const getWorkflowDefinition = useCallback((): WorkflowDefinition => {
-    if (!currentWorkflow) {
-      return {
-        schemaVersion: '1.0.0',
-        version: 1,
-        metadata: {
-          name: workflowName,
-          description: workflowDescription,
-        },
-        workflow: { activities: [] },
-      }
-    }
-
-    // Get edges from store to build nested condition structures
+  const getWorkflowDefinition = useCallback(() => {
     const edges = useWorkflowStore.getState().edges
+    const activities = currentWorkflow?.workflow.activities ?? []
+    const triggers = currentWorkflow?.triggers ?? []
 
-    // Validate save path before building (development only)
-    // This ensures flat activities + edges can be successfully converted to nested structure
-    validateSavePath(currentWorkflow.workflow.activities, edges)
-
-    // Build nested condition structures from flat activities and edges
-    // This converts the flat representation (used during editing) into the nested
-    // structure expected by the API
-    const nestedActivities = buildNestedConditionStructure(currentWorkflow.workflow.activities, edges)
-
-    // Return workflow with updated metadata and nested activities
-    // Note: We cast to WorkflowDefinition since the store's extended type includes
-    // additional trigger types (ScheduledTrigger, EventTrigger) that are compatible
-    // with the base API schema but not explicitly typed in the OpenAPI spec yet
-    return {
-      ...currentWorkflow,
-      metadata: {
-        ...currentWorkflow.metadata,
-        name: workflowName,
-        description: workflowDescription,
-      },
-      workflow: {
-        ...currentWorkflow.workflow,
-        activities: nestedActivities,
-      },
-    } as WorkflowDefinition
+    return buildWorkflowDefinition(workflowName, workflowDescription, activities, triggers, edges)
   }, [currentWorkflow, workflowName, workflowDescription])
 
   const handleSaveWorkflow = useCallback((): Promise<boolean> => {
@@ -801,18 +494,15 @@ export function BuilderContent(props: BuilderContentProps) {
         return
       }
 
-      // Build the workflow definition (nesting loops, conditions, and parallels)
-      const workflowDef = getWorkflowDefinition()
-      // Resolve default name at save time so we never POST a duplicate (e.g. if list loaded after init)
+      // Build the v2 workflow definition (flat triggers, nodes, edges)
+      // Resolve default name at save time so we never POST a duplicate
       let nameToSave = workflowName
       if (isNew && workflowName === DEFAULT_WORKFLOW_NAME && workflowsListQuery.data?.resources) {
         nameToSave = getNextDefaultWorkflowName(workflowsListQuery.data.resources)
       }
-      if (workflowDef.metadata.name !== nameToSave) {
-        workflowDef.metadata = { ...workflowDef.metadata, name: nameToSave }
-      }
+      const workflowDef = getWorkflowDefinition()
+      workflowDef.name = nameToSave
       // Tags are persisted as workflow.labels (key = tag name, value = '') so they appear in list API.
-      // Use only current tags so removals persist (do not merge with previous labels).
       const workflowData = {
         name: nameToSave,
         description: workflowDescription,
@@ -848,7 +538,7 @@ export function BuilderContent(props: BuilderContentProps) {
         updateWorkflow(
           {
             params: { path: { workflow_id: workflowId } },
-            body: workflowData as WorkflowInput,
+            body: workflowData as unknown as WorkflowInput,
           },
           {
             onSuccess: async () => {
@@ -859,7 +549,7 @@ export function BuilderContent(props: BuilderContentProps) {
         )
       } else {
         createWorkflow(
-          { body: workflowData as WorkflowInput },
+          { body: workflowData as unknown as WorkflowInput },
           {
             onSuccess: async (data) => {
               await onSaveSuccess('Workflow created successfully', data.id)
@@ -1001,70 +691,23 @@ export function BuilderContent(props: BuilderContentProps) {
 
   const handleConnectFromPanel = useCallback(
     (sourceId: string, targetId: string) => {
-      const capturedEdgeIdToReplace = edgeIdToReplace
-      const capturedTargetNodeId = targetNodeId
-      const capturedSourceHandle = sourceHandle
-      const capturedTargetHandle = targetHandle
-      let attempts = 0
-      const checkAndConnect = () => {
-        const nodes = reactFlowInstance.getNodes()
-        const targetNode = nodes.find((n) => n.id === targetId)
-        if (targetNode?.measured) {
-          const newEdge = EdgeFactory.createEdge({
-            source: sourceId,
-            target: targetId,
-            sourceHandle: capturedSourceHandle,
-            targetHandle: 'target',
-            onAddNode: handleAddNodeFromEdge,
-          })
-          reactFlowInstance.setEdges((eds) => {
-            const filtered = EdgeFactory.removeButtonEdge(sourceId, eds as EdgeType[], capturedSourceHandle)
-            const withoutOldEdge = capturedEdgeIdToReplace
-              ? filtered.filter((e) => e.id !== capturedEdgeIdToReplace)
-              : filtered
-            return EdgeFactory.addEdge(newEdge, withoutOldEdge)
-          })
-          if (capturedEdgeIdToReplace && capturedTargetNodeId) {
-            const secondEdge = EdgeFactory.createEdge({
-              source: targetId,
-              target: capturedTargetNodeId,
-              sourceHandle: 'source',
-              targetHandle: capturedTargetHandle ?? 'target',
-              onAddNode: handleAddNodeFromEdge,
-            })
-            reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(secondEdge, eds as EdgeType[]))
-            useWorkflowStore.getState().moveActivityBefore(targetId, capturedTargetNodeId)
-          }
-          if (capturedSourceHandle === 'loop' && !capturedEdgeIdToReplace) {
-            const loopBackEdge = EdgeFactory.createEdge({
-              source: targetId,
-              target: sourceId,
-              sourceHandle: 'source',
-              targetHandle: 'end',
-              onAddNode: handleAddNodeFromEdge,
-            })
-            reactFlowInstance.setEdges((eds) => EdgeFactory.addEdge(loopBackEdge, eds as EdgeType[]))
-          }
-          const isConditionHandle = capturedSourceHandle && ['true', 'false'].includes(capturedSourceHandle)
-          const isLoopHandle = capturedSourceHandle && ['done', 'loop'].includes(capturedSourceHandle)
-          const sourcePlaceholderId =
-            isConditionHandle || isLoopHandle
-              ? `placeholder-${sourceId}-${capturedSourceHandle}`
-              : `placeholder-${sourceId}`
-          reactFlowInstance.setNodes((nds) => {
-            const filtered = nds.filter((n) => n.id !== sourcePlaceholderId)
-            const sourceNode = filtered.find((n) => n.id === sourceId)
-            if (!sourceNode) return filtered
-            if (sourceNode.type === FlowNodeType.CONDITION && hasConditionNodePlaceholders(filtered, sourceId))
-              return filtered
-            if (sourceNode.type === FlowNodeType.LOOP && hasLoopNodePlaceholders(filtered, sourceId)) return filtered
-            return removeButtonEdgeClass(filtered, sourceId)
-          })
-        } else if (attempts++ < 40) {
-          setTimeout(checkAndConnect, 50)
-        }
+      const params = {
+        sourceId,
+        targetId,
+        edgeIdToReplace,
+        targetNodeId,
+        sourceHandle,
+        targetHandle,
+        onAddNode: handleAddNodeFromEdge,
       }
-      checkAndConnect()
+
+      const result = calculateEdgeConnection(params, reactFlowInstance)
+
+      applyEdgeConnection(result, params, targetId, reactFlowInstance, () => {
+        if (result.activityReorderTarget) {
+          useWorkflowStore.getState().moveActivityBefore(targetId, result.activityReorderTarget)
+        }
+      })
     },
     [edgeIdToReplace, targetNodeId, sourceHandle, targetHandle, reactFlowInstance, handleAddNodeFromEdge]
   )
@@ -1128,6 +771,7 @@ export function BuilderContent(props: BuilderContentProps) {
   useEffect(() => {
     if (nodesInitialized) {
       const nodes = reactFlowInstance.getNodes()
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (nodes.length !== nodeCount) setNodeCount(nodes.length)
     }
   }, [nodesInitialized, reactFlowInstance, nodeCount])

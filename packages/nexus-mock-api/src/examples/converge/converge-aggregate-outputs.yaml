@@ -1,43 +1,56 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-metadata:
-  name: converge-aggregate-test
-  description: Test converge with output aggregation from multiple branches
+schema_version: "2.0.0"
+name: converge-aggregate-test
+description: Test converge with output aggregation from multiple branches
 triggers:
-  - type: manual
-workflow:
-  activities:
-    - id: parallel_aggregate
-      type: parallel
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: parallel_aggregate_fork
+    type: fork
+
+  - id: data_task1
+    type: script
+    config:
+      language: bash
+      code: "echo '{\"value\": 10}'"
+
+  - id: data_task2
+    type: script
+    config:
+      language: bash
+      code: "echo '{\"value\": 20}'"
+
+  - id: data_task3
+    type: script
+    config:
+      language: bash
+      code: "echo '{\"value\": 30}'"
+
+  - id: parallel_aggregate_join
+    type: join
+
+  - id: converge_aggregate
+    type: converge
+    converge:
       branches:
-        - id: data_task1
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: "echo '{\"value\": 10}'"
-        - id: data_task2
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: "echo '{\"value\": 20}'"
-        - id: data_task3
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: "echo '{\"value\": 30}'"
-    - id: converge_aggregate
-      type: converge
-      converge:
-        branches:
-          - data_task1
-          - data_task2
-          - data_task3
-        strategy: all
-        aggregateOutputs: true
+        - data_task1
+        - data_task2
+        - data_task3
+      strategy: all
+      aggregateOutputs: true
+edges:
+  - source: parallel_aggregate_fork
+    target: data_task1
+  - source: parallel_aggregate_fork
+    target: data_task2
+  - source: parallel_aggregate_fork
+    target: data_task3
+  - source: data_task1
+    target: parallel_aggregate_join
+  - source: data_task2
+    target: parallel_aggregate_join
+  - source: data_task3
+    target: parallel_aggregate_join
+  - source: parallel_aggregate_join
+    target: converge_aggregate

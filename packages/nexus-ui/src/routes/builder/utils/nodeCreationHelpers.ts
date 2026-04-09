@@ -17,10 +17,11 @@ export function buildNamedActivity<TActivity>(
 export function buildNamedTrigger<TTrigger>(
   baseName: string,
   requestedName: string | undefined,
-  buildTrigger: (name: string) => TTrigger
-): { name: string; trigger: TTrigger } {
+  buildTrigger: (triggerId: string, name: string) => TTrigger
+): { triggerId: string; name: string; trigger: TTrigger } {
+  const triggerId = generateActivityId()
   const name = getNodeDisplayName(baseName, requestedName)
-  const trigger = buildTrigger(name)
+  const trigger = buildTrigger(triggerId, name)
 
-  return { name, trigger }
+  return { triggerId, name, trigger }
 }

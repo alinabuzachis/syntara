@@ -215,7 +215,7 @@ export function useButtonEdgeMaintenance({
             handles: [EdgeHandleEnum.DONE, EdgeHandleEnum.LOOP] as const,
             handlePositions: {
               [EdgeHandleEnum.DONE]: { yOffset: -30 },
-              [EdgeHandleEnum.LOOP]: { yOffset: 0 },
+              [EdgeHandleEnum.LOOP]: { yOffset: 30 },
             },
             connectedHandles,
             pendingEdge,

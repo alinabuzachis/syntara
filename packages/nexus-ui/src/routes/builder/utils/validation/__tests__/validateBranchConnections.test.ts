@@ -2,7 +2,7 @@ import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
 import { makeCondition } from '../../../../../test/test-helpers'
-import type { EdgeConnection } from '../../workflowTransform'
+import type { EdgeConnection } from '../../../types/edge'
 import { validateBranchConnections } from '../rules/validateBranchConnections'
 
 describe('validateBranchConnections', () => {
@@ -18,12 +18,7 @@ describe('validateBranchConnections', () => {
   it('returns no errors when required branch is connected', () => {
     const activities: Activity[] = [
       makeCondition({ id: 'C1', name: 'Condition 1' }),
-      {
-        type: 'task',
-        id: 'T1',
-        name: 'Task 1',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
+      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
     ]
     const edges: EdgeConnection[] = [
       { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'true', targetHandle: 'target' },
@@ -36,15 +31,9 @@ describe('validateBranchConnections', () => {
   it('detects missing required branch connection', () => {
     const activities: Activity[] = [
       makeCondition({ id: 'C1', name: 'Condition 1' }),
-      {
-        type: 'task',
-        id: 'T1',
-        name: 'Task 1',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
+      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
     ]
     const edges: EdgeConnection[] = [
-      // Only false branch connected, missing true (required) branch
       { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'false', targetHandle: 'target' },
     ]
 
@@ -69,8 +58,7 @@ describe('validateBranchConnections', () => {
   })
 
   it('falls back to node id when name is not provided', () => {
-    // biome-ignore lint/suspicious/noThenProperty: Activity schema uses `then` for condition branches
-    const activities: Activity[] = [{ type: 'condition', id: 'C1', condition: 'x > 10', then: [], else: [] }]
+    const activities: Activity[] = [{ type: 'condition', id: 'C1', config: { condition: 'x > 10' } }]
     const edges: EdgeConnection[] = []
 
     const result = validateBranchConnections(activities, edges, defaultConfig)
@@ -102,32 +90,20 @@ describe('validateBranchConnections', () => {
   })
 
   it('only validates nodes matching the filter', () => {
-    const activities = [
+    const activities: Activity[] = [
       makeCondition({ id: 'C1', name: 'Condition 1' }),
-      {
-        type: 'task',
-        id: 'T1',
-        name: 'Task 1',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-      {
-        type: 'trigger',
-        id: 'trigger-1',
-        name: 'Start',
-        trigger: { executor: 'manual', config: {} },
-      },
-    ] as unknown as Activity[]
+      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
+    ]
     const edges: EdgeConnection[] = []
 
     const result = validateBranchConnections(activities, edges, defaultConfig)
-    // Only the condition node should have an error
     expect(result).toHaveLength(1)
     expect(result[0].nodeId).toBe('C1')
   })
 
   it('works with custom configuration', () => {
     const customConfig = {
-      nodeFilter: (a: Activity) => a.type === 'task' && a.id.startsWith('approval-'),
+      nodeFilter: (a: Activity) => a.type === 'approval',
       requiredHandle: 'approved',
       nodeTypeName: 'Approval',
       branchName: 'Approved',
@@ -136,18 +112,8 @@ describe('validateBranchConnections', () => {
     }
 
     const activities: Activity[] = [
-      {
-        type: 'task',
-        id: 'approval-1',
-        name: 'Approval Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-      {
-        type: 'task',
-        id: 'regular-task',
-        name: 'Regular Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
+      { type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} },
+      { type: 'script', id: 'regular-task', name: 'Regular Task', config: { language: 'python', code: '' } },
     ]
     const edges: EdgeConnection[] = []
 
@@ -176,20 +142,13 @@ describe('validateBranchConnections', () => {
   it('correctly identifies edges from the node', () => {
     const activities: Activity[] = [
       makeCondition({ id: 'C1', name: 'Condition 1' }),
-      {
-        type: 'task',
-        id: 'T1',
-        name: 'Task 1',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
+      { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
     ]
     const edges: EdgeConnection[] = [
-      // Edge TO the condition, not FROM it
       { id: 'T1-C1', source: 'T1', target: 'C1', sourceHandle: 'source', targetHandle: 'target' },
     ]
 
     const result = validateBranchConnections(activities, edges, defaultConfig)
-    // Should still report missing branch since there's no outgoing edge with 'true' handle
     expect(result).toHaveLength(1)
   })
 })

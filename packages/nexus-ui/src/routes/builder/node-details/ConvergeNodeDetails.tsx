@@ -23,20 +23,32 @@ export function ConvergeNodeDetails({
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
 
-  const storedTimeout = convergeData.converge?.timeout
+  // In v2, converge config is at activity.config (not activity.converge)
+  const convergeConfig = (convergeData.config ?? {}) as {
+    strategy?: string
+    timeout?: number
+    on_timeout?: string
+    onTimeout?: string
+    required_path_count?: number
+    requiredPathCount?: number
+    remaining_behavior?: 'continue' | 'cancel'
+    remainingBehavior?: 'continue' | 'cancel'
+  }
+
+  const storedTimeout = convergeConfig.timeout
   const timeUnits = storedTimeout ? secondsToTimeUnits(storedTimeout) : null
 
   const initialData = {
     name: convergeData.name,
-    strategy: (convergeData.converge?.strategy as 'all' | 'any') ?? 'all',
+    strategy: (convergeConfig.strategy as 'all' | 'any') ?? 'all',
     timeoutEnabled: !!storedTimeout,
     timeoutSeconds: timeUnits?.seconds ?? undefined,
     timeoutMinutes: timeUnits?.minutes ?? undefined,
     timeoutHours: timeUnits?.hours ?? undefined,
     timeoutDays: timeUnits?.days ?? undefined,
-    onTimeout: convergeData.converge?.onTimeout ?? 'fail',
-    requiredPathCount: (convergeData.converge as { requiredPathCount?: number })?.requiredPathCount ?? 1,
-    remainingBehavior: (convergeData.converge as { remainingBehavior?: 'continue' | 'cancel' })?.remainingBehavior,
+    onTimeout: (convergeConfig.on_timeout ?? convergeConfig.onTimeout ?? 'fail') as 'continue' | 'fail',
+    requiredPathCount: convergeConfig.required_path_count ?? convergeConfig.requiredPathCount ?? 1,
+    remainingBehavior: convergeConfig.remaining_behavior ?? convergeConfig.remainingBehavior,
   }
 
   const handleSubmit = (data: {
@@ -48,30 +60,19 @@ export function ConvergeNodeDetails({
     remainingBehavior?: 'continue' | 'cancel'
   }) => {
     try {
-      // Omit fields we manage explicitly so they don't persist from old state when cleared
-      // (e.g. timeout toggled off should remove timeout, not keep the previous value)
-      type ConvergeWithExtras = ConvergeActivity['converge'] & {
-        requiredPathCount?: number
-        remainingBehavior?: 'continue' | 'cancel'
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { timeout, onTimeout, requiredPathCount, remainingBehavior, ...restConverge } =
-        (convergeData.converge as ConvergeWithExtras) ?? { branches: [], strategy: 'all' as const }
-
       const updatedActivity: ConvergeActivity = {
         ...convergeData,
         name: data.name,
-        converge: {
-          ...restConverge,
+        config: {
           // TODO: remove cast when backend schema supports 'any' strategy
           strategy: (data.strategy ?? 'all') as 'all',
           ...(data.timeout !== undefined && { timeout: data.timeout }),
-          ...(data.onTimeout !== undefined && { onTimeout: data.onTimeout }),
+          ...(data.onTimeout !== undefined && { on_timeout: data.onTimeout }),
           ...(data.strategy === 'any' &&
-            data.requiredPathCount !== undefined && { requiredPathCount: data.requiredPathCount }),
-          ...(data.strategy === 'any' && data.remainingBehavior && { remainingBehavior: data.remainingBehavior }),
-        } as ConvergeActivity['converge'],
-      }
+            data.requiredPathCount !== undefined && { required_path_count: data.requiredPathCount }),
+          ...(data.strategy === 'any' && data.remainingBehavior && { remaining_behavior: data.remainingBehavior }),
+        },
+      } as ConvergeActivity
 
       updateActivity(nodeId, updatedActivity)
       onClose()

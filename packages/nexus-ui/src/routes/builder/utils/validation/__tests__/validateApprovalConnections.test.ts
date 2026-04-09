@@ -1,26 +1,15 @@
 import { EdgeHandleEnum, type Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
-import { makeCondition } from '../../../../../test/test-helpers'
-import type { EdgeConnection } from '../../workflowTransform'
+import type { EdgeConnection } from '../../../types/edge'
 import { validateApprovalConnections } from '../rules/validateApprovalConnections'
 
 describe('validateApprovalConnections', () => {
   it('returns no errors when approval node has approved branch connected', () => {
-    const activities = [
-      {
-        type: 'approval',
-        id: 'approval-1',
-        name: 'Approval Task',
-        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
-      },
-      {
-        type: 'task',
-        id: 'task-1',
-        name: 'Next Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-    ] as unknown as Activity[]
+    const activities: Activity[] = [
+      { type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} },
+      { type: 'script', id: 'task-1', name: 'Next Task', config: { language: 'python', code: '' } },
+    ]
     const edges: EdgeConnection[] = [
       {
         id: 'approval-1-task-1',
@@ -36,26 +25,11 @@ describe('validateApprovalConnections', () => {
   })
 
   it('returns no errors when approval node has both branches connected', () => {
-    const activities = [
-      {
-        type: 'approval',
-        id: 'approval-1',
-        name: 'Approval Task',
-        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
-      },
-      {
-        type: 'task',
-        id: 'task-approved',
-        name: 'Approved Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-      {
-        type: 'task',
-        id: 'task-rejected',
-        name: 'Rejected Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-    ] as unknown as Activity[]
+    const activities: Activity[] = [
+      { type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} },
+      { type: 'script', id: 'task-approved', name: 'Approved Task', config: { language: 'python', code: '' } },
+      { type: 'script', id: 'task-rejected', name: 'Rejected Task', config: { language: 'python', code: '' } },
+    ]
     const edges: EdgeConnection[] = [
       {
         id: 'approval-1-task-approved',
@@ -78,22 +52,11 @@ describe('validateApprovalConnections', () => {
   })
 
   it('detects missing approved branch connection', () => {
-    const activities = [
-      {
-        type: 'approval',
-        id: 'approval-1',
-        name: 'Approval Task',
-        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
-      },
-      {
-        type: 'task',
-        id: 'task-rejected',
-        name: 'Rejected Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-    ] as unknown as Activity[]
+    const activities: Activity[] = [
+      { type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} },
+      { type: 'script', id: 'task-rejected', name: 'Rejected Task', config: { language: 'python', code: '' } },
+    ]
     const edges: EdgeConnection[] = [
-      // Only rejected branch connected, missing approved branch
       {
         id: 'approval-1-task-rejected',
         source: 'approval-1',
@@ -114,14 +77,7 @@ describe('validateApprovalConnections', () => {
   })
 
   it('detects missing approved branch when no edges exist', () => {
-    const activities = [
-      {
-        type: 'approval',
-        id: 'approval-1',
-        name: 'Approval Task',
-        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
-      },
-    ] as unknown as Activity[]
+    const activities: Activity[] = [{ type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} }]
     const edges: EdgeConnection[] = []
 
     const result = validateApprovalConnections(activities, edges)
@@ -134,88 +90,22 @@ describe('validateApprovalConnections', () => {
   })
 
   it('handles multiple approval nodes', () => {
-    const activities = [
-      {
-        type: 'task',
-        id: 'approval-1',
-        name: 'First Approval',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-        requiresApproval: true,
-        approval: { approvers: ['user1'], prompt: 'Approve?' },
-      },
-      {
-        type: 'approval',
-        id: 'approval-2',
-        name: 'Second Approval',
-        approval: { approvers: ['user2'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
-      },
-      {
-        type: 'task',
-        id: 'task-1',
-        name: 'Next Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-      },
-    ] as unknown as Activity[]
-    const edges: EdgeConnection[] = [
-      // First approval has approved branch connected
-      {
-        id: 'approval-1-task-1',
-        source: 'approval-1',
-        target: 'task-1',
-        sourceHandle: EdgeHandleEnum.APPROVED,
-        targetHandle: 'target',
-      },
-      // Second approval is missing approved branch
+    const activities: Activity[] = [
+      { type: 'approval', id: 'approval-2', name: 'Second Approval', config: {} },
+      { type: 'script', id: 'task-1', name: 'Next Task', config: { language: 'python', code: '' } },
     ]
+    const edges: EdgeConnection[] = []
 
     const result = validateApprovalConnections(activities, edges)
     expect(result).toHaveLength(1)
     expect(result[0].nodeId).toBe('approval-2')
   })
 
-  it('ignores non-approval task nodes', () => {
+  it('ignores non-approval activity types', () => {
     const activities: Activity[] = [
-      {
-        type: 'task',
-        id: 'task-1',
-        name: 'Regular Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-        // No requiresApproval or approval fields
-      },
+      { type: 'script', id: 'task-1', name: 'Regular Task', config: { language: 'python', code: '' } },
+      { type: 'condition', id: 'C1', name: 'Condition', config: { condition: 'x > 10' } },
     ]
-    const edges: EdgeConnection[] = []
-
-    const result = validateApprovalConnections(activities, edges)
-    expect(result).toEqual([])
-  })
-
-  it('ignores task nodes with requiresApproval but no approval config', () => {
-    const activities: Activity[] = [
-      {
-        type: 'task',
-        id: 'task-1',
-        name: 'Incomplete Approval Task',
-        task: { executor: 'script', config: { language: 'python', code: '' } },
-        requiresApproval: true,
-        // Missing approval config
-      },
-    ]
-    const edges: EdgeConnection[] = []
-
-    const result = validateApprovalConnections(activities, edges)
-    expect(result).toEqual([])
-  })
-
-  it('ignores non-task activity types', () => {
-    const activities = [
-      makeCondition({ id: 'C1', name: 'Condition' }),
-      {
-        type: 'trigger',
-        id: 'trigger-1',
-        name: 'Start',
-        trigger: { executor: 'manual', config: {} },
-      },
-    ] as unknown as Activity[]
     const edges: EdgeConnection[] = []
 
     const result = validateApprovalConnections(activities, edges)
@@ -228,14 +118,7 @@ describe('validateApprovalConnections', () => {
   })
 
   it('includes suggestion in error message', () => {
-    const activities = [
-      {
-        type: 'approval',
-        id: 'approval-1',
-        name: 'Approval Task',
-        approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
-      },
-    ] as unknown as Activity[]
+    const activities: Activity[] = [{ type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} }]
     const edges: EdgeConnection[] = []
 
     const result = validateApprovalConnections(activities, edges)

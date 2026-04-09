@@ -1,4 +1,3 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { describe, expect, it, beforeEach } from 'vitest'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
@@ -10,9 +9,18 @@ import {
   createScriptActivity,
   createGenericActivity,
 } from './useWorkflowStore'
+import type { Activity, WorkflowDefinition } from './workflowStoreTypes'
 
-type Activity = WorkflowAPI.components['schemas']['activity']
-type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
+// Helper to create a v2 WorkflowDefinition for tests
+function makeWorkflow(name: string, activities: Activity[] = []): WorkflowDefinition {
+  return {
+    schema_version: '2.0.0',
+    name,
+    description: '',
+    triggers: [],
+    workflow: { activities },
+  }
+}
 
 describe('useWorkflowStore', () => {
   beforeEach(() => {
@@ -26,15 +34,7 @@ describe('useWorkflowStore', () => {
 
   describe('setWorkflow', () => {
     it('sets workflow and increments version', () => {
-      const workflow: WorkflowDefinition = {
-        schemaVersion: '1.0',
-        version: 1,
-        metadata: { name: 'Test Workflow', description: '' },
-        triggers: [],
-        workflow: {
-          activities: [],
-        },
-      }
+      const workflow = makeWorkflow('Test Workflow')
 
       expect(useWorkflowStore.getState().workflowVersion).toBe(0)
 
@@ -46,15 +46,7 @@ describe('useWorkflowStore', () => {
     })
 
     it('increments version on each call', () => {
-      const workflow: WorkflowDefinition = {
-        schemaVersion: '1.0',
-        version: 1,
-        metadata: { name: 'Test Workflow', description: '' },
-        triggers: [],
-        workflow: {
-          activities: [],
-        },
-      }
+      const workflow = makeWorkflow('Test Workflow')
 
       useWorkflowStore.getState().setWorkflow(workflow)
       expect(useWorkflowStore.getState().workflowVersion).toBe(1)
@@ -67,15 +59,7 @@ describe('useWorkflowStore', () => {
     })
 
     it('allows setting workflow to null', () => {
-      const workflow: WorkflowDefinition = {
-        schemaVersion: '1.0',
-        version: 1,
-        metadata: { name: 'Test Workflow', description: '' },
-        triggers: [],
-        workflow: {
-          activities: [],
-        },
-      }
+      const workflow = makeWorkflow('Test Workflow')
 
       useWorkflowStore.getState().setWorkflow(workflow)
       expect(useWorkflowStore.getState().currentWorkflow).not.toBeNull()
@@ -115,21 +99,12 @@ describe('useWorkflowStore', () => {
 
   describe('Trigger management', () => {
     beforeEach(() => {
-      const workflow: WorkflowDefinition = {
-        schemaVersion: '1.0',
-        version: 1,
-        metadata: { name: 'Test Workflow', description: '' },
-        triggers: [],
-        workflow: {
-          activities: [],
-        },
-      }
-      useWorkflowStore.getState().setWorkflow(workflow)
+      useWorkflowStore.getState().setWorkflow(makeWorkflow('Test Workflow'))
     })
 
     describe('addTrigger', () => {
       it('adds trigger to empty array', () => {
-        const trigger = createManualTrigger(false)
+        const trigger = createManualTrigger('test-trigger-1', false)
 
         useWorkflowStore.getState().addTrigger(trigger)
 
@@ -139,8 +114,8 @@ describe('useWorkflowStore', () => {
       })
 
       it('adds multiple triggers', () => {
-        const trigger1 = createManualTrigger(false)
-        const trigger2 = createManualTrigger(true)
+        const trigger1 = createManualTrigger('test-trigger-1', false)
+        const trigger2 = createManualTrigger('test-trigger-2', true)
 
         useWorkflowStore.getState().addTrigger(trigger1)
         useWorkflowStore.getState().addTrigger(trigger2)
@@ -153,7 +128,7 @@ describe('useWorkflowStore', () => {
       it('does nothing when no workflow is set', () => {
         useWorkflowStore.setState({ currentWorkflow: null })
 
-        const trigger = createManualTrigger(false)
+        const trigger = createManualTrigger('test-trigger-1', false)
         useWorkflowStore.getState().addTrigger(trigger)
 
         expect(useWorkflowStore.getState().currentWorkflow).toBeNull()
@@ -162,8 +137,8 @@ describe('useWorkflowStore', () => {
 
     describe('removeTrigger', () => {
       it('removes trigger by index', () => {
-        const trigger1 = createManualTrigger(false)
-        const trigger2 = createManualTrigger(true)
+        const trigger1 = createManualTrigger('test-trigger-1', false)
+        const trigger2 = createManualTrigger('test-trigger-2', true)
 
         useWorkflowStore.getState().addTrigger(trigger1)
         useWorkflowStore.getState().addTrigger(trigger2)
@@ -179,12 +154,113 @@ describe('useWorkflowStore', () => {
 
         expect(useWorkflowStore.getState().currentWorkflow?.triggers).toEqual([])
       })
+
+      it('removes edges connected to deleted trigger', () => {
+        const workflow = makeWorkflow('Test', [createScriptActivity('activity-1', 'Script', 'python', '')])
+        const trigger1 = createManualTrigger('test-trigger-1', false)
+        const trigger2 = createManualTrigger('test-trigger-2', true)
+
+        useWorkflowStore.setState({ currentWorkflow: workflow })
+        useWorkflowStore.getState().addTrigger(trigger1)
+        useWorkflowStore.getState().addTrigger(trigger2)
+
+        // Create edges using real trigger IDs (how they are in the actual app)
+        const edges: EdgeConnection[] = [
+          { id: 'test-trigger-1-activity-1', source: 'test-trigger-1', target: 'activity-1', sourceHandle: 'source' },
+          { id: 'test-trigger-2-activity-1', source: 'test-trigger-2', target: 'activity-1', sourceHandle: 'source' },
+        ]
+        useWorkflowStore.setState({ edges })
+
+        // Remove trigger-0 (test-trigger-1)
+        useWorkflowStore.getState().removeTrigger(0)
+
+        const state = useWorkflowStore.getState()
+        // Edge from deleted trigger test-trigger-1 should be removed
+        expect(state.edges).toHaveLength(1)
+        // Remaining edge should still reference test-trigger-2 (real ID doesn't change)
+        expect(state.edges[0]).toEqual({
+          id: 'test-trigger-2-activity-1',
+          source: 'test-trigger-2',
+          target: 'activity-1',
+          sourceHandle: 'source',
+        })
+      })
+
+      it('removes edge when trigger is deleted from middle', () => {
+        const workflow = makeWorkflow('Test', [createScriptActivity('activity-1', 'Script', 'python', '')])
+        const trigger1 = createManualTrigger('test-trigger-1', false)
+        const trigger2 = createManualTrigger('test-trigger-2', true)
+        const trigger3 = createManualTrigger('test-trigger-3', false)
+
+        useWorkflowStore.setState({ currentWorkflow: workflow })
+        useWorkflowStore.getState().addTrigger(trigger1)
+        useWorkflowStore.getState().addTrigger(trigger2)
+        useWorkflowStore.getState().addTrigger(trigger3)
+
+        // Create edges using real trigger IDs (how they are in the actual app)
+        const edges: EdgeConnection[] = [
+          { id: 'test-trigger-1-activity-1', source: 'test-trigger-1', target: 'activity-1', sourceHandle: 'source' },
+          { id: 'test-trigger-2-activity-1', source: 'test-trigger-2', target: 'activity-1', sourceHandle: 'source' },
+          { id: 'test-trigger-3-activity-1', source: 'test-trigger-3', target: 'activity-1', sourceHandle: 'source' },
+        ]
+        useWorkflowStore.setState({ edges })
+
+        // Remove trigger-1 (test-trigger-2, middle one)
+        useWorkflowStore.getState().removeTrigger(1)
+
+        const state = useWorkflowStore.getState()
+        // Edge from deleted trigger test-trigger-2 should be removed
+        // Other edges remain unchanged (real IDs don't shift)
+        expect(state.edges).toHaveLength(2)
+        expect(state.edges).toContainEqual({
+          id: 'test-trigger-1-activity-1',
+          source: 'test-trigger-1',
+          target: 'activity-1',
+          sourceHandle: 'source',
+        })
+        expect(state.edges).toContainEqual({
+          id: 'test-trigger-3-activity-1',
+          source: 'test-trigger-3',
+          target: 'activity-1',
+          sourceHandle: 'source',
+        })
+      })
+
+      it('handles edges with trigger as target', () => {
+        const workflow = makeWorkflow('Test', [createScriptActivity('activity-1', 'Script', 'python', '')])
+        const trigger1 = createManualTrigger('test-trigger-1', false)
+        const trigger2 = createManualTrigger('test-trigger-2', true)
+
+        useWorkflowStore.setState({ currentWorkflow: workflow })
+        useWorkflowStore.getState().addTrigger(trigger1)
+        useWorkflowStore.getState().addTrigger(trigger2)
+
+        // Create edges using real trigger IDs (how they are in the actual app)
+        const edges: EdgeConnection[] = [
+          { id: 'activity-1-test-trigger-1', source: 'activity-1', target: 'test-trigger-1', sourceHandle: 'source' },
+          { id: 'activity-1-test-trigger-2', source: 'activity-1', target: 'test-trigger-2', sourceHandle: 'source' },
+        ]
+        useWorkflowStore.setState({ edges })
+
+        // Remove trigger-0 (test-trigger-1)
+        useWorkflowStore.getState().removeTrigger(0)
+
+        const state = useWorkflowStore.getState()
+        expect(state.edges).toHaveLength(1)
+        // Remaining edge still references test-trigger-2 (real ID doesn't change)
+        expect(state.edges[0]).toEqual({
+          id: 'activity-1-test-trigger-2',
+          source: 'activity-1',
+          target: 'test-trigger-2',
+          sourceHandle: 'source',
+        })
+      })
     })
 
     describe('updateTrigger', () => {
       it('updates trigger at index', () => {
-        const trigger1 = createManualTrigger(false)
-        const trigger2 = createManualTrigger(true)
+        const trigger1 = createManualTrigger('test-trigger-1', false)
+        const trigger2 = createManualTrigger('test-trigger-2', true)
 
         useWorkflowStore.getState().addTrigger(trigger1)
         useWorkflowStore.getState().updateTrigger(0, trigger2)
@@ -197,16 +273,7 @@ describe('useWorkflowStore', () => {
 
   describe('Activity management', () => {
     beforeEach(() => {
-      const workflow: WorkflowDefinition = {
-        schemaVersion: '1.0',
-        version: 1,
-        metadata: { name: 'Test Workflow', description: '' },
-        triggers: [],
-        workflow: {
-          activities: [],
-        },
-      }
-      useWorkflowStore.getState().setWorkflow(workflow)
+      useWorkflowStore.getState().setWorkflow(makeWorkflow('Test Workflow'))
     })
 
     describe('addActivity', () => {
@@ -247,28 +314,13 @@ describe('useWorkflowStore', () => {
         expect(state.currentWorkflow?.workflow.activities[0].id).toBe('B')
       })
 
-      it('removes join activity and cleans up parallel container', () => {
-        const parallelActivity: Activity = {
-          type: 'parallel',
-          id: 'parallel_for_J',
-          name: 'Parallel for J',
-          branches: [
-            createScriptActivity('B', 'Task B', 'python', 'print("B")'),
-            createScriptActivity('C', 'Task C', 'python', 'print("C")'),
-          ],
-        }
+      it('removes converge activity from flat list', () => {
+        const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+        const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
         const convergeActivity = createConvergeActivity('J', 'Converge J')
 
         useWorkflowStore.setState({
-          currentWorkflow: {
-            schemaVersion: '1.0',
-            version: 1,
-            metadata: { name: 'Test', description: '' },
-            triggers: [],
-            workflow: {
-              activities: [parallelActivity, convergeActivity],
-            },
-          },
+          currentWorkflow: makeWorkflow('Test', [activityB, activityC, convergeActivity]),
           workflowVersion: 1,
           edges: [],
         })
@@ -278,49 +330,36 @@ describe('useWorkflowStore', () => {
         const state = useWorkflowStore.getState()
         const activities = state.currentWorkflow?.workflow.activities ?? []
 
-        // Parallel container should be removed
-        expect(activities.find((a) => a.id === 'parallel_for_J')).toBeUndefined()
         // Join should be removed
         expect(activities.find((a) => a.id === 'J')).toBeUndefined()
-        // Branch activities should be restored
+        // Other activities should remain
         expect(activities.find((a) => a.id === 'B')).toBeDefined()
         expect(activities.find((a) => a.id === 'C')).toBeDefined()
       })
 
-      it('removes activity from nested condition', () => {
-        const condition: Extract<Activity, { type: 'condition' }> = {
+      it('removes condition activity from flat list', () => {
+        const conditionActivity: Activity = {
           type: 'condition',
           id: 'A',
           name: 'Condition A',
-          condition: 'input.value > 10',
-          then: [createScriptActivity('B', 'Task B', 'python', 'print("B")')],
-          else: [createScriptActivity('C', 'Task C', 'python', 'print("C")')],
+          config: { condition: 'input.value > 10' },
         }
+        const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
+        const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
 
         useWorkflowStore.setState({
-          currentWorkflow: {
-            schemaVersion: '1.0',
-            version: 1,
-            metadata: { name: 'Test', description: '' },
-            triggers: [],
-            workflow: {
-              activities: [condition],
-            },
-          },
+          currentWorkflow: makeWorkflow('Test', [conditionActivity, activityB, activityC]),
           workflowVersion: 1,
           edges: [],
         })
 
-        useWorkflowStore.getState().removeActivity('B')
+        useWorkflowStore.getState().removeActivity('A')
 
         const state = useWorkflowStore.getState()
-        const updatedCondition = state.currentWorkflow?.workflow.activities[0] as Extract<
-          Activity,
-          { type: 'condition' }
-        >
+        const activities = state.currentWorkflow?.workflow.activities ?? []
 
-        expect(updatedCondition.then).toHaveLength(0)
-        expect(updatedCondition.else).toHaveLength(1)
+        expect(activities.find((a) => a.id === 'A')).toBeUndefined()
+        expect(activities).toHaveLength(2)
       })
     })
 
@@ -335,39 +374,24 @@ describe('useWorkflowStore', () => {
         expect(state.currentWorkflow?.workflow.activities[0].name).toBe('Updated Task A')
       })
 
-      it('updates activity in nested condition', () => {
-        const condition: Extract<Activity, { type: 'condition' }> = {
+      it('updates condition activity in flat list', () => {
+        const conditionActivity: Activity = {
           type: 'condition',
           id: 'A',
           name: 'Condition A',
-          condition: 'input.value > 10',
-          then: [createScriptActivity('B', 'Task B', 'python', 'print("B")')],
-          else: [],
+          config: { condition: 'input.value > 10' },
         }
 
         useWorkflowStore.setState({
-          currentWorkflow: {
-            schemaVersion: '1.0',
-            version: 1,
-            metadata: { name: 'Test', description: '' },
-            triggers: [],
-            workflow: {
-              activities: [condition],
-            },
-          },
+          currentWorkflow: makeWorkflow('Test', [conditionActivity]),
           workflowVersion: 1,
           edges: [],
         })
 
-        useWorkflowStore.getState().updateActivity('B', { name: 'Updated Task B' })
+        useWorkflowStore.getState().updateActivity('A', { name: 'Updated Condition' })
 
         const state = useWorkflowStore.getState()
-        const updatedCondition = state.currentWorkflow?.workflow.activities[0] as Extract<
-          Activity,
-          { type: 'condition' }
-        >
-
-        expect(updatedCondition.then[0].name).toBe('Updated Task B')
+        expect(state.currentWorkflow?.workflow.activities[0].name).toBe('Updated Condition')
       })
     })
   })
@@ -379,15 +403,7 @@ describe('useWorkflowStore', () => {
       const activity3 = createScriptActivity('C', 'Task C', 'python', 'print("C")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activity1, activity2, activity3],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activity1, activity2, activity3]),
         workflowVersion: 1,
         edges: [],
       })
@@ -403,15 +419,7 @@ describe('useWorkflowStore', () => {
       const activity2 = createScriptActivity('B', 'Task B', 'python', 'print("B")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activity1, activity2],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activity1, activity2]),
         workflowVersion: 1,
         edges: [],
       })
@@ -430,15 +438,7 @@ describe('useWorkflowStore', () => {
       const activity3 = createScriptActivity('C', 'Task C', 'python', 'print("C")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activity1, activity2, activity3],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activity1, activity2, activity3]),
         workflowVersion: 1,
         edges: [],
       })
@@ -454,15 +454,7 @@ describe('useWorkflowStore', () => {
       const activity2 = createScriptActivity('B', 'Task B', 'python', 'print("B")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activity1, activity2],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activity1, activity2]),
         workflowVersion: 1,
         edges: [],
       })
@@ -479,25 +471,20 @@ describe('useWorkflowStore', () => {
       const activity = createGenericActivity('generic-1', 'Placeholder')
 
       expect(activity).toMatchObject({
-        type: 'task',
+        type: 'generic',
         id: 'generic-1',
         name: 'Placeholder',
-        task: {
-          config: {},
+        config: {},
+        metadata: {
+          __isGeneric: true,
         },
-      })
-      expect((activity as Record<string, unknown>).metadata).toMatchObject({
-        __isGeneric: true,
       })
     })
 
-    it('creates generic node without executor details', () => {
+    it('creates generic node with metadata', () => {
       const activity = createGenericActivity('generic-1', 'Test')
 
-      // Should not have executor property
-      expect(activity.task).not.toHaveProperty('executor')
-      // Config should be empty
-      expect(activity.task.config).toEqual({})
+      expect((activity.metadata as { __isGeneric?: boolean })?.__isGeneric).toBe(true)
     })
 
     it('uses default name when not provided', () => {
@@ -509,7 +496,7 @@ describe('useWorkflowStore', () => {
     it('includes custom message in metadata when provided', () => {
       const activity = createGenericActivity('generic-1', 'Test', 'Custom message here')
 
-      expect((activity as Record<string, unknown>).metadata).toMatchObject({
+      expect(activity.metadata as Record<string, unknown>).toMatchObject({
         __isGeneric: true,
         __customMessage: 'Custom message here',
       })
@@ -518,7 +505,7 @@ describe('useWorkflowStore', () => {
     it('does not include custom message when not provided', () => {
       const activity = createGenericActivity('generic-1', 'Test')
 
-      expect((activity as Record<string, unknown>).metadata).toEqual({
+      expect(activity.metadata).toEqual({
         __isGeneric: true,
       })
     })
@@ -526,21 +513,12 @@ describe('useWorkflowStore', () => {
     it('always sets __isGeneric to true', () => {
       const activity = createGenericActivity('generic-1', 'Test')
 
-      expect((activity as Record<string, unknown>).metadata as Record<string, unknown>).toHaveProperty(
-        '__isGeneric',
-        true
-      )
+      expect(activity.metadata).toHaveProperty('__isGeneric', true)
     })
   })
 
   describe('duplicateActivity', () => {
-    const baseWorkflow: WorkflowDefinition = {
-      schemaVersion: '1.0',
-      version: 1,
-      metadata: { name: 'Test', description: '' },
-      triggers: [],
-      workflow: { activities: [] },
-    }
+    const baseWorkflow = makeWorkflow('Test')
 
     beforeEach(() => {
       useWorkflowStore.getState().setWorkflow(baseWorkflow)
@@ -602,9 +580,8 @@ describe('useWorkflowStore', () => {
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const clone = activities.find((a) => a.id === newId)
-      expect(clone?.type).toBe('task')
-      const cloneTask = clone as Extract<Activity, { type: 'task' }>
-      expect(cloneTask.task.config).toEqual(original.task.config)
+      expect(clone?.type).toBe('script')
+      expect(clone?.config).toEqual(original.config)
     })
 
     it('does not share object references between original and clone', () => {
@@ -620,13 +597,7 @@ describe('useWorkflowStore', () => {
   })
 
   describe('replaceActivity', () => {
-    const baseWorkflow: WorkflowDefinition = {
-      schemaVersion: '1.0',
-      version: 1,
-      metadata: { name: 'Test', description: '' },
-      triggers: [],
-      workflow: { activities: [] },
-    }
+    const baseWorkflow = makeWorkflow('Test')
 
     beforeEach(() => {
       useWorkflowStore.getState().setWorkflow(baseWorkflow)
@@ -651,10 +622,7 @@ describe('useWorkflowStore', () => {
         type: 'condition',
         id: 'cond-1',
         name: 'My Condition',
-        condition: 'some.expr',
-        // biome-ignore lint/suspicious/noThenProperty: `then` is part of the workflow condition schema
-        then: [],
-        else: [],
+        config: { condition: 'some.expr' },
       }
       const scriptActivity = createScriptActivity('tmp-id', 'Script Node', 'python', 'print(1)')
       useWorkflowStore.getState().addActivity(conditionActivity)
@@ -663,10 +631,9 @@ describe('useWorkflowStore', () => {
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
       const replaced = activities[0] as Record<string, unknown>
-      expect(replaced.type).toBe('task')
-      expect(replaced).not.toHaveProperty('condition')
-      expect(replaced).not.toHaveProperty('then')
-      expect(replaced).not.toHaveProperty('else')
+      expect(replaced.type).toBe('script')
+      // v2: condition expression is inside config, so replaced activity should have script config
+      expect((replaced.config as Record<string, unknown>).condition).toBeUndefined()
     })
 
     it('preserves list order when replacing a non-first activity', () => {
@@ -691,15 +658,12 @@ describe('useWorkflowStore', () => {
       expect(useWorkflowStore.getState().currentWorkflow).toBeNull()
     })
 
-    it('removes type-specific outgoing edges when replacing a condition node with a task node', () => {
+    it('removes type-specific outgoing edges when replacing a condition node with a script node', () => {
       const conditionActivity: Activity = {
         type: 'condition',
         id: 'cond-1',
         name: 'My Condition',
-        condition: 'some.expr',
-        // biome-ignore lint/suspicious/noThenProperty: `then` is part of the workflow condition schema
-        then: [],
-        else: [],
+        config: { condition: 'some.expr' },
       }
       useWorkflowStore.getState().addActivity(conditionActivity)
       useWorkflowStore.setState({
@@ -717,13 +681,13 @@ describe('useWorkflowStore', () => {
       expect(edges.map((e) => e.id)).toEqual(['e-in'])
     })
 
-    it('removes approval-specific outgoing edges when replacing an approval node with a task node', () => {
-      const approvalActivity = {
+    it('removes approval-specific outgoing edges when replacing an approval node with a script node', () => {
+      const approvalActivity: Activity = {
         type: 'approval',
         id: 'appr-1',
         name: 'My Approval',
-        approval: { approvers: [], prompt: 'Please approve', onApproved: [], onRejected: [] },
-      } as unknown as Activity
+        config: {},
+      }
       useWorkflowStore.getState().addActivity(approvalActivity)
       useWorkflowStore.setState({
         edges: [
@@ -740,13 +704,13 @@ describe('useWorkflowStore', () => {
       expect(edges.map((e) => e.id)).toEqual(['e-in'])
     })
 
-    it('removes loop-specific outgoing edges when replacing a loop node with a task node', () => {
-      const loopActivity = {
+    it('removes loop-specific outgoing edges when replacing a loop node with a script node', () => {
+      const loopActivity: Activity = {
         type: 'loop',
         id: 'loop-1',
         name: 'My Loop',
-        loop: { type: 'forEach', items: '{{ items }}', do: [] },
-      } as unknown as Activity
+        config: { type: 'for_each', items: '{{ items }}' },
+      }
       useWorkflowStore.getState().addActivity(loopActivity)
       useWorkflowStore.setState({
         edges: [

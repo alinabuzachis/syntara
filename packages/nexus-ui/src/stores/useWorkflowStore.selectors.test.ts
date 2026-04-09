@@ -1,4 +1,3 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 
@@ -30,26 +29,20 @@ import {
   useWorkflowName,
   useHasWorkflow,
 } from './useWorkflowStore'
+import type { Activity, WorkflowDefinition } from './workflowStoreTypes'
 
-type WorkflowDefinition = WorkflowAPI.components['schemas']['workflow-definition.schema']
-type Activity = WorkflowAPI.components['schemas']['activity']
-type Trigger = WorkflowAPI.components['schemas']['manualTrigger']
-
-// Helper to create a valid WorkflowDefinition with sensible defaults
+// Helper to create a valid v2 WorkflowDefinition with sensible defaults
 function createTestWorkflow(
   name: string,
   options?: {
     activities?: Activity[]
-    triggers?: Trigger[]
+    triggers?: Activity[]
   }
 ): WorkflowDefinition {
   return {
-    schemaVersion: '1.0',
-    version: 1,
-    metadata: {
-      name,
-      description: '',
-    },
+    schema_version: '2.0.0',
+    name,
+    description: '',
     triggers: options?.triggers ?? [],
     workflow: {
       activities: options?.activities ?? [],
@@ -148,7 +141,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
 
     it('computes triggersCount correctly', () => {
       const workflow = createTestWorkflow('Test Workflow', {
-        triggers: [createManualTrigger(false), createManualTrigger(true)],
+        triggers: [createManualTrigger('trigger-1', false), createManualTrigger('trigger-2', true)],
       })
 
       const { result } = renderHook(() => useWorkflowStore((state) => state.currentWorkflow?.triggers?.length ?? 0))
@@ -280,7 +273,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
 
       // Direct access without React hooks
       const state = useWorkflowStore.getState()
-      expect(state.currentWorkflow?.metadata?.name).toBe('Test Workflow')
+      expect(state.currentWorkflow?.name).toBe('Test Workflow')
       expect(state.workflowVersion).toBe(1)
       expect(state.currentWorkflow?.workflow.activities).toHaveLength(1)
     })
@@ -291,7 +284,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
       // Set workflow directly
       store.getState().setWorkflow(createTestWorkflow('Test'))
 
-      expect(store.getState().currentWorkflow?.metadata?.name).toBe('Test')
+      expect(store.getState().currentWorkflow?.name).toBe('Test')
 
       // Add activity directly
       store.getState().addActivity(createScriptActivity('A', 'Task A', 'python', 'print("A")'))
@@ -397,7 +390,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
 
       useWorkflowStore.getState().setWorkflow(createTestWorkflow('Test Workflow'))
 
-      expect(selectCurrentWorkflow(useWorkflowStore.getState())?.metadata?.name).toBe('Test Workflow')
+      expect(selectCurrentWorkflow(useWorkflowStore.getState())?.name).toBe('Test Workflow')
     })
 
     it('selectWorkflowVersion returns the version number', () => {
@@ -435,7 +428,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
 
       useWorkflowStore.getState().setWorkflow(
         createTestWorkflow('Test', {
-          triggers: [createManualTrigger(false)],
+          triggers: [createManualTrigger('trigger-1', false)],
         })
       )
 
@@ -462,7 +455,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
 
       useWorkflowStore.getState().setWorkflow(
         createTestWorkflow('Test', {
-          triggers: [createManualTrigger(false), createManualTrigger(true)],
+          triggers: [createManualTrigger('trigger-1', false), createManualTrigger('trigger-2', true)],
         })
       )
 
@@ -492,7 +485,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
     it('selectors work with useWorkflowStore hook', () => {
       useWorkflowStore.getState().setWorkflow(
         createTestWorkflow('Test', {
-          triggers: [createManualTrigger(false)],
+          triggers: [createManualTrigger('trigger-1', false)],
           activities: [createScriptActivity('A', 'Task A', 'python', 'print("A")')],
         })
       )
@@ -527,7 +520,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
   })
 
   describe('isDirty flag', () => {
-    const trigger = createManualTrigger(false)
+    const trigger = createManualTrigger('trigger-1', false)
     const activity = createScriptActivity('A', 'Task A', 'python', 'print("A")')
 
     it.each([
@@ -580,7 +573,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
       [
         'updateTrigger',
         createTestWorkflow('Test', { triggers: [trigger] }),
-        () => useWorkflowStore.getState().updateTrigger(0, createManualTrigger(true)),
+        () => useWorkflowStore.getState().updateTrigger(0, createManualTrigger('trigger-2', true)),
       ],
     ])('is true after %s', (_name, initialWorkflow, action) => {
       useWorkflowStore.getState().setWorkflow(initialWorkflow)
@@ -618,12 +611,12 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
       actions.setWorkflow(createTestWorkflow('Original'))
 
       expect(useWorkflowStore.getState().workflowVersion).toBe(1)
-      expect(useWorkflowStore.getState().currentWorkflow?.metadata?.name).toBe('Original')
+      expect(useWorkflowStore.getState().currentWorkflow?.name).toBe('Original')
 
-      actions.updateWorkflow((wf) => ({ ...wf, metadata: { ...wf.metadata, name: 'Updated' } }))
+      actions.updateWorkflow((wf) => ({ ...wf, name: 'Updated' }))
 
       expect(useWorkflowStore.getState().workflowVersion).toBe(1)
-      expect(useWorkflowStore.getState().currentWorkflow?.metadata?.name).toBe('Updated')
+      expect(useWorkflowStore.getState().currentWorkflow?.name).toBe('Updated')
     })
 
     it('updateWorkflow is a no-op when no workflow is loaded', () => {
@@ -632,7 +625,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
       expect(useWorkflowStore.getState().currentWorkflow).toBeNull()
       expect(useWorkflowStore.getState().workflowVersion).toBe(0)
 
-      actions.updateWorkflow((wf) => ({ ...wf, metadata: { ...wf.metadata, name: 'Should not happen' } }))
+      actions.updateWorkflow((wf) => ({ ...wf, name: 'Should not happen' }))
 
       expect(useWorkflowStore.getState().currentWorkflow).toBeNull()
       expect(useWorkflowStore.getState().workflowVersion).toBe(0)
@@ -643,7 +636,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
 
       actions.setWorkflow(createTestWorkflow('Test via actions'))
 
-      expect(useWorkflowStore.getState().currentWorkflow?.metadata?.name).toBe('Test via actions')
+      expect(useWorkflowStore.getState().currentWorkflow?.name).toBe('Test via actions')
 
       actions.addActivity(createScriptActivity('A', 'Task A', 'python', 'print("A")'))
 
@@ -666,8 +659,6 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
       })
 
       // The hook itself doesn't re-render (actions are accessed via getState)
-      // Note: The renderHook wrapper may re-render, but the point is the
-      // component using useWorkflowStoreActions doesn't subscribe to state
       expect(renderCount).toBe(1)
     })
   })
@@ -676,7 +667,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
     beforeEach(() => {
       useWorkflowStore.setState({
         currentWorkflow: createTestWorkflow('Test Workflow', {
-          triggers: [createManualTrigger(false), createManualTrigger(true)],
+          triggers: [createManualTrigger('trigger-1', false), createManualTrigger('trigger-2', true)],
           activities: [
             createScriptActivity('A', 'Task A', 'python', 'print("A")'),
             createScriptActivity('B', 'Task B', 'python', 'print("B")'),
@@ -694,7 +685,7 @@ describe('useWorkflowStore - Selectors and Best Practices', () => {
 
     it('useCurrentWorkflow returns the workflow', () => {
       const { result } = renderHook(() => useCurrentWorkflow())
-      expect(result.current?.metadata?.name).toBe('Test Workflow')
+      expect(result.current?.name).toBe('Test Workflow')
     })
 
     it('useEdges returns the edges array', () => {

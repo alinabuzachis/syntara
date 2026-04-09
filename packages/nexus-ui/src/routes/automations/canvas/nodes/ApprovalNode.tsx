@@ -1,4 +1,4 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type ApprovalActivity as ApprovalNodeType } from '@ansible/nexus-contracts'
 import { Flex, FlexItem } from '@patternfly/react-core'
 import { type Node, type NodeProps } from '@xyflow/react'
 
@@ -16,7 +16,7 @@ import { MenuNodeType, useNodeMenuActions } from './hooks/useNodeMenuActions'
 import { executorMetadata, nodeMetadata } from './nodeMetadata'
 import { renderNodeIcon } from './renderNodeIcon'
 
-export type ApprovalNode = { type: 'approval' } & Node<TaskActivity>
+export type ApprovalNode = { type: 'approval' } & Node<ApprovalNodeType>
 
 export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
   const metadata = nodeMetadata.task
@@ -26,8 +26,8 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
   })
 
   const executorMeta = executorMetadata.approval
-  const iconNode = renderNodeIcon(executorMeta?.icon, 'approval', 'canvas', getNodeTypeColor('approval'))
-  const taskExecutor = executorMeta?.label || 'Approval'
+  const iconNode = renderNodeIcon(executorMeta?.icon, 'approval', 'canvas', getNodeTypeColor(ActivityTypeEnum.APPROVAL))
+  const taskExecutor = executorMeta?.label ?? 'Approval'
 
   // Extract execution state if present
   const executionState = (props.data as Record<string, unknown>).__executionState as
@@ -43,6 +43,9 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
   const showExecutionBadge =
     ((props.data as Record<string, unknown>).metadata as { __showExecutionBadge?: boolean } | undefined)
       ?.__showExecutionBadge === true
+
+  // In v2, approval config has approver_timeout at config level (no approvers list)
+  const approvalConfig = (props.data.config ?? {}) as { approver_timeout?: number }
 
   return (
     <NodeComponent
@@ -72,8 +75,8 @@ export function ApprovalNodeComponent(props: NodeProps<ApprovalNode>) {
         <Flex justifyContent={{ default: 'justifyContentFlexEnd' }} gap={{ default: 'gapNone' }}>
           <FlexItem grow={{ default: 'grow' }} style={{ minWidth: 0 }}>
             <NodeBody>
-              {props.data.approval && (
-                <Details>{renderText('Usernames to notify', props.data.approval.approvers.join(', '))}</Details>
+              {approvalConfig.approver_timeout != null && (
+                <Details>{renderText('Timeout', `${approvalConfig.approver_timeout}s`)}</Details>
               )}
             </NodeBody>
           </FlexItem>

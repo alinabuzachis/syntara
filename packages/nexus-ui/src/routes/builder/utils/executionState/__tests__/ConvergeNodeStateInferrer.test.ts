@@ -13,7 +13,7 @@ describe('ConvergeNodeStateInferrer', () => {
       id: 'converge-1',
       name: 'Converge',
       type: 'converge',
-      converge: { branches: ['task-a', 'task-b'], strategy: 'all' },
+      config: { strategy: 'all' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'task-a', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
@@ -44,7 +44,7 @@ describe('ConvergeNodeStateInferrer', () => {
       id: 'converge-1',
       name: 'Converge',
       type: 'converge',
-      converge: { branches: ['task-a', 'task-b'], strategy: 'all' },
+      config: { strategy: 'all' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'task-a', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
@@ -83,7 +83,7 @@ describe('ConvergeNodeStateInferrer', () => {
       id: 'converge-1',
       name: 'Converge',
       type: 'converge',
-      converge: { branches: ['task-a', 'task-b'], strategy: 'all' },
+      config: { strategy: 'all' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'task-a', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
@@ -117,7 +117,7 @@ describe('ConvergeNodeStateInferrer', () => {
       id: 'converge-1',
       name: 'Converge',
       type: 'converge',
-      converge: { branches: ['task-a', 'task-b'], strategy: 'all' },
+      config: { strategy: 'all' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'task-a', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
@@ -140,7 +140,7 @@ describe('ConvergeNodeStateInferrer', () => {
       id: 'converge-1',
       name: 'Converge',
       type: 'converge',
-      converge: { branches: ['task-a', 'task-b'], strategy: 'all' },
+      config: { strategy: 'all' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'task-a', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
@@ -177,7 +177,7 @@ describe('ConvergeNodeStateInferrer', () => {
       id: 'converge-1',
       name: 'Converge',
       type: 'converge',
-      converge: { branches: ['task-a', 'task-b'], strategy: 'all' },
+      config: { strategy: 'all' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'task-a', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },
@@ -206,7 +206,7 @@ describe('ConvergeNodeStateInferrer', () => {
       id: 'converge-1',
       name: 'Converge',
       type: 'converge',
-      converge: { branches: ['task-a', 'task-b', 'task-c'], strategy: 'all' },
+      config: { strategy: 'all' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'task-a', target: 'converge-1', sourceHandle: 'source', targetHandle: 'target' },

@@ -661,8 +661,8 @@ const config = statusMap[apiStatus]
 
 These types of strings are **safe** to use in logic (they won't be translated):
 
-- **API contract values**: `type === 'converge'`, `status === 'success'`, `executor === 'script'`
-- **TypeScript enum values**: `nodeType === NodeType.Task`
+- **API contract values**: `type === 'converge'`, `status === 'success'`, `type === 'script'`
+- **TypeScript enum values**: `activity.type === ActivityTypeEnum.SCRIPT`
 - **Internal constants**: `mode === 'development'`, `edge.type === 'buttonEdge'`
 - **Technical identifiers**: `file.endsWith('.tsx')`, `id.startsWith('parallel_')`
 
@@ -724,26 +724,27 @@ The codebase provides centralized enum constants in `@ansible/nexus-contracts`:
 ```typescript
 import { ActivityTypeEnum, TriggerTypeEnum, ExecutorTypeEnum, EdgeHandleEnum } from '@ansible/nexus-contracts'
 
-// Activity types
-ActivityTypeEnum.TASK // 'task'
-ActivityTypeEnum.PARALLEL // 'parallel'
-ActivityTypeEnum.SEQUENCE // 'sequence'
+// Activity types (v2 — executor types are first-class node types, no 'task' wrapper)
+ActivityTypeEnum.SCRIPT // 'script'
+ActivityTypeEnum.HTTP_REQUEST // 'http_request'
+ActivityTypeEnum.AGENTIC // 'agentic'
+ActivityTypeEnum.AAP_JOB_TEMPLATE // 'aap_job_template'
+ActivityTypeEnum.APPROVAL // 'approval'
 ActivityTypeEnum.CONDITION // 'condition'
 ActivityTypeEnum.LOOP // 'loop'
 ActivityTypeEnum.CONVERGE // 'converge'
-ActivityTypeEnum.APPROVAL // 'approval'
 
 // Trigger types
-TriggerTypeEnum.MANUAL // 'manual'
+TriggerTypeEnum.MANUAL_TRIGGER // 'manual_trigger'
 TriggerTypeEnum.SCHEDULED // 'scheduled'
 TriggerTypeEnum.EVENT // 'event'
 
-// Executor types
+// Executor types (v2 — executor types are the node type directly, no task.executor wrapper)
 ExecutorTypeEnum.SCRIPT // 'script'
-ExecutorTypeEnum.API // 'api'
+ExecutorTypeEnum.HTTP_REQUEST // 'http_request'
 ExecutorTypeEnum.AGENTIC // 'agentic'
-ExecutorTypeEnum.CONNECTOR // 'connector'
 ExecutorTypeEnum.AAP_JOB_TEMPLATE // 'aap_job_template'
+ExecutorTypeEnum.APPROVAL // 'approval'
 
 // Edge handles
 EdgeHandleEnum.SOURCE // 'source'
@@ -761,7 +762,7 @@ EdgeHandleEnum.REJECTED // 'rejected'
 
 **Always use enum constants for:**
 
-1. **Type discriminators** - `activity.type`, `trigger.type`, `task.executor`
+1. **Type discriminators** - `activity.type`, `trigger.type`
 2. **Handle identifiers** - `edge.sourceHandle`, `edge.targetHandle`
 3. **Type assignments** - Creating new activities, edges, triggers
 4. **Switch statements** - Pattern matching on discriminated unions
@@ -787,9 +788,9 @@ switch (activity.type) {
 
 // ✅ GOOD: Assignments
 const activity = {
-  type: ActivityTypeEnum.TASK,
+  type: ActivityTypeEnum.SCRIPT,
   id: generateId(),
-  name: 'My Task',
+  name: 'My Script',
 }
 
 const edge = {

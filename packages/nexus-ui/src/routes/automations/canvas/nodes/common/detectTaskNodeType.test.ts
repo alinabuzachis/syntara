@@ -4,262 +4,360 @@ import { describe, expect, it } from 'vitest'
 import { DetectedExecutorType, detectTaskNodeType, type TaskActivityWithMetadata } from './detectTaskNodeType'
 
 describe('detectTaskNodeType', () => {
-  const createBaseTask = (overrides: Partial<TaskActivity> = {}): TaskActivity => ({
-    type: 'task',
-    id: 'test-task-1',
-    name: 'Test Task',
-    task: {
-      executor: 'script',
+  const createBaseTask = (overrides: Partial<TaskActivity> = {}): TaskActivity =>
+    ({
+      type: 'script',
+      id: 'test-task-1',
+      name: 'Test Task',
       config: {
         language: 'python',
         code: 'print("hello")',
       },
-    },
-    ...overrides,
-  })
+      ...overrides,
+    }) as TaskActivity
 
   describe('basic detection', () => {
-    it('returns the executor type for a basic task', () => {
+    it('returns the type for a basic script task', () => {
       const task = createBaseTask()
       const result = detectTaskNodeType(task)
 
       expect(result).toEqual({
-        detectedExecutorType: undefined,
+        detectedExecutorType: 'script',
         connectorData: null,
         actualExecutor: 'script',
       })
     })
 
-    it('returns agentic executor for agentic tasks', () => {
+    it('returns agentic type for agentic tasks', () => {
       const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: 'Do something',
-          },
+        type: 'agentic',
+        config: {
+          prompt: 'Do something',
+          model: 'claude-3-sonnet',
         },
-      })
+      } as Partial<TaskActivity>)
       const result = detectTaskNodeType(task)
 
+      expect(result.detectedExecutorType).toBe('agentic')
       expect(result.actualExecutor).toBe('agentic')
     })
 
-    it('returns api executor for API tasks', () => {
+    it('returns http_request type for HTTP request tasks', () => {
       const task = createBaseTask({
-        task: {
-          executor: 'api',
-          config: { method: 'GET', url: 'https://api.example.com' },
-        },
-      })
+        type: 'http_request',
+        config: { method: 'GET', url: 'https://api.example.com' },
+      } as Partial<TaskActivity>)
       const result = detectTaskNodeType(task)
 
-      expect(result.actualExecutor).toBe('api')
+      expect(result.detectedExecutorType).toBe('http_request')
+      expect(result.actualExecutor).toBe('http_request')
+    })
+
+    it('returns aap_job_template type for AAP tasks', () => {
+      const task = createBaseTask({
+        type: 'aap_job_template',
+        config: { job_template_id: 123 },
+      } as Partial<TaskActivity>)
+      const result = detectTaskNodeType(task)
+
+      expect(result.detectedExecutorType).toBe('aap_job_template')
+      expect(result.actualExecutor).toBe('aap_job_template')
     })
   })
 
   describe('metadata override detection', () => {
-    it('uses __executorType from metadata when present', () => {
+    it('rejects invalid __executorType from metadata for security', () => {
       const task = createBaseTask() as TaskActivityWithMetadata
       task.metadata = { __executorType: 'custom-executor' }
 
       const result = detectTaskNodeType(task)
 
+      // SECURITY: Invalid executor types are rejected, falls back to task.type
       expect(result).toEqual({
-        detectedExecutorType: 'custom-executor',
+        detectedExecutorType: 'script',
         connectorData: null,
-        actualExecutor: 'custom-executor',
+        actualExecutor: 'script',
       })
+    })
+
+    it('accepts valid API __executorType from metadata', () => {
+      const task = createBaseTask({
+        type: 'agentic',
+        config: { prompt: 'test' },
+      } as Partial<TaskActivity>) as TaskActivityWithMetadata
+      task.metadata = { __executorType: 'aap_job_template' }
+
+      const result = detectTaskNodeType(task)
+
+      expect(result.detectedExecutorType).toBe('aap_job_template')
+      expect(result.actualExecutor).toBe('aap_job_template')
+    })
+
+    it('SECURITY: rejects internal-only aap type from metadata override', () => {
+      const task = createBaseTask({
+        type: 'agentic',
+        config: { prompt: 'test' },
+      } as Partial<TaskActivity>) as TaskActivityWithMetadata
+      task.metadata = { __executorType: 'aap' }
+
+      const result = detectTaskNodeType(task)
+
+      // 'aap' is internal-only — metadata override is rejected, falls back to task.type
+      expect(result.detectedExecutorType).toBe('agentic')
+      expect(result.actualExecutor).toBe('agentic')
+    })
+
+    it('accepts all valid executor types from ExecutorTypeEnum', () => {
+      const validTypes = ['script', 'http_request', 'agentic', 'aap_job_template', 'approval'] as const
+
+      for (const executorType of validTypes) {
+        const task = createBaseTask() as TaskActivityWithMetadata
+        task.metadata = { __executorType: executorType }
+
+        const result = detectTaskNodeType(task)
+
+        expect(result.detectedExecutorType).toBe(executorType)
+        expect(result.actualExecutor).toBe(executorType)
+      }
     })
   })
 
-  describe('connector node detection', () => {
-    it('detects connector nodes from agentic prompt JSON', () => {
+  describe('AAP connector detection in agentic nodes', () => {
+    it('detects AAP connector from JSON prompt and sets detectedExecutorType', () => {
+      const promptPayload = {
+        __type: 'connector',
+        connectorId: 'ansible-automation-platform',
+        operation: 'run_job_template',
+        parameters: { template_id: 123 },
+      }
+
       const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: JSON.stringify({
-              __type: 'connector',
-              connectorId: 'my-connector',
-              operation: 'fetch',
-              parameters: { url: 'https://example.com' },
-            }),
-          },
+        type: 'agentic',
+        config: {
+          prompt: JSON.stringify(promptPayload),
+          model: 'claude-3-sonnet',
         },
-      })
+      } as Partial<TaskActivity>)
 
       const result = detectTaskNodeType(task)
 
-      expect(result.connectorData).toEqual({
-        connectorId: 'my-connector',
-        operation: 'fetch',
-        parameters: { url: 'https://example.com' },
-      })
-      expect(result.actualExecutor).toBe('agentic')
-    })
-
-    it('detects AAP connector nodes', () => {
-      const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: JSON.stringify({
-              __type: 'connector',
-              connectorId: 'ansible-automation-platform',
-              operation: 'run-job',
-              parameters: { jobId: '123' },
-            }),
-          },
-        },
-      })
-
-      const result = detectTaskNodeType(task)
-
+      // CRITICAL: Both detectedExecutorType and actualExecutor should be 'aap'
       expect(result.detectedExecutorType).toBe(DetectedExecutorType.AAP)
       expect(result.actualExecutor).toBe(DetectedExecutorType.AAP)
-      expect(result.connectorData).toEqual({
-        connectorId: 'ansible-automation-platform',
-        operation: 'run-job',
-        parameters: { jobId: '123' },
-      })
+      expect(result.connectorData).toBeNull()
     })
 
-    it('detects AAP connector nodes with partial match', () => {
+    it('does not detect AAP when prompt is plain text', () => {
       const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: JSON.stringify({
-              __type: 'connector',
-              connectorId: 'my-ansible-connector',
-              operation: 'run',
-            }),
-          },
+        type: 'agentic',
+        config: {
+          prompt: 'Run a job template on AAP',
+          model: 'claude-3-sonnet',
         },
-      })
+      } as Partial<TaskActivity>)
 
       const result = detectTaskNodeType(task)
 
-      expect(result.detectedExecutorType).toBe(DetectedExecutorType.AAP)
-    })
-
-    it('does not detect AAP for non-ansible connectors', () => {
-      const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: JSON.stringify({
-              __type: 'connector',
-              connectorId: 'slack-connector',
-              operation: 'post',
-            }),
-          },
-        },
-      })
-
-      const result = detectTaskNodeType(task)
-
-      expect(result.detectedExecutorType).toBeUndefined()
+      expect(result.detectedExecutorType).toBe('agentic')
       expect(result.actualExecutor).toBe('agentic')
+    })
+
+    it('does not detect AAP when connectorId is different', () => {
+      const promptPayload = {
+        __type: 'connector',
+        connectorId: 'some-other-connector',
+        operation: 'do_something',
+      }
+
+      const task = createBaseTask({
+        type: 'agentic',
+        config: {
+          prompt: JSON.stringify(promptPayload),
+          model: 'claude-3-sonnet',
+        },
+      } as Partial<TaskActivity>)
+
+      const result = detectTaskNodeType(task)
+
+      expect(result.detectedExecutorType).toBe('agentic')
+      expect(result.actualExecutor).toBe('agentic')
+    })
+
+    it('does not detect AAP when __type is not "connector"', () => {
+      const promptPayload = {
+        __type: 'something-else',
+        connectorId: 'ansible-automation-platform',
+      }
+
+      const task = createBaseTask({
+        type: 'agentic',
+        config: {
+          prompt: JSON.stringify(promptPayload),
+          model: 'claude-3-sonnet',
+        },
+      } as Partial<TaskActivity>)
+
+      const result = detectTaskNodeType(task)
+
+      expect(result.detectedExecutorType).toBe('agentic')
+      expect(result.actualExecutor).toBe('agentic')
+    })
+
+    it('handles invalid JSON in prompt gracefully', () => {
+      const task = createBaseTask({
+        type: 'agentic',
+        config: {
+          prompt: '{ invalid json',
+          model: 'claude-3-sonnet',
+        },
+      } as Partial<TaskActivity>)
+
+      const result = detectTaskNodeType(task)
+
+      expect(result.detectedExecutorType).toBe('agentic')
+      expect(result.actualExecutor).toBe('agentic')
+    })
+
+    it('safely handles __proto__ in parsed prompt to prevent prototype pollution', () => {
+      const maliciousPayload = {
+        __type: 'connector',
+        connectorId: 'ansible-automation-platform',
+        __proto__: { polluted: true },
+      }
+
+      const task = createBaseTask({
+        type: 'agentic',
+        config: {
+          prompt: JSON.stringify(maliciousPayload),
+          model: 'claude-3-sonnet',
+        },
+      } as Partial<TaskActivity>)
+
+      const result = detectTaskNodeType(task)
+
+      // SECURITY: Should detect AAP connector despite __proto__ presence
+      // The implementation only accesses expected properties directly
+      expect(result.detectedExecutorType).toBe(DetectedExecutorType.AAP)
+      expect(result.actualExecutor).toBe(DetectedExecutorType.AAP)
+    })
+
+    it('safely handles constructor in parsed prompt', () => {
+      const maliciousPayload = {
+        __type: 'connector',
+        connectorId: 'ansible-automation-platform',
+        constructor: { prototype: { polluted: true } },
+      }
+
+      const task = createBaseTask({
+        type: 'agentic',
+        config: {
+          prompt: JSON.stringify(maliciousPayload),
+          model: 'claude-3-sonnet',
+        },
+      } as Partial<TaskActivity>)
+
+      const result = detectTaskNodeType(task)
+
+      // SECURITY: Should detect AAP connector despite constructor presence
+      expect(result.detectedExecutorType).toBe(DetectedExecutorType.AAP)
+      expect(result.actualExecutor).toBe(DetectedExecutorType.AAP)
+    })
+
+    it('rejects non-object parsed values', () => {
+      const task = createBaseTask({
+        type: 'agentic',
+        config: {
+          prompt: '"just a string"',
+          model: 'claude-3-sonnet',
+        },
+      } as Partial<TaskActivity>)
+
+      const result = detectTaskNodeType(task)
+
+      // SECURITY: Parsed value is not an object, should not detect AAP
+      expect(result.detectedExecutorType).toBe('agentic')
+      expect(result.actualExecutor).toBe('agentic')
+    })
+
+    it('rejects null parsed values', () => {
+      const task = createBaseTask({
+        type: 'agentic',
+        config: {
+          prompt: 'null',
+          model: 'claude-3-sonnet',
+        },
+      } as Partial<TaskActivity>)
+
+      const result = detectTaskNodeType(task)
+
+      // SECURITY: Parsed value is null, should not detect AAP
+      expect(result.detectedExecutorType).toBe('agentic')
+      expect(result.actualExecutor).toBe('agentic')
+    })
+
+    it('valid metadata override takes precedence over AAP connector detection', () => {
+      const promptPayload = {
+        __type: 'connector',
+        connectorId: 'ansible-automation-platform',
+        operation: 'run_job_template',
+      }
+
+      const task = createBaseTask({
+        type: 'agentic',
+        config: {
+          prompt: JSON.stringify(promptPayload),
+          model: 'claude-3-sonnet',
+        },
+      } as Partial<TaskActivity>) as TaskActivityWithMetadata
+
+      task.metadata = { __executorType: 'script' }
+
+      const result = detectTaskNodeType(task)
+
+      // Valid override should win over AAP detection
+      expect(result.detectedExecutorType).toBe('script')
+      expect(result.actualExecutor).toBe('script')
+    })
+
+    it('invalid metadata override is rejected and AAP connector is detected', () => {
+      const promptPayload = {
+        __type: 'connector',
+        connectorId: 'ansible-automation-platform',
+        operation: 'run_job_template',
+      }
+
+      const task = createBaseTask({
+        type: 'agentic',
+        config: {
+          prompt: JSON.stringify(promptPayload),
+          model: 'claude-3-sonnet',
+        },
+      } as Partial<TaskActivity>) as TaskActivityWithMetadata
+
+      task.metadata = { __executorType: 'invalid-type' }
+
+      const result = detectTaskNodeType(task)
+
+      // Invalid override is rejected, AAP detection should proceed
+      expect(result.detectedExecutorType).toBe(DetectedExecutorType.AAP)
+      expect(result.actualExecutor).toBe(DetectedExecutorType.AAP)
     })
   })
 
   describe('edge cases', () => {
-    it('handles invalid JSON in prompt gracefully', () => {
-      const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: 'not valid json {{{',
-          },
-        },
-      })
-
+    it('returns empty string for missing type', () => {
+      const task = { id: 'test', name: 'Test', config: {} } as TaskActivity
       const result = detectTaskNodeType(task)
 
-      expect(result).toEqual({
-        detectedExecutorType: undefined,
-        connectorData: null,
-        actualExecutor: 'agentic',
-      })
-    })
-
-    it('handles empty prompt', () => {
-      const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: '',
-          },
-        },
-      })
-
-      const result = detectTaskNodeType(task)
-
+      expect(result.actualExecutor).toBe('')
       expect(result.connectorData).toBeNull()
     })
 
-    it('handles undefined prompt', () => {
-      const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-          },
-        },
-      })
-
+    it('connectorData is always null in v2', () => {
+      const task = createBaseTask()
       const result = detectTaskNodeType(task)
 
       expect(result.connectorData).toBeNull()
-    })
-
-    it('handles JSON without __type connector', () => {
-      const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: JSON.stringify({
-              __type: 'something-else',
-              data: 'value',
-            }),
-          },
-        },
-      })
-
-      const result = detectTaskNodeType(task)
-
-      expect(result.connectorData).toBeNull()
-    })
-
-    it('metadata override takes precedence over AAP detection', () => {
-      const task = createBaseTask({
-        task: {
-          executor: 'agentic',
-          config: {
-            agent: 'default-agent',
-            prompt: JSON.stringify({
-              __type: 'connector',
-              connectorId: 'ansible-automation-platform',
-            }),
-          },
-        },
-      }) as TaskActivityWithMetadata
-      task.metadata = { __executorType: 'connector' }
-
-      const result = detectTaskNodeType(task)
-
-      // Should use metadata override, not auto-detect AAP
-      expect(result.detectedExecutorType).toBe('connector')
-      expect(result.actualExecutor).toBe('connector')
     })
   })
 })

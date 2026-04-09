@@ -45,8 +45,6 @@ describe('constants', () => {
   describe('ACTIVITY_TYPES', () => {
     it('contains all activity type constants', () => {
       expect(ACTIVITY_TYPES.TASK).toBe('task')
-      expect(ACTIVITY_TYPES.PARALLEL).toBe('parallel')
-      expect(ACTIVITY_TYPES.SEQUENCE).toBe('sequence')
       expect(ACTIVITY_TYPES.LOOP).toBe('loop')
       expect(ACTIVITY_TYPES.CONDITION).toBe('condition')
       expect(ACTIVITY_TYPES.CONVERGE).toBe('converge')

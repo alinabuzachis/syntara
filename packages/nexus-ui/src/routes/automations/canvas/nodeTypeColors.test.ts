@@ -15,60 +15,67 @@ describe('getNodeTypeColor', () => {
     expect(getNodeTypeColor(FlowNodeType.APPROVAL)).toBe(NODE_TYPE_COLORS.approval)
   })
 
-  it('returns logic color for condition, loop, converge, parallel', () => {
+  it('returns logic color for condition, loop, converge', () => {
     expect(getNodeTypeColor(FlowNodeType.CONDITION)).toBe(NODE_TYPE_COLORS.logic)
     expect(getNodeTypeColor(FlowNodeType.LOOP)).toBe(NODE_TYPE_COLORS.logic)
     expect(getNodeTypeColor(FlowNodeType.CONVERGE)).toBe(NODE_TYPE_COLORS.logic)
-    expect(getNodeTypeColor(FlowNodeType.PARALLEL)).toBe(NODE_TYPE_COLORS.logic)
   })
 
   it('returns generic color for generic node type', () => {
     expect(getNodeTypeColor(FlowNodeType.GENERIC)).toBe(NODE_TYPE_COLORS.generic)
   })
 
-  it('returns actionScript color for task with script executor', () => {
+  it('returns actionScript color for task with script type', () => {
     expect(
       getNodeTypeColor(FlowNodeType.TASK, {
-        type: 'task',
-        task: { executor: ExecutorTypeEnum.SCRIPT, config: {} },
+        type: ExecutorTypeEnum.SCRIPT,
+        id: 'test',
+        config: {},
       } as Parameters<typeof getNodeTypeColor>[1])
     ).toBe(NODE_TYPE_COLORS.actionScript)
   })
 
-  it('returns actionAap color for task with aap_job_template executor', () => {
+  it('returns actionAap color for task with aap_job_template type', () => {
     expect(
       getNodeTypeColor(FlowNodeType.TASK, {
-        type: 'task',
-        task: { executor: ExecutorTypeEnum.AAP_JOB_TEMPLATE, config: {} },
+        type: ExecutorTypeEnum.AAP_JOB_TEMPLATE,
+        id: 'test',
+        config: {},
       } as Parameters<typeof getNodeTypeColor>[1])
     ).toBe(NODE_TYPE_COLORS.actionAap)
   })
 
-  it('returns actionAap color when detectTaskNodeType resolves actualExecutor to aap (connector workaround)', () => {
+  it('SECURITY: rejects internal-only aap type from metadata override, falls back to agentic color', () => {
+    // 'aap' is internal-only — metadata.__executorType: 'aap' from untrusted workflow JSON
+    // must be rejected to prevent forcing arbitrary nodes to render with AAP styling
     expect(
       getNodeTypeColor(FlowNodeType.TASK, {
-        type: 'task',
-        task: { executor: DetectedExecutorType.AAP, config: {} },
-      } as Parameters<typeof getNodeTypeColor>[1])
-    ).toBe(NODE_TYPE_COLORS.actionAap)
-  })
-
-  it('returns actionAgentic color for task with agentic executor', () => {
-    expect(
-      getNodeTypeColor(FlowNodeType.TASK, {
-        type: 'task',
-        task: { executor: ExecutorTypeEnum.AGENTIC, config: {} },
+        type: ExecutorTypeEnum.AGENTIC,
+        id: 'test',
+        config: {},
+        metadata: { __executorType: DetectedExecutorType.AAP },
       } as Parameters<typeof getNodeTypeColor>[1])
     ).toBe(NODE_TYPE_COLORS.actionAgentic)
   })
 
-  it('returns actionDefault for task with api executor', () => {
+  it('returns actionAgentic color for task with agentic type', () => {
     expect(
       getNodeTypeColor(FlowNodeType.TASK, {
-        type: 'task',
-        task: { executor: ExecutorTypeEnum.API, config: {} },
+        type: ExecutorTypeEnum.AGENTIC,
+        id: 'test',
+        config: {},
       } as Parameters<typeof getNodeTypeColor>[1])
-    ).toBe(NODE_TYPE_COLORS.actionDefault)
+    ).toBe(NODE_TYPE_COLORS.actionAgentic)
+  })
+
+  it('returns actionHttpRequest for task with http_request type', () => {
+    expect(
+      getNodeTypeColor(FlowNodeType.TASK, {
+        type: ExecutorTypeEnum.HTTP_REQUEST,
+        id: 'test',
+        config: {},
+      } as Parameters<typeof getNodeTypeColor>[1])
+    ).toBe(NODE_TYPE_COLORS.actionHttpRequest)
   })
 
   it('returns actionDefault for task-reversed with no data', () => {

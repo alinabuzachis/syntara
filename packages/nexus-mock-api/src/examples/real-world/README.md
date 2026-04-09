@@ -15,7 +15,16 @@ Analyzes user activity from JSONPlaceholder API by fetching user profile, posts,
 - Data aggregation and reporting
 - Complex data processing with Python
 
-**File:** `packages/nexus-mock-api/src/examples/real-world/blog-analytics.yaml`
+**Usage:**
+
+```bash
+# Analyze default user (ID: 1)
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/blog-analytics.yaml
+
+# Analyze specific user
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/blog-analytics.yaml \
+  --inputs '{"user_id": 3}'
+```
 
 **Expected Output:**
 
@@ -37,7 +46,20 @@ Fetches repository information from GitHub API and analyzes popularity, activity
 - Popularity scoring algorithm
 - Multi-language repository analysis
 
-**File:** `packages/nexus-mock-api/src/examples/real-world/github-repo-info.yaml`
+**Usage:**
+
+```bash
+# Analyze default repository (anthropics/anthropic-sdk-python)
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/github-repo-info.yaml
+
+# Analyze specific repository
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/github-repo-info.yaml \
+  --inputs '{"owner": "temporalio", "repo": "sdk-python"}'
+
+# Analyze your own repository
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/github-repo-info.yaml \
+  --inputs '{"owner": "yourusername", "repo": "yourrepo"}'
+```
 
 **Expected Output:**
 
@@ -59,7 +81,20 @@ Looks up IP address geolocation data and generates a location report using the i
 - Bash script for report generation
 - Location and network information
 
-**File:** `packages/nexus-mock-api/src/examples/real-world/ip-geolocation.yaml`
+**Usage:**
+
+```bash
+# Lookup default IP (8.8.8.8 - Google DNS)
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/ip-geolocation.yaml
+
+# Lookup specific IP address
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/ip-geolocation.yaml \
+  --inputs '{"ip_address": "1.1.1.1"}'
+
+# Lookup your current public IP (leave empty string)
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/ip-geolocation.yaml \
+  --inputs '{"ip_address": ""}'
+```
 
 **Expected Output:**
 
@@ -81,7 +116,20 @@ Fetches random user profiles from randomuser.me API and generates a user directo
 - Statistical analysis (average age, gender distribution)
 - Array data handling
 
-**File:** `packages/nexus-mock-api/src/examples/real-world/random-users.yaml`
+**Usage:**
+
+```bash
+# Generate default (5 users)
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/random-users.yaml
+
+# Generate specific number of users
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/random-users.yaml \
+  --inputs '{"count": 10}'
+
+# Maximum allowed: 20 users
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/random-users.yaml \
+  --inputs '{"count": 20}'
+```
 
 **Expected Output:**
 
@@ -104,7 +152,22 @@ Fetches detailed country information from REST Countries API including geography
 - Size categorization
 - Multi-currency and multi-language support
 
-**File:** `packages/nexus-mock-api/src/examples/real-world/country-info.yaml`
+**Usage:**
+
+```bash
+# Get info for default country (US)
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/country-info.yaml
+
+# Get info for specific country (use ISO 3166-1 alpha-2 codes)
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/country-info.yaml \
+  --inputs '{"country_code": "GB"}'  # United Kingdom
+
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/country-info.yaml \
+  --inputs '{"country_code": "FR"}'  # France
+
+uv run python tools/workflow_cli.py run tests/integration/workflow/examples/real-world/country-info.yaml \
+  --inputs '{"country_code": "JP"}'  # Japan
+```
 
 **Expected Output:**
 
@@ -206,11 +269,17 @@ code: |
   # Process the list...
 ```
 
-## Usage Notes
+## Requirements
 
-- These files are stored here as mock-api fixtures and reference workflows.
-- If you want to execute them with workflow CLI tooling, use the backend repository where that runner lives.
-- Network access to the public APIs listed above is still required when these workflows are executed in a backend environment.
+- **Temporal dev server** running on `localhost:7233`
+
+  ```bash
+  temporal server start-dev
+  ```
+
+- **Python 3.12+** with required dependencies
+
+- **Network access** to public APIs (no authentication required for these examples)
 
 ## Notes
 
@@ -270,6 +339,6 @@ When creating new real-world workflow examples:
 For basic workflow patterns and features, see:
 
 - `../basic/` - Core workflow patterns
+- `../api/` - API-specific examples with mock endpoints
 - `../loops/` - Loop constructs
-- `../parallel/` - Parallel execution examples
-- `../parameters/` - Input and output mapping examples
+- `../conditionals/` - Conditional logic

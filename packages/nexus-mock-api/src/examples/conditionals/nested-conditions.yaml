@@ -1,58 +1,54 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: nested-conditional-test
-  description: Test nested/chained conditional logic
-
+schema_version: "2.0.0"
+name: nested-conditional-test
+description: Test nested/chained conditional logic
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
+    config:
+      inputs:
+        outer_value:
+          type: integer
+          description: Value for outer condition check
+          default: 10
+        inner_value:
+          type: integer
+          description: Value for inner condition check
+          default: 5
+nodes:
+  - id: outer_check
+    name: Outer Check
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Outer check passed"
+    outputs:
+      outer_result: $.stdout
 
-inputs:
-  outer_value:
-    type: integer
-    description: Value for outer condition check
-    default: 10
-  inner_value:
-    type: integer
-    description: Value for inner condition check
-    default: 5
+  - id: inner_check
+    name: Inner Check
+    type: script
+    condition: ${input.outer_value} > 0
+    config:
+      language: bash
+      code: |
+        echo "Inner check passed"
+    outputs:
+      inner_result: $.stdout
 
-workflow:
-  activities:
-    - id: outer_check
-      name: Outer Check
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Outer check passed"
-        outputs:
-          outer_result: $.stdout
-
-    - id: inner_check
-      name: Inner Check
-      type: task
-      condition: ${input.outer_value} > 0
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Inner check passed"
-        outputs:
-          inner_result: $.stdout
-
-    - id: final_action
-      name: Final Action
-      type: task
-      condition: ${input.inner_value} > 0
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Both conditions met"
+  - id: final_action
+    name: Final Action
+    type: script
+    condition: ${input.inner_value} > 0
+    config:
+      language: bash
+      code: |
+        echo "Both conditions met"
+edges:
+  - from: trigger_manual
+    to: outer_check
+  - from: outer_check
+    to: inner_check
+  - from: inner_check
+    to: final_action

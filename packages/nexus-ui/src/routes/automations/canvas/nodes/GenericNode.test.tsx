@@ -25,18 +25,15 @@ vi.mock('@xyflow/react', () => ({
 }))
 
 describe('GenericNodeComponent', () => {
-  const baseGenericNode: TaskActivity = {
-    type: 'task',
+  const baseGenericNode = {
+    type: 'script',
     id: 'generic-1',
     name: 'Placeholder',
-    task: {
-      executor: 'script',
-      config: {
-        language: 'python',
-        code: '',
-      },
+    config: {
+      language: 'python',
+      code: '',
     },
-  }
+  } as TaskActivity
 
   const createNodeProps = (data: TaskActivity) => ({
     id: data.id,

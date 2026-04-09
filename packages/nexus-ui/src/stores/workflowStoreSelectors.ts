@@ -20,9 +20,11 @@ import type { WorkflowStore } from './workflowStoreTypes'
 export const selectCurrentWorkflow = (state: WorkflowStore) => state.currentWorkflow
 
 /**
- * Selector for workflow version.
- * Use to detect when a completely new workflow has been loaded (via setWorkflow).
- * Does NOT change when activities/triggers are modified.
+ * Selector for workflow version counter (UI-only).
+ * Use to detect when a completely new workflow has been loaded or batch operations complete.
+ * This is a UI-only counter - NOT related to backend workflow.version or workflow.current_version.
+ * Incremented by: setWorkflow, loadWorkflowWithEdges, batchAddActivitiesAndEdges.
+ * Does NOT change when individual activities/triggers/edges are modified.
  */
 export const selectWorkflowVersion = (state: WorkflowStore) => state.workflowVersion
 
@@ -66,7 +68,8 @@ export const selectIsDirty = (state: WorkflowStore) => state.isDirty
  * Selector for workflow name.
  * Use when you only need the workflow name (e.g., for display in header).
  */
-export const selectWorkflowName = (state: WorkflowStore) => state.currentWorkflow?.metadata?.name
+export const selectWorkflowName = (state: WorkflowStore) =>
+  state.currentWorkflow?.name ?? state.currentWorkflow?.metadata?.name
 
 /**
  * Selector to check if a workflow is loaded.
@@ -131,7 +134,7 @@ export type WorkflowStoreActions = ReturnType<typeof useWorkflowStoreActions>
 // Prefer using these over direct store access for better encapsulation.
 // ============================================================================
 
-/** Hook to get workflow version (changes only when setWorkflow is called) */
+/** Hook to get workflow version counter (UI-only, NOT backend workflow.version) */
 export const useWorkflowVersion = () => useWorkflowStore(selectWorkflowVersion)
 
 /** Hook to get the current workflow */

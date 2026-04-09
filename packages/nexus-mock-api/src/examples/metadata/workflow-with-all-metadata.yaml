@@ -1,10 +1,8 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
+schema_version: "2.0.0"
+name: full-metadata-workflow
+description: Workflow demonstrating all metadata fields
 metadata:
-  name: full-metadata-workflow
-  description: Workflow demonstrating all metadata fields
   tags:
     - test
     - metadata
@@ -13,22 +11,21 @@ metadata:
   timeout: 30
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: validate_metadata
-      name: Validate Metadata
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Workflow with complete metadata"
-            echo "Tags: test, metadata, comprehensive"
-            echo "Owner: qa-team"
-            echo "Timeout: 30 seconds"
-            echo '{"validated": true}'
-        outputs:
-          result: $.stdout
+nodes:
+  - id: validate_metadata
+    name: Validate Metadata
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Workflow with complete metadata"
+        echo "Tags: test, metadata, comprehensive"
+        echo "Owner: qa-team"
+        echo "Timeout: 30 seconds"
+        echo '{"validated": true}'
+    outputs:
+      result: $.stdout
+edges: []

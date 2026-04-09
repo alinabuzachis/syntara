@@ -22,7 +22,7 @@ export type TriggerNode = { type: 'trigger' } & Node<{
   name: string
   details: string | null
   triggerType?: string
-  inputs?: WorkflowAPI.components['schemas']['workflow-definition.schema']['inputs']
+  config?: WorkflowAPI.components['schemas']['configSchema']
 }>
 
 export function TriggerNodeComponent(props: NodeProps<TriggerNode>) {
@@ -98,7 +98,7 @@ function TriggerNodeDetails(
     node: {
       name: string
       details: string | null
-      inputs?: WorkflowAPI.components['schemas']['workflow-definition.schema']['inputs']
+      config?: WorkflowAPI.components['schemas']['configSchema']
     }
     icon?: React.ReactNode
     menuActions?: ReturnType<typeof useNodeMenuActions>
@@ -108,13 +108,9 @@ function TriggerNodeDetails(
   }>
 ) {
   const isExecutionView = useIsExecutionView()
-  const isManualTrigger = props.triggerKind === 'manual'
-  const isScheduledTrigger = props.triggerKind === 'scheduled'
-  const normalizedDetails = props.triggerDetails
-    ? isManualTrigger
-      ? props.triggerDetails.replace(/^Manual\b/, 'Manual trigger')
-      : props.triggerDetails
-    : null
+  const isManualTrigger = props.triggerKind === TriggerTypeEnum.MANUAL_TRIGGER
+  const isScheduledTrigger = props.triggerKind === TriggerTypeEnum.SCHEDULED
+  const normalizedDetails = props.triggerDetails ?? null
   return (
     <>
       <NodeHeader>

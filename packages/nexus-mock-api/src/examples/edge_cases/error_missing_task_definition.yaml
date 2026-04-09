@@ -1,17 +1,15 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: error-missing-task-definition
-  description: Test error when task activity has no task definition
+schema_version: "2.0.0"
+name: error-missing-task-definition
+description: Test error when task activity has no task definition
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: invalid_task
-      name: Task Without Task Definition
-      type: task
-      # Missing 'task' field - should raise ValueError
+nodes:
+  - id: invalid_task
+    name: Task Without Task Definition
+    type: task
+    # Missing 'task' field - should raise ValueError
+edges: []

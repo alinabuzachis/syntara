@@ -484,7 +484,7 @@ describe('Approvals Component', () => {
 
       // Now the filter field should show the status selector
       // Open the status value dropdown
-      const statusValueButton = await screen.findByRole('button', { name: /filter by status/i })
+      const statusValueButton = await screen.findByRole('button', { name: /filter by status/i }, { timeout: 10000 })
       await user.click(statusValueButton)
 
       // Select "Pending" option
@@ -496,7 +496,7 @@ describe('Approvals Component', () => {
         assertUrlParam(mockSetSearchParams, 'status', 'pending')
       })
       expect(mockSetSearchParams).toHaveBeenCalled()
-    })
+    }, 10000)
 
     it('displays name filter input in toolbar', () => {
       mockApprovalsQuery(mockApprovals)

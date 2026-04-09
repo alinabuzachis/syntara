@@ -133,7 +133,7 @@ describe('NodeDetailsPanel', () => {
             type: 'task',
             name: 'New Task',
             task: { executor: 'script', config: {} },
-            metadata: { __isGeneric: true, foo: 'bar' },
+            metadata: { __isGeneric: true, __customMessage: 'test message' },
           },
         ],
       },
@@ -169,7 +169,8 @@ describe('NodeDetailsPanel', () => {
       'replacement-1',
       expect.objectContaining({
         id: 'replacement-1',
-        metadata: { foo: 'bar' },
+        // __isGeneric is removed by cleanMetadata before replaceActivity is called
+        metadata: { __customMessage: 'test message' },
       })
     )
   })

@@ -1,4 +1,4 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
+import type { ApprovalActivity as ApprovalNodeType } from '@ansible/nexus-contracts'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -23,24 +23,16 @@ vi.mock('@xyflow/react', () => ({
 }))
 
 describe('ApprovalNodeComponent', () => {
-  const baseApprovalNode: TaskActivity = {
-    type: 'task',
+  const baseApprovalNode = {
+    type: 'approval',
     id: 'approval-1',
     name: 'Approve Deployment',
-    task: {
-      executor: 'script' as const,
-      config: {
-        language: 'python' as const,
-        code: '',
-      },
+    config: {
+      approver_timeout: 86400,
     },
-    approval: {
-      approvers: ['admin', 'manager'],
-      prompt: 'Please review and approve this deployment',
-    },
-  }
+  } as ApprovalNodeType
 
-  const createNodeProps = (data: TaskActivity) => ({
+  const createNodeProps = (data: ApprovalNodeType) => ({
     id: data.id,
     data,
     type: 'approval' as const,
@@ -61,91 +53,25 @@ describe('ApprovalNodeComponent', () => {
       render(<ApprovalNodeComponent {...createNodeProps(baseApprovalNode)} />)
 
       expect(screen.getByText('Approval')).toBeInTheDocument()
-      expect(screen.getByText('Usernames to notify')).toBeInTheDocument()
-      expect(screen.getByText('admin, manager')).toBeInTheDocument()
+      expect(screen.getByText('Timeout')).toBeInTheDocument()
+      expect(screen.getByText('86400s')).toBeInTheDocument()
       expect(screen.getByText('Approved')).toBeInTheDocument()
       expect(screen.getByText('Rejected')).toBeInTheDocument()
     })
   })
 
-  describe('Approvers Display', () => {
-    it('renders single approver', () => {
-      const singleApproverNode = {
-        ...baseApprovalNode,
-        approval: {
-          approvers: ['admin'],
-          prompt: 'Approve',
-        },
-      }
-
-      render(<ApprovalNodeComponent {...createNodeProps(singleApproverNode)} />)
-
-      expect(screen.getByText('admin')).toBeInTheDocument()
-    })
-
-    it('renders multiple approvers comma-separated', () => {
-      const multipleApproversNode = {
-        ...baseApprovalNode,
-        approval: {
-          approvers: ['user1', 'user2', 'user3'],
-          prompt: 'Approve',
-        },
-      }
-
-      render(<ApprovalNodeComponent {...createNodeProps(multipleApproversNode)} />)
-
-      expect(screen.getByText('user1, user2, user3')).toBeInTheDocument()
-    })
-
-    it('renders approvers with special characters', () => {
-      const specialCharsNode = {
-        ...baseApprovalNode,
-        approval: {
-          approvers: ['user.name@example.com', 'admin_user'],
-          prompt: 'Approve',
-        },
-      }
-
-      render(<ApprovalNodeComponent {...createNodeProps(specialCharsNode)} />)
-
-      expect(screen.getByText('user.name@example.com, admin_user')).toBeInTheDocument()
-    })
-  })
-
   describe('Approval Data', () => {
-    it('does not render approvers section when approval data is missing', () => {
-      const noApprovalDataNode: TaskActivity = {
-        type: 'task',
+    it('does not render timeout section when config has no timeout', () => {
+      const noTimeoutNode = {
+        type: 'approval',
         id: 'approval-2',
-        name: 'Incomplete Approval',
-        task: {
-          executor: 'script' as const,
-          config: {
-            language: 'python' as const,
-            code: '',
-          },
-        },
-      }
+        name: 'No Timeout Approval',
+        config: {},
+      } as ApprovalNodeType
 
-      render(<ApprovalNodeComponent {...createNodeProps(noApprovalDataNode)} />)
+      render(<ApprovalNodeComponent {...createNodeProps(noTimeoutNode)} />)
 
-      expect(screen.queryByText('Usernames to notify')).not.toBeInTheDocument()
-    })
-  })
-
-  describe('Edge Cases', () => {
-    it('renders with many approvers', () => {
-      const manyApproversNode = {
-        ...baseApprovalNode,
-        approval: {
-          approvers: Array.from({ length: 10 }, (_, i) => `user${i + 1}`),
-          prompt: 'Approve',
-        },
-      }
-
-      render(<ApprovalNodeComponent {...createNodeProps(manyApproversNode)} />)
-
-      expect(screen.getByText(/user1, user2, user3, user4, user5/)).toBeInTheDocument()
+      expect(screen.queryByText('Timeout')).not.toBeInTheDocument()
     })
   })
 
@@ -163,38 +89,7 @@ describe('ApprovalNodeComponent', () => {
     it('renders with correct structure', () => {
       const { container } = render(<ApprovalNodeComponent {...createNodeProps(baseApprovalNode)} />)
 
-      expect(container.querySelector('.details')).toBeInTheDocument()
-
       expect(container.querySelector('.pf-v6-c-compass__panel')).toBeInTheDocument()
-    })
-  })
-
-  describe('Data Variations', () => {
-    it('renders approval with all optional fields', () => {
-      const fullNode: TaskActivity = {
-        type: 'task',
-        id: 'full-approval',
-        name: 'Full Approval',
-        task: {
-          executor: 'script' as const,
-          config: {
-            language: 'python' as const,
-            code: '',
-          },
-          inputs: { environment: 'production' },
-          outputs: { approved: 'true' },
-        },
-        approval: {
-          approvers: ['admin', 'manager', 'team-lead'],
-          prompt: 'Please review and approve this production deployment',
-          timeout: 86400,
-          onTimeout: 'reject',
-        },
-      }
-
-      render(<ApprovalNodeComponent {...createNodeProps(fullNode)} />)
-
-      expect(screen.getByText('admin, manager, team-lead')).toBeInTheDocument()
     })
   })
 })

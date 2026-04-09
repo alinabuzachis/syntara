@@ -94,7 +94,7 @@ export function getDefaultNodeBaseName({
 
   if (nodeTypeId === RegistryNodeId.ACTION) {
     const executor = initialData?.executor as string | undefined
-    if (executor === 'api') return 'REST API'
+    if (executor === 'http_request') return 'REST API'
     if (executor === 'script') return 'Script'
   }
 

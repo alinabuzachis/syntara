@@ -1,4 +1,4 @@
-import type { TaskActivity } from '@ansible/nexus-contracts'
+import type { Activity } from '@ansible/nexus-contracts'
 import type { ReactNode } from 'react'
 
 import { useAlerts } from '../../../components/alerts'
@@ -8,7 +8,7 @@ import type { AIAgentFormInitialData, AIAgentFormSubmitData } from '../node-form
 import { parseToolsString } from '../utils/agentHelpers'
 
 interface AIAgentNodeDetailsProps {
-  taskData: TaskActivity & { task: { executor: 'agentic'; config: unknown } }
+  taskData: Activity
   nodeId: string
   onClose: () => void
   onHeaderContentChange?: (content: ReactNode | null) => void
@@ -23,21 +23,26 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
   // Use action accessor - component won't re-render when store state changes
   const { updateActivity } = useWorkflowStoreActions()
 
-  const agentConfig = taskData.task.config as {
+  // In v2, config is at activity.config directly (not task.config)
+  const agentConfig = (taskData.config ?? {}) as {
+    tool_selections?: string[]
     tools?: string[]
     prompt?: string
     model?: string
+    file_ids?: string[]
     fileIds?: string[]
   }
 
   const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
   const defaultModel = envModel || 'anthropic/claude-3.5-sonnet'
 
+  const tools = agentConfig.tool_selections ?? agentConfig.tools ?? []
+
   const initialData: AIAgentFormInitialData = {
     name: taskData.name,
     model: agentConfig.model ?? defaultModel,
     prompt: agentConfig.prompt ?? '',
-    tools: agentConfig.tools?.join(', ') ?? '',
+    tools: tools.join(', '),
   }
 
   const handleSubmit = (data: AIAgentFormSubmitData) => {
@@ -46,7 +51,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
       const toolsArray = parseToolsString(data.tools)
 
       // Merge existing file IDs with newly uploaded ones (Set removes any duplicates)
-      const existingFileIds = agentConfig.fileIds ?? []
+      const existingFileIds = agentConfig.file_ids ?? agentConfig.fileIds ?? []
       const allFileIds = [...new Set([...existingFileIds, ...data.fileIds])]
 
       // Create updated agentic activity with merged file IDs
@@ -56,7 +61,6 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
         tools: toolsArray,
         prompt: data.prompt ?? undefined,
         model: data.model ?? undefined,
-        inputs: taskData.task.inputs ? JSON.stringify(taskData.task.inputs) : undefined,
         fileIds: allFileIds.length > 0 ? allFileIds : undefined,
       })
 

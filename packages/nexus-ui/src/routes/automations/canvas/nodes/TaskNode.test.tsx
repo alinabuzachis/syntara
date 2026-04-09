@@ -6,18 +6,15 @@ import { TaskActivityDetails } from './TaskNode'
 
 describe('TaskActivityDetails', () => {
   it('renders script task details correctly', () => {
-    const mockScriptTask: TaskActivity = {
-      type: 'task',
+    const mockScriptTask = {
+      type: 'script',
       id: 'task-1',
       name: 'Script Task',
-      task: {
-        executor: 'script',
-        config: {
-          language: 'python',
-          code: 'print("hello")',
-        },
+      config: {
+        language: 'python',
+        code: 'print("hello")',
       },
-    }
+    } as TaskActivity
 
     render(<TaskActivityDetails data={mockScriptTask} />)
 
@@ -27,70 +24,37 @@ describe('TaskActivityDetails', () => {
     expect(screen.getByText('python')).toBeInTheDocument()
   })
 
-  it('renders api task details correctly', () => {
-    const mockApiTask: TaskActivity = {
-      type: 'task',
+  it('renders http_request task details correctly', () => {
+    const mockHttpTask = {
+      type: 'http_request',
       id: 'task-2',
-      name: 'API Task',
-      task: {
-        executor: 'api',
-        config: {
-          method: 'GET',
-          url: 'https://api.example.com',
-        },
+      name: 'HTTP Request Task',
+      config: {
+        method: 'GET',
+        url: 'https://api.example.com',
       },
-    }
+    } as TaskActivity
 
-    render(<TaskActivityDetails data={mockApiTask} />)
+    render(<TaskActivityDetails data={mockHttpTask} />)
 
-    expect(screen.getByText('API Task')).toBeInTheDocument()
+    expect(screen.getByText('HTTP Request Task')).toBeInTheDocument()
     expect(screen.getByText('REST API')).toBeInTheDocument()
     expect(screen.getByText('GET')).toBeInTheDocument()
     expect(screen.getByText('https://api.example.com')).toBeInTheDocument()
   })
 
-  it('renders connector task details correctly without crashing', () => {
-    const mockConnectorTask: TaskActivity = {
-      type: 'task',
-      id: 'task-3',
-      name: 'Connector Task',
-      task: {
-        executor: 'connector',
-        config: {
-          connectorId: 'generic-connector-1',
-          operation: 'run_action',
-          parameters: {
-            action: 'process',
-          },
-        },
-      },
-    }
-
-    render(<TaskActivityDetails data={mockConnectorTask} />)
-
-    expect(screen.getByText('Connector Task')).toBeInTheDocument()
-    // "Connector" appears twice: once as the task type subtitle, and once as the "Connector" ID label
-    const connectorElements = screen.getAllByText('Connector')
-    expect(connectorElements).toHaveLength(2)
-    expect(screen.getByText('generic-connector-1')).toBeInTheDocument()
-    expect(screen.getByText('run_action')).toBeInTheDocument()
-  })
-
   it('renders agentic task details correctly', () => {
-    const mockAgenticTask: TaskActivity = {
-      type: 'task',
+    const mockAgenticTask = {
+      type: 'agentic',
       id: 'task-4',
       name: 'AI Agent Task',
-      task: {
-        executor: 'agentic',
-        config: {
-          agent: '',
-          model: 'claude-3-sonnet',
-          prompt: 'Analyze the data and provide insights',
-          tools: ['calculator', 'web_search'],
-        },
+      config: {
+        model: 'claude-3-sonnet',
+        prompt: 'Analyze the data and provide insights',
+        tool_selection_strategy: 'SELECTED',
+        tool_selections: ['calculator', 'web_search'],
       },
-    }
+    } as TaskActivity
 
     render(<TaskActivityDetails data={mockAgenticTask} />)
 
@@ -104,18 +68,15 @@ describe('TaskActivityDetails', () => {
 
   it.skip('renders AAP job template task details correctly', () => {
     // SKIPPED: SVG import issue with Ansible icon in test environment
-    const mockAAPTask: TaskActivity = {
-      type: 'task',
+    const mockAAPTask = {
+      type: 'aap_job_template',
       id: 'task-5',
       name: 'AAP Job',
-      task: {
-        executor: 'aap_job_template',
-        config: {
-          jobTemplateId: 123,
-          inventoryId: 456,
-        },
+      config: {
+        job_template_id: 123,
+        inventory_id: 456,
       },
-    }
+    } as TaskActivity
 
     render(<TaskActivityDetails data={mockAAPTask} />)
 
@@ -126,81 +87,22 @@ describe('TaskActivityDetails', () => {
     expect(screen.getByText('456')).toBeInTheDocument()
   })
 
-  it('renders agentic task with fileIds (agent context)', () => {
-    const mockAgenticTaskWithFiles: TaskActivity = {
-      type: 'task',
+  it('renders agentic task with model', () => {
+    const mockAgenticTaskWithModel = {
+      type: 'agentic',
       id: 'task-6',
-      name: 'AI Agent with Context',
-      task: {
-        executor: 'agentic',
-        config: {
-          agent: '',
-          model: 'claude-3-opus',
-          prompt: 'Analyze these files',
-          tools: ['code_analysis'],
-          fileIds: ['file1', 'file2', 'file3'],
-        },
+      name: 'AI Agent with Model',
+      config: {
+        model: 'claude-3-opus',
+        prompt: 'Analyze these files',
+        tool_selection_strategy: 'SELECTED',
+        tool_selections: ['code_analysis'],
       },
-    }
+    } as TaskActivity
 
-    render(<TaskActivityDetails data={mockAgenticTaskWithFiles} />)
+    render(<TaskActivityDetails data={mockAgenticTaskWithModel} />)
 
-    expect(screen.getByText('AI Agent with Context')).toBeInTheDocument()
-    expect(screen.getByText('Agent context')).toBeInTheDocument()
-    expect(screen.getByText('3 files')).toBeInTheDocument()
-  })
-
-  it('renders agentic task with single fileId (singular form)', () => {
-    const mockAgenticTaskWithSingleFile: TaskActivity = {
-      type: 'task',
-      id: 'task-7',
-      name: 'AI Agent with Single File',
-      task: {
-        executor: 'agentic',
-        config: {
-          agent: '',
-          model: 'claude-3-opus',
-          prompt: 'Analyze this file',
-          tools: [],
-          fileIds: ['file1'],
-        },
-      },
-    }
-
-    render(<TaskActivityDetails data={mockAgenticTaskWithSingleFile} />)
-
-    expect(screen.getByText('AI Agent with Single File')).toBeInTheDocument()
-    expect(screen.getByText('Agent context')).toBeInTheDocument()
-    expect(screen.getByText('1 file')).toBeInTheDocument()
-  })
-
-  it('renders disguised connector task (agentic executor with connector data)', () => {
-    const mockDisguisedConnectorTask: TaskActivity = {
-      type: 'task',
-      id: 'task-8',
-      name: 'Connector via Workaround',
-      task: {
-        executor: 'agentic',
-        config: {
-          agent: '',
-          model: '',
-          prompt: JSON.stringify({
-            __type: 'connector',
-            connectorId: 'salesforce',
-            operation: 'create_lead',
-            parameters: {
-              firstName: 'John',
-              lastName: 'Doe',
-            },
-          }),
-        },
-      },
-    }
-
-    render(<TaskActivityDetails data={mockDisguisedConnectorTask} />)
-
-    expect(screen.getByText('Connector via Workaround')).toBeInTheDocument()
-    expect(screen.getByText('salesforce')).toBeInTheDocument()
-    expect(screen.getByText('create_lead')).toBeInTheDocument()
+    expect(screen.getByText('AI Agent with Model')).toBeInTheDocument()
+    expect(screen.getByText('claude-3-opus')).toBeInTheDocument()
   })
 })

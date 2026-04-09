@@ -27,8 +27,7 @@ describe('ConvergeNodeComponent', () => {
     type: 'converge',
     id: 'converge-1',
     name: 'Wait for All',
-    converge: {
-      branches: [],
+    config: {
       strategy: 'all',
     },
   } as ConvergeActivity
@@ -71,32 +70,12 @@ describe('ConvergeNodeComponent', () => {
       expect(screen.getByText('All')).toBeInTheDocument()
     })
 
-    it('renders "Any" for strategy any', () => {
-      // Note: The contract only supports 'all' strategy, but the component logic
-      // may handle other values. We test with type assertion for edge case coverage.
-      const anyConverge = {
-        type: 'converge',
-        id: 'converge-2',
-        name: 'Wait for Any',
-        converge: {
-          branches: [],
-          strategy: 'any',
-        },
-      } as unknown as ConvergeActivity
-
-      render(<ConvergeNodeComponent {...createNodeProps(anyConverge)} />)
-
-      expect(screen.getByText('Any')).toBeInTheDocument()
-    })
-
     it('defaults to "All" when strategy is missing', () => {
       const noStrategyConverge = {
         type: 'converge',
         id: 'converge-3',
         name: 'Default Strategy',
-        converge: {
-          branches: [],
-        },
+        config: {},
       } as ConvergeActivity
 
       render(<ConvergeNodeComponent {...createNodeProps(noStrategyConverge)} />)
@@ -104,15 +83,31 @@ describe('ConvergeNodeComponent', () => {
       expect(screen.getByText('All')).toBeInTheDocument()
     })
 
-    it('defaults to "All" when converge config is missing', () => {
-      const noConvergeConfig = {
+    it('defaults to "All" when config is missing', () => {
+      const noConfig = {
         type: 'converge',
         id: 'converge-4',
         name: 'No Config',
       } as ConvergeActivity
 
-      render(<ConvergeNodeComponent {...createNodeProps(noConvergeConfig)} />)
+      render(<ConvergeNodeComponent {...createNodeProps(noConfig)} />)
 
+      expect(screen.getByText('All')).toBeInTheDocument()
+    })
+
+    it('renders "All" for strategy all (explicit)', () => {
+      const explicitStrategyConverge = {
+        type: 'converge',
+        id: 'converge-5',
+        name: 'Explicit Strategy',
+        config: {
+          strategy: 'all',
+        },
+      } as ConvergeActivity
+
+      render(<ConvergeNodeComponent {...createNodeProps(explicitStrategyConverge)} />)
+
+      expect(screen.getByText('Type')).toBeInTheDocument()
       expect(screen.getByText('All')).toBeInTheDocument()
     })
   })
@@ -122,8 +117,7 @@ describe('ConvergeNodeComponent', () => {
       const unnamedConverge = {
         type: 'converge',
         id: 'converge-5',
-        converge: {
-          branches: [],
+        config: {
           strategy: 'all',
         },
       } as ConvergeActivity

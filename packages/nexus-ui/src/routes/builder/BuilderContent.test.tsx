@@ -87,19 +87,16 @@ describe('BuilderContent', () => {
     current_version: 1,
     version: {
       workflow_definition: {
-        schemaVersion: '1.0.0',
-        version: 1,
-        metadata: {
-          name: 'Test Workflow',
-          description: 'Test Description',
-        },
+        schema_version: '2.0.0' as const,
+        name: 'Test Workflow',
+        description: 'Test Description',
         triggers: [],
-        workflow: {
-          activities: [],
-        },
+        nodes: [],
+        edges: [],
+        $defs: {},
       },
     },
-  } as WorkflowWithVersion
+  } as unknown as WorkflowWithVersion
 
   const createMockMutation = (mutate = vi.fn()) => ({
     mutate,
@@ -122,6 +119,14 @@ describe('BuilderContent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+
+    // Reset workflow store to initial state to prevent test pollution
+    useWorkflowStore.setState({
+      currentWorkflow: null,
+      workflowVersion: 0,
+      edges: [],
+      isDirty: false,
+    })
 
     vi.mocked(executionsClient.useQuery).mockImplementation((method, path) => {
       if (method === 'get' && path === '/executions') {
@@ -322,23 +327,23 @@ describe('BuilderContent', () => {
         ...mockWorkflow,
         version: {
           workflow_definition: {
-            schemaVersion: '1.0.0',
-            version: 1,
-            metadata: { name: 'Test', description: '' },
-            triggers: [{ type: 'manual' as const }],
-            workflow: {
-              activities: [
-                {
-                  type: 'task' as const,
-                  id: 'task-1',
-                  name: 'Task',
-                  task: { executor: 'script' as const, config: { language: 'python', code: '' } },
-                },
-              ],
-            },
+            schema_version: '2.0.0' as const,
+            name: 'Test',
+            description: '',
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            nodes: [
+              {
+                type: 'script' as const,
+                id: 'task-1',
+                name: 'Task',
+                config: { language: 'python', code: '' },
+              },
+            ],
+            edges: [],
+            $defs: {},
           },
         },
-      } as WorkflowWithVersion
+      } as unknown as WorkflowWithVersion
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
 
       // Open panel
@@ -1146,26 +1151,23 @@ describe('BuilderContent', () => {
         ...mockWorkflow,
         version: {
           workflow_definition: {
-            schemaVersion: '1.0.0',
-            version: 1,
-            metadata: {
-              name: 'Test Workflow',
-              description: 'Test Description',
-            },
-            triggers: [{ type: 'manual' as const }],
-            workflow: {
-              activities: [
-                {
-                  type: 'task' as const,
-                  id: 'task-1',
-                  name: 'Task 1',
-                  task: { executor: 'script' as const, config: { language: 'python', code: '' } },
-                },
-              ],
-            },
+            schema_version: '2.0.0' as const,
+            name: 'Test Workflow',
+            description: 'Test Description',
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            nodes: [
+              {
+                type: 'script' as const,
+                id: 'task-1',
+                name: 'Task 1',
+                config: { language: 'python', code: '' },
+              },
+            ],
+            edges: [],
+            $defs: {},
           },
         },
-      } as WorkflowWithVersion
+      } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: workflowWithActivities, isNew: false, workflowId: 'workflow-1' })
 
@@ -1181,33 +1183,23 @@ describe('BuilderContent', () => {
         description: 'Test parallel',
         version: {
           workflow_definition: {
-            schemaVersion: '1.0.0',
-            version: 1,
-            metadata: {
-              name: 'Parallel Workflow',
-              description: 'Test parallel',
-            },
-            triggers: [{ type: 'manual' as const }],
-            workflow: {
-              activities: [
-                {
-                  type: 'parallel' as const,
-                  id: 'parallel-1',
-                  name: 'Parallel',
-                  branches: [
-                    {
-                      type: 'task' as const,
-                      id: 'branch-task-1',
-                      name: 'Branch Task',
-                      task: { executor: 'script' as const, config: { language: 'python', code: '' } },
-                    },
-                  ],
-                },
-              ],
-            },
+            schema_version: '2.0.0' as const,
+            name: 'Parallel Workflow',
+            description: 'Test parallel',
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            nodes: [
+              {
+                type: 'script' as const,
+                id: 'branch-task-1',
+                name: 'Branch Task',
+                config: { language: 'python', code: '' },
+              },
+            ],
+            edges: [],
+            $defs: {},
           },
         },
-      } as WorkflowWithVersion
+      } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: workflowWithParallel, isNew: false, workflowId: 'workflow-1' })
 
@@ -1409,23 +1401,23 @@ describe('BuilderContent', () => {
       ...mockWorkflow,
       version: {
         workflow_definition: {
-          schemaVersion: '1.0.0',
-          version: 1,
-          metadata: { name: 'Test Workflow', description: 'Test Description' },
-          triggers: [{ type: 'manual' as const }],
-          workflow: {
-            activities: [
-              {
-                type: 'task' as const,
-                id: 'task-1',
-                name: 'Task 1',
-                task: { executor: 'script' as const, config: { language: 'python', code: '' } },
-              },
-            ],
-          },
+          schema_version: '2.0.0' as const,
+          name: 'Test Workflow',
+          description: 'Test Description',
+          triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+          nodes: [
+            {
+              type: 'script' as const,
+              id: 'task-1',
+              name: 'Task 1',
+              config: { language: 'python', code: '' },
+            },
+          ],
+          edges: [],
+          $defs: {},
         },
       },
-    } as WorkflowWithVersion
+    } as unknown as WorkflowWithVersion
 
     it('TOGGLE_DETAILS closes add step panel when opening details', async () => {
       await renderBuilder({ workflow: workflowWithNodes, isNew: false, workflowId: 'workflow-1' })
@@ -1493,7 +1485,7 @@ describe('BuilderContent', () => {
         name: 'Custom Init Name',
         description: 'Custom Init Description',
         is_enabled: false,
-      } as WorkflowWithVersion
+      } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: customWorkflow, isNew: false, workflowId: 'workflow-1' })
 
@@ -1519,26 +1511,23 @@ describe('BuilderContent', () => {
         ...mockWorkflow,
         version: {
           workflow_definition: {
-            schemaVersion: '1.0.0',
-            version: 1,
-            metadata: {
-              name: 'Test Workflow',
-              description: '',
-            },
+            schema_version: '2.0.0' as const,
+            name: 'Test Workflow',
+            description: '',
             triggers: [],
-            workflow: {
-              activities: [
-                {
-                  type: 'task' as const,
-                  id: 'task-1',
-                  name: 'Task 1',
-                  task: { executor: 'script' as const, config: { language: 'python', code: '' } },
-                },
-              ],
-            },
+            nodes: [
+              {
+                type: 'script' as const,
+                id: 'task-1',
+                name: 'Task 1',
+                config: { language: 'python', code: '' },
+              },
+            ],
+            edges: [],
+            $defs: {},
           },
         },
-      } as WorkflowWithVersion
+      } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: workflowNoTrigger, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
@@ -1856,25 +1845,20 @@ describe('BuilderContent', () => {
         name: 'Condition Workflow',
         version: {
           workflow_definition: {
-            schemaVersion: '1.0.0',
-            version: 1,
-            metadata: {
-              name: 'Condition Workflow',
-              description: '',
-            },
-            triggers: [{ type: 'manual' as const }],
-            workflow: {
-              activities: [
-                {
-                  type: 'condition' as const,
-                  id: 'cond-1',
-                  name: 'Condition',
-                  condition: { expression: 'true' },
-                  onTrue: [],
-                  onFalse: [],
-                },
-              ],
-            },
+            schema_version: '2.0.0' as const,
+            name: 'Condition Workflow',
+            description: '',
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            nodes: [
+              {
+                type: 'condition' as const,
+                id: 'cond-1',
+                name: 'Condition',
+                config: { condition: 'true' },
+              },
+            ],
+            edges: [],
+            $defs: {},
           },
         },
       } as unknown as WorkflowWithVersion
@@ -1891,24 +1875,20 @@ describe('BuilderContent', () => {
         name: 'Loop Workflow',
         version: {
           workflow_definition: {
-            schemaVersion: '1.0.0',
-            version: 1,
-            metadata: {
-              name: 'Loop Workflow',
-              description: '',
-            },
-            triggers: [{ type: 'manual' as const }],
-            workflow: {
-              activities: [
-                {
-                  type: 'loop' as const,
-                  id: 'loop-1',
-                  name: 'Loop',
-                  loop: { collection: '[]', iterator: 'item' },
-                  body: [],
-                },
-              ],
-            },
+            schema_version: '2.0.0' as const,
+            name: 'Loop Workflow',
+            description: '',
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            nodes: [
+              {
+                type: 'loop' as const,
+                id: 'loop-1',
+                name: 'Loop',
+                config: { type: 'for_each', items: '[]' },
+              },
+            ],
+            edges: [],
+            $defs: {},
           },
         },
       } as unknown as WorkflowWithVersion
@@ -1925,32 +1905,26 @@ describe('BuilderContent', () => {
         name: 'Nested Workflow',
         version: {
           workflow_definition: {
-            schemaVersion: '1.0.0',
-            version: 1,
-            metadata: {
-              name: 'Nested Workflow',
-              description: '',
-            },
-            triggers: [{ type: 'manual' as const }],
-            workflow: {
-              activities: [
-                {
-                  type: 'condition' as const,
-                  id: 'cond-1',
-                  name: 'Outer Condition',
-                  condition: { expression: 'true' },
-                  onTrue: [
-                    {
-                      type: 'task' as const,
-                      id: 'task-inner',
-                      name: 'Inner Task',
-                      task: { executor: 'script' as const, config: { language: 'python', code: '' } },
-                    },
-                  ],
-                  onFalse: [],
-                },
-              ],
-            },
+            schema_version: '2.0.0' as const,
+            name: 'Nested Workflow',
+            description: '',
+            triggers: [{ id: 'manual_trigger', type: 'manual_trigger', config: {} }],
+            nodes: [
+              {
+                type: 'condition' as const,
+                id: 'cond-1',
+                name: 'Outer Condition',
+                config: { condition: 'true' },
+              },
+              {
+                type: 'script' as const,
+                id: 'task-inner',
+                name: 'Inner Task',
+                config: { language: 'python', code: '' },
+              },
+            ],
+            edges: [{ from: 'cond-1', to: 'task-inner', from_port: 'true' }],
+            $defs: {},
           },
         },
       } as unknown as WorkflowWithVersion
@@ -2081,17 +2055,16 @@ describe('BuilderContent', () => {
         name: 'Metadata Test',
         version: {
           workflow_definition: {
-            schemaVersion: '1.0.0',
-            version: 1,
-            metadata: {
-              name: 'Metadata Test',
-              description: 'Metadata Description',
-            },
+            schema_version: '2.0.0' as const,
+            name: 'Metadata Test',
+            description: 'Metadata Description',
             triggers: [],
-            workflow: { activities: [] },
+            nodes: [],
+            edges: [],
+            $defs: {},
           },
         },
-      }
+      } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: workflowWithMetadataDesc, isNew: false, workflowId: 'workflow-1' })
 
@@ -2107,17 +2080,16 @@ describe('BuilderContent', () => {
         description: 'Top Level Description',
         version: {
           workflow_definition: {
-            schemaVersion: '1.0.0',
-            version: 1,
-            metadata: {
-              name: 'Description Test',
-              description: 'Metadata Description',
-            },
+            schema_version: '2.0.0' as const,
+            name: 'Description Test',
+            description: 'Metadata Description',
             triggers: [],
-            workflow: { activities: [] },
+            nodes: [],
+            edges: [],
+            $defs: {},
           },
         },
-      }
+      } as unknown as WorkflowWithVersion
 
       await renderBuilder({ workflow: workflowBothDesc, isNew: false, workflowId: 'workflow-1' })
 
@@ -2317,6 +2289,401 @@ describe('BuilderContent', () => {
         expect(mockExecuteMutate).toHaveBeenCalled()
         expect(mockSetLocation).toHaveBeenCalledWith('/executions/execution-123?history=open')
       })
+    })
+  })
+
+  describe('V2 Schema - Trigger ID Mapping', () => {
+    it('maps trigger definition IDs to display IDs when loading workflow', async () => {
+      const workflowWithTrigger = {
+        ...mockWorkflow,
+        version: {
+          workflow_definition: {
+            schema_version: '2.0.0' as const,
+            triggers: [{ id: 'webhook_trigger_1', type: 'webhook', config: {} as Record<string, never> }],
+            nodes: [{ id: 'task-1', type: 'script', config: { code: 'print("hello")' } as Record<string, unknown> }],
+            edges: [{ from: 'webhook_trigger_1', to: 'task-1' }],
+            $defs: {},
+          },
+        },
+      } as unknown as WorkflowWithVersion
+
+      vi.mocked(workflowClient.useQuery).mockImplementation(
+        (_method, path): ReturnType<typeof workflowClient.useQuery> => {
+          if (path === '/workflows' || path === '/workflows/{id}') {
+            return {
+              data: workflowWithTrigger,
+              isSuccess: true,
+              isLoading: false,
+              refetch: vi.fn(),
+            } as ReturnType<typeof workflowClient.useQuery>
+          }
+          return {
+            data: undefined,
+            isSuccess: false,
+            isLoading: false,
+            refetch: vi.fn(),
+          } as ReturnType<typeof workflowClient.useQuery>
+        }
+      )
+
+      await renderBuilder({ workflow: workflowWithTrigger, isNew: false, workflowId: 'workflow-1' })
+
+      await waitFor(() => {
+        const state = useWorkflowStore.getState()
+        // Verify edges are loaded
+        expect(state.edges.length).toBeGreaterThan(0)
+        // Verify trigger ID was mapped (webhook_trigger_1 → trigger-0)
+        const triggerEdge = state.edges.find((e) => e.source === 'trigger-0')
+        expect(triggerEdge).toBeDefined()
+      })
+    })
+
+    it('handles triggers without ID field gracefully', async () => {
+      const workflowNoTriggerIds = {
+        ...mockWorkflow,
+        version: {
+          workflow_definition: {
+            schema_version: '2.0.0' as const,
+            triggers: [
+              { type: 'manual_trigger', config: {} as Record<string, never> }, // No id field
+            ],
+            nodes: [],
+            edges: [],
+            $defs: {},
+          },
+        },
+      } as unknown as WorkflowWithVersion
+
+      vi.mocked(workflowClient.useQuery).mockImplementation(
+        (_method, path): ReturnType<typeof workflowClient.useQuery> => {
+          if (path === '/workflows' || path === '/workflows/{id}') {
+            return {
+              data: workflowNoTriggerIds,
+              isSuccess: true,
+              isLoading: false,
+              refetch: vi.fn(),
+            } as ReturnType<typeof workflowClient.useQuery>
+          }
+          return {
+            data: undefined,
+            isSuccess: false,
+            isLoading: false,
+            refetch: vi.fn(),
+          } as ReturnType<typeof workflowClient.useQuery>
+        }
+      )
+
+      // Should not crash when trigger has no ID
+      await renderBuilder({ workflow: workflowNoTriggerIds, isNew: false, workflowId: 'workflow-1' })
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Workflow name')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('V2 Schema - Port Name Mapping', () => {
+    it('converts v2 from_port to React Flow sourceHandle', async () => {
+      const workflowWithPorts = {
+        ...mockWorkflow,
+        version: {
+          workflow_definition: {
+            schema_version: '2.0.0' as const,
+            triggers: [{ id: 'trigger-1', type: 'manual_trigger', config: {} as Record<string, never> }],
+            nodes: [
+              { id: 'cond-1', type: 'condition', config: { condition: 'true' } as Record<string, unknown> },
+              { id: 'task-true', type: 'script', config: { code: '' } as Record<string, unknown> },
+            ],
+            edges: [
+              { from: 'trigger-1', to: 'cond-1' },
+              { from: 'cond-1', to: 'task-true', from_port: 'true' },
+            ],
+            $defs: {},
+          },
+        },
+      } as unknown as WorkflowWithVersion
+
+      vi.mocked(workflowClient.useQuery).mockImplementation(
+        (_method, path): ReturnType<typeof workflowClient.useQuery> => {
+          if (path === '/workflows' || path === '/workflows/{id}') {
+            return {
+              data: workflowWithPorts,
+              isSuccess: true,
+              isLoading: false,
+              refetch: vi.fn(),
+            } as ReturnType<typeof workflowClient.useQuery>
+          }
+          return {
+            data: undefined,
+            isSuccess: false,
+            isLoading: false,
+            refetch: vi.fn(),
+          } as ReturnType<typeof workflowClient.useQuery>
+        }
+      )
+
+      await renderBuilder({ workflow: workflowWithPorts, isNew: false, workflowId: 'workflow-1' })
+
+      await waitFor(() => {
+        const state = useWorkflowStore.getState()
+        // Find edge with from_port: 'true'
+        const condEdge = state.edges.find((e) => e.source === 'cond-1' && e.target === 'task-true')
+        expect(condEdge).toBeDefined()
+        // Verify sourceHandle was converted
+        expect(condEdge?.sourceHandle).toBe('true')
+      })
+    })
+
+    it('defaults targetHandle to "target" when to_port is undefined', async () => {
+      const workflowNoToPort = {
+        ...mockWorkflow,
+        version: {
+          workflow_definition: {
+            schema_version: '2.0.0' as const,
+            triggers: [],
+            nodes: [
+              { id: 'task-1', type: 'script', config: { code: '' } as Record<string, unknown> },
+              { id: 'task-2', type: 'script', config: { code: '' } as Record<string, unknown> },
+            ],
+            edges: [
+              { from: 'task-1', to: 'task-2' }, // No to_port
+            ],
+            $defs: {},
+          },
+        },
+      } as unknown as WorkflowWithVersion
+
+      vi.mocked(workflowClient.useQuery).mockImplementation(
+        (_method, path): ReturnType<typeof workflowClient.useQuery> => {
+          if (path === '/workflows' || path === '/workflows/{id}') {
+            return {
+              data: workflowNoToPort,
+              isSuccess: true,
+              isLoading: false,
+              refetch: vi.fn(),
+            } as ReturnType<typeof workflowClient.useQuery>
+          }
+          return {
+            data: undefined,
+            isSuccess: false,
+            isLoading: false,
+            refetch: vi.fn(),
+          } as ReturnType<typeof workflowClient.useQuery>
+        }
+      )
+
+      await renderBuilder({ workflow: workflowNoToPort, isNew: false, workflowId: 'workflow-1' })
+
+      await waitFor(() => {
+        const state = useWorkflowStore.getState()
+        const edge = state.edges.find((e) => e.source === 'task-1')
+        expect(edge).toBeDefined()
+        // Should default to 'target'
+        expect(edge?.targetHandle).toBe('target')
+      })
+    })
+
+    it('maps loop port names: iterate→loop, complete→done', async () => {
+      const workflowWithLoopPorts = {
+        ...mockWorkflow,
+        version: {
+          workflow_definition: {
+            schema_version: '2.0.0' as const,
+            triggers: [],
+            nodes: [
+              { id: 'loop-1', type: 'loop', config: { type: 'for_each', items: '[]' } as Record<string, unknown> },
+              { id: 'loop-body', type: 'script', config: { code: '' } as Record<string, unknown> },
+            ],
+            edges: [
+              { from: 'loop-1', to: 'loop-body', from_port: 'iterate' }, // v2 name
+              { from: 'loop-body', to: 'loop-1', to_port: 'complete' }, // v2 name
+            ],
+            $defs: {},
+          },
+        },
+      } as unknown as WorkflowWithVersion
+
+      vi.mocked(workflowClient.useQuery).mockImplementation(
+        (_method, path): ReturnType<typeof workflowClient.useQuery> => {
+          if (path === '/workflows' || path === '/workflows/{id}') {
+            return {
+              data: workflowWithLoopPorts,
+              isSuccess: true,
+              isLoading: false,
+              refetch: vi.fn(),
+            } as ReturnType<typeof workflowClient.useQuery>
+          }
+          return {
+            data: undefined,
+            isSuccess: false,
+            isLoading: false,
+            refetch: vi.fn(),
+          } as ReturnType<typeof workflowClient.useQuery>
+        }
+      )
+
+      await renderBuilder({ workflow: workflowWithLoopPorts, isNew: false, workflowId: 'workflow-1' })
+
+      await waitFor(() => {
+        const state = useWorkflowStore.getState()
+        // Find iterate edge (should map to 'loop')
+        const iterateEdge = state.edges.find((e) => e.source === 'loop-1' && e.target === 'loop-body')
+        expect(iterateEdge?.sourceHandle).toBe('loop')
+
+        // Find complete edge (should map to 'done')
+        const completeEdge = state.edges.find((e) => e.source === 'loop-body' && e.target === 'loop-1')
+        expect(completeEdge?.targetHandle).toBe('done')
+      })
+    })
+  })
+
+  // ============================================================================
+  // BRANCH COVERAGE: Targeted tests for uncovered branches
+  // ============================================================================
+
+  describe('Branch Coverage: Save with default name resolution', () => {
+    it('resolves default name when saving new workflow with existing "new-workflow"', async () => {
+      const existingWorkflows = {
+        resources: [{ id: 'existing-1', name: 'new-workflow' }],
+      }
+
+      // Mock workflow list query to return existing workflow with name "new-workflow"
+      vi.mocked(workflowClient.useQuery).mockImplementation((method, path) => {
+        if (method === 'get' && path === '/workflows') {
+          return {
+            data: existingWorkflows,
+            isPending: false,
+            isError: false,
+            error: null,
+            refetch: vi.fn(),
+          }
+        }
+        return {
+          data: undefined,
+          isPending: false,
+          isError: false,
+          error: null,
+          refetch: vi.fn(),
+        }
+      })
+
+      const mockCreateMutate = vi.fn((params: unknown, callbacks?: MutationCallbacks) => {
+        // Verify the name was incremented to avoid conflict
+        const body = (params as { body: { name: string } }).body
+        expect(body.name).toBe('new-workflow-1')
+        if (callbacks?.onSuccess) {
+          callbacks.onSuccess({ id: 'new-workflow-id' }, params, undefined)
+        }
+      })
+
+      vi.mocked(workflowClient.useMutation).mockImplementation((method) => {
+        if (method === 'post') {
+          return createMockMutation(mockCreateMutate)
+        }
+        return createMockMutation()
+      })
+
+      await renderBuilder({ workflow: undefined, isNew: true, workflowId: null })
+
+      // Component auto-resolves to "new-workflow-1" since "new-workflow" exists
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Workflow name')).toHaveValue('new-workflow-1')
+      })
+
+      // User keeps the auto-resolved name and saves
+      const saveButton = screen.getByRole('button', { name: /save/i })
+      fireEvent.click(saveButton)
+
+      await waitFor(() => {
+        expect(mockCreateMutate).toHaveBeenCalled()
+      })
+
+      // This tests the branch: if (isNew && workflowName === DEFAULT_WORKFLOW_NAME && workflowsListQuery.data?.resources)
+      // Note: The branch is tested during the useEffect that auto-resolves the name on component mount
+    })
+  })
+
+  describe('Branch Coverage: Workflow state checks', () => {
+    it('verifies workflow dirty state can be set', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      // Make workflow dirty by changing the name
+      const nameInput = screen.getByPlaceholderText('Workflow name')
+      fireEvent.change(nameInput, { target: { value: 'Modified Workflow' } })
+
+      // Verify workflow is dirty
+      expect(useWorkflowStore.getState().isDirty).toBe(true)
+
+      // This tests the dirty state management which is checked in various branches
+    })
+  })
+
+  describe('Branch Coverage: Individual change flags', () => {
+    it('marks dirty when only name changes', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      const detailsButton = screen.getByLabelText('Workflow details')
+      fireEvent.click(detailsButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Workflow details')).toBeInTheDocument()
+      })
+
+      const nameInput = screen.getByLabelText('Workflow name')
+      fireEvent.change(nameInput, { target: { value: 'Name Changed' } })
+
+      // Verify workflow store is marked dirty
+      await waitFor(() => {
+        expect(useWorkflowStore.getState().isDirty).toBe(true)
+      })
+
+      // This tests the branch: if (nameChanged)
+    })
+
+    it('marks dirty when only description changes', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      const detailsButton = screen.getByLabelText('Workflow details')
+      fireEvent.click(detailsButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Workflow details')).toBeInTheDocument()
+      })
+
+      const descriptionTextarea = screen.getByLabelText('Description')
+      fireEvent.change(descriptionTextarea, { target: { value: 'Description Changed' } })
+
+      // Verify workflow store is marked dirty
+      await waitFor(() => {
+        expect(useWorkflowStore.getState().isDirty).toBe(true)
+      })
+
+      // This tests the branch: if (descriptionChanged)
+    })
+
+    it('marks dirty when both name and description change', async () => {
+      await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
+
+      const detailsButton = screen.getByLabelText('Workflow details')
+      fireEvent.click(detailsButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Workflow details')).toBeInTheDocument()
+      })
+
+      // Change both name and description
+      const nameInput = screen.getByLabelText('Workflow name')
+      const descriptionTextarea = screen.getByLabelText('Description')
+
+      fireEvent.change(nameInput, { target: { value: 'Name Changed' } })
+      fireEvent.change(descriptionTextarea, { target: { value: 'Description Changed' } })
+
+      // Verify workflow store is marked dirty
+      await waitFor(() => {
+        expect(useWorkflowStore.getState().isDirty).toBe(true)
+      })
+
+      // This tests the branches: if (nameChanged) and if (descriptionChanged) and if (nameChanged || descriptionChanged || tagsChanged)
     })
   })
 })

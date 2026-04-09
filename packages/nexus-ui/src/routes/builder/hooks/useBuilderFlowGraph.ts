@@ -13,16 +13,12 @@ import {
   getTriggerDisplayData,
   markerEnd,
   type EdgeType,
-  type TaskActivity,
   type Trigger,
 } from '../utils/workflowToGraph'
 
 import { applyLoopBackNodeTypes } from './useLoopBackNodeTypes'
 
 const executionStateEnricher = new ExecutionStateEnricher()
-
-const LOOP_NODE_WIDTH = 290
-const HORIZONTAL_SPACING = 50
 
 interface UseBuilderFlowGraphParams {
   currentWorkflow: {
@@ -60,6 +56,9 @@ export function useBuilderFlowGraph({
     const edges: EdgeType[] = []
     const previousIds: string[] = []
 
+    // Build mapping from real trigger IDs to display IDs (trigger-0, trigger-1, ...)
+    // Edges from backend use real IDs; React Flow needs display IDs
+    const triggerRealIdToDisplayId = new Map<string, string>()
     const triggersList = triggers ?? []
     triggersList.forEach((trigger: Trigger, index: number) => {
       const triggerId = buildTriggerNodeId(index)
@@ -84,6 +83,11 @@ export function useBuilderFlowGraph({
         data: enrichedTriggerData,
       })
       previousIds.push(triggerId)
+
+      // Map real trigger ID to display ID for edge transformation
+      if (trigger.id) {
+        triggerRealIdToDisplayId.set(trigger.id, triggerId)
+      }
     })
 
     const activities = currentWorkflow?.workflow.activities ?? []
@@ -102,9 +106,8 @@ export function useBuilderFlowGraph({
         id: activity.id,
         type: activity.type,
         position: { x: 0, y: 0 },
-        // @ts-expect-error - ActivityWithMetadata extends Activity, safe to use
         data: activityData,
-      })
+      } as unknown as NodeType)
     })
 
     storedEdges.forEach(
@@ -127,10 +130,16 @@ export function useBuilderFlowGraph({
           edgeExecutionStatus = executionStateEnricher.determineEdgeStatus(edge, activityStates, activities)
         }
 
+        // Transform trigger real IDs to display IDs for React Flow
+        // Edges from backend use real IDs (activity_fb2060fd_...),
+        // but React Flow nodes use display IDs (trigger-0, trigger-1, ...)
+        const source = triggerRealIdToDisplayId.get(edge.source) ?? edge.source
+        const target = triggerRealIdToDisplayId.get(edge.target) ?? edge.target
+
         edges.push({
           id: edge.id,
-          source: edge.source,
-          target: edge.target,
+          source,
+          target,
           sourceHandle: edge.sourceHandle ?? undefined,
           targetHandle: edge.targetHandle ?? undefined,
           type: edgeType,
@@ -145,21 +154,13 @@ export function useBuilderFlowGraph({
 
     const taskActivities = extractTaskActivities(activities)
 
-    const loopBodyNodes = new Set<string>()
-    storedEdges.forEach((edge) => {
-      if (edge.sourceHandle === EdgeHandleEnum.LOOP) {
-        loopBodyNodes.add(edge.target)
-      }
-    })
-
-    taskActivities.forEach((activity: TaskActivity | Extract<Activity, { type: 'approval' }>) => {
+    taskActivities.forEach((activity: Activity) => {
       const isGeneric = (activity as ActivityWithMetadata).metadata?.__isGeneric === true
       const isApproval = activity.type === ActivityTypeEnum.APPROVAL
 
-      let position = { x: 0, y: 0 }
-      if (loopBodyNodes.has(activity.id)) {
-        position = { x: LOOP_NODE_WIDTH + HORIZONTAL_SPACING, y: 0 }
-      }
+      // All nodes start at (0, 0) - the layout engine will position them correctly
+      // Loop body nodes will be positioned relative to their parent loop by the layout engine
+      const position = { x: 0, y: 0 }
 
       let nodeType: typeof FlowNodeType.GENERIC | typeof FlowNodeType.APPROVAL | typeof FlowNodeType.TASK =
         FlowNodeType.TASK
@@ -175,9 +176,8 @@ export function useBuilderFlowGraph({
         id: activity.id,
         type: nodeType,
         position,
-        // @ts-expect-error - ActivityWithMetadata extends Activity, safe to use
         data: activityData,
-      })
+      } as unknown as NodeType)
     })
 
     const loopBackNodeIds = detectLoopBackNodes(edges, nodes)

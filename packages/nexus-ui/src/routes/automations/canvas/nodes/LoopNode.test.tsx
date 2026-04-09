@@ -27,10 +27,9 @@ describe('LoopNodeComponent', () => {
     type: 'loop',
     id: 'loop-1',
     name: 'Process Items',
-    loop: {
-      type: 'forEach',
+    config: {
+      type: 'for_each',
       items: '{{ items }}',
-      itemVariable: 'item',
     },
   } as LoopActivity
 
@@ -88,10 +87,9 @@ describe('LoopNodeComponent', () => {
       const unnamedLoop = {
         type: 'loop',
         id: 'loop-2',
-        loop: {
-          type: 'forEach',
+        config: {
+          type: 'for_each',
           items: '{{ data }}',
-          itemVariable: 'x',
         },
       } as LoopActivity
 

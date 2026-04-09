@@ -1,7 +1,7 @@
 import type { Activity } from '@ansible/nexus-contracts'
 
 import { generateUUID } from '../../../../utils/generateUUID'
-import type { EdgeConnection } from '../workflowTransform'
+import type { EdgeConnection } from '../../types/edge'
 
 import { validateApprovalConnections } from './rules/validateApprovalConnections'
 import { validateConditionConnections } from './rules/validateConditionConnections'

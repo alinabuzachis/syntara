@@ -6,10 +6,12 @@ import {
   getPendingEdgeId,
   getPendingTargetNodeId,
   getPlaceholderNodeId,
+  handleToV2Port,
   isApprovalHandle,
   isBranchHandle,
   isConditionalHandle,
   isLoopHandle,
+  v2PortToHandle,
 } from './edgeHelpers'
 
 describe('edgeHelpers', () => {
@@ -157,6 +159,171 @@ describe('edgeHelpers', () => {
     it('generates pending edge ID', () => {
       expect(getPendingEdgeId('node-1')).toBe('pending-node-1')
       expect(getPendingEdgeId('task-xyz')).toBe('pending-task-xyz')
+    })
+  })
+
+  describe('v2PortToHandle - converts v2 API ports to React Flow handles', () => {
+    it('converts "iterate" to "loop"', () => {
+      expect(v2PortToHandle('iterate')).toBe(EdgeHandleEnum.LOOP)
+    })
+
+    it('converts "complete" to "done"', () => {
+      expect(v2PortToHandle('complete')).toBe(EdgeHandleEnum.DONE)
+    })
+
+    it('passes through "true" unchanged', () => {
+      expect(v2PortToHandle('true')).toBe(EdgeHandleEnum.TRUE)
+    })
+
+    it('passes through "false" unchanged', () => {
+      expect(v2PortToHandle('false')).toBe(EdgeHandleEnum.FALSE)
+    })
+
+    it('passes through "approved" unchanged', () => {
+      expect(v2PortToHandle('approved')).toBe(EdgeHandleEnum.APPROVED)
+    })
+
+    it('passes through "rejected" unchanged', () => {
+      expect(v2PortToHandle('rejected')).toBe(EdgeHandleEnum.REJECTED)
+    })
+
+    it('returns "source" for undefined', () => {
+      expect(v2PortToHandle(undefined)).toBe(EdgeHandleEnum.SOURCE)
+    })
+
+    it('returns "source" for null', () => {
+      expect(v2PortToHandle(null)).toBe(EdgeHandleEnum.SOURCE)
+    })
+
+    it('returns "source" for empty string', () => {
+      expect(v2PortToHandle('')).toBe(EdgeHandleEnum.SOURCE)
+    })
+  })
+
+  describe('handleToV2Port - converts React Flow handles to v2 API ports', () => {
+    it('converts "loop" to "iterate"', () => {
+      expect(handleToV2Port(EdgeHandleEnum.LOOP)).toBe('iterate')
+    })
+
+    it('converts "done" to "complete"', () => {
+      expect(handleToV2Port(EdgeHandleEnum.DONE)).toBe('complete')
+    })
+
+    it('passes through "true" unchanged', () => {
+      expect(handleToV2Port(EdgeHandleEnum.TRUE)).toBe(EdgeHandleEnum.TRUE)
+    })
+
+    it('passes through "false" unchanged', () => {
+      expect(handleToV2Port(EdgeHandleEnum.FALSE)).toBe(EdgeHandleEnum.FALSE)
+    })
+
+    it('passes through "approved" unchanged', () => {
+      expect(handleToV2Port(EdgeHandleEnum.APPROVED)).toBe(EdgeHandleEnum.APPROVED)
+    })
+
+    it('passes through "rejected" unchanged', () => {
+      expect(handleToV2Port(EdgeHandleEnum.REJECTED)).toBe(EdgeHandleEnum.REJECTED)
+    })
+
+    it('returns undefined for "source"', () => {
+      expect(handleToV2Port(EdgeHandleEnum.SOURCE)).toBeUndefined()
+    })
+
+    it('returns undefined for "target"', () => {
+      expect(handleToV2Port(EdgeHandleEnum.TARGET)).toBeUndefined()
+    })
+
+    it('returns undefined for undefined', () => {
+      expect(handleToV2Port(undefined)).toBeUndefined()
+    })
+
+    it('returns undefined for null', () => {
+      expect(handleToV2Port(null)).toBeUndefined()
+    })
+  })
+
+  describe('Round-trip conversion - v2 → React Flow → v2', () => {
+    it('iterate → loop → iterate', () => {
+      const v2Port = 'iterate'
+      const handle = v2PortToHandle(v2Port)
+      const backToV2 = handleToV2Port(handle)
+      expect(backToV2).toBe(v2Port)
+    })
+
+    it('complete → done → complete', () => {
+      const v2Port = 'complete'
+      const handle = v2PortToHandle(v2Port)
+      const backToV2 = handleToV2Port(handle)
+      expect(backToV2).toBe(v2Port)
+    })
+
+    it('true → true → true', () => {
+      const v2Port = 'true'
+      const handle = v2PortToHandle(v2Port)
+      const backToV2 = handleToV2Port(handle)
+      expect(backToV2).toBe(v2Port)
+    })
+
+    it('false → false → false', () => {
+      const v2Port = 'false'
+      const handle = v2PortToHandle(v2Port)
+      const backToV2 = handleToV2Port(handle)
+      expect(backToV2).toBe(v2Port)
+    })
+
+    it('approved → approved → approved', () => {
+      const v2Port = 'approved'
+      const handle = v2PortToHandle(v2Port)
+      const backToV2 = handleToV2Port(handle)
+      expect(backToV2).toBe(v2Port)
+    })
+
+    it('rejected → rejected → rejected', () => {
+      const v2Port = 'rejected'
+      const handle = v2PortToHandle(v2Port)
+      const backToV2 = handleToV2Port(handle)
+      expect(backToV2).toBe(v2Port)
+    })
+
+    it('undefined → source → undefined', () => {
+      const v2Port = undefined
+      const handle = v2PortToHandle(v2Port)
+      const backToV2 = handleToV2Port(handle)
+      expect(backToV2).toBeUndefined()
+    })
+  })
+
+  describe('BuilderContent/ExecutionViewContent targetHandle conversion', () => {
+    it('converts to_port "iterate" correctly for targetHandle (fixes round-trip bug)', () => {
+      // Pattern: targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target'
+      const to_port = 'iterate'
+      const targetHandle = v2PortToHandle(to_port)
+      expect(targetHandle).toBe(EdgeHandleEnum.LOOP)
+
+      // Verify round-trip back to v2
+      const backToV2 = handleToV2Port(targetHandle)
+      expect(backToV2).toBe('iterate')
+    })
+
+    it('converts to_port "complete" correctly for targetHandle (fixes round-trip bug)', () => {
+      const to_port = 'complete'
+      const targetHandle = v2PortToHandle(to_port)
+      expect(targetHandle).toBe(EdgeHandleEnum.DONE)
+
+      // Verify round-trip back to v2
+      const backToV2 = handleToV2Port(targetHandle)
+      expect(backToV2).toBe('complete')
+    })
+
+    it('converts to_port undefined correctly to target handle', () => {
+      // Pattern: targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target'
+      const to_port = undefined
+      const targetHandle = to_port ? v2PortToHandle(to_port) : 'target'
+      expect(targetHandle).toBe('target')
+
+      // Save path converts 'target' handle back to undefined
+      const backToV2 = handleToV2Port(targetHandle)
+      expect(backToV2).toBeUndefined()
     })
   })
 })

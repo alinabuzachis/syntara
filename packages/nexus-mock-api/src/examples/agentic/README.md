@@ -22,7 +22,7 @@ Agentic activities allow workflows to leverage AI agents for complex reasoning, 
 **Key Features**:
 
 - Single agentic task
-- Template variable substitution (`${input.topic}`)
+- Template variable substitution (`{{input.topic}}`)
 - Output mapping for structured results
 
 **Manual Testing**:
@@ -51,7 +51,7 @@ curl -X POST http://localhost:8000/api/v1/workflows/executions \
 
 - Mixed executor types (script + agentic)
 - Data flow between activities
-- Output chaining (`${prepare_data.output.status}`)
+- Output chaining (`{{activities.prepare_data.output.status}}`)
 
 **Manual Testing**:
 
@@ -172,9 +172,9 @@ task:
     agent: production://agent-name # Agent routing identifier
     model: claude-3-5-sonnet-20241022 # AI model to use
     prompt: | # Natural language prompt
-      Task description with ${variables}
+      Task description with {{variables}}
   inputs: # Runtime input mapping
-    key: '${expression}'
+    key: '{{expression}}'
   outputs: # Output extraction
     key: $.result.field
 ```
@@ -225,10 +225,11 @@ task:
 
 1. **Start Simple**: Begin with `simple-research.yaml` to understand basic agentic tasks
 2. **Monitor Logs**: Check Agent Orchestrator logs for detailed execution traces
-3. **Use Variables**: Leverage `${...}` template variables for dynamic prompts
+3. **Use Variables**: Leverage template variables for dynamic prompts
 4. **Chain Outputs**: Build complex workflows by chaining activity outputs
 
 ## Related Documentation
 
-- See the checked-in YAML examples in this directory for current syntax and activity wiring patterns.
-- Backend execution details for the agentic executor live in the backend repository rather than this UI/mock-api workspace.
+- [Workflow Engine Spec](../../../../../specs/003-workflow-engine/)
+- [Agent Orchestrator Spec](../../../../../specs/002-agent-orchestrator/)
+- [Agentic Activity Implementation](../../../../../src/nexus/workflows/activities/agentic_activity.py)

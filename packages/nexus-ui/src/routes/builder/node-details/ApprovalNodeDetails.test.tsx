@@ -64,18 +64,11 @@ describe('ApprovalNodeDetails Component', () => {
   const mockOnClose = vi.fn()
 
   const createTaskData = (overrides = {}) => ({
-    type: 'task' as const,
+    type: 'approval' as const,
     id: 'approval-1',
     name: 'Test Approval',
-    task: {
-      executor: 'script' as const,
-      config: { language: 'python' as const, code: '' },
-    },
-    approval: {
-      approvers: ['user1', 'user2'],
-      prompt: 'Please review',
-      timeout: 7200,
-      onTimeout: 'reject' as const,
+    config: {
+      approver_timeout: 7200,
     },
     ...overrides,
   })
@@ -107,11 +100,13 @@ describe('ApprovalNodeDetails Component', () => {
       'approval-1',
       expect.objectContaining({
         name: 'Updated Approval',
-        requiresApproval: true,
-        approval: expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        config: expect.objectContaining({
           approvers: ['admin'],
           prompt: 'Please approve',
-        }) as Record<string, unknown>,
+          approver_timeout: 3600,
+          on_timeout: 'reject',
+        }),
       })
     )
   })
@@ -151,5 +146,45 @@ describe('ApprovalNodeDetails Component', () => {
     await user.click(screen.getByTestId('submit-button'))
 
     expect(mockShowError).toHaveBeenCalledWith('Update failed')
+  })
+
+  it('reads on_timeout from snake_case config field', () => {
+    const taskDataWithSnakeCase = createTaskData({
+      config: {
+        approver_timeout: 7200,
+        on_timeout: 'continue',
+      },
+    })
+
+    render(<ApprovalNodeDetails taskData={taskDataWithSnakeCase} nodeId="approval-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
+  })
+
+  it('falls back to onTimeout (camelCase) when on_timeout not present', () => {
+    const taskDataWithCamelCase = createTaskData({
+      config: {
+        approver_timeout: 7200,
+        onTimeout: 'continue',
+      },
+    })
+
+    render(<ApprovalNodeDetails taskData={taskDataWithCamelCase} nodeId="approval-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
+  })
+
+  it('prefers on_timeout over onTimeout when both present', () => {
+    const taskDataWithBoth = createTaskData({
+      config: {
+        approver_timeout: 7200,
+        on_timeout: 'continue',
+        onTimeout: 'reject',
+      },
+    })
+
+    render(<ApprovalNodeDetails taskData={taskDataWithBoth} nodeId="approval-1" onClose={mockOnClose} />)
+
+    expect(screen.getByTestId('approval-node-form')).toBeInTheDocument()
   })
 })

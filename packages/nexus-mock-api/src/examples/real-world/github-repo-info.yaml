@@ -1,10 +1,8 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
+schema_version: "2.0.0"
+name: github-repo-info
+description: Fetch GitHub repository information and analyze it
 metadata:
-  name: github-repo-info
-  description: Fetch GitHub repository information and analyze it
   tags:
     - real-world
     - api
@@ -12,7 +10,8 @@ metadata:
   owner: demo-team
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
 inputs:
   owner:
@@ -24,120 +23,115 @@ inputs:
     description: GitHub repository name
     default: anthropic-sdk-python
 
-workflow:
-  activities:
-    # Fetch repository information from GitHub API
-    - id: fetch_repo
-      name: Fetch Repository Info
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: https://api.github.com/repos/${input.owner}/${input.repo}
-          headers:
-            Accept: application/vnd.github.v3+json
-            User-Agent: Nexus-Workflow-Engine
-        outputs:
-          repoData: $.body
-          name: $.body.name
-          description: $.body.description
-          stars: $.body.stargazers_count
-          forks: $.body.forks_count
-          language: $.body.language
-          openIssues: $.body.open_issues_count
-          createdAt: $.body.created_at
-          updatedAt: $.body.updated_at
-      timeout: 30
+nodes:
+  - id: fetch_repo
+    name: Fetch Repository Info
+    type: http_request
+    config:
+      method: GET
+      url: https://api.github.com/repos/${input.owner}/${input.repo}
+      headers:
+        Accept: application/vnd.github.v3+json
+        User-Agent: Nexus-Workflow-Engine
+    outputs:
+      repoData: $.body
+      name: $.body.name
+      description: $.body.description
+      stars: $.body.stargazers_count
+      forks: $.body.forks_count
+      language: $.body.language
+      openIssues: $.body.open_issues_count
+      createdAt: $.body.created_at
+      updatedAt: $.body.updated_at
+    timeout: 30
 
-    # Fetch repository languages
-    - id: fetch_languages
-      name: Fetch Repository Languages
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: https://api.github.com/repos/${input.owner}/${input.repo}/languages
-          headers:
-            Accept: application/vnd.github.v3+json
-            User-Agent: Nexus-Workflow-Engine
-        outputs:
-          languages: $.body
-      timeout: 30
+  - id: fetch_languages
+    name: Fetch Repository Languages
+    type: http_request
+    config:
+      method: GET
+      url: https://api.github.com/repos/${input.owner}/${input.repo}/languages
+      headers:
+        Accept: application/vnd.github.v3+json
+        User-Agent: Nexus-Workflow-Engine
+    outputs:
+      languages: $.body
+    timeout: 30
 
-    # Analyze repository data with Python
-    - id: analyze_repo
-      name: Analyze Repository Data
-      type: task
-      task:
-        executor: script
-        config:
-          language: python
-          code: |
-            import json
-            import os
-            from datetime import datetime
+  - id: analyze_repo
+    name: Analyze Repository Data
+    type: script
+    config:
+      language: python
+      code: |
+        import json
+        import os
+        from datetime import datetime
 
-            # Get inputs
-            name = os.getenv('INPUT_NAME', 'Unknown')
-            description = os.getenv('INPUT_DESCRIPTION', 'No description')
-            stars = int(os.getenv('INPUT_STARS', '0'))
-            forks = int(os.getenv('INPUT_FORKS', '0'))
-            language = os.getenv('INPUT_LANGUAGE', 'Unknown')
-            open_issues = int(os.getenv('INPUT_OPEN_ISSUES', '0'))
-            created_at = os.getenv('INPUT_CREATED_AT', '')
-            updated_at = os.getenv('INPUT_UPDATED_AT', '')
-            languages_json = os.getenv('INPUT_LANGUAGES', '{}')
+        # Get inputs
+        name = os.getenv('INPUT_NAME', 'Unknown')
+        description = os.getenv('INPUT_DESCRIPTION', 'No description')
+        stars = int(os.getenv('INPUT_STARS', '0'))
+        forks = int(os.getenv('INPUT_FORKS', '0'))
+        language = os.getenv('INPUT_LANGUAGE', 'Unknown')
+        open_issues = int(os.getenv('INPUT_OPEN_ISSUES', '0'))
+        created_at = os.getenv('INPUT_CREATED_AT', '')
+        updated_at = os.getenv('INPUT_UPDATED_AT', '')
+        languages_json = os.getenv('INPUT_LANGUAGES', '{}')
 
-            # Parse languages
-            languages = json.loads(languages_json)
+        # Parse languages
+        languages = json.loads(languages_json)
 
-            # Calculate popularity score (simple formula)
-            popularity_score = (stars * 2) + (forks * 5) - (open_issues * 0.5)
+        # Calculate popularity score (simple formula)
+        popularity_score = (stars * 2) + (forks * 5) - (open_issues * 0.5)
 
-            # Determine activity level
-            if stars > 10000:
-                activity = "Very Popular"
-            elif stars > 1000:
-                activity = "Popular"
-            elif stars > 100:
-                activity = "Moderately Active"
-            else:
-                activity = "Growing"
+        # Determine activity level
+        if stars > 10000:
+            activity = "Very Popular"
+        elif stars > 1000:
+            activity = "Popular"
+        elif stars > 100:
+            activity = "Moderately Active"
+        else:
+            activity = "Growing"
 
-            # Format languages
-            language_list = list(languages.keys())
+        # Format languages
+        language_list = list(languages.keys())
 
-            # Create analysis report
-            report = {
-                "repository": name,
-                "description": description,
-                "primary_language": language,
-                "all_languages": language_list,
-                "statistics": {
-                    "stars": stars,
-                    "forks": forks,
-                    "open_issues": open_issues,
-                    "popularity_score": round(popularity_score, 2)
-                },
-                "activity_level": activity,
-                "summary": f"{name} is a {activity.lower()} repository with {stars} stars and {forks} forks, primarily written in {language}."
-            }
+        # Create analysis report
+        report = {
+            "repository": name,
+            "description": description,
+            "primary_language": language,
+            "all_languages": language_list,
+            "statistics": {
+                "stars": stars,
+                "forks": forks,
+                "open_issues": open_issues,
+                "popularity_score": round(popularity_score, 2)
+            },
+            "activity_level": activity,
+            "summary": f"{name} is a {activity.lower()} repository with {stars} stars and {forks} forks, primarily written in {language}."
+        }
 
-            print(json.dumps(report, indent=2))
-        inputs:
-          name: ${fetch_repo.output.name}
-          description: ${fetch_repo.output.description}
-          stars: ${fetch_repo.output.stars}
-          forks: ${fetch_repo.output.forks}
-          language: ${fetch_repo.output.language}
-          open_issues: ${fetch_repo.output.openIssues}
-          created_at: ${fetch_repo.output.createdAt}
-          updated_at: ${fetch_repo.output.updatedAt}
-          languages: ${fetch_languages.output.languages}
-        outputs:
-          report: $.output
-          summary: $.output.summary
-          popularityScore: $.output.statistics.popularity_score
-      timeout: 60
+        print(json.dumps(report, indent=2))
+    inputs:
+      name: ${fetch_repo.output.name}
+      description: ${fetch_repo.output.description}
+      stars: ${fetch_repo.output.stars}
+      forks: ${fetch_repo.output.forks}
+      language: ${fetch_repo.output.language}
+      open_issues: ${fetch_repo.output.openIssues}
+      created_at: ${fetch_repo.output.createdAt}
+      updated_at: ${fetch_repo.output.updatedAt}
+      languages: ${fetch_languages.output.languages}
+    outputs:
+      report: $.output
+      summary: $.output.summary
+      popularityScore: $.output.statistics.popularity_score
+    timeout: 60
+edges:
+  - source: fetch_repo
+    target: fetch_languages
+  - source: fetch_languages
+    target: analyze_repo

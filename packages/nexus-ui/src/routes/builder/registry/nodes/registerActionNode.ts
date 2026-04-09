@@ -39,7 +39,7 @@ export default function registerActionNode() {
             icon: RhUiPlugFillIcon,
             description: 'Trigger an action or retrieve data from an external source.',
             formTitle: 'Configure REST API Actions',
-            initialData: { executor: 'api' },
+            initialData: { executor: 'http_request' },
           },
         ],
         formComponent: ActionNodeForm,
@@ -49,13 +49,13 @@ export default function registerActionNode() {
           const baseName = getDefaultNodeBaseName({
             nodeTypeId: RegistryNodeId.ACTION,
             initialData: { executor: data.executor },
-            label: data.executor === 'api' ? 'REST API' : 'Script',
+            label: data.executor === 'http_request' ? 'REST API' : 'Script',
           })
           const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) => {
             if (data.executor === 'script' && data.language && data.code) {
-              return createScriptActivity(id, name, data.language, data.code, data.parameters)
+              return createScriptActivity(id, name, data.language, data.code)
             }
-            if (data.executor === 'api' && data.method && data.url) {
+            if (data.executor === 'http_request' && data.method && data.url) {
               return createApiActivity({
                 id,
                 name,
@@ -71,10 +71,6 @@ export default function registerActionNode() {
           })
 
           if (activity) {
-            // Set requiresApproval if specified
-            if (data.requiresApproval) {
-              activity.requiresApproval = true
-            }
             useWorkflowStore.getState().addActivity(activity)
             onSuccess(activityId)
           } else {

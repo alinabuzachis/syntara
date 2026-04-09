@@ -51,10 +51,6 @@ export const nodeMetadata: Record<string, NodeMetadata> = {
     enableEnd: true,
     expandable: false,
   },
-  parallel: {
-    label: 'Parallel',
-    expandable: false,
-  },
   converge: {
     icon: RhUiMergeNodesIcon,
     label: 'Converge',
@@ -71,8 +67,7 @@ const aapJobExecutorDisplay: ExecutorDisplayMetadata = { icon: AnsibleIcon, labe
 export const executorMetadata: Record<string, ExecutorDisplayMetadata> = {
   script: { icon: RhUiCodeIcon, label: 'Script' },
   agentic: { icon: RhUiRobotIcon, label: 'Agentic' },
-  api: { icon: RhUiPlugFillIcon, label: 'REST API' },
-  connector: { icon: RhUiPlugFillIcon, label: 'Connector' },
+  http_request: { icon: RhUiPlugFillIcon, label: 'REST API' },
   aap_job_template: aapJobExecutorDisplay,
   /** Internal key from detectTaskNodeType (agentic + ansible connector prompt), not an API executor string */
   aap: aapJobExecutorDisplay,

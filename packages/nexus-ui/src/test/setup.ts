@@ -3,6 +3,8 @@ import 'vitest-axe/extend-expect'
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, afterAll, expect } from 'vitest'
 
+import { resetPollingConnectionCounter } from '../routes/builder/utils/edgeConnectionHelpers'
+
 // Collect React act() warnings during each test, then fail in afterEach.
 // Throwing directly from console.error creates unhandled rejections when
 // async third-party code (e.g. PatternFly Popper) triggers the warning.
@@ -66,6 +68,8 @@ if (typeof globalThis !== 'undefined' && !globalThis.ResizeObserver) {
 
 beforeEach(() => {
   actWarnings = []
+  // SECURITY: Reset edge connection counter to prevent test failures from concurrency limit
+  resetPollingConnectionCounter()
 })
 
 afterEach(async () => {

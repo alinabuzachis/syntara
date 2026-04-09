@@ -42,8 +42,10 @@ describe('ExecutionViewContent', () => {
   it('renders builder flow and loads workflow into store', async () => {
     const workflow = {
       id: 'workflow-1',
-      triggers: [],
-      workflow: { activities: [] },
+      triggers: [{ id: 'trigger_manual', type: 'manual_trigger' }],
+      nodes: [{ id: 'task-1', type: 'script', name: 'Task', config: {} }],
+      edges: [{ from: 'trigger_manual', to: 'task-1' }],
+      workflow: { activities: [{ id: 'task-1', type: 'script', name: 'Task', config: {} }] },
     } as never
 
     render(<ExecutionViewContent workflow={workflow} executionId="exec-1" executionStatus={null} />)
@@ -76,20 +78,23 @@ describe('ExecutionViewContent', () => {
   it('adds trigger edges for parallel workflows', async () => {
     const workflow = {
       id: 'workflow-parallel',
-      triggers: [{ type: 'manual' }],
+      triggers: [{ id: 'trigger_manual', type: 'manual_trigger' }],
+      nodes: [
+        {
+          id: 'task-1',
+          type: 'script',
+          name: 'Task',
+          config: { language: 'bash', code: 'echo' },
+        },
+      ],
+      edges: [{ from: 'trigger_manual', to: 'task-1' }],
       workflow: {
         activities: [
           {
-            id: 'parallel-1',
-            type: 'parallel',
-            branches: [
-              {
-                id: 'task-1',
-                type: 'task',
-                name: 'Task',
-                task: { executor: 'script', config: { language: 'bash', code: 'echo' } },
-              },
-            ],
+            id: 'task-1',
+            type: 'script',
+            name: 'Task',
+            config: { language: 'bash', code: 'echo' },
           },
         ],
       },

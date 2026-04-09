@@ -1,3 +1,4 @@
+import type { WorkflowWithVersion } from '@ansible/nexus-contracts'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -77,19 +78,16 @@ describe('BuilderContent - Delete Automation', () => {
     current_version: 1,
     version: {
       workflow_definition: {
-        schemaVersion: '1.0.0',
-        version: 1,
-        metadata: {
-          name: 'Test Workflow',
-          description: 'Test Description',
-        },
+        schema_version: '2.0.0' as const,
+        name: 'Test Workflow',
+        description: 'Test Description',
         triggers: [],
-        workflow: {
-          activities: [],
-        },
+        nodes: [],
+        edges: [],
+        $defs: {},
       },
     },
-  }
+  } as unknown as WorkflowWithVersion
 
   const createMockMutation = (mutate = vi.fn()) => ({
     mutate,

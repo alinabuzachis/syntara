@@ -1,13 +1,11 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: conditional-demo
-  description: Demonstrates conditional branching based on temperature input
+schema_version: "2.0.0"
+name: conditional-demo
+description: Demonstrates conditional branching based on temperature input
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
 inputs:
   temperature:
@@ -15,94 +13,99 @@ inputs:
     description: Temperature in Celsius
     default: 25
 
-workflow:
-  activities:
-    - id: check_temperature
-      name: Check Temperature
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Current temperature: ${INPUT_TEMP}°C"
-            echo "Checked at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "$INPUT_TEMP"
-        inputs:
-          temp: ${inputs.temperature}
-        outputs:
-          temp_value: $.stdout
+nodes:
+  - id: check_temperature
+    name: Check Temperature
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Current temperature: ${INPUT_TEMP}°C"
+        echo "Checked at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "$INPUT_TEMP"
+    inputs:
+      temp: ${inputs.temperature}
+    outputs:
+      temp_value: $.stdout
 
-    # Conditional routing based on temperature
-    - id: temperature_routing
-      name: Temperature-Based Routing
-      type: condition
-      condition: ${inputs.temperature} > 30
-      then:
-        - id: hot_weather
-          name: Hot Weather Action
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "🌡️  Hot weather detected!"
-                echo "Recommended actions:"
-                echo "  - Turn on air conditioning"
-                echo "  - Stay hydrated"
-                echo "  - Avoid outdoor activities during peak hours"
-      else:
-        - id: check_cold
-          name: Check for Cold Weather
-          type: condition
-          condition: ${inputs.temperature} < 15
-          then:
-            - id: cold_weather
-              name: Cold Weather Action
-              type: task
-              task:
-                executor: script
-                config:
-                  language: bash
-                  code: |
-                    echo "❄️  Cold weather detected!"
-                    echo "Recommended actions:"
-                    echo "  - Turn on heating"
-                    echo "  - Dress warmly"
-                    echo "  - Check for frost warnings"
-          else:
-            - id: mild_weather
-              name: Mild Weather Action
-              type: task
-              task:
-                executor: script
-                config:
-                  language: bash
-                  code: |
-                    echo "☀️  Pleasant weather conditions!"
-                    echo "Temperature is just right: ${INPUT_TEMP}°C"
-                    echo "  - Enjoy outdoor activities"
-                    echo "  - No special precautions needed"
-                inputs:
-                  temp: ${inputs.temperature}
+  - id: temperature_routing
+    name: Temperature-Based Routing
+    type: condition
+    condition: ${inputs.temperature} > 30
 
-    - id: summary
-      name: Weather Summary
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo ""
-            echo "=== Weather Check Complete ==="
-            echo "Temperature assessed: ${INPUT_TEMP}°C"
-            echo ""
-            echo "Conditional activities executed based on temperature:"
-            echo "  • Hot weather (>30°C): Shows AC recommendations"
-            echo "  • Cold weather (<15°C): Shows heating recommendations"
-            echo "  • Mild weather (15-30°C): Shows pleasant weather message"
-            echo "=============================="
-        inputs:
-          temp: ${inputs.temperature}
+  - id: hot_weather
+    name: Hot Weather Action
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "🌡️  Hot weather detected!"
+        echo "Recommended actions:"
+        echo "  - Turn on air conditioning"
+        echo "  - Stay hydrated"
+        echo "  - Avoid outdoor activities during peak hours"
+
+  - id: check_cold
+    name: Check for Cold Weather
+    type: condition
+    condition: ${inputs.temperature} < 15
+
+  - id: cold_weather
+    name: Cold Weather Action
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "❄️  Cold weather detected!"
+        echo "Recommended actions:"
+        echo "  - Turn on heating"
+        echo "  - Dress warmly"
+        echo "  - Check for frost warnings"
+
+  - id: mild_weather
+    name: Mild Weather Action
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "☀️  Pleasant weather conditions!"
+        echo "Temperature is just right: ${INPUT_TEMP}°C"
+        echo "  - Enjoy outdoor activities"
+        echo "  - No special precautions needed"
+    inputs:
+      temp: ${inputs.temperature}
+
+  - id: summary
+    name: Weather Summary
+    type: script
+    config:
+      language: bash
+      code: |
+        echo ""
+        echo "=== Weather Check Complete ==="
+        echo "Temperature assessed: ${INPUT_TEMP}°C"
+        echo ""
+        echo "Conditional activities executed based on temperature:"
+        echo "  • Hot weather (>30°C): Shows AC recommendations"
+        echo "  • Cold weather (<15°C): Shows heating recommendations"
+        echo "  • Mild weather (15-30°C): Shows pleasant weather message"
+        echo "=============================="
+    inputs:
+      temp: ${inputs.temperature}
+edges:
+  - source: check_temperature
+    target: temperature_routing
+  - source: temperature_routing
+    target: hot_weather
+    port: then
+  - source: temperature_routing
+    target: check_cold
+    port: else
+  - source: check_cold
+    target: cold_weather
+    port: then
+  - source: check_cold
+    target: mild_weather
+    port: else
+  - source: temperature_routing
+    target: summary

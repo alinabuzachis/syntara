@@ -159,7 +159,8 @@ function ExecutionDetailContent({
               // Preserve history panel state when navigating to different execution
               const params = new URLSearchParams(searchParams)
               const newSearch = params.toString()
-              setLocation(`/executions/${selectedId}${newSearch ? `?${newSearch}` : ''}`)
+              const searchSuffix = newSearch ? `?${newSearch}` : ''
+              setLocation(`/executions/${selectedId}${searchSuffix}`)
             }}
             filters={filters}
             onFilterChange={onFilterChange}

@@ -1,49 +1,54 @@
-import { ActivityTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, type Activity } from '@ansible/nexus-contracts'
 
-import type { ActivityMetadata } from './workflowStoreTypes'
+import type { ActivityWithMetadata } from './workflowStoreTypes'
+
+/**
+ * SECURITY: JSON.parse reviver that strips prototype pollution keys during parsing.
+ */
+function safeJSONReviver(key: string, value: unknown): unknown {
+  if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+    return undefined
+  }
+  return value
+}
 
 // ============================================================================
-// Workflow Entity Factory Functions
+// V2 Workflow Entity Factory Functions
 // ============================================================================
-// These functions create properly typed workflow entities.
+// These functions create properly typed v2 workflow entities.
 // They are pure functions and don't interact with the store directly.
 //
-// Usage:
-//   import { createManualTrigger, createScriptActivity } from './workflowFactories'
-//   const trigger = createManualTrigger(true)
-//   const activity = createScriptActivity('task-1', 'My Task', 'python', 'print("hello")')
+// V2 key differences from v1:
+//   - Executor nodes use direct type ("script", "http_request", …)
+//     instead of type "task" with a task.executor wrapper
+//   - Config lives at node.config (not nested under task.config)
+//   - Control flow nodes store config in node.config
+//   - Triggers have id and config fields
+//   - No nested child arrays (then/else/do/onApproved/onRejected)
 // ============================================================================
-
-// Type aliases from API contracts
-type Activity = WorkflowAPI.components['schemas']['activity']
-type TaskActivity = Extract<Activity, { type: 'task' }>
 
 // ============================================================================
 // Trigger Factory Functions
 // ============================================================================
 
 /**
- * Create a manual trigger.
- * @param requiresApproval - Whether the trigger requires approval before execution
+ * Create a manual trigger (v2).
  */
-export function createManualTrigger(
-  requiresApproval?: boolean,
-  name?: string
-): WorkflowAPI.components['schemas']['manualTrigger'] & { name?: string } {
+export function createManualTrigger(id: string, _requiresApproval?: boolean, name?: string): Activity {
   return {
-    type: 'manual',
-    ...(requiresApproval !== undefined && { requiresApproval }),
-    ...(name ? { name } : {}),
+    id,
+    type: 'manual_trigger',
+    name: name ?? 'Manual Trigger',
+    config: {},
   }
 }
 
 /**
- * Create a scheduled trigger.
- * @param scheduleType - Type of schedule: 'cron', 'interval', or 'continuous'
- * @param config - Schedule configuration
- * @note This trigger type is not yet in the API schema - using type assertion
+ * Create a scheduled trigger (v2).
+ * @note This trigger type is not yet in the v2 backend schema
  */
 export function createScheduledTrigger(
+  id: string,
   scheduleType: 'cron' | 'interval' | 'continuous',
   config: {
     cron?: string
@@ -52,98 +57,59 @@ export function createScheduledTrigger(
   },
   name?: string
 ) {
-  if (scheduleType === 'cron' && config.cron) {
-    return {
-      type: 'scheduled',
-      schedule: {
-        scheduleType: 'cron',
-        cron: config.cron,
-        ...(config.timezone && { timezone: config.timezone }),
-      },
-      ...(name ? { name } : {}),
-    } as const
-  } else if (scheduleType === 'interval' && config.interval) {
-    return {
-      type: 'scheduled',
-      schedule: {
-        scheduleType: 'interval',
-        interval: config.interval,
-      },
-      ...(name ? { name } : {}),
-    } as const
-  } else {
-    return {
-      type: 'scheduled',
-      schedule: {
-        scheduleType: 'continuous',
-        continuous: true,
-      },
-      ...(name ? { name } : {}),
-    } as const
+  return {
+    id,
+    type: 'scheduled',
+    name: name ?? 'Scheduled Trigger',
+    config: {
+      schedule_type: scheduleType,
+      ...(config.cron && { cron: config.cron }),
+      ...(config.timezone && { timezone: config.timezone }),
+      ...(config.interval && { interval: config.interval }),
+    },
   }
 }
 
 /**
- * Create an event trigger.
- * @param source - Event source identifier
- * @param eventType - Type of event to trigger on
- * @param filter - Optional filter criteria
- * @note This trigger type is not yet in the API schema - using type assertion
+ * Create an event trigger (v2).
+ * @note This trigger type is not yet in the v2 backend schema
  */
-export function createEventTrigger(source: string, eventType: string, filter?: Record<string, unknown>, name?: string) {
+export function createEventTrigger(
+  id: string,
+  source: string,
+  eventType: string,
+  filter?: Record<string, unknown>,
+  name?: string
+) {
   return {
+    id,
     type: 'event',
-    event: {
+    name: name ?? 'Event Trigger',
+    config: {
       source,
-      eventType,
+      event_type: eventType,
       ...(filter && { filter }),
     },
-    ...(name ? { name } : {}),
-  } as const
+  }
 }
 
 // ============================================================================
-// Activity Factory Functions
+// Executor Node Factory Functions
 // ============================================================================
 
 /**
- * Create a script activity.
- * @param id - Unique activity identifier
- * @param name - Display name for the activity
- * @param language - Script language (e.g., 'python', 'bash', 'javascript', 'powershell')
- * @param code - Script code to execute
- * @param inputs - Optional JSON string of input parameters
- * @note API schema currently only supports 'python' and 'bash' - using type assertion for forward compatibility
+ * Create a script node (v2).
  */
-export function createScriptActivity(
-  id: string,
-  name: string,
-  language: string,
-  code: string,
-  inputs?: string
-): TaskActivity {
-  const activity: TaskActivity = {
-    type: ActivityTypeEnum.TASK,
+export function createScriptActivity(id: string, name: string, language: string, code: string): Activity {
+  return {
     id,
+    type: ActivityTypeEnum.SCRIPT,
     name,
-    task: {
-      executor: 'script',
-      config: {
-        language: language as 'python' | 'bash',
-        code,
-      },
+    config: {
+      language,
+      code,
     },
   }
-
-  if (inputs) {
-    try {
-      activity.task.inputs = JSON.parse(inputs) as { [key: string]: unknown }
-    } catch {
-      // If inputs is not valid JSON, skip it
-    }
-  }
-
-  return activity
 }
 
 export interface CreateApiActivityOptions {
@@ -158,71 +124,44 @@ export interface CreateApiActivityOptions {
 }
 
 /**
- * Create an API activity.
- * @param id - Unique activity identifier
- * @param name - Display name for the activity
- * @param method - HTTP method
- * @param url - API endpoint URL
- * @param headers - Optional JSON string of HTTP headers
- * @param body - Optional JSON string of request body
- * @param inputs - Optional JSON string of input parameters
- * @param authentication - Optional authentication value (merged into headers)
+ * Create an HTTP request node (v2).
  */
-export function createApiActivity(options: CreateApiActivityOptions): TaskActivity {
-  const { id, name, method, url, headers, body, inputs, authentication } = options
-  const config: {
-    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-    url: string
-    headers?: { [key: string]: string }
-    body?: unknown
-  } = {
-    method,
-    url,
-  }
+export function createApiActivity(options: CreateApiActivityOptions): Activity {
+  const { id, name, method, url, headers, body, authentication } = options
+  const config: Record<string, unknown> = { method, url }
 
   if (headers) {
     try {
-      config.headers = JSON.parse(headers) as { [key: string]: string }
+      // SECURITY: Use reviver to strip prototype pollution keys
+      config.headers = JSON.parse(headers, safeJSONReviver) as { [key: string]: string }
     } catch {
       // If headers is not valid JSON, skip it
     }
   }
 
   if (authentication) {
+    const existingHeaders = config.headers as Record<string, string> | undefined
     config.headers = {
-      ...(config.headers ?? {}),
+      ...existingHeaders,
       Authorization: authentication,
     }
   }
 
   if (body) {
     try {
-      config.body = JSON.parse(body)
+      // SECURITY: Use reviver to strip prototype pollution keys
+      config.body = JSON.parse(body, safeJSONReviver) as unknown
     } catch {
-      // If body is not valid JSON, use as string
       config.body = body
     }
   }
 
-  const activity: TaskActivity = {
-    type: ActivityTypeEnum.TASK,
+  return {
     id,
+    type: ActivityTypeEnum.HTTP_REQUEST,
     name,
-    task: {
-      executor: 'api',
-      config,
-    },
+    config,
   }
-
-  if (inputs) {
-    try {
-      activity.task.inputs = JSON.parse(inputs) as { [key: string]: unknown }
-    } catch {
-      // If inputs is not valid JSON, skip it
-    }
-  }
-
-  return activity
 }
 
 export interface CreateAgenticActivityOptions {
@@ -236,204 +175,27 @@ export interface CreateAgenticActivityOptions {
 }
 
 /**
- * Create an agentic activity (AI agent with MCP server integration).
- * @param id - Unique activity identifier
- * @param name - Display name for the activity
- * @param tools - Optional array of tool names available to the agent
- * @param prompt - Optional natural language prompt for the agent
- * @param model - Optional LLM model to use
- * @param inputs - Optional JSON string of input parameters
- * @param fileIds - Optional array of uploaded file IDs
+ * Create an agentic node (v2).
  */
-export function createAgenticActivity(options: CreateAgenticActivityOptions): TaskActivity {
-  const { id, name, tools, prompt, model, inputs, fileIds } = options
-  const config: {
-    agent: string
-    tools?: string[]
-    prompt?: string
-    model?: string
-    fileIds?: string[]
-  } = {
-    agent: '', // Default empty string since UI doesn't collect this field
-  }
+export function createAgenticActivity(options: CreateAgenticActivityOptions): Activity {
+  const { id, name, tools, prompt, model, fileIds } = options
+  const config: Record<string, unknown> = {}
 
-  if (tools && tools.length > 0) {
-    config.tools = tools
-  }
+  if (prompt) config.prompt = prompt
+  if (model) config.model = model
+  if (tools && tools.length > 0) config.tool_selections = tools
+  if (fileIds && fileIds.length > 0) config.file_ids = fileIds
 
-  if (prompt) {
-    config.prompt = prompt
-  }
-
-  if (model) {
-    config.model = model
-  }
-
-  if (fileIds && fileIds.length > 0) {
-    config.fileIds = fileIds
-  }
-
-  const activity: TaskActivity = {
-    type: ActivityTypeEnum.TASK,
-    id,
-    name,
-    task: {
-      executor: 'agentic',
-      config,
-    },
-  }
-
-  if (inputs) {
-    try {
-      activity.task.inputs = JSON.parse(inputs) as { [key: string]: unknown }
-    } catch {
-      // If inputs is not valid JSON, skip it
-    }
-  }
-
-  return activity
-}
-
-/**
- * Create a condition activity.
- * @param id - Unique activity identifier
- * @param name - Display name for the activity
- * @param condition - Condition expression to evaluate
- */
-export function createConditionActivity(
-  id: string,
-  name: string,
-  condition: string
-): Extract<Activity, { type: 'condition' }> {
-  // The 'then' and 'else' properties are required by the workflow API schema for condition nodes.
-  // This is a workflow domain object representing conditional branching, NOT a JavaScript Promise.
-  // SonarCloud flags 'then' properties as potential Promise confusion - suppressing this false positive.
   return {
-    type: ActivityTypeEnum.CONDITION,
     id,
+    type: ActivityTypeEnum.AGENTIC,
     name,
-    condition,
-    then: [], // NOSONAR - This is a workflow branch property, not a Promise thenable
-    else: [],
+    config,
   }
 }
 
 /**
- * Create a loop activity.
- * @param id - Unique activity identifier
- * @param name - Display name for the activity
- * @param loopType - Type of loop: 'forEach' or 'while'
- * @param config - Loop configuration
- */
-export function createLoopActivity(
-  id: string,
-  name: string,
-  loopType: 'forEach' | 'while',
-  config: {
-    items?: string
-    condition?: string
-    maxIterations?: number
-    maxIterationsBehavior?: 'continue' | 'fail'
-    indexVariable?: string
-    itemVariable?: string
-  }
-): Extract<Activity, { type: 'loop' }> {
-  const baseActivity = {
-    type: ActivityTypeEnum.LOOP,
-    id,
-    name,
-    loop: {
-      type: loopType,
-      do: [],
-    },
-  }
-
-  if (loopType === 'forEach' && config.items) {
-    return {
-      ...baseActivity,
-      loop: {
-        ...baseActivity.loop,
-        type: 'forEach' as const,
-        items: config.items,
-        itemVariable: config.itemVariable,
-        indexVariable: config.indexVariable,
-      },
-    }
-  } else if (loopType === 'while' && config.condition) {
-    type WhileLoop = Extract<Extract<Activity, { type: 'loop' }>['loop'], { type: 'while' }>
-    const whileLoop: WhileLoop = {
-      ...(baseActivity.loop as unknown as WhileLoop),
-      type: 'while' as const,
-      condition: config.condition,
-    }
-
-    if (config.maxIterations !== undefined && config.maxIterations !== null && !Number.isNaN(config.maxIterations)) {
-      whileLoop.maxIterations = config.maxIterations
-    }
-
-    return {
-      ...baseActivity,
-      loop: whileLoop,
-    }
-  }
-
-  // Fallback - should not happen if form validation works
-  // Default to forEach with empty items to satisfy type requirements
-  return {
-    ...baseActivity,
-    loop: {
-      type: 'forEach' as const,
-      items: '',
-      do: [],
-    },
-  }
-}
-
-/**
- * Create a converge activity (for parallel workflow synchronization).
- * @param id - Unique activity identifier
- * @param name - Display name for the activity
- * @param config - Optional converge configuration
- */
-export function createConvergeActivity(
-  id: string,
-  name: string,
-  config?: {
-    strategy?: 'all' | 'any'
-    timeout?: number
-    onTimeout?: 'continue' | 'fail'
-    aggregateOutputs?: boolean
-    requiredPathCount?: number
-    remainingBehavior?: 'continue' | 'cancel'
-  }
-): Extract<Activity, { type: 'converge' }> {
-  const convergeActivity: Extract<Activity, { type: 'converge' }> = {
-    type: ActivityTypeEnum.CONVERGE,
-    id,
-    name,
-    converge: {
-      branches: [], // Will be populated based on incoming edges
-      // TODO: remove cast when backend schema supports 'any' strategy
-      strategy: (config?.strategy ?? 'all') as 'all',
-      timeout: config?.timeout,
-      onTimeout: config?.onTimeout,
-      aggregateOutputs: config?.aggregateOutputs,
-      ...(config?.strategy === 'any' &&
-        config.requiredPathCount !== undefined && { requiredPathCount: config.requiredPathCount }),
-      ...(config?.strategy === 'any' && config.remainingBehavior && { remainingBehavior: config.remainingBehavior }),
-    } as Extract<Activity, { type: 'converge' }>['converge'],
-  }
-
-  return convergeActivity
-}
-
-/**
- * Create an AAP Job Template activity.
- * @param id - Unique activity identifier
- * @param name - Display name for the activity
- * @param jobTemplateId - AAP job template ID to launch
- * @param config - Optional configuration (inventory, credentials, extraVars, etc.)
- * @note The 'aap_job_template' executor is not yet in the API schema - using type assertion
+ * Create an AAP Job Template node (v2).
  */
 export function createAAPJobTemplateActivity(
   id: string,
@@ -448,87 +210,27 @@ export function createAAPJobTemplateActivity(
     skipTags?: string
     verbosity?: number
   }
-): TaskActivity {
+): Activity {
   return {
-    type: ActivityTypeEnum.TASK,
     id,
+    type: ActivityTypeEnum.AAP_JOB_TEMPLATE,
     name,
-    task: {
-      executor: 'aap_job_template' as TaskActivity['task']['executor'],
-      config: {
-        jobTemplateId,
-        ...config,
-      },
-    },
-  } as TaskActivity
-}
-
-/**
- * Create a connector activity (for external integrations).
- * @param id - Unique activity identifier
- * @param name - Display name for the activity
- * @param connectorId - ID of the connector to use
- * @param operation - Operation to perform
- * @param parameters - Optional JSON string of operation parameters
- */
-export function createConnectorActivity(
-  id: string,
-  name: string,
-  connectorId: string,
-  operation: string,
-  parameters?: string
-): TaskActivity {
-  // Parse parameters if provided
-  let parsedParameters: { [key: string]: unknown } | undefined
-  if (parameters) {
-    try {
-      parsedParameters = JSON.parse(parameters) as { [key: string]: unknown }
-    } catch {
-      // If parameters is not valid JSON, skip it
-    }
-  }
-
-  const activity: TaskActivity = {
-    type: ActivityTypeEnum.TASK,
-    id,
-    name,
-    task: {
-      executor: 'connector',
-      config: {
-        connectorId,
-        operation,
-        ...(parsedParameters && { parameters: parsedParameters }),
-      },
+    config: {
+      job_template_id: jobTemplateId,
+      ...(config?.inventory !== undefined && { inventory_id: config.inventory }),
+      ...(config?.credentials && { credentials: config.credentials }),
+      ...(config?.extraVars && { extra_vars: config.extraVars }),
+      ...(config?.limit && { limit: config.limit }),
+      ...(config?.tags && { tags: config.tags }),
+      ...(config?.skipTags && { skip_tags: config.skipTags }),
+      ...(config?.verbosity !== undefined && { verbosity: config.verbosity }),
     },
   }
-
-  return activity
 }
 
-/**
- * Create a generic placeholder activity that can be replaced with any step type.
- * @param id - Unique activity identifier
- * @param name - Display name (defaults to 'New Step')
- * @param customMessage - Optional custom message for the placeholder
- */
-export function createGenericActivity(id: string, name: string = 'New Step', customMessage?: string): TaskActivity {
-  // Generic placeholder node - minimal task structure without executor details
-  // The __isGeneric metadata flag marks this as a placeholder that should be replaced
-  const activity: TaskActivity & { metadata: ActivityMetadata } = {
-    type: ActivityTypeEnum.TASK,
-    id,
-    name,
-    metadata: {
-      __isGeneric: true,
-      ...(customMessage ? { __customMessage: customMessage } : {}),
-    },
-    task: {
-      config: {},
-    },
-  } as TaskActivity & { metadata: ActivityMetadata }
-
-  return activity
-}
+// ============================================================================
+// Approval Node Factory
+// ============================================================================
 
 export interface CreateApprovalActivityOptions {
   id: string
@@ -540,31 +242,130 @@ export interface CreateApprovalActivityOptions {
 }
 
 /**
- * Create an approval activity - a task that requires human approval before execution.
- * @param id - Unique activity identifier
- * @param name - Display name for the activity
- * @param approvers - List of email addresses of users who can approve
- * @param prompt - Message displayed to approvers explaining what they're approving
- * @param timeout - Optional ISO 8601 duration string (e.g., 'PT1H' for 1 hour, 'P1D' for 1 day)
- * @param onTimeout - Action to take when timeout expires: 'fail', 'approve', or 'reject'
+ * Create an approval node (v2).
  */
-export function createApprovalActivity(
-  options: CreateApprovalActivityOptions
-): Extract<Activity, { type: 'approval' }> {
-  const { id, name, approvers, prompt, timeout, onTimeout } = options
-  // Approval nodes match the workflow schema with onApproved/onRejected branches
-  // Pattern: Same as condition nodes, but with approval-specific fields
+export function createApprovalActivity(options: CreateApprovalActivityOptions): Activity {
+  const { id, name, timeout } = options
   return {
-    type: 'approval',
     id,
+    type: ActivityTypeEnum.APPROVAL,
     name,
-    onApproved: [],
-    onRejected: [],
-    approval: {
-      approvers,
-      prompt,
-      ...(timeout && { timeout }),
-      ...(onTimeout && { onTimeout }),
+    config: {
+      ...(timeout !== undefined && { approver_timeout: timeout }),
+    },
+  }
+}
+
+// ============================================================================
+// Control Flow Node Factory Functions
+// ============================================================================
+
+/**
+ * Create a condition node (v2).
+ */
+export function createConditionActivity(id: string, name: string, condition: string): Activity {
+  return {
+    id,
+    type: ActivityTypeEnum.CONDITION,
+    name,
+    config: {
+      condition,
+    },
+  }
+}
+
+/**
+ * Create a loop node (v2).
+ */
+export function createLoopActivity(
+  id: string,
+  name: string,
+  loopType: 'forEach' | 'while',
+  config: {
+    items?: string
+    condition?: string
+    maxIterations?: number
+    maxIterationsBehavior?: 'continue' | 'fail'
+    indexVariable?: string
+    itemVariable?: string
+  }
+): Activity {
+  if (loopType === 'forEach') {
+    return {
+      id,
+      type: ActivityTypeEnum.LOOP,
+      name,
+      config: {
+        type: 'for_each',
+        items: config.items ?? '',
+      },
+    }
+  }
+
+  // do_while
+  const loopConfig: Record<string, unknown> = {
+    type: 'do_while',
+    condition: config.condition ?? '',
+  }
+  if (config.maxIterations !== undefined && !Number.isNaN(config.maxIterations)) {
+    loopConfig.max_iterations = config.maxIterations
+  }
+
+  return {
+    id,
+    type: ActivityTypeEnum.LOOP,
+    name,
+    config: loopConfig,
+  }
+}
+
+/**
+ * Create a converge node (v2).
+ */
+export function createConvergeActivity(
+  id: string,
+  name: string,
+  config?: {
+    strategy?: 'all' | 'any'
+    timeout?: number
+    onTimeout?: 'continue' | 'fail'
+    aggregateOutputs?: boolean
+    requiredPathCount?: number
+    remainingBehavior?: 'continue' | 'cancel'
+  }
+): Activity {
+  return {
+    id,
+    type: ActivityTypeEnum.CONVERGE,
+    name,
+    config: {
+      strategy: config?.strategy ?? 'all',
+      ...(config?.onTimeout && { on_timeout: config.onTimeout }),
+    },
+  }
+}
+
+/**
+ * Create a generic placeholder node (v2).
+ * UI-only concept — not backed by a v2 backend schema.
+ * Metadata is stored in the `metadata` field (not `config`) for proper detection.
+ *
+ * SECURITY: Uses ActivityWithMetadata type instead of unsafe `as Activity` cast.
+ * Metadata properties are restricted to the allowlist defined in ActivityMetadata interface.
+ */
+export function createGenericActivity(
+  id: string,
+  name: string = 'New Step',
+  customMessage?: string
+): ActivityWithMetadata {
+  return {
+    id,
+    type: 'generic',
+    name,
+    config: {},
+    metadata: {
+      __isGeneric: true,
+      ...(customMessage ? { __customMessage: customMessage } : {}),
     },
   }
 }

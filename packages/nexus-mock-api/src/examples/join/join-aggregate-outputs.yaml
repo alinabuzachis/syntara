@@ -1,43 +1,52 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-metadata:
-  name: join-aggregate-test
-  description: Test join with output aggregation from multiple branches
+schema_version: "2.0.0"
+name: join-aggregate-test
+description: Test join with output aggregation from multiple branches
 triggers:
-  - type: manual
-workflow:
-  activities:
-    - id: parallel_aggregate
-      type: parallel
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: parallel_aggregate
+    type: parallel
+
+  - id: data_task1
+    type: script
+    config:
+      language: bash
+      code: "echo '{\"value\": 10}'"
+
+  - id: data_task2
+    type: script
+    config:
+      language: bash
+      code: "echo '{\"value\": 20}'"
+
+  - id: data_task3
+    type: script
+    config:
+      language: bash
+      code: "echo '{\"value\": 30}'"
+
+  - id: join_aggregate
+    type: converge
+    config:
       branches:
-        - id: data_task1
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: "echo '{\"value\": 10}'"
-        - id: data_task2
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: "echo '{\"value\": 20}'"
-        - id: data_task3
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: "echo '{\"value\": 30}'"
-    - id: join_aggregate
-      type: join
-      join:
-        branches:
-          - data_task1
-          - data_task2
-          - data_task3
-        strategy: all
-        aggregateOutputs: true
+        - data_task1
+        - data_task2
+        - data_task3
+      strategy: all
+      aggregateOutputs: true
+edges:
+  - from: trigger_manual
+    to: parallel_aggregate
+  - from: parallel_aggregate
+    to: data_task1
+    from_port: branch
+  - from: parallel_aggregate
+    to: data_task2
+    from_port: branch
+  - from: parallel_aggregate
+    to: data_task3
+    from_port: branch
+  - from: parallel_aggregate
+    to: join_aggregate

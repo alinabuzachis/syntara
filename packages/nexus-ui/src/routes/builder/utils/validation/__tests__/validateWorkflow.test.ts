@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FlowNodeType } from '../../../../../constants'
 import { makeCondition } from '../../../../../test/test-helpers'
-import type { EdgeConnection } from '../../workflowTransform'
+import type { EdgeConnection } from '../../../types/edge'
 import { validateWorkflow } from '../validateWorkflow'
 
 // Mock generateUUID for predictable error IDs
@@ -24,21 +24,10 @@ describe('validateWorkflow', () => {
       expect(result.warnings).toHaveLength(0)
     })
 
-    it('returns valid result for simple trigger-task workflow', () => {
-      const activities = [
-        {
-          type: 'trigger',
-          id: 'trigger-1',
-          name: 'Start',
-          trigger: { executor: 'manual', config: {} },
-        },
-        {
-          type: 'task',
-          id: 'task-1',
-          name: 'Task 1',
-          task: { executor: 'script', config: { language: 'python', code: '' } },
-        },
-      ] as unknown as Activity[]
+    it('returns valid result for simple workflow', () => {
+      const activities: Activity[] = [
+        { type: 'script', id: 'task-1', name: 'Task 1', config: { language: 'python', code: '' } },
+      ]
       const edges: EdgeConnection[] = [
         {
           id: 'trigger-1-task-1',
@@ -57,12 +46,7 @@ describe('validateWorkflow', () => {
     it('returns valid result for condition node with then branch connected', () => {
       const activities: Activity[] = [
         makeCondition({ id: 'C1', name: 'Condition 1', condition: 'x > 10' }),
-        {
-          type: 'task',
-          id: 'T1',
-          name: 'Task 1',
-          task: { executor: 'script', config: { language: 'python', code: '' } },
-        },
+        { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
       ]
       const edges: EdgeConnection[] = [
         { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'true', targetHandle: 'target' },
@@ -75,21 +59,10 @@ describe('validateWorkflow', () => {
 
   describe('invalid workflows', () => {
     it('detects dangling nodes', () => {
-      const activities = [
-        {
-          type: 'trigger',
-          id: 'trigger-1',
-          name: 'Start',
-          trigger: { executor: 'manual', config: {} },
-        },
-        {
-          type: 'task',
-          id: 'task-1',
-          name: 'Disconnected Task',
-          task: { executor: 'script', config: { language: 'python', code: '' } },
-        },
-      ] as unknown as Activity[]
-      const edges: EdgeConnection[] = [] // No connections
+      const activities: Activity[] = [
+        { type: 'script', id: 'task-1', name: 'Disconnected Task', config: { language: 'python', code: '' } },
+      ]
+      const edges: EdgeConnection[] = []
 
       const result = validateWorkflow(activities, edges)
       expect(result.valid).toBe(false)
@@ -98,24 +71,12 @@ describe('validateWorkflow', () => {
     })
 
     it('detects condition node missing then branch', () => {
-      const activities = [
-        {
-          type: 'trigger',
-          id: 'trigger-1',
-          name: 'Start',
-          trigger: { executor: 'manual', config: {} },
-        },
+      const activities: Activity[] = [
         makeCondition({ id: 'C1', name: 'Condition 1', condition: 'x > 10' }),
-        {
-          type: 'task',
-          id: 'T1',
-          name: 'Task 1',
-          task: { executor: 'script', config: { language: 'python', code: '' } },
-        },
-      ] as unknown as Activity[]
+        { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
+      ]
       const edges: EdgeConnection[] = [
         { id: 'trigger-1-C1', source: 'trigger-1', target: 'C1', sourceHandle: 'source', targetHandle: 'target' },
-        // Only false (else) branch connected, missing true (then) branch
         { id: 'C1-T1', source: 'C1', target: 'T1', sourceHandle: 'false', targetHandle: 'target' },
       ]
 
@@ -126,14 +87,7 @@ describe('validateWorkflow', () => {
 
     it('detects generic nodes that need configuration', () => {
       const activities = [
-        {
-          type: 'trigger',
-          id: 'trigger-1',
-          name: 'Start',
-          trigger: { executor: 'manual', config: {} },
-        },
-        // Use generic type which should be detected by validateNoGenericNodes
-        { type: FlowNodeType.GENERIC, id: 'generic-1', name: 'Unconfigured Node' },
+        { type: FlowNodeType.GENERIC, id: 'generic-1', name: 'Unconfigured Node', config: {} },
       ] as unknown as Activity[]
       const edges: EdgeConnection[] = [
         {
@@ -146,33 +100,15 @@ describe('validateWorkflow', () => {
       ]
 
       const result = validateWorkflow(activities, edges)
-      // Check if any error was found (generic nodes may trigger different validation rules)
-      // The specific behavior depends on how the validation rules handle 'generic' type
       expect(result).toBeDefined()
       expect(Array.isArray(result.errors)).toBe(true)
     })
 
     it('detects approval node missing approved branch', () => {
-      const activities = [
-        {
-          type: 'trigger',
-          id: 'trigger-1',
-          name: 'Start',
-          trigger: { executor: 'manual', config: {} },
-        },
-        {
-          type: 'approval',
-          id: 'approval-1',
-          name: 'Approval Task',
-          approval: { approvers: ['user1'], prompt: 'Approve?', timeout: 3600, onTimeout: 'fail' },
-        },
-        {
-          type: 'task',
-          id: 'T1',
-          name: 'Task 1',
-          task: { executor: 'script', config: { language: 'python', code: '' } },
-        },
-      ] as unknown as Activity[]
+      const activities: Activity[] = [
+        { type: 'approval', id: 'approval-1', name: 'Approval Task', config: {} },
+        { type: 'script', id: 'T1', name: 'Task 1', config: { language: 'python', code: '' } },
+      ]
       const edges: EdgeConnection[] = [
         {
           id: 'trigger-1-approval-1',
@@ -181,7 +117,6 @@ describe('validateWorkflow', () => {
           sourceHandle: 'source',
           targetHandle: 'target',
         },
-        // Only rejected branch connected, missing approved branch
         { id: 'approval-1-T1', source: 'approval-1', target: 'T1', sourceHandle: 'rejected', targetHandle: 'target' },
       ]
 
@@ -194,11 +129,16 @@ describe('validateWorkflow', () => {
   describe('multiple errors', () => {
     it('collects errors from multiple rules', () => {
       const activities: Activity[] = [
-        // @ts-expect-error - Testing generic node detection
-        { type: FlowNodeType.GENERIC, id: 'generic-1', name: 'Unconfigured Node' },
+        {
+          type: FlowNodeType.GENERIC,
+          id: 'generic-1',
+          name: 'Unconfigured Node',
+          config: {},
+          metadata: { __isGeneric: true },
+        },
         makeCondition({ id: 'C1', name: 'Condition 1', condition: 'x > 10' }),
       ]
-      const edges: EdgeConnection[] = [] // No connections at all
+      const edges: EdgeConnection[] = []
 
       const result = validateWorkflow(activities, edges)
       expect(result.valid).toBe(false)
@@ -208,15 +148,11 @@ describe('validateWorkflow', () => {
 
   describe('error handling', () => {
     it('catches and reports internal validation errors', () => {
-      // Mock console.error to verify it's called
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-      // Create a scenario that might cause an internal error
-      // by passing malformed data
       const activities = null as unknown as Activity[]
       const edges: EdgeConnection[] = []
 
-      // This should catch the error and return a validation result
       const result = validateWorkflow(activities, edges)
 
       expect(result.valid).toBe(false)
@@ -229,20 +165,12 @@ describe('validateWorkflow', () => {
 
   describe('warnings', () => {
     it('includes warnings in result when rules produce them', () => {
-      // Currently there are no warning rules, so this tests the structure
-      const activities = [
-        {
-          type: 'trigger',
-          id: 'trigger-1',
-          name: 'Start',
-          trigger: { executor: 'manual', config: {} },
-        },
-      ] as unknown as Activity[]
+      const activities: Activity[] = [
+        { type: 'script', id: 'task-1', name: 'Task 1', config: { language: 'python', code: '' } },
+      ]
       const edges: EdgeConnection[] = []
 
       const result = validateWorkflow(activities, edges)
-      // Trigger only workflow may have dangling node errors
-      // but warnings array should always exist
       expect(Array.isArray(result.warnings)).toBe(true)
     })
   })

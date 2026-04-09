@@ -1,44 +1,40 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: error-propagation-test
-  description: Test error propagation
+schema_version: "2.0.0"
+name: error-propagation-test
+description: Test error propagation
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: first_task
-      name: First Task
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "First task successful"
-            echo '{"status": "ok"}'
+nodes:
+  - id: first_task
+    name: First Task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "First task successful"
+        echo '{"status": "ok"}'
 
-    - id: second_task
-      name: Second Task
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Second task fails"
-            exit 1
+  - id: second_task
+    name: Second Task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Second task fails"
+        exit 1
 
-    - id: third_task
-      name: Third Task
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "This should not execute if second task fails"
+  - id: third_task
+    name: Third Task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "This should not execute if second task fails"
+edges:
+  - source: first_task
+    target: second_task
+  - source: second_task
+    target: third_task

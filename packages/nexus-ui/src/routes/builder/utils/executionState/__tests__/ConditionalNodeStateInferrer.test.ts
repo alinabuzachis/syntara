@@ -13,9 +13,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: 'x > 5',
-      then: [],
-      else: [],
+      config: { condition: 'x > 5' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'cond-1', target: 'task-true', sourceHandle: 'true', targetHandle: 'target' },
@@ -39,9 +37,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: 'x > 5',
-      then: [],
-      else: [],
+      config: { condition: 'x > 5' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'cond-1', target: 'task-true', sourceHandle: 'true', targetHandle: 'target' },
@@ -70,9 +66,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: 'x > 5',
-      then: [],
-      else: [],
+      config: { condition: 'x > 5' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'cond-1', target: 'task-true', sourceHandle: 'true', targetHandle: 'target' },
@@ -93,8 +87,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'approval-1',
       name: 'Approval',
       type: 'approval',
-      onApproved: [],
-      onRejected: [],
+      config: {},
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'approval-1', target: 'task-approved', sourceHandle: 'approved', targetHandle: 'target' },
@@ -123,8 +116,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'approval-1',
       name: 'Approval',
       type: 'approval',
-      onApproved: [],
-      onRejected: [],
+      config: {},
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'approval-1', target: 'task-approved', sourceHandle: 'approved', targetHandle: 'target' },
@@ -148,9 +140,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: 'x > 5',
-      then: [],
-      else: [],
+      config: { condition: 'x > 5' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'cond-1', target: 'task-true', sourceHandle: 'true', targetHandle: 'target' },
@@ -182,9 +172,7 @@ describe('ConditionalNodeStateInferrer', () => {
       id: 'cond-1',
       name: 'Conditional',
       type: 'condition',
-      condition: 'x > 5',
-      then: [],
-      else: [],
+      config: { condition: 'x > 5' },
     }
     const edges: EdgeConnection[] = [
       { id: '1', source: 'cond-1', target: 'task-a', sourceHandle: 'true', targetHandle: 'target' },

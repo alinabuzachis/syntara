@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import { useWorkflowStore } from '../../../stores/useWorkflowStore'
+import { parseTriggerIndex } from '../../../utils/triggerNodeIds'
 import type { EdgeConnection } from '../types/edge'
 import { isButtonEdge } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
@@ -50,14 +51,41 @@ export function useEdgeSynchronization({ edges, isInitialized, setStoredEdges }:
         !edge.target.startsWith('pending-target-')
     )
 
-    // Convert to simplified format for storage
-    const edgeConnections = realEdges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      sourceHandle: edge.sourceHandle,
-      targetHandle: edge.targetHandle,
-    }))
+    // CRITICAL: Transform trigger display IDs (trigger-0, trigger-1) back to real IDs
+    // BEFORE storing in the workflow store. This ensures edges always use real IDs
+    // in the canonical store, and display IDs only exist in React Flow's local state.
+    //
+    // Why this is critical:
+    // - When a trigger is deleted, the triggers array indices shift
+    // - If we store display IDs, "trigger-1" may point to a different trigger after deletion
+    // - By storing real IDs, edges remain stable across trigger additions/deletions
+    const triggers = useWorkflowStore.getState().currentWorkflow?.triggers ?? []
+
+    const edgeConnections = realEdges.map((edge) => {
+      // Transform source trigger display ID to real ID
+      let source = edge.source
+      const sourceTriggerIndex = parseTriggerIndex(edge.source)
+      if (sourceTriggerIndex !== undefined && triggers[sourceTriggerIndex]) {
+        // Triggers always have real IDs - use directly
+        source = (triggers[sourceTriggerIndex] as { id: string }).id
+      }
+
+      // Transform target trigger display ID to real ID
+      let target = edge.target
+      const targetTriggerIndex = parseTriggerIndex(edge.target)
+      if (targetTriggerIndex !== undefined && triggers[targetTriggerIndex]) {
+        // Triggers always have real IDs - use directly
+        target = (triggers[targetTriggerIndex] as { id: string }).id
+      }
+
+      return {
+        id: edge.id,
+        source,
+        target,
+        sourceHandle: edge.sourceHandle,
+        targetHandle: edge.targetHandle,
+      }
+    })
 
     // Create signature for comparison
     const currentSignature = JSON.stringify(edgeConnections)

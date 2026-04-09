@@ -1,43 +1,52 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-metadata:
-  name: join-count-test
-  description: Test join with count strategy - wait for specific number of branches
+schema_version: "2.0.0"
+name: join-count-test
+description: Test join with count strategy - wait for specific number of branches
 triggers:
-  - type: manual
-workflow:
-  activities:
-    - id: parallel_count
-      type: parallel
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: parallel_count
+    type: parallel
+
+  - id: count_task1
+    type: script
+    config:
+      language: bash
+      code: echo "Count task 1"
+
+  - id: count_task2
+    type: script
+    config:
+      language: bash
+      code: echo "Count task 2"
+
+  - id: count_task3
+    type: script
+    config:
+      language: bash
+      code: echo "Count task 3"
+
+  - id: join_count
+    type: converge
+    config:
       branches:
-        - id: count_task1
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: echo "Count task 1"
-        - id: count_task2
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: echo "Count task 2"
-        - id: count_task3
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: echo "Count task 3"
-    - id: join_count
-      type: join
-      join:
-        branches:
-          - count_task1
-          - count_task2
-          - count_task3
-        strategy: count
-        count: 2
+        - count_task1
+        - count_task2
+        - count_task3
+      strategy: count
+      count: 2
+edges:
+  - from: trigger_manual
+    to: parallel_count
+  - from: parallel_count
+    to: count_task1
+    from_port: branch
+  - from: parallel_count
+    to: count_task2
+    from_port: branch
+  - from: parallel_count
+    to: count_task3
+    from_port: branch
+  - from: parallel_count
+    to: join_count

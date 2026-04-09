@@ -1,25 +1,21 @@
 import type { Activity } from '@ansible/nexus-contracts'
 
-/** Options for creating a condition fixture with flexible nested activity types */
+/** Options for creating a condition fixture with flexible config */
 interface ConditionOverrides {
   id?: string
   name?: string
   condition?: string
-  then?: unknown[]
-  else?: unknown[]
 }
 
 /**
- * Creates a condition Activity fixture for testing.
- * Centralizes the biome-ignore suppression for the `then` property.
+ * Creates a v2 condition Activity fixture for testing.
+ * V2: condition expression is in config.condition, no then/else arrays.
  */
-export const makeCondition = (overrides: ConditionOverrides = {}): Activity =>
-  ({
-    type: 'condition',
-    id: overrides.id ?? 'C1',
-    name: overrides.name ?? 'Condition',
+export const makeCondition = (overrides: ConditionOverrides = {}): Activity => ({
+  type: 'condition',
+  id: overrides.id ?? 'C1',
+  name: overrides.name ?? 'Condition',
+  config: {
     condition: overrides.condition ?? 'x > 10',
-    // biome-ignore lint/suspicious/noThenProperty: Activity schema uses `then` for condition branches
-    then: overrides.then ?? [],
-    else: overrides.else ?? [],
-  }) as Activity
+  },
+})

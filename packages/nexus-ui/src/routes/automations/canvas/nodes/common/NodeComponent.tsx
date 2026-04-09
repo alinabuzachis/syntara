@@ -10,7 +10,6 @@ import { NODE_TYPE_COLORS } from '../../nodeTypeColors'
 import type { SemanticZoomBranchSource } from '../../semanticZoomTypes'
 import { useSemanticZoom } from '../hooks/useSemanticZoom'
 
-import { detectTaskNodeType } from './detectTaskNodeType'
 import { targetHandleStyle, sourceHandleStyle } from './handleStyle'
 import { NodeExpandedAllContext } from './NodeExpandedAllContext'
 import { NodeExpandedContext } from './NodeExpandedContext'
@@ -41,9 +40,8 @@ const isWideTaskNode = (nodeProps: NodeProps) => {
     return false
   }
 
-  const { connectorData } = detectTaskNodeType(data)
-
-  if (data.task?.executor === ExecutorTypeEnum.AGENTIC && !connectorData) {
+  // In v2, activity.type IS the executor directly (no task.executor wrapper)
+  if (data.type === ExecutorTypeEnum.AGENTIC) {
     return true
   }
 

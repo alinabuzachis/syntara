@@ -1,10 +1,4 @@
-import type {
-  ConditionActivity,
-  ConvergeActivity,
-  LoopActivity,
-  TaskActivity,
-  WorkflowAPI,
-} from '@ansible/nexus-contracts'
+import type { ConditionActivity, ConvergeActivity, LoopActivity, TaskActivity } from '@ansible/nexus-contracts'
 import type { Node } from '@xyflow/react'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
@@ -17,6 +11,7 @@ import {
   selectCurrentWorkflow,
   getActivityMetadata,
   type Activity,
+  type ActivityMetadata,
 } from '../../stores/useWorkflowStore'
 import { parseTriggerIndex } from '../../utils/triggerNodeIds'
 import { NodeMenu } from '../automations/canvas/nodes/common/NodeMenu'
@@ -45,20 +40,22 @@ import { buildPanelMenuActions } from './utils/panelMenuActions'
  * closes automatically after modifications.
  */
 
-function cleanMetadata(metadata: unknown): unknown {
-  if (metadata == null) return undefined
-  if (typeof metadata !== 'object' || Array.isArray(metadata)) return metadata
+/**
+ * Remove __isGeneric from already-sanitized metadata.
+ * SECURITY: Input MUST be pre-sanitized by getActivityMetadata().
+ * This function only removes __isGeneric; it does NOT enforce the allowlist.
+ */
+function cleanMetadata(metadata: ActivityMetadata | undefined): ActivityMetadata | undefined {
+  if (!metadata) return undefined
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { __isGeneric: _isGeneric, ...rest } = metadata as Record<string, unknown>
-  return Object.keys(rest).length > 0 ? rest : undefined
+  const { __isGeneric: _isGeneric, ...rest } = metadata
+  return Object.keys(rest).length > 0 ? (rest as ActivityMetadata) : undefined
 }
 
 /** Top-level search is correct: the builder store always holds a flat activity list (see WorkflowTransform). */
-function findActivityInCurrentWorkflow(activityId: string): WorkflowAPI.components['schemas']['activity'] | undefined {
+function findActivityInCurrentWorkflow(activityId: string): Activity | undefined {
   const current = useWorkflowStore.getState().currentWorkflow
-  return current?.workflow.activities.find(
-    (activity: WorkflowAPI.components['schemas']['activity']) => activity.id === activityId
-  )
+  return current?.workflow.activities.find((activity: Activity) => activity.id === activityId)
 }
 
 interface NodeDetailsPanelProps {
@@ -136,7 +133,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
             ...newActivity,
             id: replacementNodeId,
             metadata: cleaned,
-          } as unknown as Activity)
+          })
         } else {
           const genericActivity = findActivityInCurrentWorkflow(replacementNodeId)
           if (!genericActivity) return false
@@ -144,7 +141,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           const cleaned = cleanMetadata(getActivityMetadata(genericActivity))
           updateActivity(replacementNodeId, {
             metadata: cleaned,
-          } as unknown as Partial<WorkflowAPI.components['schemas']['activity']>)
+          })
         }
         return true
       }

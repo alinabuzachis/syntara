@@ -1,4 +1,3 @@
-import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import { type Dispatch, type SetStateAction, useEffect } from 'react'
 
 import { FlowNodeType } from '../../../constants'
@@ -57,7 +56,7 @@ export function applyLoopBackNodeTypes(nodes: NodeType[], loopBackNodeIds: Set<s
       return { ...node, type: FlowNodeType.TASK_REVERSED }
     } else if (!shouldBeReversed && isCurrentlyReversed) {
       hasChanges = true
-      return { ...node, type: ActivityTypeEnum.TASK }
+      return { ...node, type: FlowNodeType.TASK }
     }
 
     return node

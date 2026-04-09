@@ -15,12 +15,18 @@ import { buildAAPConfig, parsePositiveInt } from '../utils/aapHelpers'
 
 import { AIAgentNodeDetails } from './AIAgentNodeDetails'
 
-type TaskOrApprovalActivity = (TaskActivity | Extract<Activity, { type: 'approval' }>) & {
-  task: { executor: string; config: unknown }
+/**
+ * SECURITY: JSON.parse reviver that strips prototype pollution keys during parsing.
+ */
+function safeJSONReviver(key: string, value: unknown): unknown {
+  if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+    return undefined
+  }
+  return value
 }
 
 interface TaskNodeDetailsProps {
-  taskData: TaskOrApprovalActivity
+  taskData: Activity
   nodeId: string
   onClose: () => void
   onHeaderContentChange: (content: ReactNode | null) => void
@@ -37,49 +43,63 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
     return null
   }
 
-  // Detect the actual node type - handles disguised AAP/connector nodes
-  const { actualExecutor, detectedExecutorType } = detectTaskNodeType(taskData)
+  // In v2, activity.type IS the executor directly
+  const executor = taskData.type
 
-  const executor = taskData.task.executor as string
+  // Detect the actual node type - handles disguised AAP/connector nodes
+  const { actualExecutor, detectedExecutorType } = detectTaskNodeType(taskData as TaskActivity)
+
+  // In v2, config is at activity.config (not activity.task.config)
+  const config = taskData.config ?? {}
 
   // AAP (incl. connector-backed with executor still "agentic") must be checked before the generic
   // agentic branch, or those tasks would incorrectly show AI Agent details.
   const isAAPTask =
     detectedExecutorType === DetectedExecutorType.AAP || actualExecutor === ExecutorTypeEnum.AAP_JOB_TEMPLATE
   if (isAAPTask) {
-    const aapConfig = taskData.task.config as unknown as {
-      jobTemplateId: number
-      inventory?: number
+    const aapConfig = config as {
+      job_template_id?: number
+      inventory_id?: number
       credentials?: number[]
-      extraVars?: Record<string, unknown>
+      extra_vars?: Record<string, unknown>
       limit?: string
       tags?: string
-      skipTags?: string
+      skip_tags?: string
       verbosity?: number
+      // Legacy field names for backward compat
+      jobTemplateId?: number
+      inventory?: number
+      extraVars?: Record<string, unknown>
+      skipTags?: string
     }
+
+    const jobTemplateId = aapConfig.job_template_id ?? aapConfig.jobTemplateId
+    const inventory = aapConfig.inventory_id ?? aapConfig.inventory
+    const extraVars = aapConfig.extra_vars ?? aapConfig.extraVars
+    const skipTags = aapConfig.skip_tags ?? aapConfig.skipTags
 
     const aapInitialData: Partial<AAPFormData> = {
       name: taskData.name,
-      jobTemplateId: aapConfig.jobTemplateId?.toString() ?? '',
-      inventory: aapConfig.inventory?.toString() ?? '',
+      jobTemplateId: jobTemplateId?.toString() ?? '',
+      inventory: inventory?.toString() ?? '',
       credentials: aapConfig.credentials?.join(',') ?? '',
-      extraVars: aapConfig.extraVars ? JSON.stringify(aapConfig.extraVars, null, 2) : '',
+      extraVars: extraVars ? JSON.stringify(extraVars, null, 2) : '',
       limit: aapConfig.limit ?? '',
       tags: aapConfig.tags ?? '',
-      skipTags: aapConfig.skipTags ?? '',
+      skipTags: skipTags ?? '',
       verbosity: aapConfig.verbosity?.toString() ?? '',
     }
 
     const handleAAPSubmit = (data: AAPFormData) => {
       try {
         // Parse jobTemplateId (required)
-        const jobTemplateId = parsePositiveInt(data.jobTemplateId)
-        if (!jobTemplateId) {
+        const parsedJobTemplateId = parsePositiveInt(data.jobTemplateId)
+        if (!parsedJobTemplateId) {
           throw new Error('Job Template ID must be a valid positive integer')
         }
 
-        const config = buildAAPConfig(data)
-        const updatedActivity = createAAPJobTemplateActivity(nodeId, data.name, jobTemplateId, config)
+        const aapNodeConfig = buildAAPConfig(data)
+        const updatedActivity = createAAPJobTemplateActivity(nodeId, data.name, parsedJobTemplateId, aapNodeConfig)
 
         updateActivity(nodeId, updatedActivity)
         onClose()
@@ -103,7 +123,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
   if (executor === ExecutorTypeEnum.AGENTIC) {
     return (
       <AIAgentNodeDetails
-        taskData={taskData as TaskActivity & { task: { executor: 'agentic'; config: unknown } }}
+        taskData={taskData}
         nodeId={nodeId}
         onClose={onClose}
         onHeaderContentChange={onHeaderContentChange}
@@ -111,93 +131,85 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
     )
   }
 
-  // Handle standard executors (script, api, agentic)
-  if (executor !== 'script' && executor !== 'api' && executor !== 'agentic') {
+  // Handle standard executors (script, http_request)
+  if (executor !== ExecutorTypeEnum.SCRIPT && executor !== ExecutorTypeEnum.HTTP_REQUEST) {
     return null
   }
 
-  // Store requiresApproval separately since ActionFormData doesn't include it
-  const requiresApproval = taskData.requiresApproval
-
   const initialData: Partial<RegistryActionFormData> = {
     name: taskData.name,
-    executor: executor as 'script' | 'api',
-    language:
-      executor === ExecutorTypeEnum.SCRIPT ? (taskData.task.config as { language?: string }).language : undefined,
-    code: executor === ExecutorTypeEnum.SCRIPT ? (taskData.task.config as { code?: string }).code : undefined,
+    executor: executor === ExecutorTypeEnum.SCRIPT ? ExecutorTypeEnum.SCRIPT : ExecutorTypeEnum.HTTP_REQUEST,
+    language: executor === ExecutorTypeEnum.SCRIPT ? (config.language as string | undefined) : undefined,
+    code: executor === ExecutorTypeEnum.SCRIPT ? (config.code as string | undefined) : undefined,
     method:
-      executor === ExecutorTypeEnum.API
-        ? ((taskData.task.config as { method?: string }).method as
-            | 'GET'
-            | 'POST'
-            | 'PUT'
-            | 'PATCH'
-            | 'DELETE'
-            | undefined)
+      executor === ExecutorTypeEnum.HTTP_REQUEST
+        ? (config.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | undefined)
         : undefined,
-    url: executor === ExecutorTypeEnum.API ? (taskData.task.config as { url?: string }).url : undefined,
+    url: executor === ExecutorTypeEnum.HTTP_REQUEST ? (config.url as string | undefined) : undefined,
     headers:
-      executor === ExecutorTypeEnum.API && (taskData.task.config as { headers?: unknown }).headers
-        ? JSON.stringify((taskData.task.config as { headers: unknown }).headers, null, 2)
+      executor === ExecutorTypeEnum.HTTP_REQUEST && config.headers
+        ? JSON.stringify(config.headers, null, 2)
         : undefined,
     body:
-      executor === ExecutorTypeEnum.API && (taskData.task.config as { body?: unknown }).body
-        ? typeof (taskData.task.config as { body: unknown }).body === 'string'
-          ? (taskData.task.config as { body: string }).body
-          : JSON.stringify((taskData.task.config as { body: unknown }).body, null, 2)
+      executor === ExecutorTypeEnum.HTTP_REQUEST && config.body
+        ? typeof config.body === 'string'
+          ? config.body
+          : JSON.stringify(config.body, null, 2)
         : undefined,
-    parameters: taskData.task.inputs ? JSON.stringify(taskData.task.inputs, null, 2) : undefined,
   }
 
   const handleSubmit = (data: RegistryActionFormData) => {
     try {
+      // Validate headers JSON format if provided
+      if (data.executor === ExecutorTypeEnum.HTTP_REQUEST && data.headers) {
+        try {
+          JSON.parse(data.headers, safeJSONReviver)
+        } catch {
+          // Invalid JSON - show error and keep form data intact for user to fix
+          showError(
+            'Invalid Headers Format',
+            'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type": "application/json"}'
+          )
+          return // Exit early to prevent double-error notification
+        }
+      }
+
       const apiHeaders =
-        data.executor === ExecutorTypeEnum.API && data.headers
-          ? (JSON.parse(data.headers) as Record<string, string>)
+        data.executor === ExecutorTypeEnum.HTTP_REQUEST && data.headers
+          ? (JSON.parse(data.headers, safeJSONReviver) as Record<string, string>)
           : undefined
 
       const mergedApiHeaders =
-        data.executor === ExecutorTypeEnum.API && data.authentication
+        data.executor === ExecutorTypeEnum.HTTP_REQUEST && data.authentication
           ? { ...(apiHeaders ?? {}), Authorization: data.authentication }
           : apiHeaders
 
+      // In v2, build a flat node with type = executor and config at top level
       const updatedActivity = {
         ...taskData,
         name: data.name,
-        requiresApproval: requiresApproval ?? undefined,
-        task: {
-          executor: data.executor,
-          config:
-            data.executor === ExecutorTypeEnum.SCRIPT
-              ? {
-                  language: data.language ?? 'python',
-                  code: data.code!,
-                }
-              : {
-                  method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-                  url: data.url!,
-                  ...(mergedApiHeaders && { headers: mergedApiHeaders }),
-                  ...(data.body && {
-                    body: (() => {
-                      try {
-                        return JSON.parse(data.body) as unknown
-                      } catch {
-                        return data.body
-                      }
-                    })(),
-                  }),
-                },
-          ...(data.parameters && {
-            inputs: (() => {
-              const parsed: unknown = JSON.parse(data.parameters)
-              if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-                return parsed as { [key: string]: unknown }
+        type: data.executor === ExecutorTypeEnum.SCRIPT ? ExecutorTypeEnum.SCRIPT : ExecutorTypeEnum.HTTP_REQUEST,
+        config:
+          data.executor === ExecutorTypeEnum.SCRIPT
+            ? {
+                language: data.language ?? 'python',
+                code: data.code!,
               }
-              return undefined
-            })(),
-          }),
-        },
-      } as TaskActivity
+            : {
+                method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+                url: data.url!,
+                ...(mergedApiHeaders && { headers: mergedApiHeaders }),
+                ...(data.body && {
+                  body: (() => {
+                    try {
+                      return JSON.parse(data.body, safeJSONReviver) as unknown
+                    } catch {
+                      return data.body
+                    }
+                  })(),
+                }),
+              },
+      } as Activity
 
       updateActivity(nodeId, updatedActivity)
       onClose()

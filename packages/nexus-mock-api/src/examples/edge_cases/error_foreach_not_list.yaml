@@ -1,32 +1,31 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: error-foreach-not-list
-  description: Test error when forEach items is not a list
+schema_version: "2.0.0"
+name: error-foreach-not-list
+description: Test error when forEach items is not a list
 
 variables:
   not_a_list: string value
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: invalid_foreach
-      name: ForEach With Non-List Items
-      type: loop
-      loop:
-        type: forEach
-        items: ${variables.not_a_list}
-        item_variable: item
-        index_variable: idx
-        do:
-          - id: loop_task
-            type: task
-            task:
-              executor: script
-              config:
-                language: bash
-                code: echo "Should not execute"
+nodes:
+  - id: invalid_foreach
+    name: ForEach With Non-List Items
+    type: loop
+    loop:
+      type: forEach
+      items: ${variables.not_a_list}
+      item_variable: item
+      index_variable: idx
+
+  - id: loop_task
+    type: script
+    config:
+      language: bash
+      code: echo "Should not execute"
+edges:
+  - source: invalid_foreach
+    target: loop_task
+    port: body

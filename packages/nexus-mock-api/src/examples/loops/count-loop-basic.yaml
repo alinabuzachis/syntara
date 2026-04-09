@@ -1,31 +1,30 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: count-loop-basic-test
-  description: Test count loop with fixed number of iterations
-
+schema_version: "2.0.0"
+name: count-loop-basic-test
+description: Test count loop with fixed number of iterations
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: count_loop
+    name: Count Loop
+    type: loop
+    config:
+      type: count
+      count: 5
+      indexVariable: idx
 
-workflow:
-  activities:
-    - id: count_loop
-      name: Count Loop
-      type: loop
-      loop:
-        type: count
-        count: 5
-        indexVariable: idx
-        do:
-          - id: count_task
-            type: task
-            task:
-              executor: script
-              config:
-                language: bash
-                code: |
-                  echo "Count loop iteration"
-              outputs:
-                result: $.stdout
+  - id: count_task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Count loop iteration"
+    outputs:
+      result: $.stdout
+edges:
+  - from: trigger_manual
+    to: count_loop
+  - from: count_loop
+    to: count_task
+    from_port: iterate

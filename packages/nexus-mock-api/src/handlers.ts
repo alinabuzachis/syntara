@@ -310,7 +310,7 @@ export const handlers = [
       updated_by: null,
       version: {
         version: 1,
-        schema_version: body.workflow_definition?.schemaVersion ?? '1.0.0',
+        schema_version: body.workflow_definition?.schema_version ?? '2.0.0',
         workflow_definition: body.workflow_definition,
         created_by: 'user-1',
         created_at: now,
@@ -373,7 +373,7 @@ export const handlers = [
     const nextDefinition = body.workflow_definition ?? workflow.version?.workflow_definition
     mutableWorkflow.version = {
       version: nextVersion,
-      schema_version: nextDefinition?.schemaVersion ?? workflow.version?.schema_version ?? '1.0.0',
+      schema_version: nextDefinition?.schema_version ?? workflow.version?.schema_version ?? '2.0.0',
       workflow_definition: nextDefinition,
       created_by: mutableWorkflow.updated_by ?? workflow.version?.created_by ?? 'user-1',
       created_at: now,

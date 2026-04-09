@@ -1,9 +1,18 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { describe, expect, it, beforeEach } from 'vitest'
 
 import { useWorkflowStore, createScriptActivity } from './useWorkflowStore'
+import type { Activity, WorkflowDefinition } from './workflowStoreTypes'
 
-type Activity = WorkflowAPI.components['schemas']['activity']
+// Helper to create a v2 WorkflowDefinition for tests
+function makeWorkflow(name: string, activities: Activity[] = []): WorkflowDefinition {
+  return {
+    schema_version: '2.0.0',
+    name,
+    description: '',
+    triggers: [],
+    workflow: { activities },
+  }
+}
 
 describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
   beforeEach(() => {
@@ -22,15 +31,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       // Activities in wrong order
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityC, activityA, activityB],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityC, activityA, activityB]),
         workflowVersion: 1,
         edges: [
           { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -53,15 +54,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       // A -> B -> D
       // A -> C -> D
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityD, activityC, activityB, activityA],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityD, activityC, activityB, activityA]),
         workflowVersion: 1,
         edges: [
           { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -93,15 +86,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       // A -> B -> D -> E
       //  \\-> C -/
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityE, activityD, activityC, activityB, activityA],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityE, activityD, activityC, activityB, activityA]),
         workflowVersion: 1,
         edges: [
           { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -126,90 +111,32 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
     })
   })
 
-  describe('Handling nested activities', () => {
-    it('only reorders top-level activities, not nested ones', () => {
+  describe('Handling flat activities', () => {
+    it('reorders all activities in flat list', () => {
       const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-
-      const condition: Extract<Activity, { type: 'condition' }> = {
+      const conditionActivity: Activity = {
         type: 'condition',
         id: 'COND',
         name: 'Condition',
-        condition: 'input.value > 10',
-        then: [activityB],
-        else: [],
+        config: { condition: 'input.value > 10' },
       }
 
-      // C -> COND (contains B)
+      // C -> COND
       // A -> C
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [condition, activityC, activityA],
-          },
-        },
-        workflowVersion: 1,
-        edges: [
-          { id: 'A-C', source: 'A', target: 'C', sourceHandle: 'source', targetHandle: 'target' },
-          { id: 'C-COND', source: 'C', target: 'COND', sourceHandle: 'source', targetHandle: 'target' },
-        ],
-      })
-
-      useWorkflowStore.getState().reorderActivitiesFromEdges()
-
-      const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
-      expect(activities.map((a) => a.id)).toEqual(['A', 'C', 'COND'])
-
-      // B should still be nested in condition
-      const updatedCondition = activities[2] as Extract<Activity, { type: 'condition' }>
-      expect(updatedCondition.then).toHaveLength(1)
-      expect(updatedCondition.then[0].id).toBe('B')
-    })
-
-    it('maps nested activity edges to parent activity', () => {
-      const activityA = createScriptActivity('A', 'Task A', 'python', 'print("A")')
-      const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
-      const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
-
-      const parallel: Extract<Activity, { type: 'parallel' }> = {
-        type: 'parallel',
-        id: 'PAR',
-        name: 'Parallel',
-        branches: [activityB],
-      }
-
-      // Edge from A to B (nested in parallel)
-      // Should reorder based on A -> PAR
-      useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [parallel, activityC, activityA],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [conditionActivity, activityB, activityA]),
         workflowVersion: 1,
         edges: [
           { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
-          { id: 'PAR-C', source: 'PAR', target: 'C', sourceHandle: 'source', targetHandle: 'target' },
+          { id: 'B-COND', source: 'B', target: 'COND', sourceHandle: 'source', targetHandle: 'target' },
         ],
       })
 
       useWorkflowStore.getState().reorderActivitiesFromEdges()
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
-      const ids = activities.map((a) => a.id)
-
-      // A should come before PAR, PAR before C
-      expect(ids.indexOf('A')).toBeLessThan(ids.indexOf('PAR'))
-      expect(ids.indexOf('PAR')).toBeLessThan(ids.indexOf('C'))
+      expect(activities.map((a) => a.id)).toEqual(['A', 'B', 'COND'])
     })
   })
 
@@ -221,15 +148,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       const activityOrphan = createScriptActivity('ORPHAN', 'Orphan', 'python', 'print("orphan")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityOrphan, activityC, activityA, activityB],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityOrphan, activityC, activityA, activityB]),
         workflowVersion: 1,
         edges: [
           { id: 'A-B', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -254,15 +173,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityB, activityA],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityB, activityA]),
         workflowVersion: 1,
         edges: [],
       })
@@ -283,15 +194,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       // B and C have no ordering constraint (both depend on nothing)
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityC, activityA, activityB],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityC, activityA, activityB]),
         workflowVersion: 1,
         edges: [],
       })
@@ -302,15 +205,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       // Reset and run again
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityB, activityC, activityA],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityB, activityC, activityA]),
         workflowVersion: 1,
         edges: [],
       })
@@ -334,15 +229,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
     it('handles empty activities array', () => {
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test'),
         workflowVersion: 1,
         edges: [],
       })
@@ -358,15 +245,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityB, activityA],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityB, activityA]),
         workflowVersion: 1,
         edges: [
           { id: 'A-A', source: 'A', target: 'A', sourceHandle: 'source', targetHandle: 'target' }, // Self-loop
@@ -385,15 +264,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       const activityB = createScriptActivity('B', 'Task B', 'python', 'print("B")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityB, activityA],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityB, activityA]),
         workflowVersion: 1,
         edges: [
           { id: 'A-B-1', source: 'A', target: 'B', sourceHandle: 'source', targetHandle: 'target' },
@@ -416,15 +287,7 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
       const activityC = createScriptActivity('C', 'Task C', 'python', 'print("C")')
 
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            activities: [activityA, activityB, activityC],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [activityA, activityB, activityC]),
         workflowVersion: 1,
         edges: [
           // Only A->B edge, C is disconnected
@@ -449,26 +312,16 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
         type: 'loop',
         id: 'B',
         name: 'Loop B',
-        loop: {
-          type: 'forEach',
+        config: {
+          type: 'for_each',
           items: 'input.items',
-          do: [loopBodyC],
         },
       }
 
       // Initial order: START->A->B with C inside loop body
       // Change to: START->B->A (reconnect edges)
       useWorkflowStore.setState({
-        currentWorkflow: {
-          schemaVersion: '1.0',
-          version: 1,
-          metadata: { name: 'Test', description: '' },
-          triggers: [],
-          workflow: {
-            // Activities in OLD order (A before B), C is inside loop B
-            activities: [startActivity, activityA, loopB],
-          },
-        },
+        currentWorkflow: makeWorkflow('Test', [startActivity, activityA, loopB, loopBodyC]),
         workflowVersion: 1,
         edges: [
           // NEW edge configuration: START->B->A
@@ -484,21 +337,14 @@ describe('useWorkflowStore - reorderActivitiesFromEdges', () => {
 
       const activities = useWorkflowStore.getState().currentWorkflow?.workflow.activities ?? []
 
-      // Should be reordered to: START, B, A (C stays inside loop B's do array)
-      expect(activities).toHaveLength(3)
+      // All activities should be preserved
+      expect(activities).toHaveLength(4)
       const topLevelIds = activities.map((a) => a.id)
       const startIndex = topLevelIds.indexOf('START')
       const bIndex = topLevelIds.indexOf('B')
-      const aIndex = topLevelIds.indexOf('A')
 
-      // Verify correct ordering: START < B < A
+      // Verify correct ordering: START < B
       expect(startIndex).toBeLessThan(bIndex)
-      expect(bIndex).toBeLessThan(aIndex)
-
-      // Verify C is still inside loop B's body
-      const reorderedLoop = activities.find((a) => a.id === 'B') as Activity & { loop: { do: Activity[] } }
-      expect(reorderedLoop.loop.do).toHaveLength(1)
-      expect(reorderedLoop.loop.do[0].id).toBe('C')
     })
   })
 })

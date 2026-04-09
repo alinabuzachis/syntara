@@ -1,43 +1,18 @@
-import { ActivityTypeEnum, type WorkflowAPI } from '@ansible/nexus-contracts'
+import { ActivityTypeEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
 import { MarkerType } from '@xyflow/react'
 
-// Type aliases from API contracts
-type ManualTrigger = WorkflowAPI.components['schemas']['manualTrigger'] & { name?: string }
-
-// Custom trigger types (not yet in API schema but used in the codebase)
-type ScheduledTrigger = {
-  type: 'scheduled'
-  schedule:
-    | {
-        scheduleType: 'cron'
-        cron: string
-        timezone?: string
-      }
-    | {
-        scheduleType: 'interval'
-        interval: string
-      }
-    | {
-        scheduleType: 'continuous'
-        continuous: true
-      }
+/**
+ * In v2, triggers are { id, type, name, config } nodes.
+ * Manual trigger type is 'manual_trigger'.
+ */
+export type Trigger = {
+  id?: string
+  type: string
   name?: string
+  config?: Record<string, unknown>
 }
 
-type EventTrigger = {
-  type: 'event'
-  event: {
-    source: string
-    eventType: string
-    filter?: Record<string, unknown>
-  }
-  name?: string
-}
-
-export type Trigger = ManualTrigger | ScheduledTrigger | EventTrigger
-
-export type Activity = WorkflowAPI.components['schemas']['activity']
-export type TaskActivity = Extract<Activity, { type: 'task' }>
+export type TaskActivity = Activity
 
 export const markerEnd = {
   type: MarkerType.ArrowClosed,
@@ -67,31 +42,24 @@ export type EdgeType = {
 }
 
 /**
- * Recursively extracts all task and approval activities from nested workflow structures.
- * Flattens parallel, sequence, condition, loop, and approval activities to find all renderable nodes.
+ * Extracts all executor and approval activities from the flat activity list.
+ * In v2, all activities are flat (no nested structures), so this just filters
+ * by type. Also includes generic placeholder nodes (type: 'generic').
  */
-export function extractTaskActivities(
-  activities: Activity[]
-): (TaskActivity | Extract<Activity, { type: 'approval' }>)[] {
-  const tasks: (TaskActivity | Extract<Activity, { type: 'approval' }>)[] = []
+export function extractTaskActivities(activities: Activity[]): Activity[] {
+  const tasks: Activity[] = []
   for (const activity of activities) {
-    if (activity.type === ActivityTypeEnum.TASK) {
+    // In v2, executor types are direct activity types
+    // Also include 'generic' type for placeholder nodes (UI-only concept)
+    if (
+      activity.type === ActivityTypeEnum.SCRIPT ||
+      activity.type === ActivityTypeEnum.HTTP_REQUEST ||
+      activity.type === ActivityTypeEnum.AGENTIC ||
+      activity.type === ActivityTypeEnum.AAP_JOB_TEMPLATE ||
+      activity.type === ActivityTypeEnum.APPROVAL ||
+      activity.type === 'generic'
+    ) {
       tasks.push(activity)
-    } else if (activity.type === ActivityTypeEnum.APPROVAL) {
-      // Approval nodes are also rendered as nodes in the canvas
-      tasks.push(activity)
-      // Recursively extract from approval branches
-      if (activity.onApproved) tasks.push(...extractTaskActivities(activity.onApproved))
-      if (activity.onRejected) tasks.push(...extractTaskActivities(activity.onRejected))
-    } else if (activity.type === ActivityTypeEnum.PARALLEL && activity.branches) {
-      tasks.push(...extractTaskActivities(activity.branches))
-    } else if (activity.type === ActivityTypeEnum.SEQUENCE && activity.steps) {
-      tasks.push(...extractTaskActivities(activity.steps))
-    } else if (activity.type === ActivityTypeEnum.CONDITION) {
-      if (activity.then) tasks.push(...extractTaskActivities(activity.then))
-      if (activity.else) tasks.push(...extractTaskActivities(activity.else))
-    } else if (activity.type === ActivityTypeEnum.LOOP && activity.loop.do) {
-      tasks.push(...extractTaskActivities(activity.loop.do))
     }
   }
   return tasks
@@ -106,20 +74,31 @@ export function getTriggerDisplayData(trigger: Trigger): { name: string; details
   let details: string | null = null
 
   switch (trigger.type) {
-    case 'manual':
-      details = trigger.requiresApproval ? 'Manual - Requires Approval' : 'Manual'
+    case TriggerTypeEnum.MANUAL_TRIGGER:
+      details = 'Manual'
       break
-    case 'scheduled':
-      if (trigger.schedule.scheduleType === 'cron') {
-        details = `Cron: ${trigger.schedule.cron}`
-      } else if (trigger.schedule.scheduleType === 'interval') {
-        details = `Interval: ${trigger.schedule.interval}`
+    case TriggerTypeEnum.SCHEDULED:
+      if (trigger.config) {
+        const scheduleType = trigger.config.schedule_type as string | undefined
+        if (scheduleType === 'cron') {
+          details = `Cron: ${(trigger.config.cron as string) ?? ''}`
+        } else if (scheduleType === 'interval') {
+          details = `Interval: ${(trigger.config.interval as string) ?? ''}`
+        } else {
+          details = 'Continuous'
+        }
       } else {
-        details = 'Continuous'
+        details = 'Scheduled'
       }
       break
-    case 'event':
-      details = `Event: ${trigger.event.source}/${trigger.event.eventType}`
+    case TriggerTypeEnum.EVENT:
+      if (trigger.config) {
+        const source = (trigger.config.source as string) ?? ''
+        const eventType = (trigger.config.event_type as string) ?? ''
+        details = `Event: ${source}/${eventType}`
+      } else {
+        details = 'Event'
+      }
       break
   }
 

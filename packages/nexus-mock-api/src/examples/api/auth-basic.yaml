@@ -1,28 +1,27 @@
 ---
-schemaVersion: 1.0.0
-version: 1
+schema_version: "2.0.0"
+name: auth-basic
+description: API request with basic authentication
 
-metadata:
-  name: auth-basic
-  description: API request with basic authentication
-
+# SECURITY WARNING: This is a mock example only.
+# NEVER hardcode real secret IDs in production workflow definitions.
+# Use environment-specific references or vault paths instead.
 secrets:
   basic_credentials:
-    secretId: test-basic-credentials
+    secretId: test-basic-credentials  # Example only - use ${env.SECRET_ID} in production
     type: basic_auth
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: fetch_with_basic_auth
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: http://test-api.example.com/api/basic-auth
-          authentication:
-            type: basic
-            credentials: ${secrets.basic_credentials}
+nodes:
+  - id: fetch_with_basic_auth
+    type: http_request
+    config:
+      method: GET
+      url: http://test-api.example.com/api/basic-auth
+      authentication:
+        type: basic
+        credentials: ${secrets.basic_credentials}
+edges: []

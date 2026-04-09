@@ -21,7 +21,7 @@ const scriptActionSchema = z.object({
 })
 
 const apiActionSchema = z.object({
-  executor: z.literal(ExecutorTypeEnum.API),
+  executor: z.literal(ExecutorTypeEnum.HTTP_REQUEST),
   name: z.string(),
   code: z.string().optional(),
   language: z.string().optional(),
