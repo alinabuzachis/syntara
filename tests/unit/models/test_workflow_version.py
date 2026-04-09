@@ -34,7 +34,7 @@ async def test_create_workflow_version_with_required_fields(
         id=uuid4(),
         workflow_id=test_workflow.id,
         version=2,
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="test-workflow"),
         created_by=test_user.id,
     )
@@ -44,7 +44,7 @@ async def test_create_workflow_version_with_required_fields(
     assert version.id is not None
     assert version.workflow_id == test_workflow.id
     assert version.version == 2
-    assert version.schema_version == "1.0.0"
+    assert version.schema_version == "2.0.0"
     assert version.workflow_definition is not None
     assert version.created_by == test_user.id
     assert version.change_description is None
@@ -64,7 +64,7 @@ async def test_create_workflow_version_with_all_fields(
         id=uuid4(),
         workflow_id=test_workflow.id,
         version=2,
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="full-workflow"),
         created_by=test_user.id,
         change_description="Initial version",
@@ -86,7 +86,7 @@ async def test_workflow_version_soft_delete(
         id=uuid4(),
         workflow_id=test_workflow.id,
         version=2,
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="test"),
         created_by=test_user.id,
     )
@@ -115,7 +115,7 @@ async def test_workflow_version_unique_workflow_version_constraint(
         id=uuid4(),
         workflow_id=test_workflow.id,
         version=2,
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="v2"),
         created_by=test_user.id,
     )
@@ -127,7 +127,7 @@ async def test_workflow_version_unique_workflow_version_constraint(
         id=uuid4(),
         workflow_id=test_workflow.id,
         version=2,  # Same version number
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="v2-duplicate"),
         created_by=test_user.id,
     )
@@ -152,7 +152,7 @@ async def test_workflow_version_multiple_versions_same_workflow(
             id=uuid4(),
             workflow_id=test_workflow.id,
             version=i,
-            schema_version="1.0.0",
+            schema_version="2.0.0",
             workflow_definition=create_minimal_workflow_definition(name=f"v{i}"),
             created_by=test_user.id,
             change_description=f"Version {i}",
@@ -185,7 +185,7 @@ async def test_workflow_version_relationship_with_workflow(
         id=uuid4(),
         workflow_id=test_workflow.id,
         version=2,
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="test"),
         created_by=test_user.id,
     )
@@ -214,7 +214,7 @@ async def test_workflow_version_relationship_with_user(
         id=uuid4(),
         workflow_id=test_workflow.id,
         version=2,  # Use version 2 since fixture already has version 1
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="test"),
         created_by=test_user.id,
     )
@@ -237,7 +237,7 @@ async def test_workflow_version_repr(
         id=version_id,
         workflow_id=test_workflow.id,
         version=2,
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=create_minimal_workflow_definition(name="test"),
         created_by=test_user.id,
     )
@@ -266,7 +266,7 @@ async def test_workflow_version_workflow_definition_storage(
         id=uuid4(),
         workflow_id=test_workflow.id,
         version=2,  # Use version 2 since fixture already has version 1
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=large_definition,
         created_by=test_user.id,
     )
@@ -274,5 +274,5 @@ async def test_workflow_version_workflow_definition_storage(
     await test_db_session.commit()
 
     assert version.workflow_definition is not None
-    assert version.workflow_definition.get("metadata", {}).get("name") == "large-workflow"
-    assert "workflow" in version.workflow_definition
+    assert version.workflow_definition.get("name") == "large-workflow"
+    assert "nodes" in version.workflow_definition

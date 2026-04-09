@@ -19,11 +19,11 @@ from temporalio import activity
 from temporalio.exceptions import CancelledError
 
 from nexus.core.config.base import Settings, get_settings
-from nexus.workflows.utils.template_resolution import resolve_config_templates
 from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 from nexus.workflows.workflow_engine.models.aap_types import AAPResourceType
 
 from .common import ActivityExecutionError
+from .output_mapping import apply_output_mapping
 
 if TYPE_CHECKING:
     from httpx._client import UseClientDefault
@@ -47,7 +47,7 @@ TERMINAL_STATUSES = {status.lower() for status in JobStatus}
 async def _lookup_resource_by_name(
     client: httpx.AsyncClient,
     resource_name: str,
-    organization_name: str,
+    organization_name: str | None,
     resource_type: AAPResourceType,
     auth_headers: dict[str, str],
     basic_auth: httpx.BasicAuth | None,
@@ -58,7 +58,7 @@ async def _lookup_resource_by_name(
     Args:
         client: HTTP client
         resource_name: Name of the resource (job template or inventory)
-        organization_name: Name of organization
+        organization_name: Name of organization (required by model validation)
         resource_type: Type of resource (AAPResourceType.JOB_TEMPLATES or AAPResourceType.INVENTORIES)
         auth_headers: Authentication headers
         basic_auth: Basic authentication object
@@ -218,6 +218,40 @@ def _build_launch_body(config: AAPJobTemplateExecutorConfig, inventory_id: int |
     return body
 
 
+async def _resolve_resource_id(
+    client: httpx.AsyncClient,
+    resource_id: int | None,
+    resource_name: str | None,
+    organization_name: str | None,
+    resource_type: AAPResourceType,
+    auth_headers: dict[str, str],
+    basic_auth: httpx.BasicAuth | None,
+    base_url: str,
+) -> int | None:
+    """Resolve an AAP resource to its numeric ID.
+
+    If a numeric ID is provided, it takes precedence. Otherwise, look up by name.
+    Returns None if neither ID nor name is provided (e.g. optional inventory).
+
+    Raises:
+        AAPJobExecutionError: If name is provided but lookup fails
+
+    """
+    if resource_id is not None:
+        return resource_id
+    if resource_name:
+        return await _lookup_resource_by_name(
+            client,
+            resource_name,
+            organization_name,
+            resource_type,
+            auth_headers,
+            basic_auth,
+            base_url,
+        )
+    return None
+
+
 async def _launch_aap_job(
     client: httpx.AsyncClient,
     config: AAPJobTemplateExecutorConfig,
@@ -227,12 +261,8 @@ async def _launch_aap_job(
 ) -> int:
     """Launch AAP job template.
 
-    Args:
-        client: HTTP client
-        config: AAP job template configuration
-        auth_headers: Authentication headers
-        basic_auth: Basic authentication object
-        base_url: Base URL for AAP controller
+    Resolves job template and inventory references (by ID or name), then
+    submits the launch request.
 
     Returns:
         Job ID
@@ -241,59 +271,54 @@ async def _launch_aap_job(
         AAPJobExecutionError: If launch fails
 
     """
-    # Resolve job template ID - ID takes precedence over name if both provided
-    if config.job_template_id is not None:
-        # Use numeric ID directly (takes precedence per schema)
-        job_template_id = config.job_template_id
-    elif config.job_template_name:
-        # Lookup job template by name and organization
-        job_template_id = await _lookup_resource_by_name(
-            client,
-            config.job_template_name,
-            # we ignore arg-type because Pydantic ensures this is not None if name is provided
-            config.organization_name,  # type: ignore[arg-type]
-            AAPResourceType.JOB_TEMPLATES,
-            auth_headers,
-            basic_auth,
-            base_url,
-        )
-    else:
-        # Should never reach here due to model validation
+    job_template_id = await _resolve_resource_id(
+        client,
+        config.job_template_id,
+        config.job_template_name,
+        config.organization_name,
+        AAPResourceType.JOB_TEMPLATES,
+        auth_headers,
+        basic_auth,
+        base_url,
+    )
+    if job_template_id is None:
         msg = "Either job_template_id or job_template_name must be provided"
         raise AAPJobExecutionError(msg)
 
-    # Resolve inventory ID - ID takes precedence over name if both provided
-    if config.inventory_id is not None:
-        # Use inventory ID directly (takes precedence per schema)
-        inventory_id: int | None = config.inventory_id
-    elif config.inventory_name:
-        # Lookup inventory by name and organization
-        inventory_id = await _lookup_resource_by_name(
-            client,
-            config.inventory_name,
-            # we ignore arg-type because Pydantic ensures this is not None if name is provided
-            config.organization_name,  # type: ignore[arg-type]
-            AAPResourceType.INVENTORIES,
-            auth_headers,
-            basic_auth,
-            base_url,
-        )
-    else:
-        # No inventory override specified - will use job template's default
-        inventory_id = None
-
-    # Build launch body with single source of truth for inventory_id
-    body = _build_launch_body(config, inventory_id)
-
-    # Log the launch body for debugging
-    logger.debug(
-        "Launching job template with body",
-        job_template_id=job_template_id,
-        launch_body=body,
+    inventory_id = await _resolve_resource_id(
+        client,
+        config.inventory_id,
+        config.inventory_name,
+        config.organization_name,
+        AAPResourceType.INVENTORIES,
+        auth_headers,
+        basic_auth,
+        base_url,
     )
 
-    launch_url = f"{base_url}/api/controller/v2/job_templates/{job_template_id}/launch/"
+    body = _build_launch_body(config, inventory_id)
+    return await _submit_job_launch(
+        client,
+        job_template_id,
+        body,
+        config,
+        auth_headers,
+        basic_auth,
+        base_url,
+    )
 
+
+async def _submit_job_launch(
+    client: httpx.AsyncClient,
+    job_template_id: int,
+    body: dict[str, Any],
+    config: AAPJobTemplateExecutorConfig,
+    auth_headers: dict[str, str],
+    basic_auth: httpx.BasicAuth | None,
+    base_url: str,
+) -> int:
+    """Submit the job launch HTTP request and return the job ID."""
+    launch_url = f"{base_url}/api/controller/v2/job_templates/{job_template_id}/launch/"
     auth_param = basic_auth or httpx.USE_CLIENT_DEFAULT
 
     try:
@@ -302,12 +327,9 @@ async def _launch_aap_job(
         launch_data: dict[str, Any] = response.json()
         job_id = int(launch_data["id"])
 
-        # Log based on which reference method was actually used
         if config.job_template_id is not None:
-            # Was resolved via ID
             logger.info("Launched AAP job template by ID", job_template_id=job_template_id, job_id=job_id)
         else:
-            # Was resolved via name lookup
             logger.info(
                 "Launched job template by name",
                 job_template_name=config.job_template_name,
@@ -318,7 +340,6 @@ async def _launch_aap_job(
 
         return job_id
     except httpx.HTTPStatusError as e:
-        # Build reference info for error message based on which method was used
         if config.job_template_id is not None:
             ref_info = f"ID {job_template_id}"
         else:
@@ -342,7 +363,7 @@ def _check_timeout(elapsed: float, timeout_seconds: int, job_id: int) -> None:
         AAPJobExecutionError: If timeout exceeded
 
     """
-    if elapsed >= timeout_seconds:
+    if elapsed > timeout_seconds:
         msg = f"Job {job_id} timed out after {timeout_seconds} seconds"
         raise AAPJobExecutionError(msg, job_id=job_id)
 
@@ -530,124 +551,104 @@ async def _get_job_output(
         output_response = await client.get(output_url, headers=auth_headers, auth=auth_param)
         return output_response.text if output_response.status_code == HTTPStatus.OK else ""
     except httpx.HTTPError:
-        return ""  # Output fetch is best-effort
+        logger.warning("Failed to fetch job output (best-effort)", job_id=job_id, exc_info=True)
+        return ""
 
 
-@activity.defn
-async def execute_aap_job_template_activity(
-    activity_config: dict[str, Any],
-    input_data: dict[str, Any],
+def _build_job_result(
+    job_id: int,
+    job_data: dict[str, Any],
+    output: str,
+    elapsed_ms: float,
 ) -> dict[str, Any]:
-    """Execute AAP job template activity.
+    """Build the result dict from a completed (or failed) AAP job."""
+    final_status = job_data["status"]
+    result: dict[str, Any] = {
+        "job_id": job_id,
+        "job_status": final_status,
+        "output": output,
+        "artifacts": job_data.get("artifacts", {}),
+        "elapsed_ms": elapsed_ms,
+    }
 
-    Follows spec 016 activity pattern:
-    1. Validate config using Pydantic
-    2. Launch job via AAP REST API (reuses api_activity httpx patterns)
-    3. Poll job status until completion (pattern from ansible-rulebook)
-    4. Send heartbeats during polling (Temporal best practice)
-    5. Handle cancellation (cancel AAP job if activity cancelled)
-    6. Return job result
+    if isinstance(final_status, str) and final_status.lower() in {
+        JobStatus.FAILED.lower(),
+        JobStatus.ERROR.lower(),
+    }:
+        result["status"] = "failed"
+        result["error"] = f"AAP job {job_id} failed with status: {final_status}"
+    else:
+        result["status"] = "completed"
 
-    Important: When scheduling this activity from a workflow, configure heartbeat_timeout
-    to detect worker failures during long-running jobs. Recommended value is 30 seconds
-    (6x the default 5s poll interval from APP_AAP_POLL_INTERVAL_SECONDS).
+    return result
 
-    Example workflow invocation:
-        from datetime import timedelta
 
-        await workflow.execute_activity(
-            execute_aap_job_template_activity,
-            args=[activity_config, input_data],
-            heartbeat_timeout=timedelta(seconds=30),
-        )
+@activity.defn(name="execute_aap_job_template_activity")
+async def execute_aap_job_template_activity(
+    input_config: dict[str, Any],
+    output_config: dict[str, str] | None,
+) -> dict[str, Any]:
+    """V2 AAP job template activity with normalized signature.
 
     Args:
-        activity_config: Activity configuration dict (validated to AAPJobTemplateExecutorConfig)
-        input_data: Input parameters for expression resolution
+        input_config: Activity configuration containing AAP job template settings
+        output_config: Output mapping configuration
 
     Returns:
         dict with keys:
-            - job_id: AAP job ID
-            - status: Final job status (successful/failed/error/canceled)
-            - output: Job stdout output
-            - artifacts: Job artifacts and statistics
-            - elapsed_ms: Total execution time in milliseconds
-
-    Raises:
-        AAPJobExecutionError: If job launch or execution fails
-        CancelledError: If activity is cancelled
+            - output: Mapped output containing job execution results
+            - status: "completed" or "failed"
 
     """
-    logger.info("Starting AAP job template activity")
+    logger.info("Starting AAP job template activity (v2)")
 
-    # Setup workflow state for expression resolution
-    workflow_state = {"inputs": input_data}
+    try:
+        config = AAPJobTemplateExecutorConfig.model_validate(input_config)
+    except (ValueError, TypeError) as e:
+        return {"output": {"status": "failed", "error": f"Invalid configuration: {e}"}}
 
-    # Resolve template expressions in config (e.g., ${input.job_template_id} -> 42)
-    raw_config = activity_config.get("config", {})
-    resolved_config = resolve_config_templates(raw_config, workflow_state)
-
-    # Validate config with resolved values (spec 016 pattern)
-    config = AAPJobTemplateExecutorConfig.model_validate(resolved_config)
-
-    # Get settings
     settings = get_settings()
 
     base_url = settings.aap_base_url
     if not base_url:
-        msg = "AAP_BASE_URL not configured. Set APP_AAP_BASE_URL in environment."
-        raise AAPJobExecutionError(msg)
+        error = "AAP_BASE_URL not configured. Set APP_AAP_BASE_URL in environment."
+        return {"output": {"status": "failed", "error": error}}
     base_url = base_url.rstrip("/")
 
     start_time = time.time()
     job_id = None
 
     try:
-        async with httpx.AsyncClient(
-            verify=settings.aap_verify_ssl,
-        ) as client:
-            # Get authentication
+        async with httpx.AsyncClient(verify=settings.aap_verify_ssl) as client:
             auth_headers = _get_aap_auth_headers(settings)
             basic_auth = _get_aap_basic_auth(settings)
 
-            # Launch job (handles both job template and inventory lookups)
             job_id = await _launch_aap_job(client, config, auth_headers, basic_auth, base_url)
 
-            # Poll until complete
             job_data = await _poll_until_complete(
                 client, settings, job_id, auth_headers, basic_auth, base_url, config.timeout, start_time
             )
 
-            # Get output
             output = await _get_job_output(client, job_id, auth_headers, basic_auth, base_url)
-
-            # Calculate elapsed time
             elapsed_ms = (time.time() - start_time) * 1000
 
-            # Check if job failed and raise error with output attached
-            final_status = job_data["status"]
-            if isinstance(final_status, str) and final_status.lower() in {
-                JobStatus.FAILED.lower(),
-                JobStatus.ERROR.lower(),
-            }:
-                msg = f"AAP job {job_id} failed with status: {final_status}"
-                raise AAPJobExecutionError(msg, job_id=job_id, status=final_status, output=output)  # noqa: TRY301
+            full_result = _build_job_result(job_id, job_data, output, elapsed_ms)
+            return {"output": apply_output_mapping(full_result, output_config)}
 
-            # Return result for successful jobs
-            return {
-                "job_id": job_id,
-                "status": final_status,
-                "output": output,
-                "artifacts": job_data.get("artifacts", {}),
-                "elapsed_ms": elapsed_ms,
-            }
+    except AAPJobExecutionError as e:
+        full_result = {
+            "status": "failed",
+            "error": str(e),
+            "job_id": e.job_id,
+            "job_status": e.status,
+            "output": e.output,
+        }
+        return {"output": apply_output_mapping(full_result, output_config)}
 
-    except AAPJobExecutionError:
-        # Re-raise AAP-specific errors
-        raise
-    except CancelledError:
-        # Re-raise cancellation errors without wrapping
-        raise
-    except Exception as e:
-        msg = f"Unexpected error executing AAP job template: {e}"
-        raise AAPJobExecutionError(msg, job_id=job_id) from e
+    except (httpx.HTTPError, httpx.InvalidURL, httpx.StreamError) as e:
+        full_result = {
+            "status": "failed",
+            "error": f"Unexpected error: {e}",
+            "job_id": job_id,
+        }
+        return {"output": apply_output_mapping(full_result, output_config)}

@@ -12,52 +12,39 @@ from temporalio import activity
 
 from nexus.workflows.utils.url import generate_activity_signal_url
 
+from .common import ActivityExecutionError
+from .output_mapping import apply_output_mapping
+
 logger = structlog.stdlib.get_logger(__name__)
 
 
-class ApprovalActivityError(Exception):
+class ApprovalActivityError(ActivityExecutionError):
     """Base exception for approval activity errors."""
 
 
-@activity.defn
-async def create_approval_request_activity(
-    approval_config: dict[str, Any],
-    workflow_context: dict[str, Any],
+@activity.defn(name="execute_approval_activity")
+async def execute_approval_activity(
+    input_config: dict[str, Any],
+    output_config: dict[str, str] | None,
+    execution_id: str = "",
 ) -> dict[str, Any]:
-    """Create an approval request for human decision-making.
-
-    This activity creates an approval request and returns immediately with metadata.
-    The workflow will wait for a signal containing the approval decision.
+    """V2 approval activity with normalized signature.
 
     Args:
-        approval_config: Approval configuration containing:
-            - description: Approval prompt/question for approvers
-            - timeout: Optional timeout in seconds
-        workflow_context: Context about the workflow execution:
-            - workflow_inputs: All workflow inputs
-            - previous_step: Output from previous activity
-            - execution_id: Workflow execution ID
-            - workflow_name: Name of the workflow
+        input_config: Activity configuration containing description and timeout
+        output_config: Output mapping configuration
+        execution_id: Workflow execution ID for callback URL generation
 
     Returns:
-        Approval request metadata containing:
-            - approval_id: Generated approval request ID
-            - status: "pending"
-            - callback_url: URL for submitting approval decision
-            - description: Approval prompt/description
-
-    Raises:
-        ApprovalActivityError: If approval request creation fails
+        dict with keys:
+            - output: Mapped output containing approval request metadata
 
     """
     correlation_id = str(uuid4())
-    logger.info("Creating approval request", correlation_id=correlation_id)
+    logger.info("Creating approval request (v2)", correlation_id=correlation_id)
 
     # Generate approval ID
     approval_id = f"apr_{uuid4()}"
-
-    # Extract execution ID for callback URL generation
-    execution_id = workflow_context.get("execution_id")
 
     # Get activity ID from activity context
     try:
@@ -66,43 +53,32 @@ async def create_approval_request_activity(
     except RuntimeError:
         activity_id = "unknown"
 
-    # Generate callback URL if execution context is available
-    callback_url = None
-    if execution_id and activity_id:
-        try:
-            callback_url = generate_activity_signal_url(UUID(execution_id), activity_id)
-            logger.info(
-                "Generated callback URL for approval",
-                correlation_id=correlation_id,
-                callback_url=callback_url,
-            )
-        except (ValueError, TypeError) as e:
-            logger.warning(
-                "Failed to generate callback URL",
-                correlation_id=correlation_id,
-                error=str(e),
-            )
+    # Generate callback URL for external services to signal back results
+    callback_url = generate_activity_signal_url(UUID(execution_id), activity_id) if execution_id else None
 
     # PLACEHOLDER: Replace with actual HTTP call to approval service
-    # For now, just log the approval request details
     logger.info(
         "Approval request created (PLACEHOLDER - no HTTP call yet)",
         approval_id=approval_id,
-        description=approval_config.get("description"),
-        timeout=approval_config.get("timeout"),
-        execution_id=execution_id,
+        description=input_config.get("description"),
+        timeout=input_config.get("timeout"),
         activity_id=activity_id,
         callback_url=callback_url,
         correlation_id=correlation_id,
     )
 
-    # Return metadata for workflow tracking
-    return {
+    # Build full result
+    full_result = {
+        "status": "completed",
         "approval_id": approval_id,
-        "status": "pending",
+        "approval_status": "pending",
         "callback_url": callback_url,
-        "description": approval_config.get("description"),
-        "timeout": approval_config.get("timeout"),
-        "workflow_context": workflow_context,
+        "description": input_config.get("description"),
+        "timeout": input_config.get("timeout"),
         "correlation_id": correlation_id,
     }
+
+    # Apply output mapping
+    mapped_output = apply_output_mapping(full_result, output_config)
+
+    return {"output": mapped_output}

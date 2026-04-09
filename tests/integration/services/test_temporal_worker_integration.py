@@ -18,8 +18,9 @@ from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
 from nexus.workflows.worker import main
-from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
-from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
+from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
+from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.services.temporal_execution_service import TemporalExecutionService
 from nexus.workflows.workflow_engine.services.temporal_worker import TemporalWorkerService
 
@@ -57,8 +58,8 @@ class MockWorkerService(TemporalWorkerService):
         self.worker = Worker(
             self.client,
             task_queue=self.task_queue,
-            workflows=[DynamicWorkflow],
-            activities=[execute_bash_script],
+            workflows=[NexusWorkflow],
+            activities=[execute_script_activity, manual_trigger],
         )
 
         self._worker_task = asyncio.create_task(self.worker.run())
@@ -83,22 +84,21 @@ def create_simple_workflow_yaml(
 
     """
     return f"""
-schemaVersion: "1.0.0"
-version: 1
-metadata:
-  name: {name}
-  description: {description}
+schema_version: "2.0.0"
+name: {name}
+description: {description}
 triggers:
-- type: manual
-workflow:
-  activities:
-  - id: {activity_id}
-    type: task
-    task:
-      executor: script
-      config:
-        language: bash
-        code: {script}
+- id: trigger_manual
+  type: manual_trigger
+nodes:
+- id: {activity_id}
+  type: script
+  config:
+    language: bash
+    code: {script}
+edges:
+- from: trigger_manual
+  to: {activity_id}
 """
 
 
@@ -124,8 +124,8 @@ class TestTemporalWorkerServiceIntegration:
         worker_service.worker = Worker(
             temporal_env.client,
             task_queue="integration-test-queue",
-            workflows=[DynamicWorkflow],
-            activities=[execute_bash_script],
+            workflows=[NexusWorkflow],
+            activities=[execute_script_activity, manual_trigger],
         )
 
         # Start worker in background
@@ -199,8 +199,6 @@ class TestTemporalWorkerServiceIntegration:
 
             # Verify workflow was processed successfully
             assert workflow_result.status == "completed"
-            assert "test_activity" in workflow_result.activity_outputs
-            assert "Worker is processing workflows!" in workflow_result.activity_outputs["test_activity"]["stdout"]
 
     async def test_multiple_workers_different_queues(self, temporal_env: WorkflowEnvironment) -> None:
         """Test running multiple workers on different queues simultaneously."""

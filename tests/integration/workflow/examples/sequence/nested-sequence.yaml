@@ -1,66 +1,67 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: nested-sequence-test
-  description: Test sequence containing parallel activities
+schema_version: "2.0.0"
+name: nested-sequence-test
+description: Test sequence containing parallel activities
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: complex_pipeline
-      name: Complex Pipeline
-      type: sequence
-      steps:
-        - id: setup
-          name: Setup
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Setting up pipeline"
-            outputs:
-              status: $.stdout
+nodes:
+  - id: setup
+    name: Setup
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Setting up pipeline"
+    outputs:
+      status: $.stdout
 
-        - id: parallel_processing
-          name: Parallel Processing
-          type: parallel
-          branches:
-            - id: process_a
-              type: task
-              task:
-                executor: script
-                config:
-                  language: bash
-                  code: |
-                    echo "Processing A"
-                outputs:
-                  result: $.stdout
+  - id: parallel_processing_fork
+    name: Parallel Processing (fork)
+    type: fork
 
-            - id: process_b
-              type: task
-              task:
-                executor: script
-                config:
-                  language: bash
-                  code: |
-                    echo "Processing B"
-                outputs:
-                  result: $.stdout
+  - id: process_a
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Processing A"
+    outputs:
+      result: $.stdout
 
-        - id: cleanup
-          name: Cleanup
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Cleaning up pipeline"
-            outputs:
-              status: $.stdout
+  - id: process_b
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Processing B"
+    outputs:
+      result: $.stdout
+
+  - id: parallel_processing_join
+    type: join
+
+  - id: cleanup
+    name: Cleanup
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Cleaning up pipeline"
+    outputs:
+      status: $.stdout
+edges:
+  - source: setup
+    target: parallel_processing_fork
+  - source: parallel_processing_fork
+    target: process_a
+  - source: parallel_processing_fork
+    target: process_b
+  - source: process_a
+    target: parallel_processing_join
+  - source: process_b
+    target: parallel_processing_join
+  - source: parallel_processing_join
+    target: cleanup

@@ -14,8 +14,9 @@ from temporalio.client import Client, WorkflowHandle, WorkflowHistoryEventFilter
 from temporalio.exceptions import TemporalError
 
 from nexus.core.config.base import get_settings
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.utils.datetime import ensure_timezone_aware
-from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.models.responses import (
     WorkflowCancellationResponse,
     WorkflowResultResponse,
@@ -23,7 +24,6 @@ from nexus.workflows.workflow_engine.models.responses import (
     WorkflowStatusResponse,
     WorkflowTerminationResponse,
 )
-from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowDefinition
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -85,17 +85,17 @@ class TemporalExecutionService:
         input_data: dict[str, Any] | None = None,
         workflow_id: str | None = None,
     ) -> WorkflowStartResponse:
-        """Start a workflow from dict definition.
+        """Start a V2 workflow from dict definition.
 
         Args:
-            workflow_def: Workflow definition as dict
+            workflow_def: V2 workflow definition as dict (triggers + nodes + edges)
             workflow_name: Name for this workflow execution
-            input_data: Input parameters for the workflow
+            input_data: Input parameters for the workflow trigger
             workflow_id: Optional workflow ID (auto-generated if not provided)
 
         Returns:
             WorkflowStartResponse containing:
-                - execution_id: Internal execution ID (stub for database record)
+                - execution_id: Internal execution ID (database record ID)
                 - workflow_id: Internal workflow ID
                 - temporal_workflow_id: Temporal workflow ID (for Temporal API calls)
                 - temporal_run_id: Temporal run ID (specific execution run)
@@ -103,24 +103,41 @@ class TemporalExecutionService:
                 - started_at: ISO 8601 timestamp when workflow started
 
         Raises:
-            ValidationError: If workflow definition is invalid
+            SafeValueError: If workflow definition is invalid (missing required fields)
             Exception: If workflow fails to start
 
         Example:
             >>> service = TemporalExecutionService(client)
             >>> result = await service.start_workflow(
-            ...     workflow_def={'schemaVersion': '1.0.0', ...},
+            ...     workflow_def={'schema_version': '2.0.0', 'triggers': [...], 'nodes': [...], 'edges': [...]},
             ...     workflow_name='my-workflow',
             ...     input_data={'user_id': 123}
             ... )
-            >>> print(result['workflow_id'])  # Internal workflow ID
-            >>> print(result['temporal_workflow_id'])  # Use this for Temporal API calls
+            >>> print(result.workflow_id)  # Internal workflow ID
+            >>> print(result.temporal_workflow_id)  # Use this for Temporal API calls
 
         """
         try:
-            # Validate workflow definition
-            logger.info("Validating workflow definition", workflow_name=workflow_name)
-            _workflow_definition = WorkflowDefinition(**workflow_def)
+            # Validate V2 workflow structure (basic check)
+            logger.info("Validating V2 workflow definition", workflow_name=workflow_name)
+            schema_version = workflow_def.get("schema_version")
+            if schema_version != "2.0.0":
+                msg = (
+                    f"Unsupported schema_version: {schema_version}. "
+                    "Only V2 workflows (schema_version=2.0.0) are supported."
+                )
+                raise SafeValueError(msg)  # noqa: TRY301
+
+            triggers = workflow_def.get("triggers", [])
+            if not triggers:
+                msg = "V2 workflow must have at least one trigger"
+                raise SafeValueError(msg)  # noqa: TRY301
+
+            # Get the first trigger (for now, we only support single trigger execution)
+            trigger_node_id = triggers[0].get("id")
+            if not trigger_node_id:
+                msg = "Trigger node must have an 'id' field"
+                raise SafeValueError(msg)  # noqa: TRY301
 
             # Generate internal workflow ID if not provided
             if workflow_id is None:
@@ -133,16 +150,17 @@ class TemporalExecutionService:
             temporal_workflow_id = f"{workflow_name}-{execution_id}"
 
             logger.info(
-                "Starting workflow execution",
+                "Starting V2 workflow execution",
                 workflow_id=workflow_id,
                 execution_id=execution_id,
                 temporal_workflow_id=temporal_workflow_id,
+                trigger_id=trigger_node_id,
             )
 
-            # Start Temporal workflow with the original dict
+            # Start Temporal workflow with V2 signature
             handle = await self.temporal_client.start_workflow(
-                DynamicWorkflow.run,
-                args=[workflow_def, execution_id, input_data],
+                NexusWorkflow.run,
+                args=[workflow_def, execution_id, trigger_node_id, input_data or {}, False],
                 id=temporal_workflow_id,
                 task_queue=self.task_queue,
             )

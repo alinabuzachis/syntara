@@ -15,9 +15,8 @@ from typing import Any
 from temporalio import activity
 
 from nexus.core.exceptions import SafeValueError
-from nexus.workflows.utils.template_resolution import resolve_config_templates
 from nexus.workflows.workflow_engine import constants
-from nexus.workflows.workflow_engine.models import ScriptExecutorConfig
+from nexus.workflows.workflow_engine.models.workflow_definition import ScriptExecutorConfig
 
 from .common import ActivityExecutionError
 
@@ -289,163 +288,122 @@ async def _execute_script_common(
             await _cleanup_process(process)
 
 
-@activity.defn
-async def execute_bash_script(config: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    """Execute a bash script asynchronously.
+@activity.defn(name="execute_script_activity")
+async def execute_script_activity(
+    input_config: dict[str, Any],
+    output_config: dict[str, str] | None,
+) -> dict[str, Any]:
+    """Execute a script for V2 workflows (unified bash/python activity).
+
+    This activity handles both bash and python scripts based on the 'language'
+    field in config, delegating to the appropriate helper function.
+
+    Returns normalized structure with output portion (no control needed for executor nodes).
+    Output mapping is applied internally before returning to avoid storing suppressed fields in Temporal.
 
     Args:
-        config: Script executor configuration dict (validated to ScriptExecutorConfig)
-        inputs: Input parameters (passed as environment variables with INPUT_ prefix)
+        input_config: Script configuration (already template-resolved in V2)
+                      Expected keys: 'code', 'language' (optional, defaults to 'python'),
+                      'environment' (optional), 'timeout' (optional)
+        output_config: Output mapping configuration (field_name -> template expression)
+                       None = return full result, {} = suppress all, {...} = extract specific fields
 
     Returns:
-        dict with keys:
-            - stdout: Standard output from script
-            - stderr: Standard error output
-            - return_code: Exit code (0 = success)
-
-    Raises:
-        ScriptExecutionError: If script exits with non-zero code
-        asyncio.TimeoutError: If script execution times out
-        ValueError: If input values contain null bytes or exceed maximum length
-
-    Example:
-        >>> config = {"language": "bash", "code": 'echo "Hello, $INPUT_NAME"'}
-        >>> result = await execute_bash_script(config, {"name": "Alice"})
-        >>> print(result['stdout'])
-        Hello, Alice
+        {
+            "output": {
+                "status": "completed",
+                "return_code": 0,
+                "stdout": "...",
+                "stderr": "...",
+                "stdout_json": {...}  // Only for Python scripts with JSON output
+            }
+        }
 
     """
-    # Setup workflow state for expression resolution
-    workflow_state = {"inputs": inputs}
+    # Import here to avoid circular dependency
+    from .output_mapping import apply_output_mapping  # noqa: PLC0415
 
-    # Resolve template expressions in config (e.g., ${input.custom_timeout} -> 60)
-    # Exclude 'code' field as it contains script code with its own variable syntax (bash vars, etc.)
-    resolved_config = resolve_config_templates(config, workflow_state, exclude_fields={"code"})
-
-    # Validate config using Pydantic V2's model_validate (no deprecation warnings)
-    script_config = ScriptExecutorConfig.model_validate(resolved_config)
-
-    # Inject Temporal activity attempt number for retry-aware scripts
-    # This allows scripts to use $TEMPORAL_ATTEMPT to advance random seeds
-    enhanced_inputs = inputs.copy()
     try:
-        enhanced_inputs["temporal_attempt"] = activity.info().attempt
-    except RuntimeError:
-        # Not in activity context (e.g., unit tests), default to attempt 1
-        enhanced_inputs["temporal_attempt"] = 1
-
-    # Use common script execution logic
-    full_command = ["bash", "-c", script_config.code]
-    return await _execute_script_common(
-        full_command,
-        enhanced_inputs,
-        script_config.environment,
-        timeout_seconds=float(script_config.timeout),
-    )
-
-
-@activity.defn
-async def execute_python_script(config: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
-    r"""Execute a Python script asynchronously.
-
-    Args:
-        config: Script executor configuration dict (validated to ScriptExecutorConfig)
-        inputs: Input parameters (passed as environment variables with INPUT_ prefix)
-
-    Returns:
-        dict with keys:
-            - stdout: Standard output from script (always present)
-            - stderr: Standard error output (always present)
-            - return_code: Exit code (0 = success, always present)
-            - output: Parsed JSON object (only present if stdout contains valid JSON)
-
-        The 'output' key is populated using smart JSON parsing:
-            1. First attempts to parse entire stdout as JSON
-            2. If that fails, attempts to parse the last non-empty line as JSON
-            3. If that fails, 'output' key is not set (access via $.stdout instead)
-
-        This allows debug prints before JSON output:
-            print("Debug: processing...")  # Goes to stdout, ignored by JSON parser
-            print(json.dumps({"result": "success"}))  # Parsed as $.output
-
-        For debug-only output, use stderr:
-            print("Debug info", file=sys.stderr)  # Access via $.stderr
-
-    Raises:
-        ScriptExecutionError: If script exits with non-zero code
-        asyncio.TimeoutError: If script execution times out
-        ValueError: If input values contain null bytes or exceed maximum length
-
-    Example:
-        >>> # Pure JSON output
-        >>> config = {"language": "python", "code": 'import json; print(json.dumps({"hello": "world"}))'}
-        >>> result = await execute_python_script(config, {})
-        >>> print(result['output'])
-        {'hello': 'world'}
-
-        >>> # Debug output + JSON on last line
-        >>> config = {
-        ...     "language": "python",
-        ...     "code": 'import json\\nprint("Processing...")\\nprint(json.dumps({"status": "done"}))'
-        ... }
-        >>> result = await execute_python_script(config, {})
-        >>> print(result['output'])
-        {'status': 'done'}
-
-        >>> # With custom environment variables
-        >>> config = {
-        ...     "language": "python",
-        ...     "code": 'import os; print(os.getenv("API_KEY"))',
-        ...     "environment": {"API_KEY": "secret123"}
-        ... }
-        >>> result = await execute_python_script(config, {})
-        >>> print(result['stdout'])
-        secret123
-
-    """
-    # Setup workflow state for expression resolution
-    workflow_state = {"inputs": inputs}
-
-    # Resolve template expressions in config (e.g., ${input.custom_timeout} -> 60)
-    # Exclude 'code' field as it contains script code with its own variable syntax (bash vars, etc.)
-    resolved_config = resolve_config_templates(config, workflow_state, exclude_fields={"code"})
-
-    # Validate config using Pydantic V2's model_validate (no deprecation warnings)
-    script_config = ScriptExecutorConfig.model_validate(resolved_config)
-
-    # Use common script execution logic
-    # Use sys.executable to ensure we use the same Python interpreter that's running the workflow
-    full_command = [sys.executable, "-c", script_config.code]
-    result = await _execute_script_common(
-        full_command,
-        inputs,
-        script_config.environment,
-        timeout_seconds=float(script_config.timeout),
-    )
-
-    # Try to parse stdout as JSON for structured output
-    # This allows Python scripts to return structured data
-    if result["stdout"].strip():
-        # First, try parsing entire stdout as JSON
+        # Validate config via Pydantic model
         try:
-            result["output"] = json.loads(result["stdout"])
-            activity.logger.debug("Parsed entire stdout as JSON")
-        except json.JSONDecodeError:
-            # Fallback: try parsing the last non-empty line as JSON
-            # This allows debug prints before the final JSON output
-            lines = [line for line in result["stdout"].strip().split("\n") if line.strip()]
-            if lines:
-                try:
-                    result["output"] = json.loads(lines[-1])
-                    if len(lines) > 1:
-                        activity.logger.debug(
-                            "Parsed JSON from last line of stdout",
-                            non_json_line_count=len(lines) - 1,
-                        )
-                except json.JSONDecodeError:
-                    # Not JSON output - that's fine, user can access via $.stdout
-                    activity.logger.debug(
-                        "stdout is not JSON - access output via $.stdout or $.stderr in output mappings"
-                    )
+            config = ScriptExecutorConfig.model_validate(input_config)
+        except Exception as e:  # noqa: BLE001
+            return {
+                "output": {
+                    "status": "failed",
+                    "error": {"type": "ConfigError", "message": f"Invalid configuration: {e}"},
+                }
+            }
 
-    return result
+        # Read values from the validated model
+        language = config.language.value
+        code = config.code
+        environment = dict(config.environment)
+        timeout = config.timeout
+
+        # Inject TEMPORAL_ATTEMPT for retry-aware scripts
+        attempt_number = activity.info().attempt
+        environment["TEMPORAL_ATTEMPT"] = str(attempt_number)
+
+        # V2 configs are already resolved by the resolver, so we pass empty inputs
+        inputs: dict[str, Any] = {}
+
+        # Build command based on language
+        command = ["bash", "-c", code] if language == "bash" else [sys.executable, "-c", code]
+
+        # Execute script
+        result = await _execute_script_common(command, inputs, environment, timeout)
+
+        # For Python scripts, try to parse stdout as JSON
+        if language == "python" and result["stdout"].strip():
+            # First, try parsing entire stdout as JSON
+            try:
+                result["output"] = json.loads(result["stdout"])
+            except json.JSONDecodeError:
+                # Fallback: try parsing the last non-empty line as JSON
+                # This allows debug prints before the final JSON output
+                lines = [line for line in result["stdout"].strip().split("\n") if line.strip()]
+                if lines:
+                    with contextlib.suppress(json.JSONDecodeError):
+                        result["output"] = json.loads(lines[-1])
+
+        # Transform to V2 normalized format
+        full_result: dict[str, Any] = {
+            "status": "completed",
+            "return_code": result["return_code"],
+            "stdout": result["stdout"],
+            "stderr": result["stderr"],
+        }
+
+        # For Python scripts, rename 'output' to 'stdout_json' (per schema)
+        if "output" in result:
+            full_result["stdout_json"] = result["output"]
+
+        # Apply output mapping (suppresses fields before Temporal stores it)
+        mapped_output = apply_output_mapping(full_result, output_config)
+
+        return {"output": mapped_output}
+
+    except ScriptExecutionError as e:
+        # Failed result conforming to baseFailedResult schema
+        # Error message already includes exit code and stderr from _raise_script_error
+        error_result = {
+            "status": "failed",
+            "error": {
+                "type": "ScriptExecutionError",
+                "message": str(e),
+            },
+        }
+        # No mapping on failures
+        return {"output": error_result}
+    except Exception as e:  # noqa: BLE001
+        # Failed result conforming to baseFailedResult schema
+        error_result = {
+            "status": "failed",
+            "error": {
+                "type": type(e).__name__,
+                "message": str(e),
+            },
+        }
+        # No mapping on failures
+        return {"output": error_result}

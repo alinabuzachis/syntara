@@ -1,10 +1,7 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: condition-no-else-test
-  description: Test condition with only then branch (no else)
+schema_version: "2.0.0"
+name: condition-no-else-test
+description: Test condition with only then branch (no else)
 
 inputs:
   enable_feature:
@@ -13,24 +10,26 @@ inputs:
     default: true
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: feature_check
-      name: Check Feature Flag
-      type: condition
-      condition: ${input.enable_feature}
-      then:
-        - id: enable_feature
-          name: Enable Feature
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Feature enabled"
-                echo "Initializing feature..."
-            outputs:
-              status: $.stdout
+nodes:
+  - id: feature_check
+    name: Check Feature Flag
+    type: condition
+    condition: ${input.enable_feature}
+
+  - id: enable_feature
+    name: Enable Feature
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Feature enabled"
+        echo "Initializing feature..."
+    outputs:
+      status: $.stdout
+edges:
+  - source: feature_check
+    target: enable_feature
+    port: then

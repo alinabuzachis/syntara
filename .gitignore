@@ -223,3 +223,9 @@ worktrees/
 
 # Local agents file
 AGENTS.local.md
+tools/run-claude-sandbox.sh
+tasks/
+491_review.md
+.cursor/
+containers/claude-sandbox/
+loop.sh

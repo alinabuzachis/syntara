@@ -1,0 +1,455 @@
+---
+openapi: 3.0.3
+info:
+  title: Workflow Engine API (v2)
+  description: |
+    API for managing graph-based (DAG) workflows with agentic and non-agentic tasks.
+
+    ## V2 Workflow Model
+
+    V2 workflows use a directed acyclic graph (DAG) structure with explicit nodes and edges,
+    replacing the V1 tree-based activity model. Key concepts:
+
+    - **Triggers**: Entry points that initiate workflow execution (e.g., manual_trigger)
+    - **Nodes**: Execution units (script, http_request, agentic, aap_job_template, approval)
+      and control flow (condition, loop, converge)
+    - **Edges**: Directed connections between nodes with optional port-based routing
+      (e.g., condition true/false, loop iterate/complete)
+    - **Implicit parallelism**: Multiple edges from the same node execute concurrently
+      (no dedicated parallel node needed)
+
+    ## Schema Composition
+
+    This API uses schema composition to reduce duplication:
+
+    ```
+    BaseResource (id, labels, created_at, updated_at)
+    +-- NamedResource (+ name, description)
+        +-- Workflow (+ SoftDeletableResource + UserOwnedResource)
+            +-- WorkflowWithVersion (+ version details)
+
+    SoftDeletableResource (deleted_at, deleted_by)
+    UserOwnedResource (created_by)
+    ```
+
+    Note: Approval resources are in a separate API. See `/api/v1/approvals`.
+
+    ## Labels
+
+    All resources support key-value labels for categorization and filtering:
+    - Format: `{"key": "value"}` (both key and value must be strings)
+    - Use cases: environment tags, team ownership, priority levels, cost centers
+    - Queryable: Filter resources by label selectors in list endpoints
+
+    ## Node Type Catalog
+
+    Available node types and their configuration schemas are defined in the
+    [Node Type Catalog](./catalog/node_type_catalog.json). Individual node schemas
+    (config and result) are in the `executors/`, `control-nodes/`, and `triggers/` directories.
+  version: 2.0.0
+  contact:
+    name: Automation Nexus Team
+
+servers:
+  - url: /api/v1
+    description: API server (relative path)
+
+paths:
+  /workflows:
+    get:
+      summary: List workflows
+      description: |
+        Retrieve a list of workflows with filtering, sorting, and cursor-based pagination.
+      operationId: list_workflows
+      parameters:
+        - name: created_by
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by creator user ID
+        - name: is_enabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by enabled status
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+      responses:
+        '200':
+          description: List of workflows
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Workflow'
+                        maxItems: 100
+                    required:
+                      - resources
+    post:
+      summary: Create workflow
+      description: |
+        Create a new workflow entity with its initial version.
+        The workflow definition must conform to the v2 graph-based schema (schema_version: "2.0.0")
+        with triggers, nodes, and edges. The definition is validated and stored as version 1.
+      operationId: create_workflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowRequest'
+      responses:
+        '201':
+          description: Workflow created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '400':
+          description: Invalid workflow definition
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Invalid workflow definition
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+        '409':
+          description: Name conflict - workflow with this name already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+              example:
+                type: https://api.nexus.com/errors/name-conflict
+                title: Workflow Name Conflict
+                detail: A workflow with this name already exists
+                code: WORKFLOW_NAME_CONFLICT
+                retryable: false
+                instance: /api/v1/workflows
+        '422':
+          description: Validation error (e.g., invalid label types)
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+              example:
+                type: https://api.nexus.com/errors/validation-error
+                title: Validation Error
+                detail: Field validation failed
+                code: VALIDATION_ERROR
+                retryable: false
+                instance: /api/v1/workflows
+
+  /workflows/{workflow_id}:
+    get:
+      summary: Get workflow
+      description: Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field.
+      operationId: get_workflow
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Workflow details including current version information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowWithVersion'
+        '404':
+          description: Workflow not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+    patch:
+      summary: Update workflow
+      description: |
+        Update workflow fields. Supports both metadata updates and workflow definition updates:
+        - Metadata only (name, description, is_enabled, labels): Updates without creating new version
+        - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
+      operationId: update_workflow
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchWorkflowRequest'
+      responses:
+        '200':
+          description: Workflow updated successfully (may include new version if workflow_definition changed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowWithVersion'
+        '400':
+          description: Invalid workflow definition or validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '404':
+          description: Workflow not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '409':
+          description: Name conflict - workflow with this name already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '422':
+          description: Validation error (e.g., invalid label types)
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+    delete:
+      summary: Delete workflow (soft delete)
+      description: Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
+      operationId: delete_workflow
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Workflow soft deleted successfully
+        '404':
+          description: Workflow not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+        '409':
+          description: Workflow cannot be deleted (has running executions)
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+  /workflows/{workflow_id}/versions:
+    get:
+      summary: List workflow versions
+      description: |
+        Retrieve all versions for a workflow with cursor-based pagination.
+        WorkflowVersion entities are read-only and managed automatically by the system.
+        Versions are ordered by version number descending (newest first) by default.
+      operationId: list_workflow_versions
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+      responses:
+        '200':
+          description: List of workflow versions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkflowVersionResponse'
+                        maxItems: 100
+                    required:
+                      - resources
+        '404':
+          description: Workflow not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+  /workflows/{workflow_id}/versions/{version}:
+    get:
+      summary: Get workflow version
+      description: Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
+      operationId: get_workflow_version
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Version number to retrieve
+      responses:
+        '200':
+          description: Workflow version details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowVersionResponse'
+        '404':
+          description: Workflow or version not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+
+  # Note: Approval endpoints are in a separate API
+  # See: src/nexus/schemas/approvals/openapi.yaml
+
+components:
+  schemas:
+    # Import base resource schemas
+    BaseResource:
+      $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
+
+    NamedResource:
+      $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
+
+    SoftDeletableResource:
+      $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
+
+    UserOwnedResource:
+      $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
+
+    # Import workflow-specific schemas
+    Workflow:
+      $ref: ./shared-schemas.yaml#/components/schemas/Workflow
+
+    WorkflowWithVersion:
+      $ref: ./shared-schemas.yaml#/components/schemas/WorkflowWithVersion
+
+    WorkflowVersionResponse:
+      type: object
+      title: Workflow Version Response
+      description: Complete details of a specific workflow version including workflow definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
+      required:
+        - id
+        - workflow_id
+        - version
+        - schema_version
+        - workflow_definition
+        - created_by
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Version unique identifier
+        workflow_id:
+          type: string
+          format: uuid
+          description: Parent workflow ID
+        version:
+          type: integer
+          description: Version number
+        schema_version:
+          type: string
+          description: Schema version (always "2.0.0" for v2 workflows)
+          example: "2.0.0"
+        workflow_definition:
+          $ref: ./workflow_definition.schema.json
+          description: V2 graph-based workflow definition with triggers, nodes, and edges
+        created_by:
+          type: string
+          format: uuid
+          description: User who created this version
+        created_at:
+          type: string
+          format: date-time
+          description: Version creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        change_description:
+          type: string
+          nullable: true
+          description: Description of changes in this version
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Soft delete timestamp (always null in responses)
+        deleted_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: User who soft deleted the version (always null in responses)
+
+    WorkflowVersionListResponse:
+      type: object
+      title: Workflow Version List Response
+      description: List of workflow versions ordered by version number descending
+      required:
+        - versions
+      properties:
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowVersionResponse'
+          description: Array of workflow versions
+
+    # Note: Approval schemas are in src/nexus/schemas/approvals/openapi.yaml
+
+    CreateWorkflowRequest:
+      $ref: ./shared-schemas.yaml#/components/schemas/CreateWorkflowRequest
+
+    PatchWorkflowRequest:
+      $ref: ./shared-schemas.yaml#/components/schemas/PatchWorkflowRequest
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

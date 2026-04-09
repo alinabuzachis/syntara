@@ -33,7 +33,7 @@ def validation_error_handler(request: Request, exc: "WorkflowValidationError") -
     err_detail = exc.message
     detail = "The provided data failed validation requirements" if len(err_detail) == 0 else err_detail
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Validation Error",
         detail=detail,

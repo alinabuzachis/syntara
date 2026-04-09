@@ -100,6 +100,9 @@ class AnalyticsMiddleware:
 
         method: str = scope["method"]
 
+        if not self._registry.is_initialized():
+            return
+
         try:
             event = APICallEvent(
                 endpoint=path,

@@ -256,13 +256,10 @@ async def test_patch_workflow_with_workflow_definition_creates_version(base_clie
                 {
                     "id": "step1",
                     "name": "Step 1",
-                    "type": "task",
-                    "task": {
-                        "executor": "script",
-                        "config": {
-                            "language": "python",
-                            "code": "print('step 1')",
-                        },
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": "print('step 1')",
                     },
                 }
             ],
@@ -277,7 +274,7 @@ async def test_patch_workflow_with_workflow_definition_creates_version(base_clie
     assert data["version"]["version"] == 2
     assert data["version"]["change_description"] == "Added step1 activity"
     workflow_def = data["version"]["workflow_definition"]
-    assert workflow_def["workflow"]["activities"][0]["id"] == "step1"
+    assert workflow_def["nodes"][0]["id"] == "step1"
 
 
 @pytest.mark.asyncio
@@ -357,13 +354,10 @@ async def test_patch_workflow_with_unchanged_yaml_skips_version(base_client: Asy
             {
                 "id": "step1",
                 "name": "Step 1",
-                "type": "task",
-                "task": {
-                    "executor": "script",
-                    "config": {
-                        "language": "python",
-                        "code": "print('step 1')",
-                    },
+                "type": "script",
+                "config": {
+                    "language": "python",
+                    "code": "print('step 1')",
                 },
             }
         ],
@@ -398,25 +392,19 @@ async def test_patch_workflow_with_unchanged_yaml_skips_version(base_client: Asy
             {
                 "id": "step1",
                 "name": "Step 1",
-                "type": "task",
-                "task": {
-                    "executor": "script",
-                    "config": {
-                        "language": "python",
-                        "code": "print('step 1')",
-                    },
+                "type": "script",
+                "config": {
+                    "language": "python",
+                    "code": "print('step 1')",
                 },
             },
             {
                 "id": "step2",
                 "name": "Step 2",
-                "type": "task",
-                "task": {
-                    "executor": "api",
-                    "config": {
-                        "method": "GET",
-                        "url": "https://example.com",
-                    },
+                "type": "http_request",
+                "config": {
+                    "method": "GET",
+                    "url": "https://example.com",
                 },
             },
         ],
@@ -431,8 +419,8 @@ async def test_patch_workflow_with_unchanged_yaml_skips_version(base_client: Asy
     data2 = response2.json()
     assert data2["current_version"] == 2  # Version incremented due to content change
     workflow_def = data2["version"]["workflow_definition"]
-    assert len(workflow_def["workflow"]["activities"]) == 2
-    assert workflow_def["workflow"]["activities"][1]["id"] == "step2"
+    assert len(workflow_def["nodes"]) == 2
+    assert workflow_def["nodes"][1]["id"] == "step2"
 
 
 @pytest.mark.asyncio

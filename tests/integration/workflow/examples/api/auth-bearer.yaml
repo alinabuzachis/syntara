@@ -1,10 +1,7 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: auth-bearer
-  description: API request with bearer token authentication
+schema_version: "2.0.0"
+name: auth-bearer
+description: API request with bearer token authentication
 
 secrets:
   api_token:
@@ -12,17 +9,16 @@ secrets:
     type: bearer_token
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: fetch_protected_data
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: http://test-api.example.com/api/protected
-          authentication:
-            type: bearer
-            credentials: ${secrets.api_token}
+nodes:
+  - id: fetch_protected_data
+    type: http_request
+    config:
+      method: GET
+      url: http://test-api.example.com/api/protected
+      authentication:
+        type: bearer
+        credentials: ${secrets.api_token}
+edges: []

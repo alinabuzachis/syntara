@@ -18,9 +18,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from pydantic import SecretStr, ValidationError
+from temporalio.exceptions import CancelledError
 
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
-    AAPJobExecutionError,
     execute_aap_job_template_activity,
 )
 from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
@@ -39,9 +39,13 @@ def build_config(**kwargs: object) -> AAPJobTemplateExecutorConfig:
 
 
 def build_activity_config(**kwargs: object) -> dict[str, object]:
-    """Helper to build activity config dict from config kwargs."""
+    """Helper to build activity config dict from config kwargs.
+
+    The V2 execute_aap_job_template_activity function validates
+    input_config directly (not wrapped in {"config": ...}).
+    """
     config = build_config(**kwargs)
-    return {"config": config.model_dump(by_alias=True)}
+    return config.model_dump(by_alias=True)
 
 
 def create_http_response(
@@ -150,17 +154,17 @@ class TestAAPJobTemplateExecution:
                 extra_vars={"version": "1.0.0"},
             )
 
-            result = await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
 
-            assert result["job_id"] == 123
-            assert result["status"] == "successful"
-            assert "PLAY" in result["output"]
-            assert result["artifacts"]["changed"] == 5
-            assert "elapsed_ms" in result
+            assert result["output"]["job_id"] == 123
+            assert result["output"]["status"] == "completed"
+            assert "PLAY" in result["output"]["output"]
+            assert result["output"]["artifacts"]["changed"] == 5
+            assert "elapsed_ms" in result["output"]
 
     @pytest.mark.asyncio
     async def test_failed_job_execution(self, mock_activity_context: object) -> None:  # noqa: ARG002
-        """Test job template execution failure raises error with output."""
+        """Test job template execution failure returns error result."""
         launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/jobs/456/"})
         failed_status_response = create_http_response(
             200, {"id": 456, "status": "failed", "artifacts": {"failed": 1, "ok": 5}}
@@ -175,21 +179,22 @@ class TestAAPJobTemplateExecution:
 
             activity_config = build_activity_config(job_template_id=99)
 
-            # Job failed, activity should raise error with output attached
-            with pytest.raises(AAPJobExecutionError) as exc_info:
-                await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
 
-            # Verify error contains job details
-            error = exc_info.value
-            assert error.job_id == 456
-            assert error.status == "failed"
-            assert error.output is not None
-            assert "ERROR" in error.output
-            assert "FATAL: Playbook execution failed" in error.output
+            # Verify result contains failure details
+            assert result["output"]["status"] == "failed"
+            assert result["output"]["job_id"] == 456
+            assert result["output"]["job_status"] == "failed"
+            assert "ERROR" in result["output"]["output"]
+            assert "FATAL: Playbook execution failed" in result["output"]["output"]
 
     @pytest.mark.asyncio
-    async def test_expression_resolution_in_extra_vars(self, mock_activity_context: object) -> None:  # noqa: ARG002
-        """Test expression resolution in extra_vars."""
+    async def test_extra_vars_forwarded_to_aap(self, mock_activity_context: object) -> None:  # noqa: ARG002
+        """Test extra_vars are forwarded correctly to AAP API.
+
+        In V2, template expressions are resolved by the workflow engine before
+        calling the activity. The activity receives already-resolved values.
+        """
         launch_response = create_http_response(200, {"id": 789, "url": "/api/v2/jobs/789/"})
         status_response = create_http_response(200, {"id": 789, "status": "successful", "artifacts": {}})
         output_response = create_http_response(200, text="")
@@ -203,22 +208,24 @@ class TestAAPJobTemplateExecution:
             activity_config = build_activity_config(
                 job_template_id=42,
                 extra_vars={
-                    "app_version": "${input.version}",
-                    "deploy_env": "${input.environment}",
+                    "app_version": "2.0.0",
+                    "deploy_env": "staging",
                 },
             )
-            inputs = {"version": "2.0.0", "environment": "staging"}
+            await execute_aap_job_template_activity(activity_config, None)
 
-            await execute_aap_job_template_activity(activity_config, inputs)
-
-            # Verify extra_vars were resolved and sent with correct snake_case key
+            # Verify extra_vars were sent correctly
             call_body = mock_post.call_args.kwargs["json"]
             assert call_body["extra_vars"]["app_version"] == "2.0.0"
             assert call_body["extra_vars"]["deploy_env"] == "staging"
 
     @pytest.mark.asyncio
-    async def test_expression_resolution_in_nested_lists_and_dicts(self, mock_activity_context: object) -> None:  # noqa: ARG002
-        """Test expression resolution in nested lists and dictionaries within extra_vars."""
+    async def test_nested_extra_vars_forwarded_to_aap(self, mock_activity_context: object) -> None:  # noqa: ARG002
+        """Test nested lists and dictionaries within extra_vars are forwarded correctly.
+
+        In V2, template expressions are resolved by the workflow engine before
+        calling the activity. The activity receives already-resolved values.
+        """
         launch_response = create_http_response(200, {"id": 890, "url": "/api/v2/jobs/890/"})
         status_response = create_http_response(200, {"id": 890, "status": "successful", "artifacts": {}})
         output_response = create_http_response(200, text="")
@@ -235,33 +242,24 @@ class TestAAPJobTemplateExecution:
                     "hosts": [
                         {
                             "name": "server1",
-                            "ip": "${input.server1_ip}",
-                            "port": "${input.server1_port}",
+                            "ip": "10.0.0.1",
+                            "port": 8080,
                         },
                         {
                             "name": "server2",
-                            "ip": "${input.server2_ip}",
-                            "port": "${input.server2_port}",
+                            "ip": "10.0.0.2",
+                            "port": 8081,
                         },
                     ],
                     "config": {
-                        "timeout": "${input.timeout}",
-                        "retries": "${input.retries}",
+                        "timeout": 30,
+                        "retries": 3,
                     },
                 },
             )
-            inputs = {
-                "server1_ip": "10.0.0.1",
-                "server1_port": 8080,
-                "server2_ip": "10.0.0.2",
-                "server2_port": 8081,
-                "timeout": 30,
-                "retries": 3,
-            }
+            await execute_aap_job_template_activity(activity_config, None)
 
-            await execute_aap_job_template_activity(activity_config, inputs)
-
-            # Verify nested structures were resolved correctly
+            # Verify nested structures were forwarded correctly
             call_body = mock_post.call_args.kwargs["json"]
             assert call_body["extra_vars"]["hosts"][0]["ip"] == "10.0.0.1"
             assert call_body["extra_vars"]["hosts"][0]["port"] == 8080
@@ -303,9 +301,9 @@ class TestAAPJobTemplateHeartbeat:
 
             activity_config = build_activity_config(job_template_id=42)
 
-            result = await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
 
-            assert result["status"] == "successful"
+            assert result["output"]["status"] == "completed"
 
             # Verify heartbeats were sent (at least 2 times during polling)
             assert mock_heartbeat.call_count >= 2
@@ -329,8 +327,6 @@ class TestAAPJobTemplateCancellation:
         aap_settings_overrides: dict[str, object],
     ) -> None:
         """Test AAP job is cancelled when activity is cancelled."""
-        from temporalio.exceptions import CancelledError
-
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
         running_response = create_http_response(200, {"id": 123, "status": "running"})
         cancel_response = create_http_response(200, {})
@@ -349,11 +345,11 @@ class TestAAPJobTemplateCancellation:
 
             activity_config = build_activity_config(job_template_id=42)
 
-            # Should raise CancelledError
-            with pytest.raises(CancelledError):
-                await execute_aap_job_template_activity(activity_config, {})
+            # CancelledError propagates to Temporal after AAP job cleanup
+            with pytest.raises(CancelledError, match="cancelled"):
+                await execute_aap_job_template_activity(activity_config, None)
 
-            # Verify cancel endpoint was called
+            # Verify cancel endpoint was called before propagation
             cancel_call = mock_post.call_args_list[1]
             assert "/jobs/123/cancel/" in str(cancel_call)
 
@@ -382,8 +378,10 @@ class TestAAPJobTemplateErrorHandling:
         ):
             activity_config = build_activity_config(job_template_id=42)
 
-            with pytest.raises(AAPJobExecutionError, match="Failed to launch"):
-                await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
+
+            assert result["output"]["status"] == "failed"
+            assert "Failed to launch" in result["output"]["error"]
 
     @pytest.mark.asyncio
     async def test_launch_failure_template_not_found(
@@ -406,8 +404,10 @@ class TestAAPJobTemplateErrorHandling:
         ):
             activity_config = build_activity_config(job_template_id=999)
 
-            with pytest.raises(AAPJobExecutionError, match="Failed to launch"):
-                await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
+
+            assert result["output"]["status"] == "failed"
+            assert "Failed to launch" in result["output"]["error"]
 
     @pytest.mark.asyncio
     async def test_network_connection_error(
@@ -426,16 +426,20 @@ class TestAAPJobTemplateErrorHandling:
         ):
             activity_config = build_activity_config(job_template_id=42)
 
-            with pytest.raises(AAPJobExecutionError, match="Failed to connect to AAP"):
-                await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
+
+            assert result["output"]["status"] == "failed"
+            assert "Failed to connect to AAP" in result["output"]["error"]
 
     @pytest.mark.asyncio
     async def test_invalid_config_missing_job_template_id(self) -> None:
-        """Test error with missing job_template_id."""
-        activity_config: dict[str, dict[str, object]] = {"config": {}}  # Missing job_template_id
+        """Test error with missing job_template_id returns failed result."""
+        activity_config: dict[str, object] = {}  # Missing job_template_id
 
-        with pytest.raises(ValidationError):
-            await execute_aap_job_template_activity(activity_config, {})
+        result = await execute_aap_job_template_activity(activity_config, None)
+
+        assert result["output"]["status"] == "failed"
+        assert "Invalid configuration" in result["output"]["error"]
 
 
 class TestAAPJobTemplateTimeout:
@@ -479,13 +483,12 @@ class TestAAPJobTemplateTimeout:
             # Configure timeout of 10 seconds
             activity_config = build_activity_config(job_template_id=42, timeout=10)
 
-            # Should raise timeout error
-            with pytest.raises(AAPJobExecutionError, match="timed out after 10 seconds") as exc_info:
-                await execute_aap_job_template_activity(activity_config, {})
+            # V2 catches timeout error and returns failed result
+            result = await execute_aap_job_template_activity(activity_config, None)
 
-            # Verify error contains job_id
-            error = exc_info.value
-            assert error.job_id == 123
+            assert result["output"]["status"] == "failed"
+            assert "timed out after 10 seconds" in result["output"]["error"]
+            assert result["output"]["job_id"] == 123
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
@@ -525,11 +528,11 @@ class TestAAPJobTemplateTimeout:
             # Configure timeout of 10 seconds (job completes in ~2 seconds)
             activity_config = build_activity_config(job_template_id=42, timeout=10)
 
-            result = await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
 
             # Job should complete successfully
-            assert result["status"] == "successful"
-            assert result["job_id"] == 123
+            assert result["output"]["status"] == "completed"
+            assert result["output"]["job_id"] == 123
 
     @pytest.mark.asyncio
     async def test_timeout_config_field_validation(self) -> None:
@@ -575,7 +578,7 @@ class TestAAPJobTemplateAuthentication:
 
             activity_config = build_activity_config(job_template_id=42)
 
-            await execute_aap_job_template_activity(activity_config, {})
+            await execute_aap_job_template_activity(activity_config, None)
 
             # Verify Authorization header with Bearer token
             assert "headers" in mock_post.call_args.kwargs
@@ -604,7 +607,7 @@ class TestAAPJobTemplateAuthentication:
 
             activity_config = build_activity_config(job_template_id=42)
 
-            await execute_aap_job_template_activity(activity_config, {})
+            await execute_aap_job_template_activity(activity_config, None)
 
             # Verify BasicAuth was used
             assert "auth" in mock_post.call_args.kwargs
@@ -629,17 +632,14 @@ class TestAAPJobTemplateAuthentication:
         ):
             mock_get.side_effect = [status_response, output_response]
 
-            activity_config = {
-                "config": {
-                    "jobTemplateId": "${input.job_template_id}",
-                    "verbosity": "${input.verbosity}",
-                }
+            activity_config: dict[str, object] = {
+                "jobTemplateId": 42,
+                "verbosity": 2,
             }
-            inputs = {"job_template_id": 42, "verbosity": 2}
 
-            result = await execute_aap_job_template_activity(activity_config, inputs)
+            result = await execute_aap_job_template_activity(activity_config, None)
 
-            assert result["status"] == "successful"
+            assert result["output"]["status"] == "completed"
             # Verify resolved values were used
             post_body = mock_post.call_args.kwargs["json"]
             assert post_body["verbosity"] == 2
@@ -677,10 +677,10 @@ class TestAAPJobTemplateNameBasedReference:
                 extra_vars={"version": "1.0.0"},
             )
 
-            result = await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
 
-            assert result["job_id"] == 123
-            assert result["status"] == "successful"
+            assert result["output"]["job_id"] == 123
+            assert result["output"]["status"] == "completed"
 
             # Verify lookup was called with correct params
             lookup_call = mock_get.call_args_list[0]
@@ -714,8 +714,10 @@ class TestAAPJobTemplateNameBasedReference:
                 organization_name="Default",
             )
 
-            with pytest.raises(AAPJobExecutionError, match="not found"):
-                await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
+
+            assert result["output"]["status"] == "failed"
+            assert "not found" in result["output"]["error"]
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
@@ -748,8 +750,10 @@ class TestAAPJobTemplateNameBasedReference:
                 organization_name="Default",
             )
 
-            with pytest.raises(AAPJobExecutionError, match="Multiple job templates"):
-                await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
+
+            assert result["output"]["status"] == "failed"
+            assert "Multiple job templates" in result["output"]["error"]
 
     @pytest.mark.parametrize(
         ("config_kwargs", "should_pass", "error_match"),
@@ -760,23 +764,33 @@ class TestAAPJobTemplateNameBasedReference:
             ({"job_template_name": "  Deploy  ", "organization_name": "  Default  "}, True, None),
             # Both ID and name is valid - ID takes precedence
             ({"job_template_id": 42, "job_template_name": "Deploy", "organization_name": "Default"}, True, None),
+            # Whitespace-only name with org is valid (bool("   ") is True)
+            ({"job_template_name": "   ", "organization_name": "Default"}, True, None),
+            # Whitespace-only org with name is valid (bool("   ") is True)
+            ({"job_template_name": "Deploy", "organization_name": "   "}, True, None),
             # Invalid cases - should raise ValidationError
-            ({"job_template_name": "Deploy"}, False, "organization_name is required when using job_template_name"),
-            ({"organization_name": "Default"}, False, "Must specify either"),
-            ({"extra_vars": {"foo": "bar"}}, False, "Must specify either"),
-            ({"job_template_name": "", "organization_name": "Default"}, False, "Must specify either"),
             (
-                {"job_template_name": "Deploy", "organization_name": ""},
+                {"job_template_name": "Deploy"},
                 False,
                 "organization_name is required when using job_template_name",
             ),
             (
-                {"job_template_name": "   ", "organization_name": "Default"},
+                {"organization_name": "Default"},
                 False,
-                "Must specify either",
+                "Either job_template_id or job_template_name must be specified",
             ),
             (
-                {"job_template_name": "Deploy", "organization_name": "   "},
+                {"extra_vars": {"foo": "bar"}},
+                False,
+                "Either job_template_id or job_template_name must be specified",
+            ),
+            (
+                {"job_template_name": "", "organization_name": "Default"},
+                False,
+                "Either job_template_id or job_template_name must be specified",
+            ),
+            (
+                {"job_template_name": "Deploy", "organization_name": ""},
                 False,
                 "organization_name is required when using job_template_name",
             ),
@@ -786,13 +800,13 @@ class TestAAPJobTemplateNameBasedReference:
             "valid_name_and_org",
             "valid_name_and_org_with_whitespace",
             "valid_both_id_and_name",
+            "valid_whitespace_only_template_name",
+            "valid_whitespace_only_organization_name",
             "invalid_name_without_org",
             "invalid_org_without_name",
             "invalid_neither_id_nor_name",
             "invalid_empty_template_name",
             "invalid_empty_organization_name",
-            "invalid_whitespace_only_template_name",
-            "invalid_whitespace_only_organization_name",
         ],
     )
     def test_config_validation_mutual_exclusivity(
@@ -801,19 +815,16 @@ class TestAAPJobTemplateNameBasedReference:
         should_pass: bool,  # noqa: FBT001
         error_match: str | None,
     ) -> None:
-        """Test config validation and whitespace stripping."""
+        """Test config validation rules."""
         if should_pass:
             config = build_config(**config_kwargs)
             assert config is not None
-            # Verify the expected field is set (and whitespace is stripped)
             if "job_template_id" in config_kwargs:
                 assert config.job_template_id == config_kwargs["job_template_id"]
             if "job_template_name" in config_kwargs:
-                expected_name = config_kwargs["job_template_name"].strip()
-                assert config.job_template_name == expected_name
+                assert config.job_template_name == config_kwargs["job_template_name"]
             if "organization_name" in config_kwargs:
-                expected_org = config_kwargs["organization_name"].strip()
-                assert config.organization_name == expected_org
+                assert config.organization_name == config_kwargs["organization_name"]
         else:
             with pytest.raises(ValidationError, match=error_match):
                 build_config(**config_kwargs)
@@ -821,13 +832,17 @@ class TestAAPJobTemplateNameBasedReference:
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
     @patch("temporalio.activity.heartbeat")
-    async def test_expression_resolution_with_name_based(
+    async def test_name_based_with_resolved_values(
         self,
         mock_heartbeat: object,  # noqa: ARG002
         mock_is_cancelled: object,  # noqa: ARG002
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
-        """Test expression resolution works with name-based references."""
+        """Test name-based references with pre-resolved values.
+
+        In V2, template expressions are resolved by the workflow engine before
+        calling the activity. The activity receives already-resolved values.
+        """
         mocks = create_successful_job_mocks(job_id=888, output_text="")
 
         # Mock lookup response
@@ -842,18 +857,13 @@ class TestAAPJobTemplateNameBasedReference:
             mock_get.side_effect = [lookup_response, mocks["status"], mocks["output"]]
 
             activity_config = build_activity_config(
-                job_template_name="${input.template_name}",
-                organization_name="${input.org_name}",
+                job_template_name="Dynamic Template",
+                organization_name="Production",
             )
-            inputs = {
-                "template_name": "Dynamic Template",
-                "org_name": "Production",
-            }
+            result = await execute_aap_job_template_activity(activity_config, None)
+            assert result["output"]["job_id"] == 888
 
-            result = await execute_aap_job_template_activity(activity_config, inputs)
-            assert result["job_id"] == 888
-
-            # Verify lookup was called with resolved names
+            # Verify lookup was called with correct names
             lookup_call = mock_get.call_args_list[0]
             assert lookup_call.kwargs["params"]["name"] == "Dynamic Template"
             assert lookup_call.kwargs["params"]["organization__name"] == "Production"
@@ -884,8 +894,8 @@ class TestAAPJobTemplateNameBasedReference:
             # Use old ID-based config
             activity_config = build_activity_config(job_template_id=42)
 
-            result = await execute_aap_job_template_activity(activity_config, {})
-            assert result["job_id"] == 999
+            result = await execute_aap_job_template_activity(activity_config, None)
+            assert result["output"]["job_id"] == 999
 
             # Verify POST was called with numeric ID in path (not named URL)
             post_url = mock_post.call_args.args[0]
@@ -919,8 +929,8 @@ class TestAAPJobTemplateNameBasedReference:
                 organization_name="Ignored Org",
             )
 
-            result = await execute_aap_job_template_activity(activity_config, {})
-            assert result["job_id"] == 777
+            result = await execute_aap_job_template_activity(activity_config, None)
+            assert result["output"]["job_id"] == 777
 
             # Verify POST was called with ID 42 (not name lookup)
             post_url = mock_post.call_args.args[0]
@@ -994,10 +1004,10 @@ class TestAAPInventoryNameBasedReference:
                 organization_name="Default",
             )
 
-            result = await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
 
-            assert result["job_id"] == 456
-            assert result["status"] == "successful"
+            assert result["output"]["job_id"] == 456
+            assert result["output"]["status"] == "completed"
             # Verify inventory lookup
             assert "inventories" in str(mock_get.call_args_list[0].args[0])
             # Verify resolved inventory ID in POST body
@@ -1030,9 +1040,9 @@ class TestAAPInventoryNameBasedReference:
                 organization_name="Default",
             )
 
-            result = await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
 
-            assert result["status"] == "successful"
+            assert result["output"]["status"] == "completed"
             # Verify both lookups used same organization
             assert mock_get.call_args_list[0].kwargs["params"]["organization__name"] == "Default"
             assert mock_get.call_args_list[1].kwargs["params"]["organization__name"] == "Default"
@@ -1071,8 +1081,10 @@ class TestAAPInventoryNameBasedReference:
                 organization_name="Default",
             )
 
-            with pytest.raises(AAPJobExecutionError, match=error_match):
-                await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
+
+            assert result["output"]["status"] == "failed"
+            assert error_match in result["output"]["error"]
 
     @pytest.mark.parametrize(
         ("resource_type", "config_kwargs", "status_code", "error_match"),
@@ -1140,8 +1152,10 @@ class TestAAPInventoryNameBasedReference:
         ):
             activity_config = build_activity_config(**config_kwargs)
 
-            with pytest.raises(AAPJobExecutionError, match=error_match):
-                await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
+
+            assert result["output"]["status"] == "failed"
+            assert error_match in result["output"]["error"]
 
     @pytest.mark.parametrize(
         ("resource_type", "config_kwargs", "error_type", "error_message", "error_match"),
@@ -1225,8 +1239,10 @@ class TestAAPInventoryNameBasedReference:
         ):
             activity_config = build_activity_config(**config_kwargs)
 
-            with pytest.raises(AAPJobExecutionError, match=error_match):
-                await execute_aap_job_template_activity(activity_config, {})
+            result = await execute_aap_job_template_activity(activity_config, None)
+
+            assert result["output"]["status"] == "failed"
+            assert error_match in result["output"]["error"]
 
     @pytest.mark.asyncio
     @patch("temporalio.activity.is_cancelled", return_value=False)
@@ -1256,8 +1272,8 @@ class TestAAPInventoryNameBasedReference:
                 organization_name="Ignored Org",
             )
 
-            result = await execute_aap_job_template_activity(activity_config, {})
-            assert result["job_id"] == 888
+            result = await execute_aap_job_template_activity(activity_config, None)
+            assert result["output"]["job_id"] == 888
 
             # Verify POST body used inventory ID 555 (not name lookup)
             post_body = mock_post.call_args.kwargs["json"]

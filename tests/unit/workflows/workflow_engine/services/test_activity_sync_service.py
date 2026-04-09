@@ -23,20 +23,16 @@ def create_test_metadata(
     execution_id: UUID | None = None,
     last_processed_event_id: int = 0,
     activity_definitions_map: dict[str, dict[str, Any]] | None = None,
-    branch_head_map: dict[str, dict[str, Any]] | None = None,
     activity_index_map: dict[str, int] | None = None,
     pending_activity_updates: dict[int, dict[str, Any]] | None = None,
-    conditions_handled: set[str] | None = None,
 ) -> ExecutionMonitorMetadata:
     """Create ExecutionMonitorMetadata for testing with sensible defaults."""
     return ExecutionMonitorMetadata(
         execution_id=execution_id or uuid4(),
         last_processed_event_id=last_processed_event_id,
         activity_definitions_map=activity_definitions_map or {},
-        branch_head_map=branch_head_map or {},
         activity_index_map=activity_index_map or {},
         pending_activity_updates=pending_activity_updates or {},
-        conditions_handled=conditions_handled or set(),
     )
 
 
@@ -384,6 +380,88 @@ class TestActivityEventProcessing:
         assert 1 not in self.metadata.pending_activity_updates
 
     @pytest.mark.parametrize(
+        ("raw_activity_id", "expected_base_id"),
+        [
+            ("loop1_iter_0", "loop1"),
+            ("loop1_iter_1", "loop1"),
+            ("loop1_iter_10", "loop1"),
+            ("loop1_iter_999", "loop1"),
+            ("my_loop_node_iter_42", "my_loop_node"),
+        ],
+    )
+    def test_process_activity_scheduled_strips_loop_iteration_suffix(
+        self, raw_activity_id: str, expected_base_id: str
+    ) -> None:
+        """Test that _iter_N suffix is stripped from loop activity IDs."""
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=1,
+            activity_id=raw_activity_id,
+        )
+
+        self.service._process_activity_scheduled(event, self.metadata)
+
+        update = self.metadata.pending_activity_updates[1]
+        assert update["activity_id"] == expected_base_id
+        assert update["activity_name"] == expected_base_id
+
+    @pytest.mark.parametrize(
+        "activity_id",
+        [
+            "my-activity",
+            "simple_node",
+            "node_with_iter_in_name",
+            "iter_0_at_start",
+            "activity_iter_not_digits",
+        ],
+    )
+    def test_process_activity_scheduled_preserves_non_loop_ids(self, activity_id: str) -> None:
+        """Test that activity IDs without _iter_N suffix are not modified."""
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=1,
+            activity_id=activity_id,
+        )
+
+        self.service._process_activity_scheduled(event, self.metadata)
+
+        update = self.metadata.pending_activity_updates[1]
+        assert update["activity_id"] == activity_id
+        assert update["activity_name"] == activity_id
+
+    def test_process_activity_scheduled_loop_iter_sets_all_fields(self) -> None:
+        """Test that loop iteration stripping still sets all required fields correctly."""
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=5,
+            activity_id="loop1_iter_3",
+        )
+
+        self.service._process_activity_scheduled(event, self.metadata)
+
+        update = self.metadata.pending_activity_updates[5]
+        assert update["activity_id"] == "loop1"
+        assert update["activity_name"] == "loop1"
+        assert update["status"] == ActivityStatus.PENDING
+        assert update["started_at"] is None
+        assert update["completed_at"] is None
+        assert update["error_details"] is None
+        assert update["retry_count"] == 0
+
+    def test_process_activity_scheduled_does_not_strip_iter_mid_string(self) -> None:
+        """Test that _iter_N is only stripped at the end of the ID, not in the middle."""
+        event = self._create_mock_event(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            event_id=1,
+            activity_id="loop_iter_0_extra",
+        )
+
+        self.service._process_activity_scheduled(event, self.metadata)
+
+        update = self.metadata.pending_activity_updates[1]
+        assert update["activity_id"] == "loop_iter_0_extra"
+
+    @pytest.mark.parametrize(
         ("attempt", "expected_retry_count", "expected_status"),
         [
             (1, 0, ActivityStatus.RUNNING),
@@ -622,26 +700,6 @@ class TestHandleEventPostProcessing:
 
             mock_sync.assert_not_called()
             assert result is None
-
-    @pytest.mark.asyncio
-    async def test_condition_branch_skipping_called_for_started_event(self) -> None:
-        """Test that STARTED events trigger condition branch skipping logic."""
-        event = self._create_mock_event(EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED, event_id=2, scheduled_event_id=1)
-
-        with (
-            patch.object(self.service, "_handle_condition_branch_skipping", new_callable=AsyncMock) as mock_branch_skip,
-            patch.object(self.service, "_sync_activities_to_db", new_callable=AsyncMock),
-        ):
-            await self.service._handle_event_post_processing(
-                event,
-                self.metadata,
-                self.mock_handle,
-            )
-
-            mock_branch_skip.assert_called_once_with(
-                self.metadata,
-                "test-activity",
-            )
 
     @pytest.mark.asyncio
     async def test_no_modulo_based_sync(self) -> None:
@@ -1068,130 +1126,3 @@ class TestExecutionStatusUpdates:
         # Should be created_at + 1 microsecond
         assert execution.completed_at == created_at + datetime.resolution
         mock_session.commit.assert_awaited_once()
-
-
-class TestMarkActivitiesSkipped:
-    """Test _mark_activities_skipped method with patch publishing."""
-
-    def setup_method(self) -> None:
-        """Set up test fixtures."""
-        self.mock_session_factory = Mock()
-        self.mock_activity_publisher = Mock()
-        self.service = ActivitySyncService(Mock(), self.mock_session_factory, self.mock_activity_publisher)
-        self.execution_id = uuid4()
-
-    def _create_mock_activity(self, name: str, status: ActivityStatus) -> Mock:
-        """Create a mock activity with common fields."""
-        activity = Mock()
-        activity.activity_name = name
-        activity.status = status
-        activity.started_at = None
-        activity.completed_at = None
-        activity.error_details = None
-        return activity
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("num_activities", "should_publish"),
-        [
-            (2, True),  # Multiple activities - should publish
-            (1, True),  # Single activity - should publish
-            (0, False),  # No activities - should not publish
-        ],
-    )
-    async def test_mark_activities_skipped_publishes_patches(self, num_activities: int, should_publish: bool) -> None:  # noqa: FBT001
-        """Test that marking activities as SKIPPED publishes patches to Valkey."""
-        # Create mock activities
-        activities = [
-            self._create_mock_activity(f"activity-{i}", ActivityStatus.PENDING) for i in range(num_activities)
-        ]
-
-        # Mock database query
-        mock_result = Mock()
-        mock_result.all.return_value = activities
-        mock_session = Mock()
-        mock_session.exec = AsyncMock(return_value=mock_result)
-        mock_session.commit = AsyncMock()
-        mock_session.rollback = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        # Create mock session factory
-        mock_factory = Mock(return_value=mock_session)
-        service = ActivitySyncService(Mock(), mock_factory, self.mock_activity_publisher)
-
-        activity_index_map = {f"activity-{i}": i for i in range(max(num_activities, 1))}
-
-        # Create metadata
-        metadata = create_test_metadata(
-            execution_id=self.execution_id,
-            activity_index_map=activity_index_map,
-        )
-
-        with patch.object(service, "_publish_activity_patches", new_callable=AsyncMock) as mock_publish:
-            await service._mark_activities_skipped(metadata, [f"activity-{i}" for i in range(num_activities)])
-
-            # Verify status changes
-            for activity in activities:
-                assert activity.status == ActivityStatus.SKIPPED
-
-            # Verify publishing behavior
-            if should_publish:
-                mock_publish.assert_awaited_once()
-                call_args = mock_publish.call_args[0]
-                assert call_args[0].execution_id == self.execution_id
-                assert len(call_args[1]) == num_activities
-            else:
-                mock_publish.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_mark_activities_skipped_handles_empty_list(self) -> None:
-        """Test that marking an empty list of activities is a no-op."""
-        mock_factory = Mock()
-        service = ActivitySyncService(Mock(), mock_factory, self.mock_activity_publisher)
-
-        # Create metadata
-        metadata = create_test_metadata(execution_id=self.execution_id)
-
-        with patch.object(service, "_publish_activity_patches", new_callable=AsyncMock) as mock_publish:
-            await service._mark_activities_skipped(metadata, [])
-
-            mock_factory.assert_not_called()
-            mock_publish.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_mark_activities_skipped_stores_old_values_for_patches(self) -> None:
-        """Test that old values are captured correctly for patch generation."""
-        activity = self._create_mock_activity("activity-1", ActivityStatus.PENDING)
-
-        mock_result = Mock()
-        mock_result.all.return_value = [activity]
-        mock_session = Mock()
-        mock_session.exec = AsyncMock(return_value=mock_result)
-        mock_session.commit = AsyncMock()
-        mock_session.rollback = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        mock_factory = Mock(return_value=mock_session)
-        service = ActivitySyncService(Mock(), mock_factory, self.mock_activity_publisher)
-
-        activity_index_map = {"activity-1": 0}
-
-        # Create metadata
-        metadata = create_test_metadata(
-            execution_id=self.execution_id,
-            activity_index_map=activity_index_map,
-        )
-
-        with patch.object(service, "_publish_activity_patches", new_callable=AsyncMock) as mock_publish:
-            await service._mark_activities_skipped(metadata, ["activity-1"])
-
-            # Verify old values were captured
-            updated_activities = mock_publish.call_args[0][1]
-            assert len(updated_activities) == 1
-            assert updated_activities[0][0] == activity
-            assert updated_activities[0][1]["status"] == ActivityStatus.PENDING
-            assert updated_activities[0][1]["started_at"] is None
-            assert updated_activities[0][1]["completed_at"] is None
-            assert updated_activities[0][1]["error_details"] is None

@@ -16,15 +16,17 @@ from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
 from nexus.telemetry.client import flush_telemetry, initialize_telemetry
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
-from nexus.workflows.workflow_engine.activities.aap_job_template_activity import (
-    execute_aap_job_template_activity,
-)
+from nexus.workflows.workflow_engine.activities.aap_job_template_activity import execute_aap_job_template_activity
 from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
-from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
-from nexus.workflows.workflow_engine.activities.approval_activity import create_approval_request_activity
+from nexus.workflows.workflow_engine.activities.approval_activity import execute_approval_activity
+from nexus.workflows.workflow_engine.activities.condition import condition
+from nexus.workflows.workflow_engine.activities.converge import converge
+from nexus.workflows.workflow_engine.activities.http_request_activity import execute_http_request_activity
 from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
-from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
-from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
+from nexus.workflows.workflow_engine.activities.loop import loop
+from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
+from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
+from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.interceptors.monitoring_interceptor import MonitoringWorkflowInterceptor
 from nexus.workflows.workflow_engine.services.activity_sync_registry import set_activity_sync_service
 from nexus.workflows.workflow_engine.services.activity_sync_service import ActivitySyncService
@@ -106,17 +108,20 @@ class TemporalWorkerService:
             self.worker = Worker(
                 self.client,
                 task_queue=self.task_queue,
-                workflows=[DynamicWorkflow],
+                workflows=[NexusWorkflow],
                 activities=[
                     # Internal activities
                     register_activity_monitoring,
-                    # User-facing activities
+                    # Workflow activities
                     execute_aap_job_template_activity,
                     execute_agentic_activity,
-                    execute_api_request,
-                    execute_bash_script,
-                    execute_python_script,
-                    create_approval_request_activity,
+                    execute_approval_activity,
+                    condition,
+                    converge,
+                    execute_http_request_activity,
+                    loop,
+                    manual_trigger,
+                    execute_script_activity,
                 ],
                 interceptors=[MonitoringWorkflowInterceptor()],
             )

@@ -1,58 +1,50 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: sequence-data-passing-test
-  description: Test sequence with data passing between steps
+schema_version: "2.0.0"
+name: sequence-data-passing-test
+description: Test sequence with data passing between steps
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: data_pipeline
-      name: Data Pipeline
-      type: sequence
-      steps:
-        - id: fetch_data
-          name: Fetch Data
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo '{"user_id": "123", "name": "Alice", "score": 95}'
-            outputs:
-              data: $.stdout
+nodes:
+  - id: fetch_data
+    name: Fetch Data
+    type: script
+    config:
+      language: bash
+      code: |
+        echo '{"user_id": "123", "name": "Alice", "score": 95}'
+    outputs:
+      data: $.stdout
 
-        - id: process_data
-          name: Process Data
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Processing data for user: $INPUT_NAME (ID: $INPUT_USER_ID)"
-                echo "Score: $INPUT_SCORE"
-                echo "Grade: A"
-            inputs:
-              user_id: ${fetch_data.output.data.user_id}
-              name: ${fetch_data.output.data.name}
-              score: ${fetch_data.output.data.score}
-            outputs:
-              result: $.stdout
+  - id: process_data
+    name: Process Data
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Processing data for user: $INPUT_NAME (ID: $INPUT_USER_ID)"
+        echo "Score: $INPUT_SCORE"
+        echo "Grade: A"
+    inputs:
+      user_id: ${fetch_data.output.data.user_id}
+      name: ${fetch_data.output.data.name}
+      score: ${fetch_data.output.data.score}
+    outputs:
+      result: $.stdout
 
-        - id: save_result
-          name: Save Result
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Saving result complete"
-            outputs:
-              status: $.stdout
+  - id: save_result
+    name: Save Result
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Saving result complete"
+    outputs:
+      status: $.stdout
+edges:
+  - source: fetch_data
+    target: process_data
+  - source: process_data
+    target: save_result

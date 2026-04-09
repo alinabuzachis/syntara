@@ -11,9 +11,9 @@ from uuid import UUID
 
 import pytest
 import yaml
-from pydantic import ValidationError
 
 from nexus.core.config.base import get_settings
+from nexus.core.exceptions import SafeValueError
 from nexus.workflows.workflow_engine.services.temporal_execution_service import (
     TemporalExecutionService,
     create_temporal_execution_service,
@@ -22,21 +22,20 @@ from nexus.workflows.workflow_engine.services.temporal_execution_service import 
 
 @pytest.fixture
 def valid_workflow_dict() -> dict[str, Any]:
-    """Fixture providing a valid workflow definition as dict."""
+    """Fixture providing a valid V2 workflow definition as dict."""
     return {
-        "schemaVersion": "1.0.0",
-        "version": 1,
-        "metadata": {"name": "test-workflow", "description": "Test"},
-        "triggers": [{"type": "manual"}],
-        "workflow": {
-            "activities": [
-                {
-                    "id": "task1",
-                    "type": "task",
-                    "task": {"executor": "script", "config": {"language": "bash", "code": "echo test"}},
-                }
-            ]
-        },
+        "schema_version": "2.0.0",
+        "name": "test-workflow",
+        "description": "Test",
+        "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+        "nodes": [
+            {
+                "id": "task1",
+                "type": "script",
+                "config": {"language": "bash", "code": "echo test"},
+            }
+        ],
+        "edges": [{"from": "trigger_manual", "to": "task1"}],
     }
 
 
@@ -153,10 +152,10 @@ class TestStartWorkflow:
         mock_client = Mock()
         service = TemporalExecutionService(temporal_client=mock_client, task_queue="test-queue")
 
-        # Invalid dict missing required fields
-        invalid_dict = {"schemaVersion": "1.0.0"}
+        # Invalid dict missing required V2 fields (no schema_version)
+        invalid_dict = {"schema_version": "1.0.0"}
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(SafeValueError, match="Unsupported schema_version"):
             await service.start_workflow(
                 workflow_def=invalid_dict,
                 workflow_name="test-workflow",
@@ -450,9 +449,9 @@ class TestWorkflowDataConversion:
             workflow_name="test-workflow",
         )
 
-        # Verify first argument is a dict (converted from Pydantic model)
+        # Verify first argument is a dict (V2 workflow definition)
         assert len(captured_args) >= 1
         workflow_def_arg = captured_args[0]
         assert isinstance(workflow_def_arg, dict)
-        assert "schemaVersion" in workflow_def_arg
-        assert workflow_def_arg["schemaVersion"] == "1.0.0"
+        assert "schema_version" in workflow_def_arg
+        assert workflow_def_arg["schema_version"] == "2.0.0"

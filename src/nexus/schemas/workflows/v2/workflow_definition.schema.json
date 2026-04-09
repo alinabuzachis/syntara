@@ -132,7 +132,7 @@
             {
               "properties": {
                 "type": {
-                  "const": "manual"
+                  "const": "manual_trigger"
                 },
                 "config": {
                   "$ref": "triggers/manual.schema.json#/configSchema"

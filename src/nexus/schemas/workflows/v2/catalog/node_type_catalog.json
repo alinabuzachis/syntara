@@ -23,7 +23,7 @@
   ],
   "node_types": [
     {
-      "type": "manual",
+      "type": "manual_trigger",
       "name": "Manual Trigger",
       "description": "Workflow entry point triggered manually with user-provided inputs",
       "labels": {

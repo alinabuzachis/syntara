@@ -13,7 +13,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
@@ -23,8 +22,7 @@ from nexus.workflows.exceptions import (
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
-from nexus.workflows.validators import WorkflowDefinitionValidator
-from nexus.workflows.workflow_engine.models import WorkflowDefinition
+from nexus.workflows.validators import workflow_validator
 
 
 class WorkflowConvertResourceMixin(ConvertResourceMixin):
@@ -87,28 +85,31 @@ class WorkflowService(BaseService):
         name: str,
         description: str | None,
         labels: dict[str, Any],
-        workflow_definition: WorkflowDefinition,
+        workflow_definition: dict[str, Any],
         is_enabled: bool,  # noqa: FBT001
     ) -> tuple[Workflow, WorkflowVersion]:
-        """Create a new workflow with initial version.
+        """Create a new V2 workflow with initial version.
 
         Args:
             name: Workflow name (must be unique)
             description: Optional workflow description
             labels: Optional key-value labels
-            workflow_definition: Workflow definition (will be validated)
+            workflow_definition: V2 workflow definition as dict (triggers + nodes + edges)
             is_enabled: Whether workflow is enabled for execution
 
         Returns:
             Tuple of (created workflow, initial version)
 
         Raises:
-            ValidationError: If workflow definition is invalid
+            SafeValueError: If workflow definition is invalid (missing required fields)
             WorkflowNameConflictError: If workflow name already exists
 
         """
-        # Validate workflow definition
-        _, schema_version, workflow_dict = WorkflowDefinitionValidator.validate(workflow_definition)
+        # Validate V2 workflow structure (basic check)
+        workflow_validator.validate_workflow_definition(workflow_definition)
+
+        schema_version = workflow_definition.get("schema_version")
+        workflow_dict = workflow_definition
 
         # Create workflow
         workflow = Workflow(
@@ -259,9 +260,7 @@ class WorkflowService(BaseService):
 
         """
         if name is not None:
-            if not name:
-                msg = "Workflow name cannot be empty"
-                raise SafeValueError(msg)
+            workflow_validator.validate_workflow_name(name)
             workflow.name = name
 
         if description is not None:
@@ -280,29 +279,32 @@ class WorkflowService(BaseService):
     async def create_workflow_version(
         self,
         workflow: Workflow,
-        workflow_definition: WorkflowDefinition,
+        workflow_definition: dict[str, Any],
         change_description: str | None,
     ) -> WorkflowVersion | None:
-        """Create new workflow version from workflow_definition.
+        """Create new V2 workflow version from workflow_definition.
 
         Args:
             workflow: Workflow to create version for
-            workflow_definition: New workflow definition (will be validated)
+            workflow_definition: New V2 workflow definition as dict
             change_description: Description of changes
 
         Returns:
             New WorkflowVersion if definition changed, None if unchanged
 
         Raises:
-            ValidationError: If workflow definition is invalid
+            SafeValueError: If workflow definition is invalid (missing required fields)
 
         Note:
             This method compares the new definition with the current version.
             If identical, no new version is created (returns None).
 
         """
-        # Validate workflow definition
-        _, schema_version, workflow_dict = WorkflowDefinitionValidator.validate(workflow_definition)
+        # Validate V2 workflow structure (basic check)
+        workflow_validator.validate_workflow_definition(workflow_definition)
+
+        schema_version = workflow_definition.get("schema_version")
+        workflow_dict = workflow_definition
 
         # Fetch current version to compare definitions
         current_version_result = await self.session.exec(
@@ -353,7 +355,7 @@ class WorkflowService(BaseService):
         labels: dict[str, Any] | None = None,
         *,
         is_enabled: bool | None = None,
-        workflow_definition: WorkflowDefinition | None = None,
+        workflow_definition: dict[str, Any] | None = None,
         change_description: str | None = None,
     ) -> tuple[Workflow, WorkflowVersion]:
         """Update workflow metadata and/or create new version.
@@ -364,7 +366,7 @@ class WorkflowService(BaseService):
             description: New description (optional)
             labels: New labels (optional)
             is_enabled: New enabled status (optional)
-            workflow_definition: New workflow definition (optional, creates version)
+            workflow_definition: New V2 workflow definition as dict (optional, creates version)
             change_description: Description of changes (for version history)
 
         Returns:
@@ -372,6 +374,7 @@ class WorkflowService(BaseService):
 
         Raises:
             WorkflowNotFoundError: If workflow not found
+            SafeValueError: If workflow definition is invalid
             WorkflowNameConflictError: If new name conflicts
             ValidationError: If workflow definition invalid
             ValueError: If name is empty

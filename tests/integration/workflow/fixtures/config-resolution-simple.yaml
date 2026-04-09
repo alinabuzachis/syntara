@@ -1,49 +1,45 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: config-resolution-simple-test
-  description: Simple test for activity config resolution using outputs
+schema_version: "2.0.0"
+name: config-resolution-simple-test
+description: Simple test for activity config resolution using outputs
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    # Activity 1: Bash script that outputs a timeout value
-    - id: generate_timeout
-      name: Generate Timeout
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo '{"timeout_value": 120}'
-        outputs:
-          config: $.stdout
+nodes:
+  # Node 1: Bash script that outputs a timeout value
+  - id: generate_timeout
+    name: Generate Timeout
+    type: script
+    config:
+      language: bash
+      code: |
+        echo '{"timeout_value": 120}'
+    outputs:
+      config: $.stdout
 
-    # Activity 2: Python script that uses the timeout from Activity 1
-    - id: use_timeout
-      name: Use Timeout
-      type: task
-      task:
-        executor: script
-        config:
-          language: python
-          # Config resolution: Use timeout from previous activity's output
-          timeout: ${generate_timeout.output.config.timeout_value}
-          code: |
-            import json
-            import os
+  # Node 2: Python script that uses the timeout from Node 1
+  - id: use_timeout
+    name: Use Timeout
+    type: script
+    config:
+      language: python
+      # Config resolution: Use timeout from previous node's output
+      timeout: ${generate_timeout.output.config.timeout_value}
+      code: |
+        import json
+        import os
 
-            # Verify we received the timeout
-            result = {
-                "success": True,
-                "message": "Config resolution worked!"
-            }
+        # Verify we received the timeout
+        result = {
+            "success": True,
+            "message": "Config resolution worked!"
+        }
 
-            print(json.dumps(result))
-        outputs:
-          result: $.output
+        print(json.dumps(result))
+    outputs:
+      result: $.output
+edges:
+  - source: generate_timeout
+    target: use_timeout

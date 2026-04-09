@@ -65,8 +65,8 @@ async def test_workflow_complete_lifecycle(base_client: AsyncClient) -> None:  #
     assert "version" in workflow_with_version
     assert workflow_with_version["version"]["version"] == 1
     version_def = workflow_with_version["version"]["workflow_definition"]
-    assert version_def["schemaVersion"] == "1.0.0"
-    assert version_def["metadata"]["name"] == "lifecycle-test"
+    assert version_def["schema_version"] == "2.0.0"
+    assert version_def["name"] == "lifecycle-test"
 
     # Step 2: Create version 2 via PATCH
     update_v2_payload = {
@@ -90,7 +90,7 @@ async def test_workflow_complete_lifecycle(base_client: AsyncClient) -> None:  #
     assert "version" in workflow_v2
     assert workflow_v2["version"]["version"] == 2
     v2_def = workflow_v2["version"]["workflow_definition"]
-    assert v2_def["workflow"]["activities"][0]["id"] == "activity_1"
+    assert v2_def["nodes"][0]["id"] == "activity_1"
 
     # Step 3: Create version 3 via PATCH
     update_v3_payload = {
@@ -101,25 +101,19 @@ async def test_workflow_complete_lifecycle(base_client: AsyncClient) -> None:  #
                 {
                     "id": "activity_1",
                     "name": "Activity 1",
-                    "type": "task",
-                    "task": {
-                        "executor": "script",
-                        "config": {
-                            "language": "python",
-                            "code": "print('activity 1')",
-                        },
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": "print('activity 1')",
                     },
                 },
                 {
                     "id": "activity_2",
                     "name": "Activity 2",
-                    "type": "task",
-                    "task": {
-                        "executor": "script",
-                        "config": {
-                            "language": "python",
-                            "code": "print('activity 2')",
-                        },
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": "print('activity 2')",
                     },
                 },
             ],
@@ -137,8 +131,8 @@ async def test_workflow_complete_lifecycle(base_client: AsyncClient) -> None:  #
     assert workflow_v3["current_version"] == 3
     assert workflow_v3["version"]["version"] == 3
     v3_def = workflow_v3["version"]["workflow_definition"]
-    assert len(v3_def["workflow"]["activities"]) == 2
-    assert v3_def["workflow"]["activities"][1]["id"] == "activity_2"
+    assert len(v3_def["nodes"]) == 2
+    assert v3_def["nodes"][1]["id"] == "activity_2"
 
     # Step 4: List all versions
     list_versions_response = await base_client.get(
@@ -166,8 +160,8 @@ async def test_workflow_complete_lifecycle(base_client: AsyncClient) -> None:  #
     assert v2_data["version"] == 2
     assert v2_data["workflow_id"] == workflow_id
     v2_retrieved_def = v2_data["workflow_definition"]
-    assert v2_retrieved_def["workflow"]["activities"][0]["id"] == "activity_1"
-    assert len(v2_retrieved_def["workflow"]["activities"]) == 1
+    assert v2_retrieved_def["nodes"][0]["id"] == "activity_1"
+    assert len(v2_retrieved_def["nodes"]) == 1
     assert v2_data["change_description"] == "Added activity_1"
 
     # Step 6: Update metadata only (should NOT create new version)
@@ -291,8 +285,8 @@ async def test_workflow_version_immutability(base_client: AsyncClient) -> None:
 
     assert current_workflow["current_version"] == 2
     current_def = current_workflow["version"]["workflow_definition"]
-    assert current_def["workflow"]["activities"][0]["id"] == "activity_1"
+    assert current_def["nodes"][0]["id"] == "activity_1"
 
     # But version 1 still has original definition
     v1_def = v1_again["workflow_definition"]
-    assert v1_def["workflow"]["activities"][0]["id"] == "immutable_activity"
+    assert v1_def["nodes"][0]["id"] == "immutable_activity"

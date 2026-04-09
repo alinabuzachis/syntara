@@ -1,17 +1,15 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: error-loop-no-definition
-  description: Test error when loop activity has no loop definition
+schema_version: "2.0.0"
+name: error-loop-no-definition
+description: Test error when loop activity has no loop definition
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: invalid_loop
-      name: Loop Without Definition
-      type: loop
-      # Missing 'loop' field - should raise ValueError
+nodes:
+  - id: invalid_loop
+    name: Loop Without Definition
+    type: loop
+    # Missing 'loop' field - should raise ValueError
+edges: []

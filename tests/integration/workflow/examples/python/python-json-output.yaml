@@ -1,35 +1,31 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: python-json-output
-  description: Python script that outputs structured JSON data
+schema_version: "2.0.0"
+name: python-json-output
+description: Python script that outputs structured JSON data
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: json_producer
-      type: task
-      task:
-        executor: script
-        config:
-          language: python
-          code: |
-            import json
+nodes:
+  - id: json_producer
+    type: script
+    config:
+      language: python
+      code: |
+        import json
 
-            data = {
-                "data": {
-                    "items": [1, 2, 3],
-                    "count": 3,
-                    "message": "JSON output from Python"
-                },
-                "result": "success"
-            }
+        data = {
+            "data": {
+                "items": [1, 2, 3],
+                "count": 3,
+                "message": "JSON output from Python"
+            },
+            "result": "success"
+        }
 
-            print(json.dumps(data))
-        outputs:
-          data: $.output.data
-          result: $.output.result
+        print(json.dumps(data))
+    outputs:
+      data: $.output.data
+      result: $.output.result
+edges: []

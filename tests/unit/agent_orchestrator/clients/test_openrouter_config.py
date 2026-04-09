@@ -178,25 +178,21 @@ class TestOpenRouterIntegration:
         assert llm.openai_api_key.get_secret_value() == "integration-key"  # type: ignore[union-attr]
         assert llm.openai_api_base == "https://integration.example.com/v1"
 
-    def test_settings_defaults_match_expected(self) -> None:
+    def test_settings_defaults_match_expected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that settings defaults match documented values."""
-        # Create settings with no env vars (uses defaults)
-        # Use context manager to isolate environment
-        old_env = os.environ.copy()
-        try:
-            # Clear OpenRouter env vars to test defaults
-            for key in list(os.environ.keys()):
-                if key.startswith("APP_OPENROUTER"):
-                    del os.environ[key]
+        from nexus.core.config.base import Settings
 
-            settings = get_settings()
+        # Clear OpenRouter env vars to test pure defaults
+        for key in list(os.environ.keys()):
+            if key.startswith("APP_OPENROUTER"):
+                monkeypatch.delenv(key, raising=False)
+        get_settings.cache_clear()
 
-            # Verify documented defaults
-            assert str(settings.openrouter_base_url) == "https://openrouter.ai/api/v1"
-            assert settings.openrouter_model == "anthropic/claude-3.5-sonnet"
-            assert settings.openrouter_temperature == 0.7
-            assert settings.openrouter_max_tokens == 1000
-        finally:
-            # Restore environment
-            os.environ.clear()
-            os.environ.update(old_env)
+        # _env_file=None skips .env file loading (pydantic-settings feature)
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+
+        # Verify documented defaults
+        assert str(settings.openrouter_base_url) == "https://openrouter.ai/api/v1"
+        assert settings.openrouter_model == "anthropic/claude-3.5-sonnet"
+        assert settings.openrouter_temperature == 0.7
+        assert settings.openrouter_max_tokens == 1000

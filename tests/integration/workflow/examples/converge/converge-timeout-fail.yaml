@@ -1,48 +1,56 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: converge-timeout-fail-test
-  description: Test converge with timeout that fails when timeout is reached
+schema_version: "2.0.0"
+name: converge-timeout-fail-test
+description: Test converge with timeout that fails when timeout is reached
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: parallel_tasks
-      name: Parallel Tasks
-      type: parallel
+nodes:
+  - id: parallel_tasks_fork
+    name: Parallel Tasks (fork)
+    type: fork
+
+  - id: fast_task
+    name: Fast Task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Fast task completed"
+
+  - id: slow_task
+    name: Slow Task
+    type: script
+    config:
+      language: bash
+      code: |
+        sleep 3
+        echo "Slow task completed"
+
+  - id: parallel_tasks_join
+    type: join
+
+  - id: converge_with_timeout
+    name: Converge with Timeout (Fail)
+    type: converge
+    converge:
       branches:
-        - id: fast_task
-          name: Fast Task
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Fast task completed"
-        - id: slow_task
-          name: Slow Task
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                sleep 3
-                echo "Slow task completed"
-
-    - id: converge_with_timeout
-      name: Converge with Timeout (Fail)
-      type: converge
-      converge:
-        branches:
-          - fast_task
-          - slow_task
-        strategy: all
-        timeout: 1
-        onTimeout: fail
-        aggregateOutputs: true
+        - fast_task
+        - slow_task
+      strategy: all
+      timeout: 1
+      onTimeout: fail
+      aggregateOutputs: true
+edges:
+  - source: parallel_tasks_fork
+    target: fast_task
+  - source: parallel_tasks_fork
+    target: slow_task
+  - source: fast_task
+    target: parallel_tasks_join
+  - source: slow_task
+    target: parallel_tasks_join
+  - source: parallel_tasks_join
+    target: converge_with_timeout

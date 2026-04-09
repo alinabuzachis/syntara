@@ -138,7 +138,7 @@ def validation_error_handler(request: Request, exc: PydanticValidationError | Re
     detail = "Validation failed: " + "; ".join(error_details)
 
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title=REQUEST_VALIDATION_ERROR,
         detail=detail,
@@ -198,7 +198,7 @@ def safe_value_error_handler(request: Request, exc: "SafeValueError") -> JSONRes
     detail = str(exc) if str(exc) else "Invalid input value"
 
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Validation Error",
         detail=detail,
@@ -223,7 +223,7 @@ def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
     detail = "Invalid input value"
 
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Validation Error",
         detail=detail,

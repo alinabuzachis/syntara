@@ -1,29 +1,30 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-metadata:
-  name: aap-hello-world-by-name
-  description: AAP job template workflow using name-based reference
+schema_version: "2.0.0"
+name: aap-hello-world-by-name
+description: AAP job template workflow using name-based reference
 triggers:
-  - type: manual
-inputs:
-  template_name:
-    type: string
-    description: Name of the job template
-    required: true
-    default: "Demo Job Template"
-  organization_name:
-    type: string
-    description: Name of the organization
-    required: true
-    default: "Default"
-workflow:
-  activities:
-    - id: launch_job_by_name
-      type: task
-      task:
-        executor: aap_job_template
-        config:
-          jobTemplateName: ${input.template_name}
-          organizationName: ${input.organization_name}
-          verbosity: 3
+  - id: trigger_manual
+    type: manual_trigger
+    config:
+      inputs:
+        template_name:
+          type: string
+          description: Name of the AAP job template to launch
+          required: true
+          default: "Demo Job Template"
+        organization_name:
+          type: string
+          description: Name of the organization in AAP
+          required: true
+          default: "Default"
+nodes:
+  - id: launch_job_by_name
+    type: aap_job_template
+    name: Launch Job By Name
+    config:
+      jobTemplateName: ${trigger.template_name}
+      organizationName: ${trigger.organization_name}
+      verbosity: 3
+edges:
+  - from: trigger_manual
+    to: launch_job_by_name

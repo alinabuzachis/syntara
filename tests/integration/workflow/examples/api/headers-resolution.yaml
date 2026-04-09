@@ -1,10 +1,7 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: headers-resolution
-  description: Test header resolution from inputs and variables
+schema_version: "2.0.0"
+name: headers-resolution
+description: Test header resolution from inputs and variables
 
 inputs:
   customHeader:
@@ -17,21 +14,20 @@ inputs:
     default: api-key-123
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: headers_test
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: http://test-api.example.com/api/data
-          headers:
-            X-Custom-Header: ${input.customHeader}
-            X-API-Key: ${input.apiKey}
-            X-Static-Header: static-value
-        inputs:
-          customHeader: ${inputs.customHeader}
-          apiKey: ${inputs.apiKey}
+nodes:
+  - id: headers_test
+    type: http_request
+    config:
+      method: GET
+      url: http://test-api.example.com/api/data
+      headers:
+        X-Custom-Header: ${input.customHeader}
+        X-API-Key: ${input.apiKey}
+        X-Static-Header: static-value
+    inputs:
+      customHeader: ${inputs.customHeader}
+      apiKey: ${inputs.apiKey}
+edges: []

@@ -1,94 +1,100 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: converge-post-activities-test
-  description: Test converge with activities that execute after converge completes
+schema_version: "2.0.0"
+name: converge-post-activities-test
+description: Test converge with activities that execute after converge completes
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    # Parallel tasks that will be converged
-    - id: parallel_work
-      type: parallel
+nodes:
+  - id: parallel_work_fork
+    type: fork
+
+  - id: fetch_data_a
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Fetching data A"
+        sleep 0.1
+        echo '{"source": "A", "count": 10}'
+    outputs:
+      data: $.stdout
+
+  - id: fetch_data_b
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Fetching data B"
+        sleep 0.3
+        echo '{"source": "B", "count": 20}'
+    outputs:
+      data: $.stdout
+
+  - id: fetch_data_c
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Fetching data C"
+        sleep 0.1
+        echo '{"source": "C", "count": 30}'
+    outputs:
+      data: $.stdout
+
+  - id: parallel_work_join
+    type: join
+
+  - id: aggregate_data
+    type: converge
+    converge:
       branches:
-        - id: fetch_data_a
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Fetching data A"
-                sleep 0.1
-                echo '{"source": "A", "count": 10}'
-            outputs:
-              data: $.stdout
+        - fetch_data_a
+        - fetch_data_b
+        - fetch_data_c
+      strategy: all
+      aggregateOutputs: true
 
-        - id: fetch_data_b
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Fetching data B"
-                sleep 0.3
-                echo '{"source": "B", "count": 20}'
-            outputs:
-              data: $.stdout
+  - id: process_aggregated_data
+    name: Process Aggregated Data
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Processing aggregated data from all sources"
+        echo "All parallel tasks have completed"
+        echo "Total sources: 3"
+    outputs:
+      result: $.stdout
 
-        - id: fetch_data_c
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Fetching data C"
-                sleep 0.1
-                echo '{"source": "C", "count": 30}'
-            outputs:
-              data: $.stdout
-
-    # Converge waits for all parallel tasks to complete
-    - id: aggregate_data
-      type: converge
-      converge:
-        branches:
-          - fetch_data_a
-          - fetch_data_b
-          - fetch_data_c
-        strategy: all
-        aggregateOutputs: true
-
-    # These activities should NOT start until the converge completes
-    - id: process_aggregated_data
-      name: Process Aggregated Data
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Processing aggregated data from all sources"
-            echo "All parallel tasks have completed"
-            echo "Total sources: 3"
-        outputs:
-          result: $.stdout
-
-    - id: send_notification
-      name: Send Completion Notification
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Notification: All data fetching and aggregation complete"
-            echo "Ready for next stage"
-        outputs:
-          status: $.stdout
+  - id: send_notification
+    name: Send Completion Notification
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Notification: All data fetching and aggregation complete"
+        echo "Ready for next stage"
+    outputs:
+      status: $.stdout
+edges:
+  - source: parallel_work_fork
+    target: fetch_data_a
+  - source: parallel_work_fork
+    target: fetch_data_b
+  - source: parallel_work_fork
+    target: fetch_data_c
+  - source: fetch_data_a
+    target: parallel_work_join
+  - source: fetch_data_b
+    target: parallel_work_join
+  - source: fetch_data_c
+    target: parallel_work_join
+  - source: parallel_work_join
+    target: aggregate_data
+  - source: aggregate_data
+    target: process_aggregated_data
+  - source: process_aggregated_data
+    target: send_notification

@@ -1,260 +1,138 @@
-"""Unit tests for WorkflowDefinitionValidator."""
+"""Tests for WorkflowValidator."""
 
-import json
+from typing import Any
 
 import pytest
 
-from nexus.workflows.exceptions import WorkflowValidationError
-from nexus.workflows.validators.workflow_definition import WorkflowDefinitionValidator
-from nexus.workflows.workflow_engine.models import WorkflowDefinition
+from nexus.core.exceptions import SafeValueError
+from nexus.workflows.validators.workflow_definition import WorkflowValidator
 
 
-class TestWorkflowDefinitionValidator:
-    """Test suite for WorkflowDefinitionValidator.
+@pytest.fixture
+def validator() -> WorkflowValidator:
+    """Create a WorkflowValidator instance."""
+    return WorkflowValidator()
 
-    Note: The validator only accepts dict or WorkflowDefinition objects.
-    """
 
-    def test_validate_dict_input_success(self) -> None:
-        """Test validation with valid dict input."""
-        workflow_dict_input = {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            "metadata": {"name": "test-workflow", "description": "Test workflow"},
-            "triggers": [{"type": "manual"}],
-            "workflow": {
-                "activities": [
-                    {
-                        "id": "test_activity",
-                        "name": "Test Activity",
-                        "type": "task",
-                        "task": {
-                            "executor": "script",
-                            "config": {"language": "python", "code": "print('hello')"},
-                        },
-                    }
-                ]
-            },
+def _valid_definition() -> dict[str, Any]:
+    return {
+        "schema_version": "2.0.0",
+        "triggers": [{"type": "manual_trigger"}],
+        "nodes": [{"id": "n1", "type": "action"}],
+        "edges": [{"from": "t1", "to": "n1"}],
+    }
+
+
+class TestValidWorkflowDefinition:
+    """Valid V2 workflow definition passes validation."""
+
+    def test_valid_definition_passes(self, validator: WorkflowValidator) -> None:
+        validator.validate_workflow_definition(_valid_definition())
+
+    def test_minimal_valid_definition(self, validator: WorkflowValidator) -> None:
+        definition = {"schema_version": "2.0.0", "triggers": [], "nodes": [], "edges": []}
+        validator.validate_workflow_definition(definition)
+
+
+class TestMissingSchemaVersion:
+    """Missing or wrong schema_version."""
+
+    def test_missing_schema_version_raises(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {"triggers": [], "nodes": [], "edges": []}
+        with pytest.raises(SafeValueError, match="Unsupported schema_version"):
+            validator.validate_workflow_definition(definition)
+
+    def test_wrong_schema_version_raises(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {"schema_version": "1.0.0", "triggers": [], "nodes": [], "edges": []}
+        with pytest.raises(SafeValueError, match="Unsupported schema_version"):
+            validator.validate_workflow_definition(definition)
+
+    def test_none_schema_version_raises(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {"schema_version": None, "triggers": [], "nodes": [], "edges": []}
+        with pytest.raises(SafeValueError):
+            validator.validate_workflow_definition(definition)
+
+
+class TestMissingRequiredFields:
+    """Missing triggers, nodes, or edges fields."""
+
+    def test_missing_triggers_raises(self, validator: WorkflowValidator) -> None:
+        definition = {"schema_version": "2.0.0", "nodes": [], "edges": []}
+        with pytest.raises(SafeValueError, match="triggers"):
+            validator.validate_workflow_definition(definition)
+
+    def test_missing_nodes_raises(self, validator: WorkflowValidator) -> None:
+        definition = {"schema_version": "2.0.0", "triggers": [], "edges": []}
+        with pytest.raises(SafeValueError, match="nodes"):
+            validator.validate_workflow_definition(definition)
+
+    def test_missing_edges_raises(self, validator: WorkflowValidator) -> None:
+        definition = {"schema_version": "2.0.0", "triggers": [], "nodes": []}
+        with pytest.raises(SafeValueError, match="edges"):
+            validator.validate_workflow_definition(definition)
+
+
+class TestWorkflowNameValidation:
+    """Workflow name validation."""
+
+    def test_valid_name_passes(self, validator: WorkflowValidator) -> None:
+        validator.validate_workflow_name("my-workflow")
+
+    def test_empty_name_raises(self, validator: WorkflowValidator) -> None:
+        with pytest.raises(SafeValueError, match="cannot be empty"):
+            validator.validate_workflow_name("")
+
+    def test_whitespace_only_name_passes(self, validator: WorkflowValidator) -> None:
+        """Non-empty string with whitespace is accepted (not stripped)."""
+        validator.validate_workflow_name("  ")
+
+
+class TestEmptyDefinition:
+    """Completely empty definition dict."""
+
+    def test_empty_dict_raises_on_schema_version(self, validator: WorkflowValidator) -> None:
+        with pytest.raises(SafeValueError, match="Unsupported schema_version"):
+            validator.validate_workflow_definition({})
+
+
+class TestValidationOrder:
+    """Schema version is validated before required fields."""
+
+    def test_bad_version_with_missing_fields_raises_version_error(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {"schema_version": "1.0.0"}
+        with pytest.raises(SafeValueError, match="Unsupported schema_version"):
+            validator.validate_workflow_definition(definition)
+
+
+class TestExtraFieldsAccepted:
+    """Extra fields in the definition do not cause errors."""
+
+    def test_extra_fields_pass(self, validator: WorkflowValidator) -> None:
+        definition = {
+            "schema_version": "2.0.0",
+            "triggers": [],
+            "nodes": [],
+            "edges": [],
+            "description": "some workflow",
+            "metadata": {"author": "test"},
         }
+        validator.validate_workflow_definition(definition)
 
-        workflow_def, schema_version, workflow_dict = WorkflowDefinitionValidator.validate(workflow_dict_input)
 
-        # Verify return types
-        assert isinstance(workflow_def, WorkflowDefinition)
-        assert isinstance(schema_version, str)
-        assert isinstance(workflow_dict, dict)
+class TestSchemaVersionVariants:
+    """Various schema_version format edge cases."""
 
-        # Verify content
-        assert schema_version == "1.0.0"
-        assert workflow_dict["metadata"]["name"] == "test-workflow"
+    def test_version_2_0_without_patch_raises(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {"schema_version": "2.0", "triggers": [], "nodes": [], "edges": []}
+        with pytest.raises(SafeValueError, match="Unsupported schema_version"):
+            validator.validate_workflow_definition(definition)
 
-    def test_validate_workflow_definition_object_success(self) -> None:
-        """Test validation with WorkflowDefinition object input."""
-        workflow_dict_input = {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            "metadata": {"name": "test-workflow", "description": "Test workflow"},
-            "triggers": [{"type": "manual"}],
-            "workflow": {
-                "activities": [
-                    {
-                        "id": "test_activity",
-                        "name": "Test Activity",
-                        "type": "task",
-                        "task": {
-                            "executor": "script",
-                            "config": {"language": "python", "code": "print('hello')"},
-                        },
-                    }
-                ]
-            },
-        }
+    def test_version_3_0_0_raises(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {"schema_version": "3.0.0", "triggers": [], "nodes": [], "edges": []}
+        with pytest.raises(SafeValueError, match="Unsupported schema_version"):
+            validator.validate_workflow_definition(definition)
 
-        # Create WorkflowDefinition object
-        workflow_def_input = WorkflowDefinition.model_validate(workflow_dict_input)
-
-        # Validate it
-        workflow_def, schema_version, workflow_dict = WorkflowDefinitionValidator.validate(workflow_def_input)
-
-        # Verify return types
-        assert isinstance(workflow_def, WorkflowDefinition)
-        assert isinstance(schema_version, str)
-        assert isinstance(workflow_dict, dict)
-
-        # Verify it's the same object
-        assert workflow_def == workflow_def_input
-        assert schema_version == "1.0.0"
-
-    def test_validate_missing_required_field(self) -> None:
-        """Test validation with missing required field."""
-        workflow_dict = {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            # Missing metadata
-            "triggers": [{"type": "manual"}],
-            "workflow": {"activities": []},
-        }
-
-        with pytest.raises(WorkflowValidationError) as exc_info:
-            WorkflowDefinitionValidator.validate(workflow_dict)
-
-        err_msg = str(exc_info.value.message)
-        assert "Workflow definition validation failed" in err_msg
-        assert "metadata: Field required" in err_msg
-        assert "workflow -> activities: List should have at least 1 item after validation, not 0" in err_msg
-
-    def test_validate_invalid_schema_version(self) -> None:
-        """Test validation with invalid schema version format."""
-        workflow_dict = {
-            "schemaVersion": "invalid-version",
-            "version": 1,
-            "metadata": {"name": "test-workflow", "description": "Test workflow"},
-            "triggers": [{"type": "manual"}],
-            "workflow": {"activities": []},
-        }
-
-        with pytest.raises(WorkflowValidationError) as exc_info:
-            WorkflowDefinitionValidator.validate(workflow_dict)
-
-        err_msg = str(exc_info.value.message)
-        assert "Workflow definition validation failed" in err_msg
-        assert "schemaVersion: String should match pattern '^[0-9]+\\.[0-9]+\\.[0-9]+$'" in err_msg
-        assert "workflow -> activities: List should have at least 1 item after validation" in err_msg
-
-    def test_validate_invalid_activity_type(self) -> None:
-        """Test validation with invalid activity structure."""
-        workflow_dict = {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            "metadata": {"name": "test-workflow", "description": "Test workflow"},
-            "triggers": [{"type": "manual"}],
-            "workflow": {
-                "activities": [
-                    {
-                        "id": "test_activity",
-                        "name": "Test Activity",
-                        "type": "task",
-                        "task": {
-                            "executor": "script",
-                            # Missing required config field
-                        },
-                    }
-                ]
-            },
-        }
-
-        with pytest.raises(WorkflowValidationError) as exc_info:
-            WorkflowDefinitionValidator.validate(workflow_dict)
-
-        err_msg = str(exc_info.value.message)
-        assert "Workflow definition validation failed" in err_msg
-        assert "workflow -> activities -> 0 -> task -> config: Field required" in err_msg
-
-    def test_validate_dict_is_jsonb_compatible(self) -> None:
-        """Test that returned dict is compatible with PostgreSQL JSONB."""
-        workflow_dict_input = {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            "metadata": {"name": "test-workflow", "description": "Test workflow"},
-            "triggers": [{"type": "manual"}],
-            "workflow": {
-                "activities": [
-                    {
-                        "id": "test_activity",
-                        "name": "Test Activity",
-                        "type": "task",
-                        "task": {
-                            "executor": "script",
-                            "config": {"language": "python", "code": "print('hello')"},
-                        },
-                    }
-                ]
-            },
-        }
-
-        _, _, workflow_dict = WorkflowDefinitionValidator.validate(workflow_dict_input)
-
-        # Verify dict can be serialized to JSON (required for JSONB)
-        json_str = json.dumps(workflow_dict)
-        assert json_str is not None
-
-        # Verify it can be deserialized back
-        deserialized = json.loads(json_str)
-        assert deserialized["schemaVersion"] == "1.0.0"
-        assert deserialized["metadata"]["name"] == "test-workflow"
-
-    def test_validate_preserves_nested_structure(self) -> None:
-        """Test that validation preserves complex nested structures."""
-        workflow_dict_input = {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            "metadata": {
-                "name": "complex-workflow",
-                "description": "Test workflow",
-                "tags": ["test", "platform"],
-                "owner": "platform-team",
-            },
-            "triggers": [{"type": "manual"}],
-            "workflow": {
-                "activities": [
-                    {
-                        "id": "activity1",
-                        "name": "Activity 1",
-                        "type": "task",
-                        "task": {
-                            "executor": "script",
-                            "config": {
-                                "language": "python",
-                                "code": "print('hello')",
-                                "environment": {"VAR1": "value1", "VAR2": "value2"},
-                            },
-                        },
-                    }
-                ]
-            },
-        }
-
-        _, _, workflow_dict = WorkflowDefinitionValidator.validate(workflow_dict_input)
-
-        # Verify nested structures are preserved
-        assert workflow_dict["metadata"]["tags"] == ["test", "platform"]
-        assert workflow_dict["metadata"]["owner"] == "platform-team"
-        assert workflow_dict["workflow"]["activities"][0]["task"]["config"]["environment"]["VAR1"] == "value1"
-
-    def test_validate_multiple_activities(self) -> None:
-        """Test validation with multiple activities."""
-        workflow_dict_input = {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            "metadata": {"name": "multi-activity-workflow", "description": "Test workflow"},
-            "triggers": [{"type": "manual"}],
-            "workflow": {
-                "activities": [
-                    {
-                        "id": "activity1",
-                        "name": "Activity 1",
-                        "type": "task",
-                        "task": {
-                            "executor": "script",
-                            "config": {"language": "python", "code": "print('1')"},
-                        },
-                    },
-                    {
-                        "id": "activity2",
-                        "name": "Activity 2",
-                        "type": "task",
-                        "task": {
-                            "executor": "script",
-                            "config": {"language": "python", "code": "print('2')"},
-                        },
-                    },
-                ]
-            },
-        }
-
-        _, _, workflow_dict = WorkflowDefinitionValidator.validate(workflow_dict_input)
-
-        # Verify all activities are present
-        assert len(workflow_dict["workflow"]["activities"]) == 2
-        assert workflow_dict["workflow"]["activities"][0]["id"] == "activity1"
-        assert workflow_dict["workflow"]["activities"][1]["id"] == "activity2"
+    def test_integer_version_raises(self, validator: WorkflowValidator) -> None:
+        definition: dict[str, Any] = {"schema_version": 2, "triggers": [], "nodes": [], "edges": []}
+        with pytest.raises(SafeValueError, match="Unsupported schema_version"):
+            validator.validate_workflow_definition(definition)

@@ -52,25 +52,19 @@ async def test_get_workflow_versions_list(base_client: AsyncClient) -> None:
                 {
                     "id": "step1",
                     "name": "Step 1",
-                    "type": "task",
-                    "task": {
-                        "executor": "script",
-                        "config": {
-                            "language": "python",
-                            "code": "print('step 1')",
-                        },
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": "print('step 1')",
                     },
                 },
                 {
                     "id": "step2",
                     "name": "Step 2",
-                    "type": "task",
-                    "task": {
-                        "executor": "script",
-                        "config": {
-                            "language": "python",
-                            "code": "print('step 2')",
-                        },
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": "print('step 2')",
                     },
                 },
             ],

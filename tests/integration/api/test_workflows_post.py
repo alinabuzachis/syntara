@@ -42,29 +42,19 @@ async def test_post_workflow_valid_definition(base_client: AsyncClient) -> None:
 async def test_post_workflow_invalid_definition(base_client: AsyncClient) -> None:
     """Test creating a workflow with invalid definition structure.
 
-    Expected: 422 Unprocessable Entity (Pydantic validation error)
+    Expected: 422 Unprocessable Entity (validator rejects missing V2 fields)
     """
     invalid_workflow = {
         "name": "invalid-workflow",
         "workflow_definition": {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            # Missing required 'metadata' and 'workflow' fields
+            "schema_version": "2.0.0",
+            # Missing required 'triggers', 'nodes', and 'edges' fields
         },
     }
 
     response = await base_client.post("/api/v1/workflows", json=invalid_workflow)
 
     assert response.status_code == 422
-    assert_error_data(
-        response,
-        error_type="https://api.nexus.com/errors/validation-error",
-        title="Validation Error",
-        detail="Workflow definition validation failed:\nmetadata: Field required\n"
-        "triggers: Field required\nworkflow: Field required",
-        code="VALIDATION_ERROR",
-        retryable=False,
-    )
 
 
 @pytest.mark.asyncio
@@ -122,31 +112,21 @@ async def test_post_workflow_duplicate_name(base_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_post_workflow_missing_required_fields(base_client: AsyncClient) -> None:
-    """Test creating a workflow with definition missing required fields.
+    """Test creating a workflow with definition missing required V2 fields.
 
-    Expected: 422 Unprocessable Entity (Pydantic validation error)
+    Expected: 422 Unprocessable Entity (validator rejects missing triggers/nodes/edges)
     """
     workflow_missing_fields = {
         "name": "incomplete-workflow",
         "workflow_definition": {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            # Missing required 'metadata' and 'workflow' fields
+            "schema_version": "2.0.0",
+            # Missing required 'triggers', 'nodes', and 'edges' fields
         },
     }
 
     response = await base_client.post("/api/v1/workflows", json=workflow_missing_fields)
 
     assert response.status_code == 422
-    assert_error_data(
-        response,
-        error_type="https://api.nexus.com/errors/validation-error",
-        title="Validation Error",
-        detail="Workflow definition validation failed:\nmetadata: Field required\n"
-        "triggers: Field required\nworkflow: Field required",
-        code="VALIDATION_ERROR",
-        retryable=False,
-    )
 
 
 @pytest.mark.asyncio

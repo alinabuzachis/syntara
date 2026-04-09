@@ -15,13 +15,13 @@ from pathlib import Path
 from uuid import uuid4
 
 import structlog
+import yaml
 from sqlmodel import select
 
 from nexus.api.auth.dependencies import get_current_user  # type: ignore[import-untyped]
 from nexus.core.database.session import AsyncSessionLocal  # type: ignore[import-untyped]
 from nexus.workflows.models import Workflow, WorkflowVersion  # type: ignore[import-untyped]
-from nexus.workflows.validators import WorkflowDefinitionValidator  # type: ignore[import-untyped]
-from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml  # type: ignore[import-untyped]
+from nexus.workflows.validators import workflow_validator  # type: ignore[import-untyped]
 
 # Configure logging
 logger = structlog.stdlib.get_logger(__name__)
@@ -70,28 +70,32 @@ async def load_sample_workflows(
             # Load each workflow file
             for yaml_file in yaml_files:
                 try:
-                    # Read YAML file
+                    # Read and parse YAML file
                     yaml_content = yaml_file.read_text()
+                    workflow_dict = yaml.safe_load(yaml_content)
 
-                    # Parse workflow definition
-                    workflow_definition = parse_workflow_yaml(yaml_content)
-
-                    # Check if workflow already exists by name
-                    if workflow_definition.metadata.name in existing_names:
-                        logger.info(
-                            "Workflow already exists, skipping",
-                            workflow_name=workflow_definition.metadata.name,
-                        )
+                    # Extract name from V2 format (top-level) or V1 format (metadata.name)
+                    workflow_name = workflow_dict.get("name") or workflow_dict.get("metadata", {}).get("name")
+                    if not workflow_name:
+                        logger.warning("Workflow has no name, skipping", file_path=str(yaml_file))
                         continue
 
-                    # Validate workflow definition
-                    _, schema_version, workflow_dict = WorkflowDefinitionValidator.validate(workflow_definition)
+                    # Check if workflow already exists by name
+                    if workflow_name in existing_names:
+                        logger.info("Workflow already exists, skipping", workflow_name=workflow_name)
+                        continue
+
+                    # Validate workflow definition (V2 only)
+                    workflow_validator.validate_workflow_definition(workflow_dict)
+
+                    schema_version = workflow_dict.get("schema_version", "2.0.0")
+                    description = workflow_dict.get("description", "")
 
                     # Create workflow
                     workflow = Workflow(
                         id=uuid4(),
-                        name=workflow_definition.metadata.name,
-                        description=workflow_definition.metadata.description,
+                        name=workflow_name,
+                        description=description,
                         labels={"source": "sample", "file": yaml_file.name},
                         current_version=1,
                         is_enabled=True,
@@ -112,7 +116,7 @@ async def load_sample_workflows(
                     session.add(workflow)
                     session.add(version)
 
-                    logger.info("Successfully loaded sample workflow", workflow_name=workflow_definition.metadata.name)
+                    logger.info("Successfully loaded sample workflow", workflow_name=workflow_name)
 
                 except Exception:
                     logger.exception("Failed to load workflow from file", file_path=str(yaml_file))

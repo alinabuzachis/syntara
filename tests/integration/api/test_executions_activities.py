@@ -88,8 +88,8 @@ async def test_list_execution_activities_includes_all_fields(
     now = datetime.now(UTC)
     activity_def = {
         "id": "test_activity",
-        "type": "task",
-        "task": {"executor": "script", "config": {"code": "print('test')"}},
+        "type": "script",
+        "config": {"code": "print('test')"},
     }
 
     activity = ActivityExecution(
@@ -199,18 +199,15 @@ async def test_list_execution_activities_with_nested_activity_definition(
     complex_def = {
         "id": "fetch_data",
         "name": "Fetch Data from API",
-        "type": "task",
-        "task": {
-            "executor": "api",
-            "config": {
-                "method": "GET",
-                "url": "https://api.example.com/data",
-                "headers": {
-                    "Authorization": "Bearer token",
-                    "Content-Type": "application/json",
-                },
-                "timeout": 30,
+        "type": "http_request",
+        "config": {
+            "method": "GET",
+            "url": "https://api.example.com/data",
+            "headers": {
+                "Authorization": "Bearer token",
+                "Content-Type": "application/json",
             },
+            "timeout": 30,
         },
         "timeout": "PT5M",
         "retryPolicy": {
@@ -242,7 +239,7 @@ async def test_list_execution_activities_with_nested_activity_definition(
     # Verify nested structure is preserved
     returned_def = data[0]["activity_definition"]
     assert returned_def == complex_def
-    assert returned_def["task"]["config"]["method"] == "GET"
+    assert returned_def["config"]["method"] == "GET"
     assert returned_def["retryPolicy"]["maxAttempts"] == 3
     assert len(returned_def["retryPolicy"]["retryableErrors"]) == 3
     assert 500 in returned_def["retryPolicy"]["retryableErrors"]

@@ -6,7 +6,6 @@ dataset, including edge cases.
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, cast
 
 import pytest
 import pytest_asyncio
@@ -17,10 +16,6 @@ from nexus.core.utils.cursor import decode_cursor
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.services import WorkflowService
 from tests.helpers.workflow import create_minimal_workflow_definition
-
-if TYPE_CHECKING:
-    from nexus.workflows.workflow_engine.models.workflow_definition import WorkflowDefinition
-
 
 DATASET_SIZE = 25  # Number of workflows created by workflows_dataset fixture
 
@@ -51,12 +46,9 @@ async def workflows_dataset(test_db_session: AsyncSession, test_user: User) -> l
             name=f"Test Workflow {i:02d}",
             description=f"Workflow for pagination testing - number {i}",
             labels={"test": "pagination", "index": str(i)},
-            workflow_definition=cast(
-                "WorkflowDefinition",
-                create_minimal_workflow_definition(
-                    name=f"test-workflow-{i:02d}",
-                    description=f"Workflow for pagination testing - number {i}",
-                ),
+            workflow_definition=create_minimal_workflow_definition(
+                name=f"test-workflow-{i:02d}",
+                description=f"Workflow for pagination testing - number {i}",
             ),
             is_enabled=True,
         )
@@ -334,12 +326,9 @@ class TestBidirectionalPagination:
                 name=f"Single Page Workflow {i}",
                 description="Test",
                 labels={},
-                workflow_definition=cast(
-                    "WorkflowDefinition",
-                    create_minimal_workflow_definition(
-                        name=f"single-page-workflow-{i}",
-                        description="Test",
-                    ),
+                workflow_definition=create_minimal_workflow_definition(
+                    name=f"single-page-workflow-{i}",
+                    description="Test",
                 ),
                 is_enabled=True,
             )
@@ -691,12 +680,9 @@ class TestBidirectionalPagination:
                 name=f"Single Item Test {i}",
                 description="Test",
                 labels={},
-                workflow_definition=cast(
-                    "WorkflowDefinition",
-                    create_minimal_workflow_definition(
-                        name=f"single-item-test-{i}",
-                        description="Test",
-                    ),
+                workflow_definition=create_minimal_workflow_definition(
+                    name=f"single-item-test-{i}",
+                    description="Test",
                 ),
                 is_enabled=True,
             )

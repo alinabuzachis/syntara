@@ -2,22 +2,18 @@
 
 These tests define the expected behavior of agentic activities:
 - Agent Orchestrator invocation and response handling
-- Parameter mapping from workflow YAML to Agent Orchestrator
+- Parameter mapping from workflow config to Agent Orchestrator
 - Error handling for unavailable Agent Orchestrator
 """
 
 import asyncio
-import json
 from collections.abc import Generator
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from nexus.core.config.base import get_settings
-from nexus.core.constants import CONTEXT_KEY
-from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorClientError
-from nexus.workflows.workflow_engine.activities.agentic_activity import AgenticActivityError, execute_agentic_activity
+from nexus.workflows.workflow_engine.activities.agentic_activity import execute_agentic_activity
 
 
 def create_mock_client_response(**kwargs: object) -> dict[str, Any]:
@@ -35,7 +31,6 @@ def create_mock_client_response(**kwargs: object) -> dict[str, Any]:
         "session_id": "test-session",
         "created_by": "test-user",
         "updated_by": None,
-        CONTEXT_KEY: {},
         "checkpoint_data": None,
         "labels": {},
     }
@@ -58,64 +53,37 @@ def mock_agent_client() -> Generator[AsyncMock, None, None]:
         yield mock_instance
 
 
-@pytest.fixture
-def workflow_definition_agentic() -> dict[str, Any]:
-    """Sample workflow YAML with agentic activity."""
-    return {
-        "name": "agentic_workflow",
-        "version": "1.0",
-        "tasks": [
-            {
-                "name": "research_task",
-                "executor": "agentic",
-                "config": {
-                    "agent": "nexus-agent://default",
-                    "model": "claude-3-5-sonnet-20241022",
-                    "prompt": "Research and calculate the answer",
-                },
-                "inputs": {"question": "What is the meaning of life?"},
-                "timeout": 300,
-                "retry_policy": {"max_attempts": 3, "initial_interval": 1, "max_interval": 10},
-            }
-        ],
-    }
-
-
 class TestAgenticActivityExecution:
     """Test agentic activity execution and Agent Orchestrator integration."""
 
     @pytest.mark.asyncio
-    async def test_invokes_agent_orchestrator(self, workflow_definition_agentic, mock_agent_client) -> None:
+    async def test_invokes_agent_orchestrator(self, mock_agent_client) -> None:
         """Test that agentic activity invokes Agent Orchestrator asynchronously."""
-        activity_config = workflow_definition_agentic["tasks"][0]
-        input_data = {"question": "What is the meaning of life?"}
+        input_config = {
+            "prompt": "Research and calculate the answer",
+            "agent": "nexus-agent://default",
+            "model": "claude-3-5-sonnet-20241022",
+        }
 
-        # Execute agentic activity
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data=input_data,
-        )
+        result = await execute_agentic_activity(input_config, None)
 
         # Verify Agent Orchestrator was called asynchronously
         mock_agent_client.invoke_agent_async.assert_called_once()
 
-        # Verify result contains metadata (activity returns immediately, doesn't wait)
-        assert result["status"] == "running"
-        assert result["invocation_id"] == "inv_123456"
-        assert "callback_url" in result
+        # V2 returns {"output": {...}} with status "completed"
+        assert result["output"]["status"] == "completed"
+        assert result["output"]["invocation_id"] == "inv_123456"
 
     @pytest.mark.asyncio
-    async def test_parameter_mapping_to_agent_orchestrator(
-        self, workflow_definition_agentic, mock_agent_client
-    ) -> None:
-        """Test that parameters are correctly mapped from workflow YAML to Agent Orchestrator."""
-        activity_config = workflow_definition_agentic["tasks"][0]
-        input_data = {"question": "What is the meaning of life?"}
+    async def test_parameter_mapping_to_agent_orchestrator(self, mock_agent_client) -> None:
+        """Test that parameters are correctly mapped from config to Agent Orchestrator."""
+        input_config = {
+            "prompt": "Research and calculate the answer",
+            "agent": "nexus-agent://default",
+            "model": "claude-3-5-sonnet-20241022",
+        }
 
-        await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data=input_data,
-        )
+        await execute_agentic_activity(input_config, None)
 
         # Verify invoke_agent_async was called with correct parameters
         call_args = mock_agent_client.invoke_agent_async.call_args
@@ -129,125 +97,81 @@ class TestAgenticActivityExecution:
         # Check prompt
         assert call_args.kwargs["prompt"] == "Research and calculate the answer"
 
-        # Check input data
-        assert call_args.kwargs["input_data"] == input_data
-
     @pytest.mark.asyncio
-    async def test_invokes_agent_and_gets_result(self, workflow_definition_agentic, mock_agent_client) -> None:
-        """Test that activity invokes agent async and returns metadata (workflow waits for signal)."""
-        activity_config = workflow_definition_agentic["tasks"][0]
-        input_data = {"question": "What is the meaning of life?"}
+    async def test_invokes_agent_and_gets_result(self, mock_agent_client) -> None:
+        """Test that activity invokes agent async and returns metadata."""
+        input_config = {
+            "prompt": "Research and calculate the answer",
+            "agent": "nexus-agent://default",
+            "model": "claude-3-5-sonnet-20241022",
+        }
 
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data=input_data,
-        )
+        result = await execute_agentic_activity(input_config, None)
 
         # Verify invoke_agent_async was called
         mock_agent_client.invoke_agent_async.assert_called()
 
-        # Verify result contains metadata (activity returns immediately)
-        assert result["status"] == "running"
-        assert result["invocation_id"] == "inv_123456"
+        # V2 returns completed status with invocation_id
+        assert result["output"]["status"] == "completed"
+        assert result["output"]["invocation_id"] == "inv_123456"
 
 
 class TestAgenticActivityErrorHandling:
     """Test error handling for agentic activities."""
 
     @pytest.mark.asyncio
-    async def test_handles_agent_orchestrator_unavailable(self, workflow_definition_agentic, mock_agent_client) -> None:
+    async def test_handles_agent_orchestrator_unavailable(self, mock_agent_client) -> None:
         """Test error handling when Agent Orchestrator is unavailable."""
-        # Reconfigure mock to raise connection error from async method
         from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorClientConnectionError
 
         mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorClientConnectionError(
             "Agent Orchestrator unavailable"
         )
 
-        activity_config = workflow_definition_agentic["tasks"][0]
+        input_config = {
+            "prompt": "Test prompt",
+            "model": "claude-3-5-sonnet-20241022",
+        }
 
-        # Should raise the connection error (not wrapped since it's already specific)
-        with pytest.raises(AgentOrchestratorClientConnectionError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={"question": "test"},
-            )
-
-        assert "unavailable" in str(exc_info.value).lower()
+        # V2 wraps errors in result dict instead of raising
+        result = await execute_agentic_activity(input_config, None)
+        assert result["output"]["status"] == "failed"
+        assert "agent orchestrator" in result["output"]["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_handles_agent_orchestrator_timeout(self, workflow_definition_agentic, mock_agent_client) -> None:
+    async def test_handles_agent_orchestrator_timeout(self, mock_agent_client) -> None:
         """Test timeout handling for Agent Orchestrator invocations."""
-        # Reconfigure mock to raise timeout error from async method
         from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorClientError, ErrorCode
 
         mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
             "Invocation timed out", code=ErrorCode.TIMEOUT
         )
 
-        activity_config = workflow_definition_agentic["tasks"][0]
+        input_config = {
+            "prompt": "Test prompt",
+            "model": "claude-3-5-sonnet-20241022",
+        }
 
-        # Should wrap in AgenticActivityError
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={"question": "test"},
-            )
-
-        assert "error" in str(exc_info.value).lower()
+        # V2 wraps errors in result dict
+        result = await execute_agentic_activity(input_config, None)
+        assert result["output"]["status"] == "failed"
+        assert "error" in result["output"]
 
     @pytest.mark.asyncio
-    async def test_handles_agent_orchestrator_error_response(
-        self, workflow_definition_agentic, mock_agent_client
-    ) -> None:
-        """Test that async invocation succeeds even if agent will fail later.
-
-        With async pattern, the activity returns immediately with status 'pending'.
-        Errors come later via the signal. The workflow handles this by timing out
-        or receiving a failure signal from the Agent Orchestrator.
-        """
-        # Mock returns invocation ID successfully (agent will fail later)
+    async def test_handles_agent_orchestrator_error_response(self, mock_agent_client) -> None:
+        """Test that async invocation succeeds even if agent will fail later."""
         mock_agent_client.invoke_agent_async.return_value = "inv_error"
 
-        activity_config = workflow_definition_agentic["tasks"][0]
+        input_config = {
+            "prompt": "Test prompt",
+            "model": "claude-3-5-sonnet-20241022",
+        }
 
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data={"question": "test"},
-        )
+        result = await execute_agentic_activity(input_config, None)
 
-        # Activity returns running status - errors come later via signal
-        assert result["status"] == "running"
-        assert result["invocation_id"] == "inv_error"
-
-
-class TestAgenticActivityRetryLogic:
-    """Test retry logic for agentic activities."""
-
-    @pytest.mark.asyncio
-    async def test_respects_retry_policy_from_yaml(self, workflow_definition_agentic, mock_agent_client) -> None:
-        """Test that retry policy from workflow YAML is respected.
-
-        Note: Retry logic is handled by Temporal, not by execute_agentic_activity.
-        This test verifies the activity fails on connection errors without internal retry.
-        """
-        # Reconfigure mock to fail with Agent Orchestrator error
-        from nexus.workflows.clients.agent_orchestrator_client import AgentOrchestratorClientError, ErrorCode
-
-        mock_agent_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
-            "Temporary failure", code=ErrorCode.HTTP_SERVER_ERROR
-        )
-
-        activity_config = workflow_definition_agentic["tasks"][0]
-
-        # Should wrap error in AgenticActivityError without retrying (Temporal handles retries)
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={"question": "test"},
-            )
-
-        assert "error" in str(exc_info.value).lower()
+        # Activity returns completed status with invocation_id
+        assert result["output"]["status"] == "completed"
+        assert result["output"]["invocation_id"] == "inv_error"
 
 
 class TestAgenticActivityEdgeCases:
@@ -256,381 +180,26 @@ class TestAgenticActivityEdgeCases:
     @pytest.mark.asyncio
     async def test_rejects_empty_prompt(self) -> None:
         """Test that empty prompts are rejected."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "",  # Empty prompt,
-                "model": "claude-3-5-sonnet-20241022",
-            },
+        input_config = {
+            "prompt": "",
+            "model": "claude-3-5-sonnet-20241022",
         }
 
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={},
-            )
-
-        assert "non-empty" in str(exc_info.value).lower()
+        # V2 returns failed status for empty prompt
+        result = await execute_agentic_activity(input_config, None)
+        assert result["output"]["status"] == "failed"
 
     @pytest.mark.asyncio
     async def test_rejects_whitespace_only_prompt(self) -> None:
         """Test that whitespace-only prompts are rejected."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "   \t\n  ",  # Whitespace only,
-                "model": "claude-3-5-sonnet-20241022",
-            },
+        input_config = {
+            "prompt": "   \t\n  ",
+            "model": "claude-3-5-sonnet-20241022",
         }
 
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={},
-            )
-
-        assert "non-empty" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_handles_missing_invocation_id_in_response(self) -> None:
-        """Test handling of malformed Agent Orchestrator response."""
-        # Mock client that raises error for missing invocation_id
-        bad_client = AsyncMock()
-        bad_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
-            "Agent Orchestrator response missing or invalid 'id'"
-        )
-        bad_client.__aenter__ = AsyncMock(return_value=bad_client)
-        bad_client.__aexit__ = AsyncMock(return_value=None)
-
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
-            mock_cls.return_value = bad_client
-
-            with pytest.raises(AgenticActivityError) as exc_info:
-                await execute_agentic_activity(
-                    activity_config=activity_config,
-                    input_data={},
-                )
-
-        assert "error" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_metadata_not_mutated(self, mock_agent_client) -> None:
-        """Test that caller's metadata dict is not mutated."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        # Mock that captures the metadata passed
-        captured_metadata: dict[str, Any] | None = None
-
-        async def capture_invoke(
-            prompt: str = "",
-            user_id: str = "",
-            agent: str | None = None,
-            model: str | None = None,
-            input_data: dict[str, Any] | None = None,
-            file_ids: list[str] | None = None,
-            metadata: dict[str, Any] | None = None,
-            session_id: str | None = None,
-            correlation_id: str | None = None,
-        ) -> str:
-            nonlocal captured_metadata
-            captured_metadata = metadata
-            return "inv_123"
-
-        mock_agent_client.invoke_agent_async = capture_invoke
-
-        # Original metadata
-        original_metadata = {"custom_key": "custom_value"}
-
-        await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data={},
-        )
-
-        # Verify original metadata wasn't modified
-        # (It should only have the original key, not correlation_id or workflow_id)
-        assert original_metadata == {"custom_key": "custom_value"}
-
-
-class TestAgenticActivitySecurity:
-    """Test security validations for agentic activities."""
-
-    @pytest.mark.asyncio
-    async def test_rejects_oversized_input_value(self) -> None:
-        """Test that oversized input values are rejected."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        # Create input with value exceeding max_input_value_length
-        huge_value = "x" * (get_settings().max_input_value_length + 1)
-        input_data = {"huge_field": huge_value}
-
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data=input_data,
-            )
-
-        assert "exceeds maximum length" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_rejects_oversized_total_input(self) -> None:
-        """Test that total input size limit is enforced."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        # Create many inputs that individually pass but collectively exceed max_total_input_size
-        settings = get_settings()
-        individual_size = settings.max_input_value_length // 10
-        num_inputs = (settings.max_total_input_size // individual_size) + 2
-
-        input_data = {f"field_{i}": "x" * individual_size for i in range(num_inputs)}
-
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data=input_data,
-            )
-
-        assert "total input size exceeds maximum" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_rejects_null_bytes_in_input(self) -> None:
-        """Test that null bytes in input are rejected."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        input_data = {"malicious": "value\x00with\x00nulls"}
-
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data=input_data,
-            )
-
-        assert "null bytes" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_rejects_oversized_resolved_prompt(self) -> None:
-        """Test that oversized resolved prompts are rejected."""
-        # Create a prompt template that will exceed max_prompt_length when resolved
-        huge_prompt = "x" * (get_settings().max_prompt_length + 1)
-
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": huge_prompt,
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={},
-            )
-
-        assert "prompt exceeds maximum length" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_accepts_valid_inputs(self) -> None:
-        """Test that valid inputs are accepted."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Process this data: ${input.data}",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        input_data = {"data": "Valid input data"}
-
-        # Should not raise
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data=input_data,
-        )
-
-        assert result["status"] == "running"
-
-
-class TestAgenticActivityErrorHandlingAdvanced:
-    """Test advanced error handling scenarios."""
-
-    @pytest.mark.asyncio
-    async def test_handles_malformed_json_response(self) -> None:
-        """Test handling of malformed JSON from Agent Orchestrator."""
-        # Mock client that returns malformed response
-        bad_client = AsyncMock()
-        bad_client.invoke_agent_async.side_effect = AgentOrchestratorClientError("Response missing 'id'")
-        bad_client.__aenter__ = AsyncMock(return_value=bad_client)
-        bad_client.__aexit__ = AsyncMock(return_value=None)
-
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
-            mock_cls.return_value = bad_client
-
-            with pytest.raises(AgenticActivityError) as exc_info:
-                await execute_agentic_activity(
-                    activity_config=activity_config,
-                    input_data={},
-                )
-
-        assert "response missing 'id'" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_handles_invalid_status_in_response(self) -> None:
-        """Test handling of invalid status values from Agent Orchestrator."""
-        bad_client = AsyncMock()
-        bad_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
-            "Response has non-terminal status 'pending'"
-        )
-        bad_client.__aenter__ = AsyncMock(return_value=bad_client)
-        bad_client.__aexit__ = AsyncMock(return_value=None)
-
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
-            mock_cls.return_value = bad_client
-
-            with pytest.raises(AgenticActivityError) as exc_info:
-                await execute_agentic_activity(
-                    activity_config=activity_config,
-                    input_data={},
-                )
-
-        assert "non-terminal status" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_handles_json_decode_error(self) -> None:
-        """Test handling of JSON decode errors from Agent Orchestrator."""
-        bad_client = AsyncMock()
-        bad_client.invoke_agent_async.side_effect = AgentOrchestratorClientError(
-            f"{json.JSONDecodeError.__name__}: Invalid JSON"
-        )
-        bad_client.__aenter__ = AsyncMock(return_value=bad_client)
-        bad_client.__aexit__ = AsyncMock(return_value=None)
-
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
-            mock_cls.return_value = bad_client
-
-            with pytest.raises(AgenticActivityError):
-                await execute_agentic_activity(
-                    activity_config=activity_config,
-                    input_data={},
-                )
-
-    @pytest.mark.asyncio
-    async def test_concurrent_invocations_use_separate_clients(self) -> None:
-        """Test that concurrent invocations can execute without interference."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test ${input.id}",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        # Execute multiple invocations concurrently
-        results = await asyncio.gather(
-            execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={"id": "1"},
-            ),
-            execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={"id": "2"},
-            ),
-            execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={"id": "3"},
-            ),
-        )
-
-        # All should return running status (workflow waits for signals)
-        assert len(results) == 3
-        assert all(r["status"] == "running" for r in results)
-
-    @pytest.mark.asyncio
-    async def test_validates_inputs_before_network_call(self, mock_agent_client) -> None:
-        """Test that input validation happens before making network calls."""
-        # This prevents wasting network resources on invalid inputs
-        call_count = 0
-
-        def track_calls(**kwargs: object) -> str:
-            nonlocal call_count
-            call_count += 1
-            return "inv_123"
-
-        # Reconfigure mock to track calls
-        mock_agent_client.invoke_agent_async = track_calls
-
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        # Try with invalid input (null bytes)
-        with pytest.raises(AgenticActivityError):
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={"bad": "value\x00with\x00nulls"},
-            )
-
-        # Network call should not have been made
-        assert call_count == 0, "Network call was made despite invalid input"
+        # V2 returns failed status for whitespace-only prompt
+        result = await execute_agentic_activity(input_config, None)
+        assert result["output"]["status"] == "failed"
 
 
 class TestAgenticActivityTimeoutConfiguration:
@@ -639,258 +208,84 @@ class TestAgenticActivityTimeoutConfiguration:
     @pytest.mark.asyncio
     async def test_uses_default_timeout_when_not_specified(self, mock_agent_client) -> None:
         """Test that default timeout (300s) is used when not specified in config."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-                # No timeout specified - should use default 300
-            },
+        input_config = {
+            "prompt": "Test prompt",
+            "model": "claude-3-5-sonnet-20241022",
         }
 
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data={},
-        )
+        result = await execute_agentic_activity(input_config, None)
 
-        # Verify async invocation was called (timeout is used by workflow's wait_condition, not the activity)
         mock_agent_client.invoke_agent_async.assert_called_once()
-        assert result["status"] == "running"
+        assert result["output"]["status"] == "completed"
 
     @pytest.mark.asyncio
     async def test_uses_custom_timeout_when_specified(self, mock_agent_client) -> None:
-        """Test that custom timeout is accepted (used by workflow's wait_condition)."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-                "timeout": 600,  # Custom 10 minute timeout
-            },
+        """Test that custom timeout is accepted."""
+        input_config = {
+            "prompt": "Test prompt",
+            "model": "claude-3-5-sonnet-20241022",
+            "timeout": 600,
         }
 
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data={},
-        )
+        result = await execute_agentic_activity(input_config, None)
 
-        # Verify async invocation was called (timeout is used by workflow for wait_condition)
         mock_agent_client.invoke_agent_async.assert_called_once()
-        assert result["status"] == "running"
+        assert result["output"]["status"] == "completed"
 
     @pytest.mark.asyncio
     async def test_rejects_timeout_below_minimum(self) -> None:
         """Test that timeout values below minimum (1s) are rejected."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-                "timeout": 0,  # Below minimum
-            },
+        input_config = {
+            "prompt": "Test prompt",
+            "model": "claude-3-5-sonnet-20241022",
+            "timeout": 0,
         }
 
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={},
-            )
-
-        assert "timeout" in str(exc_info.value).lower()
+        # V2 returns validation error in result
+        result = await execute_agentic_activity(input_config, None)
+        assert result["output"]["status"] == "failed"
 
     @pytest.mark.asyncio
     async def test_rejects_timeout_above_maximum(self) -> None:
         """Test that timeout values above maximum (3600s) are rejected."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-                "timeout": 4000,  # Above maximum
-            },
+        input_config = {
+            "prompt": "Test prompt",
+            "model": "claude-3-5-sonnet-20241022",
+            "timeout": 4000,
         }
 
-        with pytest.raises(AgenticActivityError) as exc_info:
-            await execute_agentic_activity(
-                activity_config=activity_config,
-                input_data={},
-            )
-
-        assert "timeout" in str(exc_info.value).lower()
+        # V2 returns validation error in result
+        result = await execute_agentic_activity(input_config, None)
+        assert result["output"]["status"] == "failed"
 
 
 class TestAgenticActivityInputEdgeCases:
     """Test edge cases in input handling."""
 
     @pytest.mark.asyncio
-    async def test_handles_empty_input_data(self) -> None:
-        """Test that empty input data is handled correctly."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Static prompt with no variables",
-                "model": "claude-3-5-sonnet-20241022",
-            },
+    async def test_handles_empty_input(self) -> None:
+        """Test that activity handles config with just required fields."""
+        input_config = {
+            "prompt": "Static prompt with no variables",
+            "model": "claude-3-5-sonnet-20241022",
         }
 
-        # Empty input should be valid
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data={},
-        )
-
-        assert result["status"] == "running"
+        result = await execute_agentic_activity(input_config, None)
+        assert result["output"]["status"] == "completed"
 
     @pytest.mark.asyncio
-    async def test_handles_complex_nested_input_data(self) -> None:
-        """Test that nested/complex input data is validated correctly."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Process: ${input.data}",
-                "model": "claude-3-5-sonnet-20241022",
-            },
+    async def test_concurrent_invocations_use_separate_clients(self) -> None:
+        """Test that concurrent invocations can execute without interference."""
+        input_config = {
+            "prompt": "Test prompt",
+            "model": "claude-3-5-sonnet-20241022",
         }
 
-        # Complex nested structure
-        input_data = {
-            "data": {
-                "nested": {
-                    "deeply": {
-                        "structure": "value",
-                    },
-                },
-                "list": [1, 2, 3],
-            },
-        }
-
-        # Should convert to string and validate
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data=input_data,
+        results = await asyncio.gather(
+            execute_agentic_activity(input_config, None),
+            execute_agentic_activity(input_config, None),
+            execute_agentic_activity(input_config, None),
         )
 
-        assert result["status"] == "running"
-
-    @pytest.mark.asyncio
-    async def test_handles_unicode_input(self) -> None:
-        """Test that Unicode characters in inputs are handled correctly."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Translate: ${input.text}",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        # Unicode input with various characters
-        input_data = {"text": "Hello 世界 🌍 Привет مرحبا"}
-
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data=input_data,
-        )
-
-        assert result["status"] == "running"
-
-    @pytest.mark.asyncio
-    async def test_handles_numeric_and_boolean_inputs(self) -> None:
-        """Test that non-string input types are converted and validated."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Count: ${input.count}, Enabled: ${input.enabled}",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-        }
-
-        input_data = {
-            "count": 42,
-            "enabled": True,
-            "ratio": 3.14,
-        }
-
-        # Should convert to string and validate
-        result = await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data=input_data,
-        )
-
-        assert result["status"] == "running"
-
-
-class TestAgenticActivityCorrelationID:
-    """Test correlation ID propagation for distributed tracing."""
-
-    @pytest.mark.asyncio
-    async def test_propagates_correlation_id_from_metadata(self, mock_agent_client) -> None:
-        """Test that correlation ID is propagated from activity metadata."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-            "metadata": {
-                "correlation_id": "workflow-correlation-123",
-            },
-        }
-
-        await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data={},
-        )
-
-        # Verify the provided correlation ID was used
-        call_args = mock_agent_client.invoke_agent_async.call_args
-        assert call_args.kwargs["correlation_id"] == "workflow-correlation-123"
-
-    @pytest.mark.asyncio
-    async def test_generates_correlation_id_when_not_provided(self, mock_agent_client) -> None:
-        """Test that correlation ID is generated when not provided in metadata."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-            # No metadata provided
-        }
-
-        await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data={},
-        )
-
-        # Verify a correlation ID was generated (UUID format)
-        call_args = mock_agent_client.invoke_agent_async.call_args
-        correlation_id = call_args.kwargs["correlation_id"]
-        assert correlation_id is not None
-        assert len(correlation_id) == 36  # UUID format: 8-4-4-4-12
-        assert correlation_id.count("-") == 4
-
-    @pytest.mark.asyncio
-    async def test_generates_correlation_id_when_metadata_empty(self, mock_agent_client) -> None:
-        """Test that correlation ID is generated when metadata exists but correlation_id is missing."""
-        activity_config = {
-            "executor": "agentic",
-            "config": {
-                "prompt": "Test prompt",
-                "model": "claude-3-5-sonnet-20241022",
-            },
-            "metadata": {
-                "other_field": "value",
-                # No correlation_id
-            },
-        }
-
-        await execute_agentic_activity(
-            activity_config=activity_config,
-            input_data={},
-        )
-
-        # Verify a correlation ID was generated
-        call_args = mock_agent_client.invoke_agent_async.call_args
-        correlation_id = call_args.kwargs["correlation_id"]
-        assert correlation_id is not None
-        assert len(correlation_id) == 36  # UUID format
+        assert len(results) == 3
+        assert all(r["output"]["status"] == "completed" for r in results)

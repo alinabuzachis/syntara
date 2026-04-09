@@ -1,43 +1,42 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: while-loop-basic-test
-  description: Test while loop with condition and maxIterations
+schema_version: "2.0.0"
+name: while-loop-basic-test
+description: Test while loop with condition and maxIterations
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: initialize_counter
-      name: Initialize Counter
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo '{"counter": 0}'
-        outputs:
-          data: $.stdout
+nodes:
+  - id: initialize_counter
+    name: Initialize Counter
+    type: script
+    config:
+      language: bash
+      code: |
+        echo '{"counter": 0}'
+    outputs:
+      data: $.stdout
 
-    - id: while_loop
-      name: While Loop
-      type: loop
-      loop:
-        type: while
-        condition: ${initialize_counter.output.data.counter} < 5
-        maxIterations: 10
-        do:
-          - id: loop_task
-            type: task
-            task:
-              executor: script
-              config:
-                language: bash
-                code: |
-                  echo "Loop iteration executed"
-              outputs:
-                result: $.stdout
+  - id: while_loop
+    name: While Loop
+    type: loop
+    loop:
+      type: while
+      condition: ${initialize_counter.output.data.counter} < 5
+      maxIterations: 10
+
+  - id: loop_task
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Loop iteration executed"
+    outputs:
+      result: $.stdout
+edges:
+  - source: initialize_counter
+    target: while_loop
+  - source: while_loop
+    target: loop_task
+    port: body

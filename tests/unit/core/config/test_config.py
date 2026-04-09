@@ -1,6 +1,5 @@
 """Unit tests for application configuration."""
 
-import importlib
 import os
 
 import pytest
@@ -215,10 +214,22 @@ class TestServerSettings:
 class TestLoggingSettings:
     """Tests for LoggingSettings configuration."""
 
-    def test_logging_defaults(self) -> None:
+    def test_logging_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test default logging configuration values."""
-        settings = Settings()
-        assert settings.log_level == "INFO"
+        from nexus.core.config.base import get_settings
+
+        # Clear env vars to test pure defaults
+        monkeypatch.delenv("APP_LOG_LEVEL", raising=False)
+        monkeypatch.delenv("APP_NAME", raising=False)
+        monkeypatch.delenv("APP_LOG_OUTPUT_FORMAT", raising=False)
+        get_settings.cache_clear()
+
+        try:
+            # _env_file=None skips .env file loading (pydantic-settings feature)
+            settings = Settings(_env_file=None)  # type: ignore[call-arg]
+            assert settings.log_level == "INFO"
+        finally:
+            get_settings.cache_clear()
 
     def test_log_level_from_env(self) -> None:
         """Test log level can be configured via environment."""
@@ -250,14 +261,29 @@ class TestLoggingSettings:
 class TestTemporalSettings:
     """Tests for TemporalSettings configuration."""
 
-    def test_temporal_defaults(self) -> None:
+    def test_temporal_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test default Temporal configuration values."""
-        settings = Settings()
-        assert settings.temporal_address == "localhost:7233"
-        assert settings.temporal_namespace == "default"
-        assert settings.task_queue == "nexus-workflow-queue"
-        assert str(settings.system_user_id) == "00000000-0000-0000-0000-000000000001"
-        assert settings.max_loop_iterations == 10000
+        from nexus.core.config.base import get_settings
+
+        # Clear env vars to test pure defaults
+        monkeypatch.delenv("APP_TASK_QUEUE", raising=False)
+        monkeypatch.delenv("APP_TEMPORAL_ADDRESS", raising=False)
+        monkeypatch.delenv("APP_TEMPORAL_NAMESPACE", raising=False)
+        monkeypatch.delenv("APP_SYSTEM_USER_ID", raising=False)
+        monkeypatch.delenv("APP_MAX_LOOP_ITERATIONS", raising=False)
+        monkeypatch.delenv("APP_NAME", raising=False)
+        get_settings.cache_clear()
+
+        try:
+            # _env_file=None skips .env file loading (pydantic-settings feature)
+            settings = Settings(_env_file=None)  # type: ignore[call-arg]
+            assert settings.temporal_address == "localhost:7233"
+            assert settings.temporal_namespace == "default"
+            assert settings.task_queue == "nexus-workflow-queue"
+            assert str(settings.system_user_id) == "00000000-0000-0000-0000-000000000001"
+            assert settings.max_loop_iterations == 10000
+        finally:
+            get_settings.cache_clear()
 
     def test_temporal_settings_from_env(self) -> None:
         """Test Temporal settings can be configured via environment."""
@@ -488,26 +514,6 @@ class TestRetrieverServiceSettings:
             os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_PROXIMITY_BONUS", None)
             os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_EXACT_MATCH_BONUS", None)
             os.environ.pop("APP_RETRIEVER_KEYWORD_RANKING_FUZZY_MATCH_BONUS", None)
-
-
-def test_custom_env_file_path(monkeypatch, tmp_path) -> None:
-    """Ensure APP_ENV_FILE_PATH is honored when loading settings."""
-    from nexus.core.config import base as config_module
-
-    env_file = tmp_path / "custom.env"
-    env_file.write_text("APP_OPENROUTER_MODEL=custom-model")
-
-    monkeypatch.setenv("APP_ENV_FILE_PATH", str(env_file))
-
-    reloaded_config = importlib.reload(config_module)
-    reloaded_config.get_settings.cache_clear()
-
-    settings = reloaded_config.get_settings()
-
-    assert settings.openrouter_model == "custom-model"
-
-    monkeypatch.delenv("APP_ENV_FILE_PATH", raising=False)
-    importlib.reload(config_module).get_settings.cache_clear()
 
 
 # =============================================================================

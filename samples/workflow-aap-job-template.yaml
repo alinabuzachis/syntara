@@ -1,298 +1,196 @@
 ---
-schemaVersion: "1.0.0"
-version: 1
+schema_version: "2.0.0"
+name: aap-job-template
+description: |
+  Test workflow for AAP Job Template executor.
 
-metadata:
-  name: aap-job-template
-  description: |
-    Test workflow for AAP Job Template executor.
+  This workflow demonstrates all available parameters for the AAP job template
+  executor including tags, limits, verbosity, credentials, extra_vars, and inventory.
 
-    This workflow demonstrates all available parameters for the AAP job template
-    executor including tags, limits, verbosity, credentials, extra_vars, and inventory.
-
-    Prerequisites:
-    1. Create a Job Template in AAP based on samples/playbooks/test-aap-parameters.yml
-    2. Note the Job Template ID from AAP
-    3. Configure AAP credentials in Nexus (.env file):
-       - APP_AAP_BASE_URL=https://your-aap-controller.example.com
-       - APP_AAP_TOKEN=your_api_token (or username/password)
-    4. Ensure the Job Template has access to an inventory with target hosts
-
-  tags:
-    - aap
-    - ansible
-    - testing
-    - demo
-
+  Prerequisites:
+  1. Create a Job Template in AAP based on samples/playbooks/test-aap-parameters.yml
+  2. Note the Job Template ID from AAP
+  3. Configure AAP credentials in Nexus (.env file):
+     - APP_AAP_BASE_URL=https://your-aap-controller.example.com
+     - APP_AAP_TOKEN=your_api_token (or username/password)
+  4. Ensure the Job Template has access to an inventory with target hosts
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
+    config:
+      inputs:
+        job_template_id:
+          type: integer
+          description: "AAP Job Template ID to execute"
+          required: true
+        app_name:
+          type: string
+          description: "Application name"
+          default: "nexus-test-app"
+        app_version:
+          type: string
+          description: "Application version to deploy/manage"
+          default: "1.0.0"
+        deployment_env:
+          type: string
+          description: "Target environment (deployment_env, not 'environment' which is reserved in Ansible)"
+          default: "development"
+          enum:
+            - development
+            - staging
+            - production
+        operation:
+          type: string
+          description: "Operation to perform"
+          default: "status"
+          enum:
+            - deploy
+            - config
+            - status
+            - backup
+        inventory_id:
+          type: integer
+          description: "Override inventory by ID - optional"
+          required: false
+        inventory_name:
+          type: string
+          description: "Override inventory by name (requires organization_name) - optional"
+          required: false
+        organization_name:
+          type: string
+          description: "AAP organization name (required when using inventory_name) - optional"
+          required: false
+        limit:
+          type: string
+          description: "Limit execution to specific hosts (e.g., 'webservers' or 'host1,host2')"
+          required: false
+        tags:
+          type: string
+          description: "Comma-separated list of tags to run (e.g., 'monitoring,system')"
+          required: false
+        skip_tags:
+          type: string
+          description: "Comma-separated list of tags to skip (e.g., 'deploy,backup')"
+          required: false
+        verbosity:
+          type: integer
+          description: "Ansible verbosity level (0-5, higher = more verbose)"
+          default: 0
+          minimum: 0
+          maximum: 5
+        custom_message:
+          type: string
+          description: "Custom message to pass to playbook"
+          default: "Hello from Nexus AAP Workflow Executor!"
+nodes:
+  - id: execute_job_template
+    type: aap_job_template
+    name: Execute AAP Job Template
+    config:
+      jobTemplateId: ${trigger.job_template_id}
+      inventoryId: ${trigger.inventory_id}
+      inventoryName: ${trigger.inventory_name}
+      organizationName: ${trigger.organization_name}
+      extraVars:
+        app_name: ${trigger.app_name}
+        app_version: ${trigger.app_version}
+        deployment_env: ${trigger.deployment_env}
+        operation: ${trigger.operation}
+        custom_message: ${trigger.custom_message}
+        executed_by: "Nexus Workflow Engine"
+        workflow_execution_time: "${workflow.started_at}"
+      limit: ${trigger.limit}
+      tags: ${trigger.tags}
+      skipTags: ${trigger.skip_tags}
+      verbosity: ${trigger.verbosity}
+    outputs:
+      job_id: $.job_id
+      status: $.status
+      output: $.output
+      artifacts: $.artifacts
+      elapsed_ms: $.elapsed_ms
+    retryPolicy:
+      maxAttempts: 3
+      backoff: exponential
+      initialInterval: 5
+      maxInterval: 60
+    timeout: 1800
 
-inputs:
-  # Required: AAP Job Template ID
-  job_template_id:
-    type: integer
-    description: "AAP Job Template ID to execute"
-    required: true
+  - id: display_results
+    type: script
+    name: Display Job Results
+    config:
+      language: python
+      code: |
+        import json
+        import os
+        import sys
 
-  # Application configuration
-  app_name:
-    type: string
-    description: "Application name"
-    default: "nexus-test-app"
+        # Get job execution results from previous activity (passed as environment variables)
+        job_id = os.getenv('INPUT_JOB_ID')
+        status = os.getenv('INPUT_STATUS')
+        output = os.getenv('INPUT_OUTPUT', '')
+        artifacts_json = os.getenv('INPUT_ARTIFACTS', '{}')
+        elapsed_ms_str = os.getenv('INPUT_ELAPSED_MS', '0')
 
-  app_version:
-    type: string
-    description: "Application version to deploy/manage"
-    default: "1.0.0"
+        # Parse JSON inputs
+        artifacts = json.loads(artifacts_json) if artifacts_json else {}
+        elapsed_ms = float(elapsed_ms_str) if elapsed_ms_str else 0
 
-  deployment_env:
-    type: string
-    description: "Target environment (deployment_env, not 'environment' which is reserved in Ansible)"
-    default: "development"
-    enum:
-      - development
-      - staging
-      - production
+        print("=" * 80, file=sys.stderr)
+        print("AAP Job Template Execution Results", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(f"Job ID: {job_id}", file=sys.stderr)
+        print(f"Status: {status}", file=sys.stderr)
+        print(f"Elapsed Time: {elapsed_ms / 1000:.2f} seconds", file=sys.stderr)
+        print("", file=sys.stderr)
 
-  operation:
-    type: string
-    description: "Operation to perform"
-    default: "status"
-    enum:
-      - deploy
-      - config
-      - status
-      - backup
-
-  # AAP execution parameters
-  inventory_id:
-    type: integer
-    description: "Override inventory by ID - optional"
-    required: false
-
-  inventory_name:
-    type: string
-    description: "Override inventory by name (requires organization_name) - optional"
-    required: false
-
-  organization_name:
-    type: string
-    description: "AAP organization name (required when using inventory_name) - optional"
-    required: false
-
-  limit:
-    type: string
-    description: "Limit execution to specific hosts (e.g., 'webservers' or 'host1,host2')"
-    required: false
-
-  tags:
-    type: string
-    description: "Comma-separated list of tags to run (e.g., 'monitoring,system')"
-    required: false
-
-  skip_tags:
-    type: string
-    description: "Comma-separated list of tags to skip (e.g., 'deploy,backup')"
-    required: false
-
-  verbosity:
-    type: integer
-    description: "Ansible verbosity level (0-5, higher = more verbose)"
-    default: 0
-    minimum: 0
-    maximum: 5
-
-  custom_message:
-    type: string
-    description: "Custom message to pass to playbook"
-    default: "Hello from Nexus AAP Workflow Executor!"
-
-workflow:
-  activities:
-    # Activity 1: Execute AAP Job Template
-    - id: execute_job_template
-      name: "Execute AAP Job Template"
-      type: task
-      task:
-        executor: aap_job_template
-        config:
-          # Required: Job Template ID from AAP
-          jobTemplateId: ${input.job_template_id}
-
-          # Optional: Override inventory by ID or name (from AAP)
-          # Use either inventoryId OR (inventoryName + organizationName)
-          # Leave both null to use the default inventory configured in the Job Template
-          inventoryId: ${input.inventory_id}
-          inventoryName: ${input.inventory_name}
-          organizationName: ${input.organization_name}
-
-          # Optional: Pass extra variables to the playbook
-          # These override the default vars defined in the playbook
-          extraVars:
-            app_name: ${input.app_name}
-            app_version: ${input.app_version}
-            deployment_env: ${input.deployment_env}
-            operation: ${input.operation}
-            custom_message: ${input.custom_message}
-            executed_by: "Nexus Workflow Engine"
-            workflow_execution_time: "${workflow.started_at}"
-
-          # Optional: Limit execution to specific hosts
-          # Examples: "webservers", "host1,host2", "web*"
-          limit: ${input.limit}
-
-          # Optional: Run only specific tags
-          # Examples: "monitoring", "deploy,config"
-          tags: ${input.tags}
-
-          # Optional: Skip specific tags
-          # Examples: "deploy", "backup,deploy"
-          skipTags: ${input.skip_tags}
-
-          # Optional: Set Ansible verbosity level (0-5)
-          # 0 = normal, 1 = -v, 2 = -vv, 3 = -vvv, etc.
-          verbosity: ${input.verbosity}
-
-        # Map outputs from the job execution
-        outputs:
-          job_id: $.job_id
-          status: $.status
-          output: $.output
-          artifacts: $.artifacts
-          elapsed_ms: $.elapsed_ms
-
-      # Retry policy for transient failures
-      retryPolicy:
-        maxAttempts: 3
-        backoff: exponential
-        initialInterval: 5 # seconds
-        maxInterval: 60 # seconds (1 minute)
-
-      # Timeout: AAP jobs can run long, set appropriately
-      timeout: 1800 # seconds (30 minutes)
-
-    # Activity 2: Process job results
-    - id: display_results
-      name: "Display Job Results"
-      type: task
-      task:
-        executor: script
-        config:
-          language: python
-          code: |
-            import json
-            import os
-            import sys
-
-            # Get job execution results from previous activity (passed as environment variables)
-            job_id = os.getenv('INPUT_JOB_ID')
-            status = os.getenv('INPUT_STATUS')
-            output = os.getenv('INPUT_OUTPUT', '')
-            artifacts_json = os.getenv('INPUT_ARTIFACTS', '{}')
-            elapsed_ms_str = os.getenv('INPUT_ELAPSED_MS', '0')
-
-            # Parse JSON inputs
-            artifacts = json.loads(artifacts_json) if artifacts_json else {}
-            elapsed_ms = float(elapsed_ms_str) if elapsed_ms_str else 0
-
-            print("=" * 80, file=sys.stderr)
-            print("AAP Job Template Execution Results", file=sys.stderr)
-            print("=" * 80, file=sys.stderr)
-            print(f"Job ID: {job_id}", file=sys.stderr)
-            print(f"Status: {status}", file=sys.stderr)
-            print(f"Elapsed Time: {elapsed_ms / 1000:.2f} seconds", file=sys.stderr)
+        if artifacts:
+            print("Artifacts:", file=sys.stderr)
+            print(json.dumps(artifacts, indent=2), file=sys.stderr)
             print("", file=sys.stderr)
 
-            if artifacts:
-                print("Artifacts:", file=sys.stderr)
-                print(json.dumps(artifacts, indent=2), file=sys.stderr)
-                print("", file=sys.stderr)
+        if output:
+            print("Job Output:", file=sys.stderr)
+            print("-" * 80, file=sys.stderr)
+            # Show first 50 lines of output
+            lines = output.split('\n')
+            for line in lines[:50]:
+                print(line, file=sys.stderr)
+            if len(lines) > 50:
+                print(f"\n... ({len(lines) - 50} more lines)", file=sys.stderr)
+            print("-" * 80, file=sys.stderr)
 
-            if output:
-                print("Job Output:", file=sys.stderr)
-                print("-" * 80, file=sys.stderr)
-                # Show first 50 lines of output
-                lines = output.split('\n')
-                for line in lines[:50]:
-                    print(line, file=sys.stderr)
-                if len(lines) > 50:
-                    print(f"\n... ({len(lines) - 50} more lines)", file=sys.stderr)
-                print("-" * 80, file=sys.stderr)
+        # Determine success
+        success = status in ['successful']
+        if success:
+            print("\n✅ Job completed successfully!", file=sys.stderr)
+        else:
+            print(f"\n❌ Job completed with status: {status}", file=sys.stderr)
 
-            # Determine success
-            success = status in ['successful']
-            if success:
-                print("\n✅ Job completed successfully!", file=sys.stderr)
-            else:
-                print(f"\n❌ Job completed with status: {status}", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
 
-            print("=" * 80, file=sys.stderr)
-
-            # Print result as JSON (parsed by workflow engine as $.output)
-            result = {
-                "success": success,
-                "job_id": job_id,
-                "status": status,
-                "elapsed_seconds": elapsed_ms / 1000
-            }
-            print(json.dumps(result))
-
-        inputs:
-          job_id: ${execute_job_template.output.job_id}
-          status: ${execute_job_template.output.status}
-          output: ${execute_job_template.output.output}
-          artifacts: ${execute_job_template.output.artifacts}
-          elapsed_ms: ${execute_job_template.output.elapsed_ms}
-
-        outputs:
-          success: $.success
-          job_id: $.job_id
-          final_status: $.status
-          elapsed_seconds: $.elapsed_seconds
-
-# Example execution scenarios:
-#
-# 1. Basic execution (run all tasks):
-#    {
-#      "job_template_id": 42,
-#      "app_name": "myapp",
-#      "app_version": "1.0.0",
-#      "deployment_env": "development"
-#    }
-#
-# 2. Run only monitoring tasks:
-#    {
-#      "job_template_id": 42,
-#      "tags": "monitoring"
-#    }
-#
-# 3. Run all except deployment:
-#    {
-#      "job_template_id": 42,
-#      "skip_tags": "deploy,backup"
-#    }
-#
-# 4. Limit to specific hosts:
-#    {
-#      "job_template_id": 42,
-#      "limit": "webservers"
-#    }
-#
-# 5. High verbosity for debugging:
-#    {
-#      "job_template_id": 42,
-#      "verbosity": 3
-#    }
-#
-# 6. Production deployment with custom inventory (by name):
-#    {
-#      "job_template_id": 42,
-#      "app_name": "myapp",
-#      "app_version": "2.0.0",
-#      "deployment_env": "production",
-#      "operation": "deploy",
-#      "inventory_name": "Production Servers",
-#      "organization_name": "Operations",
-#      "limit": "web-prod-01,web-prod-02",
-#      "tags": "deploy,config"
-#    }
+        # Print result as JSON (parsed by workflow engine as $.output)
+        result = {
+            "success": success,
+            "job_id": job_id,
+            "status": status,
+            "elapsed_seconds": elapsed_ms / 1000
+        }
+        print(json.dumps(result))
+      inputs:
+        job_id: ${execute_job_template.output.job_id}
+        status: ${execute_job_template.output.status}
+        output: ${execute_job_template.output.output}
+        artifacts: ${execute_job_template.output.artifacts}
+        elapsed_ms: ${execute_job_template.output.elapsed_ms}
+    outputs:
+      success: $.success
+      job_id: $.job_id
+      final_status: $.status
+      elapsed_seconds: $.elapsed_seconds
+edges:
+  - from: trigger_manual
+    to: execute_job_template
+  - from: execute_job_template
+    to: display_results

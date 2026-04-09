@@ -1,93 +1,86 @@
-"""Workflow definition validation."""
+"""Validation class for V2 workflow definitions.
+
+This module provides a validator class for workflow definitions,
+metadata, and structure validation.
+"""
 
 from typing import Any
 
-from pydantic import BaseModel
-from pydantic import ValidationError as PydanticValidationError
-
-from nexus.workflows.exceptions import WorkflowValidationError
-from nexus.workflows.workflow_engine.models import WorkflowDefinition
+from nexus.core.exceptions import SafeValueError
 
 
-class WorkflowDefinitionValidator:
-    """Validator for workflow definitions using Pydantic models.
+class WorkflowValidator:
+    """Validator for V2 workflows and metadata.
 
-    This validator validates workflow definition objects against the WorkflowDefinition
-    Pydantic model, which enforces the schema defined in workflow-definition.schema.json.
+    This class provides validation methods for workflow definitions and metadata.
+    The main entry point is validate_workflow_definition() which runs all checks.
     """
 
-    @classmethod
-    def validate(
-        cls, workflow_definition: dict[str, Any] | WorkflowDefinition
-    ) -> tuple[WorkflowDefinition, str, dict[str, Any]]:
-        """Validate workflow definition and return as dict for JSONB storage.
+    def validate_workflow_definition(self, workflow_definition: dict[str, Any]) -> None:
+        """Run all validation checks on workflow definition.
 
-        Accepts workflow definitions as:
-        - Dict (from JSON - parsing happens at API layer)
-        - WorkflowDefinition object (already validated)
-
-        This performs full validation using the Pydantic WorkflowDefinition model:
-        1. Validates structure and required fields
-        2. Validates types and constraints
-        3. Validates conditional requirements (e.g., task field for type=task)
-        4. Returns validated dict for JSONB storage with camelCase keys
+        This is the main validation entry point that calls all individual
+        validation methods for workflow structure.
 
         Args:
-            workflow_definition: Workflow definition as dict or WorkflowDefinition object
-
-        Returns:
-            Tuple of (validated WorkflowDefinition object, schema_version, workflow_dict)
-            The workflow_dict can be stored directly in JSONB column.
+            workflow_definition: Workflow definition dictionary to validate
 
         Raises:
-            WorkflowValidationError: If validation fails
-
-        Example:
-            ```python
-            try:
-                # From dict
-                workflow_def, schema_ver, workflow_dict = WorkflowDefinitionValidator.validate(workflow_dict)
-                # Store workflow_dict in database JSONB column
-            except WorkflowValidationError as e:
-                print(f"Validation failed: {e.message}")
-            ```
+            SafeValueError: If schema_version is not 2.0.0 or required fields are missing
 
         """
-        # Already validated WorkflowDefinition object
-        if isinstance(workflow_definition, WorkflowDefinition):
-            validated = workflow_definition
-            workflow_dict = validated.model_dump(mode="json", exclude_none=True, by_alias=True)
-            return validated, validated.schema_version, workflow_dict
+        self._validate_schema_version(workflow_definition)
+        self._validate_required_fields(workflow_definition)
 
-        # Dict input - validate it
-        workflow_data = workflow_definition
+    def validate_workflow_name(self, name: str) -> None:
+        """Validate workflow name is not empty.
 
-        # Validate using Pydantic model
-        try:
-            validated = WorkflowDefinition.model_validate(workflow_data)
-        except PydanticValidationError as e:
-            # Convert Pydantic validation error to our ValidationError
-            error_messages = []
-            for error in e.errors():
-                loc = " -> ".join(str(x) for x in error["loc"])
-                msg = error["msg"]
-                error_messages.append(f"{loc}: {msg}")
+        Args:
+            name: Workflow name to validate
 
-            full_message = "Workflow definition validation failed:\n" + "\n".join(error_messages)
-            raise WorkflowValidationError(full_message) from e
+        Raises:
+            SafeValueError: If name is empty
 
-        # Convert validated model to dict for JSONB storage
-        # SQLAlchemy will automatically serialize this dict to JSONB
-        # Use by_alias=True to output camelCase keys matching the schema
-        workflow_dict = validated.model_dump(mode="json", exclude_none=True, by_alias=True)
+        """
+        if not name:
+            msg = "Workflow name cannot be empty"
+            raise SafeValueError(msg)
 
-        return validated, validated.schema_version, workflow_dict
+    def _validate_schema_version(self, workflow_definition: dict[str, Any]) -> None:
+        """Validate schema version is 2.0.0.
 
+        Args:
+            workflow_definition: Workflow definition dictionary
 
-class WorkflowDefinitionValidationResult(BaseModel):
-    """Result of workflow definition validation."""
+        Raises:
+            SafeValueError: If schema_version is not 2.0.0
 
-    is_valid: bool
-    error_message: str | None = None
-    schema_version: str | None = None
-    parsed_data: dict[str, Any] | None = None
+        """
+        schema_version = workflow_definition.get("schema_version")
+        if schema_version != "2.0.0":
+            msg = (
+                f"Unsupported schema_version: {schema_version}. Only V2 workflows (schema_version=2.0.0) are supported."
+            )
+            raise SafeValueError(msg)
+
+    def _validate_required_fields(self, workflow_definition: dict[str, Any]) -> None:
+        """Validate required fields are present.
+
+        Args:
+            workflow_definition: Workflow definition dictionary
+
+        Raises:
+            SafeValueError: If required fields are missing
+
+        """
+        if "triggers" not in workflow_definition:
+            msg = "V2 workflow must have 'triggers' field"
+            raise SafeValueError(msg)
+
+        if "nodes" not in workflow_definition:
+            msg = "V2 workflow must have 'nodes' field"
+            raise SafeValueError(msg)
+
+        if "edges" not in workflow_definition:
+            msg = "V2 workflow must have 'edges' field"
+            raise SafeValueError(msg)

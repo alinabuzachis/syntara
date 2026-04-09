@@ -1,33 +1,34 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-metadata:
-  name: hello-world
-  description: Simple hello world workflow with environment variables
+schema_version: "2.0.0"
+name: hello-world
+description: Simple hello world workflow with environment variables
 triggers:
-  - type: manual
-workflow:
-  activities:
-    - id: say_hello
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          environment:
-            GREETING: Hello
-            WORLD_NAME: World
-          code: |
-            echo "${GREETING}, ${WORLD_NAME}!"
-            echo "Current time: $(date)"
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: say_hello
+    type: script
+    name: Say Hello
+    config:
+      language: bash
+      environment:
+        GREETING: Hello
+        WORLD_NAME: World
+      code: |
+        echo "${GREETING}, ${WORLD_NAME}!"
+        echo "Current time: $(date)"
 
-    - id: say_goodbye
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          environment:
-            FAREWELL: Goodbye
-          code: |
-            echo "${FAREWELL}, World!"
+  - id: say_goodbye
+    type: script
+    name: Say Goodbye
+    config:
+      language: bash
+      environment:
+        FAREWELL: Goodbye
+      code: |
+        echo "${FAREWELL}, World!"
+edges:
+  - from: trigger_manual
+    to: say_hello
+  - from: say_hello
+    to: say_goodbye

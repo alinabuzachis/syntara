@@ -1,534 +1,511 @@
-"""Unit tests for API activity executor."""
+"""Unit tests for HTTP request activity (V2) — Pydantic validation, auth, and error detection."""
 
+import base64
+from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager
 from http import HTTPMethod
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, _patch, patch
 
 import httpx
 import pytest
-from pydantic import ValidationError
 
-from nexus.workflows.workflow_engine.activities.api_activity import APIExecutionError, execute_api_request
-from nexus.workflows.workflow_engine.models import APIExecutorConfig
+from nexus.workflows.workflow_engine.activities.http_request_activity import (
+    DEFAULT_HTTP_TIMEOUT_SECONDS,
+    _apply_authentication,
+    execute_http_request_activity,
+)
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    APIExecutorConfig,
+    Authentication,
+    AuthenticationType,
+)
+
+ACTIVITY_INFO_PATH = "nexus.workflows.workflow_engine.activities.http_request_activity.activity.info"
+ASYNC_CLIENT_PATH = "nexus.workflows.workflow_engine.activities.http_request_activity.httpx.AsyncClient"
 
 
-class TestAPIRequestExecution:
-    """Test basic API request execution functionality."""
+@pytest.fixture(autouse=True)
+def _mock_activity_context() -> Generator[MagicMock, None, None]:
+    """Auto-mock activity.info() so tests can run outside a Temporal worker."""
+    mock_info = MagicMock()
+    mock_info.attempt = 1
+    with patch(ACTIVITY_INFO_PATH, return_value=mock_info) as m:
+        yield m
+
+
+def _valid_input(
+    *,
+    method: str = "GET",
+    url: str = "https://api.example.com/data",
+    headers: dict[str, str] | None = None,
+    body: dict[str, str] | str | None = None,
+    query_params: dict[str, str] | None = None,
+    authentication: dict[str, str] | None = None,
+    timeout: int | None = None,
+) -> dict[str, object]:
+    """Build a minimal valid input_config dict."""
+    cfg: dict[str, object] = {"method": method, "url": url}
+    if headers is not None:
+        cfg["headers"] = headers
+    if body is not None:
+        cfg["body"] = body
+    if query_params is not None:
+        cfg["query_params"] = query_params
+    if authentication is not None:
+        cfg["authentication"] = authentication
+    if timeout is not None:
+        cfg["timeout"] = timeout
+    return cfg
+
+
+def _mock_response(
+    status_code: int = 200,
+    json_data: dict[str, object] | None = None,
+    text: str = "",
+    headers: dict[str, str] | None = None,
+) -> httpx.Response:
+    """Build a real httpx.Response for testing."""
+    kwargs: dict[str, object] = {
+        "status_code": status_code,
+        "headers": headers or {},
+    }
+    if json_data is not None:
+        kwargs["json"] = json_data
+    else:
+        kwargs["text"] = text
+    return httpx.Response(**kwargs)  # type: ignore[arg-type]
+
+
+class _PatchWithMockRequest(_patch):  # type: ignore[type-arg]
+    """Type stub so mypy knows about our extra attribute."""
+
+    _mock_request: AsyncMock
+
+
+def _patch_async_client(
+    response: httpx.Response | None = None,
+    side_effect: Exception | None = None,
+) -> _PatchWithMockRequest:
+    """Create a patch context that replaces httpx.AsyncClient with a mock.
+
+    The mock properly supports ``async with`` and ``await client.request(...)``.
+    """
+    mock_request = AsyncMock(side_effect=side_effect) if side_effect is not None else AsyncMock(return_value=response)
+
+    @asynccontextmanager
+    async def _fake_client(**_kwargs: object) -> AsyncGenerator[MagicMock, None]:
+        client = MagicMock()
+        client.request = mock_request
+        yield client
+
+    patcher = patch(ASYNC_CLIENT_PATH, side_effect=_fake_client)
+    patcher._mock_request = mock_request  # type: ignore[attr-defined]
+    return patcher  # type: ignore[return-value]
+
+
+# ---------------------------------------------------------------------------
+# Pydantic Validation
+# ---------------------------------------------------------------------------
+
+
+class TestPydanticValidation:
+    """Config must be validated via APIExecutorConfig.model_validate."""
 
     @pytest.mark.asyncio
-    async def test_simple_get_request(self) -> None:
-        """Test simple GET request."""
-        mock_response = httpx.Response(
-            status_code=200,
-            json={"data": "test"},
-            headers={"content-type": "application/json"},
+    async def test_missing_url_returns_failed(self) -> None:
+        result = await execute_http_request_activity({"method": "GET"}, None)
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["error"]["type"] == "ValidationError"
+        assert "url" in output["error"]["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_missing_method_returns_failed(self) -> None:
+        result = await execute_http_request_activity({"url": "https://example.com"}, None)
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["error"]["type"] == "ValidationError"
+
+    @pytest.mark.asyncio
+    async def test_invalid_method_returns_failed(self) -> None:
+        result = await execute_http_request_activity({"method": "FOOBAR", "url": "https://example.com"}, None)
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["error"]["type"] == "ValidationError"
+
+    @pytest.mark.asyncio
+    async def test_empty_config_returns_failed(self) -> None:
+        result = await execute_http_request_activity({}, None)
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["error"]["type"] == "ValidationError"
+
+    @pytest.mark.asyncio
+    async def test_invalid_timeout_returns_failed(self) -> None:
+        result = await execute_http_request_activity(
+            {"method": "GET", "url": "https://example.com", "timeout": 0}, None
+        )
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["error"]["type"] == "ValidationError"
+
+    @pytest.mark.asyncio
+    async def test_file_url_scheme_rejected(self) -> None:
+        result = await execute_http_request_activity({"method": "GET", "url": "file:///etc/passwd"}, None)
+        output = result["output"]
+        assert output["status"] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_ftp_url_scheme_rejected(self) -> None:
+        result = await execute_http_request_activity({"method": "GET", "url": "ftp://example.com/data"}, None)
+        output = result["output"]
+        assert output["status"] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_template_url_allowed(self) -> None:
+        """Template expressions in URL should bypass scheme validation."""
+        config = APIExecutorConfig(method=HTTPMethod.GET, url="${trigger.url}")
+        assert config.url == "${trigger.url}"
+
+
+# ---------------------------------------------------------------------------
+# Authentication
+# ---------------------------------------------------------------------------
+
+
+class TestApplyAuthentication:
+    """_apply_authentication must set correct headers for each auth type."""
+
+    @staticmethod
+    def _make_config_with_auth(auth_type: AuthenticationType, resolved_cred: str) -> APIExecutorConfig:
+        """Create an APIExecutorConfig with pre-resolved authentication.
+
+        Uses model_construct to bypass the credential pattern validator,
+        simulating the state after secret references have been resolved.
+        """
+        auth = Authentication.model_construct(
+            type=auth_type,
+            credentials=resolved_cred,
+        )
+        return APIExecutorConfig.model_construct(
+            method=HTTPMethod.GET,
+            url="https://example.com",
+            headers={},
+            body=None,
+            query_params={},
+            authentication=auth,
+            timeout=None,
         )
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(method=HTTPMethod.GET, url="https://api.example.com/data")
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
+    def test_bearer_auth(self) -> None:
+        headers: dict[str, str] = {}
+        config = self._make_config_with_auth(AuthenticationType.BEARER, "my-token")
+        _apply_authentication(headers, config)
+        assert headers["Authorization"] == "Bearer my-token"
 
-        assert result["status_code"] == 200
-        assert result["body"] == {"data": "test"}
-        assert "content-type" in result["headers"]
-        assert "elapsed_ms" in result
+    def test_basic_auth(self) -> None:
+        headers: dict[str, str] = {}
+        config = self._make_config_with_auth(AuthenticationType.BASIC, "user:pass")
+        _apply_authentication(headers, config)
+        expected = base64.b64encode(b"user:pass").decode()
+        assert headers["Authorization"] == f"Basic {expected}"
 
-    @pytest.mark.asyncio
-    async def test_post_request_with_json_body(self) -> None:
-        """Test POST request with JSON body."""
-        mock_response = httpx.Response(
-            status_code=201,
-            json={"id": "123", "created": True},
-        )
+    def test_api_key_auth(self) -> None:
+        headers: dict[str, str] = {}
+        config = self._make_config_with_auth(AuthenticationType.API_KEY, "my-api-key")
+        _apply_authentication(headers, config)
+        assert headers["X-API-Key"] == "my-api-key"
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(
-                method=HTTPMethod.POST,
-                url="https://api.example.com/users",
-                body={"name": "Test User", "email": "test@example.com"},
-            )
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
+    def test_oauth2_auth(self) -> None:
+        headers: dict[str, str] = {}
+        config = self._make_config_with_auth(AuthenticationType.OAUTH2, "oauth-token")
+        _apply_authentication(headers, config)
+        assert headers["Authorization"] == "Bearer oauth-token"
 
-        assert result["status_code"] == 201
-        assert result["body"]["id"] == "123"
-        assert result["body"]["created"] is True
+    def test_no_auth(self) -> None:
+        headers: dict[str, str] = {"Existing": "value"}
+        config = APIExecutorConfig(method=HTTPMethod.GET, url="https://example.com")
+        _apply_authentication(headers, config)
+        assert headers == {"Existing": "value"}
 
-    @pytest.mark.asyncio
-    async def test_put_request(self) -> None:
-        """Test PUT request."""
-        mock_response = httpx.Response(
-            status_code=200,
-            json={"updated": True},
-        )
+    def test_auth_does_not_clobber_existing_headers(self) -> None:
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        config = self._make_config_with_auth(AuthenticationType.BEARER, "tok")
+        _apply_authentication(headers, config)
+        assert headers["Content-Type"] == "application/json"
+        assert headers["Authorization"] == "Bearer tok"
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(
-                method=HTTPMethod.PUT,
-                url="https://api.example.com/users/123",
-                body={"name": "Updated Name"},
-            )
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
 
-        assert result["status_code"] == 200
-        assert result["body"]["updated"] is True
+# ---------------------------------------------------------------------------
+# HTTP Error Detection
+# ---------------------------------------------------------------------------
 
-    @pytest.mark.asyncio
-    async def test_patch_request(self) -> None:
-        """Test PATCH request."""
-        mock_response = httpx.Response(
-            status_code=200,
-            json={"patched": True},
-        )
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(
-                method=HTTPMethod.PATCH,
-                url="https://api.example.com/users/123",
-                body={"email": "new@example.com"},
-            )
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-        assert result["status_code"] == 200
-        assert result["body"]["patched"] is True
+class TestHTTPErrorDetection:
+    """4xx/5xx responses must return status=failed with error details."""
 
     @pytest.mark.asyncio
-    async def test_delete_request(self) -> None:
-        """Test DELETE request."""
-        mock_response = httpx.Response(
-            status_code=204,
-            text="",
-        )
+    async def test_404_returns_failed(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=404, text="Not Found"))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(method=HTTPMethod.DELETE, url="https://api.example.com/users/123")
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-        assert result["status_code"] == 204
-
-
-class TestAPIRequestHeaders:
-    """Test API request header handling."""
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["status_code"] == 404
+        assert output["error"]["type"] == "HTTPError"
+        assert "404" in output["error"]["message"]
 
     @pytest.mark.asyncio
-    async def test_static_headers(self) -> None:
-        """Test request with static headers."""
-        mock_response = httpx.Response(status_code=200, json={"success": True})
+    async def test_500_returns_failed(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=500, text="Internal Server Error"))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.GET,
-                url="https://api.example.com/data",
-                headers={
-                    "X-Custom-Header": "custom-value",
-                    "Content-Type": "application/json",
-                },
-            )
-            await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-            # Verify headers were passed to request
-            call_kwargs = mock_request.call_args.kwargs
-            assert "headers" in call_kwargs
-            assert call_kwargs["headers"]["X-Custom-Header"] == "custom-value"
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["status_code"] == 500
 
     @pytest.mark.asyncio
-    async def test_header_resolution_from_inputs(self) -> None:
-        """Test header resolution from input parameters."""
-        mock_response = httpx.Response(status_code=200, json={"authenticated": True})
+    async def test_400_with_json_body_preserves_details(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=400, json_data={"detail": "bad request"}))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.GET,
-                url="https://api.example.com/auth",
-                headers={
-                    "Authorization": "${input.token}",
-                    "X-API-Key": "${input.apiKey}",
-                },
-            )
-            await execute_api_request(
-                config.model_dump(by_alias=True), inputs={"token": "Bearer abc123", "apiKey": "key456"}
-            )
-
-            call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["headers"]["Authorization"] == "Bearer abc123"
-            assert call_kwargs["headers"]["X-API-Key"] == "key456"
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["body"] == {"detail": "bad request"}
 
     @pytest.mark.asyncio
-    async def test_mixed_static_and_dynamic_headers(self) -> None:
-        """Test mix of static and dynamic headers."""
-        mock_response = httpx.Response(status_code=200, json={})
+    async def test_401_returns_failed(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=401, text="Unauthorized"))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.GET,
-                url="https://api.example.com/data",
-                headers={
-                    "Content-Type": "application/json",  # Static
-                    "Authorization": "${input.token}",  # Dynamic
-                },
-            )
-            await execute_api_request(config.model_dump(by_alias=True), inputs={"token": "Bearer xyz"})
-
-            call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["headers"]["Content-Type"] == "application/json"
-            assert call_kwargs["headers"]["Authorization"] == "Bearer xyz"
-
-
-class TestAPIRequestQueryParams:
-    """Test API request query parameter handling."""
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["status_code"] == 401
 
     @pytest.mark.asyncio
-    async def test_static_query_params(self) -> None:
-        """Test request with static query parameters."""
-        mock_response = httpx.Response(status_code=200, json={"results": []})
+    async def test_error_response_includes_elapsed(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=503, text="Service Unavailable"))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.GET,
-                url="https://api.example.com/search",
-                queryParams={
-                    "limit": "10",
-                    "sort": "name",
-                },
-            )
-            await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-            call_kwargs = mock_request.call_args.kwargs
-            assert "params" in call_kwargs
-            assert call_kwargs["params"]["limit"] == "10"
-            assert call_kwargs["params"]["sort"] == "name"
-
-    @pytest.mark.asyncio
-    async def test_query_param_resolution_from_inputs(self) -> None:
-        """Test query parameter resolution from inputs."""
-        mock_response = httpx.Response(status_code=200, json={})
-
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.GET,
-                url="https://api.example.com/search",
-                queryParams={
-                    "filter": "${input.filter}",
-                    "page": "${input.page}",
-                },
-            )
-            await execute_api_request(config.model_dump(by_alias=True), inputs={"filter": "active", "page": "2"})
-
-            call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["params"]["filter"] == "active"
-            assert call_kwargs["params"]["page"] == "2"
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert "elapsed" in output
+        assert isinstance(output["elapsed"], float)
 
 
-class TestAPIRequestURLResolution:
-    """Test API request URL resolution from inputs."""
+# ---------------------------------------------------------------------------
+# Successful Requests
+# ---------------------------------------------------------------------------
+
+
+class TestSuccessfulRequests:
+    """200-level responses must return status=completed."""
 
     @pytest.mark.asyncio
-    async def test_url_with_input_expression(self) -> None:
-        """Test URL with ${input.field} expression is resolved."""
-        mock_response = httpx.Response(status_code=200, json={"id": 123})
+    async def test_200_json_response(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={"key": "value"}))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.GET,
-                url="https://api.example.com/users/${input.userId}",
-            )
-            await execute_api_request(config.model_dump(by_alias=True), inputs={"userId": "123"})
-
-            call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["url"] == "https://api.example.com/users/123"
+        output = result["output"]
+        assert output["status"] == "completed"
+        assert output["status_code"] == 200
+        assert output["body"] == {"key": "value"}
 
     @pytest.mark.asyncio
-    async def test_url_with_multiple_expressions(self) -> None:
-        """Test URL can be constructed with input expressions."""
-        mock_response = httpx.Response(status_code=200, json={})
+    async def test_201_response(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=201, json_data={"id": 42}))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(method="POST"), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.GET,
-                url="https://jsonplaceholder.typicode.com/users/${input.id}",
-            )
-            await execute_api_request(config.model_dump(by_alias=True), inputs={"id": "42"})
-
-            call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["url"] == "https://jsonplaceholder.typicode.com/users/42"
-
-
-class TestAPIRequestBodyResolution:
-    """Test API request body resolution."""
+        output = result["output"]
+        assert output["status"] == "completed"
+        assert output["status_code"] == 201
 
     @pytest.mark.asyncio
-    async def test_static_json_body(self) -> None:
-        """Test request with static JSON body."""
-        mock_response = httpx.Response(status_code=201, json={"created": True})
+    async def test_response_includes_elapsed(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={}))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.POST,
-                url="https://api.example.com/create",
-                body={"name": "Test", "value": 123},
-            )
-            await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-            call_kwargs = mock_request.call_args.kwargs
-            assert "json" in call_kwargs
-            assert call_kwargs["json"]["name"] == "Test"
-            assert call_kwargs["json"]["value"] == 123
+        output = result["output"]
+        assert "elapsed" in output
+        assert isinstance(output["elapsed"], float)
 
     @pytest.mark.asyncio
-    async def test_body_resolution_from_inputs(self) -> None:
-        """Test body field resolution from inputs."""
-        mock_response = httpx.Response(status_code=201, json={})
+    async def test_text_response_body(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, text="plain text"))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.POST,
-                url="https://api.example.com/create",
-                body={
-                    "name": "${input.userName}",
-                    "email": "${input.userEmail}",
-                },
-            )
-            await execute_api_request(
-                config.model_dump(by_alias=True), inputs={"userName": "Alice", "userEmail": "alice@example.com"}
-            )
+        output = result["output"]
+        assert output["status"] == "completed"
+        assert output["body"] == "plain text"
 
-            call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["json"]["name"] == "Alice"
-            assert call_kwargs["json"]["email"] == "alice@example.com"
+
+# ---------------------------------------------------------------------------
+# Timeout Configuration
+# ---------------------------------------------------------------------------
+
+
+class TestTimeoutConfiguration:
+    """Timeout must use config value when set, default otherwise."""
 
     @pytest.mark.asyncio
-    async def test_body_full_replacement_from_inputs(self) -> None:
-        """Test entire body replacement from inputs."""
-        mock_response = httpx.Response(status_code=201, json={})
-
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.POST,
-                url="https://api.example.com/create",
-                body="${input.data}",
-            )
-            await execute_api_request(config.model_dump(by_alias=True), inputs={"data": {"name": "Bob", "age": 30}})
-
-            call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["json"]["name"] == "Bob"
-            assert call_kwargs["json"]["age"] == 30
+    async def test_uses_config_timeout(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={}))
+        with patcher:
+            await execute_http_request_activity(_valid_input(timeout=60), None)
+            call_kwargs = patcher._mock_request.call_args
+            assert call_kwargs.kwargs["timeout"] == 60.0
 
     @pytest.mark.asyncio
-    async def test_body_nested_objects_and_lists(self) -> None:
-        """Test body with nested objects and lists containing expressions."""
-        mock_response = httpx.Response(status_code=201, json={})
+    async def test_uses_default_timeout_when_not_set(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={}))
+        with patcher:
+            await execute_http_request_activity(_valid_input(), None)
+            call_kwargs = patcher._mock_request.call_args
+            assert call_kwargs.kwargs["timeout"] == float(DEFAULT_HTTP_TIMEOUT_SECONDS)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response) as mock_request:
-            config = APIExecutorConfig(
-                method=HTTPMethod.POST,
-                url="https://api.example.com/create",
-                body={
-                    "user": {
-                        "name": "${input.userName}",
-                        "email": "${input.userEmail}",
-                        "profile": {
-                            "age": "${input.age}",
-                            "city": "${input.city}",
-                        },
-                    },
-                    "tags": ["${input.tag1}", "${input.tag2}", "static-tag"],
-                    "metadata": {
-                        "source": "api",
-                        "permissions": ["${input.permission1}", "${input.permission2}"],
-                    },
-                },
-            )
-            await execute_api_request(
-                config.model_dump(by_alias=True),
-                inputs={
-                    "userName": "Alice",
-                    "userEmail": "alice@example.com",
-                    "age": 30,
-                    "city": "Seattle",
-                    "tag1": "premium",
-                    "tag2": "verified",
-                    "permission1": "read",
-                    "permission2": "write",
-                },
+
+# ---------------------------------------------------------------------------
+# Request Building (method, url, headers, body, query_params)
+# ---------------------------------------------------------------------------
+
+
+class TestRequestBuilding:
+    """Validated config fields must be passed correctly to httpx."""
+
+    @pytest.mark.asyncio
+    async def test_method_and_url_passed(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={}))
+        with patcher:
+            await execute_http_request_activity(_valid_input(method="POST", url="https://api.example.com/submit"), None)
+            call_kwargs = patcher._mock_request.call_args
+            assert call_kwargs.kwargs["method"] == "POST"
+            assert call_kwargs.kwargs["url"] == "https://api.example.com/submit"
+
+    @pytest.mark.asyncio
+    async def test_headers_passed(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={}))
+        with patcher:
+            await execute_http_request_activity(_valid_input(headers={"X-Custom": "val"}), None)
+            call_kwargs = patcher._mock_request.call_args
+            assert call_kwargs.kwargs["headers"]["X-Custom"] == "val"
+
+    @pytest.mark.asyncio
+    async def test_dict_body_sent_as_json(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={}))
+        with patcher:
+            await execute_http_request_activity(_valid_input(method="POST", body={"key": "val"}), None)
+            call_kwargs = patcher._mock_request.call_args
+            assert call_kwargs.kwargs["json"] == {"key": "val"}
+            assert call_kwargs.kwargs["content"] is None
+
+    @pytest.mark.asyncio
+    async def test_string_body_sent_as_content(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={}))
+        with patcher:
+            await execute_http_request_activity(_valid_input(method="POST", body="raw string"), None)
+            call_kwargs = patcher._mock_request.call_args
+            assert call_kwargs.kwargs["json"] is None
+            assert call_kwargs.kwargs["content"] == "raw string"
+
+    @pytest.mark.asyncio
+    async def test_query_params_passed(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={}))
+        with patcher:
+            await execute_http_request_activity(_valid_input(query_params={"page": "2"}), None)
+            call_kwargs = patcher._mock_request.call_args
+            assert call_kwargs.kwargs["params"] == {"page": "2"}
+
+
+# ---------------------------------------------------------------------------
+# Network / Exception Handling
+# ---------------------------------------------------------------------------
+
+
+class TestExceptionHandling:
+    """Network failures and unexpected exceptions must return status=failed."""
+
+    @pytest.mark.asyncio
+    async def test_connection_error_returns_failed(self) -> None:
+        patcher = _patch_async_client(side_effect=httpx.ConnectError("connection refused"))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
+
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["error"]["type"] == "ConnectError"
+        assert "connection refused" in output["error"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_timeout_error_returns_failed(self) -> None:
+        patcher = _patch_async_client(side_effect=httpx.ReadTimeout("read timed out"))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
+
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["error"]["type"] == "ReadTimeout"
+
+    @pytest.mark.asyncio
+    async def test_generic_exception_returns_failed(self) -> None:
+        patcher = _patch_async_client(side_effect=RuntimeError("boom"))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
+
+        output = result["output"]
+        assert output["status"] == "failed"
+        assert output["error"]["type"] == "RuntimeError"
+        assert "boom" in output["error"]["message"]
+
+
+# ---------------------------------------------------------------------------
+# Output Mapping Integration
+# ---------------------------------------------------------------------------
+
+
+class TestOutputMapping:
+    """Output mapping must be applied before returning."""
+
+    @pytest.mark.asyncio
+    async def test_output_mapping_extracts_field(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={"result": "ok"}))
+        with patcher:
+            result = await execute_http_request_activity(
+                _valid_input(),
+                {"code": "${result.status_code}"},
             )
 
-            call_kwargs = mock_request.call_args.kwargs
-            # Verify nested object resolution
-            assert call_kwargs["json"]["user"]["name"] == "Alice"
-            assert call_kwargs["json"]["user"]["email"] == "alice@example.com"
-            assert call_kwargs["json"]["user"]["profile"]["age"] == 30
-            assert call_kwargs["json"]["user"]["profile"]["city"] == "Seattle"
-            # Verify list resolution
-            assert call_kwargs["json"]["tags"] == ["premium", "verified", "static-tag"]
-            # Verify nested list in object
-            assert call_kwargs["json"]["metadata"]["source"] == "api"
-            assert call_kwargs["json"]["metadata"]["permissions"] == ["read", "write"]
-
-
-class TestAPIResponseParsing:
-    """Test API response parsing."""
+        output = result["output"]
+        assert output["status"] == "completed"
+        assert output["code"] == 200
+        assert "body" not in output
 
     @pytest.mark.asyncio
-    async def test_json_response_parsing(self) -> None:
-        """Test JSON response parsing."""
-        mock_response = httpx.Response(
-            status_code=200,
-            json={"message": "success", "data": {"id": 1, "name": "Test"}},
-        )
+    async def test_empty_output_mapping_suppresses_all(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={"data": 1}))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), {})
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(method=HTTPMethod.GET, url="https://api.example.com/data")
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-        assert result["body"]["message"] == "success"
-        assert result["body"]["data"]["id"] == 1
-        assert result["body"]["data"]["name"] == "Test"
+        output = result["output"]
+        assert output == {"status": "completed"}
 
     @pytest.mark.asyncio
-    async def test_text_response_parsing(self) -> None:
-        """Test non-JSON text response."""
-        mock_response = httpx.Response(
-            status_code=200,
-            text="Plain text response",
-            headers={"content-type": "text/plain"},
-        )
+    async def test_none_output_mapping_returns_full(self) -> None:
+        patcher = _patch_async_client(response=_mock_response(status_code=200, json_data={"data": 1}))
+        with patcher:
+            result = await execute_http_request_activity(_valid_input(), None)
 
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(method=HTTPMethod.GET, url="https://api.example.com/text")
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-        assert result["body"] == "Plain text response"
-
-
-class TestAPIErrorHandling:
-    """Test API error handling."""
-
-    @pytest.mark.asyncio
-    async def test_http_4xx_error(self) -> None:
-        """Test HTTP 404 error handling."""
-        mock_response = httpx.Response(
-            status_code=404,
-            json={"error": "Not Found"},
-        )
-
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(method=HTTPMethod.GET, url="https://api.example.com/notfound")
-            with pytest.raises(APIExecutionError) as exc_info:
-                await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-            assert exc_info.value.status_code == 404
-            assert "404" in str(exc_info.value)
-
-    @pytest.mark.asyncio
-    async def test_http_5xx_error(self) -> None:
-        """Test HTTP 500 error handling."""
-        mock_response = httpx.Response(
-            status_code=500,
-            json={"error": "Internal Server Error"},
-        )
-
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(method=HTTPMethod.GET, url="https://api.example.com/error")
-            with pytest.raises(APIExecutionError) as exc_info:
-                await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-            assert exc_info.value.status_code == 500
-
-    @pytest.mark.asyncio
-    async def test_timeout_error(self) -> None:
-        """Test timeout error handling."""
-        with patch(
-            "httpx.AsyncClient.request",
-            new_callable=AsyncMock,
-            side_effect=httpx.TimeoutException("Request timed out"),
-        ):
-            config = APIExecutorConfig(method=HTTPMethod.GET, url="https://api.example.com/slow", timeout=1)
-            with pytest.raises(APIExecutionError) as exc_info:
-                await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-            assert "timeout" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_network_error(self) -> None:
-        """Test network error handling."""
-        with patch(
-            "httpx.AsyncClient.request",
-            new_callable=AsyncMock,
-            side_effect=httpx.ConnectError("Connection failed"),
-        ):
-            config = APIExecutorConfig(method=HTTPMethod.GET, url="https://api.example.com/data")
-            with pytest.raises(APIExecutionError) as exc_info:
-                await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-            assert "error" in str(exc_info.value).lower()
-
-    @pytest.mark.asyncio
-    async def test_missing_method_config(self) -> None:
-        """Test error when method is missing from config."""
-        with pytest.raises(ValidationError, match="method"):
-            # Pydantic will catch missing required field during validation
-            APIExecutorConfig.model_validate({"url": "https://api.example.com"})
-
-    @pytest.mark.asyncio
-    async def test_missing_url_config(self) -> None:
-        """Test error when URL is missing from config."""
-        with pytest.raises(ValidationError, match="url"):
-            # Pydantic will catch missing required field during validation
-            APIExecutorConfig.model_validate({"method": "GET"})
-
-
-class TestAPIEdgeCases:
-    """Test API activity edge cases."""
-
-    @pytest.mark.asyncio
-    async def test_empty_response_body(self) -> None:
-        """Test handling of empty response body."""
-        # Testing with 200 and empty body (204 No Content would also be valid)
-        mock_response = httpx.Response(status_code=200, text="")
-
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(method=HTTPMethod.DELETE, url="https://api.example.com/users/123")
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-        assert result["status_code"] == 200
-        assert result["body"] == ""
-
-    @pytest.mark.asyncio
-    async def test_custom_timeout(self) -> None:
-        """Test custom timeout configuration."""
-        mock_response = httpx.Response(status_code=200, json={})
-
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(method=HTTPMethod.GET, url="https://api.example.com/data", timeout=30)
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-        assert result["status_code"] == 200
-        assert "elapsed_ms" in result
-
-    @pytest.mark.asyncio
-    async def test_elapsed_time_tracking(self) -> None:
-        """Test that elapsed time is tracked."""
-        mock_response = httpx.Response(status_code=200, json={})
-
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            config = APIExecutorConfig(method=HTTPMethod.GET, url="https://api.example.com/data")
-            result = await execute_api_request(config.model_dump(by_alias=True), inputs={})
-
-        assert "elapsed_ms" in result
-        assert isinstance(result["elapsed_ms"], int | float)
-        assert result["elapsed_ms"] >= 0
-
-    @pytest.mark.asyncio
-    async def test_api_activity_resolves_timeout_template(self) -> None:
-        """Test API activity resolves ${input.timeout} in config."""
-        config = {
-            "method": "GET",
-            "url": "https://api.example.com/test",
-            "timeout": "${input.api_timeout}",
-        }
-        inputs = {"api_timeout": 30}
-
-        mock_response = httpx.Response(status_code=200, headers={}, json={"result": "ok"})
-
-        with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_response):
-            result = await execute_api_request(config, inputs)
-
-            assert result["status_code"] == 200
+        output = result["output"]
+        assert output["status"] == "completed"
+        assert output["body"] == {"data": 1}
+        assert "status_code" in output
+        assert "headers" in output
+        assert "elapsed" in output

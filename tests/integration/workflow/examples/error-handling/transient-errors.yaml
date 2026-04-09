@@ -1,13 +1,11 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: transient-error-test
-  description: Test retry on transient errors
+schema_version: "2.0.0"
+name: transient-error-test
+description: Test retry on transient errors
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
 inputs:
   seed:
@@ -20,37 +18,35 @@ inputs:
       In production, omit this parameter to use true randomness.
     required: false
 
-workflow:
-  activities:
-    - id: transient_task
-      name: Transient Task
-      type: task
-      retryPolicy:
-        maxAttempts: 5
-        backoff: exponential
-        multiplier: 2
-        initialInterval: 1
-        maxInterval: 10
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            # Simulate transient failure (e.g., network timeout)
-            # Seed RANDOM for deterministic testing if seed provided
-            # Advance seed by attempt number to get different values on each retry
-            if [ -n "$INPUT_SEED" ]; then
-              ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
-              RANDOM_VAL=$(python3 -c "import random, os; seed = int(os.getenv('INPUT_SEED', 0)); attempt = int(os.getenv('INPUT_TEMPORAL_ATTEMPT', 1)); random.seed(seed + attempt - 1); print(random.randint(0, 9))")
-            else
-              RANDOM_VAL=$((RANDOM % 10))
-            fi
-            if [ $RANDOM_VAL -lt 7 ]; then
-              echo "Transient failure occurred"
-              exit 1
-            else
-              echo "Success after retries"
-              exit 0
-            fi
-        inputs:
-          seed: ${input.seed}
+nodes:
+  - id: transient_task
+    name: Transient Task
+    type: script
+    config:
+      language: bash
+      code: |
+        # Simulate transient failure (e.g., network timeout)
+        # Seed RANDOM for deterministic testing if seed provided
+        # Advance seed by attempt number to get different values on each retry
+        if [ -n "$INPUT_SEED" ]; then
+          ATTEMPT=${INPUT_TEMPORAL_ATTEMPT:-1}
+          RANDOM_VAL=$(python3 -c "import random, os; seed = int(os.getenv('INPUT_SEED', 0)); attempt = int(os.getenv('INPUT_TEMPORAL_ATTEMPT', 1)); random.seed(seed + attempt - 1); print(random.randint(0, 9))")
+        else
+          RANDOM_VAL=$((RANDOM % 10))
+        fi
+        if [ $RANDOM_VAL -lt 7 ]; then
+          echo "Transient failure occurred"
+          exit 1
+        else
+          echo "Success after retries"
+          exit 0
+        fi
+    inputs:
+      seed: ${input.seed}
+    retry_policy:
+      maxAttempts: 5
+      backoff: exponential
+      multiplier: 2
+      initialInterval: 1
+      maxInterval: 10
+edges: []

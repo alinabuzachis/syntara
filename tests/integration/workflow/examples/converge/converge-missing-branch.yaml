@@ -1,24 +1,24 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-metadata:
-  name: converge-missing-branch-test
-  description: Test converge with a branch ID that doesn't exist
+schema_version: "2.0.0"
+name: converge-missing-branch-test
+description: Test converge with a branch ID that doesn't exist
 triggers:
-  - type: manual
-workflow:
-  activities:
-    - id: existing_task
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: echo "Existing task"
-    - id: converge_missing
-      type: converge
-      converge:
-        branches:
-          - existing_task
-          - nonexistent_task
-        strategy: all
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: existing_task
+    type: script
+    config:
+      language: bash
+      code: echo "Existing task"
+
+  - id: converge_missing
+    type: converge
+    converge:
+      branches:
+        - existing_task
+        - nonexistent_task
+      strategy: all
+edges:
+  - source: existing_task
+    target: converge_missing

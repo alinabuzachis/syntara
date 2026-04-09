@@ -1,79 +1,49 @@
-"""Dynamic Temporal workflow generator.
+"""V2 workflow execution engine with concurrent execution and convergence support.
 
-This module provides the core Temporal workflow that executes YAML workflow definitions.
-The workflow is dynamically generated from WorkflowDefinition models and orchestrates
-activity execution, tracking, error handling, and state persistence.
+Parallelism is implicit - when multiple edges originate from the same port (or node),
+downstream nodes execute concurrently. No dedicated parallel node type is needed.
 """
 
 import asyncio
+import collections
 import json
 from datetime import timedelta
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 from temporalio import workflow
 
-# Import constants module and HTTP-using activities with unsafe passthrough
-# - constants: Loads settings which triggers tempfile.gettempdir()
-# - agentic_activity: Has its own unsafe block for AgentOrchestratorClient
-# - api_activity: Uses httpx which triggers urllib warnings in sandbox
-# - aap_job_template_activity: Uses httpx which triggers urllib warnings in sandbox
-# Must import constants first so when models imports constants, it uses the cached module
-# See: https://github.com/temporalio/sdk-python#avoiding-the-sandbox
 with workflow.unsafe.imports_passed_through():
-    import structlog  # noqa: F401 - Ensures structlog loads outside sandbox
-
     from nexus.core.exceptions import SafeValueError
+    from nexus.workflows.workflow_engine import constants
+    from nexus.workflows.workflow_engine.signals import WorkflowSignalProcessor
 
-    from . import constants  # noqa: F401 - Ensures constants load outside sandbox
-    from .activities.aap_job_template_activity import execute_aap_job_template_activity
-    from .activities.agentic_activity import execute_agentic_activity
-    from .activities.api_activity import execute_api_request
-    from .activities.approval_activity import create_approval_request_activity
+from nexus.workflows.utils.namespace_resolver import NamespaceResolver
+from nexus.workflows.workflow_engine.expression_resolver import safe_eval_condition
+from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 
-# Import template resolution utilities
-from nexus.workflows.utils.template_resolution import resolve_config_templates
-
-from .activities.common import build_retry_policy
-
-# Import script activities (use asyncio.subprocess, no sandbox issues)
-from .activities.script_activity import execute_bash_script, execute_python_script
-from .expression_resolver import ExpressionResolver
-from .models import (
-    AAPJobTemplateExecutorConfig,
-    Activity,
-    ActivityType,
-    AgenticExecutorConfig,
-    APIExecutorConfig,
-    ConvergeDefinition,
-    ExecutorType,
-    ForEachLoopDefinition,
-    LoopType,
-    RetryPolicy,
-    ScriptExecutorConfig,
-    TimeoutAction,
-    WhileLoopDefinition,
-    WorkflowDefinition,
-)
-from .signals import WorkflowSignalProcessor
-
-# Type alias for JSON-like dictionaries to avoid duplication
-JsonDict = dict[str, Any]
+# Temporal start-to-close safety ceiling for activities that don't specify a timeout.
+# Each node type has its own configurable timeout in Settings; this is only the
+# Temporal-level fallback to prevent activities from running indefinitely.
+DEFAULT_ACTIVITY_TIMEOUT_SECONDS = 30
 
 
-@workflow.defn
-class DynamicWorkflow:
-    """Temporal workflow that executes YAML workflow definitions.
+def _parse_items(items: Any) -> Any:  # noqa: ANN401
+    """Parse loop items from string JSON to a list if needed."""
+    if isinstance(items, str):
+        try:
+            return json.loads(items)
+        except (json.JSONDecodeError, ValueError):
+            return items
+    return items
 
-    This workflow dynamically executes activities defined in a WorkflowDefinition,
-    supporting multiple activity types: task, parallel, sequence, condition, loop, converge.
-    """
+
+@workflow.defn(name="nexus_workflow")
+class NexusWorkflow:
+    """Temporal workflow for executing v2 graph-based workflows."""
 
     def __init__(self) -> None:
-        """Initialize workflow with expression resolver and signal storage."""
-        self.expression_resolver: ExpressionResolver
-        self.workflow_state: JsonDict = {}
+        """Initialize workflow with signal storage."""
         self._activity_signals: dict[str, list[dict[str, Any]]] = {}
-        self._activity_retry_policies: dict[str, dict[str, Any] | None] = {}
 
     @workflow.signal
     async def activity_signal(
@@ -81,1497 +51,1050 @@ class DynamicWorkflow:
         activity_id: str,
         signal_data: dict[str, Any],
     ) -> None:
-        """Handle generic activity signals.
+        """Handle activity signals for async callbacks (agentic, approval).
 
         Receives signals sent to specific activities and stores them for
-        activities to process. Activities can check for signals by querying
-        self._activity_signals[activity_id].
+        activities to process via wait_condition.
 
         Args:
-            activity_id: Activity ID from workflow definition
-            signal_data: Signal payload data (arbitrary JSON structure)
+            activity_id: Activity node ID from workflow definition
+            signal_data: Signal payload data (status, result, error_message, etc.)
 
         """
-        workflow.logger.info(
-            f"SIGNAL RECEIVED: activity_id={activity_id}, signal_status={signal_data.get('status')}, "
-            f"has_result={signal_data.get('result') is not None}, "
-            f"has_error={signal_data.get('error_message') is not None}",
-            extra={"activity_id": activity_id, "signal_data_keys": list(signal_data.keys())},
-        )
-
         if activity_id not in self._activity_signals:
             self._activity_signals[activity_id] = []
 
         self._activity_signals[activity_id].append(signal_data)
 
         workflow.logger.info(
-            f"Signal stored for activity {activity_id} (total_signals={len(self._activity_signals[activity_id])})",
-            extra={"activity_id": activity_id, "signal_count": len(self._activity_signals[activity_id])},
+            f"Signal stored for activity {activity_id}: "
+            f"status={signal_data.get('status')}, "
+            f"total_signals={len(self._activity_signals[activity_id])}"
         )
 
     @workflow.run
     async def run(
         self,
-        workflow_def: JsonDict,
+        workflow_definition: dict[str, Any],
         execution_id: str,
-        workflow_inputs: JsonDict | None = None,
-    ) -> JsonDict:
-        """Execute workflow from YAML definition.
+        trigger_node_id: str,
+        trigger_inputs: dict[str, Any],
+        include_node_results: bool = False,  # noqa: FBT001, FBT002
+    ) -> dict[str, Any]:
+        """Execute a v2 workflow with concurrent execution and convergence support.
+
+        Concurrent execution is implicit - when multiple edges originate from the same port,
+        downstream nodes execute concurrently.
 
         Args:
-            workflow_def: WorkflowDefinition as dict (serialized Pydantic model)
-            execution_id: Database execution ID for tracking
-            workflow_inputs: Input parameters for the workflow
+            workflow_definition: Complete v2 workflow definition (triggers + nodes + edges)
+            execution_id: Internal execution identifier
+            trigger_node_id: ID of the trigger node to execute
+            trigger_inputs: User-provided inputs for the trigger
+            include_node_results: Whether to include full node results in return value (default: False for production)
 
         Returns:
-            dict containing workflow execution results and activity outputs
-
-        Raises:
-            Exception: If activity execution fails after retries
+            Workflow execution result matching WorkflowResultResponse schema.
+            If include_node_results=True, includes full node results for debugging.
 
         """
-        # Parse workflow definition
-        self.workflow_definition = WorkflowDefinition(**workflow_def)
+        # Note: Activity monitoring (register_activity_monitoring) should be called
+        # by the application code BEFORE starting the workflow execution.
+        # This keeps the workflow logic independent of infrastructure concerns.
+        graph = WorkflowGraph.from_dict(workflow_definition)
+        self._initialize_state(execution_id)
 
-        # Initialize expression resolver
-        self.expression_resolver = ExpressionResolver(self.workflow_definition)
+        pending_tasks: dict[str, asyncio.Task[Any]] = {}
+        await self._execute_trigger(trigger_node_id, trigger_inputs, graph, pending_tasks)
+        await self._process_pending_tasks(pending_tasks, graph)
+        self._cleanup_timeout_tasks()
+        self._mark_remaining_unreachable_nodes(graph)
 
-        # Apply default values from input parameter definitions
-        resolved_inputs: JsonDict = dict(workflow_inputs or {})
-        if self.workflow_definition.inputs:
-            for input_name, input_param in self.workflow_definition.inputs.items():
-                # Apply default value if input not provided and default is specified
-                if input_name not in resolved_inputs and input_param.default is not None:
-                    resolved_inputs[input_name] = input_param.default
+        return self._build_result(execution_id, include_node_results)
 
-        # Initialize workflow state (stored as instance variable for queries)
-        self.workflow_state = {
-            "execution_id": execution_id,
-            "inputs": resolved_inputs,
-            "variables": self.workflow_definition.variables or {},
-            "activity_outputs": {},
-            "activity_inputs": {},  # Track activity inputs for queries
-            "completed_activities": [],
-            "workflow_definition": self.workflow_definition,
-        }
-        workflow_state = self.workflow_state
+    def _initialize_state(self, execution_id: str) -> None:
+        """Initialize all workflow state for a new execution."""
+        self.execution_id = execution_id
+        self.resolver = NamespaceResolver()
+        self.node_inputs: dict[str, dict[str, Any]] = {}
+        self.node_control_data: dict[str, dict[str, Any]] = {}
+        self.skipped_nodes: set[str] = set()
+        self.failed_nodes: dict[str, str] = {}
+        self.loop_state: dict[str, dict[str, Any]] = {}
+        self.loop_body_map: dict[str, str] = {}
+        self.loop_iteration_results: dict[str, dict[str, list[Any]]] = {}
+        self._timeout_tasks: dict[str, asyncio.Task[Any]] = {}
+        self._timed_out_converge_nodes: set[str] = set()
 
-        workflow.logger.info(
-            f"Starting dynamic workflow: {self.workflow_definition.metadata.name}",
-            extra={"execution_id": execution_id},
+    async def _execute_trigger(
+        self,
+        trigger_node_id: str,
+        trigger_inputs: dict[str, Any],
+        graph: WorkflowGraph,
+        pending_tasks: dict[str, asyncio.Task[Any]],
+    ) -> None:
+        """Execute the trigger node and schedule its successors."""
+        trigger_node = graph.get_node(trigger_node_id)
+        workflow.logger.info(f"Executing trigger node: {trigger_node.id}")
+
+        self.node_inputs[trigger_node.id] = trigger_inputs
+
+        trigger_result = await workflow.execute_activity(
+            "manual_trigger",
+            args=[trigger_inputs, trigger_node.outputs],
+            activity_id=trigger_node.id,
+            start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
         )
 
-        # Update workflow state: mark as running
-        # Note: In production, this would update the Execution table status
-        workflow_state["status"] = "running"
-        workflow_state["started_at"] = workflow.now().isoformat()
+        trigger_output = trigger_result.get("output", trigger_result)
+        self.resolver.set_namespace("trigger", trigger_output)
+        self.resolver.set_namespace(trigger_node.id, trigger_output)
 
-        try:
-            # Execute activities
-            for activity in self.workflow_definition.workflow.activities:
+        await self._schedule_successors(
+            completed_node_id=trigger_node.id,
+            graph=graph,
+            pending_tasks=pending_tasks,
+        )
+
+    async def _process_pending_tasks(
+        self,
+        pending_tasks: dict[str, asyncio.Task[Any]],
+        graph: WorkflowGraph,
+    ) -> None:
+        """Wait for all pending tasks to complete, scheduling successors as they finish."""
+        while pending_tasks or self._timed_out_converge_nodes:
+            # Schedule any converge nodes whose timeout handlers fired
+            for node_id in list(self._timed_out_converge_nodes):
+                self._timed_out_converge_nodes.discard(node_id)
+                if node_id not in pending_tasks:
+                    node = graph.get_node(node_id)
+                    workflow.logger.info(f"Scheduling converge node {node_id} after timeout")
+                    task = asyncio.create_task(self._execute_node(node=node, graph=graph))
+                    pending_tasks[node_id] = task
+
+            if not pending_tasks:
+                break
+
+            done, _ = await asyncio.wait(pending_tasks.values(), return_when=asyncio.FIRST_COMPLETED)
+
+            for task in done:
+                completed_node_id = self._find_node_for_task(task, pending_tasks)
+                if not completed_node_id:
+                    continue
+
+                del pending_tasks[completed_node_id]
+
                 try:
-                    activity_result = await self._execute_activity(
-                        activity=activity,
-                        execution_id=execution_id,
-                        workflow_state=workflow_state,
+                    result = await task
+                    output_data = result.get("output", result)
+                    self.resolver.set_namespace(completed_node_id, output_data)
+
+                    workflow.logger.info(f"Node {completed_node_id} completed, pending: {list(pending_tasks.keys())}")
+
+                    await self._schedule_successors(
+                        completed_node_id=completed_node_id,
+                        graph=graph,
+                        pending_tasks=pending_tasks,
                     )
-
-                    # Store activity output
-                    workflow_state["activity_outputs"][activity.id] = activity_result
-                    workflow_state["completed_activities"].append(activity.id)
-
-                    # Update workflow state after each activity (persistence checkpoint)
-                    workflow_state["updated_at"] = workflow.now().isoformat()
-
-                    workflow.logger.info(
-                        f"Activity {activity.id} completed",
-                        extra={"activity_id": activity.id, "execution_id": execution_id},
-                    )
-
-                except Exception as activity_error:
-                    # Store error details for failed activity
-                    workflow_state["activity_outputs"][activity.id] = {
-                        "error": str(activity_error),
-                        "error_details": {
-                            "type": type(activity_error).__name__,
-                            "message": str(activity_error),
-                        },
-                    }
-                    workflow_state["updated_at"] = workflow.now().isoformat()
-
-                    # Re-raise to be caught by outer exception handler
-                    raise
-
-            # Mark workflow as completed
-            workflow_state["status"] = "completed"
-            workflow_state["completed_at"] = workflow.now().isoformat()
-
-            workflow.logger.info(
-                f"Workflow {self.workflow_definition.metadata.name} completed successfully",
-                extra={"execution_id": execution_id},
-            )
-
-            return {
-                "status": "completed",
-                "execution_id": execution_id,
-                "activity_outputs": workflow_state["activity_outputs"],
-                "completed_activities": workflow_state["completed_activities"],
-                "completed_at": workflow_state["completed_at"],
-            }
-
-        except asyncio.CancelledError:
-            # Workflow was cancelled
-            workflow_state["status"] = "cancelled"
-            workflow_state["completed_at"] = workflow.now().isoformat()
-
-            workflow.logger.warning(
-                f"Workflow {self.workflow_definition.metadata.name} was cancelled",
-                extra={"execution_id": execution_id},
-            )
-
-            # Re-raise to let Temporal handle cancellation
-            raise
-
-        except Exception as e:
-            # Workflow failed
-            workflow_state["status"] = "failed"
-            workflow_state["completed_at"] = workflow.now().isoformat()
-            workflow_state["error"] = str(e)
-
-            workflow.logger.error(
-                f"Workflow {self.workflow_definition.metadata.name} failed: {e}",
-                extra={"execution_id": execution_id},
-                exc_info=True,
-            )
-
-            # Re-raise the exception
-            raise
-
-    async def _execute_activity(  # noqa: PLR0911
-        self,
-        activity: Activity,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute a workflow activity based on its type.
-
-        Args:
-            activity: Activity definition from workflow
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Activity execution result
-
-        """
-        workflow.logger.info(
-            f"Executing activity: {activity.id} (type: {activity.type})",
-            extra={"activity_id": activity.id, "type": activity.type, "execution_id": execution_id},
-        )
-
-        # Route to appropriate handler based on activity type
-        if activity.type == ActivityType.TASK:
-            return await self._execute_task_activity(activity, execution_id, workflow_state)
-        if activity.type == ActivityType.PARALLEL:
-            return await self._execute_parallel_activity(activity, execution_id, workflow_state)
-        if activity.type == ActivityType.SEQUENCE:
-            return await self._execute_sequence_activity(activity, execution_id, workflow_state)
-        if activity.type == ActivityType.CONDITION:
-            return await self._execute_condition_activity(activity, execution_id, workflow_state)
-        if activity.type == ActivityType.LOOP:
-            return await self._execute_loop_activity(activity, execution_id, workflow_state)
-        if activity.type == ActivityType.APPROVAL:
-            return await self._execute_approval_activity(activity, execution_id, workflow_state)
-        return await self._execute_converge_activity(activity, workflow_state)
-
-    async def _execute_script_executor(
-        self,
-        activity: Activity,
-        task_inputs: JsonDict,
-        activity_timeout: timedelta,
-        execution_id: str,
-    ) -> JsonDict:
-        """Execute a script executor (bash or python).
-
-        Args:
-            activity: Task activity definition
-            task_inputs: Prepared task inputs
-            activity_timeout: Execution timeout
-            execution_id: Workflow execution ID
-
-        Returns:
-            Script execution result
-
-        """
-        if not activity.task:
-            msg = f"Activity {activity.id} has no task definition"
-            raise SafeValueError(msg)
-
-        # Ensure config is a ScriptExecutorConfig
-        if not isinstance(activity.task.config, ScriptExecutorConfig):
-            msg = f"Script executor requires ScriptExecutorConfig, got {type(activity.task.config).__name__}"
-            raise TypeError(msg)
-
-        script_config = activity.task.config
-        language = script_config.language.value
-
-        # Route to appropriate script executor based on language
-        if language == "bash":
-            script_executor = execute_bash_script
-        elif language == "python":
-            script_executor = execute_python_script
-        else:
-            msg = f"Unsupported script language: {language}"
-            raise SafeValueError(msg)
-
-        # Execute script activity
-        # Serialize config to dict to avoid Pydantic V1 deprecation warnings in Temporal
-        try:
-            result = await workflow.execute_activity(
-                script_executor,
-                args=[script_config.model_dump(by_alias=True, warnings=False), task_inputs],
-                activity_id=activity.id,
-                start_to_close_timeout=activity_timeout,
-                retry_policy=build_retry_policy(
-                    activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
-                ),
-            )
-
-            # Process output mappings if defined
-            if activity.task.outputs:
-                result = self._process_output_mappings(result, activity.task.outputs)
-
-            return cast("JsonDict", result)
-
-        except Exception as e:
-            workflow.logger.error(
-                f"Task {activity.id} failed: {e}",
-                extra={"activity_id": activity.id, "execution_id": execution_id},
-            )
-            raise
-
-    async def _execute_api_executor(
-        self,
-        activity: Activity,
-        task_inputs: JsonDict,
-        activity_timeout: timedelta,
-        execution_id: str,
-    ) -> JsonDict:
-        """Execute an API executor.
-
-        Args:
-            activity: Task activity definition
-            task_inputs: Prepared task inputs
-            activity_timeout: Execution timeout
-            execution_id: Workflow execution ID
-
-        Returns:
-            API execution result
-
-        """
-        if not activity.task:
-            msg = f"Activity {activity.id} has no task definition"
-            raise SafeValueError(msg)
-
-        # Ensure config is an APIExecutorConfig
-        if not isinstance(activity.task.config, APIExecutorConfig):
-            msg = f"API executor requires APIExecutorConfig, got {type(activity.task.config).__name__}"
-            raise TypeError(msg)
-
-        # Serialize config to dict to avoid Pydantic V1 deprecation warnings in Temporal
-        try:
-            result = await workflow.execute_activity(
-                execute_api_request,
-                args=[activity.task.config.model_dump(by_alias=True, warnings=False), task_inputs],
-                activity_id=activity.id,
-                start_to_close_timeout=activity_timeout,
-                retry_policy=build_retry_policy(
-                    activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
-                ),
-            )
-
-            # Process output mappings if defined
-            if activity.task.outputs:
-                result = self._process_output_mappings(result, activity.task.outputs)
-
-            return cast("JsonDict", result)
-
-        except Exception as e:
-            workflow.logger.error(
-                f"API task {activity.id} failed: {e}",
-                extra={"activity_id": activity.id, "execution_id": execution_id},
-            )
-            raise
-
-    async def _execute_agentic_executor(
-        self,
-        activity: Activity,
-        task_inputs: JsonDict,
-        activity_timeout: timedelta,
-        execution_id: str,
-    ) -> JsonDict:
-        """Execute an agentic executor.
-
-        Args:
-            activity: Task activity definition
-            task_inputs: Prepared task inputs
-            activity_timeout: Execution timeout
-            execution_id: Workflow execution ID
-
-        Returns:
-            Agentic execution result
-
-        """
-        if not activity.task:
-            msg = f"Activity {activity.id} has no task definition"
-            raise SafeValueError(msg)
-
-        try:
-            # Prepare activity config with execution context for callback URL generation
-            activity_config = activity.task.model_dump(warnings=False)
-
-            # Inject execution_id and activity_id into metadata for the activity to use
-            if "metadata" not in activity_config:
-                activity_config["metadata"] = {}
-            activity_config["metadata"]["execution_id"] = execution_id
-            activity_config["metadata"]["activity_id"] = activity.id
-
-            # Extract and store retry policy configuration for signal processing
-            retry_policy_config = (
-                activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
-            )
-            self._activity_retry_policies[activity.id] = retry_policy_config
-
-            # Execute agentic activity - this returns immediately with activity metadata
-            activity_result = await workflow.execute_activity(
-                execute_agentic_activity,
-                args=[activity_config, task_inputs],
-                activity_id=activity.id,
-                start_to_close_timeout=activity_timeout,
-                retry_policy=build_retry_policy(retry_policy_config),
-            )
-
-            invocation_id = activity_result.get("invocation_id")
-            callback_url = activity_result.get("callback_url")
-            workflow.logger.info(
-                f"Agentic activity {activity.id} started, waiting for signal "
-                f"(invocation_id={invocation_id}, callback_url={callback_url}, "
-                f"timeout={activity_timeout.total_seconds()}s)",
-                extra={"activity_id": activity.id, "execution_id": execution_id, "invocation_id": invocation_id},
-            )
-
-            # Wait for signal with the actual result
-            # The signal will be sent to /executions/{execution_id}/activities/{activity_id}/signal
-            workflow.logger.info(
-                f"Entering wait_condition for activity {activity.id} (timeout={activity_timeout.total_seconds()}s)",
-                extra={"activity_id": activity.id, "execution_id": execution_id},
-            )
-
-            try:
-                await workflow.wait_condition(
-                    lambda: activity.id in self._activity_signals,
-                    timeout=activity_timeout,
-                )
-                workflow.logger.info(
-                    f"wait_condition completed successfully for activity {activity.id}",
-                    extra={"activity_id": activity.id, "execution_id": execution_id},
-                )
-            except Exception as wait_error:
-                workflow.logger.error(
-                    f"wait_condition failed for activity {activity.id}: {wait_error}",
-                    extra={
-                        "activity_id": activity.id,
-                        "execution_id": execution_id,
-                        "error_type": type(wait_error).__name__,
-                    },
-                )
-                raise
-
-            # Extract the signal result
-            signal_results = self._activity_signals[activity.id]
-            if not signal_results:
-                msg = f"No signal received for activity {activity.id}"
-                raise SafeValueError(msg)  # noqa: TRY301
-
-            # Get the most recent signal (in case multiple were sent)
-            signal_data = signal_results[-1]
-
-            workflow.logger.info(
-                f"Received signal for agentic activity {activity.id} (signal_count={len(signal_results)})",
-                extra={
-                    "activity_id": activity.id,
-                    "execution_id": execution_id,
-                    "signal_data_keys": list(signal_data.keys()),
-                },
-            )
-
-            # Process signal (handles both success and failure)
-            # Retrieve the retry policy config for this activity to determine non-retryable errors
-            retry_policy_config = self._activity_retry_policies.get(activity.id)
-            result = WorkflowSignalProcessor.process_signal(signal_data, activity.id, execution_id, retry_policy_config)
-
-            # Process output mappings if defined
-            if activity.task.outputs:
-                result = self._process_output_mappings(result, activity.task.outputs)
-
-            return result
-
-        except Exception as e:
-            workflow.logger.error(
-                f"Agentic task {activity.id} failed: {e}",
-                extra={"activity_id": activity.id, "execution_id": execution_id},
-            )
-            raise
-
-    async def _execute_aap_job_template_executor(
-        self,
-        activity: Activity,
-        task_inputs: JsonDict,
-        activity_timeout: timedelta,
-        execution_id: str,
-    ) -> JsonDict:
-        """Execute an AAP job template executor.
-
-        Args:
-            activity: Task activity definition
-            task_inputs: Prepared task inputs
-            activity_timeout: Execution timeout
-            execution_id: Workflow execution ID
-
-        Returns:
-            AAP job template execution result
-
-        """
-        if not activity.task:
-            msg = f"Activity {activity.id} has no task definition"
-            raise SafeValueError(msg)
-
-        # Ensure config is an AAPJobTemplateExecutorConfig
-        if not isinstance(activity.task.config, AAPJobTemplateExecutorConfig):
-            msg = f"AAP executor requires AAPJobTemplateExecutorConfig, got {type(activity.task.config).__name__}"
-            raise TypeError(msg)
-
-        # Build log context with whichever reference method is used
-        log_extra: dict[str, Any] = {"activity_id": activity.id}
-        if activity.task.config.job_template_id:
-            log_extra["job_template_id"] = activity.task.config.job_template_id
-        if activity.task.config.job_template_name:
-            log_extra["job_template_name"] = activity.task.config.job_template_name
-            log_extra["organization_name"] = activity.task.config.organization_name
-
-        workflow.logger.info(
-            f"Executing AAP job template activity: {activity.id}",
-            extra=log_extra,
-        )
-
-        # Serialize config to dict to avoid Pydantic V1 deprecation warnings in Temporal
-        try:
-            result = await workflow.execute_activity(
-                execute_aap_job_template_activity,
-                args=[{"config": activity.task.config.model_dump(by_alias=True, warnings=False)}, task_inputs],
-                activity_id=activity.id,
-                start_to_close_timeout=activity_timeout,
-                heartbeat_timeout=timedelta(seconds=30),  # 6x default 5s poll interval
-                retry_policy=build_retry_policy(
-                    activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
-                ),
-            )
-
-            # Process output mappings if defined
-            if activity.task.outputs:
-                result = self._process_output_mappings(result, activity.task.outputs)
-
-            return cast("JsonDict", result)
-
-        except Exception as e:
-            # Reuse log context and add execution_id for error
-            log_extra["execution_id"] = execution_id
-            workflow.logger.error(
-                f"AAP job template task {activity.id} failed: {e}",
-                extra=log_extra,
-            )
-            raise
-
-    def _get_previous_activity_output(self, activity: Activity, workflow_state: JsonDict) -> JsonDict | None:
-        """Get the output from the previous activity in the workflow.
-
-        Args:
-            activity: Current activity
-            workflow_state: Current workflow state
-
-        Returns:
-            Previous activity output or None if this is the first activity
-
-        """
-        current_index = self.workflow_definition.workflow.activities.index(activity)
-        if current_index > 0:
-            prev_activity = self.workflow_definition.workflow.activities[current_index - 1]
-            result = workflow_state["activity_outputs"].get(prev_activity.id)
-            return cast("JsonDict | None", result)
+                except Exception as node_error:  # noqa: BLE001
+                    self._handle_node_failure(completed_node_id, node_error, graph)
+
+    @staticmethod
+    def _find_node_for_task(
+        task: asyncio.Task[Any],
+        pending_tasks: dict[str, asyncio.Task[Any]],
+    ) -> str | None:
+        """Find the node ID associated with a completed task."""
+        for nid, t in pending_tasks.items():
+            if t == task:
+                return nid
         return None
 
-    def _prepare_approval_context(
+    def _handle_node_failure(
         self,
-        activity: Activity,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> tuple[JsonDict, int | None]:
-        """Prepare workflow context and timeout for approval activity.
-
-        Args:
-            activity: Approval activity definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Tuple of (workflow_context, timeout_seconds)
-
-        """
-        previous_output = self._get_previous_activity_output(activity, workflow_state)
-
-        workflow_context = {
-            "workflow_inputs": workflow_state.get("inputs", {}),
-            "previous_step": previous_output,
-            "execution_id": execution_id,
-            "workflow_name": self.workflow_definition.metadata.name,
-        }
-
-        # Resolve timeout template expression
-        timeout_seconds: int | None = None
-        if activity.timeout:
-            resolved = self.expression_resolver.resolve_expression(activity.timeout, workflow_state)
-            if resolved is not None:
-                timeout_seconds = int(str(resolved)) if not isinstance(resolved, int) else resolved
-
-        return workflow_context, timeout_seconds
-
-    async def _wait_for_approval_signal(
-        self,
-        activity: Activity,
-        timeout_seconds: int | None,
+        node_id: str,
+        error: Exception,
+        graph: WorkflowGraph,
     ) -> None:
-        """Wait for approval signal with optional timeout.
+        """Record a node failure and mark downstream nodes as skipped."""
+        error_message = f"{type(error).__name__}: {error}"
+        self.failed_nodes[node_id] = error_message
+        self.resolver.set_namespace(node_id, {"status": "failed", "error": error_message})
+        workflow.logger.error(f"Node {node_id} failed: {error_message}")
+        self._mark_downstream_as_skipped(node_id, graph)
 
-        Args:
-            activity: Approval activity definition
-            timeout_seconds: Optional timeout in seconds
+    def _cleanup_timeout_tasks(self) -> None:
+        """Cancel any remaining converge timeout background tasks."""
+        for task in self._timeout_tasks.values():
+            task.cancel()
+        self._timeout_tasks.clear()
 
-        Raises:
-            TimeoutError: If timeout occurs before signal is received
-
-        """
-        if timeout_seconds:
-            await workflow.wait_condition(
-                lambda: activity.id in self._activity_signals,
-                timeout=timedelta(seconds=timeout_seconds),
-            )
-        else:
-            await workflow.wait_condition(
-                lambda: activity.id in self._activity_signals,
-            )
-
-    def _normalize_approval_status(
-        self,
-        activity: Activity,
-        execution_id: str,
-        signal_data: dict[str, Any],
-    ) -> str:
-        """Extract and normalize approval status from signal data.
-
-        Args:
-            activity: Approval activity definition
-            execution_id: Workflow execution ID
-            signal_data: Signal data containing status
-
-        Returns:
-            Normalized status ('approved' or 'rejected')
-
-        """
-        approval_status = signal_data.get("status")
-
-        workflow.logger.info(
-            f"Approval signal received: {approval_status}",
-            extra={"activity_id": activity.id, "execution_id": execution_id},
-        )
-
-        # Validate and normalize approval status
-        if approval_status not in ("approved", "rejected"):
-            workflow.logger.warning(
-                f"Invalid approval status '{approval_status}', treating as rejected",
-                extra={"activity_id": activity.id, "execution_id": execution_id},
-            )
-            return "rejected"
-
-        return str(approval_status)
-
-    async def _execute_approval_branch(
-        self,
-        branch_activities: list[Activity],
-        branch_name: str,
-        activity_id: str,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> dict[str, JsonDict]:
-        """Execute activities in an approval branch.
-
-        Args:
-            branch_activities: Activities to execute
-            branch_name: Branch name for logging
-            activity_id: Parent approval activity ID
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Dictionary mapping activity IDs to their results
-
-        """
-        workflow.logger.info(
-            f"Executing {branch_name} branch",
-            extra={"activity_id": activity_id, "execution_id": execution_id},
-        )
-
-        branch_results = {}
-        for branch_activity in branch_activities:
-            result = await self._execute_activity(branch_activity, execution_id, workflow_state)
-            branch_results[branch_activity.id] = result
-            workflow_state["activity_outputs"][branch_activity.id] = result
-
-        return branch_results
-
-    async def _execute_approval_activity(
-        self,
-        activity: Activity,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute approval activity - waits for human approval/rejection.
-
-        Flow:
-        1. Create approval request via Temporal activity
-        2. Wait for approval signal (with timeout)
-        3. On timeout: raise TimeoutError (workflow fails)
-        4. Execute appropriate branch (on_approved or on_rejected)
-
-        Args:
-            activity: Approval activity definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Result from executed branch
-
-        Raises:
-            TimeoutError: If timeout occurs before approval decision
-
-        """
-        # Prepare context and timeout
-        workflow_context, timeout_seconds = self._prepare_approval_context(activity, execution_id, workflow_state)
-
-        # Create approval request (returns immediately with metadata)
-        approval_config = {
-            "description": activity.name or f"Approval for {activity.id}",
-            "timeout": timeout_seconds,
+    def _build_result(self, execution_id: str, include_node_results: bool) -> dict[str, Any]:  # noqa: FBT001
+        """Build the final workflow execution result."""
+        node_outputs = self.resolver.get_all_namespaces()
+        workflow_status = "failed" if self.failed_nodes else "completed"
+        return {
+            "status": workflow_status,
+            "execution_id": execution_id,
+            "activity_outputs": node_outputs if include_node_results else {},
+            "activity_inputs": self.node_inputs if include_node_results else {},
+            "completed_activities": list(node_outputs.keys()),
         }
 
-        approval_metadata = await workflow.execute_activity(
-            create_approval_request_activity,
-            args=[approval_config, workflow_context],
-            activity_id=activity.id,
-            start_to_close_timeout=timedelta(seconds=30),
-            retry_policy=build_retry_policy(
-                activity.retry_policy.model_dump(by_alias=True, warnings=False) if activity.retry_policy else None
+    async def _schedule_successors(
+        self,
+        completed_node_id: str,
+        graph: WorkflowGraph,
+        pending_tasks: dict[str, asyncio.Task[Any]],
+    ) -> None:
+        """Schedule successor nodes for execution if their dependencies are met.
+
+        For control flow nodes (condition, loop), uses control data to determine
+        which output port to follow.
+
+        Args:
+            completed_node_id: Node that just completed
+            graph: Workflow graph
+            pending_tasks: Currently executing tasks
+
+        """
+        from_port = self._determine_output_port(completed_node_id)
+        completed_node = graph.get_node(completed_node_id)
+
+        # Control-flow nodes must always have routing port data
+        if from_port is None and completed_node.type in ("condition", "loop"):
+            workflow.logger.warning(
+                f"Control-flow node {completed_node_id} (type={completed_node.type}) "
+                f"has no routing port — returning all successors"
+            )
+
+        # Handle condition branch skipping
+        if from_port and completed_node.type == "condition":
+            self._skip_non_taken_branches(completed_node_id, from_port, graph)
+
+        successors = graph.get_next_activities_by_port(completed_node_id, from_port)
+        is_loop_iterate = completed_node.type == "loop" and from_port == "iterate"
+
+        if is_loop_iterate:
+            self._setup_loop_namespace(completed_node_id)
+
+        for successor in successors:
+            # Track loop body membership (side effect, separate from skip check)
+            self._track_loop_body(successor.id, completed_node_id, is_loop_iterate)
+
+            if self._should_skip_successor(successor, completed_node_id, is_loop_iterate, pending_tasks, graph):
+                continue
+
+            # All dependencies met — schedule execution
+            workflow.logger.info(f"Scheduling node: {successor.id} (type: {successor.type})")
+            task = asyncio.create_task(self._execute_node(node=successor, graph=graph))
+            pending_tasks[successor.id] = task
+
+        # Check if a loop body just completed and needs re-iteration
+        self._check_loop_body_completion(completed_node_id, graph, pending_tasks)
+
+    def _skip_non_taken_branches(
+        self,
+        condition_node_id: str,
+        taken_port: str,
+        graph: WorkflowGraph,
+    ) -> None:
+        """Mark successors on non-taken condition branches as skipped."""
+        workflow.logger.info(f"Condition node {condition_node_id} routing via port: {taken_port}")
+        for edge in graph.get_outgoing_edges(condition_node_id):
+            edge_port = edge.get("from_port")
+            if edge_port and edge_port != taken_port:
+                skipped_successor = edge["to"]
+                if skipped_successor not in self.skipped_nodes:
+                    self.skipped_nodes.add(skipped_successor)
+                    workflow.logger.info(
+                        f"Node {skipped_successor} marked as skipped (on non-taken port '{edge_port}')"
+                    )
+                    self._mark_downstream_as_skipped(skipped_successor, graph)
+
+    def _setup_loop_namespace(self, loop_node_id: str) -> None:
+        """Set up the loop namespace with current iteration data."""
+        control_data = self.node_control_data.get(loop_node_id, {})
+        loop_data: dict[str, Any] = {"index": control_data.get("current_index")}
+        if control_data.get("current_item") is not None:
+            loop_data["item"] = control_data["current_item"]
+
+        if not self.resolver.has_namespace("loop"):
+            self.resolver.set_namespace("loop", {})
+        self.resolver.get_namespace("loop")[loop_node_id] = loop_data
+        workflow.logger.info(f"Set loop namespace loop.{loop_node_id}: {loop_data}")
+
+    def _track_loop_body(self, successor_id: str, completed_node_id: str, is_loop_iterate: bool) -> None:  # noqa: FBT001
+        """Track loop body membership for a successor node."""
+        if is_loop_iterate:
+            self.loop_body_map[successor_id] = completed_node_id
+        elif completed_node_id in self.loop_body_map:
+            parent_loop_id = self.loop_body_map[completed_node_id]
+            self.loop_body_map[successor_id] = parent_loop_id
+            workflow.logger.info(f"Node {successor_id} transitively marked as loop body of {parent_loop_id}")
+
+    def _should_skip_successor(
+        self,
+        successor: ActivityNode,
+        completed_node_id: str,
+        is_loop_iterate: bool,  # noqa: FBT001
+        pending_tasks: dict[str, asyncio.Task[Any]],
+        graph: WorkflowGraph,
+    ) -> bool:
+        """Check whether a successor should be skipped (not scheduled).
+
+        This is a read-only predicate — loop body tracking is handled separately
+        by _track_loop_body. Converge waiting is the one remaining side effect
+        (starts a timeout task if configured).
+        """
+        node_id = successor.id
+
+        if node_id in pending_tasks:
+            return True
+
+        # Skip already-executed nodes (unless loop body re-execution)
+        if self.resolver.has_namespace(node_id) and not is_loop_iterate and completed_node_id not in self.loop_body_map:
+            return True
+
+        # Converge nodes wait for all predecessors
+        if successor.type == "converge" and not self._are_predecessors_complete(node_id, graph):
+            self._handle_converge_wait(node_id, successor, graph)
+            return True
+
+        return False
+
+    def _handle_converge_wait(
+        self,
+        node_id: str,
+        successor: ActivityNode,
+        graph: WorkflowGraph,
+    ) -> None:
+        """Handle a converge node that is waiting for predecessors, optionally starting a timeout."""
+        workflow.logger.info(f"Converge node {node_id} waiting for predecessors to complete")
+
+        converge_timeout = successor.config.get("timeout")
+        if converge_timeout is None or node_id in self._timeout_tasks:
+            return
+
+        try:
+            timeout_seconds = float(converge_timeout)
+        except (ValueError, TypeError):
+            workflow.logger.warning(
+                f"Invalid converge timeout value for {node_id}: {converge_timeout!r}, skipping timeout"
+            )
+            return
+        workflow.logger.info(f"Starting converge timeout for {node_id}: {timeout_seconds}s")
+
+        self._timeout_tasks[node_id] = asyncio.create_task(
+            self._converge_timeout_handler(node_id, graph, timeout_seconds)
+        )
+
+    async def _converge_timeout_handler(
+        self,
+        node_id: str,
+        graph: WorkflowGraph,
+        timeout_seconds: float,
+    ) -> None:
+        """Background task that waits for converge predecessors or fires a timeout.
+
+        On timeout, skips incomplete predecessors and signals the main loop
+        to schedule the converge node via ``_timed_out_converge_nodes``.
+        """
+        try:
+            timed_out = False
+            try:
+                await workflow.wait_condition(
+                    lambda cid=node_id: self._are_predecessors_complete(cid, graph),  # type: ignore[misc]
+                    timeout=timedelta(seconds=timeout_seconds),
+                )
+            except TimeoutError:
+                timed_out = True
+
+            if timed_out:
+                self._skip_incomplete_predecessors(node_id, graph, timeout_seconds)
+                self._timed_out_converge_nodes.add(node_id)
+        except Exception as exc:  # noqa: BLE001
+            error_msg = f"Converge timeout handler error for {node_id}: {exc}"
+            workflow.logger.error(error_msg)
+            self.failed_nodes[node_id] = error_msg
+            self.resolver.set_namespace(node_id, {"status": "failed", "error": error_msg})
+            # Signal the main loop so it doesn't hang waiting for this node
+            self._timed_out_converge_nodes.add(node_id)
+
+    def _skip_incomplete_predecessors(self, node_id: str, graph: WorkflowGraph, timeout_seconds: float) -> None:
+        """Mark incomplete predecessors of a converge node as skipped after timeout."""
+        newly_skipped = []
+        for pred_id in graph.get_predecessors(node_id):
+            if pred_id not in self.skipped_nodes and not self.resolver.has_namespace(pred_id):
+                self.skipped_nodes.add(pred_id)
+                newly_skipped.append(pred_id)
+                workflow.logger.info(f"Converge timeout: predecessor {pred_id} skipped (after {timeout_seconds}s)")
+        for pred_id in newly_skipped:
+            self._mark_downstream_as_skipped(pred_id, graph)
+
+    def _check_loop_body_completion(
+        self,
+        completed_node_id: str,
+        graph: WorkflowGraph,
+        pending_tasks: dict[str, asyncio.Task[Any]],
+    ) -> None:
+        """Check if a loop body just completed and the loop should re-iterate."""
+        if completed_node_id not in self.loop_body_map:
+            return
+
+        parent_loop_id = self.loop_body_map[completed_node_id]
+        if self._loop_body_complete(parent_loop_id) and not self._loop_has_pending_nodes(parent_loop_id, pending_tasks):
+            self._clear_loop_body(parent_loop_id)
+            loop_node = graph.get_node(parent_loop_id)
+            workflow.logger.info(f"Re-executing loop node: {parent_loop_id}")
+            task = asyncio.create_task(self._execute_node(node=loop_node, graph=graph))
+            pending_tasks[parent_loop_id] = task
+
+    def _determine_output_port(self, node_id: str) -> str | None:
+        """Determine which output port to follow based on control data.
+
+        Control flow nodes (condition, loop) include routing information in their
+        control data. This method extracts the "next_port" field to determine
+        which edges to follow.
+
+        Args:
+            node_id: Node that just completed
+
+        Returns:
+            Port name to follow (e.g., "true", "false", "iterate", "complete"),
+            or None for nodes without port-based routing (executor nodes)
+
+        """
+        control_data = self.node_control_data.get(node_id)
+
+        if control_data and "next_port" in control_data:
+            return str(control_data["next_port"])
+
+        # No control data = no port-based routing (regular executor node)
+        return None
+
+    def _are_predecessors_complete(self, node_id: str, graph: WorkflowGraph) -> bool:
+        """Check if all predecessors of a converge node have completed.
+
+        This is the KEY for convergence: a converge node only executes when
+        ALL its incoming edges have been satisfied.
+
+        For conditional branching, skipped predecessors (on non-taken branches)
+        are ignored using transitive skip detection.
+
+        When a converge node has ``config.timeout`` set (in seconds), the caller
+        (``_schedule_successors``) creates a background task that waits for
+        predecessors with a bounded timeout.  If the timeout fires, remaining
+        incomplete predecessors are marked as skipped and the converge node
+        proceeds with whatever results are available.
+
+        Args:
+            node_id: Converge node ID to check
+            graph: Workflow graph
+
+        Returns:
+            True if all predecessors are complete or skipped
+
+        """
+        # Get all predecessors using the backend
+        predecessor_ids = graph.get_predecessors(node_id)
+
+        # Check if all have completed or are skipped
+        for pred_id in predecessor_ids:
+            # Skip if explicitly marked as skipped
+            if pred_id in self.skipped_nodes:
+                continue
+
+            # Check if completed
+            if self.resolver.has_namespace(pred_id):
+                continue
+
+            # Check if transitively unreachable (all its predecessors are skipped)
+            if self._is_unreachable(pred_id, graph):
+                # Mark it as skipped for future reference
+                self.skipped_nodes.add(pred_id)
+                workflow.logger.info(f"Node {pred_id} marked as skipped (transitively unreachable)")
+                continue
+
+            # Predecessor is reachable but not complete - wait for it
+            return False
+
+        return True
+
+    def _is_unreachable(self, node_id: str, graph: WorkflowGraph) -> bool:
+        """Check if a node is unreachable due to all predecessors being skipped.
+
+        A node is unreachable if every path from it back to a root passes through
+        a skipped or failed node. The algorithm does a backwards DFS from node_id.
+
+        A completed predecessor proves reachability only if there is still a
+        forward path from it to node_id through non-skipped/non-failed nodes.
+        Without that check, a completed node on a different condition branch
+        could falsely indicate reachability.
+
+        Args:
+            node_id: Node to check
+            graph: Workflow graph
+
+        Returns:
+            True if node is unreachable (all paths blocked by skipped/failed nodes)
+
+        """
+        visited: set[str] = set()
+        stack = [node_id]
+
+        while stack:
+            current = stack.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+
+            if current in self.skipped_nodes or current in self.failed_nodes:
+                continue  # This path is blocked, check remaining paths
+
+            # A completed predecessor proves reachability only if it can
+            # actually reach node_id through non-blocked edges.  We verify
+            # this with a forward has_path check (cheap for nearby nodes).
+            if current != node_id and self.resolver.has_namespace(current) and current not in self.failed_nodes:
+                if graph.has_forward_path(current, node_id, self.skipped_nodes | set(self.failed_nodes.keys())):
+                    return False
+                # Completed but no forward path to target — keep searching
+                continue
+
+            predecessors = graph.get_predecessors(current)
+            if not predecessors:
+                # Reached a root node that is not skipped/failed → reachable
+                return False
+
+            stack.extend(predecessors)
+
+        # All explored paths lead to skipped/failed nodes → unreachable
+        return True
+
+    def _mark_downstream_as_skipped(self, start_node_id: str, graph: WorkflowGraph) -> None:
+        """Eagerly mark downstream nodes as skipped via BFS propagation.
+
+        Starting from a skipped node, propagate the skipped status to all
+        downstream nodes whose ALL predecessors are already skipped.
+
+        Args:
+            start_node_id: Node that was just marked as skipped
+            graph: Workflow graph
+
+        """
+        queue = collections.deque([start_node_id])
+
+        while queue:
+            node_id = queue.popleft()
+
+            # Get all immediate successors
+            successors = graph.get_successors(node_id)
+            for succ_id in successors:
+                # Skip if already processed
+                if succ_id in self.skipped_nodes or self.resolver.has_namespace(succ_id):
+                    continue
+
+                # Check if ALL predecessors of this successor are skipped or failed
+                pred_ids = graph.get_predecessors(succ_id)
+                all_skipped = all(pred_id in self.skipped_nodes or pred_id in self.failed_nodes for pred_id in pred_ids)
+
+                if all_skipped:
+                    self.skipped_nodes.add(succ_id)
+                    workflow.logger.info(f"Node {succ_id} marked as skipped (all predecessors skipped)")
+                    queue.append(succ_id)  # Propagate further
+
+    def _mark_remaining_unreachable_nodes(self, graph: WorkflowGraph) -> None:
+        """Mark any remaining unreachable nodes as skipped.
+
+        After workflow execution completes, any node that wasn't executed
+        must be unreachable and should be marked as skipped.
+
+        This catches any nodes that weren't marked during eager propagation due
+        to timing (e.g., when branches converge and one branch finishes before
+        the other starts).
+
+        Args:
+            graph: Workflow graph
+
+        """
+        # Get all activity nodes (excluding triggers)
+        all_nodes = [node for node in graph.get_all_nodes() if not node.type.endswith("_trigger")]
+
+        for node in all_nodes:
+            node_id = node.id
+
+            # Skip if already executed or marked
+            if self.resolver.has_namespace(node_id) or node_id in self.skipped_nodes:
+                continue
+
+            # If workflow is done and node didn't execute, it's unreachable
+            self.skipped_nodes.add(node_id)
+            workflow.logger.info(f"Node {node_id} marked as skipped (final pass - unreachable)")
+
+    def _loop_body_complete(self, loop_id: str) -> bool:
+        """Check if all loop body nodes have completed.
+
+        For nested loops: a loop node in the body is only considered complete
+        if its last routing was to the "complete" port (not "iterate").
+
+        Args:
+            loop_id: Loop node ID
+
+        Returns:
+            True if all loop body nodes have completed
+
+        """
+        # Find all loop body nodes (those mapped to this loop)
+        loop_body_nodes = [node_id for node_id, parent in self.loop_body_map.items() if parent == loop_id]
+
+        if not loop_body_nodes:
+            # No body nodes tracked — either the body was already cleared for
+            # re-iteration (normal), or all body nodes were skipped. In both
+            # cases, return False so we don't trigger a spurious re-iteration;
+            # _check_loop_body_completion already handles the cleared case.
+            return False
+
+        # Check if all have completed
+        for node_id in loop_body_nodes:
+            if not self.resolver.has_namespace(node_id):
+                return False
+
+            # If this body node is itself a loop, check that it finished all iterations
+            # (routed to "complete" port on its last execution)
+            control_data = self.node_control_data.get(node_id, {})
+            if control_data.get("next_port") == "iterate":
+                # This loop is still iterating, so the parent loop body is NOT complete
+                return False
+
+        return True
+
+    def _loop_has_pending_nodes(self, loop_id: str, pending_tasks: dict[str, asyncio.Task[Any]]) -> bool:
+        """Check if any loop body nodes are still pending execution.
+
+        Args:
+            loop_id: Loop node ID
+            pending_tasks: Currently executing tasks
+
+        Returns:
+            True if any loop body nodes are pending
+
+        """
+        # Find all loop body nodes
+        loop_body_nodes = [node_id for node_id, parent in self.loop_body_map.items() if parent == loop_id]
+
+        return any(node_id in pending_tasks for node_id in loop_body_nodes)
+
+    def _clear_loop_body(self, loop_id: str) -> None:
+        """Clear loop body nodes from tracking to allow re-execution.
+
+        Collects iteration results for aggregation. Results remain in resolver
+        for query access (sync service), and the last iteration's result persists.
+
+        Args:
+            loop_id: Loop node ID
+
+        """
+        # Initialize iteration_results for this loop if not exists
+        if loop_id not in self.loop_iteration_results:
+            self.loop_iteration_results[loop_id] = {}
+
+        # Find all loop body nodes
+        loop_body_nodes = [node_id for node_id, parent in self.loop_body_map.items() if parent == loop_id]
+
+        # Collect iteration results for aggregation
+        loop_results = self.loop_iteration_results[loop_id]
+
+        for node_id in loop_body_nodes:
+            if not self.resolver.has_namespace(node_id):
+                continue  # Skip nodes that didn't execute (e.g., skipped by condition)
+            node_result = self.resolver.get_namespace(node_id)
+            if isinstance(node_result, dict):
+                for field_name, field_value in node_result.items():
+                    namespaced_key = f"{node_id}.{field_name}"
+                    if namespaced_key not in loop_results:
+                        loop_results[namespaced_key] = []
+                    loop_results[namespaced_key].append(field_value)
+
+        # Clear from loop_body_map to allow fresh tracking on next iteration
+        # Results stay in resolver for query access
+        for node_id in loop_body_nodes:
+            del self.loop_body_map[node_id]
+
+        workflow.logger.info(f"Cleared {len(loop_body_nodes)} loop body nodes from tracking for loop {loop_id}")
+
+    # Mapping from node type to Temporal activity name for simple executor nodes
+    # Note: agentic and approval are NOT in this map as they require signal handling
+    _EXECUTOR_ACTIVITY_MAP: ClassVar[dict[str, str]] = {
+        "aap_job_template": "execute_aap_job_template_activity",
+        "http_request": "execute_http_request_activity",
+        "script": "execute_script_activity",
+        "condition": "condition",
+    }
+
+    async def _execute_executor_node(
+        self,
+        node_id: str,
+        node_type: str,
+        resolved_config: dict[str, Any],
+        outputs: dict[str, str] | None,
+        timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
+    ) -> dict[str, Any]:
+        """Execute a simple executor node (aap, http_request, script, condition).
+
+        Note: agentic and approval are NOT handled here as they require signal waiting.
+
+        Args:
+            node_id: Node ID
+            node_type: Node type
+            resolved_config: Resolved configuration
+            outputs: Output mapping configuration
+            timeout_seconds: Activity timeout in seconds (default: DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
+
+        Returns:
+            Activity result with output and optional control data
+
+        """
+        activity_name = self._EXECUTOR_ACTIVITY_MAP.get(node_type)
+        if not activity_name:
+            return {"output": {"status": "skipped", "reason": f"Unknown executor type: {node_type}"}}
+
+        return cast(
+            "dict[str, Any]",
+            await workflow.execute_activity(
+                activity_name,
+                args=[resolved_config, outputs],
+                activity_id=node_id,
+                start_to_close_timeout=timedelta(seconds=timeout_seconds),
             ),
         )
 
-        workflow.logger.info(
-            f"Approval request created, waiting for signal (approval_id={approval_metadata.get('approval_id')})",
-            extra={"activity_id": activity.id, "execution_id": execution_id},
+    async def _execute_signal_node(
+        self,
+        node_id: str,
+        activity_name: str,
+        resolved_config: dict[str, Any],
+        outputs: dict[str, str] | None,
+        signal_timeout: timedelta,
+        timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
+    ) -> dict[str, Any]:
+        """Execute a node that starts an activity then waits for a signal callback.
+
+        Used by both agentic and approval nodes, which share the same lifecycle:
+        start activity -> wait for external signal -> process signal result.
+
+        Args:
+            node_id: Node ID
+            activity_name: Temporal activity name to execute
+            resolved_config: Resolved configuration
+            outputs: Output mapping configuration
+            signal_timeout: How long to wait for the signal
+            timeout_seconds: Activity start timeout in seconds
+
+        Returns:
+            Activity result with output from signal
+
+        """
+        activity_result = await workflow.execute_activity(
+            activity_name,
+            args=[resolved_config, outputs, self.execution_id],
+            activity_id=node_id,
+            start_to_close_timeout=timedelta(seconds=timeout_seconds),
         )
 
-        # Wait for signal
-        await self._wait_for_approval_signal(activity, timeout_seconds)
+        workflow.logger.info(
+            f"Signal activity {node_id} ({activity_name}) started, waiting for signal "
+            f"(output={activity_result.get('output', {})})"
+        )
 
-        # Extract and normalize approval status
-        signal_data = self._activity_signals[activity.id][-1]
-        approval_status = self._normalize_approval_status(activity, execution_id, signal_data)
+        await workflow.wait_condition(
+            lambda: node_id in self._activity_signals,
+            timeout=signal_timeout,
+        )
 
-        # Execute appropriate branch
-        branch_results = {}
-        if approval_status == "approved" and activity.on_approved:
-            branch_results = await self._execute_approval_branch(
-                activity.on_approved, "on_approved", activity.id, execution_id, workflow_state
-            )
-        elif approval_status == "rejected" and activity.on_rejected:
-            branch_results = await self._execute_approval_branch(
-                activity.on_rejected, "on_rejected", activity.id, execution_id, workflow_state
-            )
+        signal_results = self._activity_signals[node_id]
+        if not signal_results:
+            msg = f"No signal received for activity {node_id}"
+            raise SafeValueError(msg)
 
-        return {
-            "type": "approval",
-            "status": approval_status,
-            "results": branch_results,
+        signal_data = signal_results[-1]
+        workflow.logger.info(f"Received signal for {node_id} (signal_count={len(signal_results)})")
+
+        processed_data = WorkflowSignalProcessor.process_signal(
+            signal_data, node_id, workflow.info().workflow_id, retry_policy_config=None
+        )
+
+        return {"output": processed_data}
+
+    async def _execute_converge_node(
+        self,
+        node_id: str,
+        resolved_config: dict[str, Any],
+        outputs: dict[str, str] | None,
+        graph: WorkflowGraph,
+        timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
+    ) -> dict[str, Any]:
+        """Execute a converge node.
+
+        Args:
+            node_id: Node ID
+            resolved_config: Resolved configuration
+            outputs: Output mapping configuration
+            graph: Workflow graph
+            timeout_seconds: Activity timeout in seconds (default: DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
+
+        Returns:
+            Activity result with output and optional control data
+
+        """
+        # Get results from all predecessors, excluding skipped ones
+        predecessor_ids = graph.get_predecessors(node_id)
+        predecessor_results = {}
+        for pred_id in predecessor_ids:
+            if pred_id not in self.skipped_nodes:
+                predecessor_results[pred_id] = self.resolver.get_namespace(pred_id)
+
+        return cast(
+            "dict[str, Any]",
+            await workflow.execute_activity(
+                "converge",
+                args=[resolved_config, outputs, predecessor_results],
+                activity_id=node_id,
+                start_to_close_timeout=timedelta(seconds=timeout_seconds),
+            ),
+        )
+
+    async def _execute_loop_node(
+        self,
+        node_id: str,
+        node: ActivityNode,
+        resolved_config: dict[str, Any],
+        timeout_seconds: int = DEFAULT_ACTIVITY_TIMEOUT_SECONDS,
+    ) -> dict[str, Any]:
+        """Execute a loop node.
+
+        Args:
+            node_id: Node ID
+            node: Activity node
+            resolved_config: Resolved configuration
+            timeout_seconds: Activity timeout in seconds (default: DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
+
+        Returns:
+            Activity result with output and control data
+
+        """
+        loop_type = resolved_config.get("type", "for_each")
+
+        # Get or initialize loop state
+        if node_id not in self.loop_state:
+            if loop_type == "for_each":
+                # First execution - extract items from config
+                items = _parse_items(resolved_config.get("items", []))
+                self.loop_state[node_id] = {
+                    "type": "for_each",
+                    "items": items,
+                    "current_index": 0,
+                }
+            elif loop_type == "do_while":
+                # First execution - store condition and max_iterations
+                self.loop_state[node_id] = {
+                    "type": "do_while",
+                    "condition": node.config.get("condition"),  # Raw template, not resolved
+                    "max_iterations": resolved_config.get("max_iterations", constants.MAX_LOOP_ITERATIONS),
+                    "current_index": 0,
+                }
+
+        # Initialize iteration results if not exists
+        if node_id not in self.loop_iteration_results:
+            self.loop_iteration_results[node_id] = {}
+
+        # For do_while, evaluate condition after first iteration
+        condition_result = None
+        if loop_type == "do_while" and self.loop_state[node_id]["current_index"] > 0:
+            # Set context for condition evaluation (loop body nodes are available)
+            self.resolver.set_context(loop_node_id=node_id)
+            condition_template = self.loop_state[node_id]["condition"]
+            condition_expr = self.resolver.resolve_value(condition_template)
+            condition_result = safe_eval_condition(condition_expr)
+            workflow.logger.info(f"Loop {node_id} condition evaluated: {condition_expr} = {condition_result}")
+
+        # Pass current state to activity
+        loop_config = {
+            "type": loop_type,
+            "current_index": self.loop_state[node_id]["current_index"],
         }
 
-    def _resolve_retry_policy_templates(self, retry_policy: RetryPolicy, workflow_state: JsonDict) -> None:
-        """Resolve template expressions in retry policy fields.
+        if loop_type == "for_each":
+            loop_config["items"] = self.loop_state[node_id]["items"]
+        elif loop_type == "do_while":
+            loop_config["condition_result"] = condition_result
+            loop_config["max_iterations"] = self.loop_state[node_id]["max_iterations"]
 
-        Args:
-            retry_policy: Retry policy to resolve
-            workflow_state: Current workflow state
-
-        """
-        if retry_policy.max_attempts:
-            resolved = self.expression_resolver.resolve_expression(retry_policy.max_attempts, workflow_state)
-            retry_policy.max_attempts = (
-                int(cast("int", resolved)) if resolved is not None else retry_policy.max_attempts
-            )
-        if retry_policy.initial_interval:
-            resolved = self.expression_resolver.resolve_expression(retry_policy.initial_interval, workflow_state)
-            retry_policy.initial_interval = (
-                int(cast("int", resolved)) if resolved is not None else retry_policy.initial_interval
-            )
-        if retry_policy.max_interval:
-            resolved = self.expression_resolver.resolve_expression(retry_policy.max_interval, workflow_state)
-            retry_policy.max_interval = (
-                int(cast("int", resolved)) if resolved is not None else retry_policy.max_interval
-            )
-        if retry_policy.multiplier:
-            resolved = self.expression_resolver.resolve_expression(retry_policy.multiplier, workflow_state)
-            retry_policy.multiplier = (
-                float(cast("float", resolved)) if resolved is not None else retry_policy.multiplier
-            )
-
-    def _resolve_config_templates(
-        self,
-        config: ScriptExecutorConfig | APIExecutorConfig | AgenticExecutorConfig | AAPJobTemplateExecutorConfig,
-        workflow_state: JsonDict,
-    ) -> ScriptExecutorConfig | APIExecutorConfig | AgenticExecutorConfig | AAPJobTemplateExecutorConfig:
-        """Resolve template expressions in executor config fields.
-
-        This enables config fields (like timeout, environment variables, etc.) to reference
-        previous activity outputs using ${activity.output.field} syntax.
-
-        Args:
-            config: Executor config to resolve (Script, API, or AAP Job Template)
-            workflow_state: Current workflow state with activity_outputs
-
-        Returns:
-            New config instance with resolved template expressions
-
-        """
-        # Serialize config to dict, excluding None values to avoid validation errors on deserialization
-        config_dict = config.model_dump(by_alias=True, warnings=False, exclude_none=True)
-
-        # Resolve template expressions using full workflow_state (includes activity_outputs)
-        # Exclude 'code' field for scripts as it contains script code with its own variable syntax
-        # Exclude 'authentication' for API configs as credentials must remain as ${secrets.xxx} for later resolution
-        exclude_fields = {"code"} if isinstance(config, ScriptExecutorConfig) else set()
-        if isinstance(config, APIExecutorConfig):
-            exclude_fields.add("authentication")
-        resolved_dict = resolve_config_templates(
-            config_dict,
-            workflow_state,
-            resolver=self.expression_resolver,
-            exclude_fields=exclude_fields,
+        loop_result = cast(
+            "dict[str, Any]",
+            await workflow.execute_activity(
+                "loop",
+                args=[loop_config, node.outputs, self.loop_iteration_results[node_id]],
+                activity_id=f"{node_id}_iter_{self.loop_state[node_id]['current_index']}",
+                start_to_close_timeout=timedelta(seconds=timeout_seconds),
+            ),
         )
 
-        # Deserialize back to the appropriate config model
-        config_type = type(config)
-        return config_type.model_validate(resolved_dict)
+        # Update loop state from control data for next iteration
+        control_data = loop_result.get("control", {})
+        if control_data:
+            self.loop_state[node_id]["current_index"] = control_data.get("next_index", 0)
 
-    async def _execute_task_activity(
+        return loop_result
+
+    async def _execute_node(
         self,
-        activity: Activity,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute a task activity (script, API, connector, agentic).
+        node: ActivityNode,
+        graph: WorkflowGraph,
+    ) -> dict[str, Any]:
+        """Execute a single node: resolve config, dispatch, process result.
 
         Args:
-            activity: Task activity definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
+            node: ActivityNode to execute
+            graph: Workflow graph
 
         Returns:
-            Task execution result
+            Node execution result (output portion only, already mapped by activity)
 
         """
-        if not activity.task:
-            msg = f"Activity {activity.id} is type=task but has no task definition"
-            raise SafeValueError(msg)
+        resolved_config = self._resolve_node_config(node)
+        timeout_seconds = resolved_config.get("timeout", DEFAULT_ACTIVITY_TIMEOUT_SECONDS)
+        self.node_inputs[node.id] = resolved_config
 
-        # Prepare task inputs
-        task_inputs = self._prepare_task_inputs(activity, workflow_state)
+        result = await self._dispatch_node(node, resolved_config, graph, timeout_seconds)
+        return self._process_node_result(node, result)
 
-        # Store activity inputs for query access
-        workflow_state["activity_inputs"][activity.id] = task_inputs
+    def _resolve_node_config(self, node: ActivityNode) -> dict[str, Any]:
+        """Resolve template expressions in a node's config.
 
-        # Configure timeout (resolve template expressions if present)
-        if activity.timeout:
-            resolved = self.expression_resolver.resolve_expression(activity.timeout, workflow_state)
-            activity.timeout = int(cast("int", resolved)) if resolved is not None else None
-        timeout = timedelta(seconds=activity.timeout) if activity.timeout else timedelta(minutes=5)
-
-        # Resolve retry policy fields if present
-        if activity.retry_policy:
-            self._resolve_retry_policy_templates(activity.retry_policy, workflow_state)
-
-        # Resolve config templates (enable config fields to reference previous activity outputs)
-        # Serialize config to dict, resolve templates, then deserialize back to model
-        activity.task.config = self._resolve_config_templates(activity.task.config, workflow_state)
-
-        # Execute based on executor type
-        if activity.task.executor == ExecutorType.SCRIPT:
-            return await self._execute_script_executor(activity, task_inputs, timeout, execution_id)
-        if activity.task.executor == ExecutorType.AGENTIC:
-            return await self._execute_agentic_executor(activity, task_inputs, timeout, execution_id)
-        if activity.task.executor == ExecutorType.AAP_JOB_TEMPLATE:
-            return await self._execute_aap_job_template_executor(activity, task_inputs, timeout, execution_id)
-        # Otherwise, executor must be API (enforced by type system)
-        return await self._execute_api_executor(activity, task_inputs, timeout, execution_id)
-
-    async def _execute_parallel_activity(
-        self,
-        activity: Activity,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute multiple activities in parallel.
-
-        Args:
-            activity: Parallel activity definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Aggregated results from all parallel branches
-
+        For do_while loops, the condition is kept as a raw template so it can
+        be evaluated after the loop body executes.
         """
-        if not activity.branches:
-            msg = f"Activity {activity.id} is type=parallel but has no branches"
-            raise SafeValueError(msg)
+        self.resolver.set_context(loop_node_id=self.loop_body_map.get(node.id))
 
-        workflow.logger.info(
-            f"Executing {len(activity.branches)} activities in parallel",
-            extra={"activity_id": activity.id, "execution_id": execution_id},
-        )
-
-        # Check if next activity is a converge for these branches
-        # If so, don't execute yet - let the converge handle it
-        next_activity_is_converge = self._check_if_next_is_converge(activity, workflow_state)
-
-        if not next_activity_is_converge:
-            # No converge follows, execute all branches in parallel immediately
-            tasks = [self._execute_activity(branch, execution_id, workflow_state) for branch in activity.branches]
-            results = await asyncio.gather(*tasks)
-
-            # Store branch results
-            branch_results = {}
-            for branch, result in zip(activity.branches, results, strict=True):
-                branch_results[branch.id] = result
-                workflow_state["activity_outputs"][branch.id] = result
-
-            return {"type": "parallel", "branches": branch_results}
-
-        # If next is converge, store coroutines for the converge to execute
-        for branch in activity.branches:
-            # Store the branch activity definition, not a task
-            workflow_state.setdefault("pending_branches", {})[branch.id] = {
-                "activity": branch,
-                "execution_id": execution_id,
+        if node.type == "loop" and node.config.get("type") == "do_while":
+            return {
+                key: value if key == "condition" else self.resolver.resolve_value(value)
+                for key, value in node.config.items()
             }
 
-        return {"type": "parallel", "branches": {}, "deferred_to_converge": True}
+        return self.resolver.resolve_dict(node.config)
 
-    def _check_if_next_is_converge(self, current_activity: Activity, workflow_state: JsonDict) -> bool:
-        """Check if the next activity in the workflow is a converge for this parallel's branches.
-
-        Args:
-            current_activity: Current parallel activity
-            workflow_state: Workflow state containing the full workflow definition
-
-        Returns:
-            True if next activity is a converge for these branches
-
-        """
-        # Get the workflow definition from state
-        workflow_def = workflow_state.get("workflow_definition")
-        if not workflow_def or not workflow_def.workflow or not workflow_def.workflow.activities:
-            return False
-
-        # Find current activity index
-        activities = workflow_def.workflow.activities
-        current_index = None
-        for i, act in enumerate(activities):
-            if act.id == current_activity.id:
-                current_index = i
-                break
-
-        if current_index is None or current_index >= len(activities) - 1:
-            return False
-
-        # Check if next activity is a converge
-        next_activity = activities[current_index + 1]
-        if next_activity.type != "converge" or not next_activity.converge:
-            return False
-
-        # Check if the converge is waiting for branches from this parallel
-        if not current_activity.branches:
-            return False
-
-        parallel_branch_ids = {b.id for b in current_activity.branches}
-        converge_branch_ids = set(next_activity.converge.branches)
-
-        # If there's any overlap, the converge is waiting for this parallel
-        return bool(parallel_branch_ids & converge_branch_ids)
-
-    async def _execute_sequence_activity(
+    async def _dispatch_node(
         self,
-        activity: Activity,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute multiple activities sequentially.
+        node: ActivityNode,
+        resolved_config: dict[str, Any],
+        graph: WorkflowGraph,
+        timeout_seconds: int,
+    ) -> dict[str, Any]:
+        """Dispatch a node to the appropriate execution handler."""
+        node_id = node.id
+        node_type = node.type
 
-        Args:
-            activity: Sequence activity definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
+        if node_type in self._EXECUTOR_ACTIVITY_MAP:
+            return await self._execute_executor_node(
+                node_id, node_type, resolved_config, node.outputs, timeout_seconds=timeout_seconds
+            )
+        if node_type == "agentic":
+            return await self._execute_signal_node(
+                node_id,
+                "execute_agentic_activity",
+                resolved_config,
+                node.outputs,
+                signal_timeout=timedelta(minutes=5),
+                timeout_seconds=timeout_seconds,
+            )
+        if node_type == "approval":
+            return await self._execute_signal_node(
+                node_id,
+                "execute_approval_activity",
+                resolved_config,
+                node.outputs,
+                signal_timeout=timedelta(hours=24),
+                timeout_seconds=timeout_seconds,
+            )
+        if node_type == "converge":
+            return await self._execute_converge_node(
+                node_id, resolved_config, node.outputs, graph, timeout_seconds=timeout_seconds
+            )
+        if node_type == "loop":
+            return await self._execute_loop_node(node_id, node, resolved_config, timeout_seconds=timeout_seconds)
 
-        Returns:
-            Aggregated results from all sequential steps
+        return {"output": {"status": "skipped", "reason": f"Unsupported node type: {node_type}"}}
 
-        """
-        if not activity.steps:
-            msg = f"Activity {activity.id} is type=sequence but has no steps"
-            raise SafeValueError(msg)
+    def _process_node_result(self, node: ActivityNode, result: dict[str, Any]) -> dict[str, Any]:
+        """Extract control data and output from an activity result, raising on failure."""
+        control_data = result.get("control")
+        if control_data:
+            self.node_control_data[node.id] = control_data
 
-        workflow.logger.info(
-            f"Executing {len(activity.steps)} activities sequentially",
-            extra={"activity_id": activity.id, "execution_id": execution_id},
-        )
+        output_data = result.get("output", result)
 
-        step_results = {}
-        for step in activity.steps:
-            result = await self._execute_activity(step, execution_id, workflow_state)
-            step_results[step.id] = result
-            workflow_state["activity_outputs"][step.id] = result
-
-        return {"type": "sequence", "steps": step_results}
-
-    async def _execute_condition_activity(
-        self,
-        activity: Activity,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute conditional branching (if/then/else).
-
-        Args:
-            activity: Condition activity definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Result from executed branch (then or else)
-
-        """
-        if not activity.condition:
-            msg = f"Activity {activity.id} is type=condition but has no condition"
-            raise SafeValueError(msg)
-        if not activity.then:
-            msg = f"Activity {activity.id} is type=condition but has no then branch"
-            raise SafeValueError(msg)
-
-        # Evaluate condition
-        condition_result = self.expression_resolver.evaluate_condition(activity.condition, workflow_state)
-
-        workflow.logger.info(
-            f"Condition evaluated to: {condition_result}",
-            extra={"activity_id": activity.id, "execution_id": execution_id},
-        )
-
-        # Execute appropriate branch
-        if condition_result:
-            # Execute 'then' branch
-            then_results = {}
-            for then_activity in activity.then:
-                result = await self._execute_activity(then_activity, execution_id, workflow_state)
-                then_results[then_activity.id] = result
-                workflow_state["activity_outputs"][then_activity.id] = result
-            return {"type": "condition", "branch": "then", "results": then_results}
-        # Execute 'else' branch if present
-        if activity.else_:
-            else_results = {}
-            for else_activity in activity.else_:
-                result = await self._execute_activity(else_activity, execution_id, workflow_state)
-                else_results[else_activity.id] = result
-                workflow_state["activity_outputs"][else_activity.id] = result
-            return {"type": "condition", "branch": "else", "results": else_results}
-        return {"type": "condition", "branch": "else", "results": {}, "skipped": True}
-
-    async def _execute_loop_activity(
-        self,
-        activity: Activity,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute loop activity (forEach, while, count).
-
-        Args:
-            activity: Loop activity definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Aggregated results from all loop iterations
-
-        """
-        if not activity.loop:
-            msg = f"Activity {activity.id} is type=loop but has no loop definition"
-            raise SafeValueError(msg)
-
-        loop_def = activity.loop
-
-        if loop_def.type == LoopType.FOR_EACH:
-            return await self._execute_foreach_loop(loop_def, execution_id, workflow_state)
-        if loop_def.type == LoopType.WHILE:
-            return await self._execute_while_loop(loop_def, execution_id, workflow_state)
-
-        msg = f"Unsupported loop type: {loop_def.type}"  # type: ignore[unreachable]
-        raise SafeValueError(msg)
-
-    async def _execute_foreach_loop(
-        self,
-        loop_def: ForEachLoopDefinition,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute forEach loop over a collection.
-
-        Args:
-            loop_def: ForEach loop definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Aggregated results from all iterations
-
-        """
-        # Get items to iterate over
-        items = self.expression_resolver.resolve_expression(loop_def.items, workflow_state)
-
-        if not isinstance(items, list):
-            msg = f"forEach items must be a list, got {type(items)}"
-            raise TypeError(msg)
-
-        workflow.logger.info(
-            f"Executing forEach loop for {len(items)} items",
-            extra={"execution_id": execution_id},
-        )
-
-        iteration_results = []
-        for index, item in enumerate(items):
-            # Create iteration-specific state
-            iteration_state = workflow_state.copy()
-            iteration_state[loop_def.item_variable] = item
-            iteration_state[loop_def.index_variable] = index
-
-            # Execute loop body activities
-            for do_activity in loop_def.do:
-                result = await self._execute_activity(do_activity, execution_id, iteration_state)
-                iteration_results.append(
-                    {
-                        "index": index,
-                        "item": item,
-                        "activity_id": do_activity.id,
-                        "result": result,
-                    }
-                )
-
-        return {"type": "forEach", "iterations": len(items), "results": iteration_results}
-
-    async def _execute_while_loop(
-        self,
-        loop_def: WhileLoopDefinition,
-        execution_id: str,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute while loop with condition.
-
-        Args:
-            loop_def: While loop definition
-            execution_id: Workflow execution ID
-            workflow_state: Current workflow state
-
-        Returns:
-            Aggregated results from all iterations
-
-        """
-        iteration_count = 0
-        iteration_results = []
-
-        # Resolve template expression in max_iterations if present
-        if loop_def.max_iterations:
-            resolved = self.expression_resolver.resolve_expression(loop_def.max_iterations, workflow_state)
-            loop_def.max_iterations = int(cast("int", resolved)) if resolved is not None else loop_def.max_iterations
-        max_iterations = loop_def.max_iterations
-
-        workflow.logger.info(
-            f"Executing while loop (max {max_iterations} iterations)",
-            extra={"execution_id": execution_id},
-        )
-
-        while iteration_count < max_iterations:
-            # Evaluate condition
-            should_continue = self.expression_resolver.evaluate_condition(loop_def.condition, workflow_state)
-
-            if not should_continue:
-                break
-
-            # Execute loop body activities
-            iteration_state = workflow_state.copy()
-            iteration_state["iteration_index"] = iteration_count
-
-            for do_activity in loop_def.do:
-                result = await self._execute_activity(do_activity, execution_id, iteration_state)
-                iteration_results.append(
-                    {
-                        "index": iteration_count,
-                        "activity_id": do_activity.id,
-                        "result": result,
-                    }
-                )
-
-            iteration_count += 1
-
-        return {"type": "while", "iterations": iteration_count, "results": iteration_results}
-
-    def _handle_converge_timeout(self, activity: Activity, converge_def: ConvergeDefinition) -> None:
-        """Handle converge timeout by raising error if configured to fail.
-
-        Args:
-            activity: Activity that timed out
-            converge_def: Converge definition with timeout configuration
-
-        Raises:
-            TimeoutError: If converge is configured to fail on timeout
-
-        """
-        if converge_def.on_timeout == TimeoutAction.FAIL:
-            msg = f"Converge activity {activity.id} timed out after {converge_def.timeout} seconds"
-            raise TimeoutError(msg)
-
-    async def _process_completed_tasks(
-        self,
-        pending_tasks: JsonDict,
-        done: set[Any],
-        workflow_state: JsonDict,
-    ) -> None:
-        """Process completed tasks and update workflow state.
-
-        Args:
-            pending_tasks: Map of branch IDs to their tasks
-            done: Set of completed tasks
-            workflow_state: Current workflow state
-
-        """
-        for branch_id, task in pending_tasks.items():
-            if task in done:
-                try:
-                    result = await task
-                    workflow_state["activity_outputs"][branch_id] = result
-                    workflow_state.get("pending_tasks", {}).pop(branch_id, None)
-                except (asyncio.CancelledError, Exception):
-                    # Task failed or was cancelled, don't include in results
-                    workflow_state.get("pending_tasks", {}).pop(branch_id, None)
-                    # Re-raise CancelledError to allow proper cancellation propagation
-                    if isinstance(task.exception(), asyncio.CancelledError):
-                        raise
-
-    async def _execute_converge_with_timeout(
-        self,
-        activity: Activity,
-        converge_def: ConvergeDefinition,
-        branches_to_execute: list[tuple[str, Activity, str]],
-        timeout_seconds: float,
-        workflow_state: JsonDict,
-    ) -> None:
-        """Execute converge branches with timeout using workflow.wait().
-
-        Args:
-            activity: Converge activity definition
-            converge_def: Converge definition
-            branches_to_execute: List of (branch_id, branch_activity, exec_id) tuples
-            timeout_seconds: Timeout in seconds
-            workflow_state: Current workflow state
-
-        Raises:
-            TimeoutError: If timeout occurs and onTimeout is "fail"
-
-        """
-        # Create tasks and use workflow.wait() for deterministic execution
-        tasks = {}
-        for branch_id, branch_activity, exec_id in branches_to_execute:
-            task = asyncio.create_task(self._execute_activity(branch_activity, exec_id, workflow_state))
-            tasks[branch_id] = task
-
-        # Wait with timeout
-        done, pending = await workflow.wait(tasks.values(), timeout=timeout_seconds)
-
-        # Process completed tasks
-        for branch_id, task in tasks.items():
-            if task in done:
-                try:
-                    result = await task
-                    workflow_state["activity_outputs"][branch_id] = result
-                except asyncio.CancelledError:
-                    workflow.logger.info(
-                        f"Branch {branch_id} was cancelled",
-                        extra={"branch_id": branch_id},
-                    )
-                    raise  # Re-raise to propagate cancellation
-                except Exception as e:
-                    # Log and re-raise all other exceptions
-                    workflow.logger.error(
-                        f"Branch {branch_id} failed with {type(e).__name__}: {e}",
-                        extra={"branch_id": branch_id},
-                        exc_info=True,
-                    )
-                    raise
-            workflow_state.get("pending_branches", {}).pop(branch_id, None)
-
-        # Handle pending tasks (timeout occurred)
-        if pending:
-            for task in pending:
-                task.cancel()
-            # Raise error only if configured to fail
-            if converge_def.on_timeout == TimeoutAction.FAIL:
-                msg = f"Converge activity {activity.id} timed out after {converge_def.timeout} seconds"
-                raise TimeoutError(msg)
-
-    async def _execute_converge_without_timeout(
-        self,
-        branches_to_execute: list[tuple[str, Activity, str]],
-        workflow_state: JsonDict,
-    ) -> None:
-        """Execute converge branches without timeout using asyncio.gather().
-
-        Args:
-            branches_to_execute: List of (branch_id, branch_activity, exec_id) tuples
-            workflow_state: Current workflow state
-
-        """
-        # Use simple gather (no tasks, no warnings)
-        coroutines = [
-            self._execute_activity(branch_activity, exec_id, workflow_state)
-            for _, branch_activity, exec_id in branches_to_execute
-        ]
-        results = await asyncio.gather(*coroutines, return_exceptions=True)
-
-        # Store results
-        for (branch_id, _, _), result in zip(branches_to_execute, results, strict=True):
-            if isinstance(result, Exception):
-                # Log the exception but don't fail the entire converge
-                workflow.logger.error(
-                    f"Branch {branch_id} failed in converge execution: {result}",
-                    extra={"branch_id": branch_id},
-                    exc_info=result,
-                )
-                # Store error in activity_outputs for visibility
-                workflow_state["activity_outputs"][branch_id] = {
-                    "error": str(result),
-                    "error_type": type(result).__name__,
-                }
+        # Activities return {"output": {"status": "failed", ...}} for errors instead of raising
+        if isinstance(output_data, dict) and output_data.get("status") == "failed":
+            error_info = output_data.get("error", {})
+            if isinstance(error_info, dict):
+                error_msg = error_info.get("message", "Activity failed")
             else:
-                workflow_state["activity_outputs"][branch_id] = result
-
-            workflow_state.get("pending_branches", {}).pop(branch_id, None)
-
-    async def _execute_converge_activity(
-        self,
-        activity: Activity,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Execute converge activity (wait for multiple activities to complete).
-
-        Args:
-            activity: Converge activity definition
-            workflow_state: Current workflow state
-
-        Returns:
-            Aggregated outputs from converged activities
-
-        Raises:
-            TimeoutError: If timeout is specified and converge condition not met within timeout period
-
-        """
-        if not activity.converge:
-            msg = f"Activity {activity.id} is type=converge but has no converge definition"
+                error_msg = str(error_info) if error_info else "Activity failed"
+            msg = f"Activity {node.id} failed: {error_msg}"
             raise SafeValueError(msg)
 
-        converge_def = activity.converge
-        # Resolve template expression in timeout if present
-        if converge_def.timeout:
-            resolved = self.expression_resolver.resolve_expression(converge_def.timeout, workflow_state)
-            converge_def.timeout = int(cast("int", resolved)) if resolved is not None else None
-        timeout_seconds = converge_def.timeout
+        workflow.logger.info(
+            f"Node {node.id} executed",
+            extra={
+                "node_type": node.type,
+                "has_outputs_config": node.outputs is not None,
+                "output_data_keys": list(output_data.keys()) if isinstance(output_data, dict) else "not-a-dict",
+            },
+        )
 
-        # Collect pending branches that need to be executed
-        branches_to_execute = []
-        for branch_id in converge_def.branches:
-            if branch_id in workflow_state.get("pending_branches", {}):
-                branch_info = workflow_state["pending_branches"][branch_id]
-                branches_to_execute.append((branch_id, branch_info["activity"], branch_info["execution_id"]))
-
-        # Execute all branches in parallel if there are any pending
-        if branches_to_execute:
-            if timeout_seconds:
-                await self._execute_converge_with_timeout(
-                    activity, converge_def, branches_to_execute, timeout_seconds, workflow_state
-                )
-            else:
-                await self._execute_converge_without_timeout(branches_to_execute, workflow_state)
-
-        # Collect results from all converged branches (completed ones)
-        converge_results = {}
-        for branch_id in converge_def.branches:
-            if branch_id in workflow_state["activity_outputs"]:
-                converge_results[branch_id] = workflow_state["activity_outputs"][branch_id]
-
-        return {"type": "converge", "strategy": converge_def.strategy, "results": converge_results}
-
-    def _prepare_task_inputs(
-        self,
-        activity: Activity,
-        workflow_state: JsonDict,
-    ) -> JsonDict:
-        """Prepare input parameters for task execution with expression resolution.
-
-        Merges workflow-level inputs with task-specific inputs so that both
-        ${input.field} (workflow inputs) and task-mapped inputs are available.
-
-        Args:
-            activity: Activity definition
-            workflow_state: Current workflow state with previous outputs
-
-        Returns:
-            Resolved input parameters (workflow inputs + task inputs)
-
-        """
-        # Start with workflow-level inputs (so ${input.field} expressions work)
-        resolved_inputs = dict(workflow_state.get("inputs", {}))
-
-        # Add task-specific inputs (these override workflow inputs if same key)
-        if activity.task and activity.task.inputs:
-            for key, value in activity.task.inputs.items():
-                resolved_inputs[key] = self.expression_resolver.resolve_expression(value, workflow_state)
-
-        return resolved_inputs
-
-    def _traverse_path(self, data: JsonDict | list[Any] | object, path: str) -> object:
-        """Traverse a JSONPath-like expression to extract value from data.
-
-        Supports dict keys and array indices (e.g., "items.0.name").
-
-        Args:
-            data: Source data to traverse
-            path: Dot-separated path (e.g., "output.items.0.id")
-
-        Returns:
-            Extracted value or None if path not found
-
-        """
-        value: object = data
-        for field_name in path.split("."):
-            if isinstance(value, dict) and field_name in value:
-                value = value[field_name]
-            elif isinstance(value, list) and field_name.isdigit():
-                # Support numeric indices for arrays
-                index = int(field_name)
-                if 0 <= index < len(value):
-                    value = value[index]
-                else:
-                    return None
-            else:
-                return None
-        return value
-
-    def _parse_value(self, value: object) -> object:
-        """Parse value, attempting JSON deserialization if it's a string.
-
-        Args:
-            value: Value to parse
-
-        Returns:
-            Parsed value (JSON if string, otherwise original)
-
-        """
-        if isinstance(value, str):
-            try:
-                return json.loads(value.strip())
-            except (json.JSONDecodeError, ValueError):
-                # Not JSON, return as-is
-                return value
-        return value
-
-    def _process_output_mappings(
-        self,
-        result: JsonDict,
-        output_mappings: dict[str, str],
-    ) -> JsonDict:
-        """Process output mappings to extract and transform activity results.
-
-        Transforms raw activity output (e.g., {stdout, stderr, return_code})
-        into structured output using JSONPath-like expressions.
-
-        Args:
-            result: Raw activity result
-            output_mappings: Output mapping definitions (e.g., {"user_data": "$.stdout"})
-
-        Returns:
-            Enhanced result with 'output' key containing mapped values
-
-        """
-        mapped_outputs = {}
-
-        for output_name, mapping_expr in output_mappings.items():
-            # Handle $.field or $.nested.field patterns
-            if mapping_expr.startswith("$."):
-                path = mapping_expr[2:]  # Remove "$."
-                value = self._traverse_path(result, path)
-
-                if value is not None:
-                    mapped_outputs[output_name] = self._parse_value(value)
-
-        # Add the mapped outputs to result under 'output' key
-        result["output"] = mapped_outputs
-        return result
+        return cast("dict[str, Any]", output_data)
 
     @workflow.query
-    def get_activity_input(self, activity_id: str) -> JsonDict | None:
-        """Query to get activity input data.
+    def get_activity_input(self, activity_id: str) -> dict[str, Any] | None:
+        """Query to get input data for a specific activity.
+
+        This is consumed by ActivitySyncService to sync activity data to the database.
 
         Args:
-            activity_id: Activity ID to query
+            activity_id: Node ID to get input for
 
         Returns:
             Activity input data or None if not found
 
         """
-        activity_inputs: dict[str, JsonDict] = self.workflow_state.get("activity_inputs", {})
-        return activity_inputs.get(activity_id)
+        return self.node_inputs.get(activity_id)
 
     @workflow.query
-    def get_activity_output(self, activity_id: str) -> JsonDict | None:
-        """Query to get activity output data.
+    def get_activity_output(self, activity_id: str) -> dict[str, Any] | None:
+        """Query to get output data for a specific activity.
+
+        This is consumed by ActivitySyncService to sync activity data to the database.
 
         Args:
-            activity_id: Activity ID to query
+            activity_id: Node ID to get output for
 
         Returns:
             Activity output data or None if not found
 
         """
-        activity_outputs: dict[str, JsonDict] = self.workflow_state.get("activity_outputs", {})
-        return activity_outputs.get(activity_id)
+        return self.resolver.get_namespace(activity_id) if self.resolver.has_namespace(activity_id) else None
+
+    @workflow.query
+    def get_skipped_nodes(self) -> list[str]:
+        """Query to get list of skipped node IDs.
+
+        This is consumed by ActivitySyncService to sync skipped status to database.
+        Nodes are skipped when they are on non-taken branches of conditional nodes,
+        or are transitively unreachable through skipped predecessors.
+
+        Returns:
+            List of node IDs that were skipped due to control flow
+
+        """
+        return list(self.skipped_nodes)

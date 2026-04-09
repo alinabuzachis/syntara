@@ -1,29 +1,25 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: timeout-retry-test
-  description: Test timeout and retry combination
+schema_version: "2.0.0"
+name: timeout-retry-test
+description: Test timeout and retry combination
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: task_with_both
-      name: Task With Timeout and Retry
-      type: task
-      timeout: 5
-      retryPolicy:
-        maxAttempts: 2
-        backoff: fixed
-        initialInterval: 1
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "Executing task"
-            sleep 1
-            echo "Complete"
+nodes:
+  - id: task_with_both
+    name: Task With Timeout and Retry
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Executing task"
+        sleep 1
+        echo "Complete"
+    timeout: 5
+    retry_policy:
+      maxAttempts: 2
+      backoff: fixed
+      initialInterval: 1
+edges: []

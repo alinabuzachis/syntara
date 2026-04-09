@@ -21,12 +21,10 @@ from nexus.core.models import User
 from nexus.workflows.exceptions import (
     WorkflowNameConflictError,
     WorkflowNotFoundError,
-    WorkflowValidationError,
     WorkflowVersionNotFoundError,
 )
 from nexus.workflows.models import Workflow, WorkflowListResponse, WorkflowRead, WorkflowVersion
 from nexus.workflows.services.workflow_service import WorkflowConvertResourceMixin, WorkflowService
-from nexus.workflows.workflow_engine.models import WorkflowDefinition
 
 
 class TestWorkflowServiceBase:
@@ -66,7 +64,7 @@ class TestWorkflowServiceBase:
         version_id: UUID | None = None,
         workflow_id: UUID | None = None,
         version: int = 1,
-        schema_version: str = "1.0.0",
+        schema_version: str = "2.0.0",
         workflow_definition: dict[str, Any] | None = None,
         created_by: UUID | None = None,
         change_description: str = "Initial version",
@@ -87,39 +85,35 @@ class TestWorkflowServiceBase:
         )
 
     def _create_minimal_workflow_definition(self) -> dict[str, Any]:
-        """Create a minimal valid workflow definition."""
+        """Create a minimal valid V2 workflow definition."""
         return {
-            "schemaVersion": "1.0.0",
-            "version": 1,
-            "metadata": {
-                "name": "test-workflow",
-                "description": "Test workflow",
-            },
+            "schema_version": "2.0.0",
+            "name": "test-workflow",
+            "description": "Test workflow",
             "triggers": [
                 {
-                    "type": "manual",
+                    "id": "trigger_manual",
+                    "type": "manual_trigger",
                 }
             ],
-            "workflow": {
-                "activities": [
-                    {
-                        "id": "task1",
-                        "name": "Task 1",
-                        "type": "task",
-                        "task": {
-                            "executor": "script",
-                            "config": {
-                                "language": "python",
-                                "code": "print('hello')",
-                            },
-                        },
-                    }
-                ]
-            },
+            "nodes": [
+                {
+                    "id": "task1",
+                    "name": "Task 1",
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": "print('hello')",
+                    },
+                }
+            ],
+            "edges": [
+                {"from": "trigger_manual", "to": "task1"},
+            ],
         }
 
-    def _create_workflow_definition(self, **overrides: dict[str, Any]) -> WorkflowDefinition:
-        """Create a WorkflowDefinition object with optional overrides."""
+    def _create_workflow_definition(self, **overrides: dict[str, Any]) -> dict[str, Any]:
+        """Create a workflow definition dict with optional overrides."""
         definition = self._create_minimal_workflow_definition()
         for key, value in overrides.items():
             if "." in key:
@@ -130,7 +124,7 @@ class TestWorkflowServiceBase:
                 target[keys[-1]] = value
             else:
                 definition[key] = value
-        return WorkflowDefinition(**definition)
+        return definition
 
 
 class TestWorkflowServiceInit(TestWorkflowServiceBase):
@@ -228,9 +222,9 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
 
         workflow_definition = self._create_workflow_definition()
 
-        # Mock validator
-        with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.return_value = (None, "1.0.0", {"test": "definition"})
+        # Mock validator to accept the definition without error
+        with patch("nexus.workflows.services.workflow_service.workflow_validator") as mock_validator:
+            mock_validator.validate_workflow_definition.return_value = None
 
             result = await service.create_workflow(
                 name="test-workflow",
@@ -250,8 +244,8 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
 
             assert version.workflow_id == workflow.id
             assert version.version == 1
-            assert version.schema_version == "1.0.0"
-            assert version.workflow_definition == {"test": "definition"}
+            assert version.schema_version == "2.0.0"
+            assert version.workflow_definition == workflow_definition
             assert version.created_by == test_user.id
             assert version.change_description == "Initial version"
 
@@ -267,11 +261,11 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
 
         workflow_definition = self._create_workflow_definition()
 
-        # Mock validator to raise WorkflowValidationError
-        with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.side_effect = WorkflowValidationError("Invalid definition")
+        # Mock validator to raise SafeValueError (what V2 validator raises)
+        with patch("nexus.workflows.services.workflow_service.workflow_validator") as mock_validator:
+            mock_validator.validate_workflow_definition.side_effect = SafeValueError("Invalid definition")
 
-            with pytest.raises(WorkflowValidationError):
+            with pytest.raises(SafeValueError):
                 await service.create_workflow(
                     name="invalid-workflow",
                     description=None,
@@ -292,9 +286,7 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
         # First, create a workflow with a specific name
         workflow_definition = self._create_workflow_definition()
 
-        with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.return_value = (None, "1.0.0", {"test": "definition"})
-
+        with patch("nexus.workflows.services.workflow_service.workflow_validator"):
             # Create first workflow
             await service.create_workflow(
                 name="duplicate-workflow",
@@ -305,18 +297,17 @@ class TestWorkflowServiceCreateWorkflow(TestWorkflowServiceBase):
             )
 
         # Now try to create another with the same name
-        with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.return_value = (None, "1.0.0", {"test": "definition"})
-
-            # This should raise WorkflowNameConflictError due to unique constraint
-            with pytest.raises(WorkflowNameConflictError):
-                await service.create_workflow(
-                    name="duplicate-workflow",
-                    description=None,
-                    labels={},
-                    workflow_definition=workflow_definition,
-                    is_enabled=True,
-                )
+        with (
+            patch("nexus.workflows.services.workflow_service.workflow_validator"),
+            pytest.raises(WorkflowNameConflictError),
+        ):
+            await service.create_workflow(
+                name="duplicate-workflow",
+                description=None,
+                labels={},
+                workflow_definition=workflow_definition,
+                is_enabled=True,
+            )
 
 
 class TestWorkflowServiceGetWorkflow(TestWorkflowServiceBase):
@@ -470,11 +461,11 @@ class TestWorkflowServiceCreateVersion(TestWorkflowServiceBase):
         test_db_session.add(current_version)
         await test_db_session.commit()
 
-        new_definition = self._create_workflow_definition(**{"metadata.description": "Updated workflow"})  # type: ignore[arg-type]
+        new_definition = self._create_workflow_definition(description="Updated workflow")  # type: ignore[arg-type]
 
-        # Mock validator
-        with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.return_value = (None, "1.0.0", {"updated": "definition"})
+        # Mock validator to accept the definition
+        with patch("nexus.workflows.services.workflow_service.workflow_validator") as mock_validator:
+            mock_validator.validate_workflow_definition.return_value = None
 
             result = await service.create_workflow_version(
                 workflow,
@@ -485,8 +476,8 @@ class TestWorkflowServiceCreateVersion(TestWorkflowServiceBase):
             assert result is not None
             assert result.workflow_id == workflow.id
             assert result.version == 2
-            assert result.schema_version == "1.0.0"
-            assert result.workflow_definition == {"updated": "definition"}
+            assert result.schema_version == "2.0.0"
+            assert result.workflow_definition == new_definition
             assert result.change_description == "Updated description"
             assert result.created_by == test_user.id
             assert workflow.current_version == 2
@@ -501,21 +492,21 @@ class TestWorkflowServiceCreateVersion(TestWorkflowServiceBase):
         """Test version creation when definition hasn't changed."""
         service = WorkflowService(test_db_session, test_user)
 
+        same_definition = self._create_workflow_definition()
+
         workflow = self._create_test_workflow(name="test-workflow", current_version=1, created_by=test_user.id)
         test_db_session.add(workflow)
 
         # Create current version in database with same definition
         current_version = self._create_test_workflow_version(
-            workflow_id=workflow.id, version=1, workflow_definition={"same": "definition"}, created_by=test_user.id
+            workflow_id=workflow.id, version=1, workflow_definition=same_definition, created_by=test_user.id
         )
         test_db_session.add(current_version)
         await test_db_session.commit()
 
-        same_definition = self._create_workflow_definition()
-
-        # Mock validator
-        with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.return_value = (None, "1.0.0", {"same": "definition"})
+        # Mock validator to accept the definition
+        with patch("nexus.workflows.services.workflow_service.workflow_validator") as mock_validator:
+            mock_validator.validate_workflow_definition.return_value = None
 
             result = await service.create_workflow_version(
                 workflow,
@@ -536,11 +527,11 @@ class TestWorkflowServiceCreateVersion(TestWorkflowServiceBase):
         workflow = self._create_test_workflow(created_by=test_user.id)
         invalid_definition = self._create_workflow_definition()
 
-        # Mock validator to raise WorkflowValidationError
-        with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.side_effect = WorkflowValidationError("Invalid definition")
+        # Mock validator to raise SafeValueError (what V2 validator raises)
+        with patch("nexus.workflows.services.workflow_service.workflow_validator") as mock_validator:
+            mock_validator.validate_workflow_definition.side_effect = SafeValueError("Invalid definition")
 
-            with pytest.raises(WorkflowValidationError):
+            with pytest.raises(SafeValueError):
                 await service.create_workflow_version(
                     workflow,
                     invalid_definition,
@@ -597,10 +588,10 @@ class TestWorkflowServiceUpdateWorkflow(TestWorkflowServiceBase):
         test_db_session.add(version)
         await test_db_session.commit()
 
-        new_definition = self._create_workflow_definition()
+        new_definition = self._create_workflow_definition(description="Updated workflow with new features")  # type: ignore[arg-type]
 
-        with patch("nexus.workflows.services.workflow_service.WorkflowDefinitionValidator") as mock_validator:
-            mock_validator.validate.return_value = (None, "1.0.0", {"new": "definition"})
+        with patch("nexus.workflows.services.workflow_service.workflow_validator") as mock_validator:
+            mock_validator.validate_workflow_definition.return_value = None
 
             result = await service.update_workflow(
                 workflow.id,

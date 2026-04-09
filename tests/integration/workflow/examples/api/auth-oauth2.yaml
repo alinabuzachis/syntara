@@ -1,10 +1,7 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: auth-oauth2
-  description: API request with OAuth2 authentication
+schema_version: "2.0.0"
+name: auth-oauth2
+description: API request with OAuth2 authentication
 
 secrets:
   oauth2_token:
@@ -12,17 +9,16 @@ secrets:
     type: oauth2
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: fetch_with_oauth2
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: http://test-api.example.com/api/oauth-auth
-          authentication:
-            type: oauth2
-            credentials: ${secrets.oauth2_token}
+nodes:
+  - id: fetch_with_oauth2
+    type: http_request
+    config:
+      method: GET
+      url: http://test-api.example.com/api/oauth-auth
+      authentication:
+        type: oauth2
+        credentials: ${secrets.oauth2_token}
+edges: []

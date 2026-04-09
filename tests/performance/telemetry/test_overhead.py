@@ -27,7 +27,7 @@ import pytest
 
 from nexus.telemetry.client import TelemetryClientRegistry
 from nexus.telemetry.collector import TelemetryCollector
-from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script
+from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityTerminalStatus,
     ActivityType,
@@ -51,16 +51,13 @@ _ACTIVITIES_PER_WORKFLOW = 5
 _ACTIVITY_DEFS: list[dict[str, object]] = [
     {
         "id": f"step-{i}",
-        "type": "task",
-        "task": {
-            "executor": "script",
-            "config": {"language": "bash", "code": "echo ok"},
-        },
+        "type": "script",
+        "config": {"language": "bash", "code": "echo ok"},
     }
     for i in range(_ACTIVITIES_PER_WORKFLOW)
 ]
 
-# Script activity config passed to execute_bash_script.
+# Script activity config passed to execute_script_activity.
 # The script performs a SHA-256 hash computation to simulate a lightweight
 # but realistic workload.  Real activities (API calls, AAP job templates)
 # take 100 ms to minutes; this is intentionally fast to stress the overhead
@@ -74,7 +71,7 @@ _SCRIPT_CONFIG: dict[str, str] = {
 async def _run_workflow_activities() -> None:
     """Execute real bash script activities like a workflow would."""
     for _ in range(_ACTIVITIES_PER_WORKFLOW):
-        await execute_bash_script(_SCRIPT_CONFIG, {})
+        await execute_script_activity(_SCRIPT_CONFIG, None)
 
 
 async def _run_baseline(iterations: int) -> list[float]:

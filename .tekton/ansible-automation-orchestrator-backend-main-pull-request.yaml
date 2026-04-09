@@ -1,11 +1,12 @@
+---
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
   annotations:
     build.appstudio.openshift.io/repo: https://github.com/syntara-orchestration/syntara?rev={{revision}}
-    build.appstudio.redhat.com/commit_sha: '{{revision}}'
-    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
-    build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    build.appstudio.redhat.com/commit_sha: "{{revision}}"
+    build.appstudio.redhat.com/pull_request_number: "{{pull_request_number}}"
+    build.appstudio.redhat.com/target_branch: "{{target_branch}}"
     pipelinesascode.tekton.dev/cancel-in-progress: "true"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     # TODO: Restore automatic triggering by replacing on-comment/on-target-branch below with:
@@ -21,41 +22,41 @@ metadata:
   namespace: nexus-tenant
 spec:
   params:
-  - name: git-url
-    value: '{{repo_url}}'
-  - name: revision
-    value: '{{revision}}'
-  - name: output-image
-    value: quay.io/redhat-user-workloads/nexus-tenant/ansible-automation-platform/automation-orchestrator-backend-rhel9:on-pr-{{revision}}
-  - name: image-expires-after
-    value: 5d
-  - name: dockerfile
-    value: containers/nexus/Containerfile
-  - name: path-context
-    value: .
-  - name: build-platforms
-    value:
-      - linux/x86_64
-      - linux/arm64
-  - name: hermetic
-    value: 'true'
-  - name: prefetch-input
-    value: '[{"type": "pip", "path": ".", "allow_binary": true}, {"type": "rpm", "path": "."}]'
-  - name: prefetch-mode
-    value: permissive
+    - name: git-url
+      value: "{{repo_url}}"
+    - name: revision
+      value: "{{revision}}"
+    - name: output-image
+      value: quay.io/redhat-user-workloads/nexus-tenant/ansible-automation-platform/automation-orchestrator-backend-rhel9:on-pr-{{revision}}
+    - name: image-expires-after
+      value: 5d
+    - name: dockerfile
+      value: containers/nexus/Containerfile
+    - name: path-context
+      value: .
+    - name: build-platforms
+      value:
+        - linux/x86_64
+        - linux/arm64
+    - name: hermetic
+      value: "true"
+    - name: prefetch-input
+      value: '[{"type": "pip", "path": ".", "allow_binary": true}, {"type": "rpm", "path": "."}]'
+    - name: prefetch-mode
+      value: permissive
   pipelineRef:
     params:
-    - name: name
-      value: pde-docker-build-multi-platform-oci-ta
-    - name: bundle
-      value: quay.io/aap-ci/pde-docker-build-multi-platform-oci-ta-bundle@sha256:a92f38f28a102e82a6cd4c830ff62e0409e981369f272e0e68d98ae8fcdb886f
-    - name: kind
-      value: pipeline
+      - name: name
+        value: pde-docker-build-multi-platform-oci-ta
+      - name: bundle
+        value: quay.io/aap-ci/pde-docker-build-multi-platform-oci-ta-bundle@sha256:a92f38f28a102e82a6cd4c830ff62e0409e981369f272e0e68d98ae8fcdb886f
+      - name: kind
+        value: pipeline
     resolver: bundles
   taskRunTemplate:
     serviceAccountName: build-pipeline-ansible-automation-orchestrator-backend-main
   workspaces:
-  - name: git-auth
-    secret:
-      secretName: '{{ git_auth_secret }}'
+    - name: git-auth
+      secret:
+        secretName: "{{ git_auth_secret }}"
 status: {}

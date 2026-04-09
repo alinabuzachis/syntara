@@ -31,31 +31,29 @@ requires_openrouter = pytest.mark.skipif(
 )
 
 WORKFLOW_DEFINITION = {
-    "schemaVersion": "1.0.0",
-    "version": 1,
-    "metadata": {
-        "name": WORKFLOW_NAME,
-        "description": "E2E test: agentic workflow with tool metrics",
-    },
-    "triggers": [{"type": "manual"}],
-    "workflow": {
-        "activities": [
-            {
-                "id": "agentic_task",
-                "name": "Agentic Task",
-                "type": "task",
-                "task": {
-                    "executor": "agentic",
-                    "config": {
-                        "prompt": (
-                            "You MUST use the get_greeting tool to greet jimmy. "
-                            "Do not answer without calling the tool first."
-                        ),
-                    },
-                },
-            }
-        ]
-    },
+    "schema_version": "2.0.0",
+    "triggers": [
+        {
+            "id": "trigger_manual",
+            "type": "manual_trigger",
+            "config": {"inputs": {}},
+        }
+    ],
+    "nodes": [
+        {
+            "id": "agentic_task",
+            "name": "Agentic Task",
+            "type": "agentic",
+            "config": {
+                "prompt": (
+                    "You MUST use the get_greeting tool to greet jimmy. Do not answer without calling the tool first."
+                ),
+            },
+        }
+    ],
+    "edges": [
+        {"from": "trigger_manual", "to": "agentic_task"},
+    ],
 }
 
 

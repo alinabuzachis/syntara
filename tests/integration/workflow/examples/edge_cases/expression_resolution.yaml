@@ -1,10 +1,7 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: expression-resolution-test
-  description: Test expression resolution with multiple placeholders and nested paths
+schema_version: "2.0.0"
+name: expression-resolution-test
+description: Test expression resolution with multiple placeholders and nested paths
 
 inputs:
   firstName:
@@ -20,48 +17,47 @@ variables:
     retries: 3
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: test_multiple_placeholders
-      name: Test Multiple Expression Placeholders
-      type: task
-      task:
-        executor: script
-        inputs:
-          greeting: Hello, ${input.firstName} ${input.lastName}!
-        config:
-          language: bash
-          code: |
-            echo "Greeting: $INPUT_GREETING"
-        outputs:
-          result: $.stdout
+nodes:
+  - id: test_multiple_placeholders
+    name: Test Multiple Expression Placeholders
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Greeting: $INPUT_GREETING"
+    inputs:
+      greeting: Hello, ${input.firstName} ${input.lastName}!
+    outputs:
+      result: $.stdout
 
-    - id: test_variable_reference
-      name: Test Variable Reference
-      type: task
-      task:
-        executor: script
-        inputs:
-          timeout_value: ${variables.config.timeout}
-        config:
-          language: bash
-          code: |
-            echo "Timeout: $INPUT_TIMEOUT_VALUE seconds"
-        outputs:
-          result: $.stdout
+  - id: test_variable_reference
+    name: Test Variable Reference
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Timeout: $INPUT_TIMEOUT_VALUE seconds"
+    inputs:
+      timeout_value: ${variables.config.timeout}
+    outputs:
+      result: $.stdout
 
-    - id: test_activity_output_reference
-      name: Test Activity Output Reference
-      type: task
-      task:
-        executor: script
-        inputs:
-          previous_result: ${test_multiple_placeholders.output.result}
-        config:
-          language: bash
-          code: |
-            echo "Previous output was: $INPUT_PREVIOUS_RESULT"
-        outputs:
-          final: $.stdout
+  - id: test_activity_output_reference
+    name: Test Activity Output Reference
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Previous output was: $INPUT_PREVIOUS_RESULT"
+    inputs:
+      previous_result: ${test_multiple_placeholders.output.result}
+    outputs:
+      final: $.stdout
+edges:
+  - source: test_multiple_placeholders
+    target: test_variable_reference
+  - source: test_variable_reference
+    target: test_activity_output_reference

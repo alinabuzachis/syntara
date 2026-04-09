@@ -52,11 +52,11 @@ from nexus.tool_manager.services.tool_provider_service import ToolProviderServic
 from nexus.workflows.models import ActivityExecution, ActivityStatus, Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.services.execution_streaming_service import ExecutionStreamingService
-from nexus.workflows.workflow_engine.activities.api_activity import execute_api_request
-from nexus.workflows.workflow_engine.activities.script_activity import execute_bash_script, execute_python_script
-from nexus.workflows.workflow_engine.dynamic_workflow import DynamicWorkflow
-from nexus.workflows.workflow_engine.models import WorkflowDefinition
-from nexus.workflows.workflow_engine.yaml_workflow_parser import parse_workflow_yaml
+from nexus.workflows.workflow_engine.activities.condition import condition
+from nexus.workflows.workflow_engine.activities.converge import converge
+from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
+from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
+from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
 from tests.helpers.approval import ApprovalsFactory
 from tests.helpers.tool_manager import ToolFactory
@@ -728,35 +728,31 @@ async def test_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
 
 @pytest_asyncio.fixture
 async def test_workflow_definition() -> dict[str, Any]:
-    """Create a test workflow definition."""
+    """Create a test V2 workflow definition."""
     return {
-        "schemaVersion": "1.0.0",
-        "version": 1,
-        "metadata": {
-            "name": "test-workflow",
-            "description": "Test workflow",
-        },
+        "schema_version": "2.0.0",
+        "name": "test-workflow",
+        "description": "Test workflow",
         "triggers": [
             {
-                "type": "manual",
+                "id": "trigger_manual",
+                "type": "manual_trigger",
             }
         ],
-        "workflow": {
-            "activities": [
-                {
-                    "id": "test_activity",
-                    "name": "test_activity",
-                    "type": "task",
-                    "task": {
-                        "executor": "script",
-                        "config": {
-                            "language": "bash",
-                            "code": "echo 'test'",
-                        },
-                    },
-                }
-            ],
-        },
+        "nodes": [
+            {
+                "id": "test_activity",
+                "name": "test_activity",
+                "type": "script",
+                "config": {
+                    "language": "bash",
+                    "code": "echo 'test'",
+                },
+            }
+        ],
+        "edges": [
+            {"from": "trigger_manual", "to": "test_activity"},
+        ],
     }
 
 
@@ -787,7 +783,7 @@ async def test_workflow(
     version = WorkflowVersion(
         workflow_id=workflow.id,
         version=1,
-        schema_version="1.0.0",
+        schema_version="2.0.0",
         workflow_definition=test_workflow_definition,
         created_by=test_user.id,
     )
@@ -836,8 +832,8 @@ async def test_activity_definition() -> dict[str, Any]:
     """Create a test workflow activity definition."""
     return {
         "id": "test_activity",
-        "type": "task",
-        "task": {"executor": "script", "config": {"code": "print('test')"}},
+        "type": "script",
+        "config": {"language": "python", "code": "print('test')"},
     }
 
 
@@ -1019,8 +1015,8 @@ async def temporal_client(temporal_env: WorkflowEnvironment) -> Client:
 async def temporal_worker(temporal_env: WorkflowEnvironment) -> AsyncGenerator[Worker, None]:
     """Provide a Temporal worker for testing.
 
-    This worker is configured with the DynamicWorkflow and all activity executors
-    (bash, Python, and API).
+    This worker is configured with the NexusWorkflow and the unified script
+    activity executor.
 
     Args:
         temporal_env: The Temporal test environment fixture
@@ -1036,8 +1032,8 @@ async def temporal_worker(temporal_env: WorkflowEnvironment) -> AsyncGenerator[W
     async with Worker(
         temporal_env.client,
         task_queue=task_queue,
-        workflows=[DynamicWorkflow],
-        activities=[execute_bash_script, execute_python_script, execute_api_request],
+        workflows=[NexusWorkflow],
+        activities=[execute_script_activity, manual_trigger, condition, converge],
     ) as worker:
         logger.info("Test worker started on queue: %s", task_queue)
         yield worker
@@ -1064,14 +1060,8 @@ async def run_workflow_from_file(
 ) -> Callable[..., Awaitable[dict[str, Any]]]:
     """Return a function that runs a workflow from a YAML file.
 
-    Returns a function that loads and executes a workflow, reducing test boilerplate.
-
-    Usage:
-        result = await run_workflow_from_file(
-            "examples/basic/hello-world.yaml",
-            workflow_id="test-hello",
-            inputs={"name": "World"}
-        )
+    TODO: V1 YAML workflow parsing (parse_workflow_yaml) was removed. This fixture
+    needs to be reimplemented for V2 graph-based workflows.
     """
 
     async def _run(
@@ -1080,41 +1070,8 @@ async def run_workflow_from_file(
         inputs: dict[str, Any] | None = None,
         execution_timeout: timedelta | None = None,
     ) -> dict[str, Any]:
-        """Load and execute a workflow from a YAML file.
-
-        Args:
-            workflow_path: Path to workflow YAML file relative to tests/integration/workflow/
-            workflow_id: Optional workflow ID (auto-generated if not provided)
-            inputs: Optional workflow inputs
-            execution_timeout: Optional execution timeout
-
-        Returns:
-            Workflow execution result
-
-        """
-        # Load workflow
-        full_path = Path("tests/integration/workflow") / workflow_path
-        workflow_yaml = full_path.read_text()
-        workflow_def = parse_workflow_yaml(workflow_yaml)
-
-        # Generate workflow ID if not provided
-        if workflow_id is None:
-            workflow_id = f"test-{workflow_def.metadata.name}-{uuid4()}"
-
-        # Start workflow
-        kwargs: dict[str, Any] = {
-            "args": [workflow_def.model_dump(mode="json", by_alias=True), f"exec-{uuid4()}", inputs or {}],
-            "id": workflow_id,
-            "task_queue": task_queue,
-        }
-        if execution_timeout:
-            kwargs["execution_timeout"] = execution_timeout
-
-        handle = await temporal_client.start_workflow(DynamicWorkflow.run, **kwargs)
-
-        # Return result
-        result: dict[str, Any] = await handle.result()
-        return result
+        msg = "run_workflow_from_file is not available: V1 YAML workflow parsing was removed"
+        raise NotImplementedError(msg)
 
     return _run
 
@@ -1123,25 +1080,13 @@ async def run_workflow_from_file(
 def load_workflow() -> Callable[[str], Any]:
     """Return a function that loads and parses a workflow YAML file.
 
-    Returns a function that loads a workflow definition without executing it.
-
-    Usage:
-        workflow_def = load_workflow("examples/basic/hello-world.yaml")
+    TODO: V1 YAML workflow parsing (parse_workflow_yaml) was removed. This fixture
+    needs to be reimplemented for V2 graph-based workflows.
     """
 
-    def _load(workflow_path: str) -> WorkflowDefinition:
-        """Load a workflow definition from a YAML file.
-
-        Args:
-            workflow_path: Path to workflow YAML file relative to tests/integration/workflow/
-
-        Returns:
-            WorkflowDefinition: Parsed workflow definition
-
-        """
-        full_path = Path("tests/integration/workflow") / workflow_path
-        workflow_yaml = full_path.read_text()
-        return parse_workflow_yaml(workflow_yaml)
+    def _load(workflow_path: str) -> dict[str, Any]:
+        msg = "load_workflow is not available: V1 YAML workflow parsing was removed"
+        raise NotImplementedError(msg)
 
     return _load
 

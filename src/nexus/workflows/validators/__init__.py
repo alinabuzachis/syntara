@@ -1,11 +1,14 @@
-"""Validators for workflow definitions and requests."""
+"""Workflow validation module.
 
-from nexus.workflows.validators.workflow_definition import (
-    WorkflowDefinitionValidationResult,
-    WorkflowDefinitionValidator,
-)
+This module provides validation for workflow definitions and metadata.
+"""
+
+from .workflow_definition import WorkflowValidator
+
+# Convenience singleton instance for easy usage
+workflow_validator = WorkflowValidator()
 
 __all__ = [
-    "WorkflowDefinitionValidationResult",
-    "WorkflowDefinitionValidator",
+    "WorkflowValidator",
+    "workflow_validator",
 ]

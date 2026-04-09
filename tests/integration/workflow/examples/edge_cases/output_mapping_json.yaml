@@ -1,39 +1,35 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: output-mapping-json-test
-  description: Test output mapping with JSON parsing
+schema_version: "2.0.0"
+name: output-mapping-json-test
+description: Test output mapping with JSON parsing
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: generate_json
-      name: Generate JSON Output
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo '{"user": "Alice", "age": 30, "active": true}'
-        outputs:
-          parsed_data: $.stdout
+nodes:
+  - id: generate_json
+    name: Generate JSON Output
+    type: script
+    config:
+      language: bash
+      code: |
+        echo '{"user": "Alice", "age": 30, "active": true}'
+    outputs:
+      parsed_data: $.stdout
 
-    - id: use_parsed_data
-      name: Use Parsed JSON Data
-      type: task
-      task:
-        executor: script
-        inputs:
-          user_name: ${generate_json.output.parsed_data.user}
-          user_age: ${generate_json.output.parsed_data.age}
-        config:
-          language: bash
-          code: |
-            echo "User: $INPUT_USER_NAME, Age: $INPUT_USER_AGE"
-        outputs:
-          result: $.stdout
+  - id: use_parsed_data
+    name: Use Parsed JSON Data
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "User: $INPUT_USER_NAME, Age: $INPUT_USER_AGE"
+    inputs:
+      user_name: ${generate_json.output.parsed_data.user}
+      user_age: ${generate_json.output.parsed_data.age}
+    outputs:
+      result: $.stdout
+edges:
+  - source: generate_json
+    target: use_parsed_data

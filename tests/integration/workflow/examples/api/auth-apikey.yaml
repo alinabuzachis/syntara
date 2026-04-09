@@ -1,10 +1,7 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: auth-apikey
-  description: API request with API key authentication
+schema_version: "2.0.0"
+name: auth-apikey
+description: API request with API key authentication
 
 secrets:
   api_key:
@@ -12,17 +9,16 @@ secrets:
     type: api_key
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: fetch_with_api_key
-      type: task
-      task:
-        executor: api
-        config:
-          method: GET
-          url: http://test-api.example.com/api/apikey-auth
-          authentication:
-            type: apiKey
-            credentials: ${secrets.api_key}
+nodes:
+  - id: fetch_with_api_key
+    type: http_request
+    config:
+      method: GET
+      url: http://test-api.example.com/api/apikey-auth
+      authentication:
+        type: apiKey
+        credentials: ${secrets.api_key}
+edges: []

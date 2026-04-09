@@ -21,56 +21,42 @@ def create_minimal_workflow_definition(
     name: str = "test-workflow",
     description: str = "Test workflow description",
     activity_id: str = "test_activity",
-    activity_type: str = "task",
+    activity_type: str = "script",
 ) -> dict[str, Any]:
-    """Create a minimal valid workflow definition for testing.
+    """Create a minimal valid V2 workflow definition for testing.
 
-    Returns a dict with camelCase keys matching the WorkflowDefinition schema.
-    Useful for creating test workflows with minimal required fields.
+    Returns a dict matching the V2 workflow definition schema with
+    schema_version, triggers, nodes, and edges.
 
     Args:
         name: Workflow name
         description: Workflow description
-        activity_id: Activity ID
-        activity_type: Activity type (task, parallel, sequence, condition, loop, join)
+        activity_id: Activity ID for the node
+        activity_type: V2 node type (script, http_request, agentic, aap_job_template,
+                       condition, loop, converge, approval)
 
     Returns:
-        Dict with workflow definition structure ready for validation
+        Dict with V2 workflow definition structure ready for validation
 
     """
-    # Base workflow structure
-    workflow_def: dict[str, Any] = {
-        "schemaVersion": "1.0.0",
-        "version": 1,
-        "metadata": {"name": name, "description": description},
-        "triggers": [{"type": "manual"}],
-        "workflow": {"activities": []},
+    trigger_id = "trigger_manual"
+    node: dict[str, Any] = {
+        "id": activity_id,
+        "name": f"Activity {activity_id}",
+        "type": activity_type,
     }
 
-    # Add activity based on type
-    if activity_type == "task":
-        workflow_def["workflow"]["activities"] = [
-            {
-                "id": activity_id,
-                "name": f"Activity {activity_id}",
-                "type": "task",
-                "task": {
-                    "executor": "script",
-                    "config": {"language": "python", "code": "print('hello')"},
-                },
-            }
-        ]
-    else:
-        # For non-task types, create minimal activity
-        workflow_def["workflow"]["activities"] = [
-            {
-                "id": activity_id,
-                "name": f"Activity {activity_id}",
-                "type": activity_type,
-            }
-        ]
+    if activity_type == "script":
+        node["config"] = {"language": "python", "code": "print('hello')"}
 
-    return workflow_def
+    return {
+        "schema_version": "2.0.0",
+        "name": name,
+        "description": description,
+        "triggers": [{"id": trigger_id, "type": "manual_trigger"}],
+        "nodes": [node],
+        "edges": [{"from": trigger_id, "to": activity_id}],
+    }
 
 
 def create_workflow_definition_with_activities(
@@ -78,23 +64,30 @@ def create_workflow_definition_with_activities(
     description: str,
     activities: list[dict[str, object]],
 ) -> dict[str, Any]:
-    """Create a workflow definition with custom activities as dict.
+    """Create a V2 workflow definition with custom activities as nodes.
 
     Args:
         name: Workflow name
         description: Workflow description
-        activities: List of activity definitions
+        activities: List of activity/node definitions
 
     Returns:
-        Dict matching WorkflowDefinition schema
+        Dict matching V2 WorkflowDefinition schema
 
     """
+    trigger_id = "trigger_manual"
+    edges: list[dict[str, str]] = [{"from": trigger_id, "to": str(activities[0]["id"])}] if activities else []
+    # Chain activities sequentially
+    for i in range(len(activities) - 1):
+        edges.append({"from": str(activities[i]["id"]), "to": str(activities[i + 1]["id"])})
+
     return {
-        "schemaVersion": "1.0.0",
-        "version": 1,
-        "metadata": {"name": name, "description": description},
-        "triggers": [{"type": "manual"}],
-        "workflow": {"activities": activities},
+        "schema_version": "2.0.0",
+        "name": name,
+        "description": description,
+        "triggers": [{"id": trigger_id, "type": "manual_trigger"}],
+        "nodes": activities,
+        "edges": edges,
     }
 
 

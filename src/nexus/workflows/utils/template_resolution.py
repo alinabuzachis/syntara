@@ -61,7 +61,7 @@ def resolve_config_templates(
 
     """
     if resolver is None:
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
     if exclude_fields is None:
         exclude_fields = set()
 

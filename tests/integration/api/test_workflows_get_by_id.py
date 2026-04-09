@@ -166,6 +166,6 @@ async def test_get_workflow_response_schema(base_client: AsyncClient) -> None:
     # Verify version data matches
     assert version["workflow_id"] == workflow_id
     assert version["version"] == 1
-    assert version["schema_version"] == "1.0.0"
-    assert "workflow" in version["workflow_definition"]
-    assert "activities" in version["workflow_definition"]["workflow"]
+    assert version["schema_version"] == "2.0.0"
+    assert "nodes" in version["workflow_definition"]
+    assert "triggers" in version["workflow_definition"]

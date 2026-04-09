@@ -1,22 +1,18 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-
-metadata:
-  name: error-invalid-timeout
-  description: Test error with invalid timeout value
+schema_version: "2.0.0"
+name: error-invalid-timeout
+description: Test error with invalid timeout value
 
 triggers:
-  - type: manual
+  - id: trigger_manual
+    type: manual_trigger
 
-workflow:
-  activities:
-    - id: task_with_invalid_timeout
-      name: Task With Invalid Timeout Value
-      type: task
-      timeout: -1 # Negative timeout - should raise ValidationError
-      task:
-        executor: script
-        config:
-          language: bash
-          code: echo "Should not execute"
+nodes:
+  - id: task_with_invalid_timeout
+    name: Task With Invalid Timeout Value
+    type: script
+    config:
+      language: bash
+      code: echo "Should not execute"
+    timeout: -1 # Negative timeout - should raise ValidationError
+edges: []

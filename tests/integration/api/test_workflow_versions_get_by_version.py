@@ -53,7 +53,7 @@ async def test_get_workflow_version_by_number(base_client: AsyncClient) -> None:
     assert data["workflow_id"] == workflow_id
     assert "workflow_definition" in data
     workflow_def = data["workflow_definition"]
-    assert workflow_def["workflow"]["activities"][0]["id"] == "activity_1"
+    assert workflow_def["nodes"][0]["id"] == "activity_1"
 
 
 @pytest.mark.asyncio
@@ -179,25 +179,19 @@ async def test_get_workflow_version_includes_full_definition(base_client: AsyncC
                 {
                     "id": "task_1",
                     "name": "Task 1",
-                    "type": "task",
-                    "task": {
-                        "executor": "script",
-                        "config": {
-                            "language": "python",
-                            "code": "print('task 1')",
-                        },
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": "print('task 1')",
                     },
                 },
                 {
                     "id": "task_2",
                     "name": "Task 2",
-                    "type": "task",
-                    "task": {
-                        "executor": "script",
-                        "config": {
-                            "language": "python",
-                            "code": "print('task 2')",
-                        },
+                    "type": "script",
+                    "config": {
+                        "language": "python",
+                        "code": "print('task 2')",
                     },
                 },
             ],
@@ -213,8 +207,8 @@ async def test_get_workflow_version_includes_full_definition(base_client: AsyncC
     assert response.status_code == 200
     data = response.json()
     workflow_def = data["workflow_definition"]
-    activities = workflow_def["workflow"]["activities"]
-    assert len(activities) == 2
-    assert activities[0]["id"] == "task_1"
-    assert activities[1]["id"] == "task_2"
-    assert workflow_def["metadata"]["name"] == "detailed-workflow"
+    nodes = workflow_def["nodes"]
+    assert len(nodes) == 2
+    assert nodes[0]["id"] == "task_1"
+    assert nodes[1]["id"] == "task_2"
+    assert workflow_def["name"] == "detailed-workflow"

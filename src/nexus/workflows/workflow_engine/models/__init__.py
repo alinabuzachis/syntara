@@ -1,8 +1,9 @@
-"""Workflow engine models for YAML-based workflow definitions and service responses.
+"""Workflow engine models for V2 workflow executor configurations and service responses.
 
 This package contains:
-- Pydantic models for workflow definitions from YAML files (schema models)
+- Pydantic models for activity executor configurations (used by V2 activities)
 - Response models for workflow execution service operations
+- Telemetry status enums
 """
 
 from .approval import ApprovalResult
@@ -15,70 +16,32 @@ from .responses import (
 )
 from .workflow_definition import (
     AAPJobTemplateExecutorConfig,
-    Activity,
+    ActivityTerminalStatus,
     ActivityType,
     AgenticExecutorConfig,
     APIExecutorConfig,
-    ApprovalDefinition,
     Authentication,
     AuthenticationType,
-    BackoffStrategy,
-    ConvergeDefinition,
-    ConvergeStrategy,
-    ExecutorConfig,
-    ExecutorType,
-    ForEachLoopDefinition,
-    InputParameter,
-    LoopDefinition,
-    LoopType,
-    ManualTrigger,
-    Metadata,
-    RetryPolicy,
     ScriptExecutorConfig,
     ScriptLanguage,
-    TaskDefinition,
-    TimeoutAction,
-    Trigger,
-    WhileLoopDefinition,
-    WorkflowDefinition,
-    WorkflowSpec,
+    WorkflowTerminalStatus,
 )
 
 __all__ = [
     "AAPJobTemplateExecutorConfig",
     "APIExecutorConfig",
-    # Workflow definition models
-    "Activity",
+    "ActivityTerminalStatus",
     "ActivityType",
     "AgenticExecutorConfig",
-    "ApprovalDefinition",
     "ApprovalResult",
     "Authentication",
     "AuthenticationType",
-    "BackoffStrategy",
-    "ConvergeDefinition",
-    "ConvergeStrategy",
-    "ExecutorConfig",
-    "ExecutorType",
-    "ForEachLoopDefinition",
-    "InputParameter",
-    "LoopDefinition",
-    "LoopType",
-    "ManualTrigger",
-    "Metadata",
-    "RetryPolicy",
     "ScriptExecutorConfig",
     "ScriptLanguage",
-    "TaskDefinition",
-    "TimeoutAction",
-    "Trigger",
-    "WhileLoopDefinition",
-    # Response models
     "WorkflowCancellationResponse",
-    "WorkflowDefinition",
     "WorkflowResultResponse",
-    "WorkflowSpec",
     "WorkflowStartResponse",
     "WorkflowStatusResponse",
+    "WorkflowTerminalStatus",
     "WorkflowTerminationResponse",
 ]

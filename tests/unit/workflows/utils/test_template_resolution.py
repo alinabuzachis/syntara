@@ -16,7 +16,7 @@ class TestResolveValue:
 
     def test_resolve_primitive_string_no_template(self) -> None:
         """Test resolving plain string without template expressions."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {"name": "Alice"}}
 
         result = resolve_value("plain text", resolver, workflow_state)
@@ -24,7 +24,7 @@ class TestResolveValue:
 
     def test_resolve_primitive_string_with_template(self) -> None:
         """Test resolving string with template expression."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {"name": "Alice"}}
 
         result = resolve_value("${input.name}", resolver, workflow_state)
@@ -32,7 +32,7 @@ class TestResolveValue:
 
     def test_resolve_primitive_integer(self) -> None:
         """Test resolving integer value."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {}
 
         result = resolve_value(42, resolver, workflow_state)
@@ -40,7 +40,7 @@ class TestResolveValue:
 
     def test_resolve_primitive_float(self) -> None:
         """Test resolving float value."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {}
 
         result = resolve_value(3.14, resolver, workflow_state)
@@ -48,7 +48,7 @@ class TestResolveValue:
 
     def test_resolve_primitive_boolean(self) -> None:
         """Test resolving boolean value."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {}
 
         boolean_value = True
@@ -57,7 +57,7 @@ class TestResolveValue:
 
     def test_resolve_primitive_none(self) -> None:
         """Test resolving None value."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {}
 
         result = resolve_value(None, resolver, workflow_state)
@@ -65,7 +65,7 @@ class TestResolveValue:
 
     def test_resolve_dict_flat(self) -> None:
         """Test resolving flat dictionary with template expressions."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {"timeout": 60, "retries": 3}}
 
         value = {
@@ -79,7 +79,7 @@ class TestResolveValue:
 
     def test_resolve_dict_nested(self) -> None:
         """Test resolving nested dictionary with template expressions."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {"user_id": 123, "api_key": "secret123"}}
 
         value = {
@@ -95,7 +95,7 @@ class TestResolveValue:
 
     def test_resolve_list_of_primitives(self) -> None:
         """Test resolving list of primitive values with templates."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {"host1": "server1.com", "host2": "server2.com"}}
 
         value = ["${input.host1}", "${input.host2}", "server3.com"]
@@ -105,7 +105,7 @@ class TestResolveValue:
 
     def test_resolve_list_of_dicts(self) -> None:
         """Test resolving list of dictionaries with template expressions."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {"port": 8080, "protocol": "https"}}
 
         value = [
@@ -121,7 +121,7 @@ class TestResolveValue:
 
     def test_resolve_deeply_nested_structure(self) -> None:
         """Test resolving deeply nested structure with mixed types."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {"db_name": "production", "replicas": 3, "enabled": True}}
 
         value = {
@@ -265,7 +265,7 @@ class TestResolveConfigTemplates:
     def test_resolve_config_with_custom_resolver(self) -> None:
         """Test resolving config with a custom resolver instance."""
         # Create a custom resolver
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {"value": 100}}
 
         config = {"field": "${input.value}"}
@@ -339,7 +339,7 @@ class TestTemplateResolutionEdgeCases:
 
     def test_resolve_value_with_undefined_input(self) -> None:
         """Test resolving template with undefined input reference."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {"inputs": {}}
 
         # ExpressionResolver returns None for undefined input references
@@ -358,7 +358,7 @@ class TestTemplateResolutionEdgeCases:
 
     def test_resolve_value_empty_list(self) -> None:
         """Test resolving empty list."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {}
 
         result = resolve_value([], resolver, workflow_state)
@@ -366,7 +366,7 @@ class TestTemplateResolutionEdgeCases:
 
     def test_resolve_value_empty_dict(self) -> None:
         """Test resolving empty dict."""
-        resolver = ExpressionResolver(workflow_definition=None)
+        resolver = ExpressionResolver()
         workflow_state: dict[str, Any] = {}
 
         result = resolve_value({}, resolver, workflow_state)

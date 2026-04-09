@@ -1,54 +1,62 @@
 ---
-schemaVersion: 1.0.0
-version: 1
-metadata:
-  name: parallel-demo
-  description: Demonstrates parallel execution
+schema_version: "2.0.0"
+name: parallel-demo
+description: Demonstrates parallel execution
 triggers:
-  - type: manual
-workflow:
-  activities:
-    - id: parallel_tasks
-      type: parallel
-      branches:
-        - id: task1
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Task 1 starting..."
-                sleep 1
-                echo "Task 1 complete!"
+  - id: trigger_manual
+    type: manual_trigger
+nodes:
+  - id: parallel_tasks_fork
+    type: fork
 
-        - id: task2
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Task 2 starting..."
-                sleep 1
-                echo "Task 2 complete!"
+  - id: task1
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Task 1 starting..."
+        sleep 1
+        echo "Task 1 complete!"
 
-        - id: task3
-          type: task
-          task:
-            executor: script
-            config:
-              language: bash
-              code: |
-                echo "Task 3 starting..."
-                sleep 1
-                echo "Task 3 complete!"
+  - id: task2
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Task 2 starting..."
+        sleep 1
+        echo "Task 2 complete!"
 
-    - id: summary
-      type: task
-      task:
-        executor: script
-        config:
-          language: bash
-          code: |
-            echo "All parallel tasks completed!"
+  - id: task3
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "Task 3 starting..."
+        sleep 1
+        echo "Task 3 complete!"
+
+  - id: parallel_tasks_join
+    type: join
+
+  - id: summary
+    type: script
+    config:
+      language: bash
+      code: |
+        echo "All parallel tasks completed!"
+edges:
+  - source: parallel_tasks_fork
+    target: task1
+  - source: parallel_tasks_fork
+    target: task2
+  - source: parallel_tasks_fork
+    target: task3
+  - source: task1
+    target: parallel_tasks_join
+  - source: task2
+    target: parallel_tasks_join
+  - source: task3
+    target: parallel_tasks_join
+  - source: parallel_tasks_join
+    target: summary

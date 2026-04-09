@@ -166,7 +166,7 @@ class TestSignalActivity:
         )
 
         # Assert
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         data = response.json()
         assert "detail" in data
         # Validation error should mention signal_data
@@ -189,7 +189,7 @@ class TestSignalActivity:
         )
 
         # Assert
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_signal_activity_execution_not_found_returns_404(
         self,

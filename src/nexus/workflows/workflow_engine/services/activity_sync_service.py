@@ -5,6 +5,8 @@ to the database in real-time by streaming Temporal history events.
 """
 
 import asyncio
+import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -25,14 +27,15 @@ from nexus.workflows.models.activity_execution import ActivityExecution, Activit
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
-from nexus.workflows.utils.activity_traversal import (
-    build_branch_head_map,
-    collect_branch_activity_ids,
-    traverse_activities,
-)
 from nexus.workflows.utils.datetime import ensure_timezone_aware
 
 logger = structlog.stdlib.get_logger(__name__)
+
+# Retry parameters for querying activity output after Temporal marks an activity as
+# completed but before the workflow loop stores the result in the resolver namespace.
+# Uses exponential backoff: 100ms, 200ms, 400ms (total ~700ms).
+_OUTPUT_QUERY_MAX_RETRIES = 3
+_OUTPUT_QUERY_BASE_DELAY_MS = 100
 
 
 @dataclass
@@ -46,20 +49,16 @@ class ExecutionMonitorMetadata:
         execution_id: Database execution ID being monitored
         last_processed_event_id: Last event ID that was processed and synced
         activity_definitions_map: Map of activity ID to activity definition from workflow
-        branch_head_map: Map of activities to their parent condition branches
         activity_index_map: Map of activity names to their indices in the activities list
         pending_activity_updates: Map of event IDs to activity update data awaiting database sync
-        conditions_handled: Set of condition IDs already processed for branch skipping
 
     """
 
     execution_id: UUID
     last_processed_event_id: int
     activity_definitions_map: dict[str, dict[str, Any]]
-    branch_head_map: dict[str, dict[str, Any]]
     activity_index_map: dict[str, int]
     pending_activity_updates: dict[int, dict[str, Any]]
-    conditions_handled: set[str]
 
 
 class ActivitySyncService:
@@ -227,8 +226,7 @@ class ActivitySyncService:
             workflow_version_id = execution.workflow_version_id
             last_processed_event_id = execution.last_processed_event_id
 
-        activity_definitions_map, activities_list = await self._fetch_activity_definitions_map(workflow_version_id)
-        branch_head_map = build_branch_head_map(activities_list)
+        activity_definitions_map = await self._fetch_activity_definitions_map(workflow_version_id)
 
         await self._create_all_activities_upfront(execution_id, activity_definitions_map)
 
@@ -239,10 +237,8 @@ class ActivitySyncService:
             execution_id=execution_id,
             last_processed_event_id=last_processed_event_id,
             activity_definitions_map=activity_definitions_map,
-            branch_head_map=branch_head_map,
             activity_index_map=activity_index_map,
             pending_activity_updates={},
-            conditions_handled=set(),
         )
 
     async def _build_activity_index_map(self, execution_id: UUID) -> dict[str, int]:
@@ -284,13 +280,25 @@ class ActivitySyncService:
             Event ID if sync was performed, None otherwise
 
         """
-        if event.event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED:
-            attrs = event.activity_task_started_event_attributes
+        # Sync skipped nodes after control node completions that cause branching
+        if event.event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
+            attrs = event.activity_task_completed_event_attributes
             scheduled_id = attrs.scheduled_event_id
 
             if scheduled_id in metadata.pending_activity_updates:
                 activity_id = metadata.pending_activity_updates[scheduled_id]["activity_id"]
-                await self._handle_condition_branch_skipping(metadata, activity_id)
+                # Check if this is a control node that causes branch skipping
+                activity_def = metadata.activity_definitions_map.get(activity_id, {})
+                activity_type = activity_def.get("type")
+
+                # Sync skipped nodes after condition completes (V2 workflows)
+                # Note: Only condition nodes cause branch skipping via port routing:
+                #   - Condition: Returns next_port ("true"/"false"), marks non-taken branch as skipped
+                #   - Loop: "iterate" and "complete" ports both execute at different times (no skipping)
+                #   - Converge: Waits for all predecessors (no skipping)
+                #   - Approval: TBD - needs design clarification on port-based routing
+                if activity_type == "condition":
+                    await self._sync_skipped_nodes(metadata.execution_id, handle)
 
         if event.event_type in {
             EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
@@ -350,6 +358,8 @@ class ActivitySyncService:
                     EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
                 }:
                     await self._update_execution_status_from_event(metadata, event)
+                    # Final sync of skipped nodes at workflow completion
+                    await self._sync_skipped_nodes(execution_id, handle)
                     metadata.last_processed_event_id = event.event_id
                     continue  # Skip activity processing, likely last event
 
@@ -369,7 +379,11 @@ class ActivitySyncService:
             logger.info("Activity monitoring cancelled for execution", execution_id=execution_id)
             raise
         except TemporalError as e:
-            logger.warning("Temporal error while monitoring execution", execution_id=execution_id, error=str(e))
+            logger.warning(
+                "Temporal error while monitoring execution, will not retry",
+                execution_id=execution_id,
+                error=str(e),
+            )
         except Exception:
             logger.exception("Error monitoring execution", execution_id=execution_id)
 
@@ -378,9 +392,10 @@ class ActivitySyncService:
         attrs = event.activity_task_scheduled_event_attributes
         if attrs.activity_id.startswith("__internal__"):
             return
+        base_activity_id = re.sub(r"_iter_\d+$", "", attrs.activity_id)
         metadata.pending_activity_updates[event.event_id] = {
-            "activity_id": attrs.activity_id,
-            "activity_name": attrs.activity_id,
+            "activity_id": base_activity_id,
+            "activity_name": base_activity_id,
             "status": ActivityStatus.PENDING,
             "started_at": None,
             "completed_at": None,
@@ -456,7 +471,19 @@ class ActivitySyncService:
         error_details = None
 
         if event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+            # Check workflow result for internal failure status (e.g., node failures
+            # that don't raise exceptions but return status: "failed" in the result)
             status = ExecutionStatus.COMPLETED
+            completed_attrs = event.workflow_execution_completed_event_attributes
+            if completed_attrs and completed_attrs.result and completed_attrs.result.payloads:
+                try:
+                    payload = completed_attrs.result.payloads[0]
+                    result_data = json.loads(payload.data)
+                    if isinstance(result_data, dict) and result_data.get("status") == "failed":
+                        status = ExecutionStatus.FAILED
+                        error_details = "One or more workflow activities failed"
+                except Exception:  # noqa: BLE001, S110
+                    pass  # Fall back to COMPLETED if result parsing fails
         elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
             status = ExecutionStatus.FAILED
             failed_attrs = event.workflow_execution_failed_event_attributes
@@ -590,7 +617,7 @@ class ActivitySyncService:
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED:
             self._process_activity_canceled(event, metadata)
 
-    async def _sync_activities_to_db(
+    async def _sync_activities_to_db(  # noqa: C901, PLR0915
         self,
         metadata: ExecutionMonitorMetadata,
         handle: WorkflowHandle[Any, Any],
@@ -647,6 +674,41 @@ class ActivitySyncService:
                     try:
                         input_data = await handle.query("get_activity_input", activity_id) or {}
                         output_data = await handle.query("get_activity_output", activity_id)
+
+                        # Race condition mitigation: If activity is completed but output is None,
+                        # retry the query. This handles the case where Temporal emits the
+                        # ACTIVITY_TASK_COMPLETED event before the workflow's async loop
+                        # stores the result in the resolver namespace.
+                        
+                        # (e.g., workflow signal after output is stored).
+                        if activity_data["status"] == ActivityStatus.COMPLETED and output_data is None:
+                            max_retries = _OUTPUT_QUERY_MAX_RETRIES
+                            for retry in range(max_retries):
+                                delay_ms = _OUTPUT_QUERY_BASE_DELAY_MS * (2**retry)
+                                logger.debug(
+                                    "Activity completed but output is None, retrying query",
+                                    activity_id=activity_id,
+                                    retry=retry + 1,
+                                    max_retries=max_retries,
+                                    delay_ms=delay_ms,
+                                )
+                                await asyncio.sleep(delay_ms / 1000.0)
+                                output_data = await handle.query("get_activity_output", activity_id)
+                                if output_data is not None:
+                                    logger.debug(
+                                        "Successfully retrieved output on retry",
+                                        activity_id=activity_id,
+                                        retry=retry + 1,
+                                    )
+                                    break
+                            else:
+                                # All retries exhausted, log warning
+                                logger.warning(
+                                    "Activity completed but output still None after retries",
+                                    activity_id=activity_id,
+                                    max_retries=max_retries,
+                                )
+
                     except (TemporalError, ValueError) as e:
                         logger.debug("Could not query activity data", activity_id=activity_id, error=str(e))
 
@@ -713,18 +775,14 @@ class ActivitySyncService:
                 )
                 raise
 
-    async def _fetch_activity_definitions_map(
-        self, workflow_version_id: UUID
-    ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
-        """Fetch activity definitions from workflow version.
+    async def _fetch_activity_definitions_map(self, workflow_version_id: UUID) -> dict[str, dict[str, Any]]:
+        """Fetch activity definitions from V2 workflow version.
 
         Args:
             workflow_version_id: Workflow version ID
 
         Returns:
-            Tuple of (activity_definitions_map, activities_list) where:
-            - activity_definitions_map: Dictionary mapping activity ID to activity definition
-            - activities_list: List of activities from workflow definition (for branch mapping)
+            Dictionary mapping activity/node ID to definition
 
         """
         async with self.session_factory() as session:
@@ -732,146 +790,87 @@ class ActivitySyncService:
             workflow_version = result.one_or_none()
 
             activity_definitions_map: dict[str, dict[str, Any]] = {}
-            activities_list: list[dict[str, Any]] = []
 
             if workflow_version and workflow_version.workflow_definition:
                 workflow_def = workflow_version.workflow_definition
-                activities_list = workflow_def.get("workflow", {}).get("activities", [])
 
-                traverse_activities(
-                    activities_list,
-                    lambda activity, _: (
-                        activity_definitions_map.update({activity["id"]: activity}) if "id" in activity else None
-                    ),
-                )
+                # V2 structure: nodes array at top level
+                nodes = workflow_def.get("nodes", [])
+                triggers = workflow_def.get("triggers", [])
 
-            return activity_definitions_map, activities_list
+                # Include triggers as nodes (they create activity records in V2)
+                all_nodes = triggers + nodes
 
-    async def _handle_condition_branch_skipping(
+                # Build map of all nodes by ID
+                for node in all_nodes:
+                    if "id" in node:
+                        activity_definitions_map[node["id"]] = node
+
+            return activity_definitions_map
+
+    async def _sync_skipped_nodes(
         self,
-        metadata: ExecutionMonitorMetadata,
-        activity_id: str,
+        execution_id: UUID,
+        handle: WorkflowHandle[Any, Any],
     ) -> None:
-        """Handle condition branch skipping when an activity from a branch starts.
+        """Query workflow for skipped nodes and update them in database.
 
-        When an activity that belongs to a condition branch starts executing, we know
-        which branch was taken. This method marks all activities in the opposite
-        (untriggered) branch as SKIPPED.
+        This method queries the workflow for its current list of skipped nodes
+        and marks them as SKIPPED in the database. The DB update is idempotent -
+        nodes already marked as SKIPPED will not be updated again.
 
         Args:
-            metadata: Monitoring metadata containing execution and related data
-            activity_id: ID of the activity that just started
+            execution_id: Database execution ID
+            handle: Workflow handle for querying
 
         """
-        # Check if this activity is in a condition branch
-        if activity_id not in metadata.branch_head_map:
-            return
+        try:
+            # Query workflow for skipped node IDs
+            skipped_node_ids = await handle.query("get_skipped_nodes")
 
-        branch_info = metadata.branch_head_map[activity_id]
-        condition_id = branch_info["condition_id"]
+            if not skipped_node_ids:
+                return
 
-        # Only process each condition once
-        if condition_id in metadata.conditions_handled:
-            return
-
-        metadata.conditions_handled.add(condition_id)
-
-        # Determine which branch was taken and which to skip
-        taken_branch = branch_info["branch"]
-        opposite_branch = "else" if taken_branch == "then" else "then"
-
-        # Get opposite branch activities from condition definition
-        condition_def = branch_info["condition_def"]
-        opposite_branch_activities = condition_def.get(opposite_branch, [])
-
-        # Collect all activity IDs in the opposite branch
-        activities_to_skip = collect_branch_activity_ids(opposite_branch_activities)
-
-        # Mark opposite branch activities as SKIPPED
-        if activities_to_skip:
-            await self._mark_activities_skipped(metadata, activities_to_skip)
-            logger.info(
-                "Condition took branch, marked activities in opposite branch as SKIPPED",
-                condition_id=condition_id,
-                taken_branch=taken_branch,
-                skipped_activity_count=len(activities_to_skip),
-                opposite_branch=opposite_branch,
+            logger.debug(
+                "Syncing skipped nodes to database",
+                execution_id=execution_id,
+                skipped_count=len(skipped_node_ids),
             )
 
-    async def _mark_activities_skipped(
-        self,
-        metadata: ExecutionMonitorMetadata,
-        activity_ids: list[str],
-    ) -> None:
-        """Mark activities as SKIPPED in database and publish patches to Valkey.
-
-        Only marks activities that are currently PENDING (doesn't override already-started activities).
-
-        Args:
-            metadata: Monitoring metadata containing execution and related data
-            activity_ids: List of activity IDs (activity_name) to mark as SKIPPED
-
-        """
-        if not activity_ids:
-            return
-
-        async with self.session_factory() as session:
-            try:
-                # Query all activities with matching activity_name
+            # Update skipped nodes in database (idempotent)
+            async with self.session_factory() as session:
+                # Fetch activities that need to be marked as skipped
+                # Only update if current status != SKIPPED (idempotent)
                 result = await session.exec(
                     select(ActivityExecution).where(
-                        ActivityExecution.execution_id == metadata.execution_id,
-                        ActivityExecution.activity_name.in_(activity_ids),  # type: ignore[attr-defined]
-                        ActivityExecution.status == ActivityStatus.PENDING,
+                        ActivityExecution.execution_id == execution_id,
+                        ActivityExecution.activity_name.in_(skipped_node_ids),  # type: ignore[attr-defined]
+                        ActivityExecution.status != ActivityStatus.SKIPPED,
                     )
                 )
-                activities = result.all()
+                activities_to_skip = result.all()
 
-                # Track which activities were updated for patch generation
-                updated_activities: list[tuple[ActivityExecution, dict[str, Any]]] = []
+                if activities_to_skip:
+                    for activity in activities_to_skip:
+                        activity.status = ActivityStatus.SKIPPED
+                        activity.completed_at = datetime.now(UTC)
 
-                # Update status to SKIPPED
-                for activity in activities:
-                    # Store old values before updating
-                    old_values = {
-                        "status": activity.status,
-                        "started_at": activity.started_at,
-                        "completed_at": activity.completed_at,
-                        "error_details": activity.error_details,
-                    }
+                    await session.commit()
 
-                    activity.status = ActivityStatus.SKIPPED
-                    activity.updated_at = datetime.now(UTC)
+                    logger.info(
+                        "Marked nodes as skipped in database",
+                        execution_id=execution_id,
+                        skipped_count=len(activities_to_skip),
+                    )
 
-                    # Track updated activity with old values for patch generation
-                    updated_activities.append((activity, old_values))
-
-                await session.commit()
-
-                logger.debug(
-                    "Marked activities as SKIPPED for execution (out of requested)",
-                    marked_count=len(activities),
-                    execution_id=metadata.execution_id,
-                    requested_count=len(activity_ids),
-                )
-
-                # Publish activity patches after commit
-                if updated_activities:
-                    await self._publish_activity_patches(metadata, updated_activities)
-
-                # Emit telemetry for skipped activities
-                emit_activities(
-                    execution_id=metadata.execution_id,
-                    activity_definitions_map=metadata.activity_definitions_map,
-                    updated_activities=updated_activities,
-                )
-
-            except Exception:
-                await session.rollback()
-                logger.exception(
-                    "Error marking activities as SKIPPED for execution", execution_id=metadata.execution_id
-                )
-                raise
+        except Exception:
+            # Log but don't re-raise — skipped node sync is best-effort.
+            # Skipped activities may remain PENDING in the database until
+            # manual reconciliation or the next workflow completion event.
+            logger.exception(
+                "Error syncing skipped nodes (activities may remain PENDING)",
+                execution_id=execution_id,
+            )
 
     async def _create_all_activities_upfront(
         self,
@@ -912,9 +911,21 @@ class ActivitySyncService:
                 for activity_id, activity_def in activity_definitions_map.items():
                     activity_type = activity_def.get("type")
 
-                    # Only create records for task activities
-                    # Skip condition/sequence/parallel/loop containers
-                    if activity_type in ["task", None]:  # None defaults to task
+                    # V2 workflows: Create records for all node types (triggers, control, executors)
+                    if activity_type in [
+                        # V2 triggers
+                        "manual_trigger",
+                        # V2 control nodes
+                        "condition",
+                        "converge",
+                        "loop",
+                        # V2 executor nodes
+                        "aap_job_template",
+                        "agentic",
+                        "approval",
+                        "http_request",
+                        "script",
+                    ]:
                         new_activity = ActivityExecution(
                             execution_id=execution_id,
                             activity_name=activity_id,

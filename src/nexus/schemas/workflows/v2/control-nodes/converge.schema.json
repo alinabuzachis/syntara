@@ -6,7 +6,7 @@
   "configSchema": {
     "type": "object",
     "description": "Converge configuration controls how parallel branches are synchronized",
-    "required": ["strategy"],
+    "required": [],
     "properties": {
       "strategy": {
         "type": "string",

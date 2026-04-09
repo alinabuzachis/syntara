@@ -84,7 +84,7 @@ def tool_bulk_update_validation_error_handler(request: Request, exc: "ToolBulkUp
     """Handle tool ValidationError with RFC 9457 format."""
     logger.error("Tool validation error", exc_info=exc)
     return create_problem_details_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         problem_type=PROBLEM_TYPES["validation_error"],
         title="Tool Bulk Update Validation Error",
         detail=exc.message,
