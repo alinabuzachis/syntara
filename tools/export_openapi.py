@@ -1,11 +1,11 @@
 """Export OpenAPI specification without starting the server.
 
 Creates a lightweight FastAPI app, discovers and registers all routers,
-then exports the combined OpenAPI JSON spec. No database or external
+then exports the combined OpenAPI JSON or YAML spec. No database or external
 services are required.
 
 Usage:
-    uv run python tools/export_openapi.py [--output PATH]
+    uv run python tools/export_openapi.py [--output PATH] [--format {json,yaml}]
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ import json
 import sys
 from pathlib import Path
 
+import yaml
 from fastapi import FastAPI
 
 from nexus.api.constants import API_V1_PATH_PREFIX
@@ -27,11 +28,12 @@ def build_spec_app() -> FastAPI:
         title="Nexus API",
         description="A distributed multi-agent workflow orchestration system",
         version="0.1.0",
+        servers=[{"url": API_V1_PATH_PREFIX, "description": "API v1"}],
     )
 
     discover_and_register_routers(
         app=app,
-        prefix=API_V1_PATH_PREFIX,
+        prefix="",
         enable_validation=False,
     )
 
@@ -48,12 +50,22 @@ def main() -> int:
         default=None,
         help="Output file path (default: stdout)",
     )
+    parser.add_argument(
+        "--format",
+        "-f",
+        choices=["json", "yaml"],
+        default="yaml",
+        help="Output format (default: yaml)",
+    )
     args = parser.parse_args()
 
     app = build_spec_app()
     spec = app.openapi()
 
-    content = json.dumps(spec, indent=2) + "\n"
+    if args.format == "yaml":
+        content = yaml.dump(spec, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    else:
+        content = json.dumps(spec, indent=2) + "\n"
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

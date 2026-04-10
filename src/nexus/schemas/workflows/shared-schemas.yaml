@@ -37,7 +37,7 @@ components:
                 schema_version:
                   type: string
                 workflow_definition:
-                  $ref: ./workflow-definition.schema.json
+                  $ref: '#/components/schemas/WorkflowDefinition'
                 created_by:
                   type: string
                   format: uuid
@@ -45,8 +45,7 @@ components:
                   type: string
                   format: date-time
                 change_description:
-                  type: string
-                  nullable: true
+                  type: [string, "null"]
 
     ActivityData:
       type: object
@@ -63,20 +62,17 @@ components:
         status:
           $ref: "#/components/schemas/ActivityStatus"
         error_details:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: Error message if status is failed
           example: Connection timeout to external service
         started_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: When activity started execution
           example: '2025-12-10T15:00:10Z'
         completed_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: When activity completed
           example: '2025-12-10T15:00:15Z'
 
@@ -105,21 +101,18 @@ components:
               format: uuid
               description: User who started the execution
             started_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               description: When execution transitioned from pending to running status (null if still pending)
             completed_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               description: When execution reached terminal state (completed, failed, or cancelled)
             input_data:
               type: object
               description: Input parameters for the execution
             error_details:
-              type: string
-              nullable: true
+              type: [string, "null"]
               description: Error information if execution failed
             current_activities:
               type: array
@@ -132,18 +125,15 @@ components:
                   temporal_activity_id:
                     type: string
                   iteration:
-                    type: integer
-                    nullable: true
+                    type: [integer, "null"]
             workflow_definition:
-              type: object
-              nullable: true
+              type: [object, "null"]
               description: |
                 Workflow definition from the executed version.
                 Only included when requested via ?include=workflow_definition query parameter.
                 Used for building visualization graph.
             activities:
-              type: array
-              nullable: true
+              type: [array, "null"]
               description: |
                 List of activities with their current status.
                 Only included when requested via ?include=activities query parameter.
@@ -174,32 +164,27 @@ components:
             status:
               $ref: "#/components/schemas/ActivityStatus"
             started_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               description: When activity transitioned from pending to running status (null if still pending)
             completed_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               description: When activity reached terminal state (completed, failed)
             input_data:
               type: object
               description: Runtime input parameters
             output_data:
-              type: object
-              nullable: true
+              type: [object, "null"]
               description: Activity results
             error_details:
-              type: string
-              nullable: true
+              type: [string, "null"]
               description: Error information if failed
             retry_count:
               type: integer
               description: Number of retry attempts
             iteration:
-              type: integer
-              nullable: true
+              type: [integer, "null"]
               description: Iteration number if activity is within a loop (0-indexed)
 
     # NOTE: Approval schemas are defined in ../approvals/openapi.yaml
@@ -286,6 +271,12 @@ components:
                 model: claude-3-opus
                 prompt: Analyze the sentiment of the following text
 
+    WorkflowDefinition:
+      description: >
+        Workflow definition object. The full schema is defined in
+        workflow-definition.schema.json (JSON Schema with recursive activity types).
+        Accepts any valid JSON object.
+
     # Request/Response schemas
     CreateWorkflowRequest:
       type: object
@@ -301,7 +292,7 @@ components:
           type: string
           maxLength: 2000
         workflow_definition:
-          $ref: ./workflow-definition.schema.json
+          $ref: '#/components/schemas/WorkflowDefinition'
         is_enabled:
           type: boolean
           default: true
@@ -334,7 +325,7 @@ components:
             type: string
           description: Update workflow labels (metadata only, no version created)
         workflow_definition:
-          $ref: ./workflow-definition.schema.json
+          $ref: '#/components/schemas/WorkflowDefinition'
           description: New workflow definition - creates new version only if definition differs from current version (change detection)
         change_description:
           type: string
@@ -473,6 +464,7 @@ components:
                 type: string
 
     WebSocketSubscription:
+
       type: object
       title: WebSocket Subscription
       description: Client subscription to workflow events

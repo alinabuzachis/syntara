@@ -147,6 +147,12 @@ ignore = [
     "PT012",    # Allow multi-statement pytest.raises blocks (async generators)
     "PGH003",   # Allow generic type: ignore comments in tests
 ]
+"tools/**/*.py" = [
+    "T201",     # Allow print in tools
+    "ANN401",   # Allow Any for YAML/dynamic data traversal
+    "TRY003",   # Allow long messages in exception raises
+    "EM102",    # Allow f-string literals in exceptions
+]
 "src/nexus/api/repositories/*.py" = ["ANN401"]  # Allow Any for database row types
 "src/nexus/core/database/migrations/**/*.py" = ["INP001", "D400", "D415", "PLR0915"]  # Alembic files (auto-generated)
 "src/nexus/api/main.py" = ["S104"]  # Binding to all interfaces for development

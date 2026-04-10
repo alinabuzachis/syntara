@@ -383,10 +383,10 @@ class TestLoadOpenAPISchema:
 
     def test_load_existing_schema(self) -> None:
         """Test loading an existing schema from the project."""
-        schema = load_openapi_schema("example/openapi.json")
+        schema = load_openapi_schema("example/openapi.yaml")
 
         assert schema is not None
-        assert schema.filename == "example/openapi.json"
+        assert schema.filename == "example/openapi.yaml"
         assert schema.domain == "example"
         assert len(schema.endpoints) > 0
 
@@ -430,13 +430,13 @@ class TestLoadSchemas:
     def test_batch_loading_scenarios(self) -> None:
         """Test batch loading with various scenarios."""
         # Single valid schema
-        schemas = load_schemas(["example/openapi.json"])
+        schemas = load_schemas(["example/openapi.yaml"])
         assert len(schemas) == 1
         assert schemas[0].domain == "example"
 
         # Partial failures (1 valid, 1 invalid)
         with patch("nexus.core.router.loader.logger") as mock_logger:
-            schemas = load_schemas(["example/openapi.json", "nonexistent_test_12345.json"])
+            schemas = load_schemas(["example/openapi.yaml", "nonexistent_test_12345.json"])
             assert len(schemas) == 1
 
             # Verify logger.info was called with the summary message (uses kwargs format)

@@ -400,15 +400,27 @@ services-clean: ## Stop all services and remove all data (destructive)
 	@echo "✅ All services stopped and data purged"
 
 
-# API spec export
+# API spec governance
 # ========================================================
-OPENAPI_SPEC ?= src/nexus/schemas/openapi.json
+OPENAPI_SPEC ?= src/nexus/schemas/openapi.yaml
+VERBOSITY ?= -v
 
-.PHONY: api-spec-export
-api-spec-export: check-deps ## Export OpenAPI spec to JSON without starting the server
-	@echo "📤 Exporting OpenAPI specification..."
-	uv run python tools/export_openapi.py -o $(OPENAPI_SPEC)
-	@echo "✅ OpenAPI spec exported to $(OPENAPI_SPEC)"
+.PHONY: api-spec-validation
+api-spec-validation: ## Validate syntax of OpenAPI and AsyncAPI spec files
+	@echo "🔍 Validating API specifications..."
+	uv run python tools/ci/validate_api_specs.py
+
+.PHONY: api-spec-drift
+api-spec-drift: ## Check that committed openapi.yaml matches the generated spec (VERBOSITY=-v/-vv/-vvv)
+	@echo "🔍 Checking OpenAPI spec is up to date..."
+	uv run python tools/export_openapi.py 2>/dev/null | uv run python tools/ci/check_openapi_spec.py $(OPENAPI_SPEC) $(VERBOSITY)
+
+.PHONY: api-spec-bundle
+api-spec-bundle: ## Bundle all domain sub-specs into a single merged openapi.yaml (no external $refs)
+	@echo "📦 Bundling OpenAPI sub-specs..."
+	uv run python tools/bundle_openapi.py -o $(OPENAPI_SPEC)
+	@uv run pre-commit run yamlfmt --files $(OPENAPI_SPEC) > /dev/null 2>&1 || true
+	@echo "✅ Bundled spec written to $(OPENAPI_SPEC)"
 
 
 # Tools
@@ -480,11 +492,6 @@ endif
 # Code quality
 # ========================================================
 FORMAT_PATHS := src/ tools/ tests/
-
-.PHONY: api-validation
-api-validation: ## Validate OpenAPI and AsyncAPI spec files
-	@echo "🔍 Validating API specifications..."
-	uv run python tools/ci/validate_api_specs.py
 
 .PHONY: check-path-sequence
 check-path-sequence: ## Validate numbering sequence under specs/

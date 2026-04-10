@@ -114,7 +114,7 @@ def _build_key_manager(key_name: str) -> KeyManager:
     # Backup key — find it in jwt_backup_keys
     backup_keys = settings.jwt_backup_keys or []
     if not backup_keys:
-        print("Error: No backup keys configured (APP_JWT_BACKUP_KEYS is empty)", file=sys.stderr)  # noqa: T201
+        print("Error: No backup keys configured (APP_JWT_BACKUP_KEYS is empty)", file=sys.stderr)
         sys.exit(1)
 
     # Use the first backup key entry
@@ -123,7 +123,7 @@ def _build_key_manager(key_name: str) -> KeyManager:
     backup_key_id = backup_config.get("key_id")
 
     if not backup_path or not backup_key_id:
-        print(  # noqa: T201
+        print(
             "Error: Backup key config must have 'key_path' and 'key_id'",
             file=sys.stderr,
         )
@@ -201,24 +201,24 @@ async def generate_tokens(
 def print_tokens(tokens: dict, *, as_json: bool = False) -> None:
     """Print tokens to stdout."""
     if as_json:
-        print(json.dumps(tokens, indent=2))  # noqa: T201
+        print(json.dumps(tokens, indent=2))
     else:
-        print(f"User: {tokens['username']} (ID: {tokens['user_id']})")  # noqa: T201
-        print(f"Role: {tokens['role']}")  # noqa: T201
-        print(f"Key ID: {tokens['key_id']}")  # noqa: T201
-        print()  # noqa: T201
-        print("Access Token:")  # noqa: T201
-        print(tokens["access_token"])  # noqa: T201
+        print(f"User: {tokens['username']} (ID: {tokens['user_id']})")
+        print(f"Role: {tokens['role']}")
+        print(f"Key ID: {tokens['key_id']}")
+        print()
+        print("Access Token:")
+        print(tokens["access_token"])
 
         if "refresh_token" in tokens:
-            print()  # noqa: T201
-            print("Refresh Token:")  # noqa: T201
-            print(tokens["refresh_token"])  # noqa: T201
-            print()  # noqa: T201
-            print(f"Refresh Token JTI: {tokens['refresh_token_jti']}")  # noqa: T201
-            print(f"Refresh Token Expires: {tokens['refresh_token_expires_at']}")  # noqa: T201
+            print()
+            print("Refresh Token:")
+            print(tokens["refresh_token"])
+            print()
+            print(f"Refresh Token JTI: {tokens['refresh_token_jti']}")
+            print(f"Refresh Token Expires: {tokens['refresh_token_expires_at']}")
             if tokens.get("refresh_token_stored"):
-                print("Refresh Token stored in Redis: Yes")  # noqa: T201
+                print("Refresh Token stored in Redis: Yes")
 
 
 async def main() -> int:
@@ -291,18 +291,18 @@ async def main() -> int:
         try:
             user_uuid = UUID(args.user_id)
         except ValueError:
-            print(f"Error: Invalid UUID format: {args.user_id}", file=sys.stderr)  # noqa: T201
+            print(f"Error: Invalid UUID format: {args.user_id}", file=sys.stderr)
             return 1
 
         user = await get_user_by_id(user_uuid)
         if not user:
-            print(f"Error: User not found with ID: {args.user_id}", file=sys.stderr)  # noqa: T201
+            print(f"Error: User not found with ID: {args.user_id}", file=sys.stderr)
             return 1
 
     elif args.username:
         user = await get_user_by_username(args.username)
         if not user:
-            print(f"Error: User not found with username: {args.username}", file=sys.stderr)  # noqa: T201
+            print(f"Error: User not found with username: {args.username}", file=sys.stderr)
             return 1
 
     else:

@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Agent Orchestrator API
   version: 1.0.0
@@ -622,17 +622,15 @@ components:
             status:
               $ref: '#/components/schemas/InvocationStatus'
             started_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               readOnly: true
               title: Started At
               description: When agent started processing
               example: '2025-10-21T10:30:01Z'
             completed_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               readOnly: true
               title: Completed At
               description: When agent completed or failed
@@ -660,8 +658,7 @@ components:
                   - 550e8400-e29b-41d4-a716-446655440000
                   - 660e8400-e29b-41d4-a716-446655440001
             result:
-              type: object
-              nullable: true
+              type: [object, "null"]
               title: Result
               description: |
                 Invocation result data (populated on completion).
@@ -734,15 +731,13 @@ components:
                       relevance: 0.9
                   context_applied: true
             error_message:
-              type: string
-              nullable: true
+              type: [string, "null"]
               maxLength: 2000
               title: Error Message
               description: Error message if invocation failed
               example: Tool execution timeout
             checkpoint_data:
-              type: object
-              nullable: true
+              type: [object, "null"]
               title: Checkpoint Data
               description: Checkpoint state for paused invocations
               additionalProperties: true
@@ -876,8 +871,7 @@ components:
           description: When message was acknowledged
           example: '2025-10-21T10:35:00Z'
         error:
-          type: string
-          nullable: true
+          type: [string, "null"]
           title: Error
           description: Error message (if status=rejected)
           example:
@@ -967,14 +961,12 @@ components:
           description: When control signal was acknowledged
           example: '2025-10-21T10:35:00Z'
         message:
-          type: string
-          nullable: true
+          type: [string, "null"]
           title: Message
           description: Human-readable message about control signal processing
           example: Agent paused successfully
         error:
-          type: string
-          nullable: true
+          type: [string, "null"]
           title: Error
           description: Error message (if status=rejected)
           example:

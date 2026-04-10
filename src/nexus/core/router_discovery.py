@@ -463,7 +463,7 @@ def _build_schema_file_list(routers: list[RouterInfo]) -> list[str]:
         else:
             schema_filename_template = "openapi.{ext}"
 
-        # Check for both JSON and YAML schemas
+        # Check for both JSON and YAML schemas in the primary domain directory
         for ext in ["json", "yaml", "yml"]:
             schema_filename = schema_filename_template.format(ext=ext)
             schema_resource = schemas_package.joinpath(domain).joinpath(schema_filename)

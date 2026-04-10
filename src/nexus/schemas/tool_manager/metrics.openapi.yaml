@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Tool Metrics API
   description: API for monitoring tool usage metrics and rate limiting
@@ -92,10 +92,9 @@ paths:
                     type: integer
                     description: Maximum number of items requested
                   next_cursor:
-                    type: string
+                    type: [string, "null"]
                     format: uuid
                     description: Cursor for the next page (null if no more pages)
-                    nullable: true
                   has_more:
                     type: boolean
                     description: Whether there are more items available
@@ -181,10 +180,9 @@ paths:
                     type: integer
                     description: Maximum number of items requested
                   next_cursor:
-                    type: string
+                    type: [string, "null"]
                     format: uuid
                     description: Cursor for the next page (null if no more pages)
-                    nullable: true
                   has_more:
                     type: boolean
                     description: Whether there are more items available
@@ -269,10 +267,9 @@ paths:
                     type: integer
                     description: Maximum number of items requested
                   next_cursor:
-                    type: string
+                    type: [string, "null"]
                     format: uuid
                     description: Cursor for the next page (null if no more pages)
-                    nullable: true
                   has_more:
                     type: boolean
                     description: Whether there are more items available
@@ -511,12 +508,10 @@ components:
           type: string
           format: date-time
         execution_end:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         duration_ms:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
         status:
           type: string
           enum: [running, success, error, timeout]
@@ -524,15 +519,12 @@ components:
           type: object
           description: Tool input parameters as JSON
         output_data:
-          type: object
-          nullable: true
+          type: [object, "null"]
           description: Tool output data as JSON
         error_message:
-          type: string
-          nullable: true
+          type: [string, "null"]
         error_code:
-          type: string
-          nullable: true
+          type: [string, "null"]
         created_at:
           type: string
           format: date-time
@@ -540,21 +532,17 @@ components:
           type: string
           format: uuid
         updated_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         updated_by:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
         deleted_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         deleted_by:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
       required:
         - id
         - tool_id
@@ -602,21 +590,17 @@ components:
           type: string
           format: uuid
         updated_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         updated_by:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
         deleted_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         deleted_by:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
       required:
         - id
         - target_type

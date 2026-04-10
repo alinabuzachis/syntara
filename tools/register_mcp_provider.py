@@ -16,13 +16,13 @@ PROVIDER_NAME = "mcp"
 MCP_BASE_URL = "http://nexus_mcp-server_1:8765/mcp"
 
 
-def _post(path: str, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+def _post(path: str, **kwargs: Any) -> dict[str, Any]:
     r = httpx.post(f"{BASE_URL}{path}", **kwargs)
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]
 
 
-def _get(path: str, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+def _get(path: str, **kwargs: Any) -> dict[str, Any]:
     r = httpx.get(f"{BASE_URL}{path}", **kwargs)
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]

@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Nexus Approvals API
   version: 1.0.0
@@ -275,34 +275,31 @@ components:
             status:
               $ref: "#/components/schemas/ApprovalStatus"
             timeout_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               description: When this request expires (null = no timeout)
             next_step_approved:
               description: First activity that executes if approved
               allOf:
                 - $ref: "#/components/schemas/ActivitySummary"
             next_step_rejected:
-              nullable: true
               description: First activity that executes if rejected (null if path ends workflow)
-              allOf:
+              oneOf:
                 - $ref: "#/components/schemas/ActivitySummary"
+                - type: "null"
             workflow_context:
               $ref: "#/components/schemas/WorkflowContext"
             decided_by:
-              nullable: true
               description: User who made the decision (captures name at decision time)
-              allOf:
+              oneOf:
                 - $ref: "#/components/schemas/UserReference"
+                - type: "null"
             decided_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               description: When decision was made
             decision_notes:
-              type: string
-              nullable: true
+              type: [string, "null"]
               maxLength: 2000
               description: Notes provided with the decision
 
@@ -367,19 +364,18 @@ components:
           maxLength: 255
           description: Display name for the approval request
         timeout_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: When this request expires (null = no timeout)
         next_step_approved:
           description: First activity that executes if approved
           allOf:
             - $ref: "#/components/schemas/ActivitySummary"
         next_step_rejected:
-          nullable: true
           description: First activity that executes if rejected (null if path ends workflow)
-          allOf:
+          oneOf:
             - $ref: "#/components/schemas/ActivitySummary"
+            - type: "null"
         workflow_context:
           $ref: "#/components/schemas/WorkflowContext"
 
@@ -448,10 +444,9 @@ components:
           description: Activity type (task, approval, parallel, etc.)
           example: task
         output:
-          type: object
+          type: [object, "null"]
           description: Output from the activity (structure varies per activity type)
           additionalProperties: true
-          nullable: true
 
     ApprovalDecisionStatus:
       type: string
@@ -480,9 +475,8 @@ components:
         status:
           $ref: "#/components/schemas/ApprovalDecisionStatus"
         notes:
-          type: string
+          type: [string, "null"]
           maxLength: 2000
-          nullable: true
           description: Optional notes explaining the decision
 
     BatchApprovalDecisionStatus:
@@ -512,9 +506,8 @@ components:
         status:
           $ref: "#/components/schemas/BatchApprovalDecisionStatus"
         notes:
-          type: string
+          type: [string, "null"]
           maxLength: 2000
-          nullable: true
           description: Optional notes explaining the decision
 
     BatchApprovalRequest:
@@ -552,22 +545,19 @@ components:
           $ref: "#/components/schemas/ApprovalStatus"
           description: New status after the decision (if successful)
         decided_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: When decision was recorded (if successful)
         decided_by:
-          nullable: true
           description: User who made the decision (if successful)
-          allOf:
+          oneOf:
             - $ref: "#/components/schemas/UserReference"
+            - type: "null"
         decision_notes:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: Notes provided with the decision (echoed back from request)
         error:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: Error message if the decision failed
 
     BatchApprovalResponse:

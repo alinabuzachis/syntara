@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Workflow Engine API
   description: |
@@ -42,6 +42,7 @@ paths:
       description: |
         Retrieve a list of workflows with filtering, sorting, and cursor-based pagination.
       operationId: list_workflows
+      tags: [workflows]
       parameters:
         - name: created_by
           in: query
@@ -85,6 +86,7 @@ paths:
       summary: Create workflow
       description: Create a new workflow entity with its initial version. The workflow definition is validated and stored as version 1.
       operationId: create_workflow
+      tags: [workflows]
       requestBody:
         required: true
         content:
@@ -143,6 +145,7 @@ paths:
       summary: Get workflow
       description: Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field.
       operationId: get_workflow
+      tags: [workflows]
       parameters:
         - name: workflow_id
           in: path
@@ -170,6 +173,7 @@ paths:
         - Metadata only (name, description, is_enabled, labels): Updates without creating new version
         - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
       operationId: update_workflow
+      tags: [workflows]
       parameters:
         - name: workflow_id
           in: path
@@ -218,6 +222,7 @@ paths:
       summary: Delete workflow (soft delete)
       description: Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
       operationId: delete_workflow
+      tags: [workflows]
       parameters:
         - name: workflow_id
           in: path
@@ -249,6 +254,7 @@ paths:
         WorkflowVersion entities are read-only and managed automatically by the system.
         Versions are ordered by version number descending (newest first) by default.
       operationId: list_workflow_versions
+      tags: [workflows]
       parameters:
         - name: workflow_id
           in: path
@@ -290,6 +296,7 @@ paths:
       summary: Get workflow version
       description: Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
       operationId: get_workflow_version
+      tags: [workflows]
       parameters:
         - name: workflow_id
           in: path
@@ -372,7 +379,7 @@ components:
           type: string
           description: YAML schema version (e.g., "1.0.0")
         workflow_definition:
-          $ref: ./workflow-definition.schema.json
+          $ref: ./shared-schemas.yaml#/components/schemas/WorkflowDefinition
           description: Workflow definition object conforming to workflow-definition.schema.json
         created_by:
           type: string
@@ -387,18 +394,15 @@ components:
           format: date-time
           description: Last update timestamp
         change_description:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: Description of changes in this version
         deleted_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: Soft delete timestamp (always null in responses)
         deleted_by:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
           description: User who soft deleted the version (always null in responses)
 
     WorkflowVersionListResponse:
@@ -427,6 +431,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT token authentication
 
 security:
   - bearerAuth: []

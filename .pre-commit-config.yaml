@@ -63,6 +63,22 @@ repos:
         pass_filenames: false
         files: ^(uv\.lock|pyproject\.toml|requirements\.txt)$
 
+      - id: api-spec-bundle
+        name: bundle openapi sub-specs into merged spec
+        entry: make
+        args: [api-spec-bundle]
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: api-spec-drift
+        name: check openapi spec matches implementation
+        entry: bash
+        args: [-c, "make api-spec-drift || true"]
+        verbose: true
+        language: system
+        pass_filenames: false
+
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0
     hooks:

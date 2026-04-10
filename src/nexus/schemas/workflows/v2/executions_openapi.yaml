@@ -268,7 +268,7 @@ paths:
 
         The signal is durable - if the workflow is temporarily unavailable,
         the signal will be delivered when it becomes available again.
-      operationId: signalActivity
+      operationId: signal_activity
       tags:
         - Executions
       parameters:
@@ -396,6 +396,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT token authentication
 
 security:
   - bearerAuth: []

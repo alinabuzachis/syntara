@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Workflow Engine API
   description: API for activity metadata.
@@ -42,6 +42,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT token authentication
 
 security:
   - bearerAuth: []

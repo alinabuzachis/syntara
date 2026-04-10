@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Tool Provider Management API
   description: API for registering and managing external Tool Providers
@@ -589,18 +589,15 @@ components:
               default: available
               description: Current status of the tool
             last_executed_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               description: Timestamp of last execution
             last_refreshed_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               description: Timestamp of last refresh from provider
             refresh_error:
-              type: string
-              nullable: true
+              type: [string, "null"]
               description: Error message from last refresh attempt
             parameters:
               type: array
@@ -651,8 +648,7 @@ components:
           enum: [available, missing, error]
           description: Current status of the tool
         refresh_error:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: Error message from last refresh attempt
 
     ToolBulkUpdate:
@@ -710,12 +706,10 @@ components:
               enum: [available, error, validating]
               default: validating
             last_validated_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
             validation_error:
-              type: string
-              nullable: true
+              type: [string, "null"]
           required:
             - configuration
 
@@ -729,8 +723,7 @@ components:
           title: Name
           description: Human-readable name for the provider
         description:
-          type: string
-          nullable: true
+          type: [string, "null"]
           maxLength: 2000
           title: Description
           description: Detailed description of the provider
@@ -753,8 +746,7 @@ components:
           maxLength: 255
           description: Human-readable name for the provider
         description:
-          type: string
-          nullable: true
+          type: [string, "null"]
           maxLength: 2000
           description: Detailed description of the provider
         configuration:
@@ -764,17 +756,14 @@ components:
           oneOf:
             - $ref: '#/components/schemas/MCPConfiguration'
         enabled:
-          type: boolean
-          nullable: true
+          type: [boolean, "null"]
           description: Enable/disable the provider
         status:
-          type: string
+          type: [string, "null"]
           enum: [available, error, validating]
-          nullable: true
           description: Current status of the provider
         validation_error:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: Error message from last validation attempt
       description: |
         Schema for partially updating a Tool Provider.
@@ -791,8 +780,7 @@ components:
               type: string
               format: uri
             api_key:
-              type: string
-              nullable: true
+              type: [string, "null"]
           required:
             - provider_type
             - base_url
@@ -808,8 +796,7 @@ components:
           type: string
           format: date-time
         error:
-          type: string
-          nullable: true
+          type: [string, "null"]
       required:
         - valid
         - provider_type

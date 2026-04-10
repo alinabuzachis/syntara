@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Nexus Shared API Resources
   version: 1.0.0
@@ -86,8 +86,7 @@ components:
               description: Human-readable name for the resource
               example: Authentication Service
             description:
-              type: string
-              nullable: true
+              type: [string, "null"]
               maxLength: 2000
               title: Description
               description: Detailed description of the resource
@@ -101,17 +100,15 @@ components:
           description: Extension of BaseResource supporting soft deletion tracking
           properties:
             deleted_at:
-              type: string
+              type: [string, "null"]
               format: date-time
-              nullable: true
               readOnly: true
               title: Deleted At
               description: Timestamp when resource was soft deleted
               example: '2025-10-09T14:00:00Z'
             deleted_by:
-              type: string
+              type: [string, "null"]
               format: uuid
-              nullable: true
               readOnly: true
               title: Deleted By
               description: User who performed the soft delete
@@ -134,9 +131,8 @@ components:
               description: User who created the resource
               example: 770e8400-e29b-41d4-a716-446655440000
             updated_by:
-              type: string
+              type: [string, "null"]
               format: uuid
-              nullable: true
               readOnly: true
               title: Updated By
               description: User who last updated the resource
@@ -214,8 +210,7 @@ components:
           description: Whether this error can be retried
           example: false
         instance:
-          type: string
-          nullable: true
+          type: [string, "null"]
           maxLength: 500
           title: Problem Instance
           description: URI reference identifying the specific occurrence
@@ -227,21 +222,18 @@ components:
       description: Pagination metadata structure for list responses
       properties:
         next:
-          type: string
-          nullable: true
+          type: [string, "null"]
           title: Next Page Cursor
           description: Cursor for next page of results
           example: eyJpZCI6InV1aWQifQ
         prev:
-          type: string
-          nullable: true
+          type: [string, "null"]
           title: Previous Page Cursor
           description: Cursor for previous page of results
           example: eyJpZCI6InV1aWQifQ
         total:
-          type: integer
+          type: [integer, "null"]
           minimum: 0
-          nullable: true
           title: Total Count
           description: Total count of resources (only when include_total=true)
           example: 150

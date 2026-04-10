@@ -51,6 +51,13 @@ OPENAPI_IGNORE_FILES = {
 # Directories within schemas/ that don't represent API domains
 SCHEMA_IGNORE_DIRS = {"base", "schemas", "v2"}
 
+# Maps schema domain names to their Python module domain when they differ.
+# Used when a schema lives in its own folder (e.g. schemas/executions/) but
+# the implementing router is in a different Python domain (e.g. workflows/).
+SCHEMA_DOMAIN_TO_PYTHON_DOMAIN: dict[str, str] = {
+    "executions": "workflows",
+}
+
 
 def find_project_root() -> Path:
     """Find the project root by looking for pyproject.toml."""
@@ -225,15 +232,31 @@ def _validate_openapi_endpoints(data: dict[str, Any], rel_path: Path, base_path:
 
 def _validate_openapi_router(spec_path: Path, rel_path: Path, src_dir: Path, errors: list[str]) -> None:
     """Validate that a corresponding router module exists for the spec's component."""
-    component_dir_name = spec_path.parent.name
-    if component_dir_name in SCHEMA_IGNORE_DIRS:
+    schema_domain = spec_path.parent.name
+    if schema_domain in SCHEMA_IGNORE_DIRS:
         return
-    router_path = src_dir / component_dir_name / "router.py"
+
+    # Resolve the Python domain (may differ from schema domain)
+    python_domain = SCHEMA_DOMAIN_TO_PYTHON_DOMAIN.get(schema_domain, schema_domain)
+
+    # For remapped domains, look for a sub-router named {schema_domain}_router.py
+    # (e.g., schema domain "executions" maps to workflows/executions_router.py)
+    if python_domain != schema_domain:
+        router_path = src_dir / python_domain / f"{schema_domain}_router.py"
+        if not router_path.is_file():
+            errors.append(
+                f"  - {rel_path}\n"
+                f"    No router module found for component '{schema_domain}'\n"
+                f"    Expected: src/nexus/{python_domain}/{schema_domain}_router.py"
+            )
+        return
+
+    router_path = src_dir / python_domain / "router.py"
     if not router_path.is_file():
         errors.append(
             f"  - {rel_path}\n"
-            f"    No router module found for component '{component_dir_name}'\n"
-            f"    Expected: src/nexus/{component_dir_name}/router.py"
+            f"    No router module found for component '{python_domain}'\n"
+            f"    Expected: src/nexus/{python_domain}/router.py"
         )
 
 

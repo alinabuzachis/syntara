@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Workflow Engine API
   description: |
@@ -38,6 +38,7 @@ paths:
       description: |
         Retrieve executions with filtering, sorting, and cursor-based pagination.
       operationId: list_executions
+      tags: [executions]
       parameters:
         - name: workflow_id
           in: query
@@ -56,17 +57,8 @@ paths:
         - name: status
           in: query
           required: false
-          style: deepObject
-          explode: true
           schema:
-            allOf:
-              - $ref: '#/components/schemas/ExecutionStatus'
-                description: Exact match of status. ?status=<status>
-              - type: object
-                properties:
-                  in:
-                    type: string
-                    description: Match any of the comma-separated values. ?status[in]=<val1,val2>
+            $ref: '#/components/schemas/ExecutionStatus'
           description: |
             Filter executions by status.
             - Exact match: `status=running`
@@ -99,6 +91,7 @@ paths:
       summary: Create execution
       description: Start a new workflow execution
       operationId: create_execution
+      tags: [executions]
       requestBody:
         required: true
         content:
@@ -153,6 +146,7 @@ paths:
         - Normal request: `GET /executions/{id}` - returns execution without optional fields
         - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
       operationId: get_execution
+      tags: [executions]
       parameters:
         - name: execution_id
           in: path
@@ -186,6 +180,7 @@ paths:
       summary: Control execution
       description: Pause, resume, or cancel a workflow execution
       operationId: control_execution
+      tags: [executions]
       parameters:
         - name: execution_id
           in: path
@@ -219,6 +214,7 @@ paths:
       description: |
         Retrieve activity executions for a workflow execution with cursor-based pagination.
       operationId: list_execution_activities
+      tags: [executions]
       parameters:
         - name: execution_id
           in: path
@@ -267,9 +263,8 @@ paths:
 
         The signal is durable - if the workflow is temporarily unavailable,
         the signal will be delivered when it becomes available again.
-      operationId: signalActivity
-      tags:
-        - Executions
+      operationId: signal_activity
+      tags: [executions]
       parameters:
         - name: execution_id
           in: path
@@ -385,6 +380,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT token authentication
 
 security:
   - bearerAuth: []
