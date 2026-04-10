@@ -218,9 +218,9 @@ class TestActorExtractorAutoDetection:
         result = _auto_detect_actor_params(inspect.signature(test_func), args, kwargs)
 
         assert result is not None
-        # "test-user" string gets converted to unknown since it's not a valid UUID
+        # "test-user" string gets converted to SYSTEM since it's not a valid UUID
         assert result.actor_id is None
-        assert result.actor_type == ActorType.UNKNOWN
+        assert result.actor_type == ActorType.SYSTEM
 
     def test_auto_detect_actor_params_no_matching_params(self) -> None:
         """Test auto-detection with no matching parameter patterns."""
@@ -283,13 +283,13 @@ class TestActorExtractorConversion:
         assert result.actor_type == ActorType.USER
 
     def test_convert_to_actor_context_invalid_string_uuid(self) -> None:
-        """Test conversion of invalid UUID string falls back to unknown."""
+        """Test conversion of invalid UUID string falls back to SYSTEM."""
         invalid_uuid = "not-a-valid-uuid"
 
         result = _convert_to_actor_context(invalid_uuid)
 
         assert result.actor_id is None
-        assert result.actor_type == ActorType.UNKNOWN
+        assert result.actor_type == ActorType.SYSTEM
 
     def test_convert_to_actor_context_object_with_uuid_id(self) -> None:
         """Test conversion of object with UUID id attribute."""
@@ -321,7 +321,7 @@ class TestActorExtractorConversion:
         result = _convert_to_actor_context(user)
 
         assert result.actor_id is None
-        assert result.actor_type == ActorType.UNKNOWN
+        assert result.actor_type == ActorType.SYSTEM
 
     def test_convert_to_actor_context_object_without_id(self) -> None:
         """Test conversion of object without id attribute."""
@@ -331,14 +331,14 @@ class TestActorExtractorConversion:
         result = _convert_to_actor_context(user)
 
         assert result.actor_id is None
-        assert result.actor_type == ActorType.UNKNOWN
+        assert result.actor_type == ActorType.SYSTEM
 
     def test_convert_to_actor_context_primitive_value(self) -> None:
-        """Test conversion of primitive value falls back to unknown."""
+        """Test conversion of primitive value falls back to SYSTEM."""
         result = _convert_to_actor_context(42)
 
         assert result.actor_id is None
-        assert result.actor_type == ActorType.UNKNOWN
+        assert result.actor_type == ActorType.SYSTEM
 
 
 class TestActorExtractorMainExtraction:
@@ -397,7 +397,7 @@ class TestActorExtractorMainExtraction:
         assert result.actor_type == ActorType.USER
 
     def test_extract_actor_context_system_default(self) -> None:
-        """Test extraction defaults to unknown actor."""
+        """Test extraction defaults to SYSTEM actor."""
 
         def test_func() -> None:
             pass
@@ -405,7 +405,7 @@ class TestActorExtractorMainExtraction:
         result = extract_actor_context(inspect.signature(test_func), (), {})
 
         assert result.actor_id is None
-        assert result.actor_type == ActorType.UNKNOWN
+        assert result.actor_type == ActorType.SYSTEM
 
     def test_extract_actor_context_strategy_priority_fastapi_over_explicit(self) -> None:
         """Test that FastAPI dependency wins over explicit param."""
@@ -458,4 +458,4 @@ class TestActorExtractorMainExtraction:
         result = extract_actor_context(inspect.signature(test_func), (None,), {})
 
         assert result.actor_id is None
-        assert result.actor_type == ActorType.UNKNOWN
+        assert result.actor_type == ActorType.SYSTEM

@@ -10,6 +10,11 @@ from nexus.core.audit.sanitization import (
     redact_by_partial_key,
     redact_email,
 )
+from nexus.core.audit.schemas import (
+    AuditContextData,
+    BaseAuditData,
+    FunctionData,
+)
 
 
 class TestRedactByKey:
@@ -203,69 +208,109 @@ class TestEventSanitizer:
         assert sanitizer._apply_detectors(123, "secret") == "[REDACTED]"
         assert sanitizer._apply_detectors(None, "secret") == "[REDACTED]"
 
-    def test_sanitize_dictionaries(self) -> None:
-        """Test sanitization of dictionary objects."""
+    def test_sanitize_audit_data_base(self) -> None:
+        """Test sanitization of BaseAuditData objects."""
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["password"]), redact_email])
 
-        data = {"username": "john_doe", "password": "secret123", "email": "john@example.com", "age": 30}
+        data = BaseAuditData(status="success", error_type="ValidationError", error_message="john@example.com")
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
-        assert result["username"] == "john_doe"
-        assert result["password"] == "[REDACTED]"  # noqa: S105
-        assert result["email"] == "[EMAIL_REDACTED]"
-        assert result["age"] == 30
+        assert sanitized_data.status == "success"
+        assert sanitized_data.error_type == "ValidationError"
+        assert sanitized_data.error_message == "[EMAIL_REDACTED]"
 
-    def test_sanitize_nested_dictionaries(self) -> None:
-        """Test sanitization of nested dictionary structures."""
+    def test_sanitize_audit_context_data_with_extras(self) -> None:
+        """Test sanitization of AuditContextData with model_extra fields."""
+        sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["password"]), redact_email])
+
+        data = AuditContextData(status="success", error_message="admin@example.com")
+        # Add extra fields (model_extra) using setattr since model has extra="allow"
+        data.password_field = "secret123"  # noqa: S105
+        data.email_field = "user@domain.com"
+        data.normal_field = "normal_data"
+
+        sanitized_data = sanitizer.sanitize(data)
+
+        assert sanitized_data.status == "success"
+        assert sanitized_data.error_message == "[EMAIL_REDACTED]"
+        # Extra fields should be sanitized too
+        assert sanitized_data.password_field == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
+        assert sanitized_data.email_field == "[EMAIL_REDACTED]"  # type: ignore[attr-defined]
+        assert sanitized_data.normal_field == "normal_data"  # type: ignore[attr-defined]
+
+    def test_sanitize_audit_data_function(self) -> None:
+        """Test sanitization of FunctionData with nested structures."""
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["secret"])])
 
-        data = {"user": {"name": "John", "credentials": {"secret": "sensitive_data"}}, "config": {"debug": True}}
+        data = FunctionData(
+            status="success",
+            function_args={"user": {"name": "John", "credentials": {"secret_key": "sensitive_data"}}},
+            function_result={"config": {"debug": True}},
+        )
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
-        assert result["user"]["name"] == "John"
-        assert result["user"]["credentials"]["secret"] == "[REDACTED]"  # noqa: S105
-        assert result["config"]["debug"] is True
+        assert sanitized_data.status == "success"
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["user"]["name"] == "John"
+        assert sanitized_data.function_args["user"]["credentials"]["secret_key"] == "[REDACTED]"  # noqa: S105
+        assert sanitized_data.function_result is not None
+        assert sanitized_data.function_result["config"]["debug"] is True
 
-    def test_sanitize_lists(self) -> None:
-        """Test sanitization of list structures."""
+    def test_sanitize_audit_data_with_lists(self) -> None:
+        """Test sanitization of audit data with list structures."""
         sanitizer = EventSanitizer(detectors=[redact_email])
 
-        data = {"emails": ["john@example.com", "not_an_email", "jane@test.org"], "numbers": [1, 2, 3]}
+        data = FunctionData(
+            status="success",
+            function_args={"emails": ["john@example.com", "not_an_email", "jane@test.org"]},
+            function_result={"numbers": [1, 2, 3]},
+        )
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
-        assert result["emails"] == ["[EMAIL_REDACTED]", "not_an_email", "[EMAIL_REDACTED]"]
-        assert result["numbers"] == [1, 2, 3]
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["emails"] == ["[EMAIL_REDACTED]", "not_an_email", "[EMAIL_REDACTED]"]
+        assert sanitized_data.function_result is not None
+        assert sanitized_data.function_result["numbers"] == [1, 2, 3]
 
-    def test_circular_reference_detection(self) -> None:
-        """Test handling of circular references."""
+    def test_circular_reference_detection_audit_data(self) -> None:
+        """Test handling of circular references in audit data."""
         sanitizer = EventSanitizer()
 
-        data: dict[str, Any] = {"key": "value"}
-        data["self"] = data  # Create circular reference
+        circular_dict: dict[str, Any] = {"key": "value"}
+        circular_dict["self"] = circular_dict  # Create circular reference
 
-        result = sanitizer.sanitize(data)
+        data = FunctionData(status="success", function_args={"data": circular_dict})
 
-        assert result["key"] == "value"
-        assert result["self"] == "[CIRCULAR]"
+        sanitized_data = sanitizer.sanitize(data)
 
-    def test_max_depth_limit(self) -> None:
-        """Test max depth limit enforcement."""
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["data"]["key"] == "value"
+        assert sanitized_data.function_args["data"]["self"] == "[CIRCULAR]"
+
+    def test_max_depth_limit_audit_data(self) -> None:
+        """Test max depth limit enforcement with audit data."""
         sanitizer = EventSanitizer(max_depth=2)
 
         # Create nested structure deeper than max_depth
         # max_depth=2 allows 2 container objects (root dict + level1 dict),
         # then truncates at level2's value
-        data = {"level1": {"level2": {"level3": {"level4": "deep_value"}}}}
+        nested_data = {"level1": {"level2": {"level3": {"level4": "deep_value"}}}}
+        data = FunctionData(status="success", function_args=nested_data)
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
-        assert result["level1"]["level2"] == "[MAX_DEPTH]"
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["level1"]["level2"] == "[MAX_DEPTH]"
 
-    def test_pydantic_model_handling(self) -> None:
-        """Test handling of Pydantic models."""
+    def test_pydantic_model_handling_in_audit_data(self) -> None:
+        """Test handling of nested Pydantic models in audit data."""
 
         class TestModel(BaseModel):
             username: str
@@ -275,77 +320,101 @@ class TestEventSanitizer:
         model = TestModel(username="john", password="secret", email="john@example.com")  # noqa: S106
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["password"]), redact_email])
 
-        # Convert to dict first since sanitize now expects dict input
-        model_dict = model.model_dump()
-        result = sanitizer.sanitize(model_dict)
+        data = FunctionData(status="success", function_args={"user_data": model})
 
-        assert result["username"] == "john"
-        assert result["password"] == "[REDACTED]"  # noqa: S105
-        assert result["email"] == "[EMAIL_REDACTED]"
+        sanitized_data = sanitizer.sanitize(data)
 
-    def test_bytes_handling(self) -> None:
-        """Test handling of bytes and bytearray objects."""
+        # The nested Pydantic model should be converted to dict and sanitized
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        user_data = sanitized_data.function_args["user_data"]
+        assert user_data["username"] == "john"
+        assert user_data["password"] == "[REDACTED]"  # noqa: S105
+        assert user_data["email"] == "[EMAIL_REDACTED]"
+
+    def test_bytes_handling_in_audit_data(self) -> None:
+        """Test handling of bytes and bytearray objects in audit data."""
         sanitizer = EventSanitizer()
 
-        data = {"binary_data": b"hello world", "byte_array": bytearray(b"test data")}
+        data = FunctionData(
+            status="success",
+            function_args={"binary_data": b"hello world"},
+            function_result={"byte_array": bytearray(b"test data")},
+        )
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
-        assert result["binary_data"] == "hello world"
-        assert result["byte_array"] == "test data"
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["binary_data"] == "hello world"
+        assert sanitized_data.function_result is not None
+        assert sanitized_data.function_result["byte_array"] == "test data"
 
-    def test_bytes_with_invalid_utf8(self) -> None:
-        """Test handling of bytes with invalid UTF-8."""
+    def test_bytes_with_invalid_utf8_in_audit_data(self) -> None:
+        """Test handling of bytes with invalid UTF-8 in audit data."""
         sanitizer = EventSanitizer()
 
-        data = {"invalid_utf8": b"\xff\xfe"}
-        result = sanitizer.sanitize(data)
+        data = FunctionData(status="success", function_args={"invalid_utf8": b"\xff\xfe"})
+
+        sanitized_data = sanitizer.sanitize(data)
 
         # Should handle invalid UTF-8 gracefully
-        assert isinstance(result["invalid_utf8"], str)
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert isinstance(sanitized_data.function_args["invalid_utf8"], str)
 
-    def test_fallback_string_conversion(self) -> None:
-        """Test fallback string conversion for unknown types."""
+    def test_fallback_string_conversion_in_audit_data(self) -> None:
+        """Test fallback string conversion for unknown types in audit data."""
 
         class CustomObject:
             def __str__(self) -> str:
                 return "custom_object_string"
 
         sanitizer = EventSanitizer()
-        data = {"custom": CustomObject()}
+        data = FunctionData(status="success", function_args={"custom": CustomObject()})
 
-        result = sanitizer.sanitize(data)
-        assert result["custom"] == "custom_object_string"
+        sanitized_data = sanitizer.sanitize(data)
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["custom"] == "custom_object_string"
 
     def test_multiple_detectors(self) -> None:
         """Test that multiple detectors are applied in order."""
 
-        def first_detector(value: object, key: str) -> str | None:
+        def first_detector(_value: object, key: str) -> str | None:
             if key == "special":
                 return "[FIRST_DETECTOR]"
             return None
 
-        def second_detector(value: object, key: str) -> str | None:
+        def second_detector(_value: object, key: str) -> str | None:
             if key == "special":
                 return "[SECOND_DETECTOR]"  # Should not be reached
             return None
 
         sanitizer = EventSanitizer(detectors=[first_detector, second_detector])
-        result = sanitizer._apply_detectors("value", "special")
+
+        data = FunctionData(status="success", function_args={"special": "value"})
+
+        sanitized_data = sanitizer.sanitize(data)
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        result = sanitized_data.function_args["special"]
 
         # First detector should take precedence
         assert result == "[FIRST_DETECTOR]"
 
-    def test_no_detectors(self) -> None:
-        """Test sanitization with no detectors configured."""
+    def test_no_detectors_audit_data(self) -> None:
+        """Test sanitization with no detectors configured on audit data."""
         sanitizer = EventSanitizer(detectors=[])
 
-        data = {"password": "secret", "email": "user@example.com", "normal": "data"}
+        original_args = {"password": "secret", "email": "user@example.com", "normal": "data"}
+        data = FunctionData(status="success", function_args=original_args.copy())
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
         # Nothing should be redacted
-        assert result == data
+        assert sanitized_data.function_args is not None
+        assert sanitized_data.function_args == original_args
 
 
 class TestPIIDetectorType:
@@ -363,74 +432,93 @@ class TestPIIDetectorType:
         detector: PIIDetector = custom_detector
 
         sanitizer = EventSanitizer(detectors=[detector])
-        result = sanitizer.sanitize({"custom_field": "test_data"})
+        data = FunctionData(status="success", function_args={"custom_field": "test_data"})
 
-        assert result["custom_field"] == "[CUSTOM:9]"
+        sanitized_data = sanitizer.sanitize(data)
+
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["custom_field"] == "[CUSTOM:9]"
 
 
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_empty_dictionary(self) -> None:
-        """Test sanitization of empty dictionary."""
+    def test_empty_audit_data(self) -> None:
+        """Test sanitization of minimal audit data."""
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["password"])])
-        result = sanitizer.sanitize({})
-        assert result == {}
+        data = BaseAuditData(status="success")
 
-    def test_none_values(self) -> None:
-        """Test handling of None values."""
+        sanitized_data = sanitizer.sanitize(data)
+
+        assert sanitized_data.status == "success"
+        assert sanitized_data.error_type is None
+        assert sanitized_data.error_message is None
+
+    def test_none_values_in_audit_data(self) -> None:
+        """Test handling of None values in audit data."""
         detector = redact_by_partial_key(["secret"])
         sanitizer = EventSanitizer(detectors=[detector])
 
         # Test separate None values to avoid circular reference issues
-        data1 = {"secret": None}
-        result1 = sanitizer.sanitize(data1)
-        assert result1["secret"] == "[REDACTED]"  # noqa: S105
+        data1 = FunctionData(status="success", function_args={"secret_key": None})
+        sanitized_data1 = sanitizer.sanitize(data1)
+        assert sanitized_data1.function_args is not None
+        assert isinstance(sanitized_data1.function_args, dict)
+        assert sanitized_data1.function_args["secret_key"] == "[REDACTED]"  # noqa: S105
 
-        data2 = {"normal_key": None}
-        result2 = sanitizer.sanitize(data2)
-        assert result2["normal_key"] is None
+        data2 = FunctionData(status="success", function_args={"normal_key": None})
+        sanitized_data2 = sanitizer.sanitize(data2)
+        assert sanitized_data2.function_args is not None
+        assert isinstance(sanitized_data2.function_args, dict)
+        assert sanitized_data2.function_args["normal_key"] is None
 
-    def test_nested_empty_structures(self) -> None:
-        """Test handling of nested empty structures."""
+    def test_nested_empty_structures_in_audit_data(self) -> None:
+        """Test handling of nested empty structures in audit data."""
         sanitizer = EventSanitizer()
 
-        data = {"empty_dict": {}, "empty_list": [], "nested": {"also_empty": {}, "list_empty": []}}
+        empty_structures = {"empty_dict": {}, "empty_list": [], "nested": {"also_empty": {}, "list_empty": []}}
+        data = FunctionData(status="success", function_args=empty_structures.copy())
 
-        result = sanitizer.sanitize(data)
-        assert result == data
+        sanitized_data = sanitizer.sanitize(data)
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args == empty_structures
 
-    def test_deeply_nested_structure(self) -> None:
-        """Test deeply nested structure within depth limit."""
-        # 6 container objects: root → level1 → level2 → level3 → level4 → {secret: ...}
+    def test_deeply_nested_structure_in_audit_data(self) -> None:
+        """Test deeply nested structure within depth limit in audit data."""
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["secret"])], max_depth=6)
 
-        data = {"level1": {"level2": {"level3": {"level4": {"secret": "should_be_redacted"}}}}}
+        nested_data = {"level1": {"level2": {"level3": {"level4": {"secret": "should_be_redacted"}}}}}
+        data = FunctionData(status="success", function_args=nested_data)
 
-        result = sanitizer.sanitize(data)
-        assert result["level1"]["level2"]["level3"]["level4"]["secret"] == "[REDACTED]"  # noqa: S105
+        sanitized_data = sanitizer.sanitize(data)
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["level1"]["level2"]["level3"]["level4"]["secret"] == "[REDACTED]"  # noqa: S105
 
-    def test_mixed_type_lists(self) -> None:
-        """Test lists with mixed types."""
+    def test_mixed_type_lists_in_audit_data(self) -> None:
+        """Test lists with mixed types in audit data."""
         sanitizer = EventSanitizer(detectors=[redact_email])
 
-        data = {
-            "mixed_list": [
-                "john@example.com",
-                123,
-                {"nested_email": "jane@test.com"},
-                None,
-                ["nested_list_email@domain.org"],
-            ]
-        }
+        mixed_list = [
+            "john@example.com",
+            123,
+            {"nested_email": "jane@test.com"},
+            None,
+            ["nested_list_email@domain.org"],
+        ]
+        data = FunctionData(status="success", function_args={"mixed_list": mixed_list})
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
-        assert result["mixed_list"][0] == "[EMAIL_REDACTED]"
-        assert result["mixed_list"][1] == 123
-        assert result["mixed_list"][2]["nested_email"] == "[EMAIL_REDACTED]"
-        assert result["mixed_list"][3] is None
-        assert result["mixed_list"][4][0] == "[EMAIL_REDACTED]"
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["mixed_list"][0] == "[EMAIL_REDACTED]"
+        assert sanitized_data.function_args["mixed_list"][1] == 123
+        assert sanitized_data.function_args["mixed_list"][2]["nested_email"] == "[EMAIL_REDACTED]"
+        assert sanitized_data.function_args["mixed_list"][3] is None
+        assert sanitized_data.function_args["mixed_list"][4][0] == "[EMAIL_REDACTED]"
 
 
 class TestCircularReferenceHandling:
@@ -442,19 +530,22 @@ class TestCircularReferenceHandling:
 
         # This should NOT be marked as circular since "test" is just a string
         # that appears in two different places
-        data = {"function_args": {"value": "test"}, "function_result": {"result": "test"}}
+        data = FunctionData(status="success", function_args={"value": "test"}, function_result={"result": "test"})
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
         # Both occurrences should preserve the original value
-        assert result["function_args"]["value"] == "test"
-        assert result["function_result"]["result"] == "test"
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["value"] == "test"
+        assert sanitized_data.function_result is not None
+        assert sanitized_data.function_result["result"] == "test"
 
     def test_multiple_primitive_types_can_repeat(self) -> None:
         """Test that all primitive types can appear multiple times."""
         sanitizer = EventSanitizer()
 
-        data = {
+        primitives = {
             "str1": "test",
             "str2": "test",
             "int1": 42,
@@ -466,59 +557,69 @@ class TestCircularReferenceHandling:
             "none1": None,
             "none2": None,
         }
+        data = FunctionData(status="success", function_args=primitives)
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
         # All should be preserved without being marked as circular
-        assert result["str1"] == "test"
-        assert result["str2"] == "test"
-        assert result["int1"] == 42
-        assert result["int2"] == 42
-        assert result["float1"] == 3.14
-        assert result["float2"] == 3.14
-        assert result["bool1"] is True
-        assert result["bool2"] is True
-        assert result["none1"] is None
-        assert result["none2"] is None
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["str1"] == "test"
+        assert sanitized_data.function_args["str2"] == "test"
+        assert sanitized_data.function_args["int1"] == 42
+        assert sanitized_data.function_args["int2"] == 42
+        assert sanitized_data.function_args["float1"] == 3.14
+        assert sanitized_data.function_args["float2"] == 3.14
+        assert sanitized_data.function_args["bool1"] is True
+        assert sanitized_data.function_args["bool2"] is True
+        assert sanitized_data.function_args["none1"] is None
+        assert sanitized_data.function_args["none2"] is None
 
     def test_actual_circular_reference_detection(self) -> None:
         """Test that actual circular references are properly detected."""
         sanitizer = EventSanitizer()
 
         # Create actual circular reference
-        data: dict[str, Any] = {"name": "root"}
-        data["self"] = data  # This creates a real circular reference
+        circular_data: dict[str, Any] = {"name": "root"}
+        circular_data["self"] = circular_data  # This creates a real circular reference
 
-        container = {"circular_data": data}
+        data = FunctionData(status="success", function_args={"circular_data": circular_data})
 
-        result = sanitizer.sanitize(container)
+        sanitized_data = sanitizer.sanitize(data)
 
         # Should detect the circular reference
-        assert result["circular_data"]["name"] == "root"
-        assert result["circular_data"]["self"] == "[CIRCULAR]"
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["circular_data"]["name"] == "root"
+        assert sanitized_data.function_args["circular_data"]["self"] == "[CIRCULAR]"
 
     def test_shared_object_reference_allowed(self) -> None:
         """Test that the same object shared in multiple places is allowed (not circular)."""
         sanitizer = EventSanitizer()
 
         shared_list = [1, 2, 3]
-        data = {
-            "list1": shared_list,
-            "list2": shared_list,  # Same object in two places - this is NOT circular
-        }
+        data = FunctionData(
+            status="success",
+            function_args={
+                "list1": shared_list,
+                "list2": shared_list,  # Same object in two places - this is NOT circular
+            },
+        )
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
         # Both occurrences should be preserved
-        assert result["list1"] == [1, 2, 3]
-        assert result["list2"] == [1, 2, 3]
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["list1"] == [1, 2, 3]
+        assert sanitized_data.function_args["list2"] == [1, 2, 3]
 
     def test_complex_nested_structure_with_repeated_primitives(self) -> None:
         """Test complex nested structures where primitive values appear multiple times."""
         sanitizer = EventSanitizer()
 
         user_id = "user123"
-        data = {
+        complex_data = {
             "user": {"id": user_id, "preferences": {"theme": "dark", "language": "en"}},
             "session": {
                 "user_id": user_id,  # Same string value
@@ -532,16 +633,19 @@ class TestCircularReferenceHandling:
                 "theme_preference": "dark",  # Same string value again
             },
         }
+        data = FunctionData(status="success", function_args=complex_data)
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
         # All primitive values should be preserved
-        assert result["user"]["id"] == "user123"
-        assert result["session"]["user_id"] == "user123"
-        assert result["audit"]["user_id"] == "user123"
-        assert result["user"]["preferences"]["theme"] == "dark"
-        assert result["session"]["settings"]["theme"] == "dark"
-        assert result["audit"]["theme_preference"] == "dark"
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["user"]["id"] == "user123"
+        assert sanitized_data.function_args["session"]["user_id"] == "user123"
+        assert sanitized_data.function_args["audit"]["user_id"] == "user123"
+        assert sanitized_data.function_args["user"]["preferences"]["theme"] == "dark"
+        assert sanitized_data.function_args["session"]["settings"]["theme"] == "dark"
+        assert sanitized_data.function_args["audit"]["theme_preference"] == "dark"
 
     def test_mixed_shared_objects_and_circular_references(self) -> None:
         """Test scenario with both shared objects and actual circular references."""
@@ -552,24 +656,27 @@ class TestCircularReferenceHandling:
         circular_dict: dict[str, Any] = {"name": "circular"}
         circular_dict["self"] = circular_dict  # True circular reference
 
-        data = {
+        mixed_data = {
             "string1": "shared_string",  # Repeated primitive - should be OK
             "string2": "shared_string",  # Repeated primitive - should be OK
             "dict1": shared_dict,  # First reference to shared object - OK
             "dict2": shared_dict,  # Second reference to shared object - OK (not circular)
             "circular": circular_dict,  # Object with circular reference
         }
+        data = FunctionData(status="success", function_args=mixed_data)
 
-        result = sanitizer.sanitize(data)
+        sanitized_data = sanitizer.sanitize(data)
 
         # Primitives should be preserved
-        assert result["string1"] == "shared_string"
-        assert result["string2"] == "shared_string"
+        assert sanitized_data.function_args is not None
+        assert isinstance(sanitized_data.function_args, dict)
+        assert sanitized_data.function_args["string1"] == "shared_string"
+        assert sanitized_data.function_args["string2"] == "shared_string"
 
         # Shared object references should both be preserved (not circular)
-        assert result["dict1"]["value"] == "shared_string"
-        assert result["dict2"]["value"] == "shared_string"
+        assert sanitized_data.function_args["dict1"]["value"] == "shared_string"
+        assert sanitized_data.function_args["dict2"]["value"] == "shared_string"
 
         # But actual circular reference should be detected
-        assert result["circular"]["name"] == "circular"
-        assert result["circular"]["self"] == "[CIRCULAR]"
+        assert sanitized_data.function_args["circular"]["name"] == "circular"
+        assert sanitized_data.function_args["circular"]["self"] == "[CIRCULAR]"

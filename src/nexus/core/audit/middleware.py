@@ -21,6 +21,7 @@ from nexus.core.audit.emitter import (
     execution_id_context_var,
     workflow_id_context_var,
 )
+from nexus.core.audit.schemas import RequestCompletedData
 from nexus.core.audit.types import ActorType, AuditEvent, EventCategory
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -292,14 +293,13 @@ class AuditMiddleware:
 
             # Build structured data — query params are sanitized by emit_audit_event
             query_params = self._parse_query_params(scope.get("query_string", b""))
-            structured_data: dict[str, Any] = {
-                "method": method,
-                "path": path,
-                "status_code": status_code,
-            }
-            if query_params:
-                structured_data["query_params"] = query_params
-            structured_data.update({k: v for k, v in user_context.items() if k not in ("user_id", "actor_type")})
+            structured_data = RequestCompletedData(
+                method=method,
+                path=path,
+                status_code=status_code,
+                query_params=query_params if query_params else None,
+                user_role=user_context.get("user_role"),
+            )
 
             emit_audit_event(
                 AuditEvent(

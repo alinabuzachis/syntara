@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -160,7 +160,27 @@ class EventSanitizer:
         # fallback for all other types
         return str(obj)
 
-    def sanitize(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Sanitize data using the configured detectors."""
-        # Since we start with a dict and the conversion preserves dict structure we can safely cast the result
-        return cast("dict[str, Any]", self._convert(data))
+    def sanitize[T: BaseModel](self, data: T) -> T:
+        """Sanitize audit data and return a new instance with sanitized values.
+
+        This method preserves the original type and returns a new instance
+        rather than modifying the input in place.
+
+        Args:
+            data: The audit data model to sanitize
+
+        Returns:
+            A new instance of the same type with sanitized values
+
+        """
+        updates = {}
+
+        for field_name, field_value in data:
+            sanitized_value = self._convert(field_value, field_name)
+            if sanitized_value != field_value:
+                updates[field_name] = sanitized_value
+
+        if not updates:
+            return data
+
+        return data.model_copy(update=updates)

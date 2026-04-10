@@ -11,6 +11,8 @@ from nexus.core.audit.types import ActorContext, ActorType
 
 logger = structlog.stdlib.get_logger(__name__)
 
+_UNKNOWN = "<unknown>"
+
 
 def _try_fastapi_dependency_extraction(kwargs: dict[str, Any]) -> ActorContext | None:
     """Try to extract actor from FastAPI dependency injection."""
@@ -49,7 +51,11 @@ def _extract_from_param(
 
 
 def _auto_detect_actor_params(
-    signature: inspect.Signature, args: tuple[Any, ...], kwargs: dict[str, Any]
+    signature: inspect.Signature,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+    func_name: str = _UNKNOWN,
+    func_module: str = _UNKNOWN,
 ) -> ActorContext | None:
     """Auto-detect actor from common parameter patterns.
 
@@ -72,7 +78,7 @@ def _auto_detect_actor_params(
             if param_name in bound_args.arguments:
                 value = bound_args.arguments[param_name]
                 if value is not None:
-                    return _convert_to_actor_context(value)
+                    return _convert_to_actor_context(value, func_name, func_module)
     except (TypeError, ValueError) as exc:
         logger.debug(
             "Actor parameter auto-detection failed",
@@ -81,7 +87,11 @@ def _auto_detect_actor_params(
     return None
 
 
-def _convert_to_actor_context(value: Any) -> ActorContext:  # noqa: ANN401
+def _convert_to_actor_context(
+    value: Any,  # noqa: ANN401
+    func_name: str = _UNKNOWN,
+    func_module: str = _UNKNOWN,
+) -> ActorContext:
     """Convert various value types to ActorContext."""
     if isinstance(value, ActorContext):
         return value
@@ -107,8 +117,13 @@ def _convert_to_actor_context(value: Any) -> ActorContext:  # noqa: ANN401
             except ValueError:
                 pass
 
-    # Default to unknown if we can't determine actor identity
-    return ActorContext(actor_id=None, actor_type=ActorType.UNKNOWN)
+    # Default to SYSTEM if we can't determine actor identity
+    logger.warning(
+        "Actor conversion failed - defaulting to SYSTEM actor",
+        function_name=func_name,
+        module=func_module,
+    )
+    return ActorContext(actor_id=None, actor_type=ActorType.SYSTEM)
 
 
 def extract_actor_context(
@@ -117,13 +132,16 @@ def extract_actor_context(
     kwargs: dict[str, Any],
     actor_param: str | None = None,
     actor_fallback: ActorContext | None = None,
-    func_name: str = "<unknown>",
-    func_module: str = "<unknown>",
+    func_name: str = _UNKNOWN,
+    func_module: str = _UNKNOWN,
 ) -> ActorContext:
     """Extract actor context using multiple fallback strategies."""
     # Strategy 1: Use existing context variable (highest priority)
     if actor_id_context_var.get() is not None:
-        return ActorContext(actor_id=actor_id_context_var.get(), actor_type=actor_type_context_var.get())
+        return ActorContext(
+            actor_id=actor_id_context_var.get(),
+            actor_type=actor_type_context_var.get() or ActorType.SYSTEM,
+        )
 
     # Strategy 2: FastAPI dependency injection
     fastapi_actor = _try_fastapi_dependency_extraction(kwargs)
@@ -134,10 +152,10 @@ def extract_actor_context(
     if actor_param:
         actor_value = _extract_from_param(signature, args, kwargs, actor_param)
         if actor_value:
-            return _convert_to_actor_context(actor_value)
+            return _convert_to_actor_context(actor_value, func_name, func_module)
 
     # Strategy 4: Auto-detect common parameter patterns
-    auto_detected = _auto_detect_actor_params(signature, args, kwargs)
+    auto_detected = _auto_detect_actor_params(signature, args, kwargs, func_name, func_module)
     if auto_detected:
         return auto_detected
 
@@ -145,10 +163,10 @@ def extract_actor_context(
     if actor_fallback:
         return actor_fallback
 
-    # Strategy 6: Default to unknown actor with warning
+    # Strategy 6: Default to SYSTEM actor with warning
     logger.warning(
-        "Actor extraction failed - defaulting to UNKNOWN actor",
+        "Actor extraction failed - defaulting to SYSTEM actor",
         function_name=func_name,
         module=func_module,
     )
-    return ActorContext(actor_id=None, actor_type=ActorType.UNKNOWN)
+    return ActorContext(actor_id=None, actor_type=ActorType.SYSTEM)

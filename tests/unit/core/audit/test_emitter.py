@@ -10,6 +10,7 @@ from nexus.core.audit.emitter import (
     _do_emit_audit_event,
     _get_current_actor_context,
     _sanitizer,
+    activity_id_context_var,
     actor_id_context_var,
     actor_type_context_var,
     emit_audit_event,
@@ -17,6 +18,7 @@ from nexus.core.audit.emitter import (
     workflow_id_context_var,
 )
 from nexus.core.audit.sanitization import EventSanitizer
+from nexus.core.audit.schemas import AuditContextData, BaseAuditData
 from nexus.core.audit.types import ActorType, AuditEvent, EventCategory
 
 
@@ -28,14 +30,16 @@ class TestEventCaptureContextMethods:
         context = _get_current_actor_context()
 
         assert context["actor_id"] is None
-        assert context["actor_type"] == ActorType.SYSTEM
+        assert context["actor_type"] is None
         assert context["workflow_id"] is None
+        assert context["activity_id"] is None
         assert context["execution_id"] is None
 
     def test_get_current_actor_context_with_set_values(self) -> None:
         """Test getting context with set values."""
         test_actor_id = uuid4()
         test_workflow_id = uuid4()
+        test_activity_id = "activity_id"
         test_execution_id = uuid4()
 
         # Use context copy to isolate the test
@@ -45,6 +49,7 @@ class TestEventCaptureContextMethods:
             actor_id_context_var.set(test_actor_id)
             actor_type_context_var.set(ActorType.USER)
             workflow_id_context_var.set(test_workflow_id)
+            activity_id_context_var.set(test_activity_id)
             execution_id_context_var.set(test_execution_id)
 
             context = _get_current_actor_context()
@@ -52,6 +57,7 @@ class TestEventCaptureContextMethods:
             assert context["actor_id"] == test_actor_id
             assert context["actor_type"] == ActorType.USER
             assert context["workflow_id"] == test_workflow_id
+            assert context["activity_id"] == test_activity_id
             assert context["execution_id"] == test_execution_id
 
         ctx.run(test_in_context)
@@ -72,6 +78,7 @@ class TestEventCaptureContextMethods:
             assert context["actor_id"] == test_actor_id
             assert context["actor_type"] == ActorType.SERVICE
             assert context["workflow_id"] is None  # Still default
+            assert context["activity_id"] is None  # Still default
             assert context["execution_id"] is None  # Still default
 
         ctx.run(test_in_context)
@@ -100,11 +107,8 @@ class TestEventCaptureEmitAuditEvent:
             actor_id=uuid4(),
             actor_type=ActorType.USER,
             source_component="test_component",
-            workflow_id=None,
-            activity_id=None,
-            execution_id=None,
             event_message="Test message",
-            structured_data={"key": "value"},
+            structured_data=BaseAuditData(status="success"),
         )
 
         # Emit the event
@@ -113,21 +117,22 @@ class TestEventCaptureEmitAuditEvent:
         # Verify _do_emit_audit_event was called once
         mock_do_emit.assert_called_once()
 
-        # Verify the event dict passed to _do_emit_audit_event
+        # Verify the event object passed to _do_emit_audit_event
         call_args = mock_do_emit.call_args[0][0]  # First positional argument
-        assert "event_id" in call_args
-        assert call_args["event_category"] == EventCategory.USER_ACTION
-        assert call_args["event_action"] == "test_action"
-        assert call_args["actor_type"] == ActorType.USER
-        assert call_args["source_component"] == "test_component"
-        assert call_args["event_message"] == "Test message"
-        assert "structured_data" in call_args
+        assert call_args.event_id is not None
+        assert call_args.event_category == EventCategory.USER_ACTION
+        assert call_args.event_action == "test_action"
+        assert call_args.actor_type == ActorType.USER
+        assert call_args.source_component == "test_component"
+        assert call_args.event_message == "Test message"
+        assert call_args.structured_data is not None
 
     @patch("nexus.core.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_with_context_injection(self, mock_do_emit: Mock) -> None:
         """Test audit event emission with context injection."""
         test_actor_id = uuid4()
         test_workflow_id = uuid4()
+        test_activity_id = "activity_id"
         test_execution_id = uuid4()
 
         # Use context copy to isolate the test
@@ -138,18 +143,15 @@ class TestEventCaptureEmitAuditEvent:
             actor_id_context_var.set(test_actor_id)
             actor_type_context_var.set(ActorType.SERVICE)
             workflow_id_context_var.set(test_workflow_id)
+            activity_id_context_var.set(test_activity_id)
             execution_id_context_var.set(test_execution_id)
 
             # Create event without actor/context info
             event = AuditEvent(
                 event_category=EventCategory.SYSTEM_OPERATION,
                 event_action="auto_action",
-                actor_id=None,  # Will be injected from context
-                actor_type=ActorType.SYSTEM,
+                actor_type=ActorType.SYSTEM,  # Required field, will not be overridden since it's truthy
                 source_component="test_component",
-                workflow_id=None,
-                activity_id=None,
-                execution_id=None,
                 event_message="Auto message",
             )
 
@@ -158,13 +160,14 @@ class TestEventCaptureEmitAuditEvent:
 
             # Verify _do_emit_audit_event was called
             mock_do_emit.assert_called_once()
-            event_dict = mock_do_emit.call_args[0][0]
+            event_obj = mock_do_emit.call_args[0][0]
 
             # Verify context injection worked for None fields only
-            assert event_dict["actor_id"] == str(test_actor_id)  # UUIDs are serialized as strings
-            assert event_dict["actor_type"] == ActorType.SYSTEM.value  # actor_type is not context-injected
-            assert event_dict["workflow_id"] == str(test_workflow_id)
-            assert event_dict["execution_id"] == str(test_execution_id)
+            assert event_obj.actor_id == test_actor_id
+            assert event_obj.actor_type == ActorType.SYSTEM  # Not overridden because it was already set
+            assert event_obj.workflow_id == test_workflow_id
+            assert event_obj.activity_id == test_activity_id
+            assert event_obj.execution_id == test_execution_id
 
         ctx.run(test_in_context)
 
@@ -191,8 +194,6 @@ class TestEventCaptureEmitAuditEvent:
                 actor_id=event_actor_id,  # Should not be overridden
                 actor_type=ActorType.USER,
                 workflow_id=event_workflow_id,  # Should not be overridden
-                activity_id=None,
-                execution_id=None,
                 source_component="test_component",
                 event_message="User message",
             )
@@ -201,9 +202,9 @@ class TestEventCaptureEmitAuditEvent:
             emit_audit_event(event)
 
             # Verify original values were preserved
-            event_dict = mock_do_emit.call_args[0][0]
-            assert event_dict["actor_id"] == str(event_actor_id)  # Not context_actor_id
-            assert event_dict["workflow_id"] == str(event_workflow_id)  # Not context_workflow_id
+            event_obj = mock_do_emit.call_args[0][0]
+            assert event_obj.actor_id == event_actor_id  # Not context_actor_id
+            assert event_obj.workflow_id == event_workflow_id  # Not context_workflow_id
 
         ctx.run(test_in_context)
 
@@ -217,29 +218,28 @@ class TestEventCaptureEmitAuditEvent:
             actor_id=uuid4(),
             actor_type=ActorType.USER,
             source_component="auth_service",
-            workflow_id=None,
-            activity_id=None,
-            execution_id=None,
             event_message="User login",
-            structured_data={
-                "username": "testuser",
-                "password": "secret123",
-                "email": "test@example.com",
-                "normal_data": "safe_value",
-            },
+            structured_data=AuditContextData(
+                status="success",
+                username="testuser",
+                password="secret123",  # noqa: S106
+                email="test@example.com",
+                normal_data="safe_value",
+            ),
         )
 
         # Emit the event
         emit_audit_event(event)
 
         # Verify sanitization occurred
-        event_dict = mock_do_emit.call_args[0][0]
-        structured_data = event_dict["structured_data"]
+        event_obj = mock_do_emit.call_args[0][0]
+        context_data = event_obj.structured_data
+        assert isinstance(context_data, AuditContextData)
 
-        assert structured_data["username"] == "testuser"
-        assert structured_data["password"] == "[REDACTED]"  # Should be sanitized  # noqa: S105
-        assert structured_data["email"] == "[EMAIL_REDACTED]"  # Should be sanitized
-        assert structured_data["normal_data"] == "safe_value"
+        assert context_data.username == "testuser"  # type: ignore[attr-defined]
+        assert context_data.password == "[REDACTED]"  # type: ignore[attr-defined]  # Should be sanitized  # noqa: S105
+        assert context_data.email == "[EMAIL_REDACTED]"  # type: ignore[attr-defined]  # Should be sanitized
+        assert context_data.normal_data == "safe_value"  # type: ignore[attr-defined]
 
     @patch("nexus.core.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_comprehensive_sensitive_data_sanitization(self, mock_do_emit: Mock) -> None:
@@ -251,59 +251,58 @@ class TestEventCaptureEmitAuditEvent:
             actor_id=uuid4(),
             actor_type=ActorType.USER,
             source_component="auth_service",
-            workflow_id=None,
-            activity_id=None,
-            execution_id=None,
             event_message="User authentication attempt",
-            structured_data={
+            structured_data=AuditContextData(
+                status="success",
                 # Original patterns
-                "password": "secret123",
-                "secret": "mysecret",
-                "token": "abc123",
-                "api_key": "key123",
-                "auth": "bearer xyz",
+                password="secret123",  # noqa: S106
+                secret="mysecret",  # noqa: S106
+                token="abc123",  # noqa: S106
+                api_key="key123",
+                auth="bearer xyz",
                 # New comprehensive patterns
-                "credential": "cred123",
-                "private_key": "-----BEGIN PRIVATE KEY-----",
-                "session": "session123",
-                "cookie": "sessionid=abc123",
-                "jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
-                "bearer": "Bearer token123",
-                "client_secret": "client_secret_abc",
-                "access_token": "access_xyz",
-                "refresh_token": "refresh_xyz",
+                credential="cred123",
+                private_key="-----BEGIN PRIVATE KEY-----",
+                session="session123",
+                cookie="sessionid=abc123",
+                jwt="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+                bearer="Bearer token123",
+                client_secret="client_secret_abc",  # noqa: S106
+                access_token="access_xyz",  # noqa: S106
+                refresh_token="refresh_xyz",  # noqa: S106
                 # Safe data
-                "username": "testuser",
-                "normal_data": "safe_value",
-            },
+                username="testuser",
+                normal_data="safe_value",
+            ),
         )
 
         # Emit the event
         emit_audit_event(event)
 
         # Verify comprehensive sanitization occurred
-        event_dict = mock_do_emit.call_args[0][0]
-        structured_data = event_dict["structured_data"]
+        event_obj = mock_do_emit.call_args[0][0]
+        context_data = event_obj.structured_data
+        assert isinstance(context_data, AuditContextData)
 
-        assert structured_data["password"] == "[REDACTED]"  # noqa: S105
-        assert structured_data["secret"] == "[REDACTED]"  # noqa: S105
-        assert structured_data["token"] == "[REDACTED]"  # noqa: S105
-        assert structured_data["api_key"] == "[REDACTED]"
-        assert structured_data["auth"] == "[REDACTED]"
+        assert context_data.password == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
+        assert context_data.secret == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
+        assert context_data.token == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
+        assert context_data.api_key == "[REDACTED]"  # type: ignore[attr-defined]
+        assert context_data.auth == "[REDACTED]"  # type: ignore[attr-defined]
 
-        assert structured_data["credential"] == "[REDACTED]"
-        assert structured_data["private_key"] == "[REDACTED]"
-        assert structured_data["session"] == "[REDACTED]"
-        assert structured_data["cookie"] == "[REDACTED]"
-        assert structured_data["jwt"] == "[REDACTED]"
-        assert structured_data["bearer"] == "[REDACTED]"
-        assert structured_data["client_secret"] == "[REDACTED]"  # noqa: S105
-        assert structured_data["access_token"] == "[REDACTED]"  # noqa: S105
-        assert structured_data["refresh_token"] == "[REDACTED]"  # noqa: S105
+        assert context_data.credential == "[REDACTED]"  # type: ignore[attr-defined]
+        assert context_data.private_key == "[REDACTED]"  # type: ignore[attr-defined]
+        assert context_data.session == "[REDACTED]"  # type: ignore[attr-defined]
+        assert context_data.cookie == "[REDACTED]"  # type: ignore[attr-defined]
+        assert context_data.jwt == "[REDACTED]"  # type: ignore[attr-defined]
+        assert context_data.bearer == "[REDACTED]"  # type: ignore[attr-defined]
+        assert context_data.client_secret == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
+        assert context_data.access_token == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
+        assert context_data.refresh_token == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
 
         # Safe data should remain unchanged
-        assert structured_data["username"] == "testuser"
-        assert structured_data["normal_data"] == "safe_value"
+        assert context_data.username == "testuser"  # type: ignore[attr-defined]
+        assert context_data.normal_data == "safe_value"  # type: ignore[attr-defined]
 
     @pytest.mark.parametrize(
         ("field_name", "field_value", "expected_result", "test_description"),
@@ -372,7 +371,7 @@ class TestEventCaptureEmitAuditEvent:
             # authorization_code patterns
             ("authorization_code", "auth_code_123456", "[REDACTED]", "direct authorization_code match"),
             ("oauth_authorization_code", "oauth_code_789", "[REDACTED]", "authorization_code with prefix"),
-            ("auth_code", "authorization_code_abc", "[REDACTED]", "authorization_code partial match"),
+            ("auth_code", "authorization_code_abc", "[REDACTED]", "auth pattern match"),
             # certificate patterns
             ("certificate", "-----BEGIN CERTIFICATE-----", "[REDACTED]", "direct certificate match"),
             ("ssl_certificate", "x509_certificate_data", "[REDACTED]", "certificate with prefix"),
@@ -398,6 +397,7 @@ class TestEventCaptureEmitAuditEvent:
     ) -> None:
         """Test that specific fields are redacted according to defined patterns from emitter.py L#26-44."""
         # Create event with the specific field to test
+        structured_data = {"status": "success", field_name: field_value}
         event = AuditEvent(
             event_category=EventCategory.USER_ACTION,
             event_action="field_test",
@@ -408,19 +408,22 @@ class TestEventCaptureEmitAuditEvent:
             activity_id=None,
             execution_id=None,
             event_message=f"Testing {test_description}",
-            structured_data={field_name: field_value},
+            structured_data=AuditContextData(**structured_data),
         )
 
         # Emit the event
         emit_audit_event(event)
 
         # Verify the specific field was handled correctly
-        event_dict = mock_do_emit.call_args[0][0]
-        structured_data = event_dict["structured_data"]
+        event_obj = mock_do_emit.call_args[0][0]
+        # After sanitization, structured_data remains as model but in-place sanitized
+        base_data = event_obj.structured_data
+        assert isinstance(base_data, AuditContextData)
+        assert base_data.status == "success"
 
-        assert structured_data[field_name] == expected_result, (
+        assert getattr(base_data, field_name) == expected_result, (
             f"Field '{field_name}' with value '{field_value}' should result in '{expected_result}' "
-            f"for {test_description}, but got '{structured_data[field_name]}'"
+            f"for {test_description}, but got '{getattr(base_data, field_name)}'"
         )
 
     @patch("nexus.core.audit.emitter._do_emit_audit_event")
@@ -433,9 +436,6 @@ class TestEventCaptureEmitAuditEvent:
             actor_id=uuid4(),
             actor_type=ActorType.SYSTEM,
             source_component="core_service",
-            workflow_id=None,
-            activity_id=None,
-            execution_id=None,
             event_message="System starting up",
             # structured_data defaults to empty dict
         )
@@ -443,119 +443,147 @@ class TestEventCaptureEmitAuditEvent:
         # Emit the event
         emit_audit_event(event)
 
-        # Verify empty dict was handled correctly
-        event_dict = mock_do_emit.call_args[0][0]
-        assert event_dict["structured_data"] == {}
+        # Verify default structured_data was handled correctly
+        event_obj = mock_do_emit.call_args[0][0]
+        # After sanitization, structured_data remains as model but in-place sanitized
+        base_data = event_obj.structured_data
+        assert isinstance(base_data, BaseAuditData)
+        assert base_data.status is None
 
     @patch("nexus.core.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_complex_structured_data(self, mock_do_emit: Mock) -> None:
         """Test audit event emission with complex nested structured data."""
         # Create event with complex structured data
-        complex_data = {
-            "user_info": {
-                "username": "testuser",
-                "email": "test@example.com",
-                "preferences": {"theme": "dark", "api_token": "secret_token_123"},
-            },
-            "request_data": {"method": "POST", "url": "/api/v1/users", "headers": {"Authorization": "Bearer token123"}},
-            "response_data": {"status": 201, "message": "User created successfully"},
-        }
-
         event = AuditEvent(
             event_category=EventCategory.USER_ACTION,
             event_action="create_user",
             actor_id=uuid4(),
             actor_type=ActorType.USER,
             source_component="user_service",
-            workflow_id=None,
-            activity_id=None,
-            execution_id=None,
             event_message="User creation request",
-            structured_data=complex_data,
+            structured_data=AuditContextData(
+                status="success",
+                user_info={
+                    "username": "testuser",
+                    "email": "test@example.com",
+                    "preferences": {"theme": "dark", "api_token": "secret_token_123"},
+                },
+                request_data={
+                    "method": "POST",
+                    "url": "/api/v1/users",
+                    "headers": {"Authorization": "Bearer token123"},
+                },
+                response_data={"status": 201, "message": "User created successfully"},
+            ),
         )
 
         # Emit the event
         emit_audit_event(event)
 
         # Verify complex data was sanitized appropriately
-        event_dict = mock_do_emit.call_args[0][0]
-        sanitized_data = event_dict["structured_data"]
+        event_obj = mock_do_emit.call_args[0][0]
+        context_data = event_obj.structured_data
+        assert isinstance(context_data, AuditContextData)
 
         # Check that nested sensitive data was sanitized
-        assert sanitized_data["user_info"]["username"] == "testuser"
-        assert sanitized_data["user_info"]["email"] == "[EMAIL_REDACTED]"
-        assert sanitized_data["user_info"]["preferences"]["theme"] == "dark"
-        assert sanitized_data["user_info"]["preferences"]["api_token"] == "[REDACTED]"  # noqa: S105
-        assert sanitized_data["request_data"]["method"] == "POST"
-        assert sanitized_data["response_data"]["status"] == 201
+        user_info = context_data.user_info  # type: ignore[attr-defined]
+        assert user_info["username"] == "testuser"
+        assert user_info["email"] == "[EMAIL_REDACTED]"
+        assert user_info["preferences"]["theme"] == "dark"
+        assert user_info["preferences"]["api_token"] == "[REDACTED]"  # noqa: S105
+        request_data = context_data.request_data  # type: ignore[attr-defined]
+        assert request_data["method"] == "POST"
+        response_data = context_data.response_data  # type: ignore[attr-defined]
+        assert response_data["status"] == 201
 
 
 class TestEventCaptureDoEmitAuditEvent:
     """Test EventCapture._do_emit_audit_event method."""
 
     @patch("nexus.core.audit.emitter.audit_logger")
-    def test_do_emit_audit_event_logger_setup(self, mock_logger: Mock) -> None:
-        """Test that _do_emit_audit_event uses the module-level logger correctly."""
-        test_event_dict = {
-            "event_id": str(uuid4()),
-            "event_category": EventCategory.USER_ACTION,
-            "event_action": "test_action",
-            "actor_type": ActorType.USER,
-            "structured_data": {"key": "value"},
-        }
+    def test_do_emit_audit_event_logger_setup(self, mock_audit_logger: Mock) -> None:
+        """Test that _do_emit_audit_event uses the audit logger correctly."""
+        # Create test event
+        test_event = AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test_action",
+            actor_type=ActorType.USER,
+            source_component="test_component",
+            event_message="Test message",
+            structured_data=BaseAuditData(status="success"),
+        )
 
         # Call the method
-        _do_emit_audit_event(test_event_dict)
+        _do_emit_audit_event(test_event)
 
-        # Verify info method was called with correct arguments
-        mock_logger.info.assert_called_once_with("audit_event", **test_event_dict)
+        # Verify info method was called with serialized event data
+        expected_data = test_event.model_dump(mode="json")
+        mock_audit_logger.info.assert_called_once_with("audit_event", **expected_data)
 
     @patch("nexus.core.audit.emitter.audit_logger")
-    def test_do_emit_audit_event_with_all_fields(self, mock_logger: Mock) -> None:
+    def test_do_emit_audit_event_with_all_fields(self, mock_audit_logger: Mock) -> None:
         """Test _do_emit_audit_event with all possible fields."""
-        test_event_dict = {
-            "event_id": str(uuid4()),
-            "event_category": EventCategory.WORKFLOW_EVENT,
-            "event_action": "workflow_started",
-            "event_time": "2024-01-01T12:00:00Z",
-            "actor_id": str(uuid4()),
-            "actor_type": ActorType.SYSTEM,
-            "source_component": "workflow_engine",
-            "workflow_id": str(uuid4()),
-            "activity_id": "activity_123",
-            "execution_id": str(uuid4()),
-            "event_message": "Workflow execution started",
-            "structured_data": {"workflow_name": "test_workflow", "input_params": {"param1": "value1"}},
-        }
+        actor_id = uuid4()
+        workflow_id = uuid4()
+        execution_id = uuid4()
+
+        test_event = AuditEvent(
+            event_category=EventCategory.WORKFLOW_EVENT,
+            event_action="workflow_started",
+            actor_id=actor_id,
+            actor_type=ActorType.SYSTEM,
+            source_component="workflow_engine",
+            workflow_id=workflow_id,
+            activity_id="activity_123",
+            execution_id=execution_id,
+            event_message="Workflow execution started",
+            structured_data=AuditContextData(
+                status="success",
+                workflow_name="test_workflow",
+                input_params={"param1": "value1"},
+            ),
+        )
 
         # Call the method
-        _do_emit_audit_event(test_event_dict)
+        _do_emit_audit_event(test_event)
 
         # Verify all fields were passed to logger
-        call_args = mock_logger.info.call_args
+        call_args = mock_audit_logger.info.call_args
         assert call_args[0][0] == "audit_event"
 
         kwargs = call_args[1]
-        for key, value in test_event_dict.items():
-            assert kwargs[key] == value
+        assert kwargs["event_category"] == EventCategory.WORKFLOW_EVENT
+        assert kwargs["event_action"] == "workflow_started"
+        assert kwargs["actor_id"] == str(actor_id)
+        assert kwargs["actor_type"] == ActorType.SYSTEM
+        assert kwargs["source_component"] == "workflow_engine"
+        assert kwargs["workflow_id"] == str(workflow_id)
+        assert kwargs["activity_id"] == "activity_123"
+        assert kwargs["execution_id"] == str(execution_id)
+        assert kwargs["event_message"] == "Workflow execution started"
+        assert kwargs["structured_data"]["workflow_name"] == "test_workflow"
+        assert kwargs["structured_data"]["input_params"] == {"param1": "value1"}
 
     @patch("nexus.core.audit.emitter.audit_logger")
-    def test_do_emit_audit_event_minimal_fields(self, mock_logger: Mock) -> None:
+    def test_do_emit_audit_event_minimal_fields(self, mock_audit_logger: Mock) -> None:
         """Test _do_emit_audit_event with minimal required fields."""
-        test_event_dict = {
-            "event_category": EventCategory.SYSTEM_OPERATION,
-            "event_action": "minimal_action",
-            "structured_data": {},
-        }
+        test_event = AuditEvent(
+            event_category=EventCategory.SYSTEM_OPERATION,
+            event_action="minimal_action",
+            actor_type=ActorType.SYSTEM,
+            source_component="test_component",
+            event_message="Minimal test",
+            structured_data=BaseAuditData(status="success"),
+        )
 
         # Call the method
-        _do_emit_audit_event(test_event_dict)
+        _do_emit_audit_event(test_event)
 
         # Verify minimal fields were passed
-        kwargs = mock_logger.info.call_args[1]
+        kwargs = mock_audit_logger.info.call_args[1]
         assert kwargs["event_category"] == EventCategory.SYSTEM_OPERATION
         assert kwargs["event_action"] == "minimal_action"
-        assert kwargs["structured_data"] == {}
+        assert kwargs["structured_data"]["status"] == "success"
 
 
 class TestEventCaptureIntegration:
@@ -575,51 +603,51 @@ class TestEventCaptureIntegration:
             actor_id_context_var.set(test_actor_id)
             actor_type_context_var.set(ActorType.USER)
             workflow_id_context_var.set(test_workflow_id)
+            activity_id_context_var.set("activity_id")
 
             # Create and emit event
             event = AuditEvent(
                 event_category=EventCategory.AGENT_INTERACTION,
                 event_action="agent_query",
                 actor_id=None,  # Will be injected
-                actor_type=ActorType.SYSTEM,
+                actor_type=ActorType.SYSTEM,  # Required field, will NOT be overridden since it's truthy
                 source_component="agent_service",
-                workflow_id=None,
-                activity_id=None,
-                execution_id=None,
                 event_message="User queried agent",
-                structured_data={
-                    "query": "What is the weather?",
-                    "password": "secret123",  # Should be sanitized
-                    "user_email": "user@example.com",  # Should be sanitized
-                },
+                structured_data=AuditContextData(
+                    status="success",
+                    query="What is the weather?",
+                    password="secret123",  # noqa: S106  # Should be sanitized
+                    user_email="user@example.com",  # Should be sanitized
+                ),
             )
 
             emit_audit_event(event)
 
             # Comprehensive verification
             mock_do_emit.assert_called_once()
-            event_dict = mock_do_emit.call_args[0][0]
+            event_obj = mock_do_emit.call_args[0][0]
 
             # Verify context injection
-            assert event_dict["actor_id"] == str(test_actor_id)  # UUIDs are serialized as strings
-            assert event_dict["actor_type"] == ActorType.SYSTEM.value  # actor_type is not context-injected
-            assert event_dict["workflow_id"] == str(test_workflow_id)
+            assert event_obj.actor_id == test_actor_id
+            assert event_obj.actor_type == ActorType.SYSTEM  # Not overridden because it was already set
+            assert event_obj.workflow_id == test_workflow_id
 
             # Verify event data
-            assert event_dict["event_category"] == EventCategory.AGENT_INTERACTION
-            assert event_dict["event_action"] == "agent_query"
-            assert event_dict["source_component"] == "agent_service"
-            assert event_dict["event_message"] == "User queried agent"
+            assert event_obj.event_category == EventCategory.AGENT_INTERACTION
+            assert event_obj.event_action == "agent_query"
+            assert event_obj.source_component == "agent_service"
+            assert event_obj.event_message == "User queried agent"
 
             # Verify sanitization
-            structured_data = event_dict["structured_data"]
-            assert structured_data["query"] == "What is the weather?"
-            assert structured_data["password"] == "[REDACTED]"  # noqa: S105
-            assert structured_data["user_email"] == "[EMAIL_REDACTED]"
+            context_data = event_obj.structured_data
+            assert isinstance(context_data, AuditContextData)
+            assert context_data.query == "What is the weather?"  # type: ignore[attr-defined]
+            assert context_data.password == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
+            assert context_data.user_email == "[EMAIL_REDACTED]"  # type: ignore[attr-defined]
 
             # Verify event_id was generated
-            assert "event_id" in event_dict
-            assert "event_time" in event_dict
+            assert event_obj.event_id is not None
+            assert event_obj.event_time is not None
 
         ctx.run(test_in_context)
 
@@ -634,11 +662,8 @@ class TestEventCaptureIntegration:
                 actor_id=uuid4(),
                 actor_type=ActorType.USER,
                 source_component="test_component",
-                workflow_id=None,
-                activity_id=None,
-                execution_id=None,
                 event_message=f"Test message {i}",
-                structured_data={"index": i},
+                structured_data=AuditContextData(status="success", index=i),
             )
             for i in range(3)
         ]
@@ -651,6 +676,8 @@ class TestEventCaptureIntegration:
 
         # Verify each event was logged with correct action
         for i, call in enumerate(mock_do_emit.call_args_list):
-            event_dict = call[0][0]  # First positional argument
-            assert event_dict["event_action"] == f"action_{i}"
-            assert event_dict["structured_data"]["index"] == i
+            event_obj = call[0][0]  # First positional argument
+            assert event_obj.event_action == f"action_{i}"
+            context_data = event_obj.structured_data
+            assert isinstance(context_data, AuditContextData)
+            assert context_data.index == i  # type: ignore[attr-defined]

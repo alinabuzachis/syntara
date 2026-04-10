@@ -18,7 +18,9 @@ from uuid import UUID, uuid4
 import pytest
 
 from nexus.api.constants import EXCLUDED_PATHS
-from nexus.core.audit import AuditMiddleware
+from nexus.core.audit.middleware import AuditMiddleware
+from nexus.core.audit.schemas import RequestCompletedData
+from nexus.core.audit.types import AuditEvent
 
 _EMIT_PATCH = "nexus.core.audit.emitter._do_emit_audit_event"
 
@@ -79,9 +81,19 @@ def _make_app(status_code: int = 200) -> Any:  # noqa: ANN401
     return app
 
 
-def _get_audit_events(mock_emit: MagicMock, event_action: str) -> list[dict[str, Any]]:
-    """Extract audit events with the given action from mock calls."""
-    return [call[0][0] for call in mock_emit.call_args_list if call[0][0].get("event_action") == event_action]
+def _get_audit_events(mock_emit: MagicMock, event_action: str) -> list[AuditEvent]:
+    """Extract AuditEvent objects with the given action from mock calls."""
+    return [call[0][0] for call in mock_emit.call_args_list if call[0][0].event_action == event_action]
+
+
+def _get_request_completed_data(mock_emit: MagicMock) -> list[RequestCompletedData]:
+    """Extract typed RequestCompletedData from request_completed audit events."""
+    events = _get_audit_events(mock_emit, "request_completed")
+    result: list[RequestCompletedData] = []
+    for event in events:
+        assert isinstance(event.structured_data, RequestCompletedData)
+        result.append(event.structured_data)
+    return result
 
 
 # =============================================================================
@@ -103,12 +115,11 @@ class TestAuditMiddlewareBasic:
             await middleware(scope, AsyncMock(), AsyncMock())
 
         assert mock_emit.call_count == 1
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert len(completed) == 1
-        data = completed[0]["structured_data"]
-        assert data["method"] == "GET"
-        assert data["path"] == "/api/v1/workflows"
-        assert data["status_code"] == 200
+        data = _get_request_completed_data(mock_emit)
+        assert len(data) == 1
+        assert data[0].method == "GET"
+        assert data[0].path == "/api/v1/workflows"
+        assert data[0].status_code == 200
 
     @pytest.mark.asyncio
     async def test_no_request_started_event(self) -> None:
@@ -144,11 +155,10 @@ class TestAuditMiddlewareQueryParams:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert "query_params" in completed[0]["structured_data"]
-        query_params = completed[0]["structured_data"]["query_params"]
-        assert query_params["status"] == "active"
-        assert query_params["limit"] == "10"
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].query_params is not None
+        assert data[0].query_params["status"] == "active"
+        assert data[0].query_params["limit"] == "10"
 
     @pytest.mark.asyncio
     async def test_no_query_params_logged_when_empty(self) -> None:
@@ -160,8 +170,8 @@ class TestAuditMiddlewareQueryParams:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert "query_params" not in completed[0]["structured_data"]
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].query_params is None
 
     @pytest.mark.asyncio
     async def test_handles_invalid_query_string(self) -> None:
@@ -174,9 +184,9 @@ class TestAuditMiddlewareQueryParams:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert "query_params" in completed[0]["structured_data"]
-        assert "raw" in completed[0]["structured_data"]["query_params"]
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].query_params is not None
+        assert "raw" in data[0].query_params
 
     @pytest.mark.asyncio
     async def test_handles_multi_value_query_params(self) -> None:
@@ -191,9 +201,9 @@ class TestAuditMiddlewareQueryParams:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        query_params = completed[0]["structured_data"]["query_params"]
-        assert query_params["tag"] == ["foo", "bar"]
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].query_params is not None
+        assert data[0].query_params["tag"] == ["foo", "bar"]
 
     @pytest.mark.asyncio
     async def test_handles_mixed_single_and_multi_value_params(self) -> None:
@@ -208,11 +218,11 @@ class TestAuditMiddlewareQueryParams:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        query_params = completed[0]["structured_data"]["query_params"]
-        assert query_params["status"] == "active"
-        assert query_params["tag"] == ["foo", "bar"]
-        assert query_params["limit"] == "10"
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].query_params is not None
+        assert data[0].query_params["status"] == "active"
+        assert data[0].query_params["tag"] == ["foo", "bar"]
+        assert data[0].query_params["limit"] == "10"
 
 
 # =============================================================================
@@ -280,9 +290,9 @@ class TestAuditMiddlewareExclusions:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(path=path), AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert len(completed) == 1
-        assert completed[0]["structured_data"]["path"] == path
+        data = _get_request_completed_data(mock_emit)
+        assert len(data) == 1
+        assert data[0].path == path
 
 
 # =============================================================================
@@ -306,11 +316,12 @@ class TestAuditMiddlewareUserContext:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert len(completed) == 1
-        assert completed[0]["actor_id"] == str(user_id)
-        assert completed[0]["actor_type"] == "user"
-        assert completed[0]["structured_data"]["user_role"] == "creator"
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].actor_id == user_id
+        assert events[0].actor_type == "user"
+        assert isinstance(events[0].structured_data, RequestCompletedData)
+        assert events[0].structured_data.user_role == "creator"
 
     @pytest.mark.asyncio
     async def test_no_user_logs_without_authentication(self) -> None:
@@ -322,11 +333,12 @@ class TestAuditMiddlewareUserContext:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert len(completed) == 1
-        assert completed[0]["actor_id"] is None
-        assert completed[0]["actor_type"] == "user"
-        assert "user_role" not in completed[0]["structured_data"]
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].actor_id is None
+        assert events[0].actor_type == "user"
+        assert isinstance(events[0].structured_data, RequestCompletedData)
+        assert events[0].structured_data.user_role is None
 
     @pytest.mark.asyncio
     async def test_handles_partial_user_object(self) -> None:
@@ -341,11 +353,12 @@ class TestAuditMiddlewareUserContext:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert len(completed) == 1
-        assert completed[0]["actor_id"] is None
-        assert completed[0]["actor_type"] == "user"
-        assert "user_role" not in completed[0]["structured_data"]
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].actor_id is None
+        assert events[0].actor_type == "user"
+        assert isinstance(events[0].structured_data, RequestCompletedData)
+        assert events[0].structured_data.user_role is None
 
     @pytest.mark.asyncio
     async def test_user_id_converted_to_string(self) -> None:
@@ -360,11 +373,9 @@ class TestAuditMiddlewareUserContext:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert len(completed) == 1
-        logged_id = completed[0]["actor_id"]
-        assert isinstance(logged_id, str)
-        assert UUID(logged_id) == user_id
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].actor_id == user_id
 
 
 # =============================================================================
@@ -384,8 +395,8 @@ class TestAuditMiddlewareResponse:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["structured_data"]["status_code"] == 404
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].status_code == 404
 
     @pytest.mark.asyncio
     async def test_logs_500_on_exception(self) -> None:
@@ -399,9 +410,9 @@ class TestAuditMiddlewareResponse:
         with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert len(completed) == 1
-        assert completed[0]["structured_data"]["status_code"] == 500
+        data = _get_request_completed_data(mock_emit)
+        assert len(data) == 1
+        assert data[0].status_code == 500
 
     @pytest.mark.asyncio
     async def test_exception_propagates(self) -> None:
@@ -428,9 +439,9 @@ class TestAuditMiddlewareResponse:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["actor_id"] == str(user_id)
-        assert completed[0]["actor_type"] == "user"
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].actor_id == user_id
+        assert events[0].actor_type == "user"
 
     @pytest.mark.asyncio
     async def test_exception_preserves_actor_context(self) -> None:
@@ -448,9 +459,9 @@ class TestAuditMiddlewareResponse:
         with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["actor_id"] == str(user_id)
-        assert completed[0]["actor_type"] == "user"
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].actor_id == user_id
+        assert events[0].actor_type == "user"
 
 
 # =============================================================================
@@ -474,8 +485,8 @@ class TestAuditMiddlewareSourceComponent:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["source_component"] == handler.__module__
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].source_component == handler.__module__
 
     @pytest.mark.asyncio
     async def test_source_component_fallback_without_endpoint(self) -> None:
@@ -486,8 +497,8 @@ class TestAuditMiddlewareSourceComponent:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["source_component"] == "nexus.core.audit.middleware"
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].source_component == "nexus.core.audit.middleware"
 
     @pytest.mark.asyncio
     async def test_source_component_on_exception(self) -> None:
@@ -502,8 +513,8 @@ class TestAuditMiddlewareSourceComponent:
         with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["source_component"] == failing_handler.__module__
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].source_component == failing_handler.__module__
 
 
 # =============================================================================
@@ -528,8 +539,8 @@ class TestAuditMiddlewareContextIds:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["workflow_id"] == str(wf_id)
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].workflow_id == wf_id
 
     @pytest.mark.asyncio
     async def test_execution_id_from_path_params(self) -> None:
@@ -545,8 +556,8 @@ class TestAuditMiddlewareContextIds:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["execution_id"] == str(exec_id)
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].execution_id == exec_id
 
     @pytest.mark.asyncio
     async def test_activity_id_from_path_params(self) -> None:
@@ -563,9 +574,9 @@ class TestAuditMiddlewareContextIds:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["activity_id"] == activity_id
-        assert completed[0]["execution_id"] == str(exec_id)
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].activity_id == activity_id
+        assert events[0].execution_id == exec_id
 
     @pytest.mark.asyncio
     async def test_workflow_id_from_context_var(self) -> None:
@@ -587,8 +598,8 @@ class TestAuditMiddlewareContextIds:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["workflow_id"] == str(wf_id)
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].workflow_id == wf_id
 
     @pytest.mark.asyncio
     async def test_path_params_take_precedence_over_context_var(self) -> None:
@@ -615,8 +626,8 @@ class TestAuditMiddlewareContextIds:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["workflow_id"] == str(path_wf_id)
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].workflow_id == path_wf_id
 
     @pytest.mark.asyncio
     async def test_malformed_workflow_id_defaults_to_none(self) -> None:
@@ -631,8 +642,8 @@ class TestAuditMiddlewareContextIds:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["workflow_id"] is None
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].workflow_id is None
 
     @pytest.mark.asyncio
     async def test_malformed_execution_id_defaults_to_none(self) -> None:
@@ -647,8 +658,8 @@ class TestAuditMiddlewareContextIds:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["execution_id"] is None
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].execution_id is None
 
     @pytest.mark.asyncio
     async def test_context_ids_none_when_not_available(self) -> None:
@@ -659,10 +670,10 @@ class TestAuditMiddlewareContextIds:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["workflow_id"] is None
-        assert completed[0]["execution_id"] is None
-        assert completed[0]["activity_id"] is None
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].workflow_id is None
+        assert events[0].execution_id is None
+        assert events[0].activity_id is None
 
 
 # =============================================================================
@@ -683,8 +694,8 @@ class TestAuditMiddlewareSanitization:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["structured_data"]["path"] == "/api/v1/workflows"
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].path == "/api/v1/workflows"
 
     @pytest.mark.asyncio
     async def test_path_double_slashes_normalized(self) -> None:
@@ -696,8 +707,8 @@ class TestAuditMiddlewareSanitization:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["structured_data"]["path"] == "/api/v1/workflows"
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].path == "/api/v1/workflows"
 
     @pytest.mark.asyncio
     async def test_control_chars_stripped_from_path(self) -> None:
@@ -709,8 +720,8 @@ class TestAuditMiddlewareSanitization:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["structured_data"]["path"] == "/api/v1/workflows"
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].path == "/api/v1/workflows"
 
     @pytest.mark.asyncio
     async def test_null_bytes_stripped_from_path(self) -> None:
@@ -722,8 +733,8 @@ class TestAuditMiddlewareSanitization:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["structured_data"]["path"] == "/api/v1/workflows"
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].path == "/api/v1/workflows"
 
     @pytest.mark.asyncio
     async def test_control_chars_stripped_from_method(self) -> None:
@@ -735,8 +746,8 @@ class TestAuditMiddlewareSanitization:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["structured_data"]["method"] == "GET"
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].method == "GET"
 
     @pytest.mark.asyncio
     async def test_path_truncated_at_max_length(self) -> None:
@@ -749,8 +760,8 @@ class TestAuditMiddlewareSanitization:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert len(completed[0]["structured_data"]["path"]) == 2048
+        data = _get_request_completed_data(mock_emit)
+        assert len(data[0].path) == 2048
 
     @pytest.mark.asyncio
     async def test_normalized_path_used_for_exclusion_check(self) -> None:
@@ -797,8 +808,8 @@ class TestAuditMiddlewareSanitization:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["structured_data"]["path"] == "/api/v1/workflows"
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].path == "/api/v1/workflows"
 
     @pytest.mark.asyncio
     async def test_sanitized_values_in_event_message(self) -> None:
@@ -810,8 +821,8 @@ class TestAuditMiddlewareSanitization:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        assert completed[0]["event_message"] == "Request completed: POST /api/v1/workflows 200"
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].event_message == "Request completed: POST /api/v1/workflows 200"
 
     @pytest.mark.asyncio
     async def test_event_message_excludes_query_params(self) -> None:
@@ -827,11 +838,10 @@ class TestAuditMiddlewareSanitization:
         with patch(_EMIT_PATCH) as mock_emit:
             await middleware(scope, AsyncMock(), AsyncMock())
 
-        completed = _get_audit_events(mock_emit, "request_completed")
-        message = completed[0]["event_message"]
-        assert message == "Request completed: GET /api/v1/auth 200"
-        assert "hunter2" not in message
-        assert "username" not in message
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert events[0].event_message == "Request completed: GET /api/v1/auth 200"
+        assert "hunter2" not in events[0].event_message
+        assert "username" not in events[0].event_message
 
 
 # =============================================================================
