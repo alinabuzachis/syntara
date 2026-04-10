@@ -30,7 +30,7 @@ from nexus.telemetry.collector import TelemetryCollector
 from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityTerminalStatus,
-    ActivityType,
+    NodeType,
     WorkflowTerminalStatus,
 )
 
@@ -96,10 +96,10 @@ async def _run_with_telemetry(collector: TelemetryCollector, iterations: int) ->
         await _run_workflow_activities()
 
         for i in range(_ACTIVITIES_PER_WORKFLOW):
-            collector.capture_activity_executed(
+            collector.capture_node_executed(
                 workflow_execution_id=wf_id,
-                activity_type=ActivityType.TASK,
-                activity_def=_ACTIVITY_DEFS[i],
+                node_type=NodeType.SCRIPT,
+                node_def=_ACTIVITY_DEFS[i],
                 status=ActivityTerminalStatus.COMPLETED,
                 duration_ms=10,
             )
@@ -107,7 +107,7 @@ async def _run_with_telemetry(collector: TelemetryCollector, iterations: int) ->
             workflow_execution_id=wf_id,
             status=WorkflowTerminalStatus.COMPLETED,
             duration_ms=50,
-            activity_count=_ACTIVITIES_PER_WORKFLOW,
+            node_count=_ACTIVITIES_PER_WORKFLOW,
             error_count=0,
         )
 

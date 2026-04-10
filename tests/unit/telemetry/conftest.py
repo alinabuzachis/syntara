@@ -4,8 +4,8 @@ import pytest
 
 # Common test data constants
 VALID_WORKFLOW_EXECUTION_ID = "550e8400-e29b-41d4-a716-446655440000"
-VALID_ACTIVITY_HASH = "b" * 64
-SAMPLE_ACTIVITY_DEF = {"name": "test-activity", "type": "task"}
+VALID_NODE_HASH = "b" * 64
+SAMPLE_NODE_DEF = {"name": "test-node", "type": "script"}
 
 
 @pytest.fixture
@@ -15,12 +15,12 @@ def valid_workflow_execution_id() -> str:
 
 
 @pytest.fixture
-def valid_activity_hash() -> str:
-    """Return a valid activity hash for telemetry tests."""
-    return VALID_ACTIVITY_HASH
+def valid_node_hash() -> str:
+    """Return a valid node hash for telemetry tests."""
+    return VALID_NODE_HASH
 
 
 @pytest.fixture
-def sample_activity_def() -> dict[str, str]:
-    """Return a sample activity definition for telemetry tests."""
-    return SAMPLE_ACTIVITY_DEF.copy()
+def sample_node_def() -> dict[str, str]:
+    """Return a sample node definition for telemetry tests."""
+    return SAMPLE_NODE_DEF.copy()

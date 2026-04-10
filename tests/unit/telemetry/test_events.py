@@ -3,11 +3,11 @@
 import pytest
 from pydantic import ValidationError
 
-from nexus.telemetry.events.activity_execution import (
-    ActivityExecutionEvent,
-    ActivityExecutionEventBuilder,
-)
 from nexus.telemetry.events.base import BaseTelemetryEvent
+from nexus.telemetry.events.node_execution import (
+    NodeExecutionEvent,
+    NodeExecutionEventBuilder,
+)
 from nexus.telemetry.events.workflow_execution import (
     WorkflowExecutionCompletedEvent,
     WorkflowExecutionEventBuilder,
@@ -16,7 +16,7 @@ from nexus.telemetry.events.workflow_execution import (
 
 # Import shared test data from conftest
 from tests.unit.telemetry.conftest import (
-    VALID_ACTIVITY_HASH,
+    VALID_NODE_HASH,
     VALID_WORKFLOW_EXECUTION_ID,
 )
 
@@ -125,14 +125,14 @@ class TestWorkflowExecutionCompletedEvent:
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status=status,
             duration_ms=12500,
-            activity_count=8,
+            node_count=8,
             error_count=error_count,
             error_type=error_type,
             entitlement_id="",
         )
         assert event.status == status
         assert event.duration_ms == 12500
-        assert event.activity_count == 8
+        assert event.node_count == 8
         assert event.error_count == error_count
         assert event.error_type == error_type
 
@@ -142,7 +142,7 @@ class TestWorkflowExecutionCompletedEvent:
                 workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
                 status="unknown",
                 duration_ms=100,
-                activity_count=1,
+                node_count=1,
                 error_count=0,
                 entitlement_id="",
             )
@@ -152,7 +152,7 @@ class TestWorkflowExecutionCompletedEvent:
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status="completed",
             duration_ms=12500,
-            activity_count=8,
+            node_count=8,
             error_count=0,
             entitlement_id="",
         )
@@ -161,7 +161,7 @@ class TestWorkflowExecutionCompletedEvent:
         props = segment_event["properties"]
         assert props["status"] == "completed"
         assert props["duration_ms"] == 12500
-        assert props["activity_count"] == 8
+        assert props["node_count"] == 8
         assert props["error_count"] == 0
 
     def test_entitlement_id_in_segment_properties(self):
@@ -170,7 +170,7 @@ class TestWorkflowExecutionCompletedEvent:
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status="completed",
             duration_ms=100,
-            activity_count=1,
+            node_count=1,
             error_count=0,
             entitlement_id="ent-completed-456",
         )
@@ -179,57 +179,55 @@ class TestWorkflowExecutionCompletedEvent:
 
 
 # =============================================================================
-# ActivityExecutionEvent Tests (T021-TEST)
+# NodeExecutionEvent Tests (T021-TEST)
 # =============================================================================
 
 
-class TestActivityExecutionEvent:
-    """Tests for ActivityExecutionEvent Pydantic model."""
+class TestNodeExecutionEvent:
+    """Tests for NodeExecutionEvent Pydantic model."""
 
     def test_valid_success_event(self):
-        event = ActivityExecutionEvent(
+        event = NodeExecutionEvent(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type="task",
-            activity_hash=VALID_ACTIVITY_HASH,
+            node_type="script",
+            node_hash=VALID_NODE_HASH,
             status="completed",
             error_type=None,
             entitlement_id="",
         )
-        assert event.activity_type == "task"
+        assert event.node_type == "script"
         assert event.status == "completed"
         assert event.error_type is None
 
-    def test_invalid_activity_type(self):
+    def test_invalid_node_type(self):
         with pytest.raises(ValidationError):
-            ActivityExecutionEvent(
+            NodeExecutionEvent(
                 workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-                activity_type="invalid",
-                activity_hash=VALID_ACTIVITY_HASH,
+                node_type="invalid",
+                node_hash=VALID_NODE_HASH,
                 status="completed",
                 entitlement_id="",
             )
 
     def test_to_segment_event(self):
-        event = ActivityExecutionEvent(
+        event = NodeExecutionEvent(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type="task",
-            activity_hash=VALID_ACTIVITY_HASH,
+            node_type="script",
+            node_hash=VALID_NODE_HASH,
             status="completed",
-            action_type="api_call",
             entitlement_id="",
         )
         segment_event = event.to_segment_event()
-        assert segment_event["event"] == "activity_execution"
+        assert segment_event["event"] == "node_execution"
         props = segment_event["properties"]
-        assert props["activity_type"] == "task"
-        assert props["action_type"] == "api_call"
+        assert props["node_type"] == "script"
 
     def test_entitlement_id_in_segment_properties(self):
         """entitlement_id value must appear in segment event properties."""
-        event = ActivityExecutionEvent(
+        event = NodeExecutionEvent(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type="task",
-            activity_hash=VALID_ACTIVITY_HASH,
+            node_type="script",
+            node_hash=VALID_NODE_HASH,
             status="completed",
             entitlement_id="ent-activity-789",
         )
@@ -260,7 +258,7 @@ class TestWorkflowExecutionEventBuilder:
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status="completed",
             duration_ms=12500,
-            activity_count=8,
+            node_count=8,
             error_count=0,
             entitlement_id="",
         )
@@ -271,34 +269,34 @@ class TestWorkflowExecutionEventBuilder:
 
 
 # =============================================================================
-# ActivityExecutionEventBuilder Tests (T023-TEST)
+# NodeExecutionEventBuilder Tests (T023-TEST)
 # =============================================================================
 
 
-class TestActivityExecutionEventBuilder:
-    """Tests for ActivityExecutionEventBuilder."""
+class TestNodeExecutionEventBuilder:
+    """Tests for NodeExecutionEventBuilder."""
 
     def test_build_event(self):
-        builder = ActivityExecutionEventBuilder()
+        builder = NodeExecutionEventBuilder()
 
         # Build event and verify basic properties
         event = builder.build_event(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type="task",
-            activity_def={"a": 1, "b": 2},
+            node_type="script",
+            node_def={"a": 1, "b": 2},
             status="completed",
             entitlement_id="",
         )
-        assert isinstance(event, ActivityExecutionEvent)
+        assert isinstance(event, NodeExecutionEvent)
         assert event.status == "completed"
-        assert len(event.activity_hash) == 64
+        assert len(event.node_hash) == 64
 
         # Verify hash is deterministic and key-order independent
         event_same = builder.build_event(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type="task",
-            activity_def={"b": 2, "a": 1},
+            node_type="script",
+            node_def={"b": 2, "a": 1},
             status="completed",
             entitlement_id="",
         )
-        assert event.activity_hash == event_same.activity_hash
+        assert event.node_hash == event_same.node_hash

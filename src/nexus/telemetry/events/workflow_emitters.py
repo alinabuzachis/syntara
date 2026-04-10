@@ -89,9 +89,9 @@ def emit_workflow_completed(
         # Calculate duration in milliseconds
         duration_ms = int((completed_at - execution.created_at).total_seconds() * 1000)
 
-        # Compute activity and error counts from loaded activities
+        # Compute node and error counts from loaded activities
         activities = execution.activities or []
-        activity_count = sum(1 for a in activities if a.status in _TERMINAL_STATUSES)
+        node_count = sum(1 for a in activities if a.status in _TERMINAL_STATUSES)
         error_count = sum(1 for a in activities if a.status == ActivityStatus.FAILED)
 
         # Emit telemetry
@@ -101,7 +101,7 @@ def emit_workflow_completed(
             workflow_execution_id=workflow_execution_id,
             status=telemetry_status,
             duration_ms=duration_ms,
-            activity_count=activity_count,
+            node_count=node_count,
             error_count=error_count,
             error_type=error_type,
         )
@@ -110,7 +110,7 @@ def emit_workflow_completed(
             "Emitted workflow completed telemetry",
             execution_id=execution.id,
             status=telemetry_status,
-            activity_count=activity_count,
+            node_count=node_count,
             error_count=error_count,
         )
 

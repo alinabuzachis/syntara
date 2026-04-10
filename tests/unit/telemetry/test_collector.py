@@ -3,20 +3,20 @@
 from unittest.mock import MagicMock, patch
 
 from nexus.telemetry.collector import TelemetryCollector
-from nexus.telemetry.events.activity_execution import ActivityExecutionEvent
+from nexus.telemetry.events.node_execution import NodeExecutionEvent
 from nexus.telemetry.events.workflow_execution import (
     WorkflowExecutionCompletedEvent,
     WorkflowExecutionStartEvent,
 )
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityTerminalStatus,
-    ActivityType,
+    NodeType,
     WorkflowTerminalStatus,
 )
 
 # Import shared test data from conftest
 from tests.unit.telemetry.conftest import (
-    SAMPLE_ACTIVITY_DEF,
+    SAMPLE_NODE_DEF,
     VALID_WORKFLOW_EXECUTION_ID,
 )
 
@@ -50,7 +50,7 @@ class TestTelemetryCollector:
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status=WorkflowTerminalStatus.COMPLETED,
             duration_ms=12500,
-            activity_count=8,
+            node_count=8,
             error_count=0,
         )
         mock_registry.send_event.assert_called_once()
@@ -58,7 +58,7 @@ class TestTelemetryCollector:
         assert isinstance(sent_event, WorkflowExecutionCompletedEvent)
         assert sent_event.status == "completed"
         assert sent_event.duration_ms == 12500
-        assert sent_event.activity_count == 8
+        assert sent_event.node_count == 8
         assert sent_event.error_count == 0
 
     def test_capture_workflow_completed_failed(self):
@@ -67,7 +67,7 @@ class TestTelemetryCollector:
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status=WorkflowTerminalStatus.FAILED,
             duration_ms=5000,
-            activity_count=3,
+            node_count=3,
             error_count=1,
             error_type="ActivityExecutionError",
         )
@@ -76,27 +76,25 @@ class TestTelemetryCollector:
         assert sent_event.status == "failed"
         assert sent_event.error_type == "ActivityExecutionError"
 
-    def test_capture_activity_executed_success(self):
+    def test_capture_node_executed_success(self):
         collector, mock_registry = self._create_collector()
-        collector.capture_activity_executed(
+        collector.capture_node_executed(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type=ActivityType.TASK,
-            activity_def=SAMPLE_ACTIVITY_DEF,
+            node_type=NodeType.SCRIPT,
+            node_def=SAMPLE_NODE_DEF,
             status=ActivityTerminalStatus.COMPLETED,
-            action_type="api_call",
         )
         mock_registry.send_event.assert_called_once()
         sent_event = mock_registry.send_event.call_args[0][0]
-        assert isinstance(sent_event, ActivityExecutionEvent)
-        assert sent_event.activity_type == "task"
-        assert sent_event.action_type == "api_call"
+        assert isinstance(sent_event, NodeExecutionEvent)
+        assert sent_event.node_type == "script"
 
-    def test_capture_activity_executed_failed(self):
+    def test_capture_node_executed_failed(self):
         collector, mock_registry = self._create_collector()
-        collector.capture_activity_executed(
+        collector.capture_node_executed(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type=ActivityType.TASK,
-            activity_def=SAMPLE_ACTIVITY_DEF,
+            node_type=NodeType.SCRIPT,
+            node_def=SAMPLE_NODE_DEF,
             status=ActivityTerminalStatus.FAILED,
             error_type="ActivityExecutionError",
         )
@@ -133,13 +131,13 @@ class TestTelemetryCollector:
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status=WorkflowTerminalStatus.COMPLETED,
             duration_ms=100,
-            activity_count=0,
+            node_count=0,
             error_count=0,
         )
         mock_logger.exception.assert_called_once()
 
     @patch("nexus.telemetry.collector.logger")
-    def test_capture_activity_fire_and_forget(self, mock_logger):
+    def test_capture_node_fire_and_forget(self, mock_logger):
         """Verify fire-and-forget: errors are logged but not raised."""
         mock_registry = MagicMock()
         mock_registry.entitlement_id = ""
@@ -147,10 +145,10 @@ class TestTelemetryCollector:
         collector = TelemetryCollector(
             registry=mock_registry,
         )
-        collector.capture_activity_executed(
+        collector.capture_node_executed(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type=ActivityType.TASK,
-            activity_def=SAMPLE_ACTIVITY_DEF,
+            node_type=NodeType.SCRIPT,
+            node_def=SAMPLE_NODE_DEF,
             status=ActivityTerminalStatus.COMPLETED,
         )
         mock_logger.exception.assert_called_once()
@@ -171,19 +169,19 @@ class TestTelemetryCollector:
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status=WorkflowTerminalStatus.COMPLETED,
             duration_ms=100,
-            activity_count=1,
+            node_count=1,
             error_count=0,
         )
         sent_event = mock_registry.send_event.call_args[0][0]
         assert sent_event.entitlement_id == "ent-abc"
 
-    def test_activity_event_includes_entitlement_id(self):
-        """entitlement_id from registry must appear on the activity event."""
+    def test_node_event_includes_entitlement_id(self):
+        """entitlement_id from registry must appear on the node event."""
         collector, mock_registry = self._create_collector(entitlement_id="ent-abc")
-        collector.capture_activity_executed(
+        collector.capture_node_executed(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type=ActivityType.TASK,
-            activity_def=SAMPLE_ACTIVITY_DEF,
+            node_type=NodeType.SCRIPT,
+            node_def=SAMPLE_NODE_DEF,
             status=ActivityTerminalStatus.COMPLETED,
         )
         sent_event = mock_registry.send_event.call_args[0][0]

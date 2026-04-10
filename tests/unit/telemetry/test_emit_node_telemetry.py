@@ -8,8 +8,8 @@ from nexus.telemetry.collector import TelemetryCollector
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 
 EXECUTION_ID = uuid4()
-ACTIVITY_DEF = {"id": "task-1", "type": "task", "name": "Test Task"}
-ACTIVITY_DEFINITIONS_MAP = {"task-1": ACTIVITY_DEF}
+NODE_DEF = {"id": "script-1", "type": "script", "name": "Test Script"}
+NODE_DEFINITIONS_MAP = {"script-1": NODE_DEF}
 
 
 def _make_activity(
@@ -44,19 +44,19 @@ class TestEmitActivityTelemetry:
         mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
-        activity = _make_activity("task-1", ActivityStatus.COMPLETED)
+        activity = _make_activity("script-1", ActivityStatus.COMPLETED)
         old_values = {"status": ActivityStatus.PENDING}
 
         collector.emit_activity_telemetry(
             execution_id=EXECUTION_ID,
-            activity_definitions_map=ACTIVITY_DEFINITIONS_MAP,
+            activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
         mock_registry.send_event.assert_called_once()
         event = mock_registry.send_event.call_args[0][0]
         assert event.workflow_execution_id == str(EXECUTION_ID)
-        assert event.activity_type == "task"
+        assert event.node_type == "script"
         assert event.status == "completed"
         assert event.duration_ms is None
         assert event.error_type is None
@@ -69,12 +69,12 @@ class TestEmitActivityTelemetry:
 
         start = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         end = start + timedelta(seconds=5, milliseconds=500)
-        activity = _make_activity("task-1", ActivityStatus.COMPLETED, started_at=start, completed_at=end)
+        activity = _make_activity("script-1", ActivityStatus.COMPLETED, started_at=start, completed_at=end)
         old_values = {"status": ActivityStatus.RUNNING}
 
         collector.emit_activity_telemetry(
             execution_id=EXECUTION_ID,
-            activity_definitions_map=ACTIVITY_DEFINITIONS_MAP,
+            activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
@@ -87,12 +87,12 @@ class TestEmitActivityTelemetry:
         mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
-        activity = _make_activity("task-1", ActivityStatus.FAILED)
+        activity = _make_activity("script-1", ActivityStatus.FAILED)
         old_values = {"status": ActivityStatus.RUNNING}
 
         collector.emit_activity_telemetry(
             execution_id=EXECUTION_ID,
-            activity_definitions_map=ACTIVITY_DEFINITIONS_MAP,
+            activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
@@ -106,12 +106,12 @@ class TestEmitActivityTelemetry:
         mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
-        activity = _make_activity("task-1", ActivityStatus.SKIPPED)
+        activity = _make_activity("script-1", ActivityStatus.SKIPPED)
         old_values = {"status": ActivityStatus.PENDING}
 
         collector.emit_activity_telemetry(
             execution_id=EXECUTION_ID,
-            activity_definitions_map=ACTIVITY_DEFINITIONS_MAP,
+            activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
@@ -124,12 +124,12 @@ class TestEmitActivityTelemetry:
         mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
-        activity = _make_activity("task-1", ActivityStatus.RUNNING)
+        activity = _make_activity("script-1", ActivityStatus.RUNNING)
         old_values = {"status": ActivityStatus.PENDING}
 
         collector.emit_activity_telemetry(
             execution_id=EXECUTION_ID,
-            activity_definitions_map=ACTIVITY_DEFINITIONS_MAP,
+            activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
@@ -142,12 +142,12 @@ class TestEmitActivityTelemetry:
         mock_registry.entitlement_id = ""
         collector = _make_collector(mock_registry)
 
-        activity = _make_activity("task-1", ActivityStatus.COMPLETED)
+        activity = _make_activity("script-1", ActivityStatus.COMPLETED)
         old_values = {"status": ActivityStatus.COMPLETED}
 
         collector.emit_activity_telemetry(
             execution_id=EXECUTION_ID,
-            activity_definitions_map=ACTIVITY_DEFINITIONS_MAP,
+            activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )
 
@@ -161,12 +161,12 @@ class TestEmitActivityTelemetry:
         mock_registry.send_event.side_effect = RuntimeError("Segment down")
         collector = _make_collector(mock_registry)
 
-        activity = _make_activity("task-1", ActivityStatus.COMPLETED)
+        activity = _make_activity("script-1", ActivityStatus.COMPLETED)
         old_values = {"status": ActivityStatus.PENDING}
 
         # Should not raise
         collector.emit_activity_telemetry(
             execution_id=EXECUTION_ID,
-            activity_definitions_map=ACTIVITY_DEFINITIONS_MAP,
+            activity_definitions_map=NODE_DEFINITIONS_MAP,
             updated_activities=[(activity, old_values)],
         )

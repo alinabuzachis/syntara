@@ -7,7 +7,7 @@ import json
 
 import jsonschema
 
-from nexus.telemetry.events.activity_execution import ActivityExecutionEvent
+from nexus.telemetry.events.node_execution import NodeExecutionEvent
 from nexus.telemetry.events.workflow_execution import (
     WorkflowExecutionCompletedEvent,
     WorkflowExecutionStartEvent,
@@ -15,7 +15,7 @@ from nexus.telemetry.events.workflow_execution import (
 
 # Import shared test data from unit telemetry conftest
 from tests.unit.telemetry.conftest import (
-    VALID_ACTIVITY_HASH,
+    VALID_NODE_HASH,
     VALID_WORKFLOW_EXECUTION_ID,
 )
 
@@ -48,7 +48,7 @@ class TestWorkflowExecutionCompletedEventSchema:
         assert schema["type"] == "object"
         assert "status" in schema["properties"]
         assert "duration_ms" in schema["properties"]
-        assert "activity_count" in schema["properties"]
+        assert "node_count" in schema["properties"]
         assert "error_count" in schema["properties"]
 
     def test_valid_event_conforms_to_schema(self):
@@ -57,7 +57,7 @@ class TestWorkflowExecutionCompletedEventSchema:
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status="completed",
             duration_ms=12500,
-            activity_count=8,
+            node_count=8,
             error_count=0,
             error_type=None,
             entitlement_id="",
@@ -68,22 +68,22 @@ class TestWorkflowExecutionCompletedEventSchema:
         assert json.dumps(event.to_segment_event())
 
 
-class TestActivityExecutionEventSchema:
-    """Contract tests for ActivityExecutionEvent JSON schema."""
+class TestNodeExecutionEventSchema:
+    """Contract tests for NodeExecutionEvent JSON schema."""
 
     def test_model_generates_valid_json_schema(self):
-        schema = ActivityExecutionEvent.model_json_schema()
+        schema = NodeExecutionEvent.model_json_schema()
         assert schema["type"] == "object"
-        assert "activity_type" in schema["properties"]
-        assert "activity_hash" in schema["properties"]
+        assert "node_type" in schema["properties"]
+        assert "node_hash" in schema["properties"]
         assert "status" in schema["properties"]
 
     def test_valid_event_conforms_to_schema(self):
-        schema = ActivityExecutionEvent.model_json_schema()
-        event = ActivityExecutionEvent(
+        schema = NodeExecutionEvent.model_json_schema()
+        event = NodeExecutionEvent(
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-            activity_type="task",
-            activity_hash=VALID_ACTIVITY_HASH,
+            node_type="script",
+            node_hash=VALID_NODE_HASH,
             status="completed",
             error_type=None,
             entitlement_id="",
@@ -93,13 +93,23 @@ class TestActivityExecutionEventSchema:
         # Segment event must be JSON-serializable
         assert json.dumps(event.to_segment_event())
 
-    def test_all_activity_types_valid_against_schema(self):
-        schema = ActivityExecutionEvent.model_json_schema()
-        for activity_type in ["task", "parallel", "sequence", "condition", "loop", "converge", "approval"]:
-            event = ActivityExecutionEvent(
+    def test_all_node_types_valid_against_schema(self):
+        schema = NodeExecutionEvent.model_json_schema()
+        for node_type in [
+            "manual_trigger",
+            "condition",
+            "converge",
+            "loop",
+            "aap_job_template",
+            "agentic",
+            "approval",
+            "http_request",
+            "script",
+        ]:
+            event = NodeExecutionEvent(
                 workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
-                activity_type=activity_type,
-                activity_hash=VALID_ACTIVITY_HASH,
+                node_type=node_type,
+                node_hash=VALID_NODE_HASH,
                 status="completed",
                 entitlement_id="",
             )

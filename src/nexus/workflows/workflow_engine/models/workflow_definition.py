@@ -53,16 +53,21 @@ class TemplateAwareBaseModel(BaseModel):
 
 
 # Enums
-class ActivityType(str, Enum):
-    """Activity node types for V1 workflows (used by telemetry)."""
+class NodeType(str, Enum):
+    """Node types for V2 workflows (used by telemetry)."""
 
-    TASK = "task"
-    PARALLEL = "parallel"
-    SEQUENCE = "sequence"
+    # Triggers
+    MANUAL_TRIGGER = "manual_trigger"
+    # Control nodes
     CONDITION = "condition"
-    LOOP = "loop"
     CONVERGE = "converge"
+    LOOP = "loop"
+    # Executor nodes
+    AAP_JOB_TEMPLATE = "aap_job_template"
+    AGENTIC = "agentic"
     APPROVAL = "approval"
+    HTTP_REQUEST = "http_request"
+    SCRIPT = "script"
 
 
 class ActivityTerminalStatus(str, Enum):
