@@ -21,6 +21,7 @@ from temporalio.service import RPCError
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
 import nexus.identity_providers.exceptions  # noqa: F401 - Side-effect import to trigger exception handler registration
 from nexus.api.constants import API_V1_PATH_PREFIX
+from nexus.core.audit import AuditMiddleware
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (
@@ -180,6 +181,11 @@ app.add_middleware(AnalyticsMiddleware, registry=get_telemetry_registry())
 # Added after analytics so it captures full request duration including
 # analytics overhead.  Records REQUEST_DURATION and ERROR metrics.
 app.add_middleware(MetricsMiddleware, recorder=get_metrics_recorder())
+
+# Register audit middleware.
+# Added after metrics so it executes as the outermost HTTP middleware.
+# Logs request completion (with status code) as audit events.
+app.add_middleware(AuditMiddleware)
 
 # RFC 9457 compliant error handlers
 # Register decorated exceptions automatically
