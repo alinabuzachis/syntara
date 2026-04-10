@@ -18,6 +18,19 @@ from websockets import connect as websocket_connect
 from nexus.api.main import app
 
 
+async def _wait_for_server(host: str, port: int) -> None:
+    """Poll until the server is accepting TCP connections."""
+    async with asyncio.timeout(10.0):
+        while True:
+            try:
+                _, writer = await asyncio.open_connection(host, port)
+                writer.close()
+                await writer.wait_closed()
+                return
+            except OSError:
+                await asyncio.sleep(0.1)
+
+
 class TestReceiveOnlyChannelIntegration:
     """Integration tests for receive-only channel behavior."""
 
@@ -32,8 +45,7 @@ class TestReceiveOnlyChannelIntegration:
         server_task = asyncio.create_task(server.serve())
 
         try:
-            # Wait for server to start (give it more time for router discovery)
-            await asyncio.sleep(2.0)
+            await _wait_for_server("127.0.0.1", 9999)
 
             # Connect to receive-only tokens channel with real WebSocket client
             async with websocket_connect("ws://127.0.0.1:9999/ws/example/v1/tokens") as websocket:
@@ -81,8 +93,7 @@ class TestReceiveOnlyChannelIntegration:
         server_task = asyncio.create_task(server.serve())
 
         try:
-            # Wait for server to start (give it more time for router discovery)
-            await asyncio.sleep(2.0)
+            await _wait_for_server("127.0.0.1", 10000)
 
             # Connect to receive-only tokens channel
             async with websocket_connect("ws://127.0.0.1:10000/ws/example/v1/tokens") as websocket:
