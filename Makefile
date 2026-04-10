@@ -48,7 +48,7 @@ install: _deps-install-dev _deps-install-pre-commit ## Complete setup from scrat
 
 # Utilities
 .PHONY: check-deps
-check-deps: _check-dependency-binaries ## Check if all dependencies are available
+check-deps: _check-dependency-binaries _ensure-secrets ## Check if all dependencies are available
 
 _deps-install-dev: _check-uv
 	@echo "📦 Installing development dependencies with uv..."
@@ -105,7 +105,7 @@ endef
 # run-tests: run pytest with testcontainers (Podman or Docker).
 # Usage: $(call run-tests,<pytest-args>)
 define run-tests
-$(call run-with-testcontainers,POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" uv run pytest $(1),🧪 Running tests)
+$(call run-with-testcontainers,POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem uv run pytest $(1),🧪 Running tests)
 endef
 
 E2E_IGNORE := --ignore=tests/e2e
