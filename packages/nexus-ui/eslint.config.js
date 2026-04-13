@@ -9,6 +9,7 @@ import noOnlyTests from 'eslint-plugin-no-only-tests'
 import testingLibrary from 'eslint-plugin-testing-library'
 import unicorn from 'eslint-plugin-unicorn'
 import vitest from '@vitest/eslint-plugin'
+import pluginQuery from '@tanstack/eslint-plugin-query'
 import tseslint from 'typescript-eslint'
 import eslintConfigPrettier from 'eslint-config-prettier'
 import { fileURLToPath } from 'node:url'
@@ -21,6 +22,7 @@ export default tseslint.config(
   { ignores: ['dist', 'coverage/**', 'playwright.config.ts', 'test-results/**', 'playwright-report/**', 'scripts/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
+  ...pluginQuery.configs['flat/recommended'],
   // Align with Sonar typescript:S2245 / CWE-338: Math.random is not suitable for secrets, tokens, or crypto.
   // Use globalThis.crypto.getRandomValues(), crypto.randomUUID(), node:crypto.randomInt/randomBytes, or the uuid package.
   {
