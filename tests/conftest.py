@@ -412,8 +412,14 @@ async def test_db_engine(worker_id: str) -> AsyncGenerator[AsyncEngine, None]:
 
     """
     logger.debug("Starting PostgreSQL container for worker '%s'", worker_id)
-    postgres_image = os.getenv("POSTGRES_IMAGE", "public.ecr.aws/docker/library/postgres:15")
-    with PostgresContainer(postgres_image) as pg:
+    postgres_image = os.getenv("POSTGRES_IMAGE", "quay.io/sclorg/postgresql-15-c9s")
+    pg_container = PostgresContainer(postgres_image)
+    # sclorg images require POSTGRESQL_* env vars instead of POSTGRES_*
+    if "sclorg" in postgres_image:
+        pg_container.with_env("POSTGRESQL_USER", pg_container.username)
+        pg_container.with_env("POSTGRESQL_PASSWORD", pg_container.password)
+        pg_container.with_env("POSTGRESQL_DATABASE", pg_container.dbname)
+    with pg_container as pg:
         test_database_url = pg.get_connection_url(driver="asyncpg")
         engine = create_async_engine(test_database_url, echo=False, poolclass=NullPool)
 
@@ -450,7 +456,7 @@ def test_cache(worker_id: str) -> Generator[None, None, None]:
         None (fixture effect is applied via settings patch)
 
     """
-    redis_image = os.getenv("REDIS_IMAGE", "public.ecr.aws/docker/library/redis:6")
+    redis_image = os.getenv("REDIS_IMAGE", "quay.io/sclorg/redis-6-c9s")
     logger.debug("Starting Redis container for worker '%s'", worker_id)
     with RedisContainer(redis_image, password="cache") as redis_container:  # noqa: S106
         host = redis_container.get_container_host_ip()

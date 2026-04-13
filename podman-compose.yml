@@ -1,24 +1,25 @@
 ---
 services:
   database:
-    image: ${POSTGRES_IMAGE:-public.ecr.aws/docker/library/postgres:15}
+    image: ${POSTGRES_IMAGE:-quay.io/sclorg/postgresql-15-c9s}
     restart: unless-stopped
     ports:
       - ${APP_DB_PORT:-5432}:5432
     environment:
-      POSTGRES_USER: ${APP_DB_USER:-admin}
-      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:-admin}
-      POSTGRES_DB: ${APP_DB_NAME:-nexus_api}
+      POSTGRESQL_USER: ${APP_DB_USER:-admin}
+      POSTGRESQL_PASSWORD: ${APP_DB_PASSWORD:-admin}
+      POSTGRESQL_DATABASE: ${APP_DB_NAME:-nexus_api}
+      POSTGRESQL_ADMIN_PASSWORD: ${APP_DB_PASSWORD:-admin}
     volumes:
-      - nexus_postgres_data:/var/lib/postgresql/data
+      - nexus_postgres_data:/var/lib/pgsql/data
     healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U $${POSTGRES_USER:-admin} -d $${POSTGRES_DB:-nexus_api}']
+      test: [CMD-SHELL, 'pg_isready -U $${POSTGRESQL_USER:-admin} -d $${POSTGRESQL_DATABASE:-nexus_api}']
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
-    image: ${APP_CACHE_IMAGE:-public.ecr.aws/docker/library/redis:6}
+    image: ${APP_CACHE_IMAGE:-quay.io/sclorg/redis-6-c9s}
     restart: unless-stopped
     command: sh -c "redis-server --requirepass $${REDIS_PASSWORD:-cache}"
     ports:
@@ -50,7 +51,7 @@ services:
     environment:
       - DB=postgres12
       - DB_PORT=5432
-      - POSTGRES_USER=${APP_DB_USER:-admin}
+      - POSTGRES_USER=postgres
       - POSTGRES_PWD=${APP_DB_PASSWORD:-admin}
       - POSTGRES_SEEDS=database
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml

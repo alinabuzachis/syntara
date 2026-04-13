@@ -14,8 +14,8 @@ help: ## Show this help message
 # Use podman-compose for container orchestration (via uv)
 # Support multiple project instances via PODMAN_PROJECT environment variable
 PODMAN_PROJECT ?= nexus
-POSTGRES_IMAGE ?= public.ecr.aws/docker/library/postgres:15
-REDIS_IMAGE ?= public.ecr.aws/docker/library/redis:6
+POSTGRES_IMAGE ?= quay.io/sclorg/postgresql-15-c9s
+REDIS_IMAGE ?= quay.io/sclorg/redis-6-c9s
 APP_IMAGE ?= localhost/nexus:latest
 APP_UI_IMAGE ?= quay.io/ansible/nexus-ui
 APP_UI_VERSION ?= latest

@@ -20,7 +20,7 @@ from alembic.util.exc import CommandError
 from testcontainers.postgres import PostgresContainer  # type: ignore[import-untyped]
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-POSTGRES_IMAGE = os.getenv("POSTGRES_IMAGE", "public.ecr.aws/docker/library/postgres:15")
+POSTGRES_IMAGE = os.getenv("POSTGRES_IMAGE", "quay.io/sclorg/postgresql-15-c9s")
 
 RED = "\033[91m"
 GREEN = "\033[92m"
@@ -131,7 +131,13 @@ def main() -> None:
     check_multiple_heads(cfg_no_db)
 
     print(f"\n   Using image: {POSTGRES_IMAGE}")
-    with PostgresContainer(POSTGRES_IMAGE) as pg:
+    pg_container = PostgresContainer(POSTGRES_IMAGE)
+    # sclorg images require POSTGRESQL_* env vars instead of POSTGRES_*
+    if "sclorg" in POSTGRES_IMAGE:
+        pg_container.with_env("POSTGRESQL_USER", pg_container.username)
+        pg_container.with_env("POSTGRESQL_PASSWORD", pg_container.password)
+        pg_container.with_env("POSTGRESQL_DATABASE", pg_container.dbname)
+    with pg_container as pg:
         db_url = pg.get_connection_url(driver="asyncpg")
         cfg = _get_alembic_config(db_url)
 
