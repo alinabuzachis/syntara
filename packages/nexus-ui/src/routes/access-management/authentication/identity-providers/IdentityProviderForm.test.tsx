@@ -105,12 +105,12 @@ describe('IdentityProviderForm', () => {
       expect(screen.getByLabelText(/Scopes/)).toBeInTheDocument()
     })
 
-    it('renders redirect URI as disabled', () => {
+    it('renders redirect URI as read-only clipboard copy', () => {
       setupMocks()
       render(<IdentityProviderForm mode="add" />, { wrapper })
 
-      const redirectInput = screen.getByLabelText(/Redirect URI/)
-      expect(redirectInput).toBeDisabled()
+      expect(screen.getByText(/Redirect URI/)).toBeInTheDocument()
+      expect(screen.getByDisplayValue(/\/api\/v1\/auth\/oidc\/callback/)).toBeInTheDocument()
     })
 
     it('shows manual endpoint fields when auto-discovery is disabled', async () => {

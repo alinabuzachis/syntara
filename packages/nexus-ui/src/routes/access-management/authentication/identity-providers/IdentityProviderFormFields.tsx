@@ -1,4 +1,5 @@
 import {
+  ClipboardCopy,
   FormGroup,
   FormHelperText,
   FormSection,
@@ -9,6 +10,8 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { Controller, useWatch, type Control, type FieldError } from 'react-hook-form'
+
+import { TagInput } from '../../../../components/forms/TagInput'
 
 import { OIDC_REDIRECT_URI, type IdentityProviderFormData } from './identityProviderFormSchema'
 
@@ -147,22 +150,6 @@ export function IdentityProviderFormFields({ control, isEdit }: Readonly<Identit
       />
 
       <Controller
-        name="autoDiscovery"
-        control={control}
-        render={({ field }) => (
-          <FormGroup label="Auto-Discovery" fieldId="auto-discovery">
-            <Switch
-              id="auto-discovery"
-              label="Use OIDC Discovery"
-              hasCheckIcon
-              isChecked={field.value}
-              onChange={(_event, checked) => field.onChange(checked)}
-            />
-          </FormGroup>
-        )}
-      />
-
-      <Controller
         name="issuerUrl"
         control={control}
         render={({ field, fieldState }) => (
@@ -174,6 +161,30 @@ export function IdentityProviderFormFields({ control, isEdit }: Readonly<Identit
               {...field}
             />
             <HintOrError error={fieldState.error} hint="The base URL of your OpenID Connect provider" />
+          </FormGroup>
+        )}
+      />
+
+      <Controller
+        name="autoDiscovery"
+        control={control}
+        render={({ field }) => (
+          <FormGroup fieldId="auto-discovery">
+            <Switch
+              id="auto-discovery"
+              label="Use OIDC Discovery"
+              hasCheckIcon
+              isChecked={field.value}
+              onChange={(_event, checked) => field.onChange(checked)}
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  Most providers support this. When enabled, you only need the Issuer URL — all other endpoints are
+                  detected automatically.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
           </FormGroup>
         )}
       />
@@ -221,7 +232,7 @@ export function IdentityProviderFormFields({ control, isEdit }: Readonly<Identit
       />
 
       <FormGroup label="Redirect URI" fieldId="redirect-uri">
-        <TextInput id="redirect-uri" value={OIDC_REDIRECT_URI} isDisabled />
+        <ClipboardCopy isReadOnly>{OIDC_REDIRECT_URI}</ClipboardCopy>
         <FormHelperText>
           <HelperText>
             <HelperTextItem>Copy this value into your identity provider's OAuth app configuration</HelperTextItem>
@@ -232,20 +243,30 @@ export function IdentityProviderFormFields({ control, isEdit }: Readonly<Identit
       <Controller
         name="scopes"
         control={control}
-        render={({ field, fieldState }) => (
-          <FormGroup label="Scopes" fieldId="scopes" isRequired>
-            <TextInput
-              id="scopes"
-              placeholder="openid profile email"
-              validated={fieldState.error ? 'error' : 'default'}
-              {...field}
-            />
-            <HintOrError
-              error={fieldState.error}
-              hint='Space-separated list of OAuth 2.0 scopes (e.g., "openid profile email")'
-            />
-          </FormGroup>
-        )}
+        render={({ field, fieldState }) => {
+          const scopesList = field.value ? field.value.split(/\s+/).filter(Boolean) : []
+          return (
+            <FormGroup label="Scopes" fieldId="scopes" isRequired>
+              <TagInput
+                id="scopes"
+                value={scopesList}
+                onChange={(arr) => field.onChange(arr.join(' '))}
+                ariaLabel="Add scope"
+                placeholder="openid"
+                helperText={fieldState.error ? undefined : 'Type a scope and press Enter or comma to add'}
+              />
+              {fieldState.error && (
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
+                      {fieldState.error.message}
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              )}
+            </FormGroup>
+          )
+        }}
       />
     </FormSection>
   )

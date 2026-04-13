@@ -296,23 +296,25 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
           Cancel
         </Button>
       </AppPageHeader>
-      <CompassPanel style={{ padding: 'var(--pf-t--global--spacer--xl)' }}>
-        <div style={{ maxWidth: '600px' }}>
-          {testResult && (
-            <Alert
-              variant={testResult.success ? 'success' : 'danger'}
-              title={testResult.success ? 'Connection successful' : 'Connection failed'}
-              isInline
-              style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}
-            >
-              {testResult.message}
-            </Alert>
-          )}
-          <Form id="identity-provider-form" onSubmit={handleSubmit(onSubmit)}>
-            <IdentityProviderFormFields control={control} isEdit={isEdit} />
-          </Form>
-        </div>
-      </CompassPanel>
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <CompassPanel isFullHeight isScrollable style={{ padding: 'var(--pf-t--global--spacer--xl)' }}>
+          <div style={{ maxWidth: '600px' }}>
+            {testResult && (
+              <Alert
+                variant={testResult.success ? 'success' : 'danger'}
+                title={testResult.success ? 'Connection successful' : 'Connection failed'}
+                isInline
+                style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}
+              >
+                {testResult.message}
+              </Alert>
+            )}
+            <Form id="identity-provider-form" onSubmit={handleSubmit(onSubmit)}>
+              <IdentityProviderFormFields control={control} isEdit={isEdit} />
+            </Form>
+          </div>
+        </CompassPanel>
+      </StackItem>
     </AppPage>
   )
 }

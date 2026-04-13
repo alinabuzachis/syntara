@@ -58,17 +58,19 @@ describe('IdentityProviderFormFields', () => {
     expect(screen.getByLabelText(/Client Secret/)).toBeInTheDocument()
   })
 
-  it('renders redirect URI as disabled', () => {
+  it('renders redirect URI as read-only clipboard copy', () => {
     render(<TestWrapper />)
 
-    const redirectInput = screen.getByLabelText(/Redirect URI/)
-    expect(redirectInput).toBeDisabled()
+    expect(screen.getByText(/Redirect URI/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/\/api\/v1\/auth\/oidc\/callback/)).toBeInTheDocument()
   })
 
   it('renders scopes field with default value', () => {
     render(<TestWrapper />)
 
-    expect(screen.getByDisplayValue('openid profile email')).toBeInTheDocument()
+    expect(screen.getByText('openid')).toBeInTheDocument()
+    expect(screen.getByText('profile')).toBeInTheDocument()
+    expect(screen.getByText('email')).toBeInTheDocument()
   })
 
   it('hides manual endpoint fields when auto-discovery is enabled', () => {

@@ -77,16 +77,6 @@ export function TagInput({ value, onChange, id, ariaLabel, placeholder = '', hel
         rowGap={{ default: 'rowGapSm' }}
         style={containerStyle}
         onClick={focusInput}
-        onKeyDown={(e) => {
-          // Only handle keydown when it originated on the wrapper (e.g. focus on Flex), not from the input
-          if (e.target !== e.currentTarget) return
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            focusInput()
-          }
-        }}
-        role="button"
-        tabIndex={0}
       >
         {value.map((item) => (
           <Label
