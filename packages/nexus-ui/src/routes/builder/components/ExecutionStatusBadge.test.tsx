@@ -87,10 +87,9 @@ describe('ExecutionStatusBadge', () => {
     render(<ExecutionStatusBadge status="pending" />)
 
     const badge = screen.getByLabelText('Pending')
-    expect(badge).toHaveStyle({
-      width: '48px',
-      height: '48px',
-      borderRadius: '50%',
-    })
+    const style = badge.getAttribute('style') ?? ''
+    expect(style).toContain('width: 48px')
+    expect(style).toContain('height: 48px')
+    expect(style).toContain('border-radius: 50%')
   })
 })

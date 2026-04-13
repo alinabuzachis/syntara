@@ -38,9 +38,7 @@ describe('NodeSidePanel', () => {
 
     const stack = screen.getByTestId('node-side-panel')
     expect(stack).toBeInTheDocument()
-    expect(stack).toHaveStyle({
-      padding: 'var(--pf-t--global--spacer--2xl)',
-    })
+    expect(stack.getAttribute('style')).toContain('padding: var(--pf-t--global--spacer--2xl)')
   })
 
   it('has gutter between stacked items', () => {

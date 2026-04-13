@@ -11,6 +11,7 @@ export function useFuse<T>(sourceItems: T[], keys: FuseOptionKey<T>[]) {
       new Fuse(sourceItems, {
         keys,
         threshold: FUSE_THRESHOLD,
+        useTokenSearch: true,
       }),
     [sourceItems, keys]
   )
