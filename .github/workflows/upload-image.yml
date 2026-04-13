@@ -49,16 +49,18 @@ jobs:
             # For PRs: only push the pr-[number] tag, overwriting on each update
             for tag in "${ALL_TAGS[@]}"; do
               if [[ "$tag" == *:pr-* ]]; then
-                # Strip registry hostname: buildkit stores refs without it in the OCI archive
-                local_ref="${tag#quay.io/}"
+                # buildkit stores only the tag portion in the OCI archive index
+                # e.g. quay.io/ansible/nexus:main -> main
+                local_ref="${tag##*:}"
                 skopeo copy --all "oci-archive:nexus-image.tar:${local_ref}" docker://"$tag"
               fi
             done
           else
             # For main branch pushes and tags: push all tags
             for tag in "${ALL_TAGS[@]}"; do
-              # Strip registry hostname: buildkit stores refs without it in the OCI archive
-              local_ref="${tag#quay.io/}"
+              # buildkit stores only the tag portion in the OCI archive index
+              # e.g. quay.io/ansible/nexus:main -> main
+              local_ref="${tag##*:}"
               skopeo copy --all "oci-archive:nexus-image.tar:${local_ref}" docker://"$tag"
             done
           fi
