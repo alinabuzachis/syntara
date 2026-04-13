@@ -52,7 +52,7 @@ def _aggregate_token_usage(
     filtered: list[UsageDetails] = [
         entry["usage_details"] for entry in usage_log if entry.get("usage_details") is not None
     ]
-    usage_details: UsageDetailsResult = filtered if filtered else None
+    usage_details: UsageDetailsResult = filtered or None
 
     return prompt_tokens, completion_tokens, total_tokens, usage_details
 

@@ -40,6 +40,13 @@ from nexus.core.websocket.router import build_websocket_router
 from nexus.metrics.cleanup import get_metrics_cleanup_worker
 from nexus.metrics.completion_poller import get_completion_poller
 from nexus.metrics.dependencies import get_metrics_recorder
+from nexus.metrics.internal_api import (
+    metrics_store_component_kpis,
+    metrics_store_kpis,
+    metrics_store_records,
+    metrics_store_reset,
+    metrics_store_summary,
+)
 from nexus.metrics.middleware import MetricsMiddleware
 from nexus.metrics.openmetrics import openmetrics_endpoint
 from nexus.settings.cache.settings_cache import SettingsCache, set_runtime_settings
@@ -278,6 +285,21 @@ async def root() -> dict[str, str]:
         "version": "0.1.0",
         "docs": "/docs",
     }
+
+
+# ---------------------------------------------------------------------------
+# Internal metrics-store endpoints (perf-testing only)
+# ---------------------------------------------------------------------------
+# Routes are always registered but hidden from OpenAPI.
+# Access is gated at runtime by the ``metrics.perf_test_mode`` runtime setting.
+_INTERNAL_METRICS_PREFIX = "/_internal/metrics"
+app.get(f"{_INTERNAL_METRICS_PREFIX}/summary", include_in_schema=False)(metrics_store_summary)
+app.get(f"{_INTERNAL_METRICS_PREFIX}/records", include_in_schema=False)(metrics_store_records)
+app.get(f"{_INTERNAL_METRICS_PREFIX}/kpis", include_in_schema=False)(metrics_store_kpis)
+app.get(f"{_INTERNAL_METRICS_PREFIX}/kpis/{{component}}", include_in_schema=False)(
+    metrics_store_component_kpis,
+)
+app.post(f"{_INTERNAL_METRICS_PREFIX}/reset", include_in_schema=False)(metrics_store_reset)
 
 
 def main() -> None:

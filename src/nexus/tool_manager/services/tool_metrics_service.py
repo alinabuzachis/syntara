@@ -359,7 +359,7 @@ class ToolMetricsService(BaseService):
             cursor=params.cursor,
             sort=params.sort or "-created_at",
             include_total=params.include_total,
-            query_params_items=query_items if query_items else None,
+            query_params_items=query_items or None,
         )
 
 

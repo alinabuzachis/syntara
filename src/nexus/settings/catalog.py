@@ -60,7 +60,27 @@ class SettingDefinition:
     validation_schema: dict[str, Any] | None = field(default=None)
 
 
+class MetricsGroup(StrEnum):
+    """Group names for metrics settings."""
+
+    OBSERVABILITY = "Observability"
+
+
 SETTINGS_CATALOG: list[SettingDefinition] = [
+    # Metrics — Observability
+    SettingDefinition(
+        key="metrics.perf_test_mode",
+        name="Performance test mode",
+        category=SettingCategory.SYSTEM,
+        value_type=SettingValueType.BOOLEAN,
+        default_value=False,
+        description=(
+            "Enable internal metrics store and /_internal/metrics/* endpoints "
+            "for performance testing. When enabled, raw metric records are "
+            "stored in memory and queryable without an application restart."
+        ),
+        group=MetricsGroup.OBSERVABILITY,
+    ),
     # Context Manager — Grounding scores
     SettingDefinition(
         key="context_manager.required_grounding_score",

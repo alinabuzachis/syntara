@@ -21,7 +21,7 @@ from uuid import uuid4
 
 import structlog
 
-from nexus.api.constants import EXCLUDED_PATHS
+from nexus.api.constants import EXCLUDED_PATH_PREFIXES, EXCLUDED_PATHS
 from nexus.metrics.types import MetricType
 
 if TYPE_CHECKING:
@@ -133,7 +133,7 @@ class MetricsMiddleware:
 
         path: str = scope["path"]
 
-        if path in EXCLUDED_PATHS:
+        if path in EXCLUDED_PATHS or path.startswith(EXCLUDED_PATH_PREFIXES):
             await self.app(scope, receive, send)
             return
 

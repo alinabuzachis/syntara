@@ -20,3 +20,7 @@ EXCLUDED_PATHS: frozenset[str] = frozenset(
         "/openapi.json",
     }
 )
+
+# Prefix for paths that should be excluded via startswith matching
+# (handles parameterised routes like /_internal/metrics/kpis/{component}).
+EXCLUDED_PATH_PREFIXES: tuple[str, ...] = ("/_internal/",)

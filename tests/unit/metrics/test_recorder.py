@@ -509,6 +509,60 @@ class TestRecorderPrometheus:
 
 
 # =============================================================================
+# Store-disabled mode (Prometheus still works, in-memory store skipped)
+# =============================================================================
+
+
+class TestStoreDisabledMode:
+    """When store_enabled=False, Prometheus is updated but the store stays empty."""
+
+    @pytest.fixture
+    def store_disabled_recorder(self) -> MetricsRecorder:
+        """Recorder with the in-memory store disabled."""
+        return MetricsRecorder(
+            prometheus_registry=CollectorRegistry(),
+            store_enabled=False,
+        )
+
+    def test_store_enabled_property(self, recorder: MetricsRecorder) -> None:
+        """Default recorder has store_enabled=True."""
+        assert recorder.store_enabled is True
+
+    def test_store_disabled_property(self, store_disabled_recorder: MetricsRecorder) -> None:
+        """Store-disabled recorder exposes the flag."""
+        assert store_disabled_recorder.store_enabled is False
+
+    def test_record_skips_store(self, store_disabled_recorder: MetricsRecorder) -> None:
+        """Records are not added to the in-memory store."""
+        store_disabled_recorder.record(MetricType.LLM_DURATION, 100.0, labels={"model": "gpt-4"})
+        assert store_disabled_recorder.store.count() == 0
+
+    def test_record_updates_prometheus(self, store_disabled_recorder: MetricsRecorder) -> None:
+        """Prometheus metrics are still updated even when the store is disabled."""
+        store_disabled_recorder.record(MetricType.LLM_DURATION, 100.0, labels={"model": "gpt-4"})
+        sample = store_disabled_recorder.prometheus.llm_duration_seconds.labels(model="gpt-4")
+        assert sample._sum.get() > 0
+
+    def test_query_returns_empty(self, store_disabled_recorder: MetricsRecorder) -> None:
+        """Queries against a store-disabled recorder return nothing."""
+        store_disabled_recorder.record(MetricType.CACHE_HIT, 1.0)
+        results = list(store_disabled_recorder.query(metric_types={MetricType.CACHE_HIT}))
+        assert results == []
+
+    def test_store_enabled_setter_toggles_at_runtime(self, recorder: MetricsRecorder) -> None:
+        """store_enabled can be flipped after construction."""
+        assert recorder.store_enabled is True
+        recorder.store_enabled = False
+        assert recorder.store_enabled is False
+        recorder.record(MetricType.CACHE_HIT, 1.0)
+        assert recorder.store.count() == 0
+
+        recorder.store_enabled = True
+        recorder.record(MetricType.CACHE_HIT, 1.0)
+        assert recorder.store.count() == 1
+
+
+# =============================================================================
 # Component label validation
 # =============================================================================
 

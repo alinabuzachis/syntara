@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from nexus.api.constants import EXCLUDED_PATHS
+from nexus.api.constants import EXCLUDED_PATH_PREFIXES, EXCLUDED_PATHS
 from nexus.telemetry.events.api_call import APICallEvent
 
 if TYPE_CHECKING:
@@ -69,7 +69,7 @@ class AnalyticsMiddleware:
 
         path: str = scope["path"]
 
-        if path in EXCLUDED_PATHS:
+        if path in EXCLUDED_PATHS or path.startswith(EXCLUDED_PATH_PREFIXES):
             await self.app(scope, receive, send)
             return
 

@@ -87,6 +87,9 @@ class MetricsRecorder:
             Pass *None* to create an isolated private registry (recommended
             for tests).
         enabled: When *False* all recording is silently skipped.
+        store_enabled: When *False* the in-memory :class:`MetricsStore` is
+            not populated (saving RAM), but Prometheus counters/histograms
+            are still updated so ``GET /metrics`` keeps working.
 
     """
 
@@ -97,9 +100,11 @@ class MetricsRecorder:
         prometheus_registry: CollectorRegistry | None = None,
         *,
         enabled: bool = True,
+        store_enabled: bool = True,
     ) -> None:
         """Initialise the recorder, its backing store, and Prometheus metrics."""
         self._enabled = enabled
+        self._store_enabled = store_enabled
         self._store = MetricsStore(
             retention_seconds=retention_seconds,
             max_records=max_records,
@@ -127,6 +132,16 @@ class MetricsRecorder:
         """Whether recording is active."""
         return self._enabled
 
+    @property
+    def store_enabled(self) -> bool:
+        """Whether the in-memory store is populated."""
+        return self._store_enabled
+
+    @store_enabled.setter
+    def store_enabled(self, value: bool) -> None:
+        """Toggle the in-memory store at runtime."""
+        self._store_enabled = value
+
     # ------------------------------------------------------------------
     # Recording
     # ------------------------------------------------------------------
@@ -153,13 +168,14 @@ class MetricsRecorder:
         metric_labels = labels or {}
         self._validate_component_label(metric_labels)
 
-        record = MetricRecord(
-            metric_type=metric_type,
-            value=value,
-            unit=unit,
-            labels=metric_labels,
-        )
-        self._store.add(record)
+        if self._store_enabled:
+            record = MetricRecord(
+                metric_type=metric_type,
+                value=value,
+                unit=unit,
+                labels=metric_labels,
+            )
+            self._store.add(record)
         self._update_prometheus(metric_type, value, metric_labels)
 
     def increment(self, counter_name: str, value: int = 1) -> None:
