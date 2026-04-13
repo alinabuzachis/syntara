@@ -149,19 +149,18 @@ class ProviderNotFoundError(ToolManagerError):
     """Raised when a provider cannot be found."""
 ```
 
-**Router Error Handling:**
+**Router — Let Exceptions Bubble Up:**
+
+Routers do NOT catch domain exceptions. They bubble up to global exception handlers that produce RFC 9457 compliant responses. See [Error Handling Strategy](error-handling-strategy.md) for details.
+
 ```python
 @router.post("/")
 async def create_provider(
     data: ToolProviderCreate,
     service: Annotated[ToolProviderService, Depends(get_tool_provider_service)]
-):
-    try:
-        return await service.create_provider(data)
-    except ProviderNameConflictError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-    except ProviderNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+) -> ToolProvider:
+    # No try-catch — domain exceptions bubble to global handlers
+    return await service.create_provider(data)
 ```
 
 ## OpenAPI Schema Integration
@@ -227,13 +226,14 @@ uv run alembic revision --autogenerate -m "Add max_concurrent_jobs to tool_provi
 - Keep routers thin - delegate all business logic to services
 - Use dependency injection for clean separation
 - Services handle validation, database operations, and domain logic
-- Convert domain exceptions to HTTP exceptions in router layer
+- Domain exceptions bubble up to global handlers (do NOT catch in routers)
 
 ### 2. Error Handling Strategy
 - Create domain-specific exception classes
 - Raise meaningful exceptions in service layer
-- Convert to appropriate HTTP status codes in router layer
-- Follow shared error response schema
+- Global exception handlers convert to RFC 9457 responses with appropriate HTTP status codes
+- Routers focus on HTTP concerns only (routing, validation, serialization)
+- See [Error Handling Strategy](error-handling-strategy.md) for the full pattern
 
 ### 3. Testing Strategy
 ```python

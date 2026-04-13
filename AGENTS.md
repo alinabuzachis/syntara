@@ -63,5 +63,33 @@ Nexus is a distributed multi-agent system that enables coordinated AI agents to 
    - Quality check requirements change
    - Database schema or migrations are modified
 
+### Standards Reference
+
+Consult these standards when making changes. The constitution is the highest authority; other documents provide domain-specific detail.
+
+**Core:**
+- [Constitution](/.specify/memory/constitution.md) — architecture principles, code quality, API specs, documentation, workflow
+- [Decision Records](/decision-records.md) — technology choices and rationale
+- [Error Handling Strategy](/docs/error-handling-strategy.md) — RFC 9457 compliance, exception patterns
+
+**Domain Standards:**
+- [Testing](/docs/standards/testing.md) — test organization, naming, fixtures, markers, infrastructure
+- [Imports and Modules](/docs/standards/imports-and-modules.md) — import ordering, `__init__.py` patterns, domain module structure
+- [Logging](/docs/standards/logging.md) — structlog usage, log levels, structured context
+- [Dependency Management](/docs/standards/dependency-management.md) — version pinning, uv workflow, requirements sync
+- [Observability](/docs/standards/observability.md) — Prometheus metrics, Segment telemetry, instrumentation
+- [WebSocket](/docs/standards/websocket.md) — connection lifecycle, streaming handlers, message formats, close codes
+- [Redis](/docs/standards/redis.md) — stream operations, connection management, key naming, TTL policies
+- [Configuration](/docs/standards/configuration.md) — Pydantic Settings patterns, env vars, constants module, adding new settings, testing
+- [API Response Format](/docs/standards/api-response-format.md) — list responses, pagination, filtering, sorting, model naming, field validators
+- [Database](/docs/standards/database.md) — connection pooling, migrations, label filtering, GIN indexes, session management
+- [Services](/docs/standards/services.md) — BaseService, extension mixins, dependency injection, middleware, periodic workers
+- [Exceptions](/docs/standards/exceptions.md) — exception naming, error handlers, PROBLEM_TYPES, @fastapi_exception, retry classification
+- [OpenAPI Spec Management](/docs/standards/openapi-spec-management.md) — sub-spec layout, bundling, drift detection, CI checks, AsyncAPI conventions
+
+**Open Questions:** [Questions](/docs/standards/questions.md) — known inconsistencies and areas needing investigation
+
+**Full index:** [docs/standards/README.md](/docs/standards/README.md)
+
 ## Additional context
 Read and load @AGENTS.local.md file if exists for more instructions for AI agents.

@@ -498,6 +498,11 @@ check-path-sequence: ## Validate numbering sequence under specs/
 	@echo "🔢 Validating numbered entries in specs/..."
 	uv run python tools/ci/check_path_sequence.py specs/ --strict
 
+.PHONY: reachability
+reachability: ## Verify all standards docs are reachable from CLAUDE.md
+	@echo "🔍 Checking standards reachability from CLAUDE.md..."
+	uv run python tools/reachability.py --check --max-depth 3
+
 .PHONY: sync-requirements
 sync-requirements: ## Check/sync requirements.txt with uv.lock
 	@echo "🔍 Syncing requirements.txt with uv.lock..."

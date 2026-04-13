@@ -114,8 +114,19 @@ This project uses `uv` for dependency management and provides a comprehensive Ma
 
 ### Commit Message Guidelines
 
-- Use the present tense ("Add feature" not "Added feature")
-- Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
+This project requires [Conventional Commits](https://www.conventionalcommits.org/) format, enforced by pre-commit hook.
+
+```
+feat: add user authentication system
+fix: resolve database connection timeout
+docs: update API documentation
+refactor: simplify error handling logic
+test: add integration tests for workflow engine
+chore: update dependencies
+```
+
+**Rules:**
+- Use the imperative mood ("add feature" not "added feature")
 - Limit the first line to 72 characters or less
 - Reference issues and pull requests liberally after the first line
 
