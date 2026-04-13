@@ -30,24 +30,34 @@ Nexus is a distributed multi-agent system that enables coordinated AI agents to 
 - Use `uv` for dependency management and `uv run` for executing Python commands not covered by makefile
 - The project includes a local development environment through make commands
 - **Always prefer `make` commands when available**
+- **CRITICAL: Run `make install` before running any checks, tests, or linting.** This project has
+  two separate dependency groups: `[dependency-groups].dev` (auto-synced by `uv run`) and
+  `[project.optional-dependencies].dev` (requires `uv sync --extra dev` via `make install`).
+  Without `make install`, pytest, mypy, testcontainers, and other essential dev tools will be
+  missing from the venv, causing `ModuleNotFoundError` failures. This applies to fresh clones,
+  new git worktrees, and any environment where the `.venv` was recreated.
 
 ### Development Workflow
 
-1. **After making changes**: All changes must pass:
+1. **Bootstrap the environment** (required once per clone/worktree):
+
+   - `make install` - Installs all dependencies including test/lint/type-check tooling
+
+2. **After making changes**: All changes must pass:
 
    - `make format` - Code formatting
    - `make lint` - Linting checks (includes pre-commit hooks)
    - `make test-all` - All tests
    - `make typecheck` - Type checking (mypy strict mode)
 
-2. **Documentation**: Update [README.md](README.md) if changes affect:
+3. **Documentation**: Update [README.md](README.md) if changes affect:
 
    - Installation steps
    - Available commands
    - Project structure
    - Development workflow
 
-3. **CI Alignment**: Ensure [.github/workflows/ci.yml](.github/workflows/ci.yml) is updated if:
+4. **CI Alignment**: Ensure [.github/workflows/ci.yml](.github/workflows/ci.yml) is updated if:
    - New dependencies are added
    - Test structure changes
    - Quality check requirements change
