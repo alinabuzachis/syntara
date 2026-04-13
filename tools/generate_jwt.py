@@ -81,7 +81,7 @@ async def get_admin_user() -> User:
         result = await session.exec(select(User).filter(User.username == "admin", User.deleted_at.is_(None)))  # type: ignore[arg-type]
         user = result.first()
         if not user:
-            msg = "No admin user found. Run migrations with APP_ADMIN_PASSWORD_PATH set."
+            msg = "No admin user found. Run 'uv run python tools/set_admin_password.py' to create one."
             raise SystemExit(msg)
         return user
 

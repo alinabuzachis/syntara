@@ -62,7 +62,7 @@ async def load_sample_workflows(
             )
             user = result.first()
             if not user:
-                logger.error("No admin user found. Run migrations with APP_ADMIN_PASSWORD_PATH set.")
+                logger.error("No admin user found. Run 'uv run python tools/set_admin_password.py' to create one.")
                 return
             creator_id = user.id
             logger.info("Using user as workflow creator", username=user.username, user_id=creator_id)

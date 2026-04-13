@@ -138,7 +138,7 @@ If the compromise is detected but not actively exploited (e.g., a key was accide
 
 On first database migration, an `admin` user is seeded with the password from `APP_ADMIN_PASSWORD_PATH`. This happens inside the Alembic migration (`b3a1f7c9d2e4`), which reads the password file, hashes it with Argon2id, and inserts the user with `ON CONFLICT DO NOTHING`.
 
-> **Required**: The migration will abort with a `RuntimeError` if `APP_ADMIN_PASSWORD_PATH` is not set or the referenced file is empty. Run `make secrets-generate` to create the password file before applying migrations.
+> **Note**: If `APP_ADMIN_PASSWORD_PATH` is not set or the file is missing/empty, the migration will skip admin seeding with a warning. You can set the admin password later with `uv run python tools/set_admin_password.py`.
 
 ### Providing a custom admin password
 
@@ -289,7 +289,7 @@ The `POST /test` endpoint accepts a full provider creation payload and fetches `
 | `APP_JWT_ACCESS_TOKEN_LIFETIME_MINUTES` | `15` | Access token lifetime |
 | `APP_JWT_REFRESH_TOKEN_LIFETIME_HOURS` | `8` | Refresh token lifetime |
 | `APP_JWT_BACKUP_KEYS` | — | JSON list of backup keys for rotation |
-| `APP_ADMIN_PASSWORD_PATH` | — | **Required.** Path to file containing bootstrap admin password (migration aborts without it) |
+| `APP_ADMIN_PASSWORD_PATH` | — | Path to file containing bootstrap admin password (migration skips seeding if unset; can also use `uv run python tools/set_admin_password.py`) |
 | `APP_ADMIN_PASSWORD` | — | Admin password value (used by `generate_secrets.sh` only) |
 | `APP_SERVER_SCHEME` | `https` | URL scheme used in JWT issuer claim (`https` for production, `http` for local dev). Also controls the `Secure` flag on the refresh cookie (HTTPS → `Secure=true`, HTTP → `Secure=false`) |
 | `APP_COOKIE_DOMAIN` | — | `Domain` attribute for refresh cookie |

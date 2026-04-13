@@ -7,6 +7,7 @@ Create Date: 2026-03-30 12:00:00.000000
 """
 
 import os
+import warnings
 from collections.abc import Sequence
 from pathlib import Path
 from uuid import uuid4
@@ -44,18 +45,23 @@ def upgrade() -> None:
 
     # CUSTOM: Seed admin user from password file
     password_path = os.environ.get("APP_ADMIN_PASSWORD_PATH")
+    # TODO(alex,zack): Move away the admin password management to a runtime. AAP-71655
     if not password_path:
-        msg = (
-            "APP_ADMIN_PASSWORD_PATH environment variable is required. "
-            "Set it to the path of a file containing the bootstrap admin password "
-            "(e.g. APP_ADMIN_PASSWORD_PATH=.secrets/admin-password). "
-            "Generate secrets with: make secrets-generate"
+        warnings.warn(
+            "APP_ADMIN_PASSWORD_PATH not set — skipping admin user seeding. "
+            "Run 'make secrets-generate' and re-run migrations, or use "
+            "'uv run python tools/set_admin_password.py' to set the admin password.",
+            stacklevel=1,
         )
-        raise RuntimeError(msg)
-    password = Path(password_path).read_text().strip()
-    if not password:
-        msg = f"Admin password file is empty: {password_path}"
-        raise RuntimeError(msg)
+        return
+
+    password_file = Path(password_path)
+    if not password_file.exists() or not (password := password_file.read_text().strip()):
+        warnings.warn(
+            f"Admin password file missing or empty: {password_path} — skipping admin seeding.",
+            stacklevel=1,
+        )
+        return
 
     hashed = PasswordHasher().hash(password)
     admin_id = str(uuid4())
