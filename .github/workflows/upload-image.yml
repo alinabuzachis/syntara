@@ -49,12 +49,12 @@ jobs:
             # For PRs: only push the pr-[number] tag, overwriting on each update
             for tag in "${ALL_TAGS[@]}"; do
               if [[ "$tag" == *:pr-* ]]; then
-                skopeo copy --all oci-archive:nexus-image.tar docker://"$tag"
+                skopeo copy --all oci-archive:nexus-image.tar:"$tag" docker://"$tag"
               fi
             done
           else
             # For main branch pushes and tags: push all tags
             for tag in "${ALL_TAGS[@]}"; do
-              skopeo copy --all oci-archive:nexus-image.tar docker://"$tag"
+              skopeo copy --all oci-archive:nexus-image.tar:"$tag" docker://"$tag"
             done
           fi
