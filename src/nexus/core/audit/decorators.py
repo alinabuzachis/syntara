@@ -13,7 +13,15 @@ import structlog
 from nexus.core.audit.actor_extractor import extract_actor_context
 from nexus.core.audit.emitter import actor_id_context_var, actor_type_context_var, emit_audit_event
 from nexus.core.audit.schemas import FunctionData
-from nexus.core.audit.types import ActorContext, ActorType, AuditEvent, EventCategory
+from nexus.core.audit.types import (
+    ActorContext,
+    ActorType,
+    AuditEvent,
+    EventCategory,
+    EventSeverity,
+    EventStatus,
+    escalate_severity,
+)
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -31,6 +39,7 @@ class AuditContext:
     token_actor_id: contextvars.Token[UUID | None]
     token_actor_type: contextvars.Token[ActorType | None]
     event_category: EventCategory
+    event_severity: EventSeverity
     capture_result: bool | set[str]
 
 
@@ -95,6 +104,7 @@ def _setup_audit_context(
     actor_param: str | None,
     actor_fallback: ActorContext | None,
     event_category: EventCategory,
+    event_severity: EventSeverity,
     *,
     capture_args: bool | set[str],
     capture_result: bool | set[str],
@@ -146,10 +156,11 @@ def _setup_audit_context(
         action=action,
         component=component,
         actor_context=actor_context,
-        structured_data=FunctionData(status="success", function_args=function_args),
+        structured_data=FunctionData(function_args=function_args),
         token_actor_id=token_actor_id,
         token_actor_type=token_actor_type,
         event_category=event_category,
+        event_severity=event_severity,
         capture_result=capture_result,
     )
 
@@ -193,6 +204,8 @@ def _handle_success_result(result: Any, audit_context: AuditContext) -> Any:  # 
     # NOTE: Must use audit_context.actor_context, NOT ContextVars, for nested decorator safety
     event = AuditEvent(
         event_category=audit_context.event_category,
+        event_severity=audit_context.event_severity,
+        event_status=EventStatus.SUCCESS,
         event_action=audit_context.action,
         event_message=f"Function {audit_context.action} executed successfully",
         source_component=audit_context.component,
@@ -221,13 +234,18 @@ def _handle_error(error: Exception, audit_context: AuditContext) -> None:
     )
 
     # Create and emit error audit event
-    audit_context.structured_data.status = "error"
     audit_context.structured_data.error_type = type(error).__name__
     audit_context.structured_data.error_message = "Look at the Operational Logs for full diagnosis"
+
+    # Escalate severity on exception: unexpected failures are at least ERROR,
+    # but a caller-declared CRITICAL severity is preserved (never downgraded).
+    error_severity = escalate_severity(audit_context.event_severity, EventSeverity.ERROR)
 
     # NOTE: Must use audit_context.actor_context, NOT ContextVars, for nested decorator safety
     error_event = AuditEvent(
         event_category=audit_context.event_category,
+        event_severity=error_severity,
+        event_status=EventStatus.ERROR,
         event_action=f"{audit_context.action}_error",
         event_message=f"Function {audit_context.action} failed with {type(error).__name__}",
         source_component=audit_context.component,
@@ -249,6 +267,7 @@ def track_event[F: Callable[..., Any]](
     event_action: str | None = None,
     source_component: str | None = None,
     *,
+    event_severity: EventSeverity = EventSeverity.INFO,
     capture_args: bool | set[str] = False,
     capture_result: bool | set[str] = False,
     actor_param: str | None = None,
@@ -274,6 +293,9 @@ def track_event[F: Callable[..., Any]](
         event_category: Category of the audit event
         event_action: Custom action name (defaults to function name)
         source_component: Component generating the event (defaults to module name)
+        event_severity: Severity level of the audit event (defaults to INFO).
+                       On exception, severity is escalated to at least ERROR;
+                       a caller-declared CRITICAL severity is preserved.
         capture_args: Whether to capture function arguments. Can be:
                      - False: capture nothing (default, safest)
                      - True: capture all arguments (security risk)
@@ -318,6 +340,7 @@ def track_event[F: Callable[..., Any]](
                     actor_param,
                     actor_fallback,
                     event_category,
+                    event_severity,
                     capture_args=capture_args,
                     capture_result=capture_result,
                 )
@@ -346,6 +369,7 @@ def track_event[F: Callable[..., Any]](
                 actor_param,
                 actor_fallback,
                 event_category,
+                event_severity,
                 capture_args=capture_args,
                 capture_result=capture_result,
             )

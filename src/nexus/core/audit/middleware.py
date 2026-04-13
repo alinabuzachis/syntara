@@ -8,6 +8,7 @@ execution, activity) when available.
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from posixpath import normpath
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, unquote
@@ -22,7 +23,7 @@ from nexus.core.audit.emitter import (
     workflow_id_context_var,
 )
 from nexus.core.audit.schemas import RequestCompletedData
-from nexus.core.audit.types import ActorType, AuditEvent, EventCategory
+from nexus.core.audit.types import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -248,8 +249,11 @@ class AuditMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Wrap send to capture response status code
-        status_code = 0
+        # Fail-closed: default to 500 so a downstream app that returns without
+        # ever sending ``http.response.start`` is classified as ERROR rather
+        # than silently emitting a SUCCESS/INFO event for an un-observed
+        # response.
+        status_code: int = HTTPStatus.INTERNAL_SERVER_ERROR
 
         async def send_wrapper(message: Message) -> None:
             nonlocal status_code
@@ -260,7 +264,9 @@ class AuditMiddleware:
         try:
             await self.app(scope, receive, send_wrapper)
         except Exception:
-            status_code = 500
+            # Reset to 500 so an app that sent a 2xx response-start and then
+            # raised during body streaming still emits ERROR, not the 2xx.
+            status_code = HTTPStatus.INTERNAL_SERVER_ERROR
             self._emit_completed(scope, path, status_code)
             raise
 
@@ -301,10 +307,22 @@ class AuditMiddleware:
                 user_role=user_context.get("user_role"),
             )
 
+            # Derive severity and status from the HTTP response status code so that
+            # downstream consumers (alerting, SIEM) can filter on severity alone.
+            if status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
+                event_severity = EventSeverity.ERROR
+            elif status_code >= HTTPStatus.BAD_REQUEST:
+                event_severity = EventSeverity.WARNING
+            else:
+                event_severity = EventSeverity.INFO
+            event_status = EventStatus.SUCCESS if status_code < HTTPStatus.BAD_REQUEST else EventStatus.ERROR
+
             emit_audit_event(
                 AuditEvent(
                     event_category=EventCategory.USER_ACTION,
                     event_action="request_completed",
+                    event_severity=event_severity,
+                    event_status=event_status,
                     actor_id=actor_id,
                     actor_type=actor_type,
                     source_component=self._resolve_source_component(scope),

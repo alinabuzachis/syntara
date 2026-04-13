@@ -8,17 +8,19 @@ import pytest
 
 from nexus.core.audit.decorators import track_event
 from nexus.core.audit.schemas import FunctionData
-from nexus.core.audit.types import ActorContext, ActorType, AuditEvent, EventCategory
+from nexus.core.audit.types import ActorContext, ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 
 
 def _assert_audit_event_fields(
     event_obj: AuditEvent,
     expected_category: EventCategory,
+    expected_severity: EventSeverity,
     expected_action: str,
     expected_source: str,
     expected_message: str,
     expected_actor_id: UUID | None = None,
     expected_actor_type: ActorType = ActorType.SYSTEM,
+    expected_status: EventStatus | None = EventStatus.SUCCESS,
     expected_workflow_id: UUID | None = None,
     expected_activity_id: str | None = None,
     expected_execution_id: UUID | None = None,
@@ -28,6 +30,8 @@ def _assert_audit_event_fields(
     assert event_obj.event_id is not None
     assert isinstance(event_obj.event_id, UUID)
     assert event_obj.event_category == expected_category
+    assert event_obj.event_severity == expected_severity
+    assert event_obj.event_status == expected_status
     assert event_obj.event_action == expected_action
 
     # Temporal information
@@ -72,6 +76,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.USER_ACTION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -92,6 +97,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.WORKFLOW_EVENT,
+                EventSeverity.INFO,
                 "custom_action",
                 "test.module",
                 "Function custom_action executed successfully",
@@ -114,6 +120,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.USER_ACTION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -139,6 +146,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.USER_ACTION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -169,6 +177,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.USER_ACTION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -198,6 +207,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.USER_ACTION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -221,6 +231,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.SYSTEM_OPERATION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -245,6 +256,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.SYSTEM_OPERATION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -267,6 +279,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.SYSTEM_OPERATION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -295,14 +308,17 @@ class TestTrackEventDecorator:
             # Should have emitted 2 events total (success + error)
             assert mock_emit.call_count == 2
 
-            # Verify all AuditEvent fields in the error event
+            # Verify all AuditEvent fields in the error event.
+            # Default severity (INFO) is escalated to ERROR on exception.
             error_event = mock_emit.call_args_list[1][0][0]
             _assert_audit_event_fields(
                 error_event,
                 EventCategory.USER_ACTION,
+                EventSeverity.ERROR,
                 "test_function_error",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function failed with ValueError",
+                expected_status=EventStatus.ERROR,
             )
 
             # Verify error-specific structured data
@@ -323,14 +339,17 @@ class TestTrackEventDecorator:
             with pytest.raises(RuntimeError):
                 test_function("test", 42)
 
-            # Verify all AuditEvent fields in the error event
+            # Verify all AuditEvent fields in the error event.
+            # Default severity (INFO) is escalated to ERROR on exception.
             error_event = mock_emit.call_args[0][0]
             _assert_audit_event_fields(
                 error_event,
                 EventCategory.USER_ACTION,
+                EventSeverity.ERROR,
                 "test_function_error",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function failed with RuntimeError",
+                expected_status=EventStatus.ERROR,
             )
 
             # Verify error-specific structured data with captured arguments
@@ -361,6 +380,7 @@ class TestTrackEventDecorator:
                 _assert_audit_event_fields(
                     event_obj,
                     EventCategory.USER_ACTION,
+                    EventSeverity.INFO,
                     "async_function",
                     "tests.unit.core.audit.test_decorators",
                     "Function async_function executed successfully",
@@ -389,6 +409,7 @@ class TestTrackEventDecorator:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.USER_ACTION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -436,6 +457,7 @@ class TestTrackEventDecorator:
                 _assert_audit_event_fields(
                     event_obj,
                     EventCategory.USER_ACTION,
+                    EventSeverity.INFO,
                     "test_function",
                     "tests.unit.core.audit.test_decorators",
                     "Function test_function executed successfully",
@@ -508,6 +530,7 @@ class TestTrackEventEdgeCases:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.SYSTEM_OPERATION,
+                EventSeverity.INFO,
                 "comprehensive_test",
                 "test.comprehensive",
                 "Function comprehensive_test executed successfully",
@@ -541,6 +564,7 @@ class TestTrackEventEdgeCases:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.USER_ACTION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -563,6 +587,7 @@ class TestTrackEventEdgeCases:
             _assert_audit_event_fields(
                 event_obj,
                 EventCategory.USER_ACTION,
+                EventSeverity.INFO,
                 "test_function",
                 "tests.unit.core.audit.test_decorators",
                 "Function test_function executed successfully",
@@ -989,3 +1014,153 @@ class TestTrackEventSanitizationAndTruncation:
             # The dict structure should be preserved with truncated string leaves
             assert isinstance(function_data.function_result, dict)
             assert "...<truncated>" in function_data.function_result["large_value"]
+
+
+class TestEventSeverity:
+    """Test event severity override functionality."""
+
+    def test_track_event_default_severity_info(self) -> None:
+        """Test that the default event severity is INFO."""
+
+        @track_event(EventCategory.USER_ACTION)
+        def test_function() -> str:
+            return "success"
+
+        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+            test_function()
+
+            event_obj = mock_emit.call_args[0][0]
+            _assert_audit_event_fields(
+                event_obj,
+                EventCategory.USER_ACTION,
+                EventSeverity.INFO,
+                "test_function",
+                "tests.unit.core.audit.test_decorators",
+                "Function test_function executed successfully",
+            )
+
+    @pytest.mark.parametrize(
+        ("severity", "category", "action", "expected_action"),
+        [
+            (EventSeverity.WARNING, EventCategory.USER_ACTION, None, "test_function"),
+            (EventSeverity.ERROR, EventCategory.SYSTEM_OPERATION, "critical_operation", "critical_operation"),
+            (EventSeverity.CRITICAL, EventCategory.SECURITY_EVENT, None, "test_function"),
+        ],
+    )
+    def test_track_event_severity_override(
+        self, severity: EventSeverity, category: EventCategory, action: str | None, expected_action: str
+    ) -> None:
+        """Test that event severity can be overridden for various severity levels."""
+
+        @track_event(category, event_action=action, event_severity=severity)
+        def test_function() -> str:
+            return "success"
+
+        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+            test_function()
+
+            event_obj = mock_emit.call_args[0][0]
+            _assert_audit_event_fields(
+                event_obj,
+                category,
+                severity,
+                expected_action,
+                "tests.unit.core.audit.test_decorators",
+                f"Function {expected_action} executed successfully",
+            )
+
+    @pytest.mark.parametrize(
+        ("declared_severity", "expected_error_severity"),
+        [
+            # INFO and WARNING escalate to ERROR when an exception is raised
+            (EventSeverity.INFO, EventSeverity.ERROR),
+            (EventSeverity.WARNING, EventSeverity.ERROR),
+            # ERROR stays ERROR (no-op escalation)
+            (EventSeverity.ERROR, EventSeverity.ERROR),
+            # CRITICAL is preserved — never downgraded to ERROR
+            (EventSeverity.CRITICAL, EventSeverity.CRITICAL),
+        ],
+    )
+    def test_track_event_severity_escalated_on_error(
+        self, declared_severity: EventSeverity, expected_error_severity: EventSeverity
+    ) -> None:
+        """Custom severity is escalated to at least ERROR on exception; CRITICAL is preserved."""
+
+        @track_event(EventCategory.USER_ACTION, event_severity=declared_severity)
+        def test_function() -> str:
+            error_msg = "Test error"
+            raise RuntimeError(error_msg)
+
+        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+            with pytest.raises(RuntimeError):
+                test_function()
+
+            error_event = mock_emit.call_args[0][0]
+            _assert_audit_event_fields(
+                error_event,
+                EventCategory.USER_ACTION,
+                expected_error_severity,
+                "test_function_error",
+                "tests.unit.core.audit.test_decorators",
+                "Function test_function failed with RuntimeError",
+                expected_status=EventStatus.ERROR,
+            )
+
+    async def test_track_event_severity_async_function(self) -> None:
+        """Test that custom event severity works with async functions."""
+        import asyncio
+
+        @track_event(EventCategory.LLM_INTERACTION, event_severity=EventSeverity.ERROR)
+        async def async_function() -> str:
+            await asyncio.sleep(0)
+            return "async_result"
+
+        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+            result = await async_function()
+
+            assert result == "async_result"
+            event_obj = mock_emit.call_args[0][0]
+            _assert_audit_event_fields(
+                event_obj,
+                EventCategory.LLM_INTERACTION,
+                EventSeverity.ERROR,
+                "async_function",
+                "tests.unit.core.audit.test_decorators",
+                "Function async_function executed successfully",
+            )
+
+    @pytest.mark.parametrize(
+        ("declared_severity", "expected_error_severity"),
+        [
+            (EventSeverity.INFO, EventSeverity.ERROR),
+            (EventSeverity.WARNING, EventSeverity.ERROR),
+            (EventSeverity.ERROR, EventSeverity.ERROR),
+            (EventSeverity.CRITICAL, EventSeverity.CRITICAL),
+        ],
+    )
+    async def test_track_event_severity_escalated_on_error_async(
+        self, declared_severity: EventSeverity, expected_error_severity: EventSeverity
+    ) -> None:
+        """Custom severity is escalated to at least ERROR on exception in async functions; CRITICAL is preserved."""
+        import asyncio
+
+        @track_event(EventCategory.USER_ACTION, event_severity=declared_severity)
+        async def test_function() -> str:
+            await asyncio.sleep(0)
+            error_msg = "Test error"
+            raise RuntimeError(error_msg)
+
+        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+            with pytest.raises(RuntimeError):
+                await test_function()
+
+            error_event = mock_emit.call_args[0][0]
+            _assert_audit_event_fields(
+                error_event,
+                EventCategory.USER_ACTION,
+                expected_error_severity,
+                "test_function_error",
+                "tests.unit.core.audit.test_decorators",
+                "Function test_function failed with RuntimeError",
+                expected_status=EventStatus.ERROR,
+            )

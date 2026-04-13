@@ -8,9 +8,8 @@ from sqlmodel import Field, SQLModel
 class BaseAuditData(SQLModel):
     """Base schema for all audit event structured data."""
 
-    status: str | None = Field(default=None, description="Event execution status")
-    error_type: str | None = Field(default=None, description="Type of error if status is error")
-    error_message: str | None = Field(default=None, description="Detailed error message if status is error")
+    error_type: str | None = Field(default=None, description="Type of error if an error occurred")
+    error_message: str | None = Field(default=None, description="Detailed error message if an error occurred")
 
 
 class FunctionData(BaseAuditData):

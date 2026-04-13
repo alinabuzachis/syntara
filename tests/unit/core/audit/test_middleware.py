@@ -20,7 +20,7 @@ import pytest
 from nexus.api.constants import EXCLUDED_PATHS
 from nexus.core.audit.middleware import AuditMiddleware
 from nexus.core.audit.schemas import RequestCompletedData
-from nexus.core.audit.types import AuditEvent
+from nexus.core.audit.types import AuditEvent, EventSeverity, EventStatus
 
 _EMIT_PATCH = "nexus.core.audit.emitter._do_emit_audit_event"
 
@@ -412,6 +412,167 @@ class TestAuditMiddlewareResponse:
 
         data = _get_request_completed_data(mock_emit)
         assert len(data) == 1
+        assert data[0].status_code == 500
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status_code", "expected_event_status"),
+        [
+            (200, EventStatus.SUCCESS),
+            (201, EventStatus.SUCCESS),
+            (204, EventStatus.SUCCESS),
+            (301, EventStatus.SUCCESS),
+            (399, EventStatus.SUCCESS),
+            (400, EventStatus.ERROR),
+            (403, EventStatus.ERROR),
+            (404, EventStatus.ERROR),
+            (500, EventStatus.ERROR),
+            (503, EventStatus.ERROR),
+        ],
+    )
+    async def test_event_status_derived_from_status_code(
+        self, status_code: int, expected_event_status: EventStatus
+    ) -> None:
+        """event_status is SUCCESS for <400, ERROR for >=400."""
+        app = _make_app(status_code=status_code)
+        middleware = AuditMiddleware(app)
+
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].event_status == expected_event_status
+
+    @pytest.mark.asyncio
+    async def test_event_status_error_on_exception(self) -> None:
+        """event_status is ERROR when the app raises an unhandled exception."""
+
+        async def failing_app(scope: MutableMapping[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            msg = "boom"
+            raise RuntimeError(msg)
+
+        middleware = AuditMiddleware(failing_app)
+        with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].event_status == EventStatus.ERROR
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status_code", "expected_event_severity"),
+        [
+            (200, EventSeverity.INFO),
+            (201, EventSeverity.INFO),
+            (301, EventSeverity.INFO),
+            (399, EventSeverity.INFO),
+            (400, EventSeverity.WARNING),
+            (403, EventSeverity.WARNING),
+            (404, EventSeverity.WARNING),
+            (499, EventSeverity.WARNING),
+            (500, EventSeverity.ERROR),
+            (503, EventSeverity.ERROR),
+        ],
+    )
+    async def test_event_severity_derived_from_status_code(
+        self, status_code: int, expected_event_severity: EventSeverity
+    ) -> None:
+        """event_severity is INFO for <400, WARNING for 4xx, ERROR for 5xx."""
+        app = _make_app(status_code=status_code)
+        middleware = AuditMiddleware(app)
+
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].event_severity == expected_event_severity
+
+    @pytest.mark.asyncio
+    async def test_event_severity_error_on_exception(self) -> None:
+        """event_severity is ERROR when the app raises an unhandled exception (forced 500)."""
+
+        async def failing_app(scope: MutableMapping[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            msg = "boom"
+            raise RuntimeError(msg)
+
+        middleware = AuditMiddleware(failing_app)
+        with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="boom"):
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].event_severity == EventSeverity.ERROR
+
+    @pytest.mark.asyncio
+    async def test_event_severity_matches_event_status_semantics(self) -> None:
+        """Severity and status are consistent: a WARNING-severity event has ERROR status (4xx)."""
+        app = _make_app(status_code=404)
+        middleware = AuditMiddleware(app)
+
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        # 4xx should be WARNING severity but still ERROR status — the two fields
+        # carry distinct information and must not be silently collapsed.
+        assert events[0].event_severity == EventSeverity.WARNING
+        assert events[0].event_status == EventStatus.ERROR
+
+    @pytest.mark.asyncio
+    async def test_fail_closed_when_response_start_never_sent(self) -> None:
+        """An app that returns without sending http.response.start is classified as 500/ERROR/ERROR.
+
+        The middleware initialises status_code to 500 fail-closed: if the
+        downstream app returns normally but never emits an ``http.response.start``
+        message, the audit event must still reflect an ERROR outcome — not a
+        misleading INFO/SUCCESS with status_code=0.
+        """
+
+        async def silent_app(scope: MutableMapping[str, Any], receive: Any, send: Any) -> None:  # noqa: ANN401
+            # Returns without ever calling send — simulates a broken
+            # downstream app or a misconfigured middleware chain.
+            return
+
+        middleware = AuditMiddleware(silent_app)
+        with patch(_EMIT_PATCH) as mock_emit:
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].event_severity == EventSeverity.ERROR
+        assert events[0].event_status == EventStatus.ERROR
+        data = _get_request_completed_data(mock_emit)
+        assert data[0].status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_exception_after_2xx_response_start_emits_500_error(self) -> None:
+        """If the app sends a 2xx http.response.start but then raises during body streaming.
+
+        The audit event must reflect 500/ERROR/ERROR — not the intercepted 2xx.
+        """
+
+        async def partial_sender(
+            scope: MutableMapping[str, Any],
+            receive: Any,  # noqa: ANN401
+            send: Any,  # noqa: ANN401
+        ) -> None:
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            msg = "body streaming failed"
+            raise RuntimeError(msg)
+
+        middleware = AuditMiddleware(partial_sender)
+        with patch(_EMIT_PATCH) as mock_emit, pytest.raises(RuntimeError, match="body streaming failed"):
+            await middleware(_make_scope(), AsyncMock(), AsyncMock())
+
+        events = _get_audit_events(mock_emit, "request_completed")
+        assert len(events) == 1
+        assert events[0].event_severity == EventSeverity.ERROR
+        assert events[0].event_status == EventStatus.ERROR
+        data = _get_request_completed_data(mock_emit)
         assert data[0].status_code == 500
 
     @pytest.mark.asyncio

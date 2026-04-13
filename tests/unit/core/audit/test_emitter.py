@@ -19,7 +19,7 @@ from nexus.core.audit.emitter import (
 )
 from nexus.core.audit.sanitization import EventSanitizer
 from nexus.core.audit.schemas import AuditContextData, BaseAuditData
-from nexus.core.audit.types import ActorType, AuditEvent, EventCategory
+from nexus.core.audit.types import ActorType, AuditEvent, EventCategory, EventStatus
 
 
 class TestEventCaptureContextMethods:
@@ -108,7 +108,8 @@ class TestEventCaptureEmitAuditEvent:
             actor_type=ActorType.USER,
             source_component="test_component",
             event_message="Test message",
-            structured_data=BaseAuditData(status="success"),
+            event_status=EventStatus.SUCCESS,
+            structured_data=BaseAuditData(),
         )
 
         # Emit the event
@@ -122,6 +123,7 @@ class TestEventCaptureEmitAuditEvent:
         assert call_args.event_id is not None
         assert call_args.event_category == EventCategory.USER_ACTION
         assert call_args.event_action == "test_action"
+        assert call_args.event_status == EventStatus.SUCCESS
         assert call_args.actor_type == ActorType.USER
         assert call_args.source_component == "test_component"
         assert call_args.event_message == "Test message"
@@ -219,8 +221,8 @@ class TestEventCaptureEmitAuditEvent:
             actor_type=ActorType.USER,
             source_component="auth_service",
             event_message="User login",
+            event_status=EventStatus.SUCCESS,
             structured_data=AuditContextData(
-                status="success",
                 username="testuser",
                 password="secret123",  # noqa: S106
                 email="test@example.com",
@@ -252,8 +254,8 @@ class TestEventCaptureEmitAuditEvent:
             actor_type=ActorType.USER,
             source_component="auth_service",
             event_message="User authentication attempt",
+            event_status=EventStatus.SUCCESS,
             structured_data=AuditContextData(
-                status="success",
                 # Original patterns
                 password="secret123",  # noqa: S106
                 secret="mysecret",  # noqa: S106
@@ -397,10 +399,11 @@ class TestEventCaptureEmitAuditEvent:
     ) -> None:
         """Test that specific fields are redacted according to defined patterns from emitter.py L#26-44."""
         # Create event with the specific field to test
-        structured_data = {"status": "success", field_name: field_value}
+        structured_data = {field_name: field_value}
         event = AuditEvent(
             event_category=EventCategory.USER_ACTION,
             event_action="field_test",
+            event_status=EventStatus.SUCCESS,
             actor_id=uuid4(),
             actor_type=ActorType.USER,
             source_component="test_service",
@@ -417,9 +420,9 @@ class TestEventCaptureEmitAuditEvent:
         # Verify the specific field was handled correctly
         event_obj = mock_do_emit.call_args[0][0]
         # After sanitization, structured_data remains as model but in-place sanitized
+        assert event_obj.event_status == EventStatus.SUCCESS
         base_data = event_obj.structured_data
         assert isinstance(base_data, AuditContextData)
-        assert base_data.status == "success"
 
         assert getattr(base_data, field_name) == expected_result, (
             f"Field '{field_name}' with value '{field_value}' should result in '{expected_result}' "
@@ -445,10 +448,10 @@ class TestEventCaptureEmitAuditEvent:
 
         # Verify default structured_data was handled correctly
         event_obj = mock_do_emit.call_args[0][0]
+        assert event_obj.event_status is None
         # After sanitization, structured_data remains as model but in-place sanitized
         base_data = event_obj.structured_data
         assert isinstance(base_data, BaseAuditData)
-        assert base_data.status is None
 
     @patch("nexus.core.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_complex_structured_data(self, mock_do_emit: Mock) -> None:
@@ -461,8 +464,8 @@ class TestEventCaptureEmitAuditEvent:
             actor_type=ActorType.USER,
             source_component="user_service",
             event_message="User creation request",
+            event_status=EventStatus.SUCCESS,
             structured_data=AuditContextData(
-                status="success",
                 user_info={
                     "username": "testuser",
                     "email": "test@example.com",
@@ -473,7 +476,7 @@ class TestEventCaptureEmitAuditEvent:
                     "url": "/api/v1/users",
                     "headers": {"Authorization": "Bearer token123"},
                 },
-                response_data={"status": 201, "message": "User created successfully"},
+                response_data={"status_code": 201, "message": "User created successfully"},
             ),
         )
 
@@ -494,7 +497,7 @@ class TestEventCaptureEmitAuditEvent:
         request_data = context_data.request_data  # type: ignore[attr-defined]
         assert request_data["method"] == "POST"
         response_data = context_data.response_data  # type: ignore[attr-defined]
-        assert response_data["status"] == 201
+        assert response_data["status_code"] == 201
 
 
 class TestEventCaptureDoEmitAuditEvent:
@@ -507,10 +510,11 @@ class TestEventCaptureDoEmitAuditEvent:
         test_event = AuditEvent(
             event_category=EventCategory.USER_ACTION,
             event_action="test_action",
+            event_status=EventStatus.SUCCESS,
             actor_type=ActorType.USER,
             source_component="test_component",
             event_message="Test message",
-            structured_data=BaseAuditData(status="success"),
+            structured_data=BaseAuditData(),
         )
 
         # Call the method
@@ -537,8 +541,8 @@ class TestEventCaptureDoEmitAuditEvent:
             activity_id="activity_123",
             execution_id=execution_id,
             event_message="Workflow execution started",
+            event_status=EventStatus.SUCCESS,
             structured_data=AuditContextData(
-                status="success",
                 workflow_name="test_workflow",
                 input_params={"param1": "value1"},
             ),
@@ -570,10 +574,11 @@ class TestEventCaptureDoEmitAuditEvent:
         test_event = AuditEvent(
             event_category=EventCategory.SYSTEM_OPERATION,
             event_action="minimal_action",
+            event_status=EventStatus.SUCCESS,
             actor_type=ActorType.SYSTEM,
             source_component="test_component",
             event_message="Minimal test",
-            structured_data=BaseAuditData(status="success"),
+            structured_data=BaseAuditData(),
         )
 
         # Call the method
@@ -583,7 +588,7 @@ class TestEventCaptureDoEmitAuditEvent:
         kwargs = mock_audit_logger.info.call_args[1]
         assert kwargs["event_category"] == EventCategory.SYSTEM_OPERATION
         assert kwargs["event_action"] == "minimal_action"
-        assert kwargs["structured_data"]["status"] == "success"
+        assert kwargs["event_status"] == EventStatus.SUCCESS
 
 
 class TestEventCaptureIntegration:
@@ -613,8 +618,8 @@ class TestEventCaptureIntegration:
                 actor_type=ActorType.SYSTEM,  # Required field, will NOT be overridden since it's truthy
                 source_component="agent_service",
                 event_message="User queried agent",
+                event_status=EventStatus.SUCCESS,
                 structured_data=AuditContextData(
-                    status="success",
                     query="What is the weather?",
                     password="secret123",  # noqa: S106  # Should be sanitized
                     user_email="user@example.com",  # Should be sanitized
@@ -663,7 +668,8 @@ class TestEventCaptureIntegration:
                 actor_type=ActorType.USER,
                 source_component="test_component",
                 event_message=f"Test message {i}",
-                structured_data=AuditContextData(status="success", index=i),
+                event_status=EventStatus.SUCCESS,
+                structured_data=AuditContextData(index=i),
             )
             for i in range(3)
         ]

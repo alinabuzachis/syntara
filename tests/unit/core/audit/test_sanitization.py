@@ -212,11 +212,9 @@ class TestEventSanitizer:
         """Test sanitization of BaseAuditData objects."""
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["password"]), redact_email])
 
-        data = BaseAuditData(status="success", error_type="ValidationError", error_message="john@example.com")
+        data = BaseAuditData(error_type="ValidationError", error_message="john@example.com")
 
         sanitized_data = sanitizer.sanitize(data)
-
-        assert sanitized_data.status == "success"
         assert sanitized_data.error_type == "ValidationError"
         assert sanitized_data.error_message == "[EMAIL_REDACTED]"
 
@@ -224,15 +222,13 @@ class TestEventSanitizer:
         """Test sanitization of AuditContextData with model_extra fields."""
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["password"]), redact_email])
 
-        data = AuditContextData(status="success", error_message="admin@example.com")
+        data = AuditContextData(error_message="admin@example.com")
         # Add extra fields (model_extra) using setattr since model has extra="allow"
         data.password_field = "secret123"  # noqa: S105
         data.email_field = "user@domain.com"
         data.normal_field = "normal_data"
 
         sanitized_data = sanitizer.sanitize(data)
-
-        assert sanitized_data.status == "success"
         assert sanitized_data.error_message == "[EMAIL_REDACTED]"
         # Extra fields should be sanitized too
         assert sanitized_data.password_field == "[REDACTED]"  # type: ignore[attr-defined]  # noqa: S105
@@ -244,14 +240,11 @@ class TestEventSanitizer:
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["secret"])])
 
         data = FunctionData(
-            status="success",
             function_args={"user": {"name": "John", "credentials": {"secret_key": "sensitive_data"}}},
             function_result={"config": {"debug": True}},
         )
 
         sanitized_data = sanitizer.sanitize(data)
-
-        assert sanitized_data.status == "success"
         assert sanitized_data.function_args is not None
         assert isinstance(sanitized_data.function_args, dict)
         assert sanitized_data.function_args["user"]["name"] == "John"
@@ -264,7 +257,6 @@ class TestEventSanitizer:
         sanitizer = EventSanitizer(detectors=[redact_email])
 
         data = FunctionData(
-            status="success",
             function_args={"emails": ["john@example.com", "not_an_email", "jane@test.org"]},
             function_result={"numbers": [1, 2, 3]},
         )
@@ -284,7 +276,7 @@ class TestEventSanitizer:
         circular_dict: dict[str, Any] = {"key": "value"}
         circular_dict["self"] = circular_dict  # Create circular reference
 
-        data = FunctionData(status="success", function_args={"data": circular_dict})
+        data = FunctionData(function_args={"data": circular_dict})
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -301,7 +293,7 @@ class TestEventSanitizer:
         # max_depth=2 allows 2 container objects (root dict + level1 dict),
         # then truncates at level2's value
         nested_data = {"level1": {"level2": {"level3": {"level4": "deep_value"}}}}
-        data = FunctionData(status="success", function_args=nested_data)
+        data = FunctionData(function_args=nested_data)
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -320,7 +312,7 @@ class TestEventSanitizer:
         model = TestModel(username="john", password="secret", email="john@example.com")  # noqa: S106
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["password"]), redact_email])
 
-        data = FunctionData(status="success", function_args={"user_data": model})
+        data = FunctionData(function_args={"user_data": model})
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -337,7 +329,6 @@ class TestEventSanitizer:
         sanitizer = EventSanitizer()
 
         data = FunctionData(
-            status="success",
             function_args={"binary_data": b"hello world"},
             function_result={"byte_array": bytearray(b"test data")},
         )
@@ -354,7 +345,7 @@ class TestEventSanitizer:
         """Test handling of bytes with invalid UTF-8 in audit data."""
         sanitizer = EventSanitizer()
 
-        data = FunctionData(status="success", function_args={"invalid_utf8": b"\xff\xfe"})
+        data = FunctionData(function_args={"invalid_utf8": b"\xff\xfe"})
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -371,7 +362,7 @@ class TestEventSanitizer:
                 return "custom_object_string"
 
         sanitizer = EventSanitizer()
-        data = FunctionData(status="success", function_args={"custom": CustomObject()})
+        data = FunctionData(function_args={"custom": CustomObject()})
 
         sanitized_data = sanitizer.sanitize(data)
         assert sanitized_data.function_args is not None
@@ -393,7 +384,7 @@ class TestEventSanitizer:
 
         sanitizer = EventSanitizer(detectors=[first_detector, second_detector])
 
-        data = FunctionData(status="success", function_args={"special": "value"})
+        data = FunctionData(function_args={"special": "value"})
 
         sanitized_data = sanitizer.sanitize(data)
         assert sanitized_data.function_args is not None
@@ -408,7 +399,7 @@ class TestEventSanitizer:
         sanitizer = EventSanitizer(detectors=[])
 
         original_args = {"password": "secret", "email": "user@example.com", "normal": "data"}
-        data = FunctionData(status="success", function_args=original_args.copy())
+        data = FunctionData(function_args=original_args.copy())
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -432,7 +423,7 @@ class TestPIIDetectorType:
         detector: PIIDetector = custom_detector
 
         sanitizer = EventSanitizer(detectors=[detector])
-        data = FunctionData(status="success", function_args={"custom_field": "test_data"})
+        data = FunctionData(function_args={"custom_field": "test_data"})
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -447,11 +438,10 @@ class TestEdgeCases:
     def test_empty_audit_data(self) -> None:
         """Test sanitization of minimal audit data."""
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["password"])])
-        data = BaseAuditData(status="success")
+        data = BaseAuditData()
 
         sanitized_data = sanitizer.sanitize(data)
 
-        assert sanitized_data.status == "success"
         assert sanitized_data.error_type is None
         assert sanitized_data.error_message is None
 
@@ -461,13 +451,13 @@ class TestEdgeCases:
         sanitizer = EventSanitizer(detectors=[detector])
 
         # Test separate None values to avoid circular reference issues
-        data1 = FunctionData(status="success", function_args={"secret_key": None})
+        data1 = FunctionData(function_args={"secret_key": None})
         sanitized_data1 = sanitizer.sanitize(data1)
         assert sanitized_data1.function_args is not None
         assert isinstance(sanitized_data1.function_args, dict)
         assert sanitized_data1.function_args["secret_key"] == "[REDACTED]"  # noqa: S105
 
-        data2 = FunctionData(status="success", function_args={"normal_key": None})
+        data2 = FunctionData(function_args={"normal_key": None})
         sanitized_data2 = sanitizer.sanitize(data2)
         assert sanitized_data2.function_args is not None
         assert isinstance(sanitized_data2.function_args, dict)
@@ -478,7 +468,7 @@ class TestEdgeCases:
         sanitizer = EventSanitizer()
 
         empty_structures = {"empty_dict": {}, "empty_list": [], "nested": {"also_empty": {}, "list_empty": []}}
-        data = FunctionData(status="success", function_args=empty_structures.copy())
+        data = FunctionData(function_args=empty_structures.copy())
 
         sanitized_data = sanitizer.sanitize(data)
         assert sanitized_data.function_args is not None
@@ -490,7 +480,7 @@ class TestEdgeCases:
         sanitizer = EventSanitizer(detectors=[redact_by_partial_key(["secret"])], max_depth=6)
 
         nested_data = {"level1": {"level2": {"level3": {"level4": {"secret": "should_be_redacted"}}}}}
-        data = FunctionData(status="success", function_args=nested_data)
+        data = FunctionData(function_args=nested_data)
 
         sanitized_data = sanitizer.sanitize(data)
         assert sanitized_data.function_args is not None
@@ -508,7 +498,7 @@ class TestEdgeCases:
             None,
             ["nested_list_email@domain.org"],
         ]
-        data = FunctionData(status="success", function_args={"mixed_list": mixed_list})
+        data = FunctionData(function_args={"mixed_list": mixed_list})
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -530,7 +520,7 @@ class TestCircularReferenceHandling:
 
         # This should NOT be marked as circular since "test" is just a string
         # that appears in two different places
-        data = FunctionData(status="success", function_args={"value": "test"}, function_result={"result": "test"})
+        data = FunctionData(function_args={"value": "test"}, function_result={"result": "test"})
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -557,7 +547,7 @@ class TestCircularReferenceHandling:
             "none1": None,
             "none2": None,
         }
-        data = FunctionData(status="success", function_args=primitives)
+        data = FunctionData(function_args=primitives)
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -583,7 +573,7 @@ class TestCircularReferenceHandling:
         circular_data: dict[str, Any] = {"name": "root"}
         circular_data["self"] = circular_data  # This creates a real circular reference
 
-        data = FunctionData(status="success", function_args={"circular_data": circular_data})
+        data = FunctionData(function_args={"circular_data": circular_data})
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -599,7 +589,6 @@ class TestCircularReferenceHandling:
 
         shared_list = [1, 2, 3]
         data = FunctionData(
-            status="success",
             function_args={
                 "list1": shared_list,
                 "list2": shared_list,  # Same object in two places - this is NOT circular
@@ -633,7 +622,7 @@ class TestCircularReferenceHandling:
                 "theme_preference": "dark",  # Same string value again
             },
         }
-        data = FunctionData(status="success", function_args=complex_data)
+        data = FunctionData(function_args=complex_data)
 
         sanitized_data = sanitizer.sanitize(data)
 
@@ -663,7 +652,7 @@ class TestCircularReferenceHandling:
             "dict2": shared_dict,  # Second reference to shared object - OK (not circular)
             "circular": circular_dict,  # Object with circular reference
         }
-        data = FunctionData(status="success", function_args=mixed_data)
+        data = FunctionData(function_args=mixed_data)
 
         sanitized_data = sanitizer.sanitize(data)
 

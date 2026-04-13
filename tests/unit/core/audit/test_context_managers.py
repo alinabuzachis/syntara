@@ -16,7 +16,7 @@ from nexus.core.audit.emitter import (
     workflow_id_context_var,
 )
 from nexus.core.audit.schemas import AuditContextData, FunctionData
-from nexus.core.audit.types import ActorType, AuditEvent, EventCategory
+from nexus.core.audit.types import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 
 
 class TestActorContext:
@@ -133,14 +133,15 @@ class TestAuditContext:
 
         assert isinstance(emitted_event, AuditEvent)
         assert emitted_event.event_category == EventCategory.USER_ACTION
+        assert emitted_event.event_severity == EventSeverity.INFO
         assert emitted_event.event_action == "test_action"
         assert emitted_event.event_message == "Operation test_action completed successfully"
         assert emitted_event.source_component == "test.component"
         assert emitted_event.actor_id == test_actor_id
         assert emitted_event.actor_type == ActorType.USER
 
+        assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
-        assert emitted_event.structured_data.status == "success"
         # Access additional fields through model_dump since extra="allow"
         structured_dict = emitted_event.structured_data.model_dump()
         assert structured_dict["test_field"] == "test_value"
@@ -172,13 +173,15 @@ class TestAuditContext:
 
         assert isinstance(emitted_event, AuditEvent)
         assert emitted_event.event_category == EventCategory.API_EXECUTION
+        # Default severity (INFO) is escalated to ERROR on exception
+        assert emitted_event.event_severity == EventSeverity.ERROR
         assert emitted_event.event_action == "test_action_error"
         assert emitted_event.event_message == "Operation test_action failed with ValueError"
         assert emitted_event.source_component == "test.component"
         assert emitted_event.actor_type == ActorType.SYSTEM
 
+        assert emitted_event.event_status == EventStatus.ERROR
         assert isinstance(emitted_event.structured_data, AuditContextData)
-        assert emitted_event.structured_data.status == "error"
         assert emitted_event.structured_data.error_type == "ValueError"
         assert emitted_event.structured_data.error_message == "Look at the Operational Logs for full diagnosis"
         # Access additional fields through model_dump since extra="allow"
@@ -202,17 +205,17 @@ class TestAuditContext:
         mock_emit.assert_called_once()
         emitted_event = mock_emit.call_args[0][0]
 
+        assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
-        assert emitted_event.structured_data.status == "success"
         assert emitted_event.actor_type == ActorType.SYSTEM
-        # Should only have base fields (status, error_type, error_message with defaults)
+        # Should only have base fields (error_type, error_message with defaults)
         structured_dict = emitted_event.structured_data.model_dump()
-        expected_keys = {"status", "error_type", "error_message"}
+        expected_keys = {"error_type", "error_message"}
         assert set(structured_dict.keys()) == expected_keys
         assert structured_dict["error_type"] is None
         assert structured_dict["error_message"] is None
 
-    @pytest.mark.parametrize("field_name", ["status", "error_type", "error_message"])
+    @pytest.mark.parametrize("field_name", ["error_type", "error_message"])
     def test_audit_context_rejects_reserved_field_names(self, field_name: str) -> None:
         """Test that audit_context raises ValueError when context_data contains reserved fields."""
         with (
@@ -223,6 +226,7 @@ class TestAuditContext:
                 source_component="test.component",
                 actor_id=uuid4(),
                 actor_type=ActorType.USER,
+                event_severity=EventSeverity.INFO,
                 **{field_name: "injected_value"},
             ),
         ):
@@ -238,11 +242,119 @@ class TestAuditContext:
                 source_component="test.component",
                 actor_id=uuid4(),
                 actor_type=ActorType.USER,
-                status="injected",
                 error_type="injected",
+                error_message="injected",
             ),
         ):
             pass  # pragma: no cover
+
+    @pytest.mark.parametrize(
+        ("severity", "category", "action", "source_component"),
+        [
+            (EventSeverity.WARNING, EventCategory.SECURITY_EVENT, "security_check", "security.module"),
+            (EventSeverity.ERROR, EventCategory.LLM_INTERACTION, "llm_operation", "llm.service"),
+            (EventSeverity.CRITICAL, EventCategory.SYSTEM_OPERATION, "critical_operation", "critical.module"),
+        ],
+    )
+    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    def test_audit_context_custom_severity_success(
+        self, mock_emit: Mock, severity: EventSeverity, category: EventCategory, action: str, source_component: str
+    ) -> None:
+        """Test audit_context with custom severity levels for successful operations."""
+        # Act
+        with audit_context(
+            event_category=category,
+            event_action=action,
+            source_component=source_component,
+            event_severity=severity,
+            actor_id=uuid4(),
+            actor_type=ActorType.USER,
+        ):
+            pass
+
+        # Assert
+        mock_emit.assert_called_once()
+        emitted_event = mock_emit.call_args[0][0]
+
+        assert emitted_event.event_category == category
+        assert emitted_event.event_severity == severity
+        assert emitted_event.event_action == action
+        assert emitted_event.event_message == f"Operation {action} completed successfully"
+        assert emitted_event.source_component == source_component
+        assert emitted_event.event_status == EventStatus.SUCCESS
+
+    @pytest.mark.parametrize(
+        ("declared_severity", "expected_error_severity", "category", "action", "source_component"),
+        [
+            # INFO and WARNING escalate to ERROR on exception
+            (
+                EventSeverity.INFO,
+                EventSeverity.ERROR,
+                EventCategory.USER_ACTION,
+                "info_operation",
+                "info.module",
+            ),
+            (
+                EventSeverity.WARNING,
+                EventSeverity.ERROR,
+                EventCategory.SECURITY_EVENT,
+                "security_check",
+                "security.module",
+            ),
+            # ERROR stays ERROR (no-op escalation)
+            (
+                EventSeverity.ERROR,
+                EventSeverity.ERROR,
+                EventCategory.LLM_INTERACTION,
+                "llm_operation",
+                "llm.service",
+            ),
+            # CRITICAL is preserved — never downgraded to ERROR
+            (
+                EventSeverity.CRITICAL,
+                EventSeverity.CRITICAL,
+                EventCategory.SYSTEM_OPERATION,
+                "critical_operation",
+                "critical.module",
+            ),
+        ],
+    )
+    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    def test_audit_context_severity_escalated_on_exception(
+        self,
+        mock_emit: Mock,
+        declared_severity: EventSeverity,
+        expected_error_severity: EventSeverity,
+        category: EventCategory,
+        action: str,
+        source_component: str,
+    ) -> None:
+        """Custom severity is escalated to at least ERROR on exception; CRITICAL is preserved."""
+        # Act & Assert
+        with (
+            pytest.raises(ValueError, match="test error"),
+            audit_context(
+                event_category=category,
+                event_action=action,
+                source_component=source_component,
+                event_severity=declared_severity,
+                actor_id=uuid4(),
+                actor_type=ActorType.USER,
+            ),
+        ):
+            error_msg = "test error"
+            raise ValueError(error_msg)
+
+        # Assert
+        mock_emit.assert_called_once()
+        emitted_event = mock_emit.call_args[0][0]
+
+        assert emitted_event.event_category == category
+        assert emitted_event.event_severity == expected_error_severity
+        assert emitted_event.event_action == f"{action}_error"
+        assert emitted_event.event_message == f"Operation {action} failed with ValueError"
+        assert emitted_event.source_component == source_component
+        assert emitted_event.event_status == EventStatus.ERROR
 
 
 class TestContextManagersWithTrackEventDecorator:
@@ -312,7 +424,7 @@ class TestContextManagersWithTrackEventDecorator:
         assert context_event.event_category == EventCategory.SYSTEM_OPERATION
         assert context_event.event_action == "wrapper_operation"
         assert context_event.actor_type == ActorType.USER
-        assert context_event.structured_data.status == "success"
+        assert context_event.event_status == EventStatus.SUCCESS
 
     @patch("nexus.core.audit.decorators.emit_audit_event")  # intercepts decorator's emit call
     @patch("nexus.core.audit.emitter._do_emit_audit_event")  # intercepts context manager's final emit
@@ -356,7 +468,7 @@ class TestContextManagersWithTrackEventDecorator:
         assert context_event.event_category == EventCategory.SYSTEM_OPERATION
         assert context_event.event_action == "wrapper_operation_error"
         assert context_event.actor_type == ActorType.SERVICE
-        assert context_event.structured_data.status == "error"
+        assert context_event.event_status == EventStatus.ERROR
         assert context_event.structured_data.error_type == "RuntimeError"
 
     @patch("nexus.core.audit.emitter._do_emit_audit_event")
@@ -485,6 +597,7 @@ class TestAuditContextSanitizationAndTruncation:
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
 
         structured_dict = emitted_event.structured_data.model_dump()
@@ -508,6 +621,7 @@ class TestAuditContextSanitizationAndTruncation:
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
 
         structured_dict = emitted_event.structured_data.model_dump()

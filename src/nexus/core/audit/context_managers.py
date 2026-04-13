@@ -14,7 +14,14 @@ from nexus.core.audit.emitter import (
     workflow_id_context_var,
 )
 from nexus.core.audit.schemas import AuditContextData, BaseAuditData
-from nexus.core.audit.types import ActorType, AuditEvent, EventCategory
+from nexus.core.audit.types import (
+    ActorType,
+    AuditEvent,
+    EventCategory,
+    EventSeverity,
+    EventStatus,
+    escalate_severity,
+)
 
 _RESERVED_AUDIT_FIELDS = frozenset(BaseAuditData.model_fields.keys())
 
@@ -64,6 +71,7 @@ def audit_context(
     source_component: str,
     actor_id: UUID | None,
     actor_type: ActorType,
+    event_severity: EventSeverity = EventSeverity.INFO,
     **context_data: Any,  # noqa: ANN401
 ) -> Generator[None, None, None]:
     """Context manager for capturing audit events with additional context.
@@ -74,6 +82,9 @@ def audit_context(
         source_component: Component performing the action
         actor_id: The actor ID to associate with the audit event
         actor_type: Type of actor (user, system, service)
+        event_severity: Severity level of the audit event (defaults to INFO).
+            On exception, severity is escalated to at least ERROR; a
+            caller-declared CRITICAL severity is preserved.
         **context_data: Additional structured data for the event
 
     """
@@ -90,12 +101,13 @@ def audit_context(
 
         # Create success structured data
         success_data = AuditContextData(
-            status="success",
             **context_data,
         )
 
         event = AuditEvent(
             event_category=event_category,
+            event_severity=event_severity,
+            event_status=EventStatus.SUCCESS,
             event_action=event_action,
             event_message=f"Operation {event_action} completed successfully",
             source_component=source_component,
@@ -108,14 +120,19 @@ def audit_context(
     except Exception as e:
         # Create error structured data
         error_data = AuditContextData(
-            status="error",
             error_type=type(e).__name__,
             error_message="Look at the Operational Logs for full diagnosis",
             **context_data,
         )
 
+        # Escalate severity on exception: unexpected failures are at least ERROR,
+        # but a caller-declared CRITICAL severity is preserved (never downgraded).
+        error_severity = escalate_severity(event_severity, EventSeverity.ERROR)
+
         error_event = AuditEvent(
             event_category=event_category,
+            event_severity=error_severity,
+            event_status=EventStatus.ERROR,
             event_action=f"{event_action}_error",
             event_message=f"Operation {event_action} failed with {type(e).__name__}",
             source_component=source_component,

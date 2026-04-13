@@ -32,6 +32,43 @@ class EventCategory(StrEnum):
     SECURITY_EVENT = "security_event"
 
 
+class EventSeverity(StrEnum):
+    """Severity levels for audit events."""
+
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
+# Ordering for EventSeverity (StrEnum does not provide natural ordering).
+# Higher rank means more severe.
+_SEVERITY_RANK: dict[EventSeverity, int] = {
+    EventSeverity.INFO: 0,
+    EventSeverity.WARNING: 1,
+    EventSeverity.ERROR: 2,
+    EventSeverity.CRITICAL: 3,
+}
+
+
+def escalate_severity(current: EventSeverity, minimum: EventSeverity) -> EventSeverity:
+    """Return the more severe of ``current`` and ``minimum``.
+
+    Used to ensure audit events emitted from exception paths carry at least
+    ``minimum`` severity, without downgrading caller-declared severities that
+    are already higher (e.g. ``CRITICAL`` remains ``CRITICAL`` when escalating
+    to ``ERROR``).
+    """
+    return current if _SEVERITY_RANK[current] >= _SEVERITY_RANK[minimum] else minimum
+
+
+class EventStatus(StrEnum):
+    """Status of an audited operation."""
+
+    SUCCESS = "success"
+    ERROR = "error"
+
+
 class ActorType(StrEnum):
     """Types of actors that can perform audited actions."""
 
@@ -63,6 +100,8 @@ class AuditEvent(SQLModel):
     # Core identification
     event_id: UUID = Field(default_factory=uuid4, description="Unique identifier for the audit event")
     event_category: EventCategory = Field(description="Category of the audit event")
+    event_severity: EventSeverity = Field(default=EventSeverity.INFO, description="Severity level of the audit event")
+    event_status: EventStatus | None = Field(default=None, description="Status of the audited operation")
     event_action: str = Field(description="Specific action that occurred")
 
     # Temporal information
