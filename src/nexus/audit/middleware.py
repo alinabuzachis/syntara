@@ -17,20 +17,19 @@ from uuid import UUID
 import structlog
 
 from nexus.api.constants import EXCLUDED_PATHS
-from nexus.core.audit.emitter import (
+from nexus.audit.emitter import (
     emit_audit_event,
     execution_id_context_var,
     workflow_id_context_var,
 )
-from nexus.core.audit.schemas import RequestCompletedData
-from nexus.core.audit.types import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus, RequestCompletedData
 
 logger = structlog.stdlib.get_logger(__name__)
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-_SOURCE_COMPONENT = "nexus.core.audit.middleware"
+_SOURCE_COMPONENT = "nexus.audit.middleware"
 _MAX_PATH_LENGTH = 2048
 _CONTROL_CHAR_TABLE = str.maketrans("", "", "".join(chr(c) for c in (*range(0x20), 0x7F)))
 

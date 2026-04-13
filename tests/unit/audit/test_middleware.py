@@ -18,11 +18,10 @@ from uuid import UUID, uuid4
 import pytest
 
 from nexus.api.constants import EXCLUDED_PATHS
-from nexus.core.audit.middleware import AuditMiddleware
-from nexus.core.audit.schemas import RequestCompletedData
-from nexus.core.audit.types import AuditEvent, EventSeverity, EventStatus
+from nexus.audit.middleware import AuditMiddleware
+from nexus.audit.models import AuditEvent, EventSeverity, EventStatus, RequestCompletedData
 
-_EMIT_PATCH = "nexus.core.audit.emitter._do_emit_audit_event"
+_EMIT_PATCH = "nexus.audit.emitter._do_emit_audit_event"
 
 
 class _MockRole:
@@ -659,7 +658,7 @@ class TestAuditMiddlewareSourceComponent:
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
 
         events = _get_audit_events(mock_emit, "request_completed")
-        assert events[0].source_component == "nexus.core.audit.middleware"
+        assert events[0].source_component == "nexus.audit.middleware"
 
     @pytest.mark.asyncio
     async def test_source_component_on_exception(self) -> None:
@@ -749,7 +748,7 @@ class TestAuditMiddlewareContextIds:
             receive: Any,  # noqa: ANN401
             send: Any,  # noqa: ANN401
         ) -> None:
-            from nexus.core.audit.emitter import workflow_id_context_var
+            from nexus.audit.emitter import workflow_id_context_var
 
             workflow_id_context_var.set(wf_id)
             await send({"type": "http.response.start", "status": 200, "headers": []})
@@ -773,7 +772,7 @@ class TestAuditMiddlewareContextIds:
             receive: Any,  # noqa: ANN401
             send: Any,  # noqa: ANN401
         ) -> None:
-            from nexus.core.audit.emitter import workflow_id_context_var
+            from nexus.audit.emitter import workflow_id_context_var
 
             workflow_id_context_var.set(ctx_wf_id)
             await send({"type": "http.response.start", "status": 200, "headers": []})
@@ -1024,7 +1023,7 @@ class TestAuditMiddlewareErrorResilience:
         async def capture_send(message: MutableMapping[str, Any]) -> None:
             sent_messages.append(message)
 
-        emit_patch = "nexus.core.audit.middleware.emit_audit_event"
+        emit_patch = "nexus.audit.middleware.emit_audit_event"
         with patch(emit_patch, side_effect=RuntimeError("emit broken")):
             await middleware(_make_scope(), AsyncMock(), capture_send)
 
@@ -1037,10 +1036,10 @@ class TestAuditMiddlewareErrorResilience:
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app)
 
-        emit_patch = "nexus.core.audit.middleware.emit_audit_event"
+        emit_patch = "nexus.audit.middleware.emit_audit_event"
         with (
             patch(emit_patch, side_effect=RuntimeError("emit broken")),
-            patch("nexus.core.audit.middleware.logger") as mock_logger,
+            patch("nexus.audit.middleware.logger") as mock_logger,
         ):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())
             assert mock_logger.warning.call_count >= 1

@@ -21,7 +21,7 @@ from temporalio.service import RPCError
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
 import nexus.identity_providers.exceptions  # noqa: F401 - Side-effect import to trigger exception handler registration
 from nexus.api.constants import API_V1_PATH_PREFIX
-from nexus.core.audit.middleware import AuditMiddleware
+from nexus.audit.middleware import AuditMiddleware
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (

@@ -2,8 +2,8 @@
 
 import json
 
-from nexus.core.audit.schemas import AuditContextData, FunctionData
-from nexus.core.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
+from nexus.audit.models import AuditContextData, FunctionData
+from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
 
 
 class TestEnforcePayloadLimit:

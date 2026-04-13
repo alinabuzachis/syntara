@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from nexus.core.audit.emitter import (
+from nexus.audit.emitter import (
     _do_emit_audit_event,
     _get_current_actor_context,
     _sanitizer,
@@ -17,9 +17,8 @@ from nexus.core.audit.emitter import (
     execution_id_context_var,
     workflow_id_context_var,
 )
-from nexus.core.audit.sanitization import EventSanitizer
-from nexus.core.audit.schemas import AuditContextData, BaseAuditData
-from nexus.core.audit.types import ActorType, AuditEvent, EventCategory, EventStatus
+from nexus.audit.models import ActorType, AuditContextData, AuditEvent, BaseAuditData, EventCategory, EventStatus
+from nexus.audit.sanitization import EventSanitizer
 
 
 class TestEventCaptureContextMethods:
@@ -97,7 +96,7 @@ class TestEventCaptureSanitizerConfiguration:
 class TestEventCaptureEmitAuditEvent:
     """Test EventCapture.emit_audit_event method."""
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_basic(self, mock_do_emit: Mock) -> None:
         """Test basic audit event emission."""
         # Create test event
@@ -129,7 +128,7 @@ class TestEventCaptureEmitAuditEvent:
         assert call_args.event_message == "Test message"
         assert call_args.structured_data is not None
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_with_context_injection(self, mock_do_emit: Mock) -> None:
         """Test audit event emission with context injection."""
         test_actor_id = uuid4()
@@ -173,7 +172,7 @@ class TestEventCaptureEmitAuditEvent:
 
         ctx.run(test_in_context)
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_no_context_override(self, mock_do_emit: Mock) -> None:
         """Test that existing event values are not overridden by context."""
         event_actor_id = uuid4()
@@ -210,7 +209,7 @@ class TestEventCaptureEmitAuditEvent:
 
         ctx.run(test_in_context)
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_data_sanitization(self, mock_do_emit: Mock) -> None:
         """Test that structured_data is sanitized before emission."""
         # Create event with sensitive data
@@ -243,7 +242,7 @@ class TestEventCaptureEmitAuditEvent:
         assert context_data.email == "[EMAIL_REDACTED]"  # type: ignore[attr-defined]  # Should be sanitized
         assert context_data.normal_data == "safe_value"  # type: ignore[attr-defined]
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_comprehensive_sensitive_data_sanitization(self, mock_do_emit: Mock) -> None:
         """Test that all sensitive data patterns are properly sanitized."""
         # Create event with various types of sensitive data
@@ -388,7 +387,7 @@ class TestEventCaptureEmitAuditEvent:
             ("ssl_pem", "ssl_certificate_pem", "[REDACTED]", "pem with prefix"),
         ],
     )
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_field_redaction(
         self,
         mock_do_emit: Mock,
@@ -429,7 +428,7 @@ class TestEventCaptureEmitAuditEvent:
             f"for {test_description}, but got '{getattr(base_data, field_name)}'"
         )
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_empty_structured_data(self, mock_do_emit: Mock) -> None:
         """Test audit event emission with empty structured data."""
         # Create event with empty structured data
@@ -453,7 +452,7 @@ class TestEventCaptureEmitAuditEvent:
         base_data = event_obj.structured_data
         assert isinstance(base_data, BaseAuditData)
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_complex_structured_data(self, mock_do_emit: Mock) -> None:
         """Test audit event emission with complex nested structured data."""
         # Create event with complex structured data
@@ -503,7 +502,7 @@ class TestEventCaptureEmitAuditEvent:
 class TestEventCaptureDoEmitAuditEvent:
     """Test EventCapture._do_emit_audit_event method."""
 
-    @patch("nexus.core.audit.emitter.audit_logger")
+    @patch("nexus.audit.emitter.audit_logger")
     def test_do_emit_audit_event_logger_setup(self, mock_audit_logger: Mock) -> None:
         """Test that _do_emit_audit_event uses the audit logger correctly."""
         # Create test event
@@ -524,7 +523,7 @@ class TestEventCaptureDoEmitAuditEvent:
         expected_data = test_event.model_dump(mode="json")
         mock_audit_logger.info.assert_called_once_with("audit_event", **expected_data)
 
-    @patch("nexus.core.audit.emitter.audit_logger")
+    @patch("nexus.audit.emitter.audit_logger")
     def test_do_emit_audit_event_with_all_fields(self, mock_audit_logger: Mock) -> None:
         """Test _do_emit_audit_event with all possible fields."""
         actor_id = uuid4()
@@ -568,7 +567,7 @@ class TestEventCaptureDoEmitAuditEvent:
         assert kwargs["structured_data"]["workflow_name"] == "test_workflow"
         assert kwargs["structured_data"]["input_params"] == {"param1": "value1"}
 
-    @patch("nexus.core.audit.emitter.audit_logger")
+    @patch("nexus.audit.emitter.audit_logger")
     def test_do_emit_audit_event_minimal_fields(self, mock_audit_logger: Mock) -> None:
         """Test _do_emit_audit_event with minimal required fields."""
         test_event = AuditEvent(
@@ -594,7 +593,7 @@ class TestEventCaptureDoEmitAuditEvent:
 class TestEventCaptureIntegration:
     """Integration tests for EventCapture functionality."""
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_full_emission_flow(self, mock_do_emit: Mock) -> None:
         """Test the complete flow from event creation to emission."""
         test_actor_id = uuid4()
@@ -656,7 +655,7 @@ class TestEventCaptureIntegration:
 
         ctx.run(test_in_context)
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_multiple_events_emission(self, mock_do_emit: Mock) -> None:
         """Test emitting multiple events in sequence."""
         # Create and emit multiple events

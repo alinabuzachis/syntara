@@ -6,9 +6,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from nexus.core.audit.decorators import track_event
-from nexus.core.audit.schemas import FunctionData
-from nexus.core.audit.types import ActorContext, ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
+from nexus.audit.actor_extractor import ActorContext
+from nexus.audit.decorators import track_event
+from nexus.audit.models import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus, FunctionData
 
 
 def _assert_audit_event_fields(
@@ -65,7 +65,7 @@ class TestTrackEventDecorator:
         def test_function() -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             result = test_function()
 
             assert result == "success"
@@ -78,7 +78,7 @@ class TestTrackEventDecorator:
                 EventCategory.USER_ACTION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
             )
 
@@ -89,7 +89,7 @@ class TestTrackEventDecorator:
         def test_function() -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function()
 
             # Verify all AuditEvent fields are correctly populated
@@ -110,7 +110,7 @@ class TestTrackEventDecorator:
         def test_function(arg1: str, arg2: int, kwarg1: str = "default") -> str:
             return f"{arg1}-{arg2}-{kwarg1}"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             result = test_function("test", 42, kwarg1="custom")
 
             assert result == "test-42-custom"
@@ -122,7 +122,7 @@ class TestTrackEventDecorator:
                 EventCategory.USER_ACTION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
             )
 
@@ -138,7 +138,7 @@ class TestTrackEventDecorator:
         def test_function(arg1: str, arg2: int) -> str:
             return f"{arg1}-{arg2}"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function("test", 42)
 
             # Verify all AuditEvent fields are correctly populated
@@ -148,7 +148,7 @@ class TestTrackEventDecorator:
                 EventCategory.USER_ACTION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
             )
 
@@ -167,7 +167,7 @@ class TestTrackEventDecorator:
         def test_function(value: str) -> dict[str, str]:
             return {"result": value}
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             result = test_function("test")
 
             assert result == {"result": "test"}
@@ -179,7 +179,7 @@ class TestTrackEventDecorator:
                 EventCategory.USER_ACTION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
             )
 
@@ -199,7 +199,7 @@ class TestTrackEventDecorator:
         def test_function(user_id: UUID) -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function(user_id)
 
             # Verify all AuditEvent fields are correctly populated
@@ -209,7 +209,7 @@ class TestTrackEventDecorator:
                 EventCategory.USER_ACTION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
                 expected_actor_id=user_id,
                 expected_actor_type=ActorType.USER,
@@ -223,7 +223,7 @@ class TestTrackEventDecorator:
         def test_function(admin_id: UUID, other_param: str) -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function(admin_id, "other")
 
             # Verify all AuditEvent fields are correctly populated
@@ -233,7 +233,7 @@ class TestTrackEventDecorator:
                 EventCategory.SYSTEM_OPERATION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
                 expected_actor_id=admin_id,
                 expected_actor_type=ActorType.USER,
@@ -248,7 +248,7 @@ class TestTrackEventDecorator:
         def test_function() -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function()
 
             # Verify all AuditEvent fields are correctly populated
@@ -258,7 +258,7 @@ class TestTrackEventDecorator:
                 EventCategory.SYSTEM_OPERATION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
                 expected_actor_id=fallback_id,
                 expected_actor_type=ActorType.SYSTEM,
@@ -271,7 +271,7 @@ class TestTrackEventDecorator:
         def test_function() -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function()
 
             # Verify all AuditEvent fields are correctly populated
@@ -281,7 +281,7 @@ class TestTrackEventDecorator:
                 EventCategory.SYSTEM_OPERATION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
             )
 
@@ -295,7 +295,7 @@ class TestTrackEventDecorator:
                 raise ValueError(error_msg)
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             # Test successful execution first
             result = test_function(should_fail=False)
             assert result == "success"
@@ -316,7 +316,7 @@ class TestTrackEventDecorator:
                 EventCategory.USER_ACTION,
                 EventSeverity.ERROR,
                 "test_function_error",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function failed with ValueError",
                 expected_status=EventStatus.ERROR,
             )
@@ -335,7 +335,7 @@ class TestTrackEventDecorator:
             error_msg = "Function failed"
             raise RuntimeError(error_msg)
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             with pytest.raises(RuntimeError):
                 test_function("test", 42)
 
@@ -347,7 +347,7 @@ class TestTrackEventDecorator:
                 EventCategory.USER_ACTION,
                 EventSeverity.ERROR,
                 "test_function_error",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function failed with RuntimeError",
                 expected_status=EventStatus.ERROR,
             )
@@ -369,7 +369,7 @@ class TestTrackEventDecorator:
             return f"async_{value}"
 
         async def run_test() -> None:
-            with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+            with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
                 result = await async_function("test")
 
                 assert result == "async_test"
@@ -382,7 +382,7 @@ class TestTrackEventDecorator:
                     EventCategory.USER_ACTION,
                     EventSeverity.INFO,
                     "async_function",
-                    "tests.unit.core.audit.test_decorators",
+                    "tests.unit.audit.test_decorators",
                     "Function async_function executed successfully",
                 )
 
@@ -398,8 +398,8 @@ class TestTrackEventDecorator:
 
         # Mock inspect.signature to raise an exception
         with (
-            patch("nexus.core.audit.decorators.inspect.signature") as mock_signature,
-            patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit,
+            patch("nexus.audit.decorators.inspect.signature") as mock_signature,
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit,
         ):
             mock_signature.side_effect = TypeError("Signature failed")
             test_function("arg1", "arg2")
@@ -411,7 +411,7 @@ class TestTrackEventDecorator:
                 EventCategory.USER_ACTION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
             )
 
@@ -424,7 +424,7 @@ class TestTrackEventDecorator:
 
     def test_track_event_context_variable_injection(self) -> None:
         """Test that context variables are properly injected into events."""
-        from nexus.core.audit.emitter import (
+        from nexus.audit.emitter import (
             activity_id_context_var,
             actor_id_context_var,
             actor_type_context_var,
@@ -449,7 +449,7 @@ class TestTrackEventDecorator:
         token_execution_id = execution_id_context_var.set(execution_id)
 
         try:
-            with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+            with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
                 test_function()
 
                 # Verify all AuditEvent fields with context variable injection
@@ -459,7 +459,7 @@ class TestTrackEventDecorator:
                     EventCategory.USER_ACTION,
                     EventSeverity.INFO,
                     "test_function",
-                    "tests.unit.core.audit.test_decorators",
+                    "tests.unit.audit.test_decorators",
                     "Function test_function executed successfully",
                     expected_actor_id=user_id,
                     expected_actor_type=ActorType.USER,
@@ -487,7 +487,7 @@ class TestTrackEventEdgeCases:
         def double_decorated_function() -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             result = double_decorated_function()
 
             assert result == "success"
@@ -520,7 +520,7 @@ class TestTrackEventEdgeCases:
         def comprehensive_function(admin_user: str, data: dict[str, str]) -> dict[str, dict[str, str]]:
             return {"processed": data}
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             result = comprehensive_function("admin", {"key": "value"})
 
             assert result == {"processed": {"key": "value"}}
@@ -556,7 +556,7 @@ class TestTrackEventEdgeCases:
         def test_function(current_user: Mock) -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function(current_user=user)
 
             # Verify all AuditEvent fields are correctly populated
@@ -566,7 +566,7 @@ class TestTrackEventEdgeCases:
                 EventCategory.USER_ACTION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
                 expected_actor_id=user_id,
                 expected_actor_type=ActorType.USER,
@@ -579,7 +579,7 @@ class TestTrackEventEdgeCases:
         def test_function(password: str, username: str) -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function(password="secret123", username="testuser")  # noqa: S106
 
             # Verify all AuditEvent fields are correctly populated
@@ -589,7 +589,7 @@ class TestTrackEventEdgeCases:
                 EventCategory.USER_ACTION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
             )
 
@@ -609,7 +609,7 @@ class TestTrackEventEdgeCases:
             await asyncio.sleep(0)  # Simulate async operation
             return f"processed_{value}"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             result = await async_function("test_data")
 
             assert result == "processed_test_data"
@@ -632,7 +632,7 @@ class TestTrackEventEdgeCases:
             error_msg = "Async function error"
             raise ValueError(error_msg)
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             with pytest.raises(ValueError, match="Async function error"):
                 await async_function_with_error("test")
 
@@ -658,7 +658,7 @@ class TestTrackEventEdgeCases:
         def test_function(username: str, password: str, action: str, token: str) -> str:
             return f"{username} performed {action}"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function("john", "secret123", "login", "abc123")
 
             event_obj = mock_emit.call_args[0][0]
@@ -689,7 +689,7 @@ class TestTrackEventEdgeCases:
                 "metadata": {"internal": "data"},
             }
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function()
 
             event_obj = mock_emit.call_args[0][0]
@@ -721,7 +721,7 @@ class TestTrackEventEdgeCases:
         def test_function() -> UserResult:
             return UserResult()
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function()
 
             event_obj = mock_emit.call_args[0][0]
@@ -745,7 +745,7 @@ class TestTrackEventEdgeCases:
         def test_function(username: str, password: str) -> dict[str, str]:
             return {"result": "data", "sensitive": "info"}
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function("john", "secret")
 
             event_obj = mock_emit.call_args[0][0]
@@ -767,8 +767,8 @@ class TestTrackEventEdgeCases:
 
         # Mock inspect.signature to raise an error
         with (
-            patch("nexus.core.audit.decorators.inspect.signature", side_effect=TypeError("Mock error")),
-            patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit,
+            patch("nexus.audit.decorators.inspect.signature", side_effect=TypeError("Mock error")),
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit,
         ):
             test_function("arg1", "arg2", kwarg1="value1")
 
@@ -787,7 +787,7 @@ class TestTrackEventEdgeCases:
         def test_function(username: str, safe_param: str) -> dict[str, str]:
             return {"result": "data", "status": "success"}
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function("john", "safe_value")
 
             event_obj = mock_emit.call_args[0][0]
@@ -823,7 +823,7 @@ class TestTrackEventEdgeCases:
 
         events_captured.clear()
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             mock_emit.side_effect = capture_event
 
             # Test async function - event should be emitted AFTER execution
@@ -858,7 +858,7 @@ class TestTrackEventEdgeCases:
         """Test that async functions properly clean up context variables."""
         import asyncio
 
-        from nexus.core.audit.emitter import actor_id_context_var, actor_type_context_var
+        from nexus.audit.emitter import actor_id_context_var, actor_type_context_var
 
         @track_event(EventCategory.USER_ACTION)
         async def async_function() -> str:
@@ -880,7 +880,7 @@ class TestTrackEventEdgeCases:
         except LookupError:
             pass
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             await async_function()
 
         # Verify emitted event has SYSTEM actor_type
@@ -909,7 +909,7 @@ class TestTrackEventEdgeCases:
         def test_function() -> str:
             return "Hello World"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             result = test_function()
 
             assert result == "Hello World"
@@ -928,7 +928,7 @@ class TestTrackEventEdgeCases:
         def test_function() -> str:
             return "Hello World"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             result = test_function()
 
             assert result == "Hello World"
@@ -948,8 +948,8 @@ class TestTrackEventEdgeCases:
             return "Hello World"
 
         with (
-            patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit,
-            patch("nexus.core.audit.decorators.logger") as mock_logger,
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit,
+            patch("nexus.audit.decorators.logger") as mock_logger,
         ):
             result = test_function()
 
@@ -981,7 +981,7 @@ class TestTrackEventSanitizationAndTruncation:
         def test_function(user_password: str, username: str) -> str:
             return "ok"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function("super_secret_123", "alice")
 
             event_obj = mock_emit.call_args[0][0]
@@ -1003,7 +1003,7 @@ class TestTrackEventSanitizationAndTruncation:
             # Return a payload that exceeds DEFAULT_MAX_PAYLOAD_BYTES (10,000)
             return {"large_value": "x" * 20_000}
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function()
 
             event_obj = mock_emit.call_args[0][0]
@@ -1026,7 +1026,7 @@ class TestEventSeverity:
         def test_function() -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function()
 
             event_obj = mock_emit.call_args[0][0]
@@ -1035,7 +1035,7 @@ class TestEventSeverity:
                 EventCategory.USER_ACTION,
                 EventSeverity.INFO,
                 "test_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function executed successfully",
             )
 
@@ -1056,7 +1056,7 @@ class TestEventSeverity:
         def test_function() -> str:
             return "success"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             test_function()
 
             event_obj = mock_emit.call_args[0][0]
@@ -1065,7 +1065,7 @@ class TestEventSeverity:
                 category,
                 severity,
                 expected_action,
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 f"Function {expected_action} executed successfully",
             )
 
@@ -1091,7 +1091,7 @@ class TestEventSeverity:
             error_msg = "Test error"
             raise RuntimeError(error_msg)
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             with pytest.raises(RuntimeError):
                 test_function()
 
@@ -1101,7 +1101,7 @@ class TestEventSeverity:
                 EventCategory.USER_ACTION,
                 expected_error_severity,
                 "test_function_error",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function failed with RuntimeError",
                 expected_status=EventStatus.ERROR,
             )
@@ -1115,7 +1115,7 @@ class TestEventSeverity:
             await asyncio.sleep(0)
             return "async_result"
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             result = await async_function()
 
             assert result == "async_result"
@@ -1125,7 +1125,7 @@ class TestEventSeverity:
                 EventCategory.LLM_INTERACTION,
                 EventSeverity.ERROR,
                 "async_function",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function async_function executed successfully",
             )
 
@@ -1150,7 +1150,7 @@ class TestEventSeverity:
             error_msg = "Test error"
             raise RuntimeError(error_msg)
 
-        with patch("nexus.core.audit.emitter._do_emit_audit_event") as mock_emit:
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             with pytest.raises(RuntimeError):
                 await test_function()
 
@@ -1160,7 +1160,7 @@ class TestEventSeverity:
                 EventCategory.USER_ACTION,
                 expected_error_severity,
                 "test_function_error",
-                "tests.unit.core.audit.test_decorators",
+                "tests.unit.audit.test_decorators",
                 "Function test_function failed with RuntimeError",
                 expected_status=EventStatus.ERROR,
             )

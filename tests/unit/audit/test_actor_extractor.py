@@ -4,14 +4,15 @@ import inspect
 from unittest.mock import Mock
 from uuid import UUID, uuid4
 
-from nexus.core.audit.actor_extractor import (
+from nexus.audit.actor_extractor import (
+    ActorContext,
     _auto_detect_actor_params,
     _convert_to_actor_context,
     _extract_from_param,
     _try_fastapi_dependency_extraction,
     extract_actor_context,
 )
-from nexus.core.audit.types import ActorContext, ActorType
+from nexus.audit.models import ActorType
 
 
 class TestActorExtractorFastApiDependencyExtraction:

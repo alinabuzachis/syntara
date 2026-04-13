@@ -1,17 +1,25 @@
 """Actor context extraction utilities for audit decorators."""
 
 import inspect
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
 import structlog
 
-from nexus.core.audit.emitter import actor_id_context_var, actor_type_context_var
-from nexus.core.audit.types import ActorContext, ActorType
+from nexus.audit.constants import UNKNOWN
+from nexus.audit.emitter import actor_id_context_var, actor_type_context_var
+from nexus.audit.models import ActorType
 
 logger = structlog.stdlib.get_logger(__name__)
 
-_UNKNOWN = "<unknown>"
+
+@dataclass
+class ActorContext:
+    """Result of actor extraction containing actor information."""
+
+    actor_id: UUID | None
+    actor_type: ActorType = ActorType.USER
 
 
 def _try_fastapi_dependency_extraction(kwargs: dict[str, Any]) -> ActorContext | None:
@@ -54,8 +62,8 @@ def _auto_detect_actor_params(
     signature: inspect.Signature,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
-    func_name: str = _UNKNOWN,
-    func_module: str = _UNKNOWN,
+    func_name: str = UNKNOWN,
+    func_module: str = UNKNOWN,
 ) -> ActorContext | None:
     """Auto-detect actor from common parameter patterns.
 
@@ -89,8 +97,8 @@ def _auto_detect_actor_params(
 
 def _convert_to_actor_context(
     value: Any,  # noqa: ANN401
-    func_name: str = _UNKNOWN,
-    func_module: str = _UNKNOWN,
+    func_name: str = UNKNOWN,
+    func_module: str = UNKNOWN,
 ) -> ActorContext:
     """Convert various value types to ActorContext."""
     if isinstance(value, ActorContext):
@@ -132,8 +140,8 @@ def extract_actor_context(
     kwargs: dict[str, Any],
     actor_param: str | None = None,
     actor_fallback: ActorContext | None = None,
-    func_name: str = _UNKNOWN,
-    func_module: str = _UNKNOWN,
+    func_name: str = UNKNOWN,
+    func_module: str = UNKNOWN,
 ) -> ActorContext:
     """Extract actor context using multiple fallback strategies."""
     # Strategy 1: Use existing context variable (highest priority)

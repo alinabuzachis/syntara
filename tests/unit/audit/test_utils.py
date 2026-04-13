@@ -1,10 +1,11 @@
-"""Unit tests for audit types and helpers."""
+"""Unit tests for audit utilities."""
 
 import itertools
 
 import pytest
 
-from nexus.core.audit.types import EventSeverity, escalate_severity
+from nexus.audit.models import EventSeverity
+from nexus.audit.utils import escalate_severity
 
 
 class TestEscalateSeverity:

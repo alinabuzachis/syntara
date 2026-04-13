@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from typing import Any
 from uuid import UUID
 
-from nexus.core.audit.emitter import (
+from nexus.audit.emitter import (
     activity_id_context_var,
     actor_id_context_var,
     actor_type_context_var,
@@ -13,15 +13,16 @@ from nexus.core.audit.emitter import (
     execution_id_context_var,
     workflow_id_context_var,
 )
-from nexus.core.audit.schemas import AuditContextData, BaseAuditData
-from nexus.core.audit.types import (
+from nexus.audit.models import (
     ActorType,
+    AuditContextData,
     AuditEvent,
+    BaseAuditData,
     EventCategory,
     EventSeverity,
     EventStatus,
-    escalate_severity,
 )
+from nexus.audit.utils import escalate_severity
 
 _RESERVED_AUDIT_FIELDS = frozenset(BaseAuditData.model_fields.keys())
 

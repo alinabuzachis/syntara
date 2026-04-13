@@ -10,22 +10,20 @@ from uuid import UUID
 
 import structlog
 
-from nexus.core.audit.actor_extractor import extract_actor_context
-from nexus.core.audit.emitter import actor_id_context_var, actor_type_context_var, emit_audit_event
-from nexus.core.audit.schemas import FunctionData
-from nexus.core.audit.types import (
-    ActorContext,
+from nexus.audit.actor_extractor import ActorContext, extract_actor_context
+from nexus.audit.constants import UNKNOWN
+from nexus.audit.emitter import actor_id_context_var, actor_type_context_var, emit_audit_event
+from nexus.audit.models import (
     ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
-    escalate_severity,
+    FunctionData,
 )
+from nexus.audit.utils import escalate_severity
 
 logger = structlog.stdlib.get_logger(__name__)
-
-_UNKNOWN = "<unknown>"
 
 
 @dataclass
@@ -49,8 +47,8 @@ def _capture_function_arguments(
     kwargs: dict[str, Any],
     *,
     capture_args: bool | set[str],
-    func_name: str = _UNKNOWN,
-    func_module: str = _UNKNOWN,
+    func_name: str = UNKNOWN,
+    func_module: str = UNKNOWN,
 ) -> dict[str, Any]:
     """Capture function arguments for audit logging.
 

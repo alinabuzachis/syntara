@@ -4,16 +4,16 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from nexus.core.audit.sanitization import (
+from nexus.audit.models import (
+    AuditContextData,
+    BaseAuditData,
+    FunctionData,
+)
+from nexus.audit.sanitization import (
     EventSanitizer,
     PIIDetector,
     redact_by_partial_key,
     redact_email,
-)
-from nexus.core.audit.schemas import (
-    AuditContextData,
-    BaseAuditData,
-    FunctionData,
 )
 
 

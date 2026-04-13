@@ -6,9 +6,9 @@ from uuid import UUID
 
 import structlog
 
-from nexus.core.audit.sanitization import EventSanitizer, redact_by_partial_key, redact_email
-from nexus.core.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
-from nexus.core.audit.types import ActorType, AuditEvent
+from nexus.audit.models import ActorType, AuditEvent
+from nexus.audit.sanitization import EventSanitizer, redact_by_partial_key, redact_email
+from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
 
 audit_logger = structlog.stdlib.get_logger("nexus.audit")
 

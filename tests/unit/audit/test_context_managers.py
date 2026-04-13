@@ -6,17 +6,24 @@ from uuid import uuid4
 
 import pytest
 
-from nexus.core.audit.context_managers import actor_context, audit_context
-from nexus.core.audit.decorators import track_event
-from nexus.core.audit.emitter import (
+from nexus.audit.context_managers import actor_context, audit_context
+from nexus.audit.decorators import track_event
+from nexus.audit.emitter import (
     activity_id_context_var,
     actor_id_context_var,
     actor_type_context_var,
     execution_id_context_var,
     workflow_id_context_var,
 )
-from nexus.core.audit.schemas import AuditContextData, FunctionData
-from nexus.core.audit.types import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models import (
+    ActorType,
+    AuditContextData,
+    AuditEvent,
+    EventCategory,
+    EventSeverity,
+    EventStatus,
+    FunctionData,
+)
 
 
 class TestActorContext:
@@ -108,7 +115,7 @@ class TestActorContext:
 class TestAuditContext:
     """Test the audit_context context manager."""
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_audit_context_success_emits_audit_event(self, mock_emit: Mock) -> None:
         """Test that audit_context emits success event when no exception occurs."""
         # Arrange
@@ -146,7 +153,7 @@ class TestAuditContext:
         structured_dict = emitted_event.structured_data.model_dump()
         assert structured_dict["test_field"] == "test_value"
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_audit_context_error_emits_error_event(self, mock_emit: Mock) -> None:
         """Test that audit_context emits error event when exception occurs."""
         # Arrange
@@ -188,7 +195,7 @@ class TestAuditContext:
         structured_dict = emitted_event.structured_data.model_dump()
         assert structured_dict["test_field"] == "test_value"
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_audit_context_with_no_context_data(self, mock_emit: Mock) -> None:
         """Test audit_context with no additional context data."""
         # Act
@@ -256,7 +263,7 @@ class TestAuditContext:
             (EventSeverity.CRITICAL, EventCategory.SYSTEM_OPERATION, "critical_operation", "critical.module"),
         ],
     )
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_audit_context_custom_severity_success(
         self, mock_emit: Mock, severity: EventSeverity, category: EventCategory, action: str, source_component: str
     ) -> None:
@@ -319,7 +326,7 @@ class TestAuditContext:
             ),
         ],
     )
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_audit_context_severity_escalated_on_exception(
         self,
         mock_emit: Mock,
@@ -360,7 +367,7 @@ class TestAuditContext:
 class TestContextManagersWithTrackEventDecorator:
     """Test context managers working with @track_event decorator."""
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_actor_context_with_track_event_decorator(self, mock_emit: Mock) -> None:
         """Test that actor_context provides context for @track_event decorated function."""
         # Arrange
@@ -384,8 +391,8 @@ class TestContextManagersWithTrackEventDecorator:
         assert isinstance(emitted_event.structured_data, FunctionData)
         assert emitted_event.structured_data.function_args == {"param1": "test_value"}
 
-    @patch("nexus.core.audit.decorators.emit_audit_event")  # intercepts decorator's emit call
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")  # intercepts context manager's final emit
+    @patch("nexus.audit.decorators.emit_audit_event")  # intercepts decorator's emit call
+    @patch("nexus.audit.emitter._do_emit_audit_event")  # intercepts context manager's final emit
     def test_audit_context_with_track_event_decorator_success(
         self, mock_context_emit: Mock, mock_decorator_emit: Mock
     ) -> None:
@@ -426,8 +433,8 @@ class TestContextManagersWithTrackEventDecorator:
         assert context_event.actor_type == ActorType.USER
         assert context_event.event_status == EventStatus.SUCCESS
 
-    @patch("nexus.core.audit.decorators.emit_audit_event")  # intercepts decorator's emit call
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")  # intercepts context manager's final emit
+    @patch("nexus.audit.decorators.emit_audit_event")  # intercepts decorator's emit call
+    @patch("nexus.audit.emitter._do_emit_audit_event")  # intercepts context manager's final emit
     def test_audit_context_with_track_event_decorator_error(
         self, mock_context_emit: Mock, mock_decorator_emit: Mock
     ) -> None:
@@ -471,7 +478,7 @@ class TestContextManagersWithTrackEventDecorator:
         assert context_event.event_status == EventStatus.ERROR
         assert context_event.structured_data.error_type == "RuntimeError"
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_nested_context_managers_with_track_event(self, mock_emit: Mock) -> None:
         """Test nested actor_context and audit_context with @track_event decorator."""
         # Arrange
@@ -501,7 +508,7 @@ class TestContextManagersWithTrackEventDecorator:
         assert isinstance(emitted_event.structured_data, FunctionData)
         assert emitted_event.structured_data.function_result == {"result": "processed_test_data"}
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_async_function_with_actor_context(self, mock_emit: Mock) -> None:
         """Test actor_context with async @track_event decorated function."""
         # Arrange
@@ -533,7 +540,7 @@ class TestContextManagersWithTrackEventDecorator:
 class TestActorContextSanitizationAndTruncation:
     """Test that events emitted within actor_context have sanitized and truncated payloads."""
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_actor_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock) -> None:
         """Test that sensitive data in captured arguments is redacted when using actor_context."""
         test_actor_id = uuid4()
@@ -556,7 +563,7 @@ class TestActorContextSanitizationAndTruncation:
         # Non-sensitive field should be preserved
         assert function_data.function_args["name"] == "alice"
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_actor_context_emitted_event_has_truncated_payload(self, mock_emit: Mock) -> None:
         """Test that oversized captured results are truncated when using actor_context."""
         test_actor_id = uuid4()
@@ -581,7 +588,7 @@ class TestActorContextSanitizationAndTruncation:
 class TestAuditContextSanitizationAndTruncation:
     """Test that events emitted by audit_context have sanitized and truncated payloads."""
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_audit_context_emitted_event_has_sanitized_payload(self, mock_emit: Mock) -> None:
         """Test that sensitive data in context_data is redacted by audit_context."""
         with audit_context(
@@ -606,7 +613,7 @@ class TestAuditContextSanitizationAndTruncation:
         # Non-sensitive field should be preserved
         assert structured_dict["username"] == "alice"
 
-    @patch("nexus.core.audit.emitter._do_emit_audit_event")
+    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_audit_context_emitted_event_has_truncated_payload(self, mock_emit: Mock) -> None:
         """Test that oversized context_data is truncated by audit_context."""
         with audit_context(

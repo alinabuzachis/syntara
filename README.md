@@ -30,6 +30,7 @@ src/
 └── nexus/
     ├── agent_orchestrator/    # Agent lifecycle management and request routing
     ├── api/                   # Legacy FastAPI routes (favour use of "domains")
+    ├── audit/                 # Audit event tracking for system activities and user actions
     ├── core/                  # Base models, router discovery, database, utilities
     ├── example/               # Example implementations and WebSocket demos
     ├── files/                 # File management and document processing
@@ -47,6 +48,7 @@ Each domain represents a set of related functionality and follows a consistent s
 
 **Current domains:**
 - **agent_orchestrator** - Manages agent lifecycle and routing requests to appropriate agents
+- **audit** - Audit event tracking for system activities and user actions
 - **files** - File management and storage operations
 - **invocations** - Agent invocation tracking and execution history
 - **tool_manager** - Tool provider interfaces and configuration
