@@ -82,7 +82,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/credential-types': {
+  '/credential_types': {
     parameters: {
       query?: never
       header?: never
@@ -103,7 +103,7 @@ export interface paths {
     patch?: never
     trace?: never
   }
-  '/credential-types/{credential_type_id}': {
+  '/credential_types/{credential_type_id}': {
     parameters: {
       query?: never
       header?: never

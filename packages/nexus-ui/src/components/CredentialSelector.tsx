@@ -77,7 +77,7 @@ interface TypeGroup {
  * Fetches credentials from the API with optional type filtering.
  * Credentials are grouped by credential type when type data is available.
  */
- 
+
 export function CredentialSelector({
   value,
   onChange,
@@ -95,7 +95,7 @@ export function CredentialSelector({
 
   const { data, isPending, isError, refetch } = credentialsClient.useQuery('get', '/credentials')
 
-  const { data: typesData } = credentialsClient.useQuery('get', '/credential-types')
+  const { data: typesData } = credentialsClient.useQuery('get', '/credential_types')
 
   const allCredentials: Credential[] = useMemo(() => data?.resources ?? [], [data?.resources])
   const credentialTypes: CredentialType[] = useMemo(() => typesData?.resources ?? [], [typesData?.resources])

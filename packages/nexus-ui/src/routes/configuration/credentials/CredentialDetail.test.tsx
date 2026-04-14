@@ -87,7 +87,7 @@ function mockQuery(
         refetch: vi.fn(),
       }
     }
-    if (path === '/credential-types/{credential_type_id}') {
+    if (path === '/credential_types/{credential_type_id}') {
       return {
         data: credentialType,
         isLoading: false,

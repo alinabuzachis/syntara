@@ -1655,7 +1655,7 @@ export const handlers = [
     return HttpResponse.json(credentialWorkflows[credential_id] ?? [])
   }),
 
-  http.get('/api/v1/credential-types', ({ request }) => {
+  http.get('/api/v1/credential_types', ({ request }) => {
     const url = new URL(request.url)
     const cursor = url.searchParams.get('cursor')
     const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
@@ -1665,7 +1665,7 @@ export const handlers = [
     return HttpResponse.json(paginate(credentialTypes, cursor, limit, includeTotal))
   }),
 
-  http.get('/api/v1/credential-types/:credential_type_id', (request) => {
+  http.get('/api/v1/credential_types/:credential_type_id', (request) => {
     const { credential_type_id } = request.params as { credential_type_id: string }
     const credType = credentialTypes.find((t) => t.id === credential_type_id)
     if (!credType) {

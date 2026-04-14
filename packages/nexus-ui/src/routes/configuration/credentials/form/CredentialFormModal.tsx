@@ -107,7 +107,7 @@ export function CredentialFormModal({
   const inputs = watch('inputs')
 
   // Fetch credential types
-  const typesQuery = credentialsClient.useQuery('get', '/credential-types')
+  const typesQuery = credentialsClient.useQuery('get', '/credential_types')
   const types = useMemo(() => typesQuery.data?.resources ?? [], [typesQuery.data])
 
   // Selected type

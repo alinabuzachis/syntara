@@ -66,7 +66,7 @@ export default function CredentialDetail() {
   // Fetch credential type
   const typeQuery = credentialsClient.useQuery(
     'get',
-    '/credential-types/{credential_type_id}',
+    '/credential_types/{credential_type_id}',
     { params: { path: { credential_type_id: credential?.credential_type_id ?? '' } } },
     { enabled: !!credential?.credential_type_id }
   )

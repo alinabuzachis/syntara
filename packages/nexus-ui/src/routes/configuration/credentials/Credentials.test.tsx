@@ -85,7 +85,7 @@ function mockQuery(resources: typeof mockCredentials, workflowsOverride?: { data
         refetch: vi.fn(),
       }
     }
-    if (path === '/credential-types') {
+    if (path === '/credential_types') {
       return { data: { resources: mockTypes }, isLoading: false, error: null }
     }
     if (path === '/credentials/{credential_id}/workflows') {
@@ -360,7 +360,7 @@ describe('Credentials', () => {
           refetch: vi.fn(),
         }
       }
-      if (path === '/credential-types') {
+      if (path === '/credential_types') {
         return { data: { resources: mockTypes }, isLoading: false, error: null }
       }
       return { data: null, isLoading: false, error: null }

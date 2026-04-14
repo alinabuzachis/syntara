@@ -128,7 +128,7 @@ function mockUseQuery(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vi.mocked(credentialsClient.useQuery).mockImplementation((_method: string, path: string): any => {
-    if (path === '/credential-types') {
+    if (path === '/credential_types') {
       return typesResponse
     }
     return credentialsResponse
@@ -354,7 +354,7 @@ describe('CredentialSelector', () => {
       mockUseQuery()
       renderSelector()
 
-      expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credential-types')
+      expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credential_types')
     })
   })
 

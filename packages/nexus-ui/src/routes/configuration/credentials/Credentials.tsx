@@ -63,7 +63,7 @@ export default function Credentials() {
   const hasActiveFilters = filters.length > 0
 
   // Fetch credential types for type name lookup
-  const typesQuery = credentialsClient.useQuery('get', '/credential-types')
+  const typesQuery = credentialsClient.useQuery('get', '/credential_types')
   const typeMap = useMemo(() => {
     const map = new Map<string, CredentialType>()
     for (const t of typesQuery.data?.resources ?? []) {
