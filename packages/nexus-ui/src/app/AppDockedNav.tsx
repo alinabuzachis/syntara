@@ -167,29 +167,7 @@ function UserMenuDropdown() {
       aria-label="User menu"
       style={{ padding: 0 }}
     >
-      <span
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 'var(--pf-t--global--spacer--xs)',
-        }}
-      >
-        <RhUiProfileFillIcon />
-        {username ? (
-          <span
-            style={{
-              fontSize: 'var(--pf-t--global--font--size--xs)',
-              maxWidth: '100%',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {username}
-          </span>
-        ) : null}
-      </span>
+      <RhUiProfileFillIcon />
     </MenuToggle>
   )
 
@@ -202,6 +180,11 @@ function UserMenuDropdown() {
         popperProps={{ position: 'right', preventOverflow: true }}
       >
         <DropdownList>
+          {username && (
+            <DropdownItem key="username" isDisabled style={{ fontWeight: 'bold', opacity: 1 }}>
+              {username}
+            </DropdownItem>
+          )}
           <DropdownItem
             key="profile"
             onClick={() => {
