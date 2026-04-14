@@ -11,7 +11,28 @@ from uuid import UUID
 import httpx
 import structlog
 
+from nexus.auth import create_service_token
+
 logger = structlog.stdlib.get_logger(__name__)
+
+_SIGNAL_HTTP_TIMEOUT_SECONDS = 10.0
+
+
+async def _post_signal(callback_url: str, payload: dict[str, Any], invocation_id: UUID) -> None:
+    """POST a signal payload to a callback URL with service auth."""
+    token = create_service_token()
+    async with httpx.AsyncClient(timeout=_SIGNAL_HTTP_TIMEOUT_SECONDS) as client:
+        response = await client.post(
+            callback_url,
+            json=payload,
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+        )
+        logger.info(
+            "Signal HTTP response received",
+            invocation_id=invocation_id,
+            status_code=response.status_code,
+        )
+        response.raise_for_status()
 
 
 class WorkflowSignalClient:
@@ -60,18 +81,7 @@ class WorkflowSignalClient:
             invocation_id=invocation_id,
         )
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                callback_url,
-                json=signal_payload,
-                headers={"Content-Type": "application/json"},
-            )
-            logger.info(
-                "SUCCESS SIGNAL: HTTP response received",
-                invocation_id=invocation_id,
-                status_code=response.status_code,
-            )
-            response.raise_for_status()
+        await _post_signal(callback_url, signal_payload, invocation_id)
 
         logger.info(
             "SUCCESS SIGNAL: Sent successfully",
@@ -124,18 +134,7 @@ class WorkflowSignalClient:
         )
 
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    callback_url,
-                    json=signal_payload,
-                    headers={"Content-Type": "application/json"},
-                )
-                logger.info(
-                    "FAILURE SIGNAL: HTTP response received",
-                    invocation_id=invocation_id,
-                    status_code=response.status_code,
-                )
-                response.raise_for_status()
+            await _post_signal(callback_url, signal_payload, invocation_id)
 
             logger.info(
                 "FAILURE SIGNAL: Sent successfully",
@@ -148,10 +147,8 @@ class WorkflowSignalClient:
                 invocation_id=invocation_id,
                 callback_url=callback_url,
             )
-            # Don't raise - failure signal is best-effort
         except Exception:
             logger.exception(
                 "Unexpected error sending failure signal",
                 invocation_id=invocation_id,
             )
-            # Don't raise - failure signal is best-effort

@@ -15,12 +15,14 @@ from temporalio import activity, workflow
 
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import AgenticExecutorConfig
+from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
 from .common import ActivityExecutionError
 from .output_mapping import apply_output_mapping
 
 # See - https://github.com/temporalio/sdk-python?tab=readme-ov-file#avoiding-the-sandbox for more detail
 with workflow.unsafe.imports_passed_through():
+    from nexus.auth import create_service_token
     from nexus.workflows.clients.agent_orchestrator_client import (
         AgentOrchestratorClient,
         AgentOrchestratorClientConnectionError,
@@ -94,6 +96,9 @@ async def execute_agentic_activity(
         # Use system user ID
         user_id = str(constants.SYSTEM_USER_ID)
 
+        # Mint a short-lived service JWT for internal API calls
+        service_token = create_service_token()
+
         # Generate callback URL for the agent orchestrator to signal back results
         callback_url = generate_activity_signal_url(UUID(execution_id), activity_id) if execution_id else ""
 
@@ -106,7 +111,10 @@ async def execute_agentic_activity(
             file_count=len(file_ids),
         )
 
-        async with AgentOrchestratorClient(base_url=constants.AGENT_ORCHESTRATOR_BASE_URL) as agent_client:
+        async with AgentOrchestratorClient(
+            base_url=constants.AGENT_ORCHESTRATOR_BASE_URL,
+            auth_token=service_token,
+        ) as agent_client:
             # Build metadata (callback_url is extracted by client into contextData)
             agent_metadata: dict[str, Any] = {
                 "activity_name": "agentic_v2",
@@ -114,6 +122,9 @@ async def execute_agentic_activity(
             }
             if callback_url:
                 agent_metadata["callback_url"] = callback_url
+
+            # Inject LLM credential if resolved from Nexus credential system
+            _inject_llm_credential_metadata(agent_metadata, input_config)
 
             # Invoke agent asynchronously
             invocation_id = await agent_client.invoke_agent_async(
@@ -145,6 +156,13 @@ async def execute_agentic_activity(
             mapped_output = apply_output_mapping(full_result, output_config)
             return {"output": mapped_output}
 
+    # NOTE: All exceptions return a success-shaped response intentionally.
+    # This is a fire-and-forget pattern: the activity creates an async invocation
+    # and returns metadata. The actual AI work completes via callback signal.
+    # Raising exceptions here would trigger Temporal retries, creating duplicate
+    # invocations. The "status: failed" field is consumed by downstream workflow
+    # logic. Compare with credential_resolution_activity.py which IS synchronous
+    # and correctly raises ApplicationError for Temporal retries.
     except ValidationError as e:
         full_result = {
             "status": "failed",
@@ -170,3 +188,31 @@ async def execute_agentic_activity(
         }
         mapped_output = apply_output_mapping(full_result, output_config)
         return {"output": mapped_output}
+
+
+def _inject_llm_credential_metadata(metadata: dict[str, Any], input_data: dict[str, Any]) -> None:
+    """Inject LLM credential reference into agent metadata from resolved credentials.
+
+    Passes ``credential_id`` for deferred resolution at execution time — the
+    decrypted API key is never stored in invocation context_data.  Non-secret
+    fields (provider, base_url) are still passed directly.
+
+    Args:
+        metadata: Mutable agent metadata dict to update.
+        input_data: Activity input data potentially containing _resolved_credentials.
+
+    """
+    resolved_creds = input_data.get("_resolved_credentials")
+    if not resolved_creds:
+        return
+    resolved_creds = ensure_resolved_credentials_dict(resolved_creds)
+    # Pass credential_id for deferred resolution — NOT the decrypted key
+    cred_id = resolved_creds.get("credential_id")
+    if cred_id:
+        metadata["credential_id"] = cred_id
+    # Still pass non-secret fields
+    extra_vars = resolved_creds.get("extra_vars", {})
+    for key in ("llm_provider", "llm_base_url"):
+        value = extra_vars.get(key)
+        if value:
+            metadata[key] = value

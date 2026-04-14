@@ -72,9 +72,7 @@ STATUS_CONFIG = {
 }
 
 
-def compare_states(
-    calculated: dict[str, Any], received: dict[str, Any]
-) -> tuple[bool, str]:
+def compare_states(calculated: dict[str, Any], received: dict[str, Any]) -> tuple[bool, str]:
     """
     Compare calculated state (from patches) with received final snapshot.
 
@@ -97,7 +95,9 @@ def compare_states(
 
         if operation == "replace":
             lines.append(f"  [yellow]REPLACE[/yellow] {path}")
-            lines.append(f"    Expected (calculated): [red]{json.dumps(calculated_value_at_path(calculated, path))}[/red]")
+            lines.append(
+                f"    Expected (calculated): [red]{json.dumps(calculated_value_at_path(calculated, path))}[/red]"
+            )
             lines.append(f"    Received (final):      [green]{json.dumps(value)}[/green]")
         elif operation == "add":
             lines.append(f"  [green]ADD[/green] {path}")
@@ -304,9 +304,7 @@ class ActivityNode(Static):
 
     def _refresh_display(self) -> None:
         """Refresh the node display."""
-        symbol, color, label = STATUS_CONFIG.get(
-            self._status, ("?", "white", "Unknown")
-        )
+        symbol, color, label = STATUS_CONFIG.get(self._status, ("?", "white", "Unknown"))
         content = self.query_one("#node-content", Static)
 
         # Build the node box
@@ -396,9 +394,7 @@ class DetailSidebar(Static):
         state = self._state
 
         # Execution status section
-        exec_symbol, exec_color, exec_label = STATUS_CONFIG.get(
-            state.status, ("?", "white", "Unknown")
-        )
+        exec_symbol, exec_color, exec_label = STATUS_CONFIG.get(state.status, ("?", "white", "Unknown"))
 
         lines = [
             "[bold]━━━ Execution ━━━[/bold]",
@@ -413,7 +409,9 @@ class DetailSidebar(Static):
             "[bold]━━━ Stream Info ━━━[/bold]",
             "",
             f"[bold]Events:[/bold] {self._event_count}",
-            f"[bold]Last Event:[/bold] {self._last_event_id[:20]}..." if len(self._last_event_id) > 20 else f"[bold]Last Event:[/bold] {self._last_event_id}",
+            f"[bold]Last Event:[/bold] {self._last_event_id[:20]}..."
+            if len(self._last_event_id) > 20
+            else f"[bold]Last Event:[/bold] {self._last_event_id}",
             f"[bold]Timestamp:[/bold] {format_timestamp(self._last_timestamp)}",
             "",
             "[bold]━━━ Activities ━━━[/bold]",
@@ -434,9 +432,7 @@ class DetailSidebar(Static):
 
             if act.get("completed_at"):
                 lines.append(f"  Completed: {format_timestamp(act['completed_at'])}")
-                lines.append(
-                    f"  Duration: {format_duration(act['started_at'], act['completed_at'])}"
-                )
+                lines.append(f"  Duration: {format_duration(act['started_at'], act['completed_at'])}")
 
             if act.get("retry_count", 0) > 0:
                 lines.append(f"  [yellow]Retries: {act['retry_count']}[/yellow]")
@@ -472,9 +468,7 @@ class TopBar(Static):
         self._patch_count = 0
         self._has_final = False
 
-    def update_indicators(
-        self, has_initial: bool, patch_count: int, has_final: bool
-    ) -> None:
+    def update_indicators(self, has_initial: bool, patch_count: int, has_final: bool) -> None:
         """Update the message type indicators."""
         self._has_initial = has_initial
         self._patch_count = patch_count

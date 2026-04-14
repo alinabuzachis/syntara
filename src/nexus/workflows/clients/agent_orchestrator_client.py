@@ -105,6 +105,7 @@ class AgentOrchestratorClient:
         timeout: float = 30.0,
         max_retries: int = 3,
         retry_backoff_base: float = 1.0,
+        auth_token: str | None = None,
     ) -> None:
         """Initialize Agent Orchestrator client.
 
@@ -113,6 +114,7 @@ class AgentOrchestratorClient:
             timeout: Default timeout for HTTP requests in seconds
             max_retries: Maximum number of retry attempts
             retry_backoff_base: Base delay for exponential backoff
+            auth_token: Optional JWT bearer token for authenticated API calls
 
         """
         self.base_url = base_url.rstrip("/")
@@ -121,10 +123,12 @@ class AgentOrchestratorClient:
         self.retry_backoff_base = retry_backoff_base
 
         # Create async HTTP client with timeout configuration
+        headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
         self.http_client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=httpx.Timeout(timeout),
             follow_redirects=True,
+            headers=headers,
         )
 
         logger.info("Initialized Agent Orchestrator client", base_url=self.base_url)

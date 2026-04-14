@@ -254,6 +254,7 @@ class ActivityData(SQLModel):
     activity_id: str
     status: str
     error_details: str | None = None
+    output_data: dict[str, Any] | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
 

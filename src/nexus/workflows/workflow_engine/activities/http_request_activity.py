@@ -10,16 +10,58 @@ import structlog
 from pydantic import ValidationError
 from temporalio import activity
 
+from nexus.credentials.lib.auth_types import AUTH_TYPE_API_KEY, AUTH_TYPE_BASIC, AUTH_TYPE_BEARER
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     APIExecutorConfig,
     AuthenticationType,
 )
+from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
+from .common import ActivityExecutionError
 from .output_mapping import apply_output_mapping
 
 logger = structlog.stdlib.get_logger(__name__)
 
 DEFAULT_HTTP_TIMEOUT_SECONDS = 30
+
+
+def _add_credential_auth_headers(headers: dict[str, Any], extra_vars: dict[str, Any]) -> None:
+    """Apply authentication from Nexus credential system.
+
+    Takes priority over config-based authentication when a credential is attached.
+    Raises ActivityExecutionError if credential values are empty.
+    """
+    auth_type = extra_vars.get("auth_type", "")
+
+    if auth_type == AUTH_TYPE_BEARER:
+        token = extra_vars.get("bearer_token", "")
+        if not token:
+            msg = "Bearer credential resolved but token is empty. Re-save the credential with a valid token."
+            raise ActivityExecutionError(msg)
+        headers["Authorization"] = f"Bearer {token}"
+
+    elif auth_type == AUTH_TYPE_BASIC:
+        username = extra_vars.get("basic_username", "")
+        password = extra_vars.get("basic_password", "")
+        if not username:
+            msg = "Basic auth credential resolved but username is empty. Re-save the credential."
+            raise ActivityExecutionError(msg)
+        encoded = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
+        headers["Authorization"] = f"Basic {encoded}"
+
+    elif auth_type == AUTH_TYPE_API_KEY:
+        api_key = extra_vars.get("api_key", "") or extra_vars.get("llm_api_key", "")
+        if not api_key:
+            msg = "API key credential resolved but key is empty. Re-save the credential."
+            raise ActivityExecutionError(msg)
+        headers["X-API-Key"] = api_key
+
+    elif auth_type:
+        msg = f"Unknown credential auth_type: '{auth_type}'. Check the credential type configuration."
+        raise ActivityExecutionError(msg)
+
+    else:
+        logger.warning("Credential resolved but auth_type is missing from extra_vars — proceeding without auth")
 
 
 def _apply_authentication(headers: dict[str, Any], config: APIExecutorConfig) -> None:
@@ -85,9 +127,14 @@ async def execute_http_request_activity(
             }
         }
 
-    # Build headers from validated model and apply authentication
+    # Build headers — Nexus credentials take priority over config-based auth
     headers = dict(config.headers)
-    _apply_authentication(headers, config)
+    resolved_creds = input_config.get("_resolved_credentials")
+    if resolved_creds:
+        resolved_creds = ensure_resolved_credentials_dict(resolved_creds)
+        _add_credential_auth_headers(headers, resolved_creds.get("extra_vars", {}))
+    else:
+        _apply_authentication(headers, config)
 
     timeout_seconds = config.timeout if config.timeout is not None else DEFAULT_HTTP_TIMEOUT_SECONDS
 

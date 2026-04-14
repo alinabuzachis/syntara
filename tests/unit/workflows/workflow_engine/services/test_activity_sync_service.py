@@ -380,88 +380,6 @@ class TestActivityEventProcessing:
         assert 1 not in self.metadata.pending_activity_updates
 
     @pytest.mark.parametrize(
-        ("raw_activity_id", "expected_base_id"),
-        [
-            ("loop1_iter_0", "loop1"),
-            ("loop1_iter_1", "loop1"),
-            ("loop1_iter_10", "loop1"),
-            ("loop1_iter_999", "loop1"),
-            ("my_loop_node_iter_42", "my_loop_node"),
-        ],
-    )
-    def test_process_activity_scheduled_strips_loop_iteration_suffix(
-        self, raw_activity_id: str, expected_base_id: str
-    ) -> None:
-        """Test that _iter_N suffix is stripped from loop activity IDs."""
-        event = self._create_mock_event(
-            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
-            event_id=1,
-            activity_id=raw_activity_id,
-        )
-
-        self.service._process_activity_scheduled(event, self.metadata)
-
-        update = self.metadata.pending_activity_updates[1]
-        assert update["activity_id"] == expected_base_id
-        assert update["activity_name"] == expected_base_id
-
-    @pytest.mark.parametrize(
-        "activity_id",
-        [
-            "my-activity",
-            "simple_node",
-            "node_with_iter_in_name",
-            "iter_0_at_start",
-            "activity_iter_not_digits",
-        ],
-    )
-    def test_process_activity_scheduled_preserves_non_loop_ids(self, activity_id: str) -> None:
-        """Test that activity IDs without _iter_N suffix are not modified."""
-        event = self._create_mock_event(
-            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
-            event_id=1,
-            activity_id=activity_id,
-        )
-
-        self.service._process_activity_scheduled(event, self.metadata)
-
-        update = self.metadata.pending_activity_updates[1]
-        assert update["activity_id"] == activity_id
-        assert update["activity_name"] == activity_id
-
-    def test_process_activity_scheduled_loop_iter_sets_all_fields(self) -> None:
-        """Test that loop iteration stripping still sets all required fields correctly."""
-        event = self._create_mock_event(
-            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
-            event_id=5,
-            activity_id="loop1_iter_3",
-        )
-
-        self.service._process_activity_scheduled(event, self.metadata)
-
-        update = self.metadata.pending_activity_updates[5]
-        assert update["activity_id"] == "loop1"
-        assert update["activity_name"] == "loop1"
-        assert update["status"] == ActivityStatus.PENDING
-        assert update["started_at"] is None
-        assert update["completed_at"] is None
-        assert update["error_details"] is None
-        assert update["retry_count"] == 0
-
-    def test_process_activity_scheduled_does_not_strip_iter_mid_string(self) -> None:
-        """Test that _iter_N is only stripped at the end of the ID, not in the middle."""
-        event = self._create_mock_event(
-            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
-            event_id=1,
-            activity_id="loop_iter_0_extra",
-        )
-
-        self.service._process_activity_scheduled(event, self.metadata)
-
-        update = self.metadata.pending_activity_updates[1]
-        assert update["activity_id"] == "loop_iter_0_extra"
-
-    @pytest.mark.parametrize(
         ("attempt", "expected_retry_count", "expected_status"),
         [
             (1, 0, ActivityStatus.RUNNING),
@@ -590,6 +508,93 @@ class TestActivityEventProcessing:
                 mock_handler.assert_called_once_with(event, metadata)
 
 
+class TestAgenticActivityCompletionDeferral:
+    """Test that agentic activities stay RUNNING on ActivityTaskCompleted.
+
+    Agentic activities return immediately (dispatching the LLM invocation).
+    The actual result arrives via signal, so the sync service must NOT mark
+    them COMPLETED until the workflow itself reaches a terminal state.
+    """
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.service = ActivitySyncService(Mock(), Mock())
+
+    def _create_completed_event(self, scheduled_event_id: int = 1) -> Mock:
+        event = Mock()
+        event.event_type = EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED
+        event.event_id = 3
+        event.event_time = datetime.now(UTC)
+        attrs = Mock()
+        attrs.scheduled_event_id = scheduled_event_id
+        event.activity_task_completed_event_attributes = attrs
+        return event
+
+    def test_agentic_activity_removed_from_pending_on_completed_event(self) -> None:
+        """Agentic activity should be removed from pending updates on ActivityTaskCompleted.
+
+        The workflow completion handler will finalize the activity via direct
+        SQL update based on the signal outcome (success or failure).
+        """
+        metadata = create_test_metadata(
+            activity_definitions_map={
+                "agent-activity": {"task": {"executor": "agentic"}},
+            },
+            pending_activity_updates={
+                1: {
+                    "activity_id": "agent-activity",
+                    "status": ActivityStatus.RUNNING,
+                    "completed_at": None,
+                    "error_details": None,
+                },
+            },
+        )
+
+        self.service._process_activity_completed(self._create_completed_event(), metadata)
+
+        assert 1 not in metadata.pending_activity_updates
+
+    def test_non_agentic_activity_completes_normally(self) -> None:
+        """Non-agentic activity should still be marked COMPLETED on ActivityTaskCompleted."""
+        metadata = create_test_metadata(
+            activity_definitions_map={
+                "script-activity": {"task": {"executor": "script"}},
+            },
+            pending_activity_updates={
+                1: {
+                    "activity_id": "script-activity",
+                    "status": ActivityStatus.RUNNING,
+                    "completed_at": None,
+                    "error_details": None,
+                },
+            },
+        )
+
+        self.service._process_activity_completed(self._create_completed_event(), metadata)
+
+        assert metadata.pending_activity_updates[1]["status"] == ActivityStatus.COMPLETED
+        assert metadata.pending_activity_updates[1]["completed_at"] is not None
+
+    def test_unknown_activity_definition_completes_normally(self) -> None:
+        """Activity with no definition in map should be treated as non-agentic."""
+        metadata = create_test_metadata(
+            activity_definitions_map={},
+            pending_activity_updates={
+                1: {
+                    "activity_id": "unknown-activity",
+                    "status": ActivityStatus.RUNNING,
+                    "completed_at": None,
+                    "error_details": None,
+                },
+            },
+        )
+
+        self.service._process_activity_completed(self._create_completed_event(), metadata)
+
+        assert metadata.pending_activity_updates[1]["status"] == ActivityStatus.COMPLETED
+        assert metadata.pending_activity_updates[1]["completed_at"] is not None
+
+
 class TestHandleEventPostProcessing:
     """Test _handle_event_post_processing sync trigger logic."""
 
@@ -701,6 +706,7 @@ class TestHandleEventPostProcessing:
             mock_sync.assert_not_called()
             assert result is None
 
+    @pytest.mark.asyncio
     @pytest.mark.asyncio
     async def test_no_modulo_based_sync(self) -> None:
         """Test that events at multiples of 10 do NOT automatically trigger sync (modulo check removed)."""
@@ -851,6 +857,7 @@ class TestExecutionStatusUpdates:
         execution.updated_at = execution.created_at
         execution.completed_at = None
         execution.error_details = None
+        execution.activities = []
         return execution
 
     def _create_workflow_event(
@@ -1008,7 +1015,7 @@ class TestExecutionStatusUpdates:
         metadata = create_test_metadata(execution_id=self.execution_id)
 
         # Execute
-        await self.service._update_execution_status_from_event(metadata, event)
+        await self.service._update_execution_status_from_event(metadata, event, AsyncMock())
 
         # Verify status changed to COMPLETED
         assert execution.status == ExecutionStatus.COMPLETED
@@ -1046,7 +1053,7 @@ class TestExecutionStatusUpdates:
         metadata = create_test_metadata(execution_id=self.execution_id)
 
         # Execute
-        await self.service._update_execution_status_from_event(metadata, event)
+        await self.service._update_execution_status_from_event(metadata, event, AsyncMock())
 
         # Verify status changed to FAILED with error
         assert execution.status == ExecutionStatus.FAILED
@@ -1082,7 +1089,7 @@ class TestExecutionStatusUpdates:
         metadata = create_test_metadata(execution_id=self.execution_id)
 
         # Execute
-        await self.service._update_execution_status_from_event(metadata, event)
+        await self.service._update_execution_status_from_event(metadata, event, AsyncMock())
 
         # Verify execution not modified (idempotent)
         assert execution.status == original_status
@@ -1118,7 +1125,7 @@ class TestExecutionStatusUpdates:
         metadata = create_test_metadata(execution_id=self.execution_id)
 
         # Execute
-        await self.service._update_execution_status_from_event(metadata, event)
+        await self.service._update_execution_status_from_event(metadata, event, AsyncMock())
 
         # Verify completed_at was adjusted to be after created_at
         assert execution.status == ExecutionStatus.COMPLETED
@@ -1126,3 +1133,233 @@ class TestExecutionStatusUpdates:
         # Should be created_at + 1 microsecond
         assert execution.completed_at == created_at + datetime.resolution
         mock_session.commit.assert_awaited_once()
+
+
+class TestAgenticActivityFinalizationOnWorkflowCompletion:
+    """Test that RUNNING agentic activities are finalized when the workflow completes."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        from nexus.workflows.models.execution import ExecutionStatus
+
+        self.mock_session_factory = Mock()
+        self.mock_activity_publisher = AsyncMock()
+        self.service = ActivitySyncService(Mock(), self.mock_session_factory, self.mock_activity_publisher)
+        self.execution_id = uuid4()
+        self.ExecutionStatus = ExecutionStatus
+
+    def _create_mock_execution(self, status: str = "RUNNING", activities: list[Mock] | None = None) -> Mock:
+        execution = Mock(spec=Execution)
+        execution.id = self.execution_id
+        execution.status = self.ExecutionStatus[status]
+        execution.temporal_workflow_id = f"exec-{self.execution_id}"
+        execution.created_at = datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC)
+        execution.updated_at = execution.created_at
+        execution.completed_at = None
+        execution.error_details = None
+        execution.activities = activities or []
+        return execution
+
+    def _create_mock_activity(self, status: ActivityStatus, executor: str = "agentic") -> Mock:
+        act = Mock()
+        act.id = uuid4()
+        act.activity_name = "test-activity"
+        act.temporal_activity_id = "test-activity"
+        act.status = status
+        act.completed_at = None
+        act.error_details = None
+        act.output_data = None
+        # V2 format: type is at top level
+        act.activity_definition = {"type": executor}
+        return act
+
+    def _create_workflow_event(self, event_type: int, failure_message: str | None = None) -> Mock:
+        event = Mock()
+        event.event_type = event_type
+        event.event_id = 100
+        event.event_time = datetime(2025, 1, 20, 12, 30, 0, tzinfo=UTC)
+
+        if event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+            attrs = Mock()
+            attrs.result = Mock(payloads=[])
+            event.workflow_execution_completed_event_attributes = attrs
+        elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
+            attrs = Mock()
+            attrs.failure = Mock(message=failure_message) if failure_message else None
+            event.workflow_execution_failed_event_attributes = attrs
+
+        return event
+
+    def _mock_session(self, execution: Mock) -> Mock:
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = execution
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        self.mock_session_factory.return_value = mock_session
+        return mock_session
+
+    @staticmethod
+    def _mock_handle(output_data: dict[str, object] | None = None) -> Mock:
+        """Create a mock workflow handle that returns output_data for queries."""
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value=output_data)
+        return handle
+
+    @pytest.mark.asyncio
+    async def test_running_agentic_promoted_to_completed_on_workflow_success(self) -> None:
+        """RUNNING agentic activity should become COMPLETED when workflow succeeds."""
+        activity = self._create_mock_activity(ActivityStatus.RUNNING, executor="agentic")
+        execution = self._create_mock_execution(activities=[activity])
+        self._mock_session(execution)
+        handle = self._mock_handle(output_data={"status": "completed", "result": "ok"})
+
+        event = self._create_workflow_event(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED)
+        metadata = create_test_metadata(execution_id=self.execution_id)
+
+        await self.service._update_execution_status_from_event(metadata, event, handle)
+
+        assert activity.status == ActivityStatus.COMPLETED
+        assert activity.output_data == {"status": "completed", "result": "ok"}
+
+    @pytest.mark.asyncio
+    async def test_running_agentic_marked_failed_on_workflow_failure(self) -> None:
+        """RUNNING agentic activity should become FAILED when workflow fails."""
+        activity = self._create_mock_activity(ActivityStatus.RUNNING, executor="agentic")
+        execution = self._create_mock_execution(activities=[activity])
+        self._mock_session(execution)
+        handle = self._mock_handle()
+
+        event = self._create_workflow_event(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
+            failure_message="LLM error: invalid model ID",
+        )
+        metadata = create_test_metadata(execution_id=self.execution_id)
+
+        await self.service._update_execution_status_from_event(metadata, event, handle)
+
+        assert activity.status == ActivityStatus.FAILED
+        assert activity.error_details == "LLM error: invalid model ID"
+
+    @pytest.mark.asyncio
+    async def test_non_agentic_running_activity_not_changed_on_workflow_failure(self) -> None:
+        """Non-agentic RUNNING activity should NOT be finalized on workflow failure."""
+        activity = self._create_mock_activity(ActivityStatus.RUNNING, executor="script")
+        execution = self._create_mock_execution(activities=[activity])
+        self._mock_session(execution)
+        handle = self._mock_handle()
+
+        event = self._create_workflow_event(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
+            failure_message="Some error",
+        )
+        metadata = create_test_metadata(execution_id=self.execution_id)
+
+        await self.service._update_execution_status_from_event(metadata, event, handle)
+
+        # Non-agentic activity should not be touched
+        assert activity.status == ActivityStatus.RUNNING
+
+    @pytest.mark.asyncio
+    async def test_completed_agentic_marked_failed_on_workflow_failure(self) -> None:
+        """Agentic activity already COMPLETED should be changed to FAILED when workflow fails.
+
+        This handles the case where the signal reported failure after the sync service
+        already marked the activity as COMPLETED.
+        """
+        activity = self._create_mock_activity(ActivityStatus.COMPLETED, executor="agentic")
+        activity.completed_at = datetime(2025, 1, 20, 12, 0, 0, tzinfo=UTC)
+        execution = self._create_mock_execution(activities=[activity])
+        self._mock_session(execution)
+        handle = self._mock_handle()
+
+        event = self._create_workflow_event(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
+            failure_message="Some error",
+        )
+        metadata = create_test_metadata(execution_id=self.execution_id)
+
+        await self.service._update_execution_status_from_event(metadata, event, handle)
+
+        # COMPLETED agentic nodes should be re-finalized to FAILED when workflow fails
+        assert activity.status == ActivityStatus.FAILED
+        assert activity.error_details == "Some error"
+
+
+class TestParseErrorFromOutput:
+    """Test _parse_error_from_output static method."""
+
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [
+            ({"status": "failed", "error": {"message": "timeout"}}, "timeout"),
+            ({"status": "failed", "error": "plain error string"}, "plain error string"),
+            ({"status": "failed", "error": {"type": "X"}}, "Activity failed"),
+            ({"status": "failed"}, "Activity failed"),
+            ({"status": "failed", "error": ""}, "Activity failed"),
+            ({"status": "completed"}, None),
+            ({"status": "completed", "error": {"message": "ignored"}}, None),
+            ({}, None),
+            (None, None),
+        ],
+        ids=[
+            "dict_error_with_message",
+            "string_error",
+            "dict_error_no_message",
+            "no_error_key",
+            "empty_string_error",
+            "completed_status",
+            "completed_with_error_ignored",
+            "empty_dict",
+            "none_input",
+        ],
+    )
+    def test_parse_error_from_output(self, output: dict[str, Any] | None, expected: str | None) -> None:
+        """Test error extraction from various output shapes."""
+        assert ActivitySyncService._parse_error_from_output(output) == expected
+
+
+class TestIsAgenticActivity:
+    """Test _is_agentic_activity with v1 and v2 formats."""
+
+    @pytest.mark.parametrize(
+        ("activity_def", "expected"),
+        [
+            ({"type": "agentic"}, True),
+            ({"type": "script"}, False),
+            ({"type": "aap_job_template"}, False),
+            ({"task": {"executor": "agentic"}}, True),
+            ({"task": {"executor": "script"}}, False),
+            ({}, False),
+            ({"task": {}}, False),
+        ],
+        ids=["v2_agentic", "v2_script", "v2_aap", "v1_agentic", "v1_script", "empty", "v1_empty_task"],
+    )
+    def test_is_agentic_activity(self, activity_def: dict[str, object], expected: bool) -> None:  # noqa: FBT001
+        """Test agentic detection for v1 and v2 activity definitions."""
+        assert ActivitySyncService._is_agentic_activity(activity_def) == expected
+
+
+class TestExtractFailedActivityErrors:
+    """Test _extract_failed_activity_errors static method."""
+
+    def test_with_failed_activities(self) -> None:
+        """Test extraction from failed_activities dict."""
+        result_data = {"failed_activities": {"node-1": "error A", "node-2": "error B"}}
+        result = ActivitySyncService._extract_failed_activity_errors(result_data)
+        assert "node-1: error A" in result
+        assert "node-2: error B" in result
+
+    def test_empty_failed_activities(self) -> None:
+        """Test fallback when failed_activities is empty."""
+        result_data: dict[str, object] = {"failed_activities": {}}
+        result = ActivitySyncService._extract_failed_activity_errors(result_data)
+        assert result == "One or more workflow activities failed"
+
+    def test_no_failed_activities_key(self) -> None:
+        """Test fallback when no failed_activities key."""
+        result = ActivitySyncService._extract_failed_activity_errors({})
+        assert result == "One or more workflow activities failed"

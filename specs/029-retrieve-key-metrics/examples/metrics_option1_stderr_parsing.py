@@ -65,9 +65,7 @@ def parse_systemd_metrics(stderr_output: str) -> dict[str, int | str]:
         metrics["MemoryPeak"] = parse_size(value, unit)
 
     # Network traffic -> IPIngressBytes, IPEgressBytes
-    if match := re.search(
-        r"received ([\d.]+)([KMGT]?)B?,\s*sent ([\d.]+)([KMGT]?)B?", stderr_output
-    ):
+    if match := re.search(r"received ([\d.]+)([KMGT]?)B?,\s*sent ([\d.]+)([KMGT]?)B?", stderr_output):
         recv_val, recv_unit, sent_val, sent_unit = match.groups()
         metrics["IPIngressBytes"] = parse_size(recv_val, recv_unit)
         metrics["IPEgressBytes"] = parse_size(sent_val, sent_unit)
@@ -143,10 +141,12 @@ async def execute_with_metrics(
     if user_mode:
         systemd_cmd.append("--user")
 
-    systemd_cmd.extend([
-        "--",  # End of systemd-run options
-        *command,
-    ])
+    systemd_cmd.extend(
+        [
+            "--",  # End of systemd-run options
+            *command,
+        ]
+    )
 
     print(f"Executing: {' '.join(systemd_cmd)}")
     print("-" * 60)
@@ -186,9 +186,7 @@ async def execute_with_metrics(
 
 async def main() -> None:
     """Run curl command and display results with metrics."""
-    parser = argparse.ArgumentParser(
-        description="Execute a command with systemd-run and collect metrics"
-    )
+    parser = argparse.ArgumentParser(description="Execute a command with systemd-run and collect metrics")
     parser.add_argument(
         "--system",
         action="store_true",

@@ -152,11 +152,6 @@ async def create_invocation(
         JSON requests (Content-Type: application/json) do not support file uploads.
 
     """
-    # Fail fast if LLM is not configured - return 503 Service Unavailable
-    # This prevents creating invocations that will immediately fail during execution
-    # The LLMConfigurationError will be handled by the global error handler
-    get_openrouter_llm()
-
     # Check content type to determine request format
     content_type = request.headers.get("content-type", "")
     is_json_request = "application/json" in content_type
@@ -195,6 +190,13 @@ async def create_invocation(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Request must be either application/json or multipart/form-data",
         )
+
+    # Fail fast if LLM is not configured - return 503 Service Unavailable
+    # Skip check if a credential will be resolved at execution time
+    ctx_metadata = (final_context_data or {}).get("metadata")
+    metadata = ctx_metadata if isinstance(ctx_metadata, dict) else {}
+    if not metadata.get("credential_id"):
+        get_openrouter_llm()
 
     return await service.create_invocation(
         prompt=final_prompt,

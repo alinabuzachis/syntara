@@ -4,10 +4,13 @@ import contextlib
 import time
 from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 import structlog
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.context_manager.compressor import CompressorService
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator import ContextManagerPlanner
@@ -20,6 +23,10 @@ from nexus.agent_orchestrator.token_manager.repository import TokenUsageReposito
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
+from nexus.core.services.secret_service import create_secret_service
+from nexus.credentials.lib.injector_resolver import InjectorResolver
+from nexus.credentials.models.credential import Credential
+from nexus.credentials.models.credential_type import CredentialType
 from nexus.files import FileManager, FileStatus, get_file_manager
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.recorder import MetricsRecorder
@@ -259,12 +266,44 @@ class InvocationExecutor:
     async def _init_orchestration(self, invocation: Invocation, session: AsyncSession) -> "OrchestrationService | None":
         """Initialise LLM and OrchestrationService, handling configuration failures.
 
+        Extracts LLM credentials from invocation context_data (injected by the
+        credential system via agentic_activity) and falls back to env vars.
+
         Returns the OrchestrationService instance or ``None`` on failure.
         """
         try:
             logger.info("Initializing LLM for invocation", invocation_id=invocation.id)
-            llm = get_openrouter_llm()
-            context_manager_planner = ContextManagerPlanner(session_factory=self.session_factory)
+
+            # Extract LLM config from context_data.metadata
+            context: dict[str, Any] = dict(invocation.context_data or {})
+            raw_meta = context.get("metadata")
+            metadata: dict[str, Any] = raw_meta if isinstance(raw_meta, dict) else {}
+            credential_base_url: str | None = str(metadata["llm_base_url"]) if metadata.get("llm_base_url") else None
+            invocation_model: str | None = str(context["model"]) if context.get("model") else None
+
+            # Resolve API key via deferred credential resolution (no plaintext in DB).
+            credential_id = metadata.get("credential_id")
+            credential_api_key: str | None = None
+            if credential_id:
+                credential_api_key = await self._resolve_llm_api_key(str(credential_id), session)
+
+            llm = get_openrouter_llm(
+                api_key=credential_api_key,
+                base_url=credential_base_url,
+                model=invocation_model,
+            )
+
+            # Pass the credential-configured LLM to the compressor so it doesn't
+            # create its own (which would fail without env var).
+            def compressor_factory() -> "CompressorService":
+                from nexus.agent_orchestrator.context_manager.compressor import CompressorService  # noqa: PLC0415
+
+                return CompressorService(llm=llm)
+
+            context_manager_planner = ContextManagerPlanner(
+                session_factory=self.session_factory,
+                compressor_service_factory=compressor_factory,
+            )
             service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
             logger.info("LLM initialized successfully for invocation", invocation_id=invocation.id)
             return service
@@ -374,6 +413,59 @@ class InvocationExecutor:
                 invocation_id=invocation.id,
                 failed_files=[f.filename for f in failed_files],
             )
+
+    @staticmethod
+    async def _resolve_llm_api_key(credential_id: str, session: AsyncSession) -> str:
+        """Decrypt LLM API key from credential at execution time.
+
+        Resolves the credential from the database, decrypts its secret inputs,
+        and applies injector templates to extract the ``llm_api_key``.
+        This avoids storing the plaintext key in invocation context_data.
+
+        Raises:
+            LLMConfigurationError: If the credential is not found, disabled, or has no API key.
+
+        """
+        try:
+            cred_uuid = UUID(credential_id)
+        except ValueError as e:
+            msg = f"Invalid credential ID '{credential_id}'."
+            raise LLMConfigurationError(msg) from e
+
+        credential = await session.get(Credential, cred_uuid)
+        if not credential or credential.deleted_at is not None:
+            msg = f"LLM credential '{credential_id}' not found or has been deleted."
+            raise LLMConfigurationError(msg)
+        if not credential.enabled:
+            msg = f"LLM credential '{credential_id}' is disabled."
+            raise LLMConfigurationError(msg)
+        if not credential.secret_id:
+            msg = f"LLM credential '{credential_id}' has no stored secret data."
+            raise LLMConfigurationError(msg)
+
+        try:
+            secret_service = create_secret_service(session)
+            decrypted = await secret_service.retrieve_secret(credential.secret_id)
+        except Exception as e:
+            msg = f"Failed to decrypt credential '{credential_id}'. It may need to be re-saved after key rotation."
+            raise LLMConfigurationError(msg) from e
+
+        cred_type = await session.get(CredentialType, credential.credential_type_id)
+        if not cred_type:
+            msg = f"Credential type for credential '{credential_id}' not found."
+            raise LLMConfigurationError(msg)
+
+        try:
+            resolved = InjectorResolver.resolve(cred_type.injectors, decrypted)
+        except Exception as e:
+            msg = f"Failed to resolve credential '{credential_id}' injector templates."
+            raise LLMConfigurationError(msg) from e
+
+        api_key: str | None = resolved.extra_vars.get("llm_api_key")
+        if not api_key:
+            msg = f"LLM credential '{credential_id}' resolved but contains no API key."
+            raise LLMConfigurationError(msg)
+        return api_key
 
 
 # ===================================================

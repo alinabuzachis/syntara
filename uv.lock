@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12, <3.14"
 
 [[package]]
@@ -1355,6 +1355,7 @@ dependencies = [
     { name = "argon2-cffi" },
     { name = "asyncpg" },
     { name = "beartype" },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "filelock" },
     { name = "httpx" },
@@ -1429,6 +1430,7 @@ requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "beartype", specifier = ">=0.22.5" },
+    { name = "cryptography", specifier = ">=42.0.0" },
     { name = "fastapi", specifier = ">=0.104.0,<0.122" },
     { name = "fastmcp", marker = "extra == 'dev'", specifier = ">=2.13.0,<3.0.0" },
     { name = "filelock", specifier = ">=3.20.0" },

@@ -136,10 +136,10 @@ class TestTemporalWorkerServiceStart:
             await service.start()
 
             # Verify client connected with correct address and namespace
-            mock_connect.assert_called_once_with(
-                "custom.temporal.io:7233",
-                namespace="staging",
-            )
+            mock_connect.assert_called_once()
+            call_args = mock_connect.call_args
+            assert call_args[0][0] == "custom.temporal.io:7233"
+            assert call_args[1]["namespace"] == "staging"
 
             # Verify worker was created with correct task queue
             mock_worker_class.assert_called_once()

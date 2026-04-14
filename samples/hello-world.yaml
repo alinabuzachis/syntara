@@ -15,7 +15,7 @@ nodes:
         GREETING: Hello
         WORLD_NAME: World
       code: |
-        echo "${GREETING}, ${WORLD_NAME}!"
+        echo "$GREETING, $WORLD_NAME!"
         echo "Current time: $(date)"
 
   - id: say_goodbye
@@ -26,7 +26,7 @@ nodes:
       environment:
         FAREWELL: Goodbye
       code: |
-        echo "${FAREWELL}, World!"
+        echo "$FAREWELL, World!"
 edges:
   - from: trigger_manual
     to: say_hello

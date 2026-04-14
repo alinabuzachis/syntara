@@ -9,13 +9,14 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 import structlog
 from jsonpatch import JsonPatch  # type: ignore[import-untyped]
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from temporalio.api.enums.v1 import EventType
 from temporalio.api.history.v1 import HistoryEvent
 from temporalio.client import Client, WorkflowHandle
@@ -33,8 +34,8 @@ logger = structlog.stdlib.get_logger(__name__)
 
 # Retry parameters for querying activity output after Temporal marks an activity as
 # completed but before the workflow loop stores the result in the resolver namespace.
-# Uses exponential backoff: 100ms, 200ms, 400ms (total ~700ms).
-_OUTPUT_QUERY_MAX_RETRIES = 3
+# Uses exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms (total ~3.1s).
+_OUTPUT_QUERY_MAX_RETRIES = 5
 _OUTPUT_QUERY_BASE_DELAY_MS = 100
 
 
@@ -143,6 +144,33 @@ class ActivitySyncService:
         else:
             logger.info("Monitoring task for execution completed successfully", execution_id=execution_id)
 
+    async def _publish_snapshot_safely(
+        self,
+        session: AsyncSession,
+        execution_id: UUID,
+        snapshot_type: Literal["initial_snapshot", "final_snapshot"],
+    ) -> None:
+        """Load execution with activities and publish a snapshot (best-effort).
+
+        Args:
+            session: Active database session (post-commit).
+            execution_id: Execution UUID to snapshot.
+            snapshot_type: Either ``"initial_snapshot"`` or ``"final_snapshot"``.
+
+        """
+        try:
+            query = select(Execution).where(Execution.id == execution_id)
+            query = query.options(selectinload(Execution.activities))  # type: ignore[arg-type]
+            result = await session.exec(query)
+            execution = result.one_or_none()
+            if execution:
+                await self.activity_publisher.publish_snapshot(execution, snapshot_type)
+                logger.debug("Published snapshot for execution", execution_id=execution_id, snapshot_type=snapshot_type)
+        except Exception:
+            logger.exception(
+                "Failed to publish snapshot (non-fatal)", execution_id=execution_id, snapshot_type=snapshot_type
+            )
+
     async def _update_execution_to_running(self, metadata: ExecutionMonitorMetadata, event: HistoryEvent) -> None:
         """Update execution status to RUNNING when workflow starts.
 
@@ -169,6 +197,9 @@ class ActivitySyncService:
                     execution.updated_at = datetime.now(UTC)
                     await session.commit()
                     logger.info("Updated execution to RUNNING status", execution_id=metadata.execution_id)
+
+                    # Publish snapshot so WebSocket clients see the RUNNING status
+                    await self._publish_snapshot_safely(session, metadata.execution_id, "initial_snapshot")
 
                     # Emit workflow start telemetry
                     emit_workflow_start(execution)
@@ -357,7 +388,7 @@ class ActivitySyncService:
                     EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
                     EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
                 }:
-                    await self._update_execution_status_from_event(metadata, event)
+                    await self._update_execution_status_from_event(metadata, event, handle)
                     # Final sync of skipped nodes at workflow completion
                     await self._sync_skipped_nodes(execution_id, handle)
                     metadata.last_processed_event_id = event.event_id
@@ -416,13 +447,67 @@ class ActivitySyncService:
             metadata.pending_activity_updates[scheduled_id]["started_at"] = ensure_timezone_aware(event.event_time)
             metadata.pending_activity_updates[scheduled_id]["retry_count"] = attempt - 1
 
+    @staticmethod
+    def _is_agentic_activity(activity_def: dict[str, Any]) -> bool:
+        """Check whether an activity definition uses the agentic executor."""
+        # V2: node type is directly "agentic"
+        if activity_def.get("type") == "agentic":
+            return True
+        # V1 fallback: nested under task.executor
+        task = activity_def.get("task")
+        return isinstance(task, dict) and task.get("executor") == "agentic"
+
+    @staticmethod
+    def _parse_error_from_output(output: dict[str, Any] | None) -> str | None:
+        """Extract error message from a v2 activity output if status is failed.
+
+        Returns the error message string, or None if the output is not a failure.
+        """
+        if not isinstance(output, dict) or output.get("status") != "failed":
+            return None
+        error_info = output.get("error", {})
+        if isinstance(error_info, dict):
+            return str(error_info.get("message", "Activity failed"))
+        return str(error_info) if error_info else "Activity failed"
+
     def _process_activity_completed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
-        """Process ACTIVITY_TASK_COMPLETED event."""
+        """Process ACTIVITY_TASK_COMPLETED event.
+
+        For agentic activities, ``ActivityTaskCompleted`` means the HTTP
+        invocation was dispatched — the actual agent result arrives later via
+        signal.  These entries are removed from pending updates so the workflow
+        completion handler can set the correct terminal status.
+        """
         attrs = event.activity_task_completed_event_attributes
         scheduled_id = attrs.scheduled_event_id
         if scheduled_id in metadata.pending_activity_updates:
-            metadata.pending_activity_updates[scheduled_id]["status"] = ActivityStatus.COMPLETED
-            metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(event.event_time)
+            activity_id = metadata.pending_activity_updates[scheduled_id]["activity_id"]
+            activity_def = metadata.activity_definitions_map.get(activity_id, {})
+
+            if self._is_agentic_activity(activity_def):
+                del metadata.pending_activity_updates[scheduled_id]
+            else:
+                # Check if the activity returned a v2 error (status: "failed" in output)
+                status = ActivityStatus.COMPLETED
+                error_details = None
+                if attrs.result and attrs.result.payloads:
+                    try:
+                        result_data = json.loads(attrs.result.payloads[0].data)
+                        if isinstance(result_data, dict):
+                            output = result_data.get("output", result_data)
+                            error_msg = self._parse_error_from_output(output)
+                            if error_msg is not None:
+                                status = ActivityStatus.FAILED
+                                error_details = error_msg
+                    except Exception:  # noqa: BLE001
+                        logger.debug("Failed to parse activity result for v2 error detection", exc_info=True)
+
+                metadata.pending_activity_updates[scheduled_id]["status"] = status
+                metadata.pending_activity_updates[scheduled_id]["completed_at"] = ensure_timezone_aware(
+                    event.event_time
+                )
+                if error_details:
+                    metadata.pending_activity_updates[scheduled_id]["error_details"] = error_details
 
     def _process_activity_failed(self, event: HistoryEvent, metadata: ExecutionMonitorMetadata) -> None:
         """Process ACTIVITY_TASK_FAILED event."""
@@ -481,9 +566,9 @@ class ActivitySyncService:
                     result_data = json.loads(payload.data)
                     if isinstance(result_data, dict) and result_data.get("status") == "failed":
                         status = ExecutionStatus.FAILED
-                        error_details = "One or more workflow activities failed"
-                except Exception:  # noqa: BLE001, S110
-                    pass  # Fall back to COMPLETED if result parsing fails
+                        error_details = self._extract_failed_activity_errors(result_data)
+                except Exception:  # noqa: BLE001
+                    logger.warning("Failed to parse workflow result for failure detection", exc_info=True)
         elif event_type == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
             status = ExecutionStatus.FAILED
             failed_attrs = event.workflow_execution_failed_event_attributes
@@ -503,14 +588,38 @@ class ActivitySyncService:
 
         return status, completed_at, error_details
 
-    async def _update_execution_status_from_event(
-        self, metadata: ExecutionMonitorMetadata, event: HistoryEvent
+    @staticmethod
+    def _extract_failed_activity_errors(result_data: dict[str, Any]) -> str:
+        """Extract error messages from failed workflow activities.
+
+        Uses failed_activities dict from the workflow result, which is always
+        present when nodes fail (populated by _build_result in dynamic_workflow.py).
+
+        Args:
+            result_data: Workflow result dict containing failed_activities
+
+        Returns:
+            Human-readable error string with failed node details
+
+        """
+        failed_activities = result_data.get("failed_activities", {})
+        if isinstance(failed_activities, dict) and failed_activities:
+            errors = [f"{node_id}: {error}" for node_id, error in failed_activities.items()]
+            return "; ".join(errors)
+        return "One or more workflow activities failed"
+
+    async def _update_execution_status_from_event(  # noqa: C901, PLR0912, PLR0915
+        self,
+        metadata: ExecutionMonitorMetadata,
+        event: HistoryEvent,
+        handle: WorkflowHandle[Any, Any],
     ) -> None:
         """Update execution status to terminal state when workflow completes.
 
         Args:
             metadata: Monitoring metadata containing execution and related data
             event: Temporal workflow completion event
+            handle: Temporal workflow handle for querying activity data
 
         """
         async with self.session_factory() as session:
@@ -559,6 +668,54 @@ class ActivitySyncService:
                 if error_details:
                     execution.error_details = error_details
                 execution.updated_at = datetime.now(UTC)
+
+                # Finalize agentic activities at workflow completion.
+                # Agentic activities skip normal status tracking because the actual
+                # result arrives via signal after the Temporal activity returns.
+                # At workflow completion, we set the correct terminal status and
+                # query output data that wasn't available during event processing.
+                if execution.activities:
+                    # When workflow failed: fix agentic nodes that are RUNNING or
+                    # incorrectly COMPLETED (signal reported failure after sync)
+                    # When workflow completed: finalize any still-RUNNING agentic nodes
+                    agentic_statuses_to_fix = (
+                        {ActivityStatus.RUNNING, ActivityStatus.COMPLETED}
+                        if status in {ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
+                        else {ActivityStatus.RUNNING}
+                    )
+                    agentic_to_finalize = [
+                        act
+                        for act in execution.activities
+                        if act.status in agentic_statuses_to_fix
+                        and self._is_agentic_activity(act.activity_definition or {})
+                    ]
+
+                    if agentic_to_finalize:
+                        if status == ExecutionStatus.COMPLETED:
+                            final_status: ActivityStatus | None = ActivityStatus.COMPLETED
+                            final_error = None
+                        elif status in {ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}:
+                            final_status = ActivityStatus.FAILED
+                            final_error = error_details
+                        else:
+                            final_status = None
+
+                        if final_status is not None:
+                            for act in agentic_to_finalize:
+                                act.status = final_status
+                                act.completed_at = completed_at
+                                act.error_details = final_error
+                                # Query output data from workflow namespace
+                                activity_id = act.activity_name or act.temporal_activity_id
+                                if activity_id:
+                                    try:
+                                        output_data = await handle.query("get_activity_output", activity_id)
+                                        act.output_data = output_data if isinstance(output_data, dict) else None
+                                    except Exception:  # noqa: BLE001
+                                        logger.debug(
+                                            "Could not retrieve agentic activity output",
+                                            activity_id=activity_id,
+                                        )
 
                 await session.commit()
 
@@ -725,8 +882,20 @@ class ActivitySyncService:
                     existing.status = activity_data["status"]
                     existing.started_at = activity_data["started_at"]
                     existing.completed_at = activity_data["completed_at"]
-                    existing.input_data = input_data
-                    existing.output_data = output_data
+                    existing.input_data = (
+                        input_data
+                        if isinstance(input_data, dict)
+                        else {"raw": input_data}
+                        if input_data is not None
+                        else None
+                    )
+                    existing.output_data = (
+                        output_data
+                        if isinstance(output_data, dict)
+                        else {"raw": output_data}
+                        if output_data is not None
+                        else None
+                    )
                     existing.error_details = activity_data["error_details"]
                     existing.retry_count = activity_data["retry_count"]
                     existing.updated_at = datetime.now(UTC)
@@ -955,21 +1124,7 @@ class ActivitySyncService:
                     )
 
                     # Publish initial snapshot after activities are created
-                    try:
-                        # Load execution with activities (selectinload respects relationship order_by)
-                        query = select(Execution).where(Execution.id == execution_id)
-                        query = query.options(selectinload(Execution.activities))  # type: ignore[arg-type]
-                        result = await session.exec(query)
-                        execution = result.one_or_none()
-
-                        if execution:
-                            await self.activity_publisher.publish_snapshot(execution, "initial_snapshot")
-                            logger.debug("Published initial snapshot for execution", execution_id=execution_id)
-                    except Exception:
-                        # Log error but don't fail (publishing is best-effort)
-                        logger.exception(
-                            "Failed to publish initial snapshot for execution (non-fatal)", execution_id=execution_id
-                        )
+                    await self._publish_snapshot_safely(session, execution_id, "initial_snapshot")
 
             except Exception:
                 await session.rollback()

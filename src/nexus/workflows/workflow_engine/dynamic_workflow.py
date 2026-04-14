@@ -15,7 +15,9 @@ from temporalio import workflow
 with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
     from nexus.workflows.workflow_engine import constants
+    from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
     from nexus.workflows.workflow_engine.signals import WorkflowSignalProcessor
+    from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
 
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.expression_resolver import safe_eval_condition
@@ -217,7 +219,7 @@ class NexusWorkflow:
         graph: WorkflowGraph,
     ) -> None:
         """Record a node failure and mark downstream nodes as skipped."""
-        error_message = f"{type(error).__name__}: {error}"
+        error_message = str(error)
         self.failed_nodes[node_id] = error_message
         self.resolver.set_namespace(node_id, {"status": "failed", "error": error_message})
         workflow.logger.error(f"Node {node_id} failed: {error_message}")
@@ -239,6 +241,7 @@ class NexusWorkflow:
             "activity_outputs": node_outputs if include_node_results else {},
             "activity_inputs": self.node_inputs if include_node_results else {},
             "completed_activities": list(node_outputs.keys()),
+            "failed_activities": self.failed_nodes,
         }
 
     async def _schedule_successors(
@@ -801,9 +804,18 @@ class NexusWorkflow:
             start_to_close_timeout=timedelta(seconds=timeout_seconds),
         )
 
+        # If the activity already failed (e.g. 401, config error), return immediately
+        # instead of waiting for a callback signal that will never arrive.
+        output = activity_result.get("output", {})
+        if isinstance(output, dict) and output.get("status") == "failed":
+            workflow.logger.warning(
+                f"Signal activity {node_id} ({activity_name}) failed before signal: "
+                f"{output.get('error', 'unknown error')}"
+            )
+            return cast("dict[str, Any]", activity_result)
+
         workflow.logger.info(
-            f"Signal activity {node_id} ({activity_name}) started, waiting for signal "
-            f"(output={activity_result.get('output', {})})"
+            f"Signal activity {node_id} ({activity_name}) started, waiting for signal (output={output})"
         )
 
         await workflow.wait_condition(
@@ -984,6 +996,36 @@ class NexusWorkflow:
 
         return self.resolver.resolve_dict(node.config)
 
+    async def _resolve_and_inject_credentials(
+        self,
+        node: ActivityNode,
+        resolved_config: dict[str, Any],
+    ) -> None:
+        """Resolve and inject Nexus credentials for a task node.
+
+        If the node's config has a credentialId, calls the credential resolution
+        activity to decrypt and inject resolved credentials into the config.
+        """
+        credential_id = resolved_config.get("credentialId")
+        if not credential_id:
+            return
+
+        credential_map = {node.id: credential_id}
+        resolved_creds = await workflow.execute_activity(
+            resolve_workflow_credentials,
+            args=[credential_map],
+            start_to_close_timeout=timedelta(seconds=30),
+        )
+
+        if node.id in resolved_creds:
+            resolved_config["_resolved_credentials"] = resolved_creds[node.id]
+
+    @staticmethod
+    def _scrub_activity_credentials(resolved_config: dict[str, Any]) -> None:
+        """Remove resolved credentials from config after execution."""
+        resolved_config.pop("_resolved_credentials", None)
+        scrub_credentials(resolved_config)
+
     async def _dispatch_node(
         self,
         node: ActivityNode,
@@ -991,7 +1033,26 @@ class NexusWorkflow:
         graph: WorkflowGraph,
         timeout_seconds: int,
     ) -> dict[str, Any]:
-        """Dispatch a node to the appropriate execution handler."""
+        """Dispatch a node to the appropriate execution handler.
+
+        Resolves credentials before dispatch and scrubs them after execution.
+        """
+        # Resolve credentials if the node has a credentialId
+        await self._resolve_and_inject_credentials(node, resolved_config)
+
+        try:
+            return await self._dispatch_node_to_executor(node, resolved_config, graph, timeout_seconds)
+        finally:
+            self._scrub_activity_credentials(resolved_config)
+
+    async def _dispatch_node_to_executor(
+        self,
+        node: ActivityNode,
+        resolved_config: dict[str, Any],
+        graph: WorkflowGraph,
+        timeout_seconds: int,
+    ) -> dict[str, Any]:
+        """Route node to the appropriate execution handler."""
         node_id = node.id
         node_type = node.type
 
@@ -1041,8 +1102,7 @@ class NexusWorkflow:
                 error_msg = error_info.get("message", "Activity failed")
             else:
                 error_msg = str(error_info) if error_info else "Activity failed"
-            msg = f"Activity {node.id} failed: {error_msg}"
-            raise SafeValueError(msg)
+            raise SafeValueError(error_msg)
 
         workflow.logger.info(
             f"Node {node.id} executed",

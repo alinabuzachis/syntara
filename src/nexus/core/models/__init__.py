@@ -5,10 +5,13 @@ for all API resources in the Nexus platform.
 """
 
 from nexus.core.models.group import Group, user_groups
+from nexus.core.models.secret import EncryptedSecret, Secret
 from nexus.core.models.user import User, UserRole
 
 __all__ = [
+    "EncryptedSecret",
     "Group",
+    "Secret",
     "User",
     "UserRole",
     "user_groups",

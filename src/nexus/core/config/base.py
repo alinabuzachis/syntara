@@ -23,7 +23,7 @@ from typing import Any, Self
 from urllib.parse import quote_plus
 from uuid import UUID
 
-from pydantic import Field, HttpUrl, SecretStr, computed_field, model_validator
+from pydantic import Field, HttpUrl, SecretStr, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nexus.core.constants import RetrieverServiceDefaults
@@ -49,8 +49,8 @@ class OpenRouterSettings(BaseSettings):
     )
 
     openrouter_model: str = Field(
-        default="anthropic/claude-3.5-sonnet",
-        description="Default OpenRouter model to use (e.g., anthropic/claude-3.5-sonnet, openai/gpt-4)",
+        default="anthropic/claude-sonnet-4",
+        description="Default OpenRouter model to use (e.g., anthropic/claude-sonnet-4, openai/gpt-4o)",
     )
 
     openrouter_base_url: HttpUrl = Field(  # type: ignore[assignment]
@@ -1253,6 +1253,44 @@ class WorkflowClientSettings(BaseSettings):
 
 
 # =============================================================================
+# Credential Encryption Settings
+# =============================================================================
+
+
+class CredentialEncryptionSettings(BaseSettings):
+    """Credential encryption configuration.
+
+    Controls encryption of credential field values at rest using AES-256-GCM.
+    A default insecure key is used for dev/test. Set APP_SECRET_ENCRYPTION_KEY
+    to a secure random 64-character hex value in production.
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    secret_encryption_key: SecretStr = Field(
+        default=SecretStr("0" * 64),
+        description="64-character hex string (32 bytes) for AES-256-GCM secret encryption. "
+        "MUST be set to a secure random value in production.",
+    )
+
+    @field_validator("secret_encryption_key")
+    @classmethod
+    def validate_encryption_key(cls, v: SecretStr) -> SecretStr:
+        """Validate that the encryption key is a valid 64-character hex string."""
+        key_value = v.get_secret_value()
+        expected_hex_length = 64  # 32 bytes = 64 hex chars
+        if len(key_value) != expected_hex_length:
+            msg = f"secret_encryption_key must be exactly 64 hex characters (32 bytes), got {len(key_value)}"
+            raise SafeValueError(msg)
+        try:
+            bytes.fromhex(key_value)
+        except ValueError as e:
+            msg = "secret_encryption_key must be a valid hex string"
+            raise SafeValueError(msg) from e
+        return v
+
+
+# =============================================================================
 # Main Settings
 # =============================================================================
 
@@ -1263,6 +1301,7 @@ def _get_env_file() -> str:
 
 
 class Settings(
+    CredentialEncryptionSettings,
     OpenRouterSettings,
     FileUploadSettings,
     DocumentConversionSettings,

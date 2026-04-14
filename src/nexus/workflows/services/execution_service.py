@@ -81,6 +81,7 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
                         activity_id=activity.activity_name,
                         status=activity.status.value if activity.status else "unknown",
                         error_details=activity.error_details,
+                        output_data=activity.output_data,
                         started_at=activity.started_at,
                         completed_at=activity.completed_at,
                     )

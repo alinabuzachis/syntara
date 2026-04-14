@@ -18,33 +18,40 @@ def get_openrouter_llm(
     model: str | None = None,
     temperature: float | None = None,
     max_tokens: int | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
 ) -> ChatOpenAI:
     """Get LangChain ChatOpenAI configured for OpenRouter.
+
+    Credential-provided values take precedence over environment variables,
+    enabling the Nexus credential system to supply LLM keys at runtime.
 
     Args:
         model: OpenRouter model name (e.g., 'anthropic/claude-3.5-sonnet').
                If None, uses settings default.
         temperature: LLM temperature (0.0-1.0). If None, uses settings default.
         max_tokens: Maximum tokens in response. If None, uses settings default.
+        api_key: API key from credential system. Falls back to APP_OPENROUTER_API_KEY.
+        base_url: Base URL from credential system. Falls back to APP_OPENROUTER_BASE_URL.
 
     Returns:
         Configured ChatOpenAI instance
 
     Raises:
-        LLMConfigurationError: If APP_OPENROUTER_API_KEY is not configured
+        LLMConfigurationError: If no API key is available from credentials or env var
 
     """
-    # Get configuration from settings
     settings = get_settings()
 
-    # Validate required settings
-    if not settings.openrouter_api_key:
+    selected_api_key = api_key or settings.openrouter_api_key
+    if not selected_api_key:
         error_msg = (
-            "APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
+            "No LLM API key available. Attach an LLM Provider credential to the workflow node, "
+            "or set APP_OPENROUTER_API_KEY environment variable."
         )
         raise LLMConfigurationError(error_msg)
 
-    # Use provided values or defaults from settings
+    selected_base_url = base_url or str(settings.openrouter_base_url)
     selected_model = model or settings.openrouter_model
     selected_temperature = temperature if temperature is not None else settings.openrouter_temperature
     selected_max_tokens = max_tokens if max_tokens is not None else settings.openrouter_max_tokens
@@ -54,17 +61,15 @@ def get_openrouter_llm(
         model=selected_model,
         temperature=selected_temperature,
         max_tokens=selected_max_tokens,
+        has_credential_key=bool(api_key),
     )
 
-    # Configure ChatOpenAI with OpenRouter
-    # OpenRouter uses OpenAI-compatible API format
     return ChatOpenAI(
         model=selected_model,
-        api_key=settings.openrouter_api_key,
-        base_url=str(settings.openrouter_base_url),
+        api_key=selected_api_key,  # type: ignore[arg-type]
+        base_url=selected_base_url,
         temperature=selected_temperature,
         max_completion_tokens=selected_max_tokens,
-        # OpenRouter-specific headers (optional but recommended)
         default_headers={
             "HTTP-Referer": "https://github.com/syntara-orchestration/syntara",
             "X-Title": "Nexus Agent Orchestrator",

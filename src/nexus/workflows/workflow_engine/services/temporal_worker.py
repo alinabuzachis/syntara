@@ -10,10 +10,12 @@ from functools import lru_cache
 
 import structlog
 from temporalio.client import Client
+from temporalio.converter import DataConverter
 from temporalio.worker import Worker
 
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal
+from nexus.core.lib.encryption import key_from_string
 from nexus.telemetry.client import flush_telemetry, initialize_telemetry
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.workflow_engine.activities.aap_job_template_activity import execute_aap_job_template_activity
@@ -21,11 +23,13 @@ from nexus.workflows.workflow_engine.activities.agentic_activity import execute_
 from nexus.workflows.workflow_engine.activities.approval_activity import execute_approval_activity
 from nexus.workflows.workflow_engine.activities.condition import condition
 from nexus.workflows.workflow_engine.activities.converge import converge
+from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
 from nexus.workflows.workflow_engine.activities.http_request_activity import execute_http_request_activity
 from nexus.workflows.workflow_engine.activities.internal import register_activity_monitoring
 from nexus.workflows.workflow_engine.activities.loop import loop
 from nexus.workflows.workflow_engine.activities.manual_trigger import manual_trigger
 from nexus.workflows.workflow_engine.activities.script_activity import execute_script_activity
+from nexus.workflows.workflow_engine.codecs.credential_codec import CredentialPayloadCodec
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.interceptors.monitoring_interceptor import MonitoringWorkflowInterceptor
 from nexus.workflows.workflow_engine.services.activity_sync_registry import set_activity_sync_service
@@ -79,10 +83,17 @@ class TemporalWorkerService:
                 namespace=self.namespace,
             )
 
-            # Create Temporal client
+            # Encrypt credential payloads in Temporal event history using AES-256-GCM.
+            # Uses symmetric encrypt/decrypt (not one-way scrubbing) so workers can
+            # still read credential data while it stays encrypted at rest in Temporal.
+            settings = get_settings()
+            encryption_key = key_from_string(settings.secret_encryption_key.get_secret_value())
+            codec = CredentialPayloadCodec(encryption_key)
+            data_converter = DataConverter(payload_codec=codec)
             self.client = await Client.connect(
                 self.temporal_address,
                 namespace=self.namespace,
+                data_converter=data_converter,
             )
 
             logger.info("Connected to Temporal. Starting worker on queue", task_queue=self.task_queue)
@@ -112,6 +123,8 @@ class TemporalWorkerService:
                 activities=[
                     # Internal activities
                     register_activity_monitoring,
+                    # Credential resolution
+                    resolve_workflow_credentials,
                     # Workflow activities
                     execute_aap_job_template_activity,
                     execute_agentic_activity,

@@ -147,6 +147,11 @@ class APIExecutorConfig(TemplateAwareBaseModel):
     body: dict[str, Any] | str | None = None
     query_params: dict[str, Any] = Field(default_factory=dict, alias="queryParams")
     authentication: Authentication | None = None
+    credential_id: str | None = Field(
+        default=None,
+        alias="credentialId",
+        description="Nexus credential UUID for authentication. Takes priority over authentication field.",
+    )
     timeout: int | None = Field(default=None, ge=1, description="Timeout in seconds")
 
     @field_validator("url")
@@ -179,6 +184,11 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
     prompt: str = Field(description="Prompt template for the agent")
     agent: str | None = None
     model: str | None = None
+    credential_id: str | None = Field(
+        default=None,
+        alias="credentialId",
+        description="Nexus credential UUID for LLM provider authentication",
+    )
     timeout: int = Field(
         default=constants.DEFAULT_AGENTIC_TIMEOUT_SECONDS,
         ge=1,
@@ -224,6 +234,11 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
+    credential_id: str | None = Field(
+        default=None,
+        alias="credentialId",
+        description="Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.",
+    )
     job_template_id: int | None = Field(
         default=None,
         ge=1,

@@ -85,7 +85,7 @@ As a security engineer, I want all Credential field values encrypted at rest —
 
 ### Edge Cases
 
-- What happens when the encryption key is missing at startup? → Application MUST fail loudly with a clear error message. No silent fallback.
+- What happens when the encryption key is missing at startup? → Application starts with a default insecure key (`"0" * 64`) and logs a WARNING. This allows dev/test environments to run without configuration. Production deployments MUST set `NEXUS_SECRET_ENCRYPTION_KEY` to a secure random value.
 - What happens when the same Credential name is used? → Names are unique per non-deleted. Returns `409`.
 - What happens when Credential secret fields are updated? → Only changed fields are re-encrypted. `$encrypted$` retains existing value.
 - What happens when a referenced Credential type doesn't exist? → Returns `404` with clear error.
@@ -108,10 +108,32 @@ As a security engineer, I want all Credential field values encrypted at rest —
 ### Key Entities *(include if feature involves data)*
 
 - **CredentialType**: Defines the schema (what fields a Credential has) and consumption model (how values are transformed into configuration for downstream consumers such as workflow activities). Managed types are preseeded and cannot be deleted by users.
-- **Credential**: A named, encrypted instance of a Credential type. Contains metadata (name, description, labels) and encrypted inputs. Supports soft-delete for audit trail.
-- **CredentialEncryptor**: Handles encryption and decryption of Credential field values using industry-standard authenticated encryption.
-- **StorageBackend**: Pluggable protocol for storing and retrieving encrypted data. GA implementation stores encrypted data in the application database. Designed to serve all sensitive application data — not just Credentials.
+- **Credential**: A named instance of a Credential type. Contains metadata (name, description, labels) and a `secret_id` FK pointing to the `secrets` routing table. Encrypted field values are stored separately in `encrypted_secrets`. Supports soft-delete for audit trail.
+- **Secret**: Generic routing record that maps any consumer (Credential, ApplicationSetting, OIDC config) to a storage backend. Contains zero secret values — only `storage_backend` metadata. Shared infrastructure in `src/nexus/core/`.
+- **SecretService**: Shared service that manages `Secret` lifecycle and delegates encryption/storage to the `StorageBackend` Protocol. Consumers (CredentialService, `GlobalSettingsService` per [PR #1332](pull/1332)) pass plaintext and receive plaintext — encryption is an implementation detail.
+- **CredentialEncryptor**: Handles encryption and decryption of field values using AES-256-GCM with per-field nonce and AAD binding (`secret_id:field_name`).
+- **StorageBackend**: Pluggable protocol for storing and retrieving encrypted data. GA implementation (`DatabaseBackend`) stores encrypted data in the `encrypted_secrets` PostgreSQL table. Designed to serve all sensitive application data — not just Credentials.
 - **InjectorResolver**: Resolves template placeholders in injectors using decrypted field values, producing structured configuration for downstream consumers.
+
+### Consumer Integration
+
+This specification delivers the `Secret` + `SecretService` infrastructure that multiple GA features depend on:
+
+| Consumer | How it uses SecretService | Delivered by |
+|----------|--------------------------|--------------|
+| **Credential** (this spec) | `secret_id` FK, multi-field encrypted inputs via `store`/`retrieve`/`update`/`delete` | ANSTRAT-1901 (this spec) |
+| **RuntimeSetting** | `secret_id` FK (nullable, when `is_sensitive=true`), single-value encrypted storage | ANSTRAT-1790 ([PR #1332](pull/1332)) |
+| **OIDC Config** (post-GA) | `secret_id` FK for client secrets | ANSTRAT-1844 |
+
+The `SecretService` and `Secret` model live in `src/nexus/core/` (not in `src/nexus/credentials/`) because they serve all consumers. See the [pluggable secret storage proposal](pull/1327) for the full architecture.
+
+### Cache Coordination
+
+When a consumer updates a sensitive value via `SecretService.update()`, the `encrypted_secrets` table changes but the consumer's own row (e.g., `runtime_settings`) is untouched. Consumers that cache setting values MUST either bump their own `version`/`updated_at` after calling `SecretService.update()`, or use a cache invalidation signal from `SecretService`. This is not a concern for GA if caching is not implemented, but must be addressed before any caching layer is introduced.
+
+### Deferred to Post-GA (Constitution Exceptions)
+
+- **Structured audit logging** for credential CRUD operations — deferred to Epic 2 (AAP-69552). This is a documented exception to Constitution Principle IV (Observability First). GA ships with basic `structlog` info/warning messages for create/update/delete events but NOT the full audit trail (who, what, when, from where). Audit logging MUST be added in Epic 2 before the feature reaches production maturity.
 
 ## Success Criteria *(mandatory)*
 

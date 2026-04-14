@@ -16,6 +16,9 @@ from nexus.core.config.base import get_settings
 from nexus.core.logging.logging import configure_structlog
 from nexus.core.models import User
 from nexus.core.models.installation import Installation
+from nexus.core.models.secret import EncryptedSecret, Secret
+from nexus.credentials.models.credential import Credential
+from nexus.credentials.models.credential_type import CredentialType
 from nexus.files.models import FileMetadata
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.settings.models.runtime_setting import RuntimeSetting
@@ -50,6 +53,10 @@ _ = (
     ApprovalRequest,
     IdentityProvider,
     RuntimeSetting,
+    Secret,
+    EncryptedSecret,
+    Credential,
+    CredentialType,
 )
 
 # this is the Alembic Config object, which provides

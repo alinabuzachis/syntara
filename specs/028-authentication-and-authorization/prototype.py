@@ -633,7 +633,9 @@ async def home(request: Request):
         nexus_tokens: NexusTokens = session.get("nexus_tokens")
 
         # Check if access token is missing or invalid, and auto-refresh if possible
-        access_decoded = decode_token(nexus_tokens.access_token, "access") if nexus_tokens and nexus_tokens.access_token else None
+        access_decoded = (
+            decode_token(nexus_tokens.access_token, "access") if nexus_tokens and nexus_tokens.access_token else None
+        )
         if not access_decoded and nexus_tokens and nexus_tokens.refresh_token:
             # Access token invalid/missing - try to refresh using refresh token
             refresh_payload = decode_token(nexus_tokens.refresh_token, "refresh")
@@ -651,7 +653,9 @@ async def home(request: Request):
                 print(f"  ✓ New access token issued (expires: {new_access_exp})")
 
         # Decode JWT tokens for display
-        access_decoded = decode_token(nexus_tokens.access_token, "access") if nexus_tokens and nexus_tokens.access_token else {}
+        access_decoded = (
+            decode_token(nexus_tokens.access_token, "access") if nexus_tokens and nexus_tokens.access_token else {}
+        )
         refresh_decoded = decode_token(nexus_tokens.refresh_token, "refresh") if nexus_tokens else {}
 
         # Format timestamps for display

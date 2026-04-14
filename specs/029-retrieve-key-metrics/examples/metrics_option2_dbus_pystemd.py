@@ -304,9 +304,7 @@ async def execute_with_metrics_dbus(
 
 async def main() -> None:
     """Run curl command and display results with metrics."""
-    parser = argparse.ArgumentParser(
-        description="Execute a command with pystemd/D-Bus and collect metrics"
-    )
+    parser = argparse.ArgumentParser(description="Execute a command with pystemd/D-Bus and collect metrics")
     parser.add_argument(
         "--system",
         action="store_true",
@@ -368,7 +366,14 @@ async def main() -> None:
                     cpu_ms = value / 1_000_000 if isinstance(value, int) else 0
                     cpu_s = value / 1_000_000_000 if isinstance(value, int) else 0
                     print(f"  {key}: {value} ns ({cpu_ms:.2f} ms / {cpu_s:.4f} s)")
-                elif key in ("MemoryPeak", "MemoryCurrent", "IPIngressBytes", "IPEgressBytes", "IOReadBytes", "IOWriteBytes"):
+                elif key in (
+                    "MemoryPeak",
+                    "MemoryCurrent",
+                    "IPIngressBytes",
+                    "IPEgressBytes",
+                    "IOReadBytes",
+                    "IOWriteBytes",
+                ):
                     if isinstance(value, int):
                         if value >= 1024 * 1024:
                             print(f"  {key}: {value} bytes ({value / 1024 / 1024:.2f} MB)")

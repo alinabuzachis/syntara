@@ -99,7 +99,7 @@ services:
       - APP_CACHE_HOST=redis
       - APP_CACHE_PASSWORD=${APP_CACHE_PASSWORD:-cache}
       - APP_OPENROUTER_API_KEY=${APP_OPENROUTER_API_KEY}
-      - APP_OPENROUTER_MODEL=${APP_OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
+      - APP_OPENROUTER_MODEL=${APP_OPENROUTER_MODEL:-anthropic/claude-sonnet-4}
       - APP_OPENROUTER_BASE_URL=${APP_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       - APP_ENV_FILE_PATH=${APP_ENV_FILE_PATH:-.env}
       - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}

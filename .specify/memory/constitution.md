@@ -128,6 +128,10 @@ consistency, maintainability, and interoperability.
 - **Authentication Requirements**: Each endpoint MUST clearly indicate whether authentication is required
 - **Scope Documentation**: For OAuth2 or similar schemes, required scopes MUST be documented per endpoint
 
+#### Schema File Location
+
+- **Specification Placement**: OpenAPI and AsyncAPI specification files MUST be placed at `src/nexus/schemas/{domain}/openapi.yaml` (or `.json`). This is the single authoritative location — the Router Discovery Framework requires specs here. Do NOT keep duplicate copies in `specs/{feature}/contracts/`; move specs to `src/nexus/schemas/{domain}/` once finalized.
+
 #### Schema Management
 
 - **Backward Compatibility**: Schema changes MUST be validated for backward compatibility before release

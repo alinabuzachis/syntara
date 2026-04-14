@@ -14,12 +14,12 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError as PydanticValidationError
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 from sqlmodel import text
 from temporalio.service import RPCError
 
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
-import nexus.identity_providers.exceptions  # noqa: F401 - Side-effect import to trigger exception handler registration
+import nexus.identity_providers.exceptions
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.audit.middleware import AuditMiddleware
 from nexus.core.config.base import get_settings
@@ -78,13 +78,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         None
 
     """
+    settings = get_settings()
+
     # Initialise the process-wide settings cache (lazy, no background worker).
     # Settings catalog must be seeded first: uv run python tools/seed_settings.py
     set_runtime_settings(SettingsCache(session_factory=AsyncSessionLocal))
 
+    # Warn if using the insecure default credential encryption key
+    _default_encryption_key = "0" * 64
+    if settings.secret_encryption_key.get_secret_value() == _default_encryption_key:
+        logger.warning(
+            "Using default credential encryption key — set APP_SECRET_ENCRYPTION_KEY "
+            "to a secure random value for production deployments"
+        )
+
     # Discover and register all routers automatically
     # This replaces manual router imports and registration
-    settings = get_settings()
 
     if settings.router_discovery_enabled:
         discover_and_register_routers(
@@ -94,6 +103,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         )
     else:
         logger.warning("Router discovery disabled - no routers will be automatically registered")
+
+    # Preseed managed credential types (idempotent — safe on every startup)
+    try:
+        from nexus.credentials.lib.preseed import preseed_credential_types  # noqa: PLC0415
+
+        async for session in get_db():
+            await preseed_credential_types(session)
+            break
+    except (OperationalError, ProgrammingError):
+        logger.warning("Failed to preseed credential types (table may not exist yet)", exc_info=True)
 
     # Register WebSocket router manually (excluded from router discovery)
     # WebSocket routers use AsyncAPI specification instead of OpenAPI,
@@ -195,6 +214,10 @@ app.add_middleware(MetricsMiddleware, recorder=get_metrics_recorder())
 app.add_middleware(AuditMiddleware)
 
 # RFC 9457 compliant error handlers
+# Import exception modules so @fastapi_exception decorators populate the registry
+import nexus.core.storage_exceptions  # noqa: E402
+import nexus.credentials.exceptions  # noqa: F401, E402
+
 # Register decorated exceptions automatically
 register_exceptions(app)
 

@@ -234,7 +234,9 @@ cryptography==46.0.5 \
     --hash=sha256:ced80795227d70549a411a4ab66e8ce307899fad2220ce5ab2f296e687eacde9 \
     --hash=sha256:e9251e3be159d1020c4030bd2e5f84d6a43fe54b6c19c12f51cde9542a2817b2 \
     --hash=sha256:f145bba11b878005c496e93e257c1e88f154d278d2638e6450d17e0f31e558d2
-    # via pyjwt
+    # via
+    #   nexus
+    #   pyjwt
 cymem==2.0.13 \
     --hash=sha256:042e8611ef862c34a97b13241f5d0da86d58aca3cecc45c533496678e75c5a1f \
     --hash=sha256:0d78a27c88b26c89bd1ece247d1d5939dba05a1dae6305aad8fd8056b17ddb51 \

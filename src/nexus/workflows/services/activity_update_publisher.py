@@ -19,6 +19,7 @@ from nexus.workflows.models.visualization import (
     ExecutionSnapshotMessage,
     JsonPatchOperation,
 )
+from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -81,6 +82,7 @@ class ActivityUpdatePublisher:
             started_at=activity.started_at,
             completed_at=activity.completed_at,
             error_details=activity.error_details,
+            output_data=activity.output_data,
         ).model_dump(mode="json")
 
     def _serialize_execution_snapshot(self, execution: Execution) -> dict[str, Any]:
@@ -130,8 +132,8 @@ class ActivityUpdatePublisher:
         """
         stream_id = self._get_stream_id(execution.id)
 
-        # Serialize execution data with activities
-        execution_data = self._serialize_execution_snapshot(execution)
+        # Serialize execution data with activities, scrub credentials
+        execution_data = scrub_credentials(self._serialize_execution_snapshot(execution))
 
         # Create snapshot message
         message = ExecutionSnapshotMessage(
@@ -180,14 +182,16 @@ class ActivityUpdatePublisher:
         stream_id = self._get_stream_id(execution_id)
 
         # Convert list of JsonPatch to list of JsonPatchOperation
+        # Scrub credential values from patch operations before publishing
         ops: list[JsonPatchOperation] = []
         for json_patch in activity_updates:
             for patch_op in json_patch.patch:
                 # Build operation dict with proper field names
+                patch_value = scrub_credentials(patch_op.get("value"))
                 op_dict = {
                     "op": patch_op["op"],
                     "path": patch_op["path"],
-                    "value": patch_op.get("value"),
+                    "value": patch_value,
                 }
                 if "from" in patch_op:
                     op_dict["from"] = patch_op["from"]

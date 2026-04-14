@@ -21,6 +21,10 @@ tags:
     description: Human-in-the-loop approval request management
   - name: Authentication
     description: JWT token management and user identity
+  - name: Credentials
+    description: Encrypted credential management
+  - name: Credential Types
+    description: Credential type schema definitions
   - name: example
     description: Example operations
   - name: Files
@@ -422,6 +426,480 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthProvidersResponse'
+  /credentials:
+    get:
+      summary: List Credentials
+      description: |
+        Retrieve a paginated list of Credentials with optional filtering.
+        Secret fields are masked as $encrypted$ without decryption.
+      operationId: list_credentials
+      tags:
+        - Credentials
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of resources to return per page
+          example: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor for pagination (from previous response)
+          example: eyJpZCI6InV1aWQifQ
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: |
+            Sort order for resources.
+            - Ascending: `field` (e.g., `name`)
+            - Descending: `-field` (e.g., `-created_at`)
+          example: -created_at
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether to include total count in response (may impact performance)
+          example: true
+        - name: name
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            allOf:
+              - type: string
+                description: Exact match of the name (case-insensitive). ?name=<name>
+              - type: object
+                properties:
+                  contains:
+                    title: Contains
+                    description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
+                    type: string
+                  starts_with:
+                    title: Starts With
+                    description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
+                    type: string
+                  eq:
+                    title: Equals
+                    description: Exact match of the name (case-insensitive). ?name[eq]=<name>
+                    type: string
+                  gt:
+                    title: Greater Than
+                    description: Greater than comparison (lexicographical). ?name[gt]=<name>
+                    type: string
+                  gte:
+                    title: Greater Than Or Equal
+                    description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+                    type: string
+                  lt:
+                    title: Less Than
+                    description: Less than comparison (lexicographical). ?name[lt]=<name>
+                    type: string
+                  lte:
+                    title: Less Than Or Equal
+                    description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
+                    type: string
+          description: |
+            Filter resources by name.
+            - Exact match: `name=value`
+            - Contains: `name[contains]=value`
+          example: auth
+        - name: created_at
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            allOf:
+              - type: string
+                format: date-time
+                description: Exact match of creation timestamp. ?created_at=<timestamp>
+              - type: object
+                properties:
+                  eq:
+                    title: Equals
+                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+                    type: string
+                    format: date-time
+                  gt:
+                    title: Greater Than
+                    description: Greater than comparison. ?created_at[gt]=<timestamp>
+                    type: string
+                    format: date-time
+                  gte:
+                    title: Greater Than Or Equal
+                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+                    type: string
+                    format: date-time
+                  lt:
+                    title: Less Than
+                    description: Less than comparison. ?created_at[lt]=<timestamp>
+                    type: string
+                    format: date-time
+                  lte:
+                    title: Less Than Or Equal
+                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+                    type: string
+                    format: date-time
+        - name: updated_at
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            allOf:
+              - type: string
+                format: date-time
+                description: Exact match of last update timestamp. ?updated_at=<timestamp>
+              - type: object
+                properties:
+                  eq:
+                    title: Equals
+                    description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+                    type: string
+                    format: date-time
+                  gt:
+                    title: Greater Than
+                    description: Greater than comparison. ?updated_at[gt]=<timestamp>
+                    type: string
+                    format: date-time
+                  gte:
+                    title: Greater Than Or Equal
+                    description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+                    type: string
+                    format: date-time
+                  lt:
+                    title: Less Than
+                    description: Less than comparison. ?updated_at[lt]=<timestamp>
+                    type: string
+                    format: date-time
+                  lte:
+                    title: Less Than Or Equal
+                    description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
+                    type: string
+                    format: date-time
+        - name: labels
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          description: |
+            Filter resources by label key-value pairs.
+            - Single label: `labels[environment]=production`
+            - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
+            All specified labels must match (AND logic).
+          example:
+            environment: production
+            region: us-east-1
+        - name: credential_type_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by Credential type ID
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by enabled status
+      responses:
+        '200':
+          description: Paginated list of Credentials (metadata only, no secret values)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ResourcesResponseBase'
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CredentialRead'
+                        maxItems: 100
+                    required:
+                      - resources
+    post:
+      summary: Create Credential
+      description: |
+        Create a new Credential. Inputs are validated against the Credential
+        type schema and encrypted before storage.
+      operationId: create_credential
+      tags:
+        - Credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialCreate'
+      responses:
+        '201':
+          description: Credential created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialRead'
+        '404':
+          description: Credential type not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '409':
+          description: Credential name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '422':
+          description: Input validation error (unknown fields, missing required fields, $encrypted$ as input, payload > 64KB)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /credentials/{credential_id}:
+    get:
+      summary: Get Credential
+      description: |
+        Retrieve a single Credential. Secret fields are masked as $encrypted$.
+        Non-secret fields are decrypted and returned in plaintext.
+      operationId: get_credential
+      tags:
+        - Credentials
+      parameters:
+        - name: credential_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Credential ID
+      responses:
+        '200':
+          description: Credential with secret fields masked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialRead'
+        '404':
+          description: Credential not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    patch:
+      summary: Update Credential
+      description: |
+        Partially update a Credential. Fields set to $encrypted$ retain
+        their existing encrypted values. Omitted input fields are preserved.
+      operationId: update_credential
+      tags:
+        - Credentials
+      parameters:
+        - name: credential_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Credential ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialPatch'
+      responses:
+        '200':
+          description: Credential updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialRead'
+        '404':
+          description: Credential not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '409':
+          description: Name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '422':
+          description: Input validation error (unknown fields, missing required fields, $encrypted$ as input, payload > 64KB)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    delete:
+      summary: Delete Credential
+      description: Soft-delete a Credential (sets deleted_at timestamp).
+      operationId: delete_credential
+      tags:
+        - Credentials
+      parameters:
+        - name: credential_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Credential ID
+      responses:
+        '204':
+          description: Credential deleted
+        '404':
+          description: Credential not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /credentials/{credential_id}/workflows:
+    get:
+      summary: Get Credential Workflows
+      description: |
+        List workflows that reference this credential in their definitions.
+        Returns empty list until workflow credential integration (Epic 3) adds
+        credentialId to executor configs.
+      operationId: get_credential_workflows
+      tags:
+        - Credentials
+      parameters:
+        - name: credential_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Credential ID
+      responses:
+        '200':
+          description: List of workflows referencing this credential
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CredentialWorkflowRef'
+        '404':
+          description: Credential not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /credential_types:
+    get:
+      summary: List Credential Types
+      description: |
+        Retrieve all Credential types including preseeded managed types.
+        Read-only for GA; full CRUD for custom types deferred to post-GA.
+      operationId: list_credential_types
+      tags:
+        - Credential Types
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of resources to return per page
+          example: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor for pagination (from previous response)
+          example: eyJpZCI6InV1aWQifQ
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: |
+            Sort order for resources.
+            - Ascending: `field` (e.g., `name`)
+            - Descending: `-field` (e.g., `-created_at`)
+          example: -created_at
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether to include total count in response (may impact performance)
+          example: true
+      responses:
+        '200':
+          description: Paginated list of Credential types
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ResourcesResponseBase'
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CredentialTypeRead'
+                        maxItems: 100
+                    required:
+                      - resources
+  /credential_types/{credential_type_id}:
+    get:
+      summary: Get Credential Type
+      description: |
+        Retrieve a single Credential type with its field schema and
+        injector templates.
+      operationId: get_credential_type
+      tags:
+        - Credential Types
+      parameters:
+        - name: credential_type_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Credential type ID
+      responses:
+        '200':
+          description: Credential type detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialTypeRead'
+        '404':
+          description: Credential type not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
   /example:
     get:
       tags:
@@ -5066,6 +5544,146 @@ components:
             $ref: '#/components/schemas/AuthProviderInfo'
           default: []
           description: Enabled identity providers
+    CredentialCreate:
+      type: object
+      title: Credential Create
+      description: Request payload for creating a new Credential
+      required:
+        - name
+        - credential_type_id
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Human-readable Credential name
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Optional description
+        credential_type_id:
+          type: string
+          format: uuid
+          description: ID of the Credential type
+        inputs:
+          type: object
+          additionalProperties: true
+          default: {}
+          description: |
+            Field values validated against the type schema. Max 64KB serialized.
+            The $encrypted$ sentinel value is reserved and cannot be used as input (returns 422).
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          default: {}
+          description: Key-value labels
+    CredentialRead:
+      allOf:
+        - $ref: '#/components/schemas/Resource'
+        - type: object
+          title: Credential
+          description: |
+            A named, encrypted credential instance. Secret fields are masked
+            as $encrypted$ in responses. Non-secret fields are decrypted.
+          required:
+            - credential_type_id
+            - inputs
+            - enabled
+          properties:
+            credential_type_id:
+              type: string
+              format: uuid
+              description: ID of the Credential type schema
+            inputs:
+              type: object
+              additionalProperties: true
+              description: Secret fields masked as $encrypted$, non-secret fields in plaintext
+            enabled:
+              type: boolean
+              default: true
+              description: Whether this credential is active
+    CredentialPatch:
+      type: object
+      title: Credential Patch
+      description: |
+        Request payload for partially updating a Credential.
+        Only included fields are updated. Omitted fields are preserved.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        inputs:
+          type: object
+          additionalProperties: true
+          description: |
+            Fields set to $encrypted$ retain existing values. Omitted fields are preserved.
+            Max 64KB serialized. The $encrypted$ sentinel cannot be used as input on create (returns 422).
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        enabled:
+          type: boolean
+    CredentialTypeRead:
+      allOf:
+        - $ref: '#/components/schemas/BaseResource'
+        - type: object
+          title: Credential Type
+          description: |
+            Defines the field schema and consumption mapping for a class of credentials.
+            Managed types are preseeded by the system and cannot be deleted.
+          required:
+            - name
+            - inputs
+            - injectors
+            - managed
+          properties:
+            name:
+              type: string
+              description: Human-readable type name
+            description:
+              type: string
+              nullable: true
+              description: Optional description
+            inputs:
+              type: object
+              description: |
+                Field schema with fields array and required list.
+                Max 64KB serialized. Defines what fields a credential of this type has.
+            injectors:
+              type: object
+              description: |
+                Consumption mapping with extra_vars, env, file templates.
+                Uses {{field_id}} syntax for template substitution at runtime.
+            managed:
+              type: boolean
+              description: true = preseeded system type that cannot be deleted
+            credential_count:
+              type: integer
+              default: 0
+              description: Number of non-deleted credentials using this type
+    CredentialWorkflowRef:
+      type: object
+      title: Credential Workflow Reference
+      description: Lightweight reference to a workflow that uses a credential
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Workflow ID
+        name:
+          type: string
+          description: Workflow name
     ExampleItem:
       type: object
       properties:

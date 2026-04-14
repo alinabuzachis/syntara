@@ -187,9 +187,7 @@ def create_snapshot_message(
     }
 
 
-def create_patch_message(
-    execution_id: str, event_id: str, ops: list[dict[str, Any]]
-) -> dict[str, Any]:
+def create_patch_message(execution_id: str, event_id: str, ops: list[dict[str, Any]]) -> dict[str, Any]:
     """Create an activity_patch message."""
     return {
         "type": "activity_patch",
@@ -233,17 +231,21 @@ def generate_events(state: ExecutionState) -> list[dict[str, Any]]:
 
     # Initial snapshot (captured before mutations)
     initial_id = generate_event_id(0)
-    events.append(create_snapshot_message(
-        ExecutionState(**{
-            "execution_id": prev_state["execution_id"],
-            "workflow_id": prev_state["workflow_id"],
-            "status": prev_state["status"],
-            "started_at": prev_state["started_at"],
-            "completed_at": prev_state["completed_at"],
-            "activities": prev_state["activities"],
-        }),
-        initial_id
-    ))
+    events.append(
+        create_snapshot_message(
+            ExecutionState(
+                **{
+                    "execution_id": prev_state["execution_id"],
+                    "workflow_id": prev_state["workflow_id"],
+                    "status": prev_state["status"],
+                    "started_at": prev_state["started_at"],
+                    "completed_at": prev_state["completed_at"],
+                    "activities": prev_state["activities"],
+                }
+            ),
+            initial_id,
+        )
+    )
 
     # --- Event 1: Execution starts ---
     state.status = "running"
@@ -385,7 +387,7 @@ async def run_websocket_server(port: int, delay_ms: int) -> None:
     async def handle_connection(websocket: Any) -> None:
         """Handle a single WebSocket connection."""
         # Parse replay parameter from path
-        path = websocket.request.path if hasattr(websocket, 'request') else websocket.path
+        path = websocket.request.path if hasattr(websocket, "request") else websocket.path
         parsed = urlparse(path)
         query_params = parse_qs(parsed.query)
         replay_param = query_params.get("replay", [None])[0]
