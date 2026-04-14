@@ -19,7 +19,9 @@ import {
 } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiLockIcon } from '@patternfly/react-icons'
 import { useEffect } from 'react'
+import { navigate } from 'wouter/use-browser-location'
 
+import { AppRoute } from '../../app/AppRoute'
 import { CodeBlock } from '../../components/details/CodeBlock'
 
 import type { PolicyRead } from './types'
@@ -27,6 +29,8 @@ import type { PolicyRead } from './types'
 interface PolicyDetailSidebarProps {
   policy: PolicyRead
   onClose: () => void
+  /** Resolved project name for the policy scope. Falls back to UUID if not provided. */
+  projectName?: string | null
 }
 
 function formatTimestamp(value: string | null): string {
@@ -38,7 +42,22 @@ function formatTimestamp(value: string | null): string {
   }
 }
 
-export function PolicyDetailSidebar({ policy, onClose }: Readonly<PolicyDetailSidebarProps>) {
+function ProjectScopeLink({
+  projectId,
+  projectName,
+}: Readonly<{ projectId: string; projectName: string | null | undefined }>) {
+  return (
+    <Button
+      variant="link"
+      isInline
+      onClick={() => navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId))}
+    >
+      Project: {projectName ?? projectId}
+    </Button>
+  )
+}
+
+export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<PolicyDetailSidebarProps>) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -125,7 +144,11 @@ export function PolicyDetailSidebar({ policy, onClose }: Readonly<PolicyDetailSi
             <DescriptionListGroup>
               <DescriptionListTerm>Scope</DescriptionListTerm>
               <DescriptionListDescription>
-                {policy.project_id ? `Project: ${policy.project_id}` : 'Global'}
+                {policy.project_id ? (
+                  <ProjectScopeLink projectId={policy.project_id} projectName={projectName} />
+                ) : (
+                  'Global'
+                )}
               </DescriptionListDescription>
             </DescriptionListGroup>
             <DescriptionListGroup>

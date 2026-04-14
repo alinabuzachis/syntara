@@ -37,6 +37,14 @@ export function PoliciesTab() {
     goToNextPage,
   } = useBuiltinListState(sortFieldByColumn)
 
+  // Fetch projects to resolve project names in the sidebar scope field
+  const projectsQuery = accessClient.useQuery('get', '/projects')
+  const projectNameMap = useMemo(() => {
+    const projects = projectsQuery.data
+    if (!Array.isArray(projects)) return new Map<string, string>()
+    return new Map(projects.map((p) => [p.id, p.name]))
+  }, [projectsQuery.data])
+
   const policiesQuery = accessClient.useQuery('get', '/policies', {
     params: { query: queryParams },
   })
@@ -134,7 +142,11 @@ export function PoliciesTab() {
       </div>
 
       {selectedPolicy && (
-        <PolicyDetailSidebar policy={selectedPolicy as PolicyRead} onClose={() => setSelectedPolicyId(null)} />
+        <PolicyDetailSidebar
+          policy={selectedPolicy as PolicyRead}
+          onClose={() => setSelectedPolicyId(null)}
+          projectName={selectedPolicy.project_id ? projectNameMap.get(selectedPolicy.project_id) : undefined}
+        />
       )}
     </div>
   )
