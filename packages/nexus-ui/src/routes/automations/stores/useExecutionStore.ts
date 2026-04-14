@@ -146,6 +146,7 @@ function activityInputToState(activity: ActivityInput): ActivityState {
     activityId,
     status: activity.status ?? 'pending',
     errorDetails: activity.error_details,
+    outputData: activity.output_data,
     startedAt: activity.started_at,
     completedAt: activity.completed_at,
   }

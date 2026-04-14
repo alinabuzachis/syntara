@@ -22,4 +22,5 @@ export interface ActionFormData {
   body?: string
   parameters?: string
   requiresApproval?: boolean
+  credentialId?: string
 }

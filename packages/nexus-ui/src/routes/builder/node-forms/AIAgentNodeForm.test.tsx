@@ -5,6 +5,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AIAgentNodeForm } from './AIAgentNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
+// Mock credentialsClient used by CredentialSelector
+vi.mock('../../../client', () => ({
+  credentialsClient: {
+    useQuery: vi.fn().mockReturnValue({
+      data: { resources: [] },
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    }),
+    useMutation: vi.fn().mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
+  },
+}))
+
 // Mock file upload hook
 const mockUploadFiles = vi.fn()
 vi.mock('../../../hooks/useFileUploadWithProgress', () => ({
@@ -82,7 +98,7 @@ describe('AIAgentNodeForm', () => {
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       name: 'Test Agent',
-      model: 'anthropic/claude-3.5-sonnet',
+      model: 'anthropic/claude-haiku-4.5',
       prompt: 'Test prompt',
       tools: '',
       fileIds: [],
@@ -115,7 +131,7 @@ describe('AIAgentNodeForm', () => {
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       name: 'Research Agent',
-      model: 'anthropic/claude-3.5-sonnet',
+      model: 'anthropic/claude-haiku-4.5',
       prompt: 'Research the topic and provide a summary',
       tools: '',
       fileIds: [],
@@ -128,7 +144,7 @@ describe('AIAgentNodeForm', () => {
         onSubmit={mockOnSubmit}
         initialData={{
           name: 'Existing Agent',
-          model: 'anthropic/claude-3.5-sonnet',
+          model: 'anthropic/claude-haiku-4.5',
           prompt: 'Analyze the data',
           tools: 'calculator, web_search',
         }}
@@ -164,7 +180,7 @@ describe('AIAgentNodeForm', () => {
     // Verify model is included with default value
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'anthropic/claude-3.5-sonnet',
+        model: 'anthropic/claude-haiku-4.5',
       })
     )
   })

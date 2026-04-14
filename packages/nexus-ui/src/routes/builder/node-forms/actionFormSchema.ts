@@ -14,10 +14,11 @@ const scriptActionSchema = z.object({
   language: z.string().optional(),
   method: httpMethodSchema.optional(),
   url: z.string().optional(),
-  authentication: z.string().optional(),
+  authentication: z.string().optional(), // backward compat — old workflows may have this
   headers: z.string().optional(),
   body: z.string().optional(),
   parameters: z.string().optional(),
+  credentialId: z.string().optional(),
 })
 
 const apiActionSchema = z.object({
@@ -27,10 +28,11 @@ const apiActionSchema = z.object({
   language: z.string().optional(),
   method: httpMethodSchema.optional(),
   url: z.string().trim().min(1, 'URL is required'),
-  authentication: z.string().optional(),
+  authentication: z.string().optional(), // backward compat — old workflows may have this
   headers: z.string().optional(),
   body: z.string().optional(),
   parameters: z.string().optional(),
+  credentialId: z.string().optional(),
 })
 
 export const actionFormSchema = z.discriminatedUnion('executor', [scriptActionSchema, apiActionSchema])

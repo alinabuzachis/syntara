@@ -5,6 +5,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AAPNodeForm } from './AAPNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
+// Mock credentialsClient used by CredentialSelector
+vi.mock('../../../client', () => ({
+  credentialsClient: {
+    useQuery: vi.fn().mockReturnValue({
+      data: { resources: [] },
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    }),
+    useMutation: vi.fn().mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
+  },
+}))
+
 // Mock ExpandableCodeEditor to use a simple textarea for testing
 vi.mock('../../../components/ExpandableCodeEditor', () => ({
   ExpandableCodeEditor: ({

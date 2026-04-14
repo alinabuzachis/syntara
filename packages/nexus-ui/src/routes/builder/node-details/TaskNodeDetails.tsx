@@ -71,6 +71,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
       inventory?: number
       extraVars?: Record<string, unknown>
       skipTags?: string
+      credentialId?: string
     }
 
     const jobTemplateId = aapConfig.job_template_id ?? aapConfig.jobTemplateId
@@ -88,6 +89,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
       tags: aapConfig.tags ?? '',
       skipTags: skipTags ?? '',
       verbosity: aapConfig.verbosity?.toString() ?? '',
+      credentialId: aapConfig.credentialId ?? undefined,
     }
 
     const handleAAPSubmit = (data: AAPFormData) => {
@@ -156,6 +158,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
           ? config.body
           : JSON.stringify(config.body, null, 2)
         : undefined,
+    credentialId: (config as { credentialId?: string }).credentialId ?? undefined,
   }
 
   const handleSubmit = (data: RegistryActionFormData) => {
@@ -194,6 +197,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
             ? {
                 language: data.language ?? 'python',
                 code: data.code!,
+                ...(data.credentialId && { credentialId: data.credentialId }),
               }
             : {
                 method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
@@ -208,6 +212,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
                     }
                   })(),
                 }),
+                ...(data.credentialId && { credentialId: data.credentialId }),
               },
       } as Activity
 

@@ -78,7 +78,13 @@ export default function registerMyNewNode() {
       try {
         const baseName = getDefaultNodeBaseName('my-new-node')
         const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
-          createScriptActivity(id, name, data.language ?? 'python', data.code ?? '', data.inputs)
+          createScriptActivity({
+            id,
+            name,
+            language: data.language ?? 'python',
+            code: data.code ?? '',
+            inputs: data.inputs,
+          })
         )
         useWorkflowStore.getState().addActivity(activity)
         onSuccess(activityId)

@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { ActivityState } from '../automations/execution/types'
@@ -7,6 +8,12 @@ import { ExecutionActivityTable, type ActivityOrderItem, type TriggerItem } from
 
 vi.mock('./ExecutionStatus', () => ({
   ActivityStatusLabel: ({ status }: { status: string }) => <div data-testid="activity-status-label">{status}</div>,
+}))
+
+vi.mock('../../components/details/CodeBlock', () => ({
+  CodeBlock: ({ jsonObject }: { jsonObject: object }) => (
+    <pre data-testid="code-block">{JSON.stringify(jsonObject)}</pre>
+  ),
 }))
 
 const T0 = '2024-01-01T00:00:00Z'
@@ -142,6 +149,73 @@ describe('ExecutionActivityTable', () => {
       expect(rows).toHaveLength(3)
       expect(rows[1]).toHaveTextContent('Manual')
       expect(rows[2]).toHaveTextContent('Task')
+    })
+  })
+
+  describe('error details', () => {
+    it('shows error message below a failed activity', () => {
+      renderTable({
+        states: new Map([state('task-1', { status: 'failed', errorDetails: 'HTTP 403: Forbidden' })]),
+        order: [{ id: 'task-1', name: 'Fetch data' }],
+      })
+
+      expect(screen.getByText('HTTP 403: Forbidden')).toBeInTheDocument()
+    })
+
+    it('does not show error row when errorDetails is absent', () => {
+      renderTable({
+        states: new Map([state('task-1', { status: 'completed' })]),
+        order: [{ id: 'task-1', name: 'Task' }],
+      })
+
+      expect(screen.queryByText('HTTP 403: Forbidden')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('output data expansion', () => {
+    const outputData = { status_code: 200, body: { key: 'value' } }
+
+    it('expands output when clicking a row with output data', async () => {
+      const user = userEvent.setup()
+      renderTable({
+        states: new Map([state('task-1', { status: 'completed', outputData })]),
+        order: [{ id: 'task-1', name: 'API call' }],
+      })
+
+      // Output not visible initially
+      expect(screen.queryByTestId('code-block')).not.toBeInTheDocument()
+
+      // Click the row to expand
+      await user.click(screen.getByText('API call'))
+
+      // Output now visible
+      expect(screen.getByTestId('code-block')).toBeInTheDocument()
+      expect(screen.getByTestId('code-block')).toHaveTextContent('status_code')
+    })
+
+    it('collapses output on second click', async () => {
+      const user = userEvent.setup()
+      renderTable({
+        states: new Map([state('task-1', { status: 'completed', outputData })]),
+        order: [{ id: 'task-1', name: 'API call' }],
+      })
+
+      await user.click(screen.getByText('API call'))
+      expect(screen.getByTestId('code-block')).toBeInTheDocument()
+
+      await user.click(screen.getByText('API call'))
+      expect(screen.queryByTestId('code-block')).not.toBeInTheDocument()
+    })
+
+    it('does not make row clickable when no output data', () => {
+      renderTable({
+        states: new Map([state('task-1', { status: 'completed' })]),
+        order: [{ id: 'task-1', name: 'Task' }],
+      })
+
+      const rows = screen.getAllByRole('row')
+      const activityRow = rows[1] // first row after header
+      expect(activityRow).not.toHaveStyle({ cursor: 'pointer' })
     })
   })
 

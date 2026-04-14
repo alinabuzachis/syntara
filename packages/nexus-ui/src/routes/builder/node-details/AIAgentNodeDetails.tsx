@@ -31,6 +31,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
     model?: string
     file_ids?: string[]
     fileIds?: string[]
+    credentialId?: string
   }
 
   const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
@@ -43,6 +44,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
     model: agentConfig.model ?? defaultModel,
     prompt: agentConfig.prompt ?? '',
     tools: tools.join(', '),
+    credentialId: agentConfig.credentialId ?? undefined,
   }
 
   const handleSubmit = (data: AIAgentFormSubmitData) => {
@@ -62,6 +64,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
         prompt: data.prompt ?? undefined,
         model: data.model ?? undefined,
         fileIds: allFileIds.length > 0 ? allFileIds : undefined,
+        credentialId: data.credentialId ?? undefined,
       })
 
       updateActivity(nodeId, updatedActivity)

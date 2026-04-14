@@ -187,6 +187,10 @@ export default tseslint.config(
       '**/routes/**/Approvals.tsx',
       '**/routes/**/ApprovalDetail.tsx',
       '**/routes/**/Authentication.tsx',
+      '**/routes/**/Credentials.tsx',
+      '**/routes/**/CredentialDetail.tsx',
+      '**/routes/**/CredentialTypes.tsx',
+      '**/routes/**/CredentialTypeDetail.tsx',
       '**/vite-env.d.ts',
     ],
     rules: {

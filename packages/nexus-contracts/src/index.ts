@@ -1,5 +1,6 @@
 import * as ApprovalsAPI from './approvals-api.js'
 import * as AuthAPI from './auth-api.js'
+import * as CredentialsAPI from './credentials-api.js'
 import * as ExecutionsAPI from './executions-api.js'
 import * as FilesAPI from './files-api.js'
 import * as IdentityProvidersAPI from './identity-providers-api.js'
@@ -13,6 +14,7 @@ import * as WorkflowAPI from './workflow-api.js'
 export {
   ApprovalsAPI,
   AuthAPI,
+  CredentialsAPI,
   ExecutionsAPI,
   FilesAPI,
   IdentityProvidersAPI,

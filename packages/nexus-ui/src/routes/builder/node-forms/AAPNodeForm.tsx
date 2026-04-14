@@ -14,6 +14,8 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
 
+import { CredentialSelector } from '../../../components/CredentialSelector'
+import { credentialHelpText } from '../../../components/credentialSelectorHelpText'
 import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
 
 import { aapFormSchema, type AAPFormData } from './aapFormSchema'
@@ -65,6 +67,26 @@ function AAPFormFields({
 
   const parametersContent = (
     <Stack hasGutter>
+      <StackItem>
+        <Controller
+          control={control}
+          name="credentialId"
+          render={({ field }) => (
+            <CredentialSelector
+              value={field.value ?? undefined}
+              onChange={field.onChange}
+              compatibleTypeNames={['Ansible Automation Platform']}
+              label="Authentication credential"
+              fieldId="aap-credential"
+              placeholder="Select credential"
+              allowCreate
+              helpText={credentialHelpText(
+                'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
+              )}
+            />
+          )}
+        />
+      </StackItem>
       <StackItem>
         <FormGroup label="Job template ID" isRequired fieldId="aap-jobTemplateId">
           <TextInput
@@ -206,7 +228,7 @@ function AAPFormFields({
   return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
 
-export function AAPNodeForm(props: AAPNodeFormProps) {
+export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
   const extraVarsEditorRef = useRef<ExpandableCodeEditorHandle | null>(null)
   const [, setSubmitValidationTick] = useState(0)
 

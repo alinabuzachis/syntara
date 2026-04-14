@@ -1,0 +1,473 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
+
+import { credentialsClient } from '../client'
+
+import { CredentialSelector, type CredentialSelectorProps } from './CredentialSelector'
+
+vi.mock('../client', () => ({
+  credentialsClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+}))
+
+vi.mock('../routes/configuration/credentials/form/CredentialFormModal', () => ({
+  CredentialFormModal: ({
+    isOpen,
+    onClose,
+    onCreated,
+    preSelectedTypeId,
+  }: {
+    isOpen: boolean
+    onClose: () => void
+    onCreated?: (id: string) => void
+    preSelectedTypeId?: string
+  }) =>
+    isOpen ? (
+      <div data-testid="credential-form-modal" data-pre-selected-type-id={preSelectedTypeId}>
+        <button onClick={onClose}>Close modal</button>
+        <button onClick={() => onCreated?.('new-cred-id')}>Simulate create</button>
+      </div>
+    ) : null,
+}))
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+})
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+)
+
+const mockCredentials = [
+  {
+    id: 'cred-1',
+    name: 'Production API Key',
+    description: 'API key for production',
+    credential_type_id: 'type-1',
+    enabled: true,
+    inputs: {},
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    created_by: 'user-1',
+  },
+  {
+    id: 'cred-2',
+    name: 'Staging Token',
+    description: null,
+    credential_type_id: 'type-2',
+    enabled: true,
+    inputs: {},
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    created_by: 'user-1',
+  },
+  {
+    id: 'cred-3',
+    name: 'Dev Bearer Token',
+    description: 'Bearer token for dev environment',
+    credential_type_id: 'type-1',
+    enabled: true,
+    inputs: {},
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    created_by: 'user-1',
+  },
+]
+
+const mockCredentialTypes = [
+  {
+    id: 'type-1',
+    name: 'HTTP Bearer Token',
+    description: 'Bearer token authentication',
+    inputs: {},
+    injectors: {},
+    managed: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'type-2',
+    name: 'HTTP Basic Auth',
+    description: 'Basic authentication',
+    inputs: {},
+    injectors: {},
+    managed: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+]
+
+function mockUseQuery(
+  overrides: {
+    credentials?: Record<string, unknown>
+    credentialTypes?: Record<string, unknown>
+  } = {}
+) {
+  const credentialsResponse = {
+    data: { resources: mockCredentials },
+    isPending: false,
+    error: null,
+    isFetching: false,
+    refetch: vi.fn(),
+    ...overrides.credentials,
+  }
+  const typesResponse = {
+    data: { resources: mockCredentialTypes },
+    isPending: false,
+    error: null,
+    isFetching: false,
+    refetch: vi.fn(),
+    ...overrides.credentialTypes,
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  vi.mocked(credentialsClient.useQuery).mockImplementation((_method: string, path: string): any => {
+    if (path === '/credential-types') {
+      return typesResponse
+    }
+    return credentialsResponse
+  })
+}
+
+/** Legacy mock helper for tests that don't need grouped display */
+function mockUseQueryLegacy(overrides: Record<string, unknown> = {}) {
+  mockUseQuery({
+    credentials: overrides,
+    credentialTypes: { data: { resources: [] } },
+  })
+}
+
+function renderSelector(props: Partial<CredentialSelectorProps> = {}) {
+  const defaultProps: CredentialSelectorProps = {
+    onChange: vi.fn(),
+    ...props,
+  }
+  return render(<CredentialSelector {...defaultProps} />, { wrapper })
+}
+
+describe('CredentialSelector', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders with no selection and default placeholder', () => {
+    mockUseQueryLegacy()
+    renderSelector()
+
+    expect(screen.getByRole('button', { name: 'Credential' })).toHaveTextContent('Select a credential...')
+  })
+
+  it('renders with custom placeholder', () => {
+    mockUseQueryLegacy()
+    renderSelector({ placeholder: 'Pick one' })
+
+    expect(screen.getByRole('button', { name: 'Credential' })).toHaveTextContent('Pick one')
+  })
+
+  it('renders selected credential name', () => {
+    mockUseQueryLegacy()
+    renderSelector({ value: 'cred-1' })
+
+    expect(screen.getByRole('button', { name: 'Credential' })).toHaveTextContent('Production API Key')
+  })
+
+  it('renders the form group label', () => {
+    mockUseQueryLegacy()
+    renderSelector({ label: 'API Credential' })
+
+    expect(screen.getByText('API Credential')).toBeInTheDocument()
+  })
+
+  it('shows dropdown with credential list when clicked', async () => {
+    const user = userEvent.setup()
+    mockUseQueryLegacy()
+    renderSelector()
+
+    await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+    expect(screen.getByText('Production API Key')).toBeInTheDocument()
+    expect(screen.getByText('Staging Token')).toBeInTheDocument()
+    expect(screen.getByText('Dev Bearer Token')).toBeInTheDocument()
+  })
+
+  it('calls onChange with credential ID when selecting a credential', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    mockUseQueryLegacy()
+    renderSelector({ onChange })
+
+    await user.click(screen.getByRole('button', { name: 'Credential' }))
+    await user.click(screen.getByRole('option', { name: /Production API Key/ }))
+
+    expect(onChange).toHaveBeenCalledWith('cred-1')
+  })
+
+  it('shows loading state', () => {
+    mockUseQueryLegacy({ data: undefined, isPending: true, isFetching: true })
+    renderSelector()
+
+    expect(screen.getByLabelText('Loading credentials')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Credential' })).toHaveTextContent('Loading credentials...')
+  })
+
+  it('disables toggle while loading', () => {
+    mockUseQueryLegacy({ data: undefined, isPending: true, isFetching: true })
+    renderSelector()
+
+    expect(screen.getByRole('button', { name: 'Credential' })).toBeDisabled()
+  })
+
+  it('shows empty state when no credentials available', async () => {
+    const user = userEvent.setup()
+    mockUseQueryLegacy({ data: { resources: [] } })
+    renderSelector()
+
+    await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+    expect(screen.getByText('No credentials available')).toBeInTheDocument()
+  })
+
+  it('disables toggle when isDisabled is true', () => {
+    mockUseQueryLegacy()
+    renderSelector({ isDisabled: true })
+
+    expect(screen.getByRole('button', { name: 'Credential' })).toBeDisabled()
+  })
+
+  it('always fetches all credentials without type filter in query params', () => {
+    mockUseQuery()
+    renderSelector({ compatibleTypeNames: ['HTTP Bearer Token'] })
+
+    expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials')
+  })
+
+  it('filters credentials client-side by compatible type names', async () => {
+    const user = userEvent.setup()
+    mockUseQuery()
+    renderSelector({ compatibleTypeNames: ['HTTP Bearer Token'] })
+
+    await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+    // type-1 credentials should be visible
+    expect(screen.getByText('Production API Key')).toBeInTheDocument()
+    expect(screen.getByText('Dev Bearer Token')).toBeInTheDocument()
+    // type-2 credential should be filtered out
+    expect(screen.queryByText('Staging Token')).not.toBeInTheDocument()
+  })
+
+  it('shows all credentials when compatibleTypeNames is not provided', async () => {
+    const user = userEvent.setup()
+    mockUseQuery()
+    renderSelector()
+
+    await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+    expect(screen.getByText('Production API Key')).toBeInTheDocument()
+    expect(screen.getByText('Staging Token')).toBeInTheDocument()
+    expect(screen.getByText('Dev Bearer Token')).toBeInTheDocument()
+  })
+
+  it('shows selected credential name on toggle after selection', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    mockUseQueryLegacy()
+    renderSelector({ onChange })
+
+    await user.click(screen.getByRole('button', { name: 'Credential' }))
+    await user.click(screen.getByRole('option', { name: /Staging Token/ }))
+
+    expect(onChange).toHaveBeenCalledWith('cred-2')
+  })
+
+  it('has no accessibility violations with credentials loaded', async () => {
+    mockUseQueryLegacy()
+    const { container } = renderSelector()
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations with dropdown open', async () => {
+    const user = userEvent.setup()
+    mockUseQueryLegacy()
+    const { container } = renderSelector()
+
+    await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations in loading state', async () => {
+    mockUseQueryLegacy({ data: undefined, isPending: true, isFetching: true })
+    const { container } = renderSelector()
+
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  describe('grouped display by credential type', () => {
+    it('groups credentials by type with group headers when types are available', async () => {
+      const user = userEvent.setup()
+      mockUseQuery()
+      renderSelector()
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      // Group headers should be visible
+      expect(screen.getByText('HTTP BEARER TOKEN')).toBeInTheDocument()
+      expect(screen.getByText('HTTP BASIC AUTH')).toBeInTheDocument()
+    })
+
+    it('renders credentials under their type group', async () => {
+      const user = userEvent.setup()
+      mockUseQuery()
+      renderSelector()
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      // All credentials still visible
+      expect(screen.getByText('Production API Key')).toBeInTheDocument()
+      expect(screen.getByText('Dev Bearer Token')).toBeInTheDocument()
+      expect(screen.getByText('Staging Token')).toBeInTheDocument()
+    })
+
+    it('renders ungrouped when no credential types are available', async () => {
+      const user = userEvent.setup()
+      mockUseQuery({ credentialTypes: { data: { resources: [] } } })
+      renderSelector()
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      // Credentials visible without group headers
+      expect(screen.getByText('Production API Key')).toBeInTheDocument()
+      expect(screen.queryByText('HTTP BEARER TOKEN')).not.toBeInTheDocument()
+    })
+
+    it('fetches credential types from the API', () => {
+      mockUseQuery()
+      renderSelector()
+
+      expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credential-types')
+    })
+  })
+
+  describe('helpText popover', () => {
+    it('renders help icon when helpText is provided', () => {
+      mockUseQueryLegacy()
+      renderSelector({ helpText: 'Some help text', label: 'My Credential' })
+
+      expect(screen.getByRole('button', { name: 'My Credential help' })).toBeInTheDocument()
+    })
+
+    it('does not render help icon when helpText is not provided', () => {
+      mockUseQueryLegacy()
+      renderSelector({ label: 'My Credential' })
+
+      expect(screen.queryByRole('button', { name: 'My Credential help' })).not.toBeInTheDocument()
+    })
+
+    it('shows popover content when help icon is clicked', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector({ helpText: 'This is help content', label: 'My Credential' })
+
+      await user.click(screen.getByRole('button', { name: 'My Credential help' }))
+
+      expect(screen.getByText('This is help content')).toBeInTheDocument()
+    })
+  })
+
+  describe('inline credential creation', () => {
+    it('shows "Create new credential" option when allowCreate is true', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector({ allowCreate: true })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      expect(screen.getByRole('option', { name: 'Create new credential' })).toBeInTheDocument()
+    })
+
+    it('renders "Create new credential" before credential groups in dropdown', async () => {
+      const user = userEvent.setup()
+      mockUseQuery()
+      renderSelector({ allowCreate: true })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      const options = screen.getAllByRole('option')
+      const createIndex = options.findIndex((o) => o.textContent?.includes('Create new credential'))
+      const firstCredentialIndex = options.findIndex((o) => o.textContent?.includes('Production API Key'))
+
+      expect(createIndex).toBeGreaterThan(-1)
+      expect(firstCredentialIndex).toBeGreaterThan(-1)
+      expect(createIndex).toBeLessThan(firstCredentialIndex)
+    })
+
+    it('does not show "Create new credential" option when allowCreate is false', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector({ allowCreate: false })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      expect(screen.queryByRole('option', { name: 'Create new credential' })).not.toBeInTheDocument()
+    })
+
+    it('opens the create modal when "Create new credential" is clicked', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector({ allowCreate: true })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+      await user.click(screen.getByRole('option', { name: 'Create new credential' }))
+
+      expect(screen.getByTestId('credential-form-modal')).toBeInTheDocument()
+    })
+
+    it('passes preSelectedTypeId to the create modal', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy()
+      renderSelector({ allowCreate: true, preSelectedTypeId: 'type-bearer' })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+      await user.click(screen.getByRole('option', { name: 'Create new credential' }))
+
+      expect(screen.getByTestId('credential-form-modal')).toHaveAttribute('data-pre-selected-type-id', 'type-bearer')
+    })
+
+    it('auto-selects the new credential after creation', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      mockUseQueryLegacy()
+      renderSelector({ allowCreate: true, onChange })
+
+      // Open dropdown and click create
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+      await user.click(screen.getByRole('option', { name: 'Create new credential' }))
+
+      // Simulate successful creation
+      await user.click(screen.getByText('Simulate create'))
+
+      expect(onChange).toHaveBeenCalledWith('new-cred-id')
+    })
+
+    it('does not show "No credentials available" when allowCreate is true and list is empty', async () => {
+      const user = userEvent.setup()
+      mockUseQueryLegacy({ data: { resources: [] } })
+      renderSelector({ allowCreate: true })
+
+      await user.click(screen.getByRole('button', { name: 'Credential' }))
+
+      expect(screen.queryByText('No credentials available')).not.toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Create new credential' })).toBeInTheDocument()
+    })
+  })
+})

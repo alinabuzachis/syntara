@@ -1,3 +1,4 @@
+import { ExecutorTypeEnum } from '@ansible/nexus-contracts'
 import { RhUiFileCodeIcon, RhUiElectricityFillIcon, RhUiPlugFillIcon } from '@patternfly/react-icons'
 
 import { RegistryNodeId } from '../../../../constants'
@@ -31,7 +32,7 @@ export default function registerActionNode() {
             icon: RhUiFileCodeIcon,
             description: 'Execute code to manage complex conditions, calculate values, or format data.',
             formTitle: 'Configure Script Actions',
-            initialData: { executor: 'script' },
+            initialData: { executor: ExecutorTypeEnum.SCRIPT },
           },
           {
             id: RegistryNodeId.ACTION_API,
@@ -39,7 +40,7 @@ export default function registerActionNode() {
             icon: RhUiPlugFillIcon,
             description: 'Trigger an action or retrieve data from an external source.',
             formTitle: 'Configure REST API Actions',
-            initialData: { executor: 'http_request' },
+            initialData: { executor: ExecutorTypeEnum.HTTP_REQUEST },
           },
         ],
         formComponent: ActionNodeForm,
@@ -49,13 +50,13 @@ export default function registerActionNode() {
           const baseName = getDefaultNodeBaseName({
             nodeTypeId: RegistryNodeId.ACTION,
             initialData: { executor: data.executor },
-            label: data.executor === 'http_request' ? 'REST API' : 'Script',
+            label: data.executor === ExecutorTypeEnum.HTTP_REQUEST ? 'REST API' : 'Script',
           })
           const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) => {
-            if (data.executor === 'script' && data.language && data.code) {
-              return createScriptActivity(id, name, data.language, data.code)
+            if (data.executor === ExecutorTypeEnum.SCRIPT && data.language && data.code) {
+              return createScriptActivity(id, name, data.language, data.code, data.credentialId)
             }
-            if (data.executor === 'http_request' && data.method && data.url) {
+            if (data.executor === ExecutorTypeEnum.HTTP_REQUEST && data.method && data.url) {
               return createApiActivity({
                 id,
                 name,
@@ -65,6 +66,7 @@ export default function registerActionNode() {
                 body: data.body,
                 inputs: data.parameters,
                 authentication: data.authentication,
+                credentialId: data.credentialId,
               })
             }
             return null

@@ -5,6 +5,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActionNodeForm } from './ActionNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
+// Mock credentialsClient used by CredentialSelector
+vi.mock('../../../client', () => ({
+  credentialsClient: {
+    useQuery: vi.fn().mockReturnValue({
+      data: { resources: [] },
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    }),
+    useMutation: vi.fn().mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
+  },
+}))
+
 // Mock ExpandableCodeEditor to use a simple textarea for testing
 vi.mock('../../../components/ExpandableCodeEditor', () => ({
   ExpandableCodeEditor: ({
@@ -91,7 +107,6 @@ describe('ActionNodeForm', () => {
     await user.type(screen.getByPlaceholderText(/Enter activity name/i), 'Test API')
     await user.type(screen.getByPlaceholderText(/https:\/\/api.example.com/i), 'https://api.test.com/data')
     await user.selectOptions(screen.getByLabelText(/HTTP Method/i), 'POST')
-    await user.type(screen.getByPlaceholderText(/Bearer token/i), 'my-secret-token')
     await user.click(screen.getByRole('button', { name: /Add step/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith(
@@ -100,7 +115,6 @@ describe('ActionNodeForm', () => {
         executor: 'http_request',
         method: 'POST',
         url: 'https://api.test.com/data',
-        authentication: 'my-secret-token',
       })
     )
   })
@@ -134,7 +148,6 @@ describe('ActionNodeForm', () => {
           executor: 'http_request',
           method: 'POST',
           url: 'https://example.com/api',
-          authentication: 'Bearer token123',
           headers: '{"X-Custom": "header"}',
           body: '{"data": "test"}',
         }}
@@ -143,7 +156,6 @@ describe('ActionNodeForm', () => {
 
     expect(screen.getByDisplayValue('Existing API')).toBeInTheDocument()
     expect(screen.getByDisplayValue('https://example.com/api')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Bearer token123')).toBeInTheDocument()
     expect(screen.getByDisplayValue('{"X-Custom": "header"}')).toBeInTheDocument()
     expect(screen.getByDisplayValue('{"data": "test"}')).toBeInTheDocument()
   })

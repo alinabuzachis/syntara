@@ -13,6 +13,7 @@ import type {
   WorkflowWithVersion,
   WorkflowsResponse,
 } from '@ansible/nexus-contracts'
+import { credentials, credentialTypes, credentialWorkflows } from './resources/credentials'
 import { providers } from './resources/providers'
 import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
@@ -128,6 +129,19 @@ function paginate<T>(items: T[], cursor: string | null, limit: number, includeTo
     prev,
     total: includeTotal ? items.length : null,
   }
+}
+
+/** Redact secret fields in a credential's inputs to match real API behavior */
+function redactCredential(credential: (typeof credentials)[number]) {
+  const credType = credentialTypes.find((t) => t.id === credential.credential_type_id)
+  const fields = ((credType?.inputs as Record<string, unknown>)?.fields as { id: string; secret?: boolean }[]) ?? []
+  const redactedInputs = { ...credential.inputs }
+  for (const field of fields) {
+    if (field.secret && field.id in redactedInputs) {
+      ;(redactedInputs as Record<string, unknown>)[field.id] = '$encrypted$'
+    }
+  }
+  return { ...credential, inputs: redactedInputs }
 }
 
 export const handlers = [
@@ -1411,6 +1425,184 @@ export const handlers = [
     }
     userGroupMemberships[userId] = memberGroupIds.filter((id) => id !== group.id)
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Credential handlers
+  http.get('/api/v1/credentials', ({ request }) => {
+    const url = new URL(request.url)
+    const nameContains = url.searchParams.get('name[contains]')
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    let resources = credentials
+
+    if (nameContains) {
+      const searchTerm = nameContains.toLowerCase()
+      resources = resources.filter((c) => (c.name ?? '').toLowerCase().includes(searchTerm))
+    }
+
+    const credTypeId = url.searchParams.get('credential_type_id')
+    if (credTypeId) {
+      resources = resources.filter((c) => c.credential_type_id === credTypeId)
+    }
+
+    return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
+  }),
+
+  http.post('/api/v1/credentials', async (req) => {
+    const body = (await req.request.json()) as {
+      name: string
+      description?: string | null
+      credential_type_id: string
+      inputs?: Record<string, unknown>
+    }
+
+    // Validate credential type exists
+    const matchingType = credentialTypes.find((t) => t.id === body.credential_type_id)
+    if (!matchingType) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/not-found',
+          title: 'Not Found',
+          detail: `Credential type '${body.credential_type_id}' not found`,
+          code: 'NOT_FOUND',
+          retryable: false,
+        },
+        { status: 404 }
+      )
+    }
+
+    // Validate required fields from the type schema
+    const typeInputs = matchingType.inputs as Record<string, unknown>
+    const requiredFields = (typeInputs?.required as string[]) ?? []
+    const providedInputs = body.inputs ?? {}
+    const missingFields = requiredFields.filter((field) => !(field in providedInputs) || providedInputs[field] === '')
+    if (missingFields.length > 0) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/validation-error',
+          title: 'Validation Error',
+          detail: `Missing required input fields: ${missingFields.join(', ')}`,
+          code: 'VALIDATION_ERROR',
+          retryable: false,
+        },
+        { status: 422 }
+      )
+    }
+
+    const now = new Date().toISOString()
+    const newCredential = {
+      id: uuidv4(),
+      name: body.name,
+      description: body.description ?? null,
+      credential_type_id: body.credential_type_id,
+      inputs: JSON.parse(JSON.stringify(body.inputs ?? {})) as Record<string, unknown>,
+      enabled: true,
+      created_at: now,
+      updated_at: now,
+      created_by: 'user-001',
+      labels: {},
+      deleted_at: null,
+      deleted_by: null,
+    }
+    credentials.push(newCredential)
+    matchingType.credential_count = (matchingType.credential_count ?? 0) + 1
+
+    return HttpResponse.json(redactCredential(newCredential), { status: 201 })
+  }),
+
+  http.get('/api/v1/credentials/:credential_id', (request) => {
+    const { credential_id } = request.params as { credential_id: string }
+    const credential = credentials.find((c) => c.id === credential_id)
+    if (!credential) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Credential not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(redactCredential(credential))
+  }),
+
+  http.patch('/api/v1/credentials/:credential_id', async (request) => {
+    const { credential_id } = request.params as { credential_id: string }
+    const credential = credentials.find((c) => c.id === credential_id)
+    if (!credential) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Credential not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    const { name, description, inputs, enabled } = (await request.request.json()) as {
+      name?: string
+      description?: string | null
+      inputs?: Record<string, unknown>
+      enabled?: boolean
+    }
+    if (name != null) credential.name = name
+    if (description !== undefined) credential.description = description
+    if (inputs != null) {
+      // JSON round-trip strips prototype properties at all nesting levels
+      const sanitized = JSON.parse(JSON.stringify(inputs)) as Record<string, unknown>
+      Object.assign(credential.inputs, sanitized)
+    }
+    if (enabled != null) credential.enabled = enabled
+    credential.updated_at = new Date().toISOString()
+    return HttpResponse.json(redactCredential(credential))
+  }),
+
+  http.delete('/api/v1/credentials/:credential_id', (request) => {
+    const { credential_id } = request.params as { credential_id: string }
+    const index = credentials.findIndex((c) => c.id === credential_id)
+    if (index === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Credential not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    credentials.splice(index, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get('/api/v1/credentials/:credential_id/workflows', (request) => {
+    const { credential_id } = request.params as { credential_id: string }
+    const credential = credentials.find((c) => c.id === credential_id)
+    if (!credential) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Credential not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(credentialWorkflows[credential_id] ?? [])
+  }),
+
+  http.get('/api/v1/credential-types', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    return HttpResponse.json(paginate(credentialTypes, cursor, limit, includeTotal))
+  }),
+
+  http.get('/api/v1/credential-types/:credential_type_id', (request) => {
+    const { credential_type_id } = request.params as { credential_type_id: string }
+    const credType = credentialTypes.find((t) => t.id === credential_type_id)
+    if (!credType) {
+      return HttpResponse.json(
+        {
+          type: 'not-found',
+          title: 'Not Found',
+          detail: 'Credential type not found',
+          code: 'NOT_FOUND',
+          retryable: false,
+        },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(credType)
   }),
 
   // File upload mock handler

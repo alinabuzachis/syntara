@@ -1,6 +1,10 @@
+import { Flex, FlexItem, Icon } from '@patternfly/react-core'
+import { AngleDownIcon, AngleRightIcon } from '@patternfly/react-icons'
 import { Table, Thead, Th, Tbody, Td, Tr } from '@patternfly/react-table'
 import type React from 'react'
+import { Fragment, useState } from 'react'
 
+import { CodeBlock } from '../../components/details/CodeBlock'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
 import type { ActivityState } from '../automations/execution/types'
 
@@ -25,6 +29,8 @@ interface ExecutionActivityTableProps {
   executionStartedAt?: string | null
   /** Current timestamp (ms) used to compute elapsed time for running activities. */
   now: number
+  /** Execution-level error — activity errors matching this are suppressed to avoid duplication. */
+  executionError?: string | null
 }
 
 const DASH = <span style={{ color: 'var(--pf-t--global--color--text--secondary)' }}>—</span>
@@ -32,6 +38,12 @@ const DASH = <span style={{ color: 'var(--pf-t--global--color--text--secondary)'
 const TABLE_STYLE = {
   '--pf-t--global--border--color--default': 'rgba(196, 181, 253, 0.2)',
 } as React.CSSProperties
+
+const ERROR_STYLE: React.CSSProperties = {
+  color: 'var(--pf-t--global--color--status--danger--default)',
+  fontSize: 'var(--pf-t--global--font--size--sm)',
+  padding: 'var(--pf-t--global--spacer--xs) 0',
+}
 
 function computeRowElapsedMs(state: ActivityState, now: number): number | undefined {
   const startedAtMs = state.startedAt != null ? Date.parse(state.startedAt) : null
@@ -54,13 +66,103 @@ function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
+function formatOptionalDate(date: string | null | undefined) {
+  return date ? formatExecutionDateTime(date) : undefined
+}
+
+function ActivityNameCell({
+  label,
+  hasOutput,
+  isExpanded,
+}: Readonly<{
+  label: string
+  hasOutput: boolean
+  isExpanded: boolean
+}>) {
+  if (!hasOutput) return <>{label}</>
+  return (
+    <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }} flexWrap={{ default: 'nowrap' }}>
+      <FlexItem>
+        <Icon size="sm">{isExpanded ? <AngleDownIcon /> : <AngleRightIcon />}</Icon>
+      </FlexItem>
+      <FlexItem>{label}</FlexItem>
+    </Flex>
+  )
+}
+
+function ActivityRow({
+  id,
+  name,
+  state,
+  now,
+  isExpanded,
+  onToggle,
+  executionError,
+}: Readonly<{
+  id: string
+  name?: string
+  state?: ActivityState
+  now: number
+  isExpanded: boolean
+  onToggle: (id: string) => void
+  executionError?: string | null
+}>) {
+  const elapsedMs = state ? computeRowElapsedMs(state, now) : undefined
+  const hasOutput = state?.outputData != null
+
+  return (
+    <Fragment>
+      <Tr style={hasOutput ? { cursor: 'pointer' } : undefined} onRowClick={hasOutput ? () => onToggle(id) : undefined}>
+        <Td dataLabel="Name">
+          <ActivityNameCell label={name ?? id} hasOutput={hasOutput} isExpanded={isExpanded} />
+        </Td>
+        <Td dataLabel="Started">{formatOptionalDate(state?.startedAt) ?? DASH}</Td>
+        <Td dataLabel="Ended">{formatOptionalDate(state?.completedAt) ?? DASH}</Td>
+        <Td dataLabel="Elapsed time">{elapsedMs === undefined ? DASH : formatElapsedTime(elapsedMs)}</Td>
+        <Td dataLabel="Status" modifier="nowrap">
+          <ActivityStatusLabel status={state?.status ?? 'pending'} />
+        </Td>
+      </Tr>
+      {state?.errorDetails && state.errorDetails !== executionError && (
+        <Tr>
+          <Td colSpan={5} style={{ paddingTop: 0 }}>
+            <div style={ERROR_STYLE}>{state.errorDetails}</div>
+          </Td>
+        </Tr>
+      )}
+      {isExpanded && state?.outputData && (
+        <Tr>
+          <Td colSpan={5} style={{ paddingTop: 0 }}>
+            <CodeBlock jsonObject={state.outputData} enableCopy />
+          </Td>
+        </Tr>
+      )}
+    </Fragment>
+  )
+}
+
 export function ExecutionActivityTable({
   triggers,
   activityStates,
   activityOrder,
   executionStartedAt,
   now,
+  executionError,
 }: ExecutionActivityTableProps) {
+  const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set())
+
+  const toggleExpanded = (id: string) => {
+    setExpandedActivities((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
   return (
     <Table aria-label="Activity states" isPlain isStickyHeader variant="compact" style={TABLE_STYLE}>
       <Thead>
@@ -100,27 +202,18 @@ export function ExecutionActivityTable({
           )
         })}
 
-        {activityOrder.map(({ id, name }) => {
-          const state = activityStates.get(id)
-          const displayName = name ?? id
-          const startedFormatted = state?.startedAt ? formatExecutionDateTime(state.startedAt) : undefined
-          const endedFormatted = state?.completedAt ? formatExecutionDateTime(state.completedAt) : undefined
-          const elapsedMs = state ? computeRowElapsedMs(state, now) : undefined
-          const elapsedLabel = elapsedMs !== undefined ? formatElapsedTime(elapsedMs) : undefined
-          const status = state?.status ?? 'pending'
-
-          return (
-            <Tr key={id}>
-              <Td dataLabel="Name">{displayName}</Td>
-              <Td dataLabel="Started">{startedFormatted ?? DASH}</Td>
-              <Td dataLabel="Ended">{endedFormatted ?? DASH}</Td>
-              <Td dataLabel="Elapsed time">{elapsedLabel ?? DASH}</Td>
-              <Td dataLabel="Status" modifier="nowrap">
-                <ActivityStatusLabel status={status} />
-              </Td>
-            </Tr>
-          )
-        })}
+        {activityOrder.map(({ id, name }) => (
+          <ActivityRow
+            key={id}
+            id={id}
+            name={name}
+            state={activityStates.get(id)}
+            now={now}
+            isExpanded={expandedActivities.has(id)}
+            onToggle={toggleExpanded}
+            executionError={executionError}
+          />
+        ))}
       </Tbody>
     </Table>
   )

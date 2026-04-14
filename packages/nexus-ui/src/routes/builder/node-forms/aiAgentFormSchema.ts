@@ -9,6 +9,7 @@ export const aiAgentFormSchema = z.object({
   model: z.string(),
   prompt: z.string().min(1, 'Prompt is required'),
   tools: z.string(),
+  credentialId: z.string().optional(),
 })
 
 export type AIAgentFormData = z.infer<typeof aiAgentFormSchema>

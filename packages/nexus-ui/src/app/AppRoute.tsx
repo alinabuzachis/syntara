@@ -22,7 +22,10 @@ export const AppRoute = {
       Configure: '/configuration/integrations/configure',
       IntegrationTools: '/configuration/integrations/:provider_id/tools',
     },
-    Credentials: '/configuration/credentials',
+    Credentials: {
+      Root: '/configuration/credentials',
+      Detail: '/configuration/credentials/:credentialId',
+    },
     Settings: '/configuration/settings',
   },
   AccessManagement: {

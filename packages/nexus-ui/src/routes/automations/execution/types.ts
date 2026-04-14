@@ -110,6 +110,8 @@ export interface ActivityState {
   status: ActivityStatus
   /** Error message if status is 'failed' */
   errorDetails?: string | null
+  /** Activity output data (API response body, status code, etc.) */
+  outputData?: Record<string, unknown> | null
   /** When activity started execution */
   startedAt?: string | null
   /** When activity reached terminal state */

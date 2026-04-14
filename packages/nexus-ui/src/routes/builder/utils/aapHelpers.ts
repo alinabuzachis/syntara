@@ -42,6 +42,7 @@ export interface AAPJobConfig {
   tags?: string
   skipTags?: string
   verbosity?: number
+  credentialId?: string
 }
 
 /**
@@ -73,6 +74,8 @@ export function buildAAPConfig(data: AAPFormData): AAPJobConfig | undefined {
     const verbosity = parsePositiveInt(data.verbosity, 0)
     if (verbosity !== undefined && verbosity <= 5) config.verbosity = verbosity
   }
+
+  if (data.credentialId) config.credentialId = data.credentialId
 
   return Object.keys(config).length > 0 ? config : undefined
 }

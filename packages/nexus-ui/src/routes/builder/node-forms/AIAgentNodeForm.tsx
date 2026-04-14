@@ -15,6 +15,8 @@ import type { ReactNode } from 'react'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useFormState } from 'react-hook-form'
 
+import { CredentialSelector } from '../../../components/CredentialSelector'
+import { credentialHelpText } from '../../../components/credentialSelectorHelpText'
 import { FileUpload, type UploadedFile } from '../../../components/file-upload'
 import { useFileUploadWithProgress } from '../../../hooks/useFileUploadWithProgress'
 import { generateUUID } from '../../../utils/generateUUID'
@@ -147,6 +149,26 @@ function AIAgentFormFields({
   const parametersContent = (
     <Stack hasGutter>
       <StackItem>
+        <Controller
+          control={control}
+          name="credentialId"
+          render={({ field }) => (
+            <CredentialSelector
+              value={field.value ?? undefined}
+              onChange={field.onChange}
+              compatibleTypeNames={['LLM Provider']}
+              label="LLM provider credential"
+              fieldId="agent-credential"
+              placeholder="Select LLM credential"
+              allowCreate
+              helpText={credentialHelpText(
+                'Select a stored credential for the LLM provider. Credentials securely store API keys and authentication tokens.'
+              )}
+            />
+          )}
+        />
+      </StackItem>
+      <StackItem>
         <FormGroup label="Prompt" fieldId="agent-prompt" isRequired>
           <TextArea
             {...register('prompt')}
@@ -203,9 +225,9 @@ function AIAgentFormFields({
   return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
 
-export function AIAgentNodeForm(props: AIAgentNodeFormProps) {
+export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
   const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
-  const defaultModel = envModel || 'anthropic/claude-3.5-sonnet'
+  const defaultModel = envModel || 'anthropic/claude-haiku-4.5'
 
   // Track only newly uploaded files (existing files handled by parent)
   const [completedFiles, setCompletedFiles] = useState<UploadedFile[]>([])

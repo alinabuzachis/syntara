@@ -43,3 +43,5 @@ export const EditUser = lazy(() =>
   }))
 )
 export const MyProfile = lazy(() => import('../routes/profile/MyProfile').then((m) => ({ default: m.MyProfile })))
+export const Credentials = lazy(() => import('../routes/configuration/credentials/Credentials'))
+export const CredentialDetail = lazy(() => import('../routes/configuration/credentials/CredentialDetail'))

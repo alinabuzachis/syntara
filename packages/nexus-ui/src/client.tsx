@@ -1,6 +1,7 @@
 import type {
   ApprovalsAPI,
   AuthAPI,
+  CredentialsAPI,
   ExecutionsAPI,
   IdentityProvidersAPI,
   ToolManagerAPI,
@@ -107,3 +108,7 @@ export const authClient = createClient(authFetchClient)
 const usersFetchClient = createFetchClient<UsersAPI.paths>({ baseUrl: '/api/v1' })
 usersFetchClient.use(authMiddleware)
 export const usersClient = createClient(usersFetchClient)
+
+const credentialsFetchClient = createFetchClient<CredentialsAPI.paths>({ baseUrl: '/api/v1/' })
+credentialsFetchClient.use(authMiddleware)
+export const credentialsClient = createClient(credentialsFetchClient)

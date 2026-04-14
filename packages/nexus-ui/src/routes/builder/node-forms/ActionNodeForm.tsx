@@ -19,6 +19,8 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
+import { CredentialSelector } from '../../../components/CredentialSelector'
+import { credentialHelpText } from '../../../components/credentialSelectorHelpText'
 import {
   ExpandableCodeEditor,
   type CodeLanguage,
@@ -106,7 +108,15 @@ function ActionParametersContent(props: {
                 control={control}
                 name="code"
                 render={({ field }) => (
-                  <div className={errors.code ? 'pf-v6-c-form-control pf-m-error' : undefined}>
+                  <div
+                    style={
+                      errors.code
+                        ? {
+                            borderBottom: '2px solid var(--pf-t--global--color--status--danger--default)',
+                          }
+                        : undefined
+                    }
+                  >
                     <ExpandableCodeEditor
                       ref={scriptEditorRef ?? undefined}
                       code={field.value ?? ''}
@@ -147,6 +157,26 @@ function ActionParametersContent(props: {
       {executor === ExecutorTypeEnum.HTTP_REQUEST && (
         <>
           <StackItem>
+            <Controller
+              control={control}
+              name="credentialId"
+              render={({ field }) => (
+                <CredentialSelector
+                  value={field.value ?? undefined}
+                  onChange={field.onChange}
+                  compatibleTypeNames={['HTTP Bearer Token', 'HTTP Basic Auth']}
+                  label="Authentication credential"
+                  fieldId="action-credential"
+                  placeholder="Select credential"
+                  allowCreate
+                  helpText={credentialHelpText(
+                    'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
+                  )}
+                />
+              )}
+            />
+          </StackItem>
+          <StackItem>
             <FormGroup label="URL" isRequired fieldId="action-url">
               <TextInput
                 {...register('url')}
@@ -183,16 +213,6 @@ function ActionParametersContent(props: {
                     ))}
                   </FormSelect>
                 )}
-              />
-            </FormGroup>
-          </StackItem>
-          <StackItem>
-            <FormGroup label="Authentication" fieldId="action-authentication">
-              <TextInput
-                {...register('authentication')}
-                id="action-authentication"
-                placeholder="Bearer token or API key"
-                type="text"
               />
             </FormGroup>
           </StackItem>
@@ -293,7 +313,7 @@ function ActionFormFields({
   return <NodeFormTabsLayout parametersContent={parametersContent} submitButtonText={submitButtonText} />
 }
 
-export function ActionNodeForm(props: ActionNodeFormProps) {
+export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
   const defaultValues: ActionFormValues = {
     name: '',
     executor: props.initialData?.executor ?? ExecutorTypeEnum.SCRIPT,
@@ -319,6 +339,7 @@ export function ActionNodeForm(props: ActionNodeFormProps) {
       body: data.executor === ExecutorTypeEnum.HTTP_REQUEST ? data.body : undefined,
       parameters: data.parameters ?? undefined,
       requiresApproval: props.initialData?.requiresApproval,
+      credentialId: data.credentialId ?? undefined,
     }
     props.onSubmit(cleanedData)
   }

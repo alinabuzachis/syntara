@@ -100,7 +100,13 @@ export function createEventTrigger(
 /**
  * Create a script node (v2).
  */
-export function createScriptActivity(id: string, name: string, language: string, code: string): Activity {
+export function createScriptActivity(
+  id: string,
+  name: string,
+  language: string,
+  code: string,
+  credentialId?: string
+): Activity {
   return {
     id,
     type: ActivityTypeEnum.SCRIPT,
@@ -108,6 +114,7 @@ export function createScriptActivity(id: string, name: string, language: string,
     config: {
       language,
       code,
+      ...(credentialId && { credentialId }),
     },
   }
 }
@@ -121,13 +128,14 @@ export interface CreateApiActivityOptions {
   body?: string
   inputs?: string
   authentication?: string
+  credentialId?: string
 }
 
 /**
  * Create an HTTP request node (v2).
  */
 export function createApiActivity(options: CreateApiActivityOptions): Activity {
-  const { id, name, method, url, headers, body, authentication } = options
+  const { id, name, method, url, headers, body, authentication, credentialId } = options
   const config: Record<string, unknown> = { method, url }
 
   if (headers) {
@@ -160,7 +168,10 @@ export function createApiActivity(options: CreateApiActivityOptions): Activity {
     id,
     type: ActivityTypeEnum.HTTP_REQUEST,
     name,
-    config,
+    config: {
+      ...config,
+      ...(credentialId && { credentialId }),
+    },
   }
 }
 
@@ -172,19 +183,21 @@ export interface CreateAgenticActivityOptions {
   model?: string
   inputs?: string
   fileIds?: string[]
+  credentialId?: string
 }
 
 /**
  * Create an agentic node (v2).
  */
 export function createAgenticActivity(options: CreateAgenticActivityOptions): Activity {
-  const { id, name, tools, prompt, model, fileIds } = options
+  const { id, name, tools, prompt, model, fileIds, credentialId } = options
   const config: Record<string, unknown> = {}
 
   if (prompt) config.prompt = prompt
   if (model) config.model = model
   if (tools && tools.length > 0) config.tool_selections = tools
   if (fileIds && fileIds.length > 0) config.file_ids = fileIds
+  if (credentialId) config.credentialId = credentialId
 
   return {
     id,
@@ -209,6 +222,7 @@ export function createAAPJobTemplateActivity(
     tags?: string
     skipTags?: string
     verbosity?: number
+    credentialId?: string
   }
 ): Activity {
   return {
@@ -224,6 +238,7 @@ export function createAAPJobTemplateActivity(
       ...(config?.tags && { tags: config.tags }),
       ...(config?.skipTags && { skip_tags: config.skipTags }),
       ...(config?.verbosity !== undefined && { verbosity: config.verbosity }),
+      ...(config?.credentialId && { credentialId: config.credentialId }),
     },
   }
 }

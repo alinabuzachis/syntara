@@ -1,4 +1,4 @@
-import { RhUiKeyIcon, ShieldAltIcon } from '@patternfly/react-icons'
+import { RhUiConnectedIcon, RhUiKeyIcon, ShieldAltIcon } from '@patternfly/react-icons'
 
 import { AppRoute } from './AppRoute'
 import {
@@ -11,6 +11,8 @@ import {
   Automations,
   BuilderEdit,
   BuilderNew,
+  CredentialDetail,
+  Credentials,
   EditIdentityProvider,
   EditUser,
   ExecutionDetail,
@@ -130,6 +132,7 @@ export const navigationItems: INavigationItem[] = [
       {
         label: 'Integrations',
         path: AppRoute.Configuration.Integrations.Root,
+        icon: <RhUiConnectedIcon />,
         element: <Integrations />,
         children: [
           {
@@ -143,6 +146,16 @@ export const navigationItems: INavigationItem[] = [
             element: <IntegrationTools />,
           },
         ],
+      },
+      {
+        label: 'Credentials',
+        path: AppRoute.Configuration.Credentials.Root,
+        icon: <RhUiKeyIcon />,
+        element: <Credentials />,
+      },
+      {
+        label: 'Settings',
+        path: AppRoute.Configuration.Settings,
       },
     ],
   },
@@ -182,6 +195,12 @@ export const navigationItems: INavigationItem[] = [
     label: 'Execution Detail',
     path: AppRoute.Executions.Execution,
     element: <ExecutionDetail />,
+    hidden: true,
+  },
+  {
+    label: 'Credential Detail',
+    path: AppRoute.Configuration.Credentials.Detail,
+    element: <CredentialDetail />,
     hidden: true,
   },
 ]

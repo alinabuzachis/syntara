@@ -15,6 +15,7 @@ export const aapFormSchema = z
     tags: z.string().optional(),
     skipTags: z.string().optional(),
     verbosity: z.string().optional(),
+    credentialId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     const v = data.extraVars?.trim()
