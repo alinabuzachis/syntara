@@ -98,6 +98,17 @@ async function postAuth(url: string, body?: object): Promise<LoginResponse> {
   return (await response.json()) as LoginResponse
 }
 
+function parseUsernameFromJwt(token: string): string | null {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return null
+    const decoded = JSON.parse(atob(payload)) as { sub?: string }
+    return decoded.sub ?? null
+  } catch {
+    return null
+  }
+}
+
 function applyTokenResponse(set: (partial: Partial<AuthState>) => void, data: LoginResponse): void {
   set({
     accessToken: data.access_token,
@@ -105,6 +116,7 @@ function applyTokenResponse(set: (partial: Partial<AuthState>) => void, data: Lo
     isAuthenticated: true,
     isRefreshing: false,
     error: null,
+    username: parseUsernameFromJwt(data.access_token),
   })
 }
 
@@ -123,7 +135,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const data = await postAuth(AUTH_LOGIN_URL, credentials)
       applyTokenResponse(set, data)
-      set({ username: credentials.username })
     } catch (err) {
       set({
         ...INITIAL_STATE,
