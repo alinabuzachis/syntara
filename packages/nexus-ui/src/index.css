@@ -1,9 +1,51 @@
 /* PatternFly base CSS */
 @import '@patternfly/react-core/dist/styles/base.css';
 
-/* Semantic token for Red Hat logo color */
+/* Semantic token for Red Hat logo + shared “deep space” shell (PF primitives only — see
+   https://www.patternfly.org/tokens/all-patternfly-tokens/ ). Legacy bitmap stops approximated:
+   left #092E5C, right #28154B, top #0E417D, bottom #00464C, base #030308 */
 :root {
   --pf-t--custom--color--redhat-logo: #e00;
+
+  /* Solid chroma centers: nested color-mix() of --pf-t--color--* to hug legacy RGB */
+  --nexus-deep-space-chroma-left: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--pf-t--color--blue--80) 70%, var(--pf-t--color--blue--60) 30%) 88%,
+    var(--pf-t--color--purple--70) 12%
+  );
+  --nexus-deep-space-chroma-right: color-mix(in srgb, var(--pf-t--color--purple--70) 72%, var(--pf-t--color--purple--80) 28%);
+  --nexus-deep-space-chroma-top: color-mix(in srgb, var(--pf-t--color--blue--70) 52%, var(--pf-t--color--blue--60) 48%);
+  /* #00464C legacy ≈ teal-70 #004d4d */
+  --nexus-deep-space-chroma-bottom: var(--pf-t--color--teal--70);
+
+  /* Same apparent strengths as original rgba() stops (76% / 66% / 38% / 32%) */
+  --nexus-deep-space-wash-left: color-mix(in srgb, var(--nexus-deep-space-chroma-left) 76%, transparent);
+  --nexus-deep-space-wash-right: color-mix(in srgb, var(--nexus-deep-space-chroma-right) 66%, transparent);
+  --nexus-deep-space-wash-top: color-mix(in srgb, var(--nexus-deep-space-chroma-top) 38%, transparent);
+  --nexus-deep-space-wash-bottom: color-mix(in srgb, var(--nexus-deep-space-chroma-bottom) 32%, transparent);
+
+  --nexus-deep-space-image:
+    radial-gradient(ellipse 80% 100% at 0% 50%, var(--nexus-deep-space-wash-left) 0%, transparent 51%),
+    radial-gradient(ellipse 80% 100% at 100% 50%, var(--nexus-deep-space-wash-right) 0%, transparent 51%),
+    radial-gradient(ellipse 100% 60% at 50% 0%, var(--nexus-deep-space-wash-top) 0%, transparent 51%),
+    radial-gradient(ellipse 100% 60% at 50% 100%, var(--nexus-deep-space-wash-bottom) 0%, transparent 51%);
+  /* #030308 ≈ heavy black + hint of blue-80 */
+  --nexus-deep-space-base: color-mix(in srgb, var(--pf-t--color--blue--80) 14%, var(--pf-t--color--black));
+}
+
+/* Shell: index.html <body style="… var(--nexus-deep-space-*) …">; Compass + login below */
+
+/* Deep Space background on Compass + login (same :root stack as body) */
+.pf-v6-c-compass.bg-deep-space {
+  --pf-v6-c-compass--BackgroundImage: var(--nexus-deep-space-image);
+  background-color: var(--nexus-deep-space-base);
+  background-attachment: fixed;
+}
+
+.bg-deep-space-login {
+  background: var(--nexus-deep-space-image), var(--nexus-deep-space-base);
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 /* Prevent horizontal scrollbar from PF portaled menus (Select/Dropdown) that

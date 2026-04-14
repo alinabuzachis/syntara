@@ -11,7 +11,6 @@ import {
 } from '@patternfly/react-core'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import backgroundImgSrc from '../assets/background.jpg'
 import { useAlerts } from '../components/alerts'
 import { LoadingState } from '../components/states/LoadingState'
 import { useAuthStore, selectIsAuthenticated, selectIsRefreshing, selectAuthError } from '../stores/useAuthStore'
@@ -167,9 +166,9 @@ function AppLoginForm() {
   if (!hasProviders) {
     return (
       <LoginPage
+        className="bg-deep-space-login"
         loginTitle="Log in to Automation Orchestrator"
         loginSubtitle="Enter your credentials to continue"
-        backgroundImgSrc={backgroundImgSrc}
       >
         <LocalLoginForm {...localFormProps} />
       </LoginPage>
@@ -179,9 +178,9 @@ function AppLoginForm() {
   // State B/C: IDPs exist
   return (
     <LoginPage
+      className="bg-deep-space-login"
       loginTitle="Log in to Automation Orchestrator"
       loginSubtitle="Choose your identity provider"
-      backgroundImgSrc={backgroundImgSrc}
       textContent="Select your identity provider to access Automation Orchestrator. Contact your administrator if you need assistance."
     >
       {loginError && (
