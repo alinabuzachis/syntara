@@ -103,7 +103,10 @@ export default function IntegrationTools() {
     params: { path: { provider_id } },
   })
   const provider = integrationQuery.data!
-  const integrationQueryStatus = useQueryState(integrationQuery, 'Error loading tools')
+  const integrationQueryStatus = useQueryState(integrationQuery, {
+    title: 'Error loading tools',
+    onRetry: () => detachPromise(integrationQuery.refetch()),
+  })
   const query = toolManagerClient.useQuery('get', '/tools', {
     params: {
       query: queryParams,

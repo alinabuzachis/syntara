@@ -330,7 +330,10 @@ export default function Integrations() {
     },
   ]
 
-  const queryState = useQueryState(query, 'Error loading integrations')
+  const queryState = useQueryState(query, {
+    title: 'Error loading integrations',
+    onRetry: () => detachPromise(query.refetch()),
+  })
   if (queryState) {
     return (
       <AppPage>

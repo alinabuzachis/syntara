@@ -17,6 +17,7 @@ import { executionsClient } from '../../client'
 import { useQueryState } from '../../components/states/useQueryState'
 import { useElapsedTime } from '../../hooks/useElapsedTime'
 import { formatExecutionDateTime, formatElapsedTime } from '../../utils/dateUtils'
+import { detachPromise } from '../../utils/detachPromise'
 import { useExecutionStore, useExecutionStoreActions } from '../automations/stores/useExecutionStore'
 
 import { ExecutionActivityTable } from './ExecutionActivityTable'
@@ -188,7 +189,10 @@ export function ExecutionDetailsPanel({ executionId, workflowDefinition }: Execu
     [activityStates, nameMap]
   )
 
-  const queryState = useQueryState(executionQuery, 'Error loading execution')
+  const queryState = useQueryState(executionQuery, {
+    title: 'Error loading execution',
+    onRetry: () => detachPromise(executionQuery.refetch()),
+  })
 
   if (queryState || !execution) {
     return (

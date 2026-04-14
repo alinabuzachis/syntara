@@ -26,6 +26,7 @@ import { CodeBlock } from '../../components/details/CodeBlock'
 import { ErrorState } from '../../components/states/ErrorState'
 import { useQueryState } from '../../components/states/useQueryState'
 import { formatDateTime } from '../../utils/dateUtils'
+import { detachPromise } from '../../utils/detachPromise'
 import { getDateField } from '../../utils/getDateField'
 
 import { ApprovalStatusBadges } from './approvalUtils'
@@ -99,7 +100,10 @@ export default function ApprovalDetail() {
     enabled: !!approvalId,
   })
 
-  const queryState = useQueryState(approvalQuery, 'Error loading approval')
+  const queryState = useQueryState(approvalQuery, {
+    title: 'Error loading approval',
+    onRetry: () => detachPromise(approvalQuery.refetch()),
+  })
 
   const approval = approvalQuery.data
 
