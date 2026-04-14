@@ -5,9 +5,6 @@ import { workflowFetchClient } from '../../client'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
 
-// Re-export shared filter change handler
-export { createFilterChangeHandler } from '../../hooks/useFilterChangeHandler'
-
 /**
  * Transforms workflow resources into filter options
  * Exported for testing purposes

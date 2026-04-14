@@ -1,7 +1,7 @@
 import type { Approval } from '@ansible/nexus-contracts'
 import { CompassPanel, Stack, StackItem } from '@patternfly/react-core'
 import { Thead, Tr, Th } from '@patternfly/react-table'
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useMemo, useReducer, useState } from 'react'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
@@ -12,17 +12,12 @@ import { FilterBar } from '../../components/filters/FilterBar'
 import { PageTitleWithProject } from '../../components/PageTitleWithProject'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
-import { useFilterState } from '../../hooks/useFilterState'
+import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
 import { detachPromise } from '../../utils/detachPromise'
-import { buildFilterParams } from '../../utils/filterUtils'
 
-import {
-  getApprovalNameFilterDefinition,
-  getApprovalStatusFilterDefinition,
-  createFilterChangeHandler,
-} from './approvalFilters'
+import { getApprovalNameFilterDefinition, getApprovalStatusFilterDefinition } from './approvalFilters'
 import { FlatApprovalsTableBody, GroupedApprovalsTableBody } from './ApprovalsTableBody'
 
 export type ApprovalWithDetails = Approval & {
@@ -59,20 +54,10 @@ const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => 
   }
 }
 
-interface ApprovalsState {
-  cursor: string | null
-  expandedRows: Set<string>
-}
+type ApprovalsAction = { type: 'SET_EXPANDED_ROWS'; payload: Set<string> } | { type: 'TOGGLE_ROW'; payload: string }
 
-type ApprovalsAction =
-  | { type: 'SET_CURSOR'; payload: string | null }
-  | { type: 'SET_EXPANDED_ROWS'; payload: Set<string> }
-  | { type: 'TOGGLE_ROW'; payload: string }
-
-function approvalsReducer(state: ApprovalsState, action: ApprovalsAction): ApprovalsState {
+function approvalsReducer(state: { expandedRows: Set<string> }, action: ApprovalsAction) {
   switch (action.type) {
-    case 'SET_CURSOR':
-      return { ...state, cursor: action.payload }
     case 'SET_EXPANDED_ROWS':
       return { ...state, expandedRows: action.payload }
     case 'TOGGLE_ROW': {
@@ -89,59 +74,29 @@ function approvalsReducer(state: ApprovalsState, action: ApprovalsAction): Appro
   }
 }
 
-// eslint-disable-next-line max-lines-per-function
+ 
 export default function Approvals() {
-  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
-  const [state, dispatch] = useReducer(approvalsReducer, {
-    cursor: null,
+  const { isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const [{ expandedRows }, dispatch] = useReducer(approvalsReducer, {
     expandedRows: new Set<string>(),
   })
-  const { cursor, expandedRows } = state
 
-  // Filter state management
-  const { filters, clearAllFilters, setAllFilters } = useFilterState()
+  const {
+    cursor,
+    setCursor,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    getFooterProps,
+  } = useCursorPagination()
 
   // Define filter field definitions for FilterBar
   const filterFieldDefinitions = useMemo(
     () => [getApprovalNameFilterDefinition(), getApprovalStatusFilterDefinition()],
     []
   )
-
-  // Handle filter changes from FilterBar
-  const handleFilterChange = createFilterChangeHandler(
-    cursor,
-    () => dispatch({ type: 'SET_CURSOR', payload: null }),
-    clearAllFilters,
-    setAllFilters
-  )
-
-  // Handler for "Clear all filters" button in EmptyStateFilter
-  // Delegates to handleFilterChange with empty array, which resets cursor and clears filters
-  const handleClearAllFilters = () => handleFilterChange([])
-
-  // Build query parameters from filters
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = {
-      limit: 20,
-      include_total: true,
-    }
-
-    // Filter by selected project
-    if (selectedProject?.id) {
-      params.project_id = selectedProject.id
-    }
-
-    // Add filter params
-    const filterParams = buildFilterParams(filters)
-    Object.assign(params, filterParams)
-
-    // Add cursor if present
-    if (cursor) {
-      params.cursor = cursor
-    }
-
-    return params
-  }, [filters, cursor, selectedProject])
 
   // Use the table sort hook - default to 'requested_at' (index 2) descending
   const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
@@ -173,8 +128,6 @@ export default function Approvals() {
   }, [approvalsData?.resources])
 
   // Group approvals by project when viewing all projects
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
-
   const groupedApprovals = useMemo(() => {
     if (!isAllProjects) return null
     const groups = new Map<string, { project: (typeof projects)[number] | null; approvals: ApprovalWithDetails[] }>()
@@ -191,6 +144,8 @@ export default function Approvals() {
     return groups
   }, [enrichedApprovals, projects, isAllProjects])
 
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
+
   const toggleProjectCollapsed = (projectId: string) => {
     setCollapsedProjects((prev) => {
       const next = new Set(prev)
@@ -203,18 +158,9 @@ export default function Approvals() {
     })
   }
 
-  const hasActiveFilters = filters.length > 0
-
-  // Reset cursor when showing EmptyStateNoData (no approvals and no filters)
-  // Only reset if query is not fetching to avoid clearing cursor during pagination
-  useEffect(() => {
-    if (enrichedApprovals.length === 0 && !hasActiveFilters && cursor && !approvalsQuery.isFetching) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-  }, [enrichedApprovals.length, hasActiveFilters, cursor, approvalsQuery.isFetching])
+  useCursorReset(enrichedApprovals.length, hasActiveFilters, cursor, approvalsQuery.isFetching, setCursor)
 
   // Client-side sorting of current page only
-  // Note: Server returns filtered results; sorting is applied to the current page
   const sortedApprovals = useMemo(() => {
     const sorted = [...enrichedApprovals]
     sorted.sort((a, b) => {
@@ -297,20 +243,7 @@ export default function Approvals() {
               <ScrollableTableContainer
                 aria-label="Approvals table"
                 isExpandable
-                footer={{
-                  content: (
-                    <>
-                      {sortedApprovals.length} {sortedApprovals.length === 1 ? 'approval' : 'approvals'}
-                      {approvalsQuery.data?.total && approvalsQuery.data.total > sortedApprovals.length && (
-                        <span style={{ opacity: 0.6 }}> (of {approvalsQuery.data.total} total)</span>
-                      )}
-                    </>
-                  ),
-                  prev: approvalsQuery.data?.prev ?? null,
-                  next: approvalsQuery.data?.next ?? null,
-                  onPrev: () => dispatch({ type: 'SET_CURSOR', payload: approvalsQuery.data?.prev ?? null }),
-                  onNext: () => dispatch({ type: 'SET_CURSOR', payload: approvalsQuery.data?.next ?? null }),
-                }}
+                footer={getFooterProps(approvalsQuery.data, sortedApprovals.length, 'approval', 'approvals')}
               >
                 <Thead>
                   <Tr>

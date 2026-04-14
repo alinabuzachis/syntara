@@ -3,9 +3,6 @@ import { ProviderStatusEnum } from '@ansible/nexus-contracts'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 
-// Re-export shared filter change handler
-export { createFilterChangeHandler } from '../../../hooks/useFilterChangeHandler'
-
 /**
  * Provider type labels for integration type filter
  */

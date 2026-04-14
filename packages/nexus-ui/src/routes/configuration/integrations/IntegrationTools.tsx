@@ -6,10 +6,6 @@ import {
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
   Stack,
   StackItem,
 } from '@patternfly/react-core'
@@ -24,20 +20,21 @@ import { AppRoute } from '../../../app/AppRoute.tsx'
 import noToolsImage from '../../../assets/collage-circle-sparkles-window-server-dark-RH.png'
 import { toolManagerClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { ScrollableTableContainer, type TableFooterProps } from '../../../components/table/ScrollableTableContainer'
-import { useFilterState } from '../../../hooks/useFilterState'
+import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
+import { TotalCount } from '../../../components/table/TotalCount'
+import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
-import { buildFilterParams } from '../../../utils/filterUtils'
 
-import { getIntegrationNameFilterDefinition, createFilterChangeHandler } from './integrationFilters'
+import { getIntegrationNameFilterDefinition } from './integrationFilters'
 
 /**
  * Reconcile enabled IDs with the latest API slice: for each tool in `tools`, enabled state comes
@@ -60,7 +57,7 @@ function mergeEnabledToolIdsFromApi(previous: Set<string>, tools: Tool[]): Set<s
   return next
 }
 
-// eslint-disable-next-line max-lines-per-function, complexity
+// eslint-disable-next-line max-lines-per-function
 export default function IntegrationTools() {
   const params = useParams()
   const [, navigate] = useLocation()
@@ -68,36 +65,22 @@ export default function IntegrationTools() {
   const provider_id = params?.provider_id ?? ''
   const { showAlert } = useAlerts()
   const handleMutationError = useMutationErrorHandler()
-  const [cursor, setCursor] = useState<string | null>(null)
 
-  // Filter state management
-  const { filters, clearAllFilters, setAllFilters } = useFilterState()
+  const extraParams = useMemo(() => ({ provider_id }), [provider_id])
+
+  const {
+    cursor,
+    setCursor,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    getFooterProps,
+  } = useCursorPagination({ limit: 50, extraParams })
 
   // Define filter field definitions for FilterBar
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(() => [getIntegrationNameFilterDefinition()], [])
-
-  // Handle filter changes from FilterBar
-  const handleFilterChange = createFilterChangeHandler(cursor, () => setCursor(null), clearAllFilters, setAllFilters)
-
-  // Build query parameters from filters
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = {
-      provider_id: provider_id,
-      limit: 50,
-      include_total: true,
-    }
-
-    // Add filter params
-    const filterParams = buildFilterParams(filters)
-    Object.assign(params, filterParams)
-
-    // Add cursor if present
-    if (cursor) {
-      params.cursor = cursor
-    }
-
-    return params
-  }, [filters, cursor, provider_id])
 
   const integrationQuery = toolManagerClient.useQuery('get', '/tool_providers/{provider_id}', {
     params: { path: { provider_id } },
@@ -143,12 +126,9 @@ export default function IntegrationTools() {
   }
 
   const handleSubmit = async () => {
-    // Get all tools on current page that should be enabled (in enabledToolIds)
     const enableTools = results.filter((tool) => enabledToolIds.has(tool.id)).map((tool) => tool.id)
-    // Get all tools on current page that should be disabled (not in enabledToolIds)
     const disableTools = results.filter((tool) => !enabledToolIds.has(tool.id)).map((tool) => tool.id)
 
-    // Collect all update promises
     const updates: Promise<unknown>[] = []
 
     if (enableTools.length > 0) {
@@ -158,10 +138,8 @@ export default function IntegrationTools() {
       updates.push(updateTools({ body: { tool_ids: disableTools, enabled: false } }))
     }
 
-    // Wait for all updates to complete before navigating
     if (updates.length > 0) {
       await Promise.all(updates)
-      // Invalidate tools query cache so fresh data is fetched when returning to this page
       await queryClient.invalidateQueries({ queryKey: ['get', '/tools'] })
     }
 
@@ -169,19 +147,18 @@ export default function IntegrationTools() {
   }
 
   const tools = useMemo(() => query.data?.resources ?? [], [query.data?.resources])
-  const hasActiveFilters = filters.length > 0
 
   const { getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,
     initialDirection: 'asc',
   })
 
-  // Sort the filtered results by name
   const results = sortData(tools, (tool) => tool.namespaced_name ?? '')
+
+  useCursorReset(results.length, hasActiveFilters, cursor, query.isFetching, setCursor)
 
   // Track tools for state sync (not results, since sorting creates new array each render)
   const previousResultsRef = useRef(tools)
-  // Track enabled tool IDs across all pages
   const [enabledToolIds, setEnabledToolIds] = useState<Set<string>>(() => {
     const initialEnabled = new Set<string>()
     tools.filter((tool) => tool.enabled).forEach((tool) => initialEnabled.add(tool.id))
@@ -190,19 +167,15 @@ export default function IntegrationTools() {
   const [refreshDialogOpen, setRefreshDialogOpen] = useState(false)
 
   // Sync enabledToolIds when tools change (e.g., page navigation, refresh).
-  // Current page reflects API enabled flags; off-page IDs stay until those tools appear again.
   useEffect(() => {
-    // Only update if tools actually changed (not on every sort)
     if (previousResultsRef.current !== tools) {
       previousResultsRef.current = tools
-      // Use queueMicrotask to avoid calling setState synchronously within an effect
       queueMicrotask(() => {
         setEnabledToolIds((prev) => mergeEnabledToolIdsFromApi(prev, tools))
       })
     }
   }, [tools])
 
-  // Get enabled tools for the current page
   const enabledTools = results.filter((tool) => enabledToolIds.has(tool.id))
   const selectedToolIds = new Set(enabledTools.map((tool) => tool.id))
   const allSelected = results.length > 0 && selectedToolIds.size === results.length
@@ -289,48 +262,35 @@ export default function IntegrationTools() {
 
               {results.length === 0 ? (
                 <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <EmptyStateFilter clearAllFilters={clearAllFilters} imageSrc={noToolsImage} imageAlt="No results" />
+                  <EmptyStateFilter
+                    clearAllFilters={handleClearAllFilters}
+                    imageSrc={noToolsImage}
+                    imageAlt="No results"
+                  />
                 </StackItem>
               ) : (
                 <ScrollableTableContainer
                   aria-label="Tools table"
                   isExpandable
-                  footer={
-                    {
-                      content: (
-                        <>
-                          {selectedToolIds.size > 0 ? (
-                            <>
-                              {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'}{' '}
-                              enabled
-                              {query.data?.total && query.data.total > results.length && (
-                                <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {results.length} {results.length === 1 ? 'tool' : 'tools'}
-                              {query.data?.total && query.data.total > results.length && (
-                                <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                              )}
-                            </>
-                          )}
-                        </>
-                      ),
-                      prev: query.data?.prev ?? null,
-                      next: query.data?.next ?? null,
-                      onPrev: () => {
-                        if (query.data?.prev !== undefined) {
-                          setCursor(query.data.prev)
-                        }
-                      },
-                      onNext: () => {
-                        if (query.data?.next !== undefined) {
-                          setCursor(query.data.next)
-                        }
-                      },
-                    } satisfies TableFooterProps
-                  }
+                  footer={{
+                    ...getFooterProps(query.data, results.length, 'tool', 'tools'),
+                    content: (
+                      <>
+                        {selectedToolIds.size > 0 ? (
+                          <>
+                            {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'} enabled
+                          </>
+                        ) : (
+                          <>
+                            {results.length} {results.length === 1 ? 'tool' : 'tools'}
+                          </>
+                        )}
+                        {query.data?.total != null && query.data.total > results.length && (
+                          <TotalCount total={query.data.total} />
+                        )}
+                      </>
+                    ),
+                  }}
                 >
                   <Thead>
                     <Tr>
@@ -372,21 +332,17 @@ export default function IntegrationTools() {
           </CompassPanel>
         </StackItem>
       )}
-      <Modal isOpen={refreshDialogOpen} onClose={() => setRefreshDialogOpen(false)} variant="small">
-        <ModalHeader title="Refresh tools" />
-        <ModalBody>
-          Are you sure you want to refresh tools for "{provider?.name}"? This will fetch the latest tools from the
-          integration.
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="primary" onClick={handleRefreshTools}>
-            Refresh
-          </Button>
-          <Button variant="link" onClick={() => setRefreshDialogOpen(false)}>
-            Cancel
-          </Button>
-        </ModalFooter>
-      </Modal>
+
+      <ConfirmationDialog
+        isOpen={refreshDialogOpen}
+        onClose={() => setRefreshDialogOpen(false)}
+        onConfirm={handleRefreshTools}
+        title="Refresh tools"
+        confirmLabel="Refresh"
+      >
+        Are you sure you want to refresh tools for &quot;{provider?.name}&quot;? This will fetch the latest tools from
+        the integration.
+      </ConfirmationDialog>
     </AppPage>
   )
 }

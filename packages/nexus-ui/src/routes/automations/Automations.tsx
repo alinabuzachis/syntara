@@ -1,26 +1,16 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
-import {
-  Button,
-  CompassPanel,
-  List,
-  ListItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { Button, CompassPanel, List, ListItem, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiEditFillIcon, RhUiHistoryIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
+import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
@@ -28,83 +18,46 @@ import { IconLabel } from '../../components/IconLabel'
 import { PageTitleWithProject } from '../../components/PageTitleWithProject'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
-import { createFilterChangeHandler } from '../../hooks/useFilterChangeHandler'
-import { useFilterState } from '../../hooks/useFilterState'
+import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
+import { useDialogState } from '../../hooks/useDialogState'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import type { FilterFieldDefinition } from '../../types/filters'
+import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
-import { buildFilterParams } from '../../utils/filterUtils'
 
 import { FlatAutomationsTableBody, GroupedAutomationsTableBody } from './AutomationsTableBody'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
-interface AutomationsState {
-  cursor: string | null
-  confirmDialogOpen: boolean
-  deleteDialogOpen: boolean
-  selectedWorkflow: Workflow | null
-  workflowToDelete: Workflow | null
-}
-
-type AutomationsAction =
-  | { type: 'SET_CURSOR'; payload: string | null }
-  | { type: 'SET_CONFIRM_DIALOG'; payload: boolean }
-  | { type: 'SET_DELETE_DIALOG'; payload: boolean }
-  | { type: 'SET_SELECTED_WORKFLOW'; payload: Workflow | null }
-  | { type: 'SET_WORKFLOW_TO_DELETE'; payload: Workflow | null }
-  | { type: 'OPEN_CONFIRM_DIALOG'; payload: Workflow }
-  | { type: 'OPEN_DELETE_DIALOG'; payload: Workflow }
-  | { type: 'CLOSE_DIALOGS' }
-
-function automationsReducer(state: AutomationsState, action: AutomationsAction): AutomationsState {
-  switch (action.type) {
-    case 'SET_CURSOR':
-      return { ...state, cursor: action.payload }
-    case 'SET_CONFIRM_DIALOG':
-      return { ...state, confirmDialogOpen: action.payload }
-    case 'SET_DELETE_DIALOG':
-      return { ...state, deleteDialogOpen: action.payload }
-    case 'SET_SELECTED_WORKFLOW':
-      return { ...state, selectedWorkflow: action.payload }
-    case 'SET_WORKFLOW_TO_DELETE':
-      return { ...state, workflowToDelete: action.payload }
-    case 'OPEN_CONFIRM_DIALOG':
-      return { ...state, selectedWorkflow: action.payload, confirmDialogOpen: true }
-    case 'OPEN_DELETE_DIALOG':
-      return { ...state, workflowToDelete: action.payload, deleteDialogOpen: true }
-    case 'CLOSE_DIALOGS':
-      return {
-        ...state,
-        confirmDialogOpen: false,
-        deleteDialogOpen: false,
-        selectedWorkflow: null,
-        workflowToDelete: null,
-      }
-    default:
-      return state
-  }
-}
+// Transform is_enabled string values to boolean for the API
+const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
+  filters.map((filter) => {
+    if (filter.key === 'is_enabled' && typeof filter.value === 'string') {
+      return { ...filter, value: filter.value === 'true' }
+    }
+    return filter
+  })
 
 // eslint-disable-next-line max-lines-per-function
 export default function Automations() {
-  const [state, dispatch] = useReducer(automationsReducer, {
-    cursor: null,
-    confirmDialogOpen: false,
-    deleteDialogOpen: false,
-    selectedWorkflow: null,
-    workflowToDelete: null,
-  })
-  const { cursor, confirmDialogOpen, deleteDialogOpen, selectedWorkflow, workflowToDelete } = state
-
   const { showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
-  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const { isAllProjects, projects, ProjectSelector } = useProjectSelector()
 
-  // Filter state management
-  const { filters, setAllFilters, clearAllFilters } = useFilterState()
+  const {
+    cursor,
+    setCursor,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    getFooterProps,
+  } = useCursorPagination({ transformFilters: transformIsEnabledFilter })
+
+  const runDialog = useDialogState<Workflow>()
+  const deleteDialog = useDialogState<Workflow>()
 
   // Define filter field definitions for FilterBar
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
@@ -131,56 +84,6 @@ export default function Automations() {
     []
   )
 
-  // Handle filter changes from FilterBar
-  const handleFilterChange = createFilterChangeHandler(
-    cursor,
-    () => dispatch({ type: 'SET_CURSOR', payload: null }),
-    clearAllFilters,
-    setAllFilters,
-    // Transform is_enabled string values to boolean
-    (filters) =>
-      filters.map((filter) => {
-        if (filter.key === 'is_enabled' && typeof filter.value === 'string') {
-          return { ...filter, value: filter.value === 'true' }
-        }
-        return filter
-      })
-  )
-
-  // Wrapper to clear both filters and pagination cursor
-  const handleClearAllFilters = () => {
-    // Reset pagination cursor
-    if (cursor) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-    // Clear all filters
-    clearAllFilters()
-  }
-
-  // Build query parameters from filters
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = {
-      limit: 20,
-      include_total: true,
-    }
-
-    // Filter by selected project
-    if (selectedProject?.id) {
-      params.project_id = selectedProject.id
-    }
-
-    // Add filter params
-    const filterParams = buildFilterParams(filters)
-    Object.assign(params, filterParams)
-
-    // Add cursor if present
-    if (cursor) {
-      params.cursor = cursor
-    }
-
-    return params
-  }, [filters, cursor, selectedProject])
-
   // Query workflows with server-side filtering
   const workflowsQuery = workflowClient.useQuery('get', '/workflows', {
     params: {
@@ -193,7 +96,6 @@ export default function Automations() {
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
 
   // Note: Client-side sorting disabled for cursor-paginated data
-  // Sorting only the current page would produce incorrect results
   // TODO: Implement server-side sorting by passing sort params to the API
   const automations = workflows
 
@@ -228,15 +130,7 @@ export default function Automations() {
     })
   }
 
-  const hasActiveFilters = filters.length > 0
-
-  // Reset cursor when showing EmptyStateNoData (no automations and no filters)
-  // Only reset if query is not fetching to avoid clearing cursor during pagination
-  useEffect(() => {
-    if (automations.length === 0 && !hasActiveFilters && cursor && !workflowsQuery.isFetching) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-  }, [automations.length, hasActiveFilters, cursor, workflowsQuery.isFetching])
+  useCursorReset(automations.length, hasActiveFilters, cursor, workflowsQuery.isFetching, setCursor)
 
   const handleRunAutomation = (workflow: Workflow) => {
     executeAutomation(
@@ -256,24 +150,21 @@ export default function Automations() {
   }
 
   const handleDeleteAutomation = () => {
-    if (!workflowToDelete) return
+    const workflow = deleteDialog.item
+    if (!workflow) return
 
     deleteWorkflow(
-      { params: { path: { workflow_id: workflowToDelete.id } } },
+      { params: { path: { workflow_id: workflow.id } } },
       {
         onSuccess: () => {
-          showSuccess(`Successfully deleted automation "${workflowToDelete.name}"`, 'Automation Deleted')
+          showSuccess(`Successfully deleted automation "${workflow.name}"`, 'Automation Deleted')
           detachPromise(workflowsQuery.refetch())
         },
         onError: (error: unknown) => {
-          showError(
-            `Failed to delete automation "${workflowToDelete.name}": ${getErrorMessage(error)}`,
-            'Delete Failed'
-          )
+          showError(`Failed to delete automation "${workflow.name}": ${getErrorMessage(error)}`, 'Delete Failed')
         },
         onSettled: () => {
-          dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
-          dispatch({ type: 'SET_WORKFLOW_TO_DELETE', payload: null })
+          deleteDialog.close()
         },
       }
     )
@@ -282,30 +173,22 @@ export default function Automations() {
   const getRowActions = (workflow: Workflow): IAction[] => [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit automation</IconLabel>,
-      onClick: () => {
-        setLocation(`/automation-builder/${workflow.id}`)
-      },
+      onClick: () => setLocation(`/automation-builder/${workflow.id}`),
     },
     {
       title: <IconLabel icon={<RhUiPlayIcon />}>Run automation</IconLabel>,
-      onClick: () => {
-        dispatch({ type: 'OPEN_CONFIRM_DIALOG', payload: workflow })
-      },
+      onClick: () => runDialog.open(workflow),
     },
     {
       title: <IconLabel icon={<RhUiHistoryIcon />}>View run history</IconLabel>,
-      onClick: () => {
-        setLocation(`/executions?workflow_id=${workflow.id}`)
-      },
+      onClick: () => setLocation(`/executions?workflow_id=${workflow.id}`),
     },
     {
       isSeparator: true,
     },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete automation</IconLabel>,
-      onClick: () => {
-        dispatch({ type: 'OPEN_DELETE_DIALOG', payload: workflow })
-      },
+      onClick: () => deleteDialog.open(workflow),
     },
   ]
 
@@ -361,20 +244,7 @@ export default function Automations() {
               <ScrollableTableContainer
                 aria-label="Automations table"
                 useFixedLayout={false}
-                footer={{
-                  content: (
-                    <>
-                      {automations.length} {automations.length === 1 ? 'automation' : 'automations'}
-                      {workflowsQuery.data?.total && workflowsQuery.data.total > automations.length && (
-                        <span style={{ opacity: 0.6 }}> (of {workflowsQuery.data.total} total)</span>
-                      )}
-                    </>
-                  ),
-                  prev: workflowsQuery.data?.prev ?? null,
-                  next: workflowsQuery.data?.next ?? null,
-                  onPrev: () => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.prev ?? null }),
-                  onNext: () => dispatch({ type: 'SET_CURSOR', payload: workflowsQuery.data?.next ?? null }),
-                }}
+                footer={getFooterProps(workflowsQuery.data, automations.length, 'automation', 'automations')}
               >
                 <Thead>
                   <Tr>
@@ -401,70 +271,50 @@ export default function Automations() {
           </Stack>
         </CompassPanel>
       </StackItem>
-      <Modal
-        isOpen={confirmDialogOpen}
-        onClose={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}
-        variant="small"
+
+      <ConfirmationDialog
+        isOpen={runDialog.isOpen}
+        onClose={runDialog.close}
+        onConfirm={() => {
+          if (runDialog.item) {
+            handleRunAutomation(runDialog.item)
+          }
+          runDialog.close()
+        }}
+        title={`Run ${runDialog.item?.name}?`}
+        confirmLabel="Run now"
       >
-        <ModalHeader title={`Run ${selectedWorkflow?.name}?`} />
-        <ModalBody>
-          You are about to manually run this automation. This action will start the automation immediately, bypassing
-          its normal trigger conditions.
-        </ModalBody>
-        <ModalFooter>
-          <Button
-            variant="primary"
-            onClick={() => {
-              if (selectedWorkflow) {
-                handleRunAutomation(selectedWorkflow)
-              }
-              dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
-            }}
-          >
-            Run now
-          </Button>
-          <Button variant="link" onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}>
-            Cancel
-          </Button>
-        </ModalFooter>
-      </Modal>
-      <Modal
-        isOpen={deleteDialogOpen}
-        onClose={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
+        You are about to manually run this automation. This action will start the automation immediately, bypassing its
+        normal trigger conditions.
+      </ConfirmationDialog>
+
+      <ConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={deleteDialog.close}
+        onConfirm={handleDeleteAutomation}
+        title="Delete automation?"
+        confirmLabel="Delete"
+        confirmVariant="danger"
         variant="medium"
+        titleIconVariant="warning"
         aria-labelledby="delete-automation-modal-title"
         aria-describedby="delete-automation-modal-body"
       >
-        <ModalHeader title="Delete automation?" titleIconVariant="warning" labelId="delete-automation-modal-title" />
-        <ModalBody id="delete-automation-modal-body">
-          <Stack hasGutter>
-            <StackItem>
-              You are about to permanently delete this automation. This action cannot be reversed. After deletion, the
-              following will occur:
-            </StackItem>
-            <StackItem>
-              <List>
-                <ListItem>This automation will stop running immediately.</ListItem>
-                <ListItem>
-                  Any other automations that use this one as a step will also become invalid and stop running.
-                </ListItem>
-              </List>
-            </StackItem>
-          </Stack>
-        </ModalBody>
-        <ModalFooter>
-          <Button
-            key="cancel"
-            variant="secondary"
-            onClick={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
-          >
-            Cancel
-          </Button>
-          <Button key="delete" variant="danger" onClick={handleDeleteAutomation}>
-            Delete
-          </Button>
-        </ModalFooter>
-      </Modal>
+        <Stack hasGutter>
+          <StackItem>
+            You are about to permanently delete this automation. This action cannot be reversed. After deletion, the
+            following will occur:
+          </StackItem>
+          <StackItem>
+            <List>
+              <ListItem>This automation will stop running immediately.</ListItem>
+              <ListItem>
+                Any other automations that use this one as a step will also become invalid and stop running.
+              </ListItem>
+            </List>
+          </StackItem>
+        </Stack>
+      </ConfirmationDialog>
     </AppPage>
   )
 }

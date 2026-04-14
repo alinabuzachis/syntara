@@ -1,8 +1,6 @@
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
 
-export { createFilterChangeHandler } from '../../../hooks/useFilterChangeHandler'
-
 export const getProviderNameFilterDefinition = (): FilterFieldDefinition => ({
   key: 'name',
   label: 'Name',

@@ -12,17 +12,16 @@ import { FilterBar } from '../../components/filters/FilterBar'
 import { PageTitleWithProject } from '../../components/PageTitleWithProject'
 import { useQueryState } from '../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
-import { useFilterState } from '../../hooks/useFilterState'
+import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../types/filters'
-import { buildFilterParams } from '../../utils/filterUtils'
+import { detachPromise } from '../../utils/detachPromise'
 
 import {
   getExecutionWorkflowFilterDefinition,
   getExecutionStatusFilterDefinition,
   getExecutionCreatedAtFilterDefinition,
-  createFilterChangeHandler,
 } from './executionFilters'
 import { FlatExecutionsTableBody, GroupedExecutionsTableBody } from './ExecutionsTableBody'
 import { getExecutionSortValue } from './getExecutionSortValue'
@@ -36,11 +35,10 @@ function buildFilterFieldDefinitions(): FilterFieldDefinition[] {
 }
 
 export default function Executions() {
-  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const { isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const searchParams = useSearch()
   const urlParams = useMemo(() => new URLSearchParams(searchParams), [searchParams])
   const workflowIdFilter = urlParams.get('workflow_id')
-  const [cursor, setCursor] = useState<string | null>(null)
 
   // Initialize default filter from URL parameter (backwards compatibility)
   const defaultFilters = useMemo(
@@ -48,30 +46,16 @@ export default function Executions() {
     [workflowIdFilter]
   )
 
-  // Filter state management
-  const { filters, clearAllFilters, setAllFilters } = useFilterState(defaultFilters)
-
-  // Build query parameters from filters
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = {
-      limit: 20,
-      include_total: true,
-    }
-
-    // Filter by selected project
-    if (selectedProject?.id) {
-      params.project_id = selectedProject.id
-    }
-
-    const filterParams = buildFilterParams(filters)
-    Object.assign(params, filterParams)
-
-    if (cursor) {
-      params.cursor = cursor
-    }
-
-    return params
-  }, [filters, cursor, selectedProject])
+  const {
+    cursor,
+    setCursor,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    getFooterProps,
+  } = useCursorPagination({ defaultFilters })
 
   const executionsQuery = executionsClient.useQuery('get', '/executions', {
     params: {
@@ -82,13 +66,9 @@ export default function Executions() {
   const showWorkflowColumn = true
   const executions = executionsQuery.data?.resources ?? []
 
+  useCursorReset(executions.length, hasActiveFilters, cursor, executionsQuery.isFetching, setCursor)
+
   const filterFieldDefinitions = useMemo(() => buildFilterFieldDefinitions(), [])
-
-  const handleFilterChange = createFilterChangeHandler(cursor, () => setCursor(null), clearAllFilters, setAllFilters)
-
-  const handleClearAllFilters = () => handleFilterChange([])
-
-  const hasActiveFilters = filters.length > 0
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({
     initialSortIndex: 3, // Default sort by Created at
@@ -132,9 +112,7 @@ export default function Executions() {
 
   const queryState = useQueryState(executionsQuery, {
     title: 'Error loading executions',
-    onRetry: () => {
-      executionsQuery.refetch().catch(() => {})
-    },
+    onRetry: () => detachPromise(executionsQuery.refetch()),
   })
   if (queryState) {
     return (
@@ -171,20 +149,7 @@ export default function Executions() {
             ) : (
               <ScrollableTableContainer
                 aria-label="Executions table"
-                footer={{
-                  content: (
-                    <>
-                      {sortedExecutions.length} {sortedExecutions.length === 1 ? 'execution' : 'executions'}
-                      {executionsQuery.data?.total != null && executionsQuery.data.total > sortedExecutions.length && (
-                        <span style={{ opacity: 0.6 }}> (of {executionsQuery.data.total} total)</span>
-                      )}
-                    </>
-                  ),
-                  prev: executionsQuery.data?.prev ?? null,
-                  next: executionsQuery.data?.next ?? null,
-                  onPrev: () => setCursor(executionsQuery.data?.prev ?? null),
-                  onNext: () => setCursor(executionsQuery.data?.next ?? null),
-                }}
+                footer={getFooterProps(executionsQuery.data, sortedExecutions.length, 'execution', 'executions')}
               >
                 <Thead>
                   <Tr>

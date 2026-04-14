@@ -1,16 +1,6 @@
 import type { ToolProvider } from '@ansible/nexus-contracts'
 import { ProviderStatusEnum } from '@ansible/nexus-contracts'
-import {
-  Button,
-  CompassPanel,
-  Label,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { Button, CompassPanel, Label, Stack, StackItem } from '@patternfly/react-core'
 import {
   RhUiCheckCircleIcon,
   RhUiCloseCircleIcon,
@@ -20,7 +10,7 @@ import {
 } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useEffect, useMemo, useReducer } from 'react'
+import { useMemo } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../../app/AppPage'
@@ -28,17 +18,18 @@ import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { toolManagerClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
-import { useFilterState } from '../../../hooks/useFilterState'
+import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
+import { useDialogState } from '../../../hooks/useDialogState'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
-import { buildFilterParams } from '../../../utils/filterUtils'
 
 import { IntegrationEmptyState } from './IntegrationEmptyState'
 import {
@@ -46,7 +37,6 @@ import {
   getIntegrationNameFilterDefinition,
   getIntegrationStatusFilterDefinition,
   getIntegrationTypeFilterDefinition,
-  createFilterChangeHandler,
 } from './integrationFilters'
 
 // Extended type to handle tool_count and configuration access
@@ -88,64 +78,23 @@ function StatusLabel({ status }: { status: string }) {
   )
 }
 
-interface IntegrationsState {
-  cursor: string | null
-  validateDialogOpen: boolean
-  providerToValidate: ToolProviderWithToolCount | null
-  deleteDialogOpen: boolean
-  providerToDelete: ToolProviderWithToolCount | null
-}
-
-type IntegrationsAction =
-  | { type: 'SET_CURSOR'; payload: string | null }
-  | { type: 'SET_VALIDATE_DIALOG'; payload: boolean }
-  | { type: 'SET_PROVIDER_TO_VALIDATE'; payload: ToolProviderWithToolCount | null }
-  | { type: 'SET_DELETE_DIALOG'; payload: boolean }
-  | { type: 'SET_PROVIDER_TO_DELETE'; payload: ToolProviderWithToolCount | null }
-  | { type: 'OPEN_VALIDATE_DIALOG'; payload: ToolProviderWithToolCount }
-  | { type: 'OPEN_DELETE_DIALOG'; payload: ToolProviderWithToolCount }
-  | { type: 'CLOSE_VALIDATE_DIALOG' }
-  | { type: 'CLOSE_DELETE_DIALOG' }
-
-function integrationsReducer(state: IntegrationsState, action: IntegrationsAction): IntegrationsState {
-  switch (action.type) {
-    case 'SET_CURSOR':
-      return { ...state, cursor: action.payload }
-    case 'SET_VALIDATE_DIALOG':
-      return { ...state, validateDialogOpen: action.payload }
-    case 'SET_PROVIDER_TO_VALIDATE':
-      return { ...state, providerToValidate: action.payload }
-    case 'SET_DELETE_DIALOG':
-      return { ...state, deleteDialogOpen: action.payload }
-    case 'SET_PROVIDER_TO_DELETE':
-      return { ...state, providerToDelete: action.payload }
-    case 'OPEN_VALIDATE_DIALOG':
-      return { ...state, providerToValidate: action.payload, validateDialogOpen: true }
-    case 'OPEN_DELETE_DIALOG':
-      return { ...state, providerToDelete: action.payload, deleteDialogOpen: true }
-    case 'CLOSE_VALIDATE_DIALOG':
-      return { ...state, validateDialogOpen: false, providerToValidate: null }
-    case 'CLOSE_DELETE_DIALOG':
-      return { ...state, deleteDialogOpen: false, providerToDelete: null }
-    default:
-      return state
-  }
-}
-
 // eslint-disable-next-line max-lines-per-function
 export default function Integrations() {
   const [, navigate] = useLocation()
-  const [state, dispatch] = useReducer(integrationsReducer, {
-    cursor: null,
-    validateDialogOpen: false,
-    providerToValidate: null,
-    deleteDialogOpen: false,
-    providerToDelete: null,
-  })
-  const { cursor, validateDialogOpen, providerToValidate, deleteDialogOpen, providerToDelete } = state
 
-  // Filter state management
-  const { filters, clearAllFilters, setAllFilters } = useFilterState()
+  const {
+    cursor,
+    setCursor,
+    filters,
+    hasActiveFilters,
+    queryParams,
+    handleFilterChange,
+    handleClearAllFilters,
+    getFooterProps,
+  } = useCursorPagination()
+
+  const validateDialog = useDialogState<ToolProviderWithToolCount>()
+  const deleteDialog = useDialogState<ToolProviderWithToolCount>()
 
   // Define filter field definitions for FilterBar
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
@@ -157,43 +106,6 @@ export default function Integrations() {
     []
   )
 
-  // Handle filter changes from FilterBar
-  const handleFilterChange = createFilterChangeHandler(
-    cursor,
-    () => dispatch({ type: 'SET_CURSOR', payload: null }),
-    clearAllFilters,
-    setAllFilters
-  )
-
-  // Wrapper to clear both filters and pagination cursor
-  const handleClearAllFilters = () => {
-    // Reset pagination cursor
-    if (cursor) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-    // Clear all filters
-    clearAllFilters()
-  }
-
-  // Build query parameters from filters
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = {
-      limit: 20,
-      include_total: true,
-    }
-
-    // Add filter params
-    const filterParams = buildFilterParams(filters)
-    Object.assign(params, filterParams)
-
-    // Add cursor if present
-    if (cursor) {
-      params.cursor = cursor
-    }
-
-    return params
-  }, [filters, cursor])
-
   // Query tool providers with server-side filtering
   const query = toolManagerClient.useQuery('get', '/tool_providers', {
     params: {
@@ -204,15 +116,8 @@ export default function Integrations() {
   const { showAlert } = useAlerts()
 
   const integrations = (query.data?.resources ?? []) as ToolProviderWithToolCount[]
-  const hasActiveFilters = filters.length > 0
 
-  // Reset cursor when showing IntegrationEmptyState (no integrations and no filters)
-  // Only reset if query is not fetching to avoid clearing cursor during pagination
-  useEffect(() => {
-    if (integrations.length === 0 && !hasActiveFilters && cursor && !query.isFetching) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-  }, [integrations.length, hasActiveFilters, cursor, query.isFetching])
+  useCursorReset(integrations.length, hasActiveFilters, cursor, query.isFetching, setCursor)
 
   const { activeSortIndex, getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,
@@ -241,23 +146,24 @@ export default function Integrations() {
   const { mutate: deleteProvider } = toolManagerClient.useMutation('delete', '/tool_providers/{provider_id}')
 
   const handleValidate = () => {
-    if (!providerToValidate) return
+    const provider = validateDialog.item
+    if (!provider) return
 
     validateProvider(
-      { params: { path: { provider_id: providerToValidate.id } } },
+      { params: { path: { provider_id: provider.id } } },
       {
         onSuccess: (validationResult) => {
           if (validationResult.valid) {
             showAlert({
               title: 'Validation successful',
-              description: `Provider "${providerToValidate.name}" validated successfully.`,
+              description: `Provider "${provider.name}" validated successfully.`,
               variant: 'success',
               autoDismiss: true,
             })
           } else {
             showAlert({
               title: 'Validation failed',
-              description: validationResult.error ?? `Provider "${providerToValidate.name}" could not be validated.`,
+              description: validationResult.error ?? `Provider "${provider.name}" could not be validated.`,
               variant: 'error',
               autoDismiss: true,
             })
@@ -267,28 +173,29 @@ export default function Integrations() {
         onError: (error: unknown) => {
           showAlert({
             title: 'Validation failed',
-            description: `Failed to validate provider "${providerToValidate.name}": ${getErrorMessage(error)}`,
+            description: `Failed to validate provider "${provider.name}": ${getErrorMessage(error)}`,
             variant: 'error',
             autoDismiss: true,
           })
         },
         onSettled: () => {
-          dispatch({ type: 'CLOSE_VALIDATE_DIALOG' })
+          validateDialog.close()
         },
       }
     )
   }
 
   const handleDelete = () => {
-    if (!providerToDelete) return
+    const provider = deleteDialog.item
+    if (!provider) return
 
     deleteProvider(
-      { params: { path: { provider_id: providerToDelete.id } } },
+      { params: { path: { provider_id: provider.id } } },
       {
         onSuccess: () => {
           showAlert({
             title: 'Integration deleted',
-            description: `Integration "${providerToDelete.name}" has been deleted successfully.`,
+            description: `Integration "${provider.name}" has been deleted successfully.`,
             variant: 'success',
             autoDismiss: true,
           })
@@ -297,13 +204,13 @@ export default function Integrations() {
         onError: (error: unknown) => {
           showAlert({
             title: 'Delete failed',
-            description: `Failed to delete integration "${providerToDelete.name}": ${getErrorMessage(error)}`,
+            description: `Failed to delete integration "${provider.name}": ${getErrorMessage(error)}`,
             variant: 'error',
             autoDismiss: true,
           })
         },
         onSettled: () => {
-          dispatch({ type: 'CLOSE_DELETE_DIALOG' })
+          deleteDialog.close()
         },
       }
     )
@@ -317,16 +224,12 @@ export default function Integrations() {
     },
     {
       title: <IconLabel icon={<RhUiCheckCircleIcon />}>Validate connection</IconLabel>,
-      onClick: () => {
-        dispatch({ type: 'OPEN_VALIDATE_DIALOG', payload: provider })
-      },
+      onClick: () => validateDialog.open(provider),
     },
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Uninstall</IconLabel>,
-      onClick: () => {
-        dispatch({ type: 'OPEN_DELETE_DIALOG', payload: provider })
-      },
+      onClick: () => deleteDialog.open(provider),
     },
   ]
 
@@ -375,20 +278,7 @@ export default function Integrations() {
               ) : (
                 <ScrollableTableContainer
                   aria-label="Integrations table"
-                  footer={{
-                    content: (
-                      <>
-                        {results.length} {results.length === 1 ? 'integration' : 'integrations'}
-                        {query.data?.total && query.data.total > results.length && (
-                          <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                        )}
-                      </>
-                    ),
-                    prev: query.data?.prev ?? null,
-                    next: query.data?.next ?? null,
-                    onPrev: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.prev ?? null }),
-                    onNext: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.next ?? null }),
-                  }}
+                  footer={getFooterProps(query.data, results.length, 'integration', 'integrations')}
                 >
                   <Thead>
                     <Tr>
@@ -426,38 +316,27 @@ export default function Integrations() {
           </CompassPanel>
         </StackItem>
       )}
-      <Modal
-        isOpen={validateDialogOpen}
-        onClose={() => dispatch({ type: 'SET_VALIDATE_DIALOG', payload: false })}
-        variant="small"
+
+      <ConfirmationDialog
+        isOpen={validateDialog.isOpen}
+        onClose={validateDialog.close}
+        onConfirm={handleValidate}
+        title="Validate integration"
+        confirmLabel="Validate"
       >
-        <ModalHeader title="Validate integration" />
-        <ModalBody>Are you sure you want to validate the connection for "{providerToValidate?.name}"?</ModalBody>
-        <ModalFooter>
-          <Button variant="primary" onClick={handleValidate}>
-            Validate
-          </Button>
-          <Button variant="link" onClick={() => dispatch({ type: 'SET_VALIDATE_DIALOG', payload: false })}>
-            Cancel
-          </Button>
-        </ModalFooter>
-      </Modal>
-      <Modal
-        isOpen={deleteDialogOpen}
-        onClose={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
-        variant="small"
+        Are you sure you want to validate the connection for &quot;{validateDialog.item?.name}&quot;?
+      </ConfirmationDialog>
+
+      <ConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={deleteDialog.close}
+        onConfirm={handleDelete}
+        title="Delete integration"
+        confirmLabel="Delete"
+        confirmVariant="danger"
       >
-        <ModalHeader title="Delete integration" />
-        <ModalBody>Are you sure you want to delete "{providerToDelete?.name}"? This action cannot be undone.</ModalBody>
-        <ModalFooter>
-          <Button variant="danger" onClick={handleDelete}>
-            Delete
-          </Button>
-          <Button variant="link" onClick={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}>
-            Cancel
-          </Button>
-        </ModalFooter>
-      </Modal>
+        Are you sure you want to delete &quot;{deleteDialog.item?.name}&quot;? This action cannot be undone.
+      </ConfirmationDialog>
     </AppPage>
   )
 }

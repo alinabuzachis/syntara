@@ -30,12 +30,7 @@ vi.mock('wouter/use-browser-location', () => ({
 }))
 
 vi.mock('../../client', () => ({
-  authMiddleware: { onRequest: vi.fn() },
-}))
-
-vi.mock('../access/accessClient', () => ({
-  accessFetchClient: { use: vi.fn() },
-  accessClient: {
+  usersClient: {
     useQuery: vi.fn().mockReturnValue({
       data: { resources: [] },
       isPending: false,
@@ -49,6 +44,7 @@ vi.mock('../access/accessClient', () => ({
       isPending: false,
     }),
   },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('../access/accessClient', () => ({

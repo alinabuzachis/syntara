@@ -1,9 +1,6 @@
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 
-// Re-export shared filter change handler
-export { createFilterChangeHandler } from '../../hooks/useFilterChangeHandler'
-
 /**
  * Shared filter field definition for approval name filtering
  */

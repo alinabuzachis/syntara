@@ -209,6 +209,76 @@ PRs that change visible UI (new pages, components, layout changes, empty states,
 
 When a PR consumes new backend endpoints, include corresponding mock handlers in `packages/nexus-mock-api/src/handlers.ts` so the feature can be tested locally with `npm start`. Note the exception in the PR description if the backend dependency is not yet merged.
 
+#### 13. Always use `useCursorPagination` for paginated list views
+
+Never duplicate cursor state, filter state, queryParams building, or footer props logic. The `useCursorPagination` hook in `packages/nexus-ui/src/hooks/useCursorPagination.tsx` handles all of this. Use `useCursorReset` when the list needs to reset to page 1 on empty results.
+
+```typescript
+// ❌ BAD: Manual cursor + filter + queryParams boilerplate (50+ lines repeated per list view)
+const [cursor, setCursor] = useState<string | null>(null)
+const { filters, clearAllFilters, setAllFilters } = useFilterState()
+const handleFilterChange = createFilterChangeHandler(cursor, setCursor, clearAllFilters, setAllFilters)
+const filterParams = buildFilterParams(filters)
+const queryParams = { limit: 20, include_total: true, ...filterParams, ...(cursor ? { cursor } : {}) }
+
+// ✅ GOOD: Single hook replaces all of the above
+const {
+  cursor,
+  setCursor,
+  filters,
+  hasActiveFilters,
+  queryParams,
+  handleFilterChange,
+  handleClearAllFilters,
+  getFooterProps,
+} = useCursorPagination({ limit: 20, extraParams, defaultFilters, transformFilters })
+```
+
+#### 14. Always use `ConfirmationDialog` for confirmation modals
+
+Never inline `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter` for simple confirm/cancel dialogs. Use the shared `ConfirmationDialog` component from `packages/nexus-ui/src/components/ConfirmationDialog.tsx`.
+
+```typescript
+// ❌ BAD: 15+ lines of modal boilerplate repeated per dialog
+<Modal isOpen={isOpen} onClose={onClose} variant="small">
+  <ModalHeader title="Delete item" />
+  <ModalBody>Are you sure?</ModalBody>
+  <ModalFooter>
+    <Button variant="danger" onClick={onConfirm}>Delete</Button>
+    <Button variant="link" onClick={onClose}>Cancel</Button>
+  </ModalFooter>
+</Modal>
+
+// ✅ GOOD: Single component with clear props
+<ConfirmationDialog
+  isOpen={isOpen}
+  onClose={onClose}
+  onConfirm={handleDelete}
+  title="Delete item"
+  confirmLabel="Delete"
+  confirmVariant="danger"
+>
+  Are you sure you want to delete &quot;{item?.name}&quot;?
+</ConfirmationDialog>
+```
+
+#### 15. Always use `useDialogState` for dialog open/close state
+
+Never add dialog open/close state and associated item tracking to reducers or manual `useState` pairs. Use `useDialogState<T>()` from `packages/nexus-ui/src/hooks/useDialogState.ts`.
+
+```typescript
+// ❌ BAD: Manual state or reducer actions for each dialog
+const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+const [itemToDelete, setItemToDelete] = useState<User | null>(null)
+// ...or worse, reducer actions: OPEN_DELETE_DIALOG, CLOSE_DELETE_DIALOG
+
+// ✅ GOOD: Single hook manages open/close + associated item
+const deleteDialog = useDialogState<User>()
+// Open: deleteDialog.open(user)
+// Close: deleteDialog.close()
+// Use: deleteDialog.isOpen, deleteDialog.item
+```
+
 ### Pull Request Rules
 
 All changes must follow the PR sizing and slicing policy defined in [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md).
@@ -296,6 +366,9 @@ For how the UI is structured, see these comprehensive guides:
 | **WebSocket / real-time**          | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - Multi-channel WebSocket infrastructure                  |
 | **Execution visualization**        | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - WebSocket protocol, endpoints, data specs |
 | **PR sizing / stacking**           | [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) - Budget, stacked PR strategy, stop rules                             |
+| **List page with pagination**      | Quick Reference below - "How do I build a list page with cursor pagination?"                                                 |
+| **Confirmation dialogs**           | PR Mistake #14 - `ConfirmationDialog` component usage                                                                        |
+| **Dialog state management**        | PR Mistake #15 - `useDialogState` hook usage                                                                                 |
 
 ### Quick Reference: Common Tasks
 
@@ -406,6 +479,70 @@ mutate(data, {
 ```
 
 See: [`docs/error-handling.md`](docs/error-handling.md) for complete error handling patterns
+
+#### How do I build a list page with cursor pagination?
+
+Use the shared hooks to avoid boilerplate. Here's the standard pattern:
+
+```typescript
+import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagination'
+import { useDialogState } from '../../hooks/useDialogState'
+import { useDeleteAction } from '../../hooks/useDeleteAction'
+import { ConfirmationDialog } from '../../components/ConfirmationDialog'
+
+export function MyListPage() {
+  const {
+    cursor, setCursor, filters, hasActiveFilters, queryParams,
+    handleFilterChange, handleClearAllFilters, getFooterProps,
+  } = useCursorPagination()
+
+  const deleteDialog = useDialogState<MyItem>()
+
+  const query = myClient.useQuery('get', '/items', { params: { query: queryParams } })
+  const { mutate: deleteItem } = myClient.useMutation('delete', '/items/{item_id}')
+
+  const handleDelete = useDeleteAction({
+    deleteFn: deleteItem,
+    buildParams: (item) => ({ params: { path: { item_id: item.id } } }),
+    entityLabel: 'item',
+    getItemName: (item) => item.name,
+    onSuccess: () => void query.refetch(),
+    onSettled: deleteDialog.close,
+  })
+
+  const items = query.data?.resources ?? []
+  useCursorReset(items.length, hasActiveFilters, cursor, query.isFetching, setCursor)
+
+  return (
+    <AppPage>
+      <FilterBar ... />
+      <ScrollableTableContainer
+        footer={getFooterProps(query.data, items.length, 'item', 'items')}
+      >
+        {/* table content */}
+      </ScrollableTableContainer>
+      <ConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={deleteDialog.close}
+        onConfirm={() => handleDelete(deleteDialog.item)}
+        title="Delete item"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+      >
+        Are you sure?
+      </ConfirmationDialog>
+    </AppPage>
+  )
+}
+```
+
+**Key hooks:**
+
+- `useCursorPagination(options?)` — cursor state + filters + queryParams + footer props
+- `useCursorReset(itemCount, hasActiveFilters, cursor, isFetching, setCursor)` — reset to page 1 when results are empty
+- `useDialogState<T>()` — dialog open/close state with associated item
+- `useDeleteAction(options)` — delete mutation with success/error alerts
+- `ConfirmationDialog` — reusable confirm/cancel modal
 
 #### How do I format dates for display?
 

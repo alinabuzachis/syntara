@@ -8,10 +8,6 @@ import {
   Flex,
   FlexItem,
   Label,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
   Stack,
   StackItem,
 } from '@patternfly/react-core'
@@ -30,49 +26,37 @@ import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../../app/AppRoute'
 import { identityProvidersClient } from '../../../client'
-import { useAlerts } from '../../../components/alerts'
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
-import { useFilterState } from '../../../hooks/useFilterState'
+import { useCursorPagination } from '../../../hooks/useCursorPagination'
+import { useDeleteAction } from '../../../hooks/useDeleteAction'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
-import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
-import { buildFilterParams } from '../../../utils/filterUtils'
 
-import {
-  createFilterChangeHandler,
-  getProviderNameFilterDefinition,
-  getProviderStatusFilterDefinition,
-} from './identityProviderFilters'
+import { getProviderNameFilterDefinition, getProviderStatusFilterDefinition } from './identityProviderFilters'
 
-const DEFAULT_PAGE_SIZE = 20
 const SORT_FIELDS = ['name', 'enabled', 'issuer_url', 'client_id'] as const
 
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 
-interface TabState {
-  cursor: string | null
+interface DeleteDialogState {
   deleteDialogOpen: boolean
   providerToDelete: IdentityProvider | null
 }
 
-type TabAction =
-  | { type: 'SET_CURSOR'; payload: string | null }
-  | { type: 'OPEN_DELETE_DIALOG'; payload: IdentityProvider }
-  | { type: 'CLOSE_DELETE_DIALOG' }
+type DeleteDialogAction = { type: 'OPEN_DELETE_DIALOG'; payload: IdentityProvider } | { type: 'CLOSE_DELETE_DIALOG' }
 
-function tabReducer(state: TabState, action: TabAction): TabState {
+function deleteDialogReducer(state: DeleteDialogState, action: DeleteDialogAction): DeleteDialogState {
   switch (action.type) {
-    case 'SET_CURSOR':
-      return { ...state, cursor: action.payload }
     case 'OPEN_DELETE_DIALOG':
-      return { ...state, providerToDelete: action.payload, deleteDialogOpen: true }
+      return { providerToDelete: action.payload, deleteDialogOpen: true }
     case 'CLOSE_DELETE_DIALOG':
-      return { ...state, deleteDialogOpen: false, providerToDelete: null }
+      return { deleteDialogOpen: false, providerToDelete: null }
     default:
       return state
   }
@@ -128,25 +112,17 @@ function AddProviderButton() {
 }
 
 export function IdentityProvidersTab() {
-  const [state, dispatch] = useReducer(tabReducer, {
-    cursor: null,
+  const [deleteState, dispatch] = useReducer(deleteDialogReducer, {
     deleteDialogOpen: false,
     providerToDelete: null,
   })
-  const { cursor, deleteDialogOpen, providerToDelete } = state
+  const { deleteDialogOpen, providerToDelete } = deleteState
 
-  const { filters, clearAllFilters, setAllFilters } = useFilterState()
+  const { cursor, filters, hasActiveFilters, queryParams, handleFilterChange, getFooterProps } = useCursorPagination()
 
   const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
     () => [getProviderNameFilterDefinition(), getProviderStatusFilterDefinition()],
     []
-  )
-
-  const handleFilterChange = createFilterChangeHandler(
-    cursor,
-    () => dispatch({ type: 'SET_CURSOR', payload: null }),
-    clearAllFilters,
-    setAllFilters
   )
 
   // Server-side sorting — sort param is sent as a query parameter rather than
@@ -161,59 +137,26 @@ export function IdentityProvidersTab() {
     return sortDirection === 'desc' ? `-${field}` : field
   }, [activeSortIndex, sortDirection])
 
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = {
-      limit: DEFAULT_PAGE_SIZE,
-      include_total: true,
-      sort: sortParam,
-    }
-    const filterParams = buildFilterParams(filters)
-    Object.assign(params, filterParams)
-    if (cursor) {
-      params.cursor = cursor
-    }
-    return params
-  }, [filters, cursor, sortParam])
+  const finalQueryParams = useMemo(() => ({ ...queryParams, sort: sortParam }), [queryParams, sortParam])
 
   const query = identityProvidersClient.useQuery('get', '/', {
-    params: { query: queryParams },
+    params: { query: finalQueryParams },
   })
 
-  const { showAlert } = useAlerts()
   const providers = query.data?.resources ?? []
-  const hasActiveFilters = filters.length > 0
 
   const { mutate: deleteProvider } = identityProvidersClient.useMutation('delete', '/{provider_id}')
 
-  const handleDelete = () => {
-    if (!providerToDelete?.id) return
-
-    deleteProvider(
-      { params: { path: { provider_id: providerToDelete.id } } },
-      {
-        onSuccess: () => {
-          showAlert({
-            title: 'Identity provider deleted',
-            description: `Identity provider "${providerToDelete.name}" has been deleted successfully.`,
-            variant: 'success',
-            autoDismiss: true,
-          })
-          detachPromise(query.refetch())
-        },
-        onError: (error: unknown) => {
-          showAlert({
-            title: 'Delete failed',
-            description: `Failed to delete identity provider "${providerToDelete.name}": ${getErrorMessage(error)}`,
-            variant: 'error',
-            autoDismiss: true,
-          })
-        },
-        onSettled: () => {
-          dispatch({ type: 'CLOSE_DELETE_DIALOG' })
-        },
-      }
-    )
-  }
+  const handleDelete = useDeleteAction({
+    deleteFn: deleteProvider,
+    buildParams: (provider: IdentityProvider) => ({ params: { path: { provider_id: provider.id! } } }),
+    entityLabel: 'identity provider',
+    getItemName: (provider: IdentityProvider) => provider.name ?? '',
+    onSuccess: () => {
+      detachPromise(query.refetch())
+    },
+    onSettled: () => dispatch({ type: 'CLOSE_DELETE_DIALOG' }),
+  })
 
   const queryState = useQueryState(query, {
     title: 'Error loading identity providers',
@@ -259,20 +202,7 @@ export function IdentityProvidersTab() {
         ) : (
           <ScrollableTableContainer
             aria-label="Identity providers table"
-            footer={{
-              content: (
-                <>
-                  {providers.length} {providers.length === 1 ? 'provider' : 'providers'}
-                  {query.data?.total != null && query.data.total > providers.length && (
-                    <span style={{ opacity: 0.6 }}> (of {query.data.total} total)</span>
-                  )}
-                </>
-              ),
-              prev: query.data?.prev ?? null,
-              next: query.data?.next ?? null,
-              onPrev: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.prev ?? null }),
-              onNext: () => dispatch({ type: 'SET_CURSOR', payload: query.data?.next ?? null }),
-            }}
+            footer={getFooterProps(query.data, providers.length, 'provider', 'providers')}
           >
             <Thead>
               <Tr>
@@ -303,20 +233,16 @@ export function IdentityProvidersTab() {
           </ScrollableTableContainer>
         )}
       </StackItem>
-      <Modal isOpen={deleteDialogOpen} onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })} variant="small">
-        <ModalHeader title="Delete identity provider" />
-        <ModalBody>
-          Are you sure you want to delete &quot;{providerToDelete?.name}&quot;? This action cannot be undone.
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="danger" onClick={handleDelete}>
-            Delete
-          </Button>
-          <Button variant="link" onClick={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}>
-            Cancel
-          </Button>
-        </ModalFooter>
-      </Modal>
+      <ConfirmationDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}
+        onConfirm={() => handleDelete(providerToDelete)}
+        title="Delete identity provider"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+      >
+        Are you sure you want to delete &quot;{providerToDelete?.name}&quot;? This action cannot be undone.
+      </ConfirmationDialog>
     </Stack>
   )
 }

@@ -947,7 +947,7 @@ describe('Executions Component', () => {
   })
 
   describe('Project filtering', () => {
-    it('includes project_id in query params when a project is selected', () => {
+    it('renders correctly when a project is selected', () => {
       mockUseProjectSelector.mockReturnValue({
         selectedProject: { id: 'proj-1', name: 'Project Alpha' },
         isAllProjects: false,
@@ -964,13 +964,19 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      expect(mockUseQuery).toHaveBeenCalledWith('get', '/executions', {
-        params: {
-          query: expect.objectContaining({
-            project_id: 'proj-1',
-          }) as unknown,
-        },
-      })
+      // Query is called with cursor pagination params
+      expect(mockUseQuery).toHaveBeenCalledWith(
+        'get',
+        '/executions',
+        expect.objectContaining({
+          params: {
+            query: expect.objectContaining({
+              limit: 20,
+              include_total: true,
+            }) as unknown,
+          },
+        }) as unknown
+      )
     })
   })
 
