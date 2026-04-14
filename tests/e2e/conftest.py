@@ -38,9 +38,26 @@ def _generate_e2e_token(base_url: str) -> str:
 
 
 @pytest.fixture(scope="session")
-def nexus_client() -> AuthenticatedClient:
+def nexus_base_url() -> str:
+    """Return the Nexus API base URL from the environment."""
+    return os.environ.get("APP_BASE_URL", "http://localhost:8000")
+
+
+@pytest.fixture(scope="session")
+def auth_headers(nexus_base_url: str) -> dict[str, str]:
+    """Return Bearer auth headers for raw httpx calls.
+
+    Generates a JWT token using the same mechanism as the ``nexus_api``
+    fixture, so raw HTTP requests authenticate consistently.
+    """
+    token = _generate_e2e_token(nexus_base_url)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="session")
+def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
     """Return an authenticated Nexus API client connected to the test environment."""
-    base_url = os.environ.get("APP_BASE_URL", "http://localhost:8000")
+    base_url = nexus_base_url
 
     try:
         response = httpx.get(f"{base_url}/health", timeout=5, verify=False)  # noqa: S501

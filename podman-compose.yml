@@ -105,6 +105,7 @@ services:
       - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
       - APP_LOG_OUTPUT_FORMAT=${APP_LOG_OUTPUT_FORMAT:-text}
       - APP_SEGMENT_WRITE_KEY=${APP_SEGMENT_WRITE_KEY}
+      - APP_SEGMENT_ENDPOINT=${APP_SEGMENT_ENDPOINT:-http://mock-segment:9999}
       - APP_ENTITLEMENT_ID=${APP_ENTITLEMENT_ID}
       - APP_COLLECTION_INTERVAL_SECONDS=${APP_COLLECTION_INTERVAL_SECONDS:-300}
       # JWT signing keys (mounted from .secrets/)
@@ -174,6 +175,7 @@ services:
       - APP_AAP_POLL_INTERVAL_SECONDS=${APP_AAP_POLL_INTERVAL_SECONDS:-5.0}
       - APP_AAP_VERIFY_SSL=${APP_AAP_VERIFY_SSL:-true}
       - APP_SEGMENT_WRITE_KEY=${APP_SEGMENT_WRITE_KEY}
+      - APP_SEGMENT_ENDPOINT=${APP_SEGMENT_ENDPOINT:-http://mock-segment:9999}
       - APP_ENTITLEMENT_ID=${APP_ENTITLEMENT_ID}
       # JWT signing keys (mounted from .secrets/)
       - APP_JWT_PRIVATE_KEY_PATH=/run/secrets/jwt-primary.pem
@@ -235,6 +237,25 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # Mock Segment server for telemetry e2e tests (only started by test-e2e-telemetry)
+  mock-segment:
+    build:
+      context: .
+      dockerfile: containers/nexus/Containerfile
+    image: ${APP_IMAGE:-localhost/nexus:latest}
+    command: [sh, -c, 'SEGMENT_SERVER_HOST=0.0.0.0 uv run python tests/e2e/telemetry/mock_segment_server.py']
+    ports:
+      - ${SEGMENT_SERVER_PORT:-9999}:9999
+    volumes:
+      - ./tests/e2e/telemetry:/opt/app-root/src/tests/e2e/telemetry:ro,z
+    healthcheck:
+      test: [CMD-SHELL, 'python -c "import urllib.request; urllib.request.urlopen(\"http://localhost:9999/health\")"']
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - telemetry-e2e
 
 volumes:
   nexus_postgres_data:

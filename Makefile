@@ -146,37 +146,90 @@ test-fast: check-deps ## Run tests with fail-fast and short traceback
 test-all: check-deps ## Run all tests
 	$(call run-tests,tests/ -v -n auto -m "not mcp" --cov=src --cov-config=pyproject.toml $(E2E_IGNORE))
 
+SEGMENT_SERVER_PORT ?= 9999
+
+# _e2e-run: shared infrastructure setup for all e2e targets.
+# Starts mock Segment, database, Temporal, OPA, and the API server,
+# then runs the pytest command passed as $(1).
+# Usage: $(call _e2e-run,<pytest-args>)
+define _e2e-run
+@$(MAKE) _deps-install-dev
+@{ \
+	echo "🚀 Starting mock Segment, database, Temporal, and OPA..."; \
+	APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
+	APP_SEGMENT_ENDPOINT=http://mock-segment:$(SEGMENT_SERVER_PORT) \
+	APP_COLLECTION_INTERVAL_SECONDS=10 \
+	$(COMPOSE_FINAL_CMD) --profile telemetry-e2e up -d database temporal temporal-worker mock-segment opa > /tmp/nexus-e2e-infra.log 2>&1; \
+	echo "⏳ Waiting for mock Segment server..."; \
+	TRIES=0; \
+	until curl -sf http://localhost:$(SEGMENT_SERVER_PORT)/health 2>/dev/null | grep -q '"status":"ok"'; do \
+		sleep 1; TRIES=$$((TRIES+1)); \
+		if [ $$TRIES -ge 30 ]; then \
+			echo "❌ Mock Segment server failed to start. Logs:"; \
+			$(COMPOSE_FINAL_CMD) --profile telemetry-e2e logs mock-segment 2>&1 | tail -10; \
+			$(COMPOSE_FINAL_CMD) --profile telemetry-e2e down > /dev/null 2>&1 || true; \
+			exit 1; \
+		fi; \
+	done; \
+	echo "✅ Mock Segment server ready"; \
+	echo "⏳ Waiting for Temporal to be ready..."; \
+	TRIES=0; \
+	until timeout 2 bash -c 'echo > /dev/tcp/localhost/$${APP_TEMPORAL_PORT:-7233}' 2>/dev/null; do \
+		sleep 2; TRIES=$$((TRIES+1)); \
+		if [ $$TRIES -ge 60 ]; then \
+			echo "⚠️  Temporal may not be ready — workflow execution tests may fail"; \
+			break; \
+		fi; \
+	done; \
+	echo "✅ Infrastructure ready"; \
+	APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
+	APP_SEGMENT_ENDPOINT=http://localhost:$(SEGMENT_SERVER_PORT) \
+	APP_COLLECTION_INTERVAL_SECONDS=10 \
+	$(MAKE) dev > /tmp/nexus-e2e-dev.log 2>&1 & DEV_PID=$$!; \
+	echo "⏳ Waiting for API server to be ready..."; \
+	TRIES=0; \
+	until curl -sf http://localhost:8000/health 2>/dev/null | grep -q '"status":"healthy"'; do \
+		sleep 1; TRIES=$$((TRIES+1)); \
+		if [ $$TRIES -ge 60 ]; then \
+			echo "❌ API server failed to start after 60s. Last 20 lines:"; \
+			tail -20 /tmp/nexus-e2e-dev.log; \
+			kill $$DEV_PID 2>/dev/null || true; \
+			wait $$DEV_PID 2>/dev/null || true; \
+			$(COMPOSE_FINAL_CMD) --profile telemetry-e2e down > /dev/null 2>&1 || true; \
+			exit 1; \
+		fi; \
+	done; \
+	echo "✅ API server is ready"; \
+	SEGMENT_SERVER_URL=http://localhost:$(SEGMENT_SERVER_PORT) \
+	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} \
+	uv run pytest $(1); \
+	EXIT_CODE=$$?; \
+	echo "🧹 Stopping background services..."; \
+	kill $$DEV_PID 2>/dev/null || true; \
+	wait $$DEV_PID 2>/dev/null || true; \
+	$(COMPOSE_FINAL_CMD) --profile telemetry-e2e down > /dev/null 2>&1; \
+	exit $$EXIT_CODE; \
+}
+endef
+
 .PHONY: test-e2e
-test-e2e: check-deps ## Run End to End tests
+test-e2e: check-deps ## Run all E2E tests (starts full stack)
 ifndef APP_BASE_URL
-	@$(MAKE) _deps-install-dev
-	@{ \
-		$(MAKE) run-all > /tmp/nexus-e2e.log 2>&1 & RUN_ALL_PID=$$!; \
-		echo "⏳ Waiting for API server to be ready (logs: /tmp/nexus-e2e.log)..."; \
-		TRIES=0; \
-		until curl -sf http://localhost:8000/health 2>/dev/null | grep -q '"status":"healthy"'; do \
-			sleep 1; TRIES=$$((TRIES+1)); \
-			if [ $$TRIES -ge 120 ]; then \
-				echo "❌ API server failed to start after 120s. Last 20 lines of log:"; \
-				tail -20 /tmp/nexus-e2e.log; \
-				kill $$RUN_ALL_PID 2>/dev/null || true; \
-				wait $$RUN_ALL_PID 2>/dev/null || true; \
-				$(COMPOSE_FINAL_CMD) down > /dev/null 2>&1 || true; \
-				exit 1; \
-			fi; \
-		done; \
-		echo "✅ API server is ready"; \
-		APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} uv run pytest tests/e2e/ -v; \
-		EXIT_CODE=$$?; \
-		echo "🧹 Stopping background services..."; \
-		kill $$RUN_ALL_PID 2>/dev/null || true; \
-		wait $$RUN_ALL_PID 2>/dev/null || true; \
-		$(COMPOSE_FINAL_CMD) down > /dev/null 2>&1; \
-		exit $$EXIT_CODE; \
-	}
+	$(call _e2e-run,tests/e2e/ -v)
 else
 	@echo "🧪 Running end to end tests..."
+	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
 	uv run pytest tests/e2e/ -v
+endif
+
+.PHONY: test-e2e-telemetry
+test-e2e-telemetry: check-deps ## Run telemetry E2E tests only
+ifndef APP_BASE_URL
+	$(call _e2e-run,tests/e2e/telemetry/ -v)
+else
+	@echo "🧪 Running telemetry E2E tests..."
+	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
+	uv run pytest tests/e2e/telemetry/ -v
 endif
 
 BASE_URL ?= http://localhost:8000
