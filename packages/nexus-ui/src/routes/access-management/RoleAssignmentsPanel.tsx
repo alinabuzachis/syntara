@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Flex,
   FlexItem,
@@ -14,6 +15,7 @@ import {
 import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
+import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 
 import { useAlerts } from '../../components/alerts'
@@ -21,12 +23,14 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
-import { useQueryState } from '../../components/states/useQueryState'
 import { useFilterState } from '../../hooks/useFilterState'
-import type { FilterFieldDefinition } from '../../types/filters'
+import { ErrorState } from '../../components/states/ErrorState'
+import { LoadingState } from '../../components/states/LoadingState'
+import { useAuthStore } from '../../stores/useAuthStore'
+import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import { getErrorMessage } from '../../utils/apiErrors'
-import { accessClient } from '../access/accessClient'
+import { getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
+import { accessClient, accessFetchClient } from '../access/accessClient'
 import { PaginationFooter } from '../access/PaginationFooter'
 import { useAllPolicies } from '../access/useAllPolicies'
 
@@ -56,11 +60,74 @@ interface RoleAssignmentRow {
   scope: string
   scopeType: 'system' | 'project'
   createdAt: string | null
+  /** For project-scoped rows, the project + assignment IDs needed for deletion */
+  projectId?: string
 }
 
 interface RoleAssignmentsPanelProps {
   principalType: 'user' | 'group'
   principalId: string
+}
+
+interface ProjectRoleAssignment {
+  id: string
+  user_id?: string
+  group_id?: string
+  role_name: string
+  role_id: string
+  project_id: string
+  created_at: string | null
+}
+
+/**
+ * Fetches project-scoped role assignments for a principal across all accessible projects.
+ * Used as a fallback when system-level queries return 403.
+ */
+async function fetchProjectRolesForPrincipal(
+  principalType: 'user' | 'group',
+  principalId: string
+): Promise<RoleAssignmentRow[]> {
+  const { data: projects } = await accessFetchClient.GET('/projects', {
+    params: { query: {} },
+  })
+  if (!projects || projects.length === 0) return []
+
+  const allRows: RoleAssignmentRow[] = []
+  const token = useAuthStore.getState().accessToken
+
+  for (const project of projects) {
+    try {
+      const endpoint =
+        principalType === 'user' ? `/projects/${project.id}/roles` : `/projects/${project.id}/group-roles`
+
+      const headers: Record<string, string> = {}
+      if (token) headers.Authorization = `Bearer ${token}`
+
+      const resp = await fetch(`/api/v1${endpoint}`, { headers })
+      if (!resp.ok) continue
+
+      const assignments = (await resp.json()) as ProjectRoleAssignment[]
+      const principalField = principalType === 'user' ? 'user_id' : 'group_id'
+      const matching = assignments.filter((a) => a[principalField] === principalId)
+
+      for (const a of matching) {
+        allRows.push({
+          id: a.id,
+          roleName: a.role_name,
+          roleDescription: null,
+          policies: [],
+          scope: project.name,
+          scopeType: 'project',
+          createdAt: a.created_at,
+          projectId: project.id,
+        })
+      }
+    } catch {
+      // Skip projects we can't access
+    }
+  }
+
+  return allRows
 }
 
 function UnassignRoleDialog({
@@ -150,43 +217,44 @@ function RoleAssignmentsTable({
   )
 }
 
-export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<RoleAssignmentsPanelProps>) {
-  const [assignModalOpen, setAssignModalOpen] = useState(false)
-  const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
-  const { filters, setAllFilters, clearAllFilters } = useFilterState()
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(20)
-  const { showAlert } = useAlerts()
+function useRoleAssignmentData(principalType: 'user' | 'group', principalId: string) {
+  // ── System-level queries (may 403 for non-admin users) ──────────────────
+  const systemUserQuery = accessClient.useQuery(
+    'get',
+    '/user-role-assignments',
+    { params: { query: {} } },
+    { enabled: principalType === 'user', retry: false }
+  )
+  const systemGroupQuery = accessClient.useQuery(
+    'get',
+    '/group-role-assignments',
+    { params: { query: {} } },
+    { enabled: principalType === 'group', retry: false }
+  )
 
-  const handleFilterChange = (newFilters: typeof filters) => {
-    setAllFilters(newFilters)
-    setPage(1)
-  }
+  const activeSystemQuery = principalType === 'user' ? systemUserQuery : systemGroupQuery
+  const systemQueryForbidden = useMemo(() => {
+    if (!activeSystemQuery.isError) return false
+    const status = getErrorStatus(activeSystemQuery.error)
+    if (status === 403) return true
+    const errBody = activeSystemQuery.error as { code?: string } | null
+    return errBody?.code === 'AUTHORIZATION_DENIED'
+  }, [activeSystemQuery.isError, activeSystemQuery.error])
 
-  const handlePerPageChange = (newPerPage: number) => {
-    setPerPage(newPerPage)
-    setPage(1)
-  }
-
-  const systemUserQuery = accessClient.useQuery('get', '/user-role-assignments', undefined, {
-    enabled: principalType === 'user',
-  })
-  const systemGroupQuery = accessClient.useQuery('get', '/group-role-assignments', undefined, {
-    enabled: principalType === 'group',
+  // ── Project-scoped fallback (when system query is forbidden) ────────────
+  const projectFallbackQuery = useQuery({
+    queryKey: ['project-role-fallback', principalType, principalId],
+    queryFn: () => fetchProjectRolesForPrincipal(principalType, principalId),
+    enabled: systemQueryForbidden,
   })
 
   const rolesQuery = accessClient.useQuery('get', '/roles', { params: { query: { limit: 100 } } })
   const { policies: allPolicies } = useAllPolicies()
 
-  const activeQuery = principalType === 'user' ? systemUserQuery : systemGroupQuery
+  // ── Build rows from system-level data (when available) ──────────────────
+  const systemRows = useMemo((): RoleAssignmentRow[] => {
+    if (systemQueryForbidden) return []
 
-  const { mutate: deleteUserAssignment } = accessClient.useMutation('delete', '/user-role-assignments/{assignment_id}')
-  const { mutate: deleteGroupAssignment } = accessClient.useMutation(
-    'delete',
-    '/group-role-assignments/{assignment_id}'
-  )
-
-  const rows = useMemo((): RoleAssignmentRow[] => {
     const rolesData = rolesQuery.data?.resources ?? []
     const policyDescMap = new Map(allPolicies.map((p) => [p.name, p.description]))
     const roleMap = new Map(rolesData.map((r) => [r.name, r]))
@@ -213,7 +281,92 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
     return (systemGroupQuery.data ?? [])
       .filter((a) => a.group_id === principalId)
       .map((a) => buildRow(a.id, a.role_name, a.created_at ?? null))
-  }, [principalType, principalId, systemUserQuery.data, systemGroupQuery.data, rolesQuery.data, allPolicies])
+  }, [
+    systemQueryForbidden,
+    principalType,
+    principalId,
+    systemUserQuery.data,
+    systemGroupQuery.data,
+    rolesQuery.data,
+    allPolicies,
+  ])
+
+  const rows = useMemo(
+    () => [...systemRows, ...(projectFallbackQuery.data ?? [])],
+    [systemRows, projectFallbackQuery.data]
+  )
+
+  const { mutate: deleteUserAssignment } = accessClient.useMutation('delete', '/user-role-assignments/{assignment_id}')
+  const { mutate: deleteGroupAssignment } = accessClient.useMutation(
+    'delete',
+    '/group-role-assignments/{assignment_id}'
+  )
+  const { mutate: deleteProjectUserRole } = accessClient.useMutation(
+    'delete',
+    '/projects/{project_id}/roles/{assignment_id}'
+  )
+  const { mutate: deleteProjectGroupRole } = accessClient.useMutation(
+    'delete',
+    '/projects/{project_id}/group-roles/{assignment_id}'
+  )
+
+  const deleteAssignment = (
+    row: RoleAssignmentRow,
+    callbacks: { onSuccess: () => void; onError: (err: unknown) => void; onSettled: () => void }
+  ) => {
+    if (row.projectId) {
+      const mutate = principalType === 'user' ? deleteProjectUserRole : deleteProjectGroupRole
+      mutate({ params: { path: { project_id: row.projectId, assignment_id: row.id } } }, callbacks)
+    } else if (principalType === 'user') {
+      deleteUserAssignment({ params: { path: { assignment_id: row.id } } }, callbacks)
+    } else {
+      deleteGroupAssignment({ params: { path: { assignment_id: row.id } } }, callbacks)
+    }
+  }
+
+  const isLoading =
+    (!systemQueryForbidden && activeSystemQuery.isPending) || (systemQueryForbidden && projectFallbackQuery.isPending)
+
+  const refetch = () => {
+    if (systemQueryForbidden) {
+      projectFallbackQuery.refetch().catch(() => {})
+    } else {
+      activeSystemQuery.refetch().catch(() => {})
+    }
+  }
+
+  return {
+    rows,
+    systemQueryForbidden,
+    activeSystemQuery,
+    isLoading,
+    deleteAssignment,
+    refetch,
+  }
+}
+
+export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<RoleAssignmentsPanelProps>) {
+  const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
+  const { filters, setAllFilters, clearAllFilters } = useFilterState()
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const { showAlert } = useAlerts()
+
+  const { rows, systemQueryForbidden, activeSystemQuery, isLoading, deleteAssignment, refetch } = useRoleAssignmentData(
+    principalType,
+    principalId
+  )
+
+  const handleFilterChange = (newFilters: FilterConfig[]) => {
+    setAllFilters(newFilters)
+    setPage(1)
+  }
+
+  const handlePerPageChange = (newPerPage: number) => {
+    setPerPage(newPerPage)
+    setPage(1)
+  }
 
   const filteredRows = useMemo(() => {
     const nameFilter = filters.find((f) => f.key === 'name')
@@ -229,48 +382,42 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
 
   const handleUnassign = () => {
     if (!rowToUnassign) return
-    const onSuccess = () => {
-      showAlert({
-        title: 'Role unassigned',
-        description: `Role "${rowToUnassign.roleName}" has been unassigned.`,
-        variant: 'success',
-        autoDismiss: true,
-      })
-      activeQuery.refetch().catch(() => {})
-    }
-    const onError = (err: unknown) => {
-      showAlert({
-        title: 'Failed to unassign role',
-        description: getErrorMessage(err),
-        variant: 'error',
-        autoDismiss: true,
-      })
-    }
-    const onSettled = () => setRowToUnassign(null)
-
-    if (principalType === 'user') {
-      deleteUserAssignment({ params: { path: { assignment_id: rowToUnassign.id } } }, { onSuccess, onError, onSettled })
-    } else {
-      deleteGroupAssignment(
-        { params: { path: { assignment_id: rowToUnassign.id } } },
-        { onSuccess, onError, onSettled }
-      )
-    }
+    deleteAssignment(rowToUnassign, {
+      onSuccess: () => {
+        showAlert({
+          title: 'Role unassigned',
+          description: `Role "${rowToUnassign.roleName}" has been unassigned.`,
+          variant: 'success',
+          autoDismiss: true,
+        })
+        refetch()
+      },
+      onError: (err: unknown) => {
+        showAlert({
+          title: 'Failed to unassign role',
+          description: getErrorMessage(err),
+          variant: 'error',
+          autoDismiss: true,
+        })
+      },
+      onSettled: () => setRowToUnassign(null),
+    })
   }
 
-  const refetch = () => {
-    activeQuery.refetch().catch(() => {})
+  // ── Loading / error states ──────────────────────────────────────────────
+  if (activeSystemQuery.isError && !systemQueryForbidden) {
+    return (
+      <ErrorState
+        title="Error loading role assignments"
+        message={activeSystemQuery.error}
+        onRetry={() => activeSystemQuery.refetch().catch(() => {})}
+      />
+    )
   }
 
-  const queryState = useQueryState(activeQuery, {
-    title: 'Error loading role assignments',
-    onRetry: () => {
-      activeQuery.refetch().catch(() => {})
-    },
-  })
-  if (queryState) return queryState
+  if (isLoading) return <LoadingState />
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && !systemQueryForbidden) {
     return (
       <>
         <EmptyStateNoData
@@ -293,6 +440,20 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
   return (
     <>
       <Stack style={{ height: '100%' }}>
+        {systemQueryForbidden && (
+          <StackItem>
+            <Alert
+              variant="info"
+              isInline
+              title="Showing project-scoped roles only"
+              style={{ marginBottom: 'var(--pf-t--global--spacer--md)' }}
+            >
+              System-level role assignments require administrator access. Only roles within your accessible projects are
+              shown.
+            </Alert>
+          </StackItem>
+        )}
+
         <StackItem>
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
@@ -316,14 +477,25 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
         </StackItem>
 
         {filteredRows.length === 0 ? (
-          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <EmptyStateFilter
-              clearAllFilters={() => {
-                clearAllFilters()
-                setPage(1)
-              }}
-            />
-          </StackItem>
+          rows.length === 0 ? (
+            <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <EmptyStateNoData
+                title="No role assignments"
+                description={`No project-scoped roles have been assigned to this ${principalType}.`}
+                buttonText="Assign role"
+                addData={() => setAssignModalOpen(true)}
+              />
+            </StackItem>
+          ) : (
+            <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <EmptyStateFilter
+                clearAllFilters={() => {
+                  clearAllFilters()
+                  setPage(1)
+                }}
+              />
+            </StackItem>
+          )
         ) : (
           <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
             <RoleAssignmentsTable rows={paginatedRows} onUnassign={setRowToUnassign} />

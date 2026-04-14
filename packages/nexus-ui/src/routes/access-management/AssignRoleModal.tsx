@@ -132,7 +132,10 @@ export function AssignRoleModal({
         .filter((r) => r.project_id === null)
         .map((r) => ({ id: r.id, name: r.name, description: r.description ?? null }))
     }
-    return allRoles.map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
+    // Project scope: show only project-scoped built-in roles (project-admin, project-user, project-auditor)
+    return allRoles
+      .filter((r) => r.project_id === null && r.name.startsWith('project-'))
+      .map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
   }, [rolesQuery.data, scope])
 
   const projectOptions = useMemo(() => {
