@@ -189,6 +189,7 @@ class ComponentLabel(StrEnum):
     EXECUTION_SERVICE = "execution_service"
     INVOCATION_SERVICE = "invocation_service"
     ROUTING_SERVICE = "routing_service"
+    TOOL_MANAGER = "tool_manager"
     DATABASE = "database"
     SYSTEM_WIDE = "system_wide"
 

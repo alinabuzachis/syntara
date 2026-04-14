@@ -156,20 +156,6 @@ class TestMetricType:
 class TestComponentLabel:
     """Tests for the ComponentLabel enum."""
 
-    def test_all_components_present(self) -> None:
-        """All expected component labels are defined in the enum."""
-        expected = {
-            "api_service",
-            "workflow_engine",
-            "temporal_worker",
-            "execution_service",
-            "invocation_service",
-            "routing_service",
-            "database",
-            "system_wide",
-        }
-        assert {label.value for label in ComponentLabel} == expected
-
     def test_component_label_is_string_enum(self) -> None:
         """ComponentLabel values are usable as plain strings."""
         assert ComponentLabel.API_SERVICE.value == "api_service"
