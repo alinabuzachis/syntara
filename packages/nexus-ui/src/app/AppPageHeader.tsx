@@ -19,7 +19,9 @@ export function AppPageHeader(props: {
     return (
       <CompassMainHeader>
         <CompassPanel>
-          {props.breadcrumb}
+          <div style={{ marginBottom: 'var(--pf-t--global--spacer--sm)' }} className="app-breadcrumb-no-underline">
+            {props.breadcrumb}
+          </div>
           <CompassMainHeaderContent>
             <CompassMainHeaderTitle>{titleContent}</CompassMainHeaderTitle>
             {props.children && (
