@@ -25,6 +25,7 @@ interface AuthState {
   isRefreshing: boolean
   error: string | null
   logoutCount: number
+  username: string | null
 }
 
 interface LoginCredentials {
@@ -61,6 +62,7 @@ const INITIAL_STATE: AuthState = {
   isRefreshing: false,
   error: null,
   logoutCount: 0,
+  username: null,
 }
 
 // ============================================================================
@@ -121,6 +123,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const data = await postAuth(AUTH_LOGIN_URL, credentials)
       applyTokenResponse(set, data)
+      set({ username: credentials.username })
     } catch (err) {
       set({
         ...INITIAL_STATE,
@@ -234,6 +237,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 export const selectIsAuthenticated = (state: AuthStore) => state.isAuthenticated
 export const selectAuthError = (state: AuthStore) => state.error
 export const selectIsRefreshing = (state: AuthStore) => state.isRefreshing
+export const selectUsername = (state: AuthStore) => state.username
 
 // ============================================================================
 // Exported for testing

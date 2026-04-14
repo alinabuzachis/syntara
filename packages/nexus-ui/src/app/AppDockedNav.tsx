@@ -155,6 +155,7 @@ function UserMenuDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const [, setLocation] = useLocation()
   const logout = useAuthStore((s) => s.logout)
+  const username = useAuthStore((s) => s.username)
   const { showAlert } = useAlerts()
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
@@ -166,12 +167,34 @@ function UserMenuDropdown() {
       aria-label="User menu"
       style={{ padding: 0 }}
     >
-      <RhUiProfileFillIcon />
+      <span
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 'var(--pf-t--global--spacer--xs)',
+        }}
+      >
+        <RhUiProfileFillIcon />
+        {username ? (
+          <span
+            style={{
+              fontSize: 'var(--pf-t--global--font--size--xs)',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {username}
+          </span>
+        ) : null}
+      </span>
     </MenuToggle>
   )
 
   return (
-    <Tooltip aria="none" aria-live="off" content="User menu" position="right">
+    <Tooltip aria="none" aria-live="off" content={username ? `${username} — User menu` : 'User menu'} position="right">
       <Dropdown
         isOpen={isOpen}
         onOpenChange={setIsOpen}
