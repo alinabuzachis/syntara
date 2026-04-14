@@ -127,12 +127,16 @@ jobs:
         timeout-minutes: 5
         run: |
           echo "Waiting for services to become healthy..."
+          # Use exact container names (with _1 suffix) to avoid substring
+          # matches — e.g. "nexus-ci_temporal" would also match
+          # "nexus-ci_temporal-worker_1", causing podman wait to block on
+          # a container we don't intend to check here.
           podman wait --condition=healthy \
-            $(podman ps -qf "name=nexus-ci_database") \
-            $(podman ps -qf "name=nexus-ci_temporal") \
-            $(podman ps -qf "name=nexus-ci_nexus") \
-            $(podman ps -qf "name=nexus-ci_mcp-server") \
-            $(podman ps -qf "name=nexus-ci_opa")
+            nexus-ci_database_1 \
+            nexus-ci_temporal_1 \
+            nexus-ci_nexus_1 \
+            nexus-ci_mcp-server_1 \
+            nexus-ci_opa_1
           echo "✅ All services are healthy"
 
       - name: Show service logs on failure
