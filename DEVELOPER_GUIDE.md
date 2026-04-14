@@ -275,14 +275,15 @@ See [docs/architecture.md](docs/architecture.md) — "Where to look when debuggi
 
 ## Common Pitfalls
 
-| Pitfall                                   | Fix                                                                                         |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `npm install` creates inconsistent state  | Always use `npm ci`                                                                         |
-| Port 5173 or 3000 already in use          | Kill the existing process or change the port                                                |
-| Broad Zustand subscriptions               | Use custom hooks (`useActivities()`, etc.) instead of `useWorkflowStore()` with no selector |
-| Non-atomic coupled state updates          | Use `batchRemoveNodesAndEdges()` instead of separate calls                                  |
-| String literals for activity / step types | Use enum constants from `@ansible/nexus-contracts` (e.g., `ActivityTypeEnum.CONDITION`)     |
-| Using display strings in logic            | Compare raw API values, not translated labels                                               |
+| Pitfall                                   | Fix                                                                                                                                     |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm install` creates inconsistent state  | Always use `npm ci`                                                                                                                     |
+| Port 5173 or 3000 already in use          | Kill the existing process or change the port                                                                                            |
+| Broad Zustand subscriptions               | Use custom hooks (`useActivities()`, etc.) instead of `useWorkflowStore()` with no selector                                             |
+| Non-atomic coupled state updates          | Use `batchRemoveNodesAndEdges()` instead of separate calls                                                                              |
+| String literals for activity / step types | Use enum constants from `@ansible/nexus-contracts` (e.g., `ActivityTypeEnum.CONDITION`)                                                 |
+| Using display strings in logic            | Compare raw API values, not translated labels                                                                                           |
+| Unary `void` for promises or side effects | Use `detachPromise(...)` from `utils/detachPromise`, `await`, or a small `async` helper — ESLint `no-void` and Sonar forbid `void expr` |
 
 See [docs/zustand-architecture.md](docs/zustand-architecture.md) — "Common Pitfalls & Solutions" for detailed examples.
 

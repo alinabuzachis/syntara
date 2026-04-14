@@ -32,14 +32,6 @@ describe('BooleanFilter', () => {
       expect(screen.getByText('Active')).toBeInTheDocument()
     })
 
-    it('renders switch with custom off label', () => {
-      render(<BooleanFilter {...defaultProps} offLabel="Inactive" />)
-
-      // When switch is off, off label is visible
-      const switchElement = screen.getByRole('switch')
-      expect(switchElement).not.toBeChecked()
-    })
-
     it('renders unchecked by default', () => {
       render(<BooleanFilter {...defaultProps} />)
 

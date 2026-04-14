@@ -65,6 +65,10 @@ export default tseslint.config(
       ...jsxA11y.configs.strict.rules,
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
+      // Disallow the `void` operator (Sonar S3735 / readability). For deliberately unawaited work from
+      // sync callbacks, use `detachPromise(...)` (optionally `{ onReject }`); otherwise `await` or return
+      // the promise so the caller handles errors. Do not confuse with TypeScript `: void` return types.
+      'no-void': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: false }],
       '@typescript-eslint/no-explicit-any': 'error',

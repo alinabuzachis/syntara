@@ -40,6 +40,7 @@ import { useFilterState } from '../../../hooks/useFilterState'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
+import { detachPromise } from '../../../utils/detachPromise'
 import { buildFilterParams } from '../../../utils/filterUtils'
 
 import {
@@ -197,7 +198,7 @@ export function IdentityProvidersTab() {
             variant: 'success',
             autoDismiss: true,
           })
-          query.refetch().catch(() => {})
+          detachPromise(query.refetch())
         },
         onError: (error: unknown) => {
           showAlert({
@@ -216,7 +217,7 @@ export function IdentityProvidersTab() {
 
   const queryState = useQueryState(query, {
     title: 'Error loading identity providers',
-    onRetry: () => void query.refetch(),
+    onRetry: () => detachPromise(query.refetch()),
   })
   if (queryState) return queryState
 

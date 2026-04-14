@@ -36,6 +36,7 @@ import { useFilterState } from '../../hooks/useFilterState'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
 import { getDateField } from '../../utils/getDateField'
 import { getWorkflowTagsForDisplay } from '../../utils/workflowTags'
@@ -227,7 +228,7 @@ export default function Automations() {
       {
         onSuccess: () => {
           showSuccess(`Successfully deleted automation "${workflowToDelete.name}"`, 'Automation Deleted')
-          void workflowsQuery.refetch()
+          detachPromise(workflowsQuery.refetch())
         },
         onError: (error: unknown) => {
           showError(
@@ -275,7 +276,7 @@ export default function Automations() {
 
   const queryState = useQueryState(workflowsQuery, {
     title: 'Error loading workflows',
-    onRetry: () => workflowsQuery.refetch(),
+    onRetry: () => detachPromise(workflowsQuery.refetch()),
   })
 
   // Show loading/error state

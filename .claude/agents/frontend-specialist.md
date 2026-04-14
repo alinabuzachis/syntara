@@ -70,7 +70,7 @@ You are an elite frontend specialist with deep expertise in React 19, TypeScript
 
 1. **Never use raw `fetch()`** — always use the typed API clients from `client.tsx` (`workflowClient`, `credentialsClient`, `authClient`, etc.). Raw `fetch()` bypasses auth middleware, error interceptors, and TypeScript type safety. The ONLY exception is pre-auth calls where no token exists.
 2. **Never use unsafe `as` casts on API responses** — the typed client already returns properly typed data. If the type doesn't match, fix the contract or use a type guard, not `as SomeType[]`.
-3. **Always pass `onRetry` to `useQueryState`** — use the object form `{ title: '...', onRetry: () => void query.refetch() }`, never the bare string form. This enables the retry button in `ErrorState` for transient failures.
+3. **Always pass `onRetry` to `useQueryState`** — use the object form `{ title: '...', onRetry: () => detachPromise(query.refetch()) }` with `detachPromise` from `utils/detachPromise`, never the bare string form. This enables the retry button in `ErrorState` for transient failures. Do not use the unary `void` operator (ESLint `no-void` / Sonar).
 4. **Always use `ErrorState` component** for error display — never raw `<span>` or `<p>` error text. The `ErrorState` component handles retryable errors and provides consistent UI.
 5. **Use the correct mutation error hook by context**:
    - `useFormMutationErrorHandler` for react-hook-form mutations (maps 422 field errors to form fields)

@@ -22,6 +22,7 @@ import { ConnectionBanner } from '../../components/ConnectionBanner'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
 import type { FilterConfig } from '../../types/filters'
+import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
 import { useExecutionWebSocket } from '../automations/hooks/useExecutionWebSocket'
 import { useExecutionStore } from '../automations/stores/useExecutionStore'
@@ -212,12 +213,16 @@ export default function ExecutionDetail() {
       // - ExecutionDetail header status
       // - ExecutionDetailsPanel (bottom panel)
       // - AutomationHistoryCard (run history)
-      void queryClient.invalidateQueries({
-        queryKey: ['get', '/executions/{execution_id}'],
-      })
-      void queryClient.invalidateQueries({
-        queryKey: ['get', '/executions'],
-      })
+      detachPromise(
+        Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ['get', '/executions/{execution_id}'],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ['get', '/executions'],
+          }),
+        ])
+      )
     },
   })
 

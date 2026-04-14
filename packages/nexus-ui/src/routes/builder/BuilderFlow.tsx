@@ -23,6 +23,7 @@ import {
   selectActivities,
 } from '../../stores/useWorkflowStore'
 import { collectAllActivityIds } from '../../stores/workflowActivityHelpers'
+import { detachPromise } from '../../utils/detachPromise'
 import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { CanvasControls } from '../automations/canvas/CanvasControls'
 import { edgeTypes } from '../automations/canvas/edges/EdgeType'
@@ -251,7 +252,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const layouted = getLayoutedElements(nodes, edges, { direction: 'LR' })
     setNodes([...layouted.nodes])
     setEdges([...layouted.edges] as EdgeType[])
-    void fitView({ maxZoom: 1 })
+    detachPromise(fitView({ maxZoom: 1 }))
   }, [nodes, edges, setNodes, setEdges, fitView])
 
   // Use custom hook to manage workflow initialization and layout
@@ -309,7 +310,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   useEffect(() => {
     if (isInitialized) {
       const timer = setTimeout(() => {
-        void fitView({ duration: 300, padding: 0.1 })
+        detachPromise(fitView({ duration: 300, padding: 0.1 }))
       }, 100)
       return () => clearTimeout(timer)
     }

@@ -46,6 +46,7 @@ import { useAlerts } from '../../components/alerts'
 import { getActivityMetadata, useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
 import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { NodeExpandedAllContext } from '../automations/canvas/nodes/common/NodeExpandedAllContext'
@@ -444,7 +445,6 @@ export function BuilderContent(props: BuilderContentProps) {
 
   // Ensure workflows list is fetched when on new workflow page (in case cache was empty)
   const hasRefetchedWorkflowsOnceRef = useRef(false)
-  const workflowsListRefetch = (workflowsListQuery as { refetch?: () => void }).refetch
   useEffect(() => {
     if (!isNew) return
     if (workflowsListQuery.data !== undefined) return
@@ -452,8 +452,12 @@ export function BuilderContent(props: BuilderContentProps) {
     if (workflowsListQuery.error) return
     if (hasRefetchedWorkflowsOnceRef.current) return
     hasRefetchedWorkflowsOnceRef.current = true
-    if (workflowsListRefetch) void workflowsListRefetch()
-  }, [isNew, workflowsListQuery.data, workflowsListQuery.isPending, workflowsListQuery.error, workflowsListRefetch])
+    detachPromise(
+      queryClient.refetchQueries({
+        queryKey: workflowClient.queryOptions('get', '/workflows', WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME).queryKey,
+      })
+    )
+  }, [isNew, queryClient, workflowsListQuery.data, workflowsListQuery.isPending, workflowsListQuery.error])
 
   const { mutate: createWorkflow, isPending: isCreating } = workflowClient.useMutation('post', '/workflows')
   const { mutate: updateWorkflow, isPending: isUpdating } = workflowClient.useMutation(
@@ -639,7 +643,7 @@ export function BuilderContent(props: BuilderContentProps) {
   const handleToggleHistory = useCallback(() => {
     dispatch({ type: 'TOGGLE_HISTORY' })
     if (!historyCardOpen) {
-      void executionsQuery.refetch()
+      detachPromise(executionsQuery.refetch())
     }
   }, [historyCardOpen, executionsQuery])
 

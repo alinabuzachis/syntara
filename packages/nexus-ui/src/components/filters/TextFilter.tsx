@@ -15,6 +15,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
+import { detachPromise } from '../../utils/detachPromise'
 
 import { DateRangeFilter } from './DateRangeFilter'
 import { parseFilterDate } from './filterBarUtils'
@@ -197,7 +198,7 @@ function SelectFilterInput({
           clearTimeout(searchTimeoutRef.current)
         }
         searchTimeoutRef.current = setTimeout(() => {
-          void loadAsyncOptions(value)
+          detachPromise(loadAsyncOptions(value))
         }, 300)
       }
     },
@@ -207,7 +208,7 @@ function SelectFilterInput({
   // Load initial async options on mount
   React.useEffect(() => {
     if (isAsync && isOpen && asyncOptions.length === 0) {
-      void loadAsyncOptions('')
+      detachPromise(loadAsyncOptions(''))
     }
   }, [isAsync, isOpen, asyncOptions.length, loadAsyncOptions])
 
@@ -232,7 +233,7 @@ function SelectFilterInput({
   const handleClearSearch = useCallback(() => {
     setSearchValue('')
     if (isAsync) {
-      void loadAsyncOptions('')
+      detachPromise(loadAsyncOptions(''))
     }
   }, [isAsync, loadAsyncOptions])
 

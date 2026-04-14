@@ -64,7 +64,9 @@ describe('ExecutionDetailsPanel', () => {
       renderPanel(WORKFLOW_DEF)
       expect(screen.getByText(/Elapsed time: 30s/)).toBeInTheDocument()
 
-      void act(() => vi.advanceTimersByTime(2000))
+      act(() => {
+        vi.advanceTimersByTime(2000)
+      })
       expect(screen.getByText(/Elapsed time: 32s/)).toBeInTheDocument()
 
       vi.useRealTimers()

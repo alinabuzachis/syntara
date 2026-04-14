@@ -75,6 +75,59 @@ export interface ApiValidationFieldError {
   message: string
 }
 
+/** Max length before stripping tags (cap work and memory on hostile input). */
+const USER_ERROR_PROCESSING_MAX = 50_000
+/** Max length shown in UI after sanitization. */
+const USER_ERROR_DISPLAY_MAX = 2000
+
+/**
+ * Removes each substring that starts with `'<'` and ends at the next `'>'` (same as the old
+ * `/<[^>]*>/g` replace), in **O(n)** time with no regex backtracking.
+ * Unmatched `'<'` (no closing `'>'`) is kept verbatim.
+ */
+function stripAngleBracketSegmentsLinear(s: string): string {
+  const parts: string[] = []
+  let i = 0
+  const n = s.length
+  while (i < n) {
+    const lt = s.indexOf('<', i)
+    if (lt === -1) {
+      parts.push(s.slice(i))
+      break
+    }
+    parts.push(s.slice(i, lt))
+    const gt = s.indexOf('>', lt + 1)
+    if (gt === -1) {
+      parts.push(s.slice(lt))
+      break
+    }
+    i = gt + 1
+  }
+  return parts.join('')
+}
+
+/**
+ * Normalizes server/API text for display in alerts and descriptions: strips HTML-like tags,
+ * removes NULs, and caps length so hostile or oversized payloads cannot dominate the UI.
+ * React text nodes escape HTML, but this is defense-in-depth for any consumer or future markup.
+ */
+export function sanitizeUserFacingErrorText(message: string): string {
+  if (!message) {
+    return message
+  }
+  let s = message.length > USER_ERROR_PROCESSING_MAX ? message.slice(0, USER_ERROR_PROCESSING_MAX) : message
+  s = stripAngleBracketSegmentsLinear(s)
+  s = s.replaceAll('\u0000', '')
+  if (s.length > USER_ERROR_DISPLAY_MAX) {
+    return `${s.slice(0, USER_ERROR_DISPLAY_MAX - 1)}…`
+  }
+  return s
+}
+
+function finalizeUserFacingMessage(message: string): string {
+  return sanitizeUserFacingErrorText(message)
+}
+
 /**
  * Extracts an HTTP status code from various error formats (including openapi-fetch wrapped errors).
  *
@@ -173,23 +226,23 @@ export function getErrorMessage(error: unknown): string {
   const fallback = 'An unexpected error occurred'
 
   if (!error) {
-    return fallback
+    return finalizeUserFacingMessage(fallback)
   }
 
   if (typeof error === 'string') {
-    return error
+    return finalizeUserFacingMessage(error)
   }
 
   if (typeof error !== 'object') {
-    return fallback
+    return finalizeUserFacingMessage(fallback)
   }
 
   // Handle native Error instances
   if (error instanceof Error && typeof error.message === 'string' && error.message) {
-    return error.message
+    return finalizeUserFacingMessage(error.message)
   }
 
-  return extractErrorMessage(error, fallback, new WeakSet<object>())
+  return finalizeUserFacingMessage(extractErrorMessage(error, fallback, new WeakSet<object>()))
 }
 
 /** Extracts the first non-empty string message from an object's msg/message/detail fields. */
@@ -372,7 +425,7 @@ export function getValidationFieldErrors(error: unknown): ApiValidationFieldErro
     const field = parseLocPath(it.loc)
     if (!field) continue
 
-    out.push({ field, message })
+    out.push({ field, message: finalizeUserFacingMessage(message) })
   }
 
   return out
@@ -462,21 +515,21 @@ export function getErrorTitle(error: unknown): string {
 
     // RFC 9457 explicit title (priority)
     if (err.title && typeof err.title === 'string') {
-      return err.title
+      return finalizeUserFacingMessage(err.title)
     }
 
     // Check wrapped (data, cause)
     if (err.data && typeof err.data === 'object') {
       const data = err.data as { title?: unknown }
       if (typeof data.title === 'string') {
-        return data.title
+        return finalizeUserFacingMessage(data.title)
       }
     }
 
     if (err.cause && typeof err.cause === 'object') {
       const cause = err.cause as { title?: unknown }
       if (typeof cause.title === 'string') {
-        return cause.title
+        return finalizeUserFacingMessage(cause.title)
       }
     }
   }

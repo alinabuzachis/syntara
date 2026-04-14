@@ -27,6 +27,7 @@ import { AppRoute } from '../../../app/AppRoute'
 import { usersClient } from '../../../client'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { formatDateTime } from '../../../utils/dateUtils'
+import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { ROLE_LABEL_MAP } from '../userConstants'
 import { splitFullName } from '../userFormSchema'
@@ -108,7 +109,7 @@ export function UserDetail() {
   const queryState = useQueryState(userQuery, {
     title: 'Error loading user',
     onRetry: () => {
-      refetchUser().catch(() => {})
+      detachPromise(refetchUser())
     },
   })
 
@@ -121,7 +122,7 @@ export function UserDetail() {
             <UserNotFoundState
               onBack={navigateBack}
               onRetry={() => {
-                refetchUser().catch(() => {})
+                detachPromise(refetchUser())
               }}
             />
           </CompassPanel>

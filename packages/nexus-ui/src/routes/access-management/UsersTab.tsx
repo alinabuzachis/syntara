@@ -31,6 +31,7 @@ import { useTableSort } from '../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDateTime } from '../../utils/dateUtils'
+import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
 
 import { ROLE_LABEL_MAP } from './userConstants'
@@ -241,7 +242,7 @@ export function UsersTab() {
             variant: 'success',
             autoDismiss: true,
           })
-          query.refetch().catch(() => {})
+          detachPromise(query.refetch())
         },
         onError: (error: unknown) => {
           showAlert({
@@ -258,7 +259,10 @@ export function UsersTab() {
     )
   }
 
-  const queryState = useQueryState(query, { title: 'Error loading users', onRetry: () => void query.refetch() })
+  const queryState = useQueryState(query, {
+    title: 'Error loading users',
+    onRetry: () => detachPromise(query.refetch()),
+  })
   if (queryState) return queryState
 
   return (

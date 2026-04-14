@@ -28,6 +28,7 @@ import { useTableSort } from '../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDateTime } from '../../utils/dateUtils'
+import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
 
 import { createFilterChangeHandler, getGroupNameFilterDefinition } from './groupFilters'
@@ -203,7 +204,7 @@ export function GroupsTab() {
             variant: 'success',
             autoDismiss: true,
           })
-          query.refetch().catch(() => {})
+          detachPromise(query.refetch())
         },
         onError: (error: unknown) => {
           showAlert({
@@ -220,7 +221,10 @@ export function GroupsTab() {
     )
   }
 
-  const queryState = useQueryState(query, { title: 'Error loading groups', onRetry: () => void query.refetch() })
+  const queryState = useQueryState(query, {
+    title: 'Error loading groups',
+    onRetry: () => detachPromise(query.refetch()),
+  })
   if (queryState) {
     return queryState
   }
@@ -310,7 +314,7 @@ export function GroupsTab() {
         isOpen={formModalOpen}
         onClose={() => dispatch({ type: 'CLOSE_FORM_MODAL' })}
         onSuccess={() => {
-          query.refetch().catch(() => {})
+          detachPromise(query.refetch())
         }}
       />
 

@@ -109,15 +109,32 @@ function AppLoginForm() {
   useEffect(() => {
     if (useAuthStore.getState().isAuthenticated || bootstrapAttempted.current) return
     bootstrapAttempted.current = true
-    ;(async () => {
+
+    let cancelled = false
+
+    async function bootstrapAuthFromCookie(): Promise<void> {
       try {
         await refresh()
       } catch {
         // No valid cookie — user needs to enter credentials
         useAuthStore.setState({ error: null })
+      } finally {
+        if (!cancelled) {
+          setBootstrapDone(true)
+        }
       }
-      setBootstrapDone(true)
-    })().catch(() => {})
+    }
+
+    // Completion and errors are handled inside bootstrapAuthFromCookie (not detached / not reportError-only).
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises -- intentional fire-and-forget from sync useEffect
+    bootstrapAuthFromCookie()
+
+    return () => {
+      cancelled = true
+      // Strict Mode remount (or `[refresh]` identity change) must be allowed to run bootstrap again;
+      // otherwise `bootstrapDone` never flips and the login shell spins forever.
+      bootstrapAttempted.current = false
+    }
   }, [refresh])
 
   useEffect(() => {

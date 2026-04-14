@@ -17,8 +17,6 @@ export interface BooleanFilterProps {
   onChange: (filter: FilterConfig | null) => void
   /** Switch label (default: 'Enabled'). Note: Per accessibility guidelines, labels should not change dynamically. */
   onLabel?: string
-  /** @deprecated Not used. Per PatternFly accessibility guidelines, switch labels must not change dynamically. */
-  offLabel?: string
 }
 
 /**
@@ -45,10 +43,7 @@ export function BooleanFilter({
   value = false,
   onChange,
   onLabel = 'Enabled',
-  offLabel, // Deprecated - kept for API compatibility but not used
-}: BooleanFilterProps) {
-  // Suppress unused variable warning - offLabel is deprecated but kept in API
-  void offLabel
+}: Readonly<BooleanFilterProps>) {
   const handleChange = useCallback(
     (_event: React.FormEvent<HTMLInputElement>, checked: boolean) => {
       // Emit filter config

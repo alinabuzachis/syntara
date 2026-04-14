@@ -29,15 +29,16 @@ export function useAuthProviders(): UseAuthProvidersResult {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    let active = true
     const controller = new AbortController()
 
-    void (async () => {
+    const loadProviders = async () => {
       try {
         const response = await fetch('/api/v1/auth/providers', { signal: controller.signal })
         if (response.ok) {
           const data: unknown = await response.json()
           if (
-            !controller.signal.aborted &&
+            active &&
             data != null &&
             typeof data === 'object' &&
             'providers' in data &&
@@ -50,13 +51,17 @@ export function useAuthProviders(): UseAuthProvidersResult {
       } catch {
         // Fail silently — local-only login (includes AbortError on unmount)
       } finally {
-        if (!controller.signal.aborted) {
+        if (active) {
           setIsLoading(false)
         }
       }
-    })()
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises -- intentional fire-and-forget from sync useEffect; loadProviders owns errors
+    loadProviders()
 
     return () => {
+      active = false
       controller.abort()
     }
   }, [])

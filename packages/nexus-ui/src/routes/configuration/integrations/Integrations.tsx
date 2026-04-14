@@ -37,6 +37,7 @@ import { useFilterState } from '../../../hooks/useFilterState'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
+import { detachPromise } from '../../../utils/detachPromise'
 import { buildFilterParams } from '../../../utils/filterUtils'
 
 import { IntegrationEmptyState } from './IntegrationEmptyState'
@@ -261,7 +262,7 @@ export default function Integrations() {
               autoDismiss: true,
             })
           }
-          void query.refetch()
+          detachPromise(query.refetch())
         },
         onError: (error: unknown) => {
           showAlert({
@@ -291,7 +292,7 @@ export default function Integrations() {
             variant: 'success',
             autoDismiss: true,
           })
-          void query.refetch()
+          detachPromise(query.refetch())
         },
         onError: (error: unknown) => {
           showAlert({

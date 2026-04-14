@@ -138,40 +138,72 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
 
     set({ isRefreshing: true, error: null })
+    // `logout` increments `logoutCount` so we can drop stale refresh results after sign-out.
+    const refreshEpoch = get().logoutCount
 
-    refreshPromise = (async () => {
+    // Holder avoids referencing `const currentRefresh` inside the IIFE before assignment (TS2454 / TDZ).
+    const inFlightRefresh: { promise: Promise<void> | null } = { promise: null }
+    const currentRefresh = (async () => {
       try {
         const data = await postAuth(AUTH_REFRESH_URL)
+        if (get().logoutCount !== refreshEpoch) {
+          return
+        }
         applyTokenResponse(set, data)
       } catch (err) {
+        if (get().logoutCount !== refreshEpoch) {
+          return
+        }
         set({
           ...INITIAL_STATE,
           error: err instanceof Error ? err.message : String(err),
         })
         throw err
       } finally {
-        refreshPromise = null
+        if (refreshPromise === inFlightRefresh.promise) {
+          refreshPromise = null
+        }
+        // Stale-invocation early returns (epoch mismatch) skip applyTokenResponse / INITIAL_STATE — still
+        // clear the spinner or AppLogin stays on LoadingState forever after sign-out or parallel logout.
+        set({ isRefreshing: false })
       }
     })()
 
-    await refreshPromise
+    inFlightRefresh.promise = currentRefresh
+    refreshPromise = currentRefresh
+    await currentRefresh
   },
 
   logout: async () => {
-    const { accessToken } = get()
-    try {
-      await fetch(AUTH_LOGOUT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        credentials: 'include',
-      })
-    } catch {
-      // Best-effort; clear local state regardless
+    // Clear local session first so the user is never stuck appearing signed in if the server is down
+    // or returns an error. Server-side invalidation is best-effort; callers may still show a warning.
+    const { accessToken, logoutCount } = get()
+    // Drop any in-flight refresh waiters — otherwise AppLogin bootstrap can await this forever and
+    // never leave the loading state. Stale refresh completions are ignored via `logoutCount` / epoch.
+    refreshPromise = null
+    set({ ...INITIAL_STATE, logoutCount: logoutCount + 1 })
+
+    const response = await fetch(AUTH_LOGOUT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      let detail = `Sign out failed (${response.status})`
+      try {
+        const parsed: Record<string, unknown> = JSON.parse(text) as Record<string, unknown>
+        const msg = parsed.detail ?? parsed.message
+        if (typeof msg === 'string') detail = msg
+      } catch {
+        if (text) detail = text
+      }
+      throw new Error(detail)
     }
-    set({ ...INITIAL_STATE, logoutCount: get().logoutCount + 1 })
   },
 
   ensureValidToken: async () => {

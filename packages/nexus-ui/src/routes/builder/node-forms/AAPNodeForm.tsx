@@ -17,6 +17,7 @@ import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-fo
 import { CredentialSelector } from '../../../components/CredentialSelector'
 import { credentialHelpText } from '../../../components/credentialSelectorHelpText'
 import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
+import { detachPromise } from '../../../utils/detachPromise'
 
 import { aapFormSchema, type AAPFormData } from './aapFormSchema'
 import { ActivityNameField } from './shared/ActivityNameField'
@@ -264,17 +265,18 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
     e.preventDefault()
     const valueFromEditor = extraVarsEditorRef.current?.getValue() ?? methods.getValues('extraVars') ?? ''
     methods.setValue('extraVars', valueFromEditor)
-    void methods.trigger().then((valid) => {
-      setSubmitValidationTick((t) => t + 1)
-      const extraVarsError = methods.getFieldState('extraVars').error
-      if (valid && !extraVarsError) {
-        void methods.handleSubmit(handleSubmit)()
-      } else {
+    detachPromise(
+      methods.trigger().then((valid) => {
+        setSubmitValidationTick((t) => t + 1)
+        const extraVarsError = methods.getFieldState('extraVars').error
+        if (valid && !extraVarsError) {
+          return methods.handleSubmit(handleSubmit)()
+        }
         const errs = methods.formState.errors
         if (errs.jobTemplateId) methods.setFocus('jobTemplateId')
         else if (errs.extraVars) extraVarsEditorRef.current?.focus()
-      }
-    })
+      })
+    )
   }
 
   return (

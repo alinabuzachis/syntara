@@ -1,6 +1,8 @@
 import { CodeBlock as PFCodeBlock, CodeBlockAction, CodeBlockCode, ClipboardCopyButton } from '@patternfly/react-core'
 import { useId, useState } from 'react'
 
+import { detachPromise } from '../../utils/detachPromise'
+
 export function CodeBlock(props: {
   children?: React.ReactNode
   jsonObject?: object
@@ -20,15 +22,16 @@ export function CodeBlock(props: {
 
   const handleCopy = () => {
     if (!copyText || !navigator.clipboard?.writeText) return
-    void navigator.clipboard.writeText(copyText).then(
-      () => {
-        setIsCopied(true)
-        window.setTimeout(() => setIsCopied(false), 2000)
-      },
-      () => {
-        setIsCopied(true)
-        window.setTimeout(() => setIsCopied(false), 2000)
-      }
+    detachPromise(
+      navigator.clipboard
+        .writeText(copyText)
+        .then(() => {
+          setIsCopied(true)
+          window.setTimeout(() => setIsCopied(false), 2000)
+        })
+        .catch(() => {
+          // Clipboard denied or unavailable — do not show success state
+        })
     )
   }
 

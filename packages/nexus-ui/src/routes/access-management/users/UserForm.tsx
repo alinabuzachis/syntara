@@ -13,6 +13,8 @@ import { useAlerts } from '../../../components/alerts'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
 import { useAuthStore } from '../../../stores/useAuthStore'
+import { getErrorMessage } from '../../../utils/apiErrors'
+import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { userFormSchema, userCreateSchema, splitFullName, toFullName, type UserFormData } from '../userFormSchema'
 
@@ -98,7 +100,16 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
   const handlePasswordChangeSuccess = () => {
     if (isSelf) {
       showAlert({ title: 'Password changed — signing out', variant: 'success', autoDismiss: true })
-      logout().catch(() => {})
+      detachPromise(logout(), {
+        onReject: (error: unknown) => {
+          showAlert({
+            title: 'Sign out failed',
+            description: getErrorMessage(error),
+            variant: 'danger',
+            autoDismiss: false,
+          })
+        },
+      })
     } else {
       showAlert({
         title: 'User updated',
@@ -158,7 +169,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
   const queryState = useQueryState(userQuery, {
     title: 'Error loading user',
     onRetry: () => {
-      refetchUser().catch(() => {})
+      detachPromise(refetchUser())
     },
   })
   if (isEdit && userQuery.error) {
@@ -170,7 +181,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
             <UserNotFoundState
               onBack={navigateBack}
               onRetry={() => {
-                refetchUser().catch(() => {})
+                detachPromise(refetchUser())
               }}
             />
           </CompassPanel>

@@ -6,6 +6,7 @@ import { usersClient } from '../../../client'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { formatDateTime } from '../../../utils/dateUtils'
+import { detachPromise } from '../../../utils/detachPromise'
 
 export function UserGroupsPanel({ userId }: Readonly<{ userId: string }>) {
   const query = usersClient.useQuery('get', '/users/{user_id}/groups', {
@@ -14,7 +15,10 @@ export function UserGroupsPanel({ userId }: Readonly<{ userId: string }>) {
 
   const groups = query.data?.resources ?? []
 
-  const queryState = useQueryState(query, { title: 'Error loading groups', onRetry: () => void query.refetch() })
+  const queryState = useQueryState(query, {
+    title: 'Error loading groups',
+    onRetry: () => detachPromise(query.refetch()),
+  })
   if (queryState) return queryState
 
   if (groups.length === 0) {

@@ -108,6 +108,8 @@ Automatically handles query loading, error, and 503 states.
 The second argument accepts either a string (shorthand for title) or an options object:
 
 ```tsx
+import { detachPromise } from '../../utils/detachPromise'
+
 // Simple usage with title string
 const query = workflowClient.useQuery('get', '/workflows')
 const queryState = useQueryState(query, 'Error loading workflows')
@@ -118,9 +120,13 @@ return <WorkflowList data={query.data} />
 // With options object (supports retry)
 const queryState = useQueryState(query, {
   title: 'Error loading workflows',
-  onRetry: () => query.refetch(),
+  onRetry: () => detachPromise(query.refetch()),
 })
 ```
+
+**Fire-and-forget promises:** Do not use JavaScript’s unary `void` to discard a promise (for example `void query.refetch()`). It is hard to read, is flagged by Sonar (S3735), and is disallowed by ESLint `no-void` in this repo. In synchronous callbacks such as `onRetry`, use `detachPromise(query.refetch())` from `utils/detachPromise` (it wraps with `Promise.resolve` so tests that mock `refetch` as `vi.fn()` returning `undefined` do not throw). Alternatively `await query.refetch()` when the enclosing function is `async` and should surface failures.
+
+For **auth or other security-sensitive** work, prefer **`await`** in an `async` handler (or an explicit `.catch`) so failures can be shown to the user. For **`useEffect` bootstraps** (e.g. cookie refresh, public provider list), use a **named `async` function** and handle errors inside it; use a **targeted `eslint-disable-next-line @typescript-eslint/no-floating-promises`** on the call from the sync effect if you cannot `await` at the top level — do **not** use **`detachPromise`** there. If you must detach from a sync callback elsewhere while still reporting failures, pass **`detachPromise(promise, { onReject: (err) => { ... } })`**. When `onReject` is omitted, production builds call **`globalThis.reportError`** on rejection (in addition to dev `console.warn`) so failures are not fully silent in monitoring.
 
 ### useApiErrorAlert Hook
 

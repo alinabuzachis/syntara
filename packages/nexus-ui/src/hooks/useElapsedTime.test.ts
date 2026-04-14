@@ -41,7 +41,9 @@ describe('useElapsedTime', () => {
   it('ticks every second while running', () => {
     const { result } = renderHook(() => useElapsedTime('2024-01-01T00:00:00Z', null, true))
 
-    void act(() => vi.advanceTimersByTime(3000))
+    act(() => {
+      vi.advanceTimersByTime(3000)
+    })
 
     expect(result.current.elapsedMs).toBe(63000)
   })
@@ -50,7 +52,9 @@ describe('useElapsedTime', () => {
     const { result } = renderHook(() => useElapsedTime('2024-01-01T00:00:00Z', '2024-01-01T00:00:30Z', true))
     expect(result.current.elapsedMs).toBe(30000)
 
-    void act(() => vi.advanceTimersByTime(5000))
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
 
     expect(result.current.elapsedMs).toBe(30000)
   })

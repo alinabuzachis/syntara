@@ -25,6 +25,7 @@ import { useAlerts } from '../../../../components/alerts'
 import { useQueryState } from '../../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../../hooks/useFormMutationErrorHandler'
 import { getErrorMessage, isConflictError } from '../../../../utils/apiErrors'
+import { detachPromise } from '../../../../utils/detachPromise'
 
 import { IdentityProviderFormFields } from './IdentityProviderFormFields'
 import {
@@ -285,7 +286,7 @@ export function IdentityProviderForm({ mode }: Readonly<IdentityProviderFormProp
         <Button
           variant="secondary"
           onClick={() => {
-            onTestConnection().catch(() => {})
+            detachPromise(onTestConnection())
           }}
           isLoading={isTesting}
           isDisabled={isTesting}

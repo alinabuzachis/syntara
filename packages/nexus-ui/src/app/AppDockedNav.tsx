@@ -38,7 +38,9 @@ import {
 import { useMemo, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
 
+import { useAlerts } from '../components/alerts'
 import { useAuthStore } from '../stores/useAuthStore'
+import { getErrorMessage } from '../utils/apiErrors'
 
 import { AppRoute } from './AppRoute'
 import type { INavigationItem } from './navigationItems'
@@ -150,6 +152,7 @@ function UserMenuDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const [, setLocation] = useLocation()
   const logout = useAuthStore((s) => s.logout)
+  const { showAlert } = useAlerts()
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
     <MenuToggle
@@ -185,8 +188,18 @@ function UserMenuDropdown() {
           <DropdownItem key="settings">Settings</DropdownItem>
           <DropdownItem
             key="logout"
-            onClick={() => {
-              logout().catch(() => {})
+            onClick={async () => {
+              setIsOpen(false)
+              try {
+                await logout()
+              } catch (error: unknown) {
+                showAlert({
+                  title: 'Sign out failed',
+                  description: getErrorMessage(error),
+                  variant: 'danger',
+                  autoDismiss: false,
+                })
+              }
             }}
           >
             Logout

@@ -5,6 +5,8 @@ import type { ReactNode } from 'react'
 import { useAlerts } from '../../../../../components/alerts'
 import { type MenuNodeTypeUnion, MenuNodeType } from '../../../../../constants'
 import { useNodeActions } from '../../../../../routes/builder/NodeActionsContext'
+import { getErrorMessage } from '../../../../../utils/apiErrors'
+import { detachPromise } from '../../../../../utils/detachPromise'
 import { resolveFlowNodeId } from '../../../../../utils/triggerNodeIds'
 
 // Re-export for convenience
@@ -76,15 +78,17 @@ interface UseNodeMenuActionsOptions {
 export function useNodeMenuActions(options: UseNodeMenuActionsOptions): NodeMenuAction[] {
   const { nodeId, nodeType, triggerIndex, additionalActions = [] } = options
   const { deleteElements } = useReactFlow()
-  const { showInfo } = useAlerts()
+  const { showInfo, showError } = useAlerts()
   const nodeActions = useNodeActions()
 
   const handleDelete = useCallback(() => {
     // Use React Flow's deleteElements to trigger proper cleanup via onNodesDelete
     // This ensures edges are removed and ButtonEdges are recreated correctly
     const flowNodeId = resolveFlowNodeId({ nodeId, nodeType, triggerIndex })
-    void deleteElements({ nodes: [{ id: flowNodeId }] })
-  }, [nodeType, nodeId, triggerIndex, deleteElements])
+    detachPromise(deleteElements({ nodes: [{ id: flowNodeId }] }), {
+      onReject: (error: unknown) => showError('Could not delete step', getErrorMessage(error)),
+    })
+  }, [nodeType, nodeId, triggerIndex, deleteElements, showError])
 
   const handleViewDetails = useCallback(() => {
     nodeActions?.onViewDetails(nodeId)

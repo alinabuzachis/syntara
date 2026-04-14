@@ -27,6 +27,7 @@ See **Accessibility Testing** in this file for project tooling (ESLint, axe, E2E
 - **Leave files no worse than you found them**: If you touch a file, avoid increasing its warning count. When practical, reduce nearby warnings as part of the change.
 - **Refactor instead of suppressing**: Prefer clearer control flow, smaller functions, extracted helpers, and stronger types over disabling rules.
 - **Validate before finishing**: After substantive edits, run the relevant lint/type-check commands for the affected package and fix any issues introduced by the change.
+- **No `void` operator**: Do not use JavaScript’s unary `void` (for example `void promise()` or `void someFn()`). It is easy to misread, is flagged by Sonar (S3735), and is forbidden by ESLint `no-void`. For promises you intentionally do not await, use `detachPromise(...)` from `packages/nexus-ui/src/utils/detachPromise.ts` (wraps with `Promise.resolve` so mocks that return `undefined` are safe) or `await` / `return` the promise when the caller should handle errors. This is separate from TypeScript’s `void` return type (e.g. `function cleanup(): void`).
 
 ### Common PR Mistakes — Prevent Before Submitting
 
@@ -56,13 +57,15 @@ const { data } = credentialsClient.useQuery('get', '/credentials/{credential_id}
 Prefer the `useQueryState` object form with explicit `onRetry` for consistency and clear retry intent. The string form still works (it falls back to `refetch`), but should be avoided in new code.
 
 ```typescript
+import { detachPromise } from '../utils/detachPromise'
+
 // ❌ BAD: No retry support for transient failures
 const queryState = useQueryState(query, 'Error loading credentials')
 
 // ✅ GOOD: Enables retry button in ErrorState for 5xx errors
 const queryState = useQueryState(query, {
   title: 'Error loading credentials',
-  onRetry: () => void query.refetch(),
+  onRetry: () => detachPromise(query.refetch()),
 })
 ```
 
@@ -844,6 +847,7 @@ Additional code quality rules (enforced as `error` — CI will block violations)
 | Rule                                             | What it enforces                                               |
 | ------------------------------------------------ | -------------------------------------------------------------- |
 | `eqeqeq`                                         | Use `===`/`!==` instead of `==`/`!=` (null comparisons exempt) |
+| `no-void`                                        | Disallow the unary `void` operator (readability / Sonar S3735) |
 | `no-restricted-exports`                          | Prefer named exports over `export default` for refactorability |
 | `@typescript-eslint/prefer-optional-chain`       | Use `a?.b?.c` instead of `a && a.b && a.b.c`                   |
 | `@typescript-eslint/prefer-nullish-coalescing`   | Use `??` instead of `\|\|` to avoid bugs with `0`/`''`         |

@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
 import { CodeBlock } from './CodeBlock'
@@ -83,6 +84,8 @@ describe('CodeBlock', () => {
     expect(screen.getByRole('button', { name: 'Copy to clipboard' })).toBeInTheDocument()
   })
 
+  // Success-path copy uses fireEvent: Testing Library userEvent + PatternFly ClipboardCopyButton tooltip
+  // does not reliably surface "Copied to clipboard" in jsdom; userEvent is used below where it works.
   it('copies text to clipboard when copy button clicked', async () => {
     render(<CodeBlock enableCopy>code to copy</CodeBlock>)
 
@@ -119,10 +122,11 @@ describe('CodeBlock', () => {
     })
   })
 
-  it('handles clipboard write failure gracefully', async () => {
+  it('does not show success label when clipboard write fails', async () => {
+    const rejectWriteText = vi.fn().mockRejectedValue(new Error('Clipboard error'))
     Object.defineProperty(navigator, 'clipboard', {
       value: {
-        writeText: vi.fn().mockRejectedValue(new Error('Clipboard error')),
+        writeText: rejectWriteText,
       },
       writable: true,
       configurable: true,
@@ -131,11 +135,15 @@ describe('CodeBlock', () => {
     render(<CodeBlock enableCopy>code</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
-    fireEvent.click(copyButton)
+    // Direct userEvent.click (no userEvent.setup()) avoids TL replacing navigator.clipboard with its stub.
+    await userEvent.click(copyButton)
 
     await waitFor(() => {
-      expect(screen.getByText('Copied to clipboard')).toBeInTheDocument()
+      expect(rejectWriteText).toHaveBeenCalledWith('code')
     })
+    await Promise.resolve()
+    expect(screen.queryByText('Copied to clipboard')).not.toBeInTheDocument()
+    expect(copyButton).toHaveAccessibleName('Copy to clipboard')
   })
 
   it('renders children over jsonObject when both provided', () => {
@@ -152,7 +160,7 @@ describe('CodeBlock', () => {
     expect(codeBlock).toBeInTheDocument()
   })
 
-  it('does not copy when clipboard is unavailable', () => {
+  it('does not copy when clipboard is unavailable', async () => {
     Object.defineProperty(navigator, 'clipboard', {
       value: undefined,
       writable: true,
@@ -162,6 +170,6 @@ describe('CodeBlock', () => {
     render(<CodeBlock enableCopy>code</CodeBlock>)
 
     const copyButton = screen.getByRole('button', { name: 'Copy to clipboard' })
-    expect(() => fireEvent.click(copyButton)).not.toThrow()
+    await expect(userEvent.click(copyButton)).resolves.toBeUndefined()
   })
 })

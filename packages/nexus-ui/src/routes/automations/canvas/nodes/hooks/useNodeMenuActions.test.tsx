@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,11 +18,12 @@ vi.mock('@xyflow/react', () => ({
 
 // Mock alerts
 const mockShowInfo = vi.fn()
+const mockShowError = vi.fn()
 vi.mock('../../../../../components/alerts', () => ({
   useAlerts: () => ({
     showInfo: mockShowInfo,
     showSuccess: vi.fn(),
-    showError: vi.fn(),
+    showError: mockShowError,
   }),
 }))
 
@@ -45,6 +46,7 @@ const defaultNodeActions: NodeActionsContextValue = {
 describe('useNodeMenuActions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockDeleteElements.mockResolvedValue(undefined)
     useWorkflowStore.setState({ currentWorkflow: null, workflowVersion: 0, edges: [] })
   })
 
@@ -74,6 +76,19 @@ describe('useNodeMenuActions', () => {
       })
 
       expect(mockDeleteElements).toHaveBeenCalledWith({ nodes: [{ id: 'task-1' }] })
+    })
+
+    it('notifies when deleteElements rejects', async () => {
+      mockDeleteElements.mockRejectedValueOnce(new Error('delete failed'))
+      const { result } = renderHook(() => useNodeMenuActions({ nodeId: 'task-1', nodeType: MenuNodeType.ACTIVITY }))
+
+      act(() => {
+        result.current[0].onClick()
+      })
+
+      await waitFor(() => {
+        expect(mockShowError).toHaveBeenCalledWith('Could not delete step', 'delete failed')
+      })
     })
 
     it('calls deleteElements with trigger node id format', () => {

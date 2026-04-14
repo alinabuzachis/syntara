@@ -11,9 +11,37 @@ import {
   isRetryableError,
   isServiceUnavailableError,
   isValidationError,
+  sanitizeUserFacingErrorText,
 } from './apiErrors'
 
 describe('apiErrors', () => {
+  describe('sanitizeUserFacingErrorText', () => {
+    it('strips angle-bracket segments resembling HTML tags', () => {
+      expect(sanitizeUserFacingErrorText('<script></script>Safe text')).toBe('Safe text')
+      expect(sanitizeUserFacingErrorText('before<img src=x>after')).toBe('beforeafter')
+    })
+
+    it('matches prior tag stripping for nested angle brackets (linear scan)', () => {
+      expect(sanitizeUserFacingErrorText('<a<b>c>')).toBe('c>')
+      expect(sanitizeUserFacingErrorText('x<a')).toBe('x<a')
+    })
+
+    it('removes NUL characters', () => {
+      expect(sanitizeUserFacingErrorText('a\u0000b')).toBe('ab')
+    })
+
+    it('truncates to display max with ellipsis', () => {
+      const long = 'z'.repeat(3000)
+      const out = sanitizeUserFacingErrorText(long)
+      expect(out.length).toBe(2000)
+      expect(out.endsWith('…')).toBe(true)
+    })
+
+    it('returns empty string unchanged', () => {
+      expect(sanitizeUserFacingErrorText('')).toBe('')
+    })
+  })
+
   describe('getErrorStatus', () => {
     it('extracts status from direct status field', () => {
       expect(getErrorStatus({ status: 404 })).toBe(404)
@@ -196,6 +224,17 @@ describe('apiErrors', () => {
     it('returns fallback for validation items without extractable message', () => {
       expect(getErrorMessage({ detail: [{ loc: ['body', 'name'] }] })).toBe('An unexpected error occurred')
     })
+
+    it('sanitizes reflected server text in detail (defense in depth)', () => {
+      expect(getErrorMessage({ detail: '<b>oops</b>Please try again' })).toBe('oopsPlease try again')
+    })
+
+    it('truncates overlong detail strings for display', () => {
+      const long = 'a'.repeat(3000)
+      const result = getErrorMessage({ detail: long })
+      expect(result.length).toBe(2000)
+      expect(result.endsWith('…')).toBe(true)
+    })
   })
 
   describe('getValidationFieldErrors', () => {
@@ -211,6 +250,13 @@ describe('apiErrors', () => {
     it('returns empty list when no detail array present', () => {
       expect(getValidationFieldErrors({ detail: 'nope' })).toEqual([])
       expect(getValidationFieldErrors(null)).toEqual([])
+    })
+
+    it('sanitizes field error messages from server', () => {
+      const validationError = {
+        detail: [{ loc: ['body', 'name'], msg: '<img>x</img>Invalid', type: 'value_error' }],
+      }
+      expect(getValidationFieldErrors(validationError)).toEqual([{ field: 'name', message: 'xInvalid' }])
     })
   })
 
@@ -259,6 +305,10 @@ describe('apiErrors', () => {
 
     it('extracts title from cause wrapper', () => {
       expect(getErrorTitle({ cause: { title: 'Cause Title' } })).toBe('Cause Title')
+    })
+
+    it('sanitizes server-provided titles', () => {
+      expect(getErrorTitle({ title: '<em>Bad</em>Title' })).toBe('BadTitle')
     })
 
     it('returns "Error" for unknown error codes', () => {

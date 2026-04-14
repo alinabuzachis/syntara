@@ -1,6 +1,8 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 
+import { detachPromise } from '../utils/detachPromise'
+
 import { useFileUploadWithProgress, createUploadError, isFileUploadError } from './useFileUploadWithProgress'
 
 // Store instances for test access
@@ -136,7 +138,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      void result.current.uploadFiles([file])
+      detachPromise(result.current.uploadFiles([file]))
     })
 
     expect(result.current.uploading).toBe(true)
@@ -148,7 +150,7 @@ describe('useFileUploadWithProgress', () => {
     const file2 = new File(['content2'], 'file2.txt', { type: 'text/plain' })
 
     act(() => {
-      void result.current.uploadFiles([file1, file2])
+      detachPromise(result.current.uploadFiles([file1, file2]))
     })
 
     expect(result.current.progress).toHaveLength(2)
@@ -161,7 +163,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      void result.current.uploadFiles([file])
+      detachPromise(result.current.uploadFiles([file]))
     })
 
     const xhr = getLastXhr()
@@ -269,7 +271,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      void result.current.uploadFiles([file])
+      detachPromise(result.current.uploadFiles([file]))
     })
 
     const xhr = getLastXhr()
@@ -342,7 +344,7 @@ describe('useFileUploadWithProgress', () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' })
 
     act(() => {
-      void result.current.uploadFiles([file])
+      detachPromise(result.current.uploadFiles([file]))
     })
 
     const xhr = getLastXhr()
@@ -361,7 +363,7 @@ describe('useFileUploadWithProgress', () => {
     const large = new File(['a'.repeat(100)], 'large.txt', { type: 'text/plain' })
 
     act(() => {
-      void result.current.uploadFiles([small, large])
+      detachPromise(result.current.uploadFiles([small, large]))
     })
 
     const xhr = getLastXhr()

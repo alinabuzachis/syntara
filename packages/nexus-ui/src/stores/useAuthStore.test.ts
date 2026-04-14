@@ -190,6 +190,38 @@ describe('useAuthStore', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1)
       expect(useAuthStore.getState().accessToken).toBe('deduped-token')
     })
+
+    it('clears isRefreshing when a refresh completes after logout (stale epoch)', async () => {
+      const releaseBox: { fn?: (value: void | PromiseLike<void>) => void } = {}
+      const refreshGate = new Promise<void>((resolve) => {
+        releaseBox.fn = resolve
+      })
+
+      mockFetchSuccess(createTokenResponse())
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+
+      mockFetch.mockImplementationOnce(() =>
+        refreshGate.then(() => ({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(createTokenResponse({ access_token: 'stale-refresh-token' })),
+          text: () => Promise.resolve(JSON.stringify(createTokenResponse({ access_token: 'stale-refresh-token' }))),
+        }))
+      )
+
+      const refreshDone = useAuthStore.getState().refresh()
+      expect(useAuthStore.getState().isRefreshing).toBe(true)
+
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 200 })
+      await useAuthStore.getState().logout()
+
+      releaseBox.fn?.()
+      await refreshDone
+
+      expect(useAuthStore.getState().isRefreshing).toBe(false)
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
+      expect(useAuthStore.getState().accessToken).toBeNull()
+    })
   })
 
   describe('logout', () => {
@@ -228,14 +260,32 @@ describe('useAuthStore', () => {
       })
     })
 
-    it('clears state even if logout request fails', async () => {
+    it('clears local state when logout request fails (network), then rejects', async () => {
       mockFetchSuccess(createTokenResponse())
       await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
 
       mockFetch.mockRejectedValueOnce(new Error('Network error'))
-      await useAuthStore.getState().logout()
+      await expect(useAuthStore.getState().logout()).rejects.toThrow('Network error')
 
       expect(useAuthStore.getState().isAuthenticated).toBe(false)
+      expect(useAuthStore.getState().accessToken).toBeNull()
+      expect(useAuthStore.getState().logoutCount).toBe(1)
+    })
+
+    it('clears local state when logout returns non-OK, then rejects', async () => {
+      mockFetchSuccess(createTokenResponse())
+      await useAuthStore.getState().login({ username: 'admin', password: 'admin' })
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: () => Promise.resolve('Service unavailable'),
+      })
+
+      await expect(useAuthStore.getState().logout()).rejects.toThrow()
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
+      expect(useAuthStore.getState().accessToken).toBeNull()
     })
   })
 

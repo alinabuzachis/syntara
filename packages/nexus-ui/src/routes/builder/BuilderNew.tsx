@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 
 import '@xyflow/react/dist/style.css'
 import { workflowClient } from '../../client'
+import { detachPromise } from '../../utils/detachPromise'
 
 import { BuilderContent } from './BuilderContent'
 import { WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME } from './utils/workflowListQuery'
@@ -11,8 +12,10 @@ import { WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME } from './utils/workflowListQuer
 export default function BuilderNew() {
   const queryClient = useQueryClient()
   useEffect(() => {
-    void queryClient.prefetchQuery(
-      workflowClient.queryOptions('get', '/workflows', WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME)
+    detachPromise(
+      queryClient.prefetchQuery(
+        workflowClient.queryOptions('get', '/workflows', WORKFLOWS_LIST_PARAMS_FOR_DEFAULT_NAME)
+      )
     )
   }, [queryClient])
 

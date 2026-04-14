@@ -30,9 +30,11 @@ import { FilterBar } from '../../../components/filters/FilterBar'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer, type TableFooterProps } from '../../../components/table/ScrollableTableContainer'
 import { useFilterState } from '../../../hooks/useFilterState'
+import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
+import { detachPromise } from '../../../utils/detachPromise'
 import { buildFilterParams } from '../../../utils/filterUtils'
 
 import { getIntegrationNameFilterDefinition, createFilterChangeHandler } from './integrationFilters'
@@ -65,6 +67,7 @@ export default function IntegrationTools() {
   const queryClient = useQueryClient()
   const provider_id = params?.provider_id ?? ''
   const { showAlert } = useAlerts()
+  const handleMutationError = useMutationErrorHandler()
   const [cursor, setCursor] = useState<string | null>(null)
 
   // Filter state management
@@ -121,7 +124,7 @@ export default function IntegrationTools() {
             variant: 'success',
             autoDismiss: true,
           })
-          void query.refetch()
+          detachPromise(query.refetch())
         },
         onError: (error) => {
           setRefreshDialogOpen(false)
@@ -242,7 +245,17 @@ export default function IntegrationTools() {
         <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
           Refresh tools
         </Button>
-        <Button onClick={() => void handleSubmit()}>Save</Button>
+        <Button
+          onClick={async () => {
+            try {
+              await handleSubmit()
+            } catch (error: unknown) {
+              handleMutationError({ title: 'Failed to save tools' })(error)
+            }
+          }}
+        >
+          Save
+        </Button>
         <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
           Cancel
         </Button>
