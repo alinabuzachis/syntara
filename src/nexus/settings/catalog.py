@@ -1,8 +1,10 @@
-"""Settings catalog: canonical definition of all runtime settings.
+"""Settings catalog: canonical definitions of categories and settings.
 
-Adding a new setting requires only a new :class:`SettingDefinition` entry in
-:data:`SETTINGS_CATALOG`. The post-migration seeder upserts the catalog into
-the database — no migration is needed for new settings.
+Adding a new category requires a :class:`CategoryDefinition` entry in
+:data:`CATEGORY_CATALOG`. Adding a new setting requires a
+:class:`SettingDefinition` entry in :data:`SETTINGS_CATALOG`. The
+post-migration seeder upserts both catalogs into the database — no
+migration is needed for new entries.
 """
 
 from __future__ import annotations
@@ -12,6 +14,40 @@ from enum import StrEnum
 from typing import Any
 
 from nexus.settings.models.runtime_setting import SettingCategory, SettingValueType
+
+
+@dataclass
+class CategoryDefinition:
+    """Canonical definition of a setting category for the startup seeder.
+
+    Attributes:
+        slug: Machine key matching ``runtime_settings.category`` values.
+        name: Human-readable display name for the UI.
+        description: Longer description shown in the UI (e.g. tooltips).
+        display_order: Sort position for UI tab rendering (lower = first).
+
+    """
+
+    slug: str
+    name: str
+    description: str | None = None
+    display_order: int = 0
+
+
+CATEGORY_CATALOG: list[CategoryDefinition] = [
+    CategoryDefinition(
+        slug="system",
+        name="System",
+        description="System-level settings including observability and diagnostics",
+        display_order=10,
+    ),
+    CategoryDefinition(
+        slug="context_manager",
+        name="Context Manager",
+        description="Token limits, retrieval, grounding, compression, and context assembly",
+        display_order=20,
+    ),
+]
 
 
 class ContextManagerGroup(StrEnum):
@@ -156,7 +192,7 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
     ),
     SettingDefinition(
         key="context_manager.enable_hybrid_search",
-        name="Enable hybrid search",
+        name="Hybrid search",
         category=SettingCategory.CONTEXT_MANAGER,
         value_type=SettingValueType.BOOLEAN,
         default_value=True,
@@ -217,7 +253,7 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
     # Context Manager — Context assembly
     SettingDefinition(
         key="context_manager.enforce_hierarchy",
-        name="Enforce hierarchical ordering",
+        name="Hierarchical ordering",
         category=SettingCategory.CONTEXT_MANAGER,
         value_type=SettingValueType.BOOLEAN,
         default_value=True,

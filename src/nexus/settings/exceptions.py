@@ -2,13 +2,58 @@
 
 from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
-from nexus.settings.error_handlers import setting_validation_error_handler
+from nexus.settings.error_handlers import (
+    optimistic_lock_error_handler,
+    setting_not_found_handler,
+    setting_type_error_handler,
+    setting_validation_error_handler,
+)
 
 
 class SettingError(NexusError):
     """Base exception for all settings errors."""
 
 
+@fastapi_exception(handler=setting_not_found_handler)
+class SettingNotFoundError(SettingError):
+    """Raised when a setting key does not exist."""
+
+    def __init__(self, key: str) -> None:
+        """Initialise with the missing setting key.
+
+        Args:
+            key: Dot-namespaced setting key that was not found.
+
+        """
+        self.key = key
+        super().__init__(f"Setting '{key}' not found")
+
+
+@fastapi_exception(handler=optimistic_lock_error_handler)
+class OptimisticLockError(SettingError):
+    """Raised when a write is rejected due to a version mismatch.
+
+    Callers should re-fetch the setting, inspect the current value, and
+    resubmit with the updated version if the change is still appropriate.
+
+    """
+
+    def __init__(self, key: str, current_version: int, submitted_version: int) -> None:
+        """Initialise with conflict details.
+
+        Args:
+            key: Setting key that caused the conflict.
+            current_version: Version stored in the database.
+            submitted_version: Version submitted by the caller.
+
+        """
+        self.key = key
+        self.current_version = current_version
+        self.submitted_version = submitted_version
+        super().__init__(f"Setting '{key}' version conflict: current={current_version}, submitted={submitted_version}")
+
+
+@fastapi_exception(handler=setting_type_error_handler)
 class SettingTypeError(SettingError):
     """Raised when a setting value has an unexpected runtime type."""
 

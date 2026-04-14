@@ -15,7 +15,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, ClassVar
 
-from sqlalchemy import String, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
@@ -101,6 +101,7 @@ class RuntimeSetting(NamedResource, table=True):
         *NamedResource.__filterable_fields__,
         "key",
         "category",
+        "group",
         "requires_restart",
     ]
 
@@ -141,10 +142,11 @@ class RuntimeSetting(NamedResource, table=True):
         description="Expected value type for UI rendering and validation",
     )
 
-    category: SettingCategory = Field(
-        sa_column=postgres_enum_column(
-            SettingCategory,
-            "settingcategory",
+    category: str = Field(
+        sa_column=Column(
+            String(FieldLimits.NAME_MAX_LENGTH),
+            ForeignKey("setting_categories.slug"),
+            nullable=False,
             index=True,
         ),
         description="Logical grouping for display and filtering",

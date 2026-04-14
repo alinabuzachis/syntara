@@ -2,7 +2,7 @@
 
 ## Overview
 
-Runtime settings are database-backed configuration values that can be changed without redeploying the application. Settings are stored in PostgreSQL and accessible to other backend code via `SettingsCache`. A REST API and UI are forthcoming, as well as support for secrets and caching.
+Runtime settings are database-backed configuration values that can be changed without redeploying the application. Settings are stored in PostgreSQL and accessible to other backend code via `SettingsCache`, and manageable by administrators through the REST API and Settings UI page.
 
 Like `nexus.core.config`, Runtime settings are accessed by a short key, have default values, and enforce validation criteria.
 
@@ -93,21 +93,102 @@ If no row matching the setting exists, a row will be inserted. If a row does exi
 ### Key conventions
 
 - Use dot-namespaced keys: `category.setting_name`
-- Use the existing `SettingCategory` enum values, or add a new one if needed (requires an Alembic migration to extend the PostgreSQL enum).
+- Use an existing category slug from `CATEGORY_CATALOG`, or add a new one (see [Adding a New Category](#adding-a-new-category)).
 - `default_value` must be a native Python type matching `value_type`
 
 ### Validation schema
 
 The optional `validation_schema` dict supports these constraints:
 
-| Key              | Applies to       | Example                                       |
-|------------------|------------------|-----------------------------------------------|
-| `min`            | integer, float   | `{"min": 0}`                                  |
-| `max`            | integer, float   | `{"max": 100}`                                |
-| `allowed_values` | string           | `{"allowed_values": ["DEBUG", "INFO"]}`       |
-| `pattern`        | string           | `{"pattern": "^[a-z]+$"}`                     |
+| Key              | Applies to     | Example                                 |
+| ---------------- | -------------- | --------------------------------------- |
+| `min`            | integer, float | `{"min": 0}`                            |
+| `max`            | integer, float | `{"max": 100}`                          |
+| `allowed_values` | string         | `{"allowed_values": ["DEBUG", "INFO"]}` |
+| `pattern`        | string         | `{"pattern": "^[a-z]+$"}`               |
 
-Validation will run on every write when the REST API is introduced.
+Validation runs on every write through the REST API.
+
+## REST API
+
+Settings are managed via the REST API at `/api/v1/settings`. All endpoints require the ADMINISTRATOR role.
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/settings` | List all settings (paginated, filterable by category/group) |
+| `GET` | `/settings/categories` | List all categories with group names |
+| `GET` | `/settings/{key}` | Get a single setting by dot-namespaced key |
+| `PATCH` | `/settings/{key}` | Update a setting value |
+| `PATCH` | `/settings` | Bulk update multiple settings |
+
+### Updating a setting
+
+Optionally include `expected_version` for optimistic locking. When omitted, the update applies unconditionally. The Settings UI always sends `expected_version` to detect concurrent edits:
+
+```bash
+curl -X PATCH http://localhost:8000/api/v1/settings/context_manager.max_total_tokens \
+  -H "Content-Type: application/json" \
+  -d '{"value": 8000, "expected_version": 1}'
+```
+
+### Resetting to default
+
+To reset a setting, set `value` to the setting's `default_value`:
+
+```bash
+curl -X PATCH http://localhost:8000/api/v1/settings/context_manager.max_total_tokens \
+  -H "Content-Type: application/json" \
+  -d '{"value": 4000, "expected_version": 2}'
+```
+
+> **Note:** User-specified values cannot be `null`. Internally, `null` means "use the default value" and is managed by the seeder. The API rejects `null` values with a 422 error.
+
+### Bulk operations
+
+Update multiple settings at once:
+
+```bash
+curl -X PATCH http://localhost:8000/api/v1/settings \
+  -H "Content-Type: application/json" \
+  -d '{"updates": [
+    {"key": "context_manager.max_total_tokens", "value": 8000, "expected_version": 1},
+    {"key": "context_manager.max_context_tokens", "value": 4000, "expected_version": 1}
+  ]}'
+```
+
+### Filtering and pagination
+
+The list endpoint supports cursor-based pagination and filtering:
+
+```bash
+# Filter by category
+curl -s "http://localhost:8000/api/v1/settings?category=context_manager"
+
+# Filter by group
+curl -s "http://localhost:8000/api/v1/settings?group=Token+limits"
+
+# Pagination (limit, cursor, sort)
+curl -s "http://localhost:8000/api/v1/settings?limit=10&sort=key"
+```
+
+### Limits
+
+- **Bulk operations**: Maximum 500 items per request
+- **Value size**: Maximum 64KB per setting value (serialized JSON)
+- **Pagination**: Maximum 100 items per page (default 20)
+
+### Error responses
+
+All errors follow [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details format:
+
+| Status | Code | When |
+|--------|------|------|
+| `403` | — | User is not an administrator |
+| `404` | `SETTING_NOT_FOUND` | Unknown key |
+| `409` | `SETTING_VERSION_CONFLICT` | Optimistic lock version mismatch |
+| `422` | `SETTING_VALIDATION_ERROR` | Value fails type or constraint checks |
 
 ## Migrating from `nexus.core.config`
 
@@ -140,33 +221,36 @@ Note the shift from sync to async -- callers must be in an async context.
 
 ## Architecture
 
-```
+```text
 SETTINGS_CATALOG (Python)
         |
         v
     Seeder (post-migration)  ──upsert──>  runtime_settings (PostgreSQL)
-                                        ^
-                                        |
-                              SettingsStore (read-only data access)
-                                        ^
-                                        |
-                              SettingsCache (in-memory TTL)
-                                        ^
-                                        |
-                          get_runtime_settings() singleton
-                                        ^
-                                        |
-                              Application code reads
+                                                  ^
+                                                  |
+                                    SettingsService (BaseService)
+                                          ^             ^
+                                         /               \
+                              SettingsStore           REST API
+                           (internal reads)        (/api/v1/settings)
+                                  ^
+                                  |
+                           SettingsCache
+                                  ^
+                                  |
+                       Application code reads
 ```
 
 ## Adding a New Category
 
-If existing categories don't fit, add a new value to the `SettingCategory` enum in `src/nexus/settings/models/runtime_setting.py` and create an Alembic migration:
+Categories are stored in the `setting_categories` database table and seeded
+from `CATEGORY_CATALOG` in `src/nexus/settings/catalog.py`. To add a new
+category:
 
-```sql
-ALTER TYPE settingcategory ADD VALUE IF NOT EXISTS 'my_category';
-```
-
-See the runtime settings creation migration for an example of how enum values are defined.
-
-> **Important**: The `settingcategory` enum will likely become a table, to better enable human-readable descriptions and ordering in the UI.
+1. Add a `CategoryDefinition` entry to `CATEGORY_CATALOG` with a unique slug,
+   display name, description, and display order.
+2. Add the slug to the `SettingCategory` enum in
+   `src/nexus/settings/models/runtime_setting.py` (used for type-safe
+   references in `SETTINGS_CATALOG`).
+3. Run the seeder (`make dev` or `uv run python tools/seed_settings.py`) —
+   no migration is needed.

@@ -1,0 +1,363 @@
+---
+openapi: 3.0.3
+info:
+  title: Nexus Settings API
+  version: 1.0.0
+  description: |
+    Runtime settings API for the Nexus platform.
+
+    Provides endpoints for listing, reading, and updating
+    database-backed runtime configuration settings. Settings are identified
+    by dot-namespaced keys (e.g. `context_manager.max_total_tokens`) and
+    support optimistic locking via version numbers.
+
+    All endpoints require the ADMINISTRATOR role.
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Settings
+    description: Runtime settings management
+
+paths:
+  /settings:
+    get:
+      summary: List runtime settings
+      description: |
+        Retrieve a paginated list of runtime settings with optional filtering
+        by category and group. Uses cursor-based pagination.
+      operationId: list_settings
+      tags:
+        - Settings
+      parameters:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by category slug (e.g. `context_manager`)
+        - name: group
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by group name (e.g. `Token limits`)
+      responses:
+        "200":
+          description: Paginated list of runtime settings
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+                  - type: object
+                    properties:
+                      resources:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/RuntimeSettingRead"
+                        maxItems: 100
+                    required:
+                      - resources
+        "403":
+          description: Insufficient permissions
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    patch:
+      summary: Bulk update settings
+      description: |
+        Update multiple settings in a single request. Each update includes
+        the setting key, new value, and expected version for optimistic locking.
+        If any update fails, the entire batch is rolled back.
+      operationId: bulk_update_settings
+      tags:
+        - Settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingBulkUpdateRequest"
+      responses:
+        "200":
+          description: All settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RuntimeSettingRead"
+        "404":
+          description: Setting not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        "409":
+          description: Version conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        "422":
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+  /settings/categories:
+    get:
+      summary: List setting categories
+      description: |
+        Retrieve all setting categories with their group names.
+        Categories are derived from the settings catalog.
+      operationId: list_categories
+      tags:
+        - Settings
+      responses:
+        "200":
+          description: List of setting categories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoriesListResponse"
+
+  /settings/{key}:
+    get:
+      summary: Get a single setting
+      description: |
+        Retrieve a single runtime setting by its dot-namespaced key.
+      operationId: get_setting
+      tags:
+        - Settings
+      parameters:
+        - $ref: "#/components/parameters/keyParam"
+      responses:
+        "200":
+          description: Setting details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeSettingRead"
+        "404":
+          description: Setting not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    patch:
+      summary: Update a setting value
+      description: |
+        Update a runtime setting's value. Requires the current `expected_version`
+        for optimistic locking.
+      operationId: update_setting
+      tags:
+        - Settings
+      parameters:
+        - $ref: "#/components/parameters/keyParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingUpdate"
+      responses:
+        "200":
+          description: Setting updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuntimeSettingRead"
+        "404":
+          description: Setting not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        "409":
+          description: Version conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        "422":
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+components:
+  parameters:
+    keyParam:
+      name: key
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`)
+
+  schemas:
+    SettingValueType:
+      type: string
+      description: Expected value type for a runtime setting
+      enum:
+        - string
+        - integer
+        - float
+        - boolean
+        - json
+
+    RuntimeSettingRead:
+      type: object
+      description: A single runtime setting with its current and default values.
+      required:
+        - id
+        - key
+        - name
+        - category
+        - effective_value
+        - value_type
+        - requires_restart
+        - version
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+          description: Dot-namespaced setting key
+        name:
+          type: string
+          description: Human-readable display name
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          description: Category slug for UI tab grouping
+        group:
+          type: string
+          nullable: true
+          description: Group name for UI section headings within a category
+        value:
+          description: User-set override value (null if using default)
+          nullable: true
+        default_value:
+          description: Factory default value
+          nullable: true
+        effective_value:
+          description: Resolved value (value if set, otherwise default_value)
+        value_type:
+          $ref: "#/components/schemas/SettingValueType"
+        requires_restart:
+          type: boolean
+        cache_ttl_seconds:
+          type: integer
+          nullable: true
+        validation_schema:
+          type: object
+          nullable: true
+          description: |
+            Validation constraints. Possible keys:
+            - `min` (integer/float): Minimum value
+            - `max` (integer/float): Maximum value
+            - `allowed_values` (string): List of allowed values
+            - `pattern` (string): Regex pattern
+        version:
+          type: integer
+          description: Optimistic lock version
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SettingUpdate:
+      type: object
+      required:
+        - value
+      properties:
+        value:
+          description: New value (native type matching value_type). Cannot be null.
+        expected_version:
+          type: integer
+          nullable: true
+          description: Current version for optimistic locking. When omitted, the update applies unconditionally.
+
+    SettingBulkUpdateItem:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: Dot-namespaced setting key
+        value:
+          description: New value. Cannot be null.
+        expected_version:
+          type: integer
+          nullable: true
+          description: Current version for optimistic locking. When omitted, the update applies unconditionally.
+
+    SettingBulkUpdateRequest:
+      type: object
+      required:
+        - updates
+      properties:
+        updates:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/SettingBulkUpdateItem"
+
+    SettingCategoryRead:
+      type: object
+      required:
+        - slug
+        - name
+        - display_order
+        - group_names
+      properties:
+        slug:
+          type: string
+          description: Category identifier
+        name:
+          type: string
+          description: Human-readable display name
+        description:
+          type: string
+          nullable: true
+        display_order:
+          type: integer
+          description: Sort position for UI rendering (lower = first)
+        group_names:
+          type: array
+          items:
+            type: string
+          description: Ordered list of group names within this category
+
+    CategoriesListResponse:
+      type: object
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SettingCategoryRead"

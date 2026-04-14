@@ -382,7 +382,7 @@ async def _truncate_all_tables(engine: AsyncEngine) -> None:
                 if schema and schema != "public"
                 else preparer.quote(table_name)
                 for schema, table_name in result
-                if table_name not in ("alembic_version", "installation", "runtime_settings")
+                if table_name not in ("alembic_version", "installation", "runtime_settings", "setting_categories")
             ]
 
             if not tables:

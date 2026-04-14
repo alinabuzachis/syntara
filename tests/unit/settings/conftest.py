@@ -19,6 +19,26 @@ if TYPE_CHECKING:
 
 
 @pytest_asyncio.fixture(autouse=True)
+async def _seed_test_categories(test_db_engine: AsyncEngine) -> None:
+    """Ensure all SettingCategory slugs exist in setting_categories for FK constraints.
+
+    Must run before any test that inserts a RuntimeSetting row.
+    Uses INSERT ... ON CONFLICT DO NOTHING for idempotency.
+    """
+    async with test_db_engine.begin() as conn:
+        for cat in SettingCategory:
+            await conn.execute(
+                sqlalchemy.text(
+                    "INSERT INTO setting_categories"
+                    " (id, slug, name, description, display_order, labels, created_at, updated_at)"
+                    " VALUES (gen_random_uuid(), :slug, :name, '', 0, '{}'::jsonb, now(), now())"
+                    " ON CONFLICT (slug) DO NOTHING"
+                ),
+                {"slug": cat.value, "name": cat.value.replace("_", " ").title()},
+            )
+
+
+@pytest_asyncio.fixture(autouse=True)
 async def _clean_test_settings(test_db_engine: AsyncEngine) -> None:
     """Remove test-prefixed runtime_settings rows before each settings test.
 
