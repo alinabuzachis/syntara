@@ -40,10 +40,11 @@ from nexus.auth.schemas import (
 from nexus.auth.services.oidc_service import OIDCError, OIDCService
 from nexus.auth.services.token_service import TokenPayload
 from nexus.auth.session.session_store import SessionStore
+from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.core.models.user import UserRole
+from nexus.core.models.group import Group, user_groups
 from nexus.core.utils.crypto import decrypt_secret
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import IdentityProviderConfigurationTypes
@@ -53,6 +54,32 @@ logger = structlog.stdlib.get_logger(__name__)
 # Authentication method reference constants (RFC 8176)
 AMR_PASSWORD = "pwd"  # noqa: S105
 AMR_FEDERATED = "fed"
+
+
+async def _get_user_group_names(db: AsyncSession, user_id: UUID) -> list[str]:
+    """Fetch group names for a user to include in JWT claims.
+
+    Includes both explicit memberships (from the ``user_groups`` table) and
+    the implicit ``authenticated`` group that all authenticated users belong to.
+    """
+    result = await db.exec(
+        select(Group.name)
+        .join(user_groups, Group.id == user_groups.c.group_id)  # type: ignore[arg-type]
+        .where(
+            user_groups.c.user_id == user_id,
+            Group.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+        .order_by(col(Group.name))
+    )
+    names = list(result.all())
+
+    # Add the implicit "authenticated" group if not already present
+    if AUTHENTICATED_GROUP_NAME not in names:
+        names.append(AUTHENTICATED_GROUP_NAME)
+        names.sort()
+
+    return names
+
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -112,6 +139,13 @@ async def login(
     if not user.is_active:
         raise AuthenticationRequiredError
 
+    # Resolve group names for JWT claims (before modifying session state)
+    user_group_names = await _get_user_group_names(db, user.id)
+
+    # Fetch current groups version from Redis
+    async with SessionStore() as store:
+        token_version = await store.get_token_version(user.id)
+
     # Update last login (commit deferred until after Redis session is created
     # to avoid updating last_login when the session store is unreachable).
     user.update_last_login()
@@ -124,9 +158,10 @@ async def login(
         username=user.username,
         email=user.email,
         full_name=user.full_name,
-        role=user.role.value,
         amr=[AMR_PASSWORD],
         idp="local",
+        groups=user_group_names,
+        token_version=token_version,
     )
 
     # Create refresh token and store session
@@ -260,14 +295,21 @@ async def refresh_token(
         amr = session.amr or payload.amr or ["pwd"]
         idp = session.idp or payload.idp or "local"
 
+        # Refresh group memberships from DB on token refresh
+        user_group_names = await _get_user_group_names(db, user.id)
+
+        # Fetch current groups version from Redis
+        token_version = await store.get_token_version(user.id)
+
         access_token = token_service.create_access_token(
             user_id=user.id,
             username=username,
             email=user.email,
             full_name=user.full_name,
-            role=user.role.value,
             amr=amr,
             idp=idp,
+            groups=user_group_names,
+            token_version=token_version,
         )
 
         logger.info(
@@ -388,7 +430,6 @@ async def get_me(
         id=payload.sub,
         username=payload.preferred_username or "",
         email=payload.email or "",
-        role=payload.role or "",
         groups=payload.groups or [],
     )
 
@@ -686,7 +727,6 @@ async def _auto_create_user(
         username=username,
         email=email,
         full_name=full_name,
-        role=UserRole.ADMINISTRATOR,
         password_hash=None,
         is_active=True,
     )

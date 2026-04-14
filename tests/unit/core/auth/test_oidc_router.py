@@ -21,7 +21,6 @@ from nexus.auth.router import (
 )
 from nexus.auth.services.oidc_service import OIDCError, OIDCService
 from nexus.core.models import User
-from nexus.core.models.user import UserRole
 from nexus.identity_providers.models.identity_provider import IdentityProvider
 from nexus.identity_providers.models.identity_provider_configuration import OIDCConfiguration
 
@@ -53,7 +52,6 @@ def _make_user(
         username=username,
         email=email,
         full_name="Test User",
-        role=UserRole.ADMINISTRATOR,
         is_active=is_active,
         password_hash=password_hash,
     )
@@ -829,7 +827,7 @@ class TestLoadEnabledProvider:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("scenario", ["not_found", "disabled", "deleted"])
-    async def test_raises_when_provider_unavailable(self, scenario: str) -> None:  # noqa: ARG002
+    async def test_raises_when_provider_unavailable(self, scenario: str) -> None:
         """Should raise OIDCError when provider is not found, disabled, or deleted."""
         provider_id = uuid4()
 
@@ -1240,7 +1238,6 @@ class TestAutoCreateUser:
         assert result.username == "alice"
         assert result.email == email
         assert result.full_name == "Alice Smith"
-        assert result.role == UserRole.ADMINISTRATOR
         assert result.is_active is True
         assert result.password_hash is None
         db.add.assert_called_once()

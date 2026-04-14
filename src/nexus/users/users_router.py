@@ -1,20 +1,15 @@
-"""Users CRUD API endpoints.
-
-.. todo:: ANSTRAT-1900
-   All endpoints in this module require authentication but lack authorization
-   guards (e.g. ``require_role(ADMINISTRATOR)``).  Role-based access control
-   will be added as part of ANSTRAT-1900.
-"""
+"""Users CRUD API endpoints."""
 
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
 from nexus.auth.exceptions import UserNotLocalError
 from nexus.auth.session.session_store import SessionStore
+from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.models.base.query_params import BaseListParams
@@ -26,11 +21,17 @@ from nexus.core.models.user_schemas import (
     UserRead,
     UserUpdate,
 )
+from nexus.core.nexus_router import NexusRouter
 from nexus.core.queries.user_queries import get_user_by_id as fetch_user
 from nexus.users.services.group_service import GroupsService
 from nexus.users.services.user_service import UsersService
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = NexusRouter(prefix="/users", tags=["Users"])
+
+_user_create = PermissionChecker("user", "create", roles=["admin"])
+_user_read = PermissionChecker("user", "read", roles=["admin", "auditor", "default"])
+_user_update = PermissionChecker("user", "update", roles=["admin"])
+_user_delete = PermissionChecker("user", "delete", roles=["admin"])
 
 
 # ============================================================================
@@ -77,8 +78,8 @@ def get_group_service(
 # ============================================================================
 
 
-@router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def create_user(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(_user_create)])
+async def create_user(
     request: UserCreate,
     service: Annotated[UsersService, Depends(get_user_service)],
 ) -> User:
@@ -100,13 +101,12 @@ async def create_user(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: T
         email=request.email,
         full_name=request.full_name,
         password=request.password.get_secret_value(),
-        role=request.role,
         is_active=request.is_active,
     )
 
 
-@router.get("")
-async def list_users(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.get("", dependencies=[Depends(_user_read)])
+async def list_users(
     request: Request,
     service: Annotated[UsersService, Depends(get_user_service)],
     params: Annotated[UserListParams, Query()],
@@ -133,8 +133,8 @@ async def list_users(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD
     )
 
 
-@router.get("/{user_id}")
-async def get_user(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.get("/{user_id}", dependencies=[Depends(_user_read)])
+async def get_user(
     user_id: UUID,
     service: Annotated[UsersService, Depends(get_user_service)],
 ) -> UserRead:
@@ -155,8 +155,8 @@ async def get_user(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD00
     return UserRead.model_validate(user)
 
 
-@router.patch("/{user_id}")
-async def update_user(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.patch("/{user_id}", dependencies=[Depends(_user_update)])
+async def update_user(
     user_id: UUID,
     request: UserUpdate,
     service: Annotated[UsersService, Depends(get_user_service)],
@@ -184,7 +184,6 @@ async def update_user(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: T
         full_name=request.full_name,
         email=request.email,
         password=password,
-        role=request.role,
         is_active=request.is_active,
     )
 
@@ -198,11 +197,16 @@ async def update_user(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: T
         async with SessionStore() as store:
             await store.revoke_all_for_user(user_id)
 
+    # Signal that the user's token claims are stale so the frontend
+    # triggers a background refresh on the next API response.
+    async with SessionStore() as store:
+        await store.increment_token_version(user_id)
+
     return UserRead.model_validate(user)
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(_user_delete)])
+async def delete_user(
     user_id: UUID,
     service: Annotated[UsersService, Depends(get_user_service)],
 ) -> None:
@@ -218,9 +222,14 @@ async def delete_user(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: T
     """
     await service.delete_user(user_id)
 
+    # Signal stale token so the deleted user's next request triggers a
+    # refresh attempt, which will fail with 401 (user not found).
+    async with SessionStore() as store:
+        await store.increment_token_version(user_id)
 
-@router.get("/{user_id}/groups")
-async def list_user_groups(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+
+@router.get("/{user_id}/groups", dependencies=[Depends(_user_read)])
+async def list_user_groups(
     user_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
     params: Annotated[BaseListParams, Query()],
@@ -246,8 +255,8 @@ async def list_user_groups(  # TODO(ANSTRAT-1900): add authorization guard  # no
     )
 
 
-@router.put("/{user_id}/groups")
-async def set_user_groups(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.put("/{user_id}/groups", dependencies=[Depends(_user_update)])
+async def set_user_groups(
     user_id: UUID,
     request: UserGroupsSet,
     service: Annotated[GroupsService, Depends(get_group_service)],
@@ -274,4 +283,7 @@ async def set_user_groups(  # TODO(ANSTRAT-1900): add authorization guard  # noq
     user = await fetch_user(db, user_id)
     if user.password_hash is None:
         raise UserNotLocalError(user_id)
-    return await service.set_user_groups(user_id, request.group_ids)
+    result = await service.set_user_groups(user_id, request.group_ids)
+    async with SessionStore() as store:
+        await store.increment_token_version(user_id)
+    return result

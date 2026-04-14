@@ -531,11 +531,6 @@ components:
           type: string
           format: password
           description: Plaintext password (will be hashed)
-        role:
-          type: string
-          enum: [viewer, creator, approver, administrator]
-          default: viewer
-          description: User role for access control
         is_active:
           type: boolean
           default: true
@@ -558,10 +553,6 @@ components:
           type: string
           format: password
           description: New password (will be hashed). Omit to keep current password.
-        role:
-          type: string
-          enum: [viewer, creator, approver, administrator]
-          description: Update user role
         is_active:
           type: boolean
           description: Enable or disable user account
@@ -573,7 +564,6 @@ components:
         - username
         - email
         - full_name
-        - role
         - is_active
         - created_at
         - updated_at
@@ -592,10 +582,6 @@ components:
         full_name:
           type: string
           description: Display name
-        role:
-          type: string
-          enum: [viewer, creator, approver, administrator]
-          description: User role
         is_active:
           type: boolean
           description: Account active status
@@ -684,6 +670,10 @@ components:
           type: string
           nullable: true
           description: Group description
+        is_builtin:
+          type: boolean
+          default: false
+          description: Whether this is a seeded builtin group (e.g. admins, authenticated)
         created_by:
           type: string
           format: uuid
@@ -697,6 +687,14 @@ components:
           type: string
           format: date-time
           description: Last update timestamp
+        source:
+          type: string
+          default: local
+          description: Source of group creation (local or idp)
+        member_count:
+          type: integer
+          default: 0
+          description: Number of members in the group
 
     GroupListResponse:
       allOf:

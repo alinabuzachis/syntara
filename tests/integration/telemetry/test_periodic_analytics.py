@@ -283,7 +283,7 @@ class TestPeriodicAnalyticsFlow:
 
     async def test_empty_database_produces_zero_counts(
         self,
-        test_db_session: AsyncSession,  # noqa: ARG002 - ensures tables are truncated
+        test_db_session: AsyncSession,
         registry_with_mock_client: tuple[TelemetryClientRegistry, MagicMock],
         mock_session_factory: async_sessionmaker[AsyncSession],
     ) -> None:

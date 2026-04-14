@@ -21,6 +21,16 @@ tags:
     description: Human-in-the-loop approval request management
   - name: Authentication
     description: JWT token management and user identity
+  - name: Group Role Assignments
+    description: System-level group-to-role assignment management
+  - name: Authorization
+    description: Authorization debug and query endpoints
+  - name: Policies
+    description: Policy CRUD operations
+  - name: Roles
+    description: Role CRUD operations
+  - name: User Role Assignments
+    description: System-level user-to-role assignment management
   - name: Credentials
     description: Encrypted credential management
   - name: Credential Types
@@ -35,6 +45,16 @@ tags:
     description: Interactive messaging with running agents
   - name: Control
     description: Process control (pause/cancel)
+  - name: Projects
+    description: Project CRUD operations
+  - name: Project Workflows
+    description: Project-scoped workflow listing
+  - name: Project Approvals
+    description: Project-scoped approval listing
+  - name: Project Role Assignments
+    description: User role assignments within a project
+  - name: Project Group Role Assignments
+    description: Group role assignments within a project
   - name: Users
     description: Local user account management
   - name: Groups
@@ -426,6 +446,645 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthProvidersResponse'
+  /group-role-assignments:
+    post:
+      summary: Assign a role to a group
+      description: |
+        Assign a role to a group at the system level.
+        All members of the group will inherit this role.
+        Requires: admin permission.
+      operationId: assign_group_role
+      tags:
+        - Group Role Assignments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupRoleAssignmentCreate'
+      responses:
+        '201':
+          description: Role assigned to group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupRoleAssignmentRead'
+        '404':
+          description: Group or role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '409':
+          description: Assignment already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    get:
+      summary: List all group-role assignments
+      description: List all system-level group-to-role assignments.
+      operationId: list_group_role_assignments
+      tags:
+        - Group Role Assignments
+      responses:
+        '200':
+          description: List of group-role assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroupRoleAssignmentRead'
+  /group-role-assignments/{assignment_id}:
+    delete:
+      summary: Remove a group-role assignment
+      description: |
+        Remove a group-to-role assignment.
+        Requires: admin permission.
+      operationId: revoke_group_role_assignment
+      tags:
+        - Group Role Assignments
+      parameters:
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Assignment UUID
+      responses:
+        '204':
+          description: Assignment removed
+        '404':
+          description: Assignment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /authz/can-i:
+    post:
+      summary: Check if the current user can perform an action
+      description: |
+        Evaluates the current user's effective policies against OPA to determine
+        if a specific action is allowed on a resource.
+      operationId: can_i
+      tags:
+        - Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CanIRequest'
+      responses:
+        '200':
+          description: Authorization decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CanIResponse'
+  /authz/who-can:
+    post:
+      summary: List users who can perform an action
+      description: |
+        Iterates all active users, resolves their policies, and checks each
+        against OPA. This is a debugging endpoint.
+      operationId: who_can
+      tags:
+        - Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhoCanRequest'
+      responses:
+        '200':
+          description: List of authorized users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhoCanResponse'
+  /authz/what-can-i:
+    post:
+      summary: List all permissions for the current user
+      description: |
+        Resolves the current user's effective policies and returns them as a
+        flat list of permission entries. No OPA call needed.
+      operationId: what_can_i
+      tags:
+        - Authorization
+      responses:
+        '200':
+          description: List of permission entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WhatCanIResponse'
+  /policies:
+    post:
+      summary: Create a custom policy
+      description: |
+        Create a new custom policy with one or more statements.
+        Requires: policy:create permission (admin role).
+      operationId: create_policy
+      tags:
+        - Policies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyCreate'
+      responses:
+        '201':
+          description: Policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRead'
+        '409':
+          description: Policy name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    get:
+      summary: List policies
+      description: List policies with filtering and pagination.
+      operationId: list_policies
+      tags:
+        - Policies
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of resources to return per page
+          example: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor for pagination (from previous response)
+          example: eyJpZCI6InV1aWQifQ
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether to include total count in response (may impact performance)
+          example: true
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Sort field and direction (e.g., 'name', '-created_at')
+        - name: name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by policy name
+        - name: is_builtin
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by builtin status
+        - name: project_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by project scope
+      responses:
+        '200':
+          description: Paginated list of policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyListResponse'
+  /policies/{policy_id}:
+    get:
+      summary: Get a policy by ID
+      operationId: get_policy
+      tags:
+        - Policies
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Policy UUID
+      responses:
+        '200':
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRead'
+        '404':
+          description: Policy not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    patch:
+      summary: Update a policy
+      description: |
+        Update a policy. Builtin policies cannot be modified.
+        Requires: policy:update permission (admin role).
+      operationId: update_policy
+      tags:
+        - Policies
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Policy UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyUpdate'
+      responses:
+        '200':
+          description: Updated policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRead'
+        '404':
+          description: Policy not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    put:
+      summary: Update a policy (full replacement)
+      description: |
+        Update a policy. Builtin policies cannot be modified.
+        Requires: policy:update permission (admin role).
+      operationId: update_policy_put
+      tags:
+        - Policies
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Policy UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyUpdate'
+      responses:
+        '200':
+          description: Updated policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRead'
+        '404':
+          description: Policy not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    delete:
+      summary: Delete a policy
+      description: |
+        Delete a policy. Builtin policies cannot be deleted.
+        Requires: policy:delete permission (admin role).
+      operationId: delete_policy
+      tags:
+        - Policies
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Policy UUID
+      responses:
+        '204':
+          description: Policy deleted
+        '404':
+          description: Policy not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /roles:
+    post:
+      summary: Create a custom role
+      description: |
+        Create a new custom role with one or more policy references.
+        Requires: role:create permission (admin role).
+      operationId: create_role
+      tags:
+        - Roles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreate'
+      responses:
+        '201':
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleRead'
+        '409':
+          description: Role name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    get:
+      summary: List roles
+      description: List roles with filtering and pagination.
+      operationId: list_roles
+      tags:
+        - Roles
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of resources to return per page
+          example: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor for pagination (from previous response)
+          example: eyJpZCI6InV1aWQifQ
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether to include total count in response (may impact performance)
+          example: true
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Sort field and direction (e.g., 'name', '-created_at')
+        - name: name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by role name
+        - name: is_builtin
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by builtin status
+        - name: project_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by project scope
+      responses:
+        '200':
+          description: Paginated list of roles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleListResponse'
+  /roles/{role_id}:
+    get:
+      summary: Get a role by ID
+      operationId: get_role
+      tags:
+        - Roles
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Role UUID
+      responses:
+        '200':
+          description: Role details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleRead'
+        '404':
+          description: Role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    patch:
+      summary: Update a role
+      description: |
+        Update a role. Builtin roles cannot be modified.
+        Requires: role:update permission (admin role).
+      operationId: update_role
+      tags:
+        - Roles
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Role UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleUpdate'
+      responses:
+        '200':
+          description: Updated role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleRead'
+        '404':
+          description: Role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    put:
+      summary: Update a role (full replacement)
+      description: |
+        Update a role. Builtin roles cannot be modified.
+        Requires: role:update permission (admin role).
+      operationId: update_role_put
+      tags:
+        - Roles
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Role UUID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleUpdate'
+      responses:
+        '200':
+          description: Updated role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleRead'
+        '404':
+          description: Role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    delete:
+      summary: Delete a role
+      description: |
+        Delete a role. Builtin roles cannot be deleted.
+        Requires: role:delete permission (admin role).
+      operationId: delete_role
+      tags:
+        - Roles
+      parameters:
+        - name: role_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Role UUID
+      responses:
+        '204':
+          description: Role deleted
+        '404':
+          description: Role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /user-role-assignments:
+    post:
+      summary: Assign a role to a user
+      description: |
+        Assign a role directly to a user at the system level.
+        Requires: admin permission.
+      operationId: assign_user_role
+      tags:
+        - User Role Assignments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleAssignmentCreate'
+      responses:
+        '201':
+          description: Role assigned to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRoleAssignmentRead'
+        '404':
+          description: User or role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '409':
+          description: Assignment already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    get:
+      summary: List all user-role assignments
+      description: List all system-level user-to-role assignments.
+      operationId: list_user_role_assignments
+      tags:
+        - User Role Assignments
+      responses:
+        '200':
+          description: List of user-role assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserRoleAssignmentRead'
+  /user-role-assignments/{assignment_id}:
+    delete:
+      summary: Remove a user-role assignment
+      description: |
+        Remove a user-to-role assignment.
+        Requires: admin permission.
+      operationId: revoke_user_role_assignment
+      tags:
+        - User Role Assignments
+      parameters:
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Assignment UUID
+      responses:
+        '204':
+          description: Assignment removed
+        '404':
+          description: Assignment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
   /credentials:
     get:
       summary: List Credentials
@@ -2089,6 +2748,438 @@ paths:
                     status: 500
                     detail: Internal server error
                     instance: /api/v1/invocations/550e8400-e29b-41d4-a716-446655440000/cancel
+  /projects:
+    post:
+      summary: Create a project
+      description: |
+        Create a new project. The creator is automatically assigned
+        the project-admin role. Requires: project:create permission.
+      operationId: create_project
+      tags:
+        - Projects
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '409':
+          description: Project name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    get:
+      summary: List projects
+      description: |
+        List projects the current user has read access to.
+        Results are filtered by the user's project-scoped permissions.
+      operationId: list_projects
+      tags:
+        - Projects
+      responses:
+        '200':
+          description: List of accessible projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectRead'
+  /projects/{project_id}:
+    get:
+      summary: Get a project by ID
+      description: Requires project:read permission scoped to this project.
+      operationId: get_project
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '404':
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    patch:
+      summary: Update a project
+      description: |
+        Partially update a project. Only provided fields are updated.
+        Requires: project:update permission scoped to this project.
+      operationId: update_project
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '404':
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    put:
+      summary: Update a project (full replacement)
+      description: |
+        Update a project.
+        Requires: project:update permission scoped to this project.
+      operationId: update_project_put
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '404':
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    delete:
+      summary: Delete a project
+      description: |
+        Soft-delete a project.
+        Requires: project:delete permission scoped to this project.
+      operationId: delete_project
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      responses:
+        '204':
+          description: Project deleted
+        '404':
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /projects/{project_id}/workflows:
+    get:
+      summary: List workflows in a project
+      description: |
+        List workflows belonging to a specific project.
+        Requires: workflow:read permission scoped to this project.
+      operationId: list_project_workflows
+      tags:
+        - Project Workflows
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of resources to return per page
+          example: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor for pagination (from previous response)
+          example: eyJpZCI6InV1aWQifQ
+        - name: include_total
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether to include total count in response (may impact performance)
+          example: true
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Sort field and direction (e.g., 'name', '-created_at')
+      responses:
+        '200':
+          description: Paginated list of workflows in the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowListResponse'
+        '404':
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /projects/{project_id}/approvals:
+    get:
+      summary: List approvals in a project
+      description: |
+        List approval requests belonging to a specific project.
+        Requires: approval:read permission scoped to this project.
+      operationId: list_project_approvals
+      tags:
+        - Project Approvals
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of resources to return per page
+          example: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque cursor for pagination (from previous response)
+          example: eyJpZCI6InV1aWQifQ
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: |
+            Sort order for resources.
+            - Ascending: `field` (e.g., `name`)
+            - Descending: `-field` (e.g., `-created_at`)
+          example: -created_at
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - approved
+              - rejected
+              - expired
+              - cancelled
+          description: Filter by approval status
+        - name: execution_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by parent workflow execution ID
+      responses:
+        '200':
+          description: Paginated list of approvals in the project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalListResponse'
+        '404':
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /projects/{project_id}/roles:
+    post:
+      summary: Assign a role to a user in a project
+      description: |
+        Assign a project-scoped role to a user.
+        Valid roles: project-admin, project-user, project-auditor.
+        Requires: project-role:assign permission scoped to this project.
+      operationId: assign_project_role
+      tags:
+        - Project Role Assignments
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRoleAssignmentCreate'
+      responses:
+        '201':
+          description: Role assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRoleAssignmentRead'
+        '404':
+          description: Project, user, or role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '409':
+          description: Assignment already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    get:
+      summary: List user role assignments for a project
+      description: List all user-to-role assignments within a project.
+      operationId: list_project_roles
+      tags:
+        - Project Role Assignments
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      responses:
+        '200':
+          description: List of role assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectRoleAssignmentRead'
+  /projects/{project_id}/roles/{assignment_id}:
+    delete:
+      summary: Remove a user role assignment from a project
+      description: |
+        Revoke a user's project-scoped role.
+        Requires: project-role:revoke permission scoped to this project.
+      operationId: revoke_project_role
+      tags:
+        - Project Role Assignments
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Assignment UUID
+      responses:
+        '204':
+          description: Assignment removed
+        '404':
+          description: Assignment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+  /projects/{project_id}/group-roles:
+    post:
+      summary: Assign a role to a group in a project
+      description: |
+        Assign a project-scoped role to a group. All members of the group
+        inherit the role for this project.
+        Valid roles: project-admin, project-user, project-auditor.
+        Requires: project-role:assign permission scoped to this project.
+      operationId: assign_project_group_role
+      tags:
+        - Project Group Role Assignments
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectGroupRoleAssignmentCreate'
+      responses:
+        '201':
+          description: Role assigned to group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectGroupRoleAssignmentRead'
+        '404':
+          description: Project, group, or role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '409':
+          description: Assignment already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+    get:
+      summary: List group role assignments for a project
+      description: List all group-to-role assignments within a project.
+      operationId: list_project_group_roles
+      tags:
+        - Project Group Role Assignments
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+      responses:
+        '200':
+          description: List of group role assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectGroupRoleAssignmentRead'
+  /projects/{project_id}/group-roles/{assignment_id}:
+    delete:
+      summary: Remove a group role assignment from a project
+      description: |
+        Revoke a group's project-scoped role.
+        Requires: project-role:revoke permission scoped to this project.
+      operationId: revoke_project_group_role
+      tags:
+        - Project Group Role Assignments
+      parameters:
+        - $ref: '#/components/parameters/projectIdParam'
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Assignment UUID
+      responses:
+        '204':
+          description: Assignment removed
+        '404':
+          description: Assignment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
   /metrics/tools:
     get:
       operationId: get_tool_metrics
@@ -5121,6 +6212,12 @@ components:
             - next_step_approved
             - workflow_context
           properties:
+            project_id:
+              type:
+                - string
+                - 'null'
+              format: uuid
+              description: Project this approval belongs to (denormalized from execution)
             execution_id:
               type: string
               format: uuid
@@ -5219,6 +6316,12 @@ components:
           type: string
           format: uuid
           description: Parent workflow execution ID
+        project_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: Project ID (denormalized from execution)
         approval_node_id:
           type: string
           description: Activity ID from workflow definition
@@ -5509,10 +6612,6 @@ components:
         email:
           type: string
           description: User email
-        role:
-          type: string
-          default: ''
-          description: User role
         groups:
           type: array
           items:
@@ -5544,6 +6643,571 @@ components:
             $ref: '#/components/schemas/AuthProviderInfo'
           default: []
           description: Enabled identity providers
+    GroupRoleAssignmentCreate:
+      type: object
+      title: Group Role Assignment Create
+      description: Request body for assigning a role to a group
+      required:
+        - group_id
+        - role_id
+      properties:
+        group_id:
+          type: string
+          format: uuid
+          description: Group UUID
+        role_id:
+          type: string
+          format: uuid
+          description: Role UUID
+    GroupRoleAssignmentRead:
+      type: object
+      title: Group Role Assignment Read
+      description: Response body for a group-to-role assignment
+      required:
+        - id
+        - group_id
+        - group_name
+        - role_id
+        - role_name
+      properties:
+        id:
+          type: string
+          description: Assignment ID
+        group_id:
+          type: string
+          description: Group UUID
+        group_name:
+          type: string
+          description: Group name
+        role_id:
+          type: string
+          description: Role UUID
+        role_name:
+          type: string
+          description: Role name
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Creation timestamp
+    CanIRequest:
+      type: object
+      title: Can I Request
+      description: Request body for the Can I? authorization check
+      required:
+        - action
+        - resource_type
+      properties:
+        action:
+          type: string
+          description: The action to check (e.g., "read", "create", "delete")
+        resource_type:
+          type: string
+          description: The type of resource (e.g., "workflow", "project")
+        resource_id:
+          type: string
+          default: ''
+          description: Optional specific resource ID
+        resource_labels:
+          type: object
+          default: {}
+          additionalProperties:
+            type: string
+          description: Labels on the target resource
+        resource_metadata:
+          type: object
+          default: {}
+          additionalProperties: true
+          description: Additional metadata about the target resource
+        resource_project:
+          type: string
+          default: ''
+          description: Project scope of the resource
+    CanIResponse:
+      type: object
+      title: Can I Response
+      description: Authorization decision result
+      required:
+        - allowed
+        - denied
+        - matched_policy
+        - denial_reason
+        - denied_by
+      properties:
+        allowed:
+          type: boolean
+          description: Whether the action is allowed
+        denied:
+          type: boolean
+          description: Whether the action is explicitly denied
+        matched_policy:
+          type: string
+          description: Name of the policy that matched
+        denial_reason:
+          type: string
+          description: Reason for denial (empty if allowed)
+        denied_by:
+          type: string
+          description: Name of the deny policy (empty if allowed)
+    WhoCanRequest:
+      type: object
+      title: Who Can Request
+      description: Request body for the Who Can? query
+      required:
+        - action
+        - resource_type
+      properties:
+        action:
+          type: string
+          description: The action to check
+        resource_type:
+          type: string
+          description: The type of resource
+        resource_id:
+          type: string
+          default: ''
+          description: Optional specific resource ID
+        resource_labels:
+          type: object
+          default: {}
+          additionalProperties:
+            type: string
+          description: Labels on the target resource
+        resource_metadata:
+          type: object
+          default: {}
+          additionalProperties: true
+          description: Additional metadata about the target resource
+        resource_project:
+          type: string
+          default: ''
+          description: Project scope of the resource
+        limit:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+          description: Maximum number of results per page
+        cursor:
+          type: string
+          format: uuid
+          nullable: true
+          default: null
+          description: Cursor for pagination (UUID of last user from previous page)
+    WhoCanUser:
+      type: object
+      title: Who Can User
+      description: A user who can perform the requested action
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User UUID
+        username:
+          type: string
+          description: Username
+    WhoCanResponse:
+      type: object
+      title: Who Can Response
+      description: Paginated list of users authorized to perform the action
+      required:
+        - users
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/WhoCanUser'
+        next_cursor:
+          type: string
+          format: uuid
+          nullable: true
+          description: Cursor for the next page (null when no more results)
+    PermissionEntry:
+      type: object
+      title: Permission Entry
+      description: A single permission from a policy statement
+      required:
+        - policy_name
+        - effect
+        - actions
+        - scope
+      properties:
+        policy_name:
+          type: string
+          description: Name of the policy
+        effect:
+          type: string
+          description: allow or deny
+        actions:
+          type: array
+          items:
+            type: string
+          description: List of resource_type:action strings
+        scope:
+          type: string
+          description: any or self
+        project:
+          type: string
+          default: ''
+          description: Project scope (empty for system-level)
+    WhatCanIResponse:
+      type: object
+      title: What Can I Response
+      description: All permissions for the current user
+      required:
+        - permissions
+      properties:
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionEntry'
+    PolicyStatementSchema:
+      type: object
+      title: Policy Statement
+      description: A single policy statement defining an access rule
+      required:
+        - effect
+        - actions
+        - scope
+      properties:
+        effect:
+          type: string
+          enum:
+            - allow
+            - deny
+          description: Whether this statement allows or denies access
+        actions:
+          type: array
+          items:
+            type: string
+          description: List of resource_type:action strings (e.g., "workflow:read")
+        scope:
+          type: string
+          enum:
+            - any
+            - self
+          description: Scope of the statement (any = all resources, self = owned resources)
+        conditions:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+          description: Optional attribute-based conditions
+    PolicyCreate:
+      type: object
+      title: Policy Create
+      description: Request body for creating a policy
+      required:
+        - name
+        - statements
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Unique policy name
+        description:
+          type:
+            - string
+            - 'null'
+          description: Policy description
+        statements:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PolicyStatementSchema'
+          description: Policy statements
+        labels:
+          type: object
+          default: {}
+          additionalProperties:
+            type: string
+          description: Key-value labels
+        project_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: Project scope (null for system-level)
+    PolicyUpdate:
+      type: object
+      title: Policy Update
+      description: Request body for updating a policy (partial)
+      properties:
+        name:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+          maxLength: 255
+          description: Update policy name
+        description:
+          type:
+            - string
+            - 'null'
+          description: Update description
+        statements:
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/PolicyStatementSchema'
+          description: Update statements
+        labels:
+          type:
+            - object
+            - 'null'
+          additionalProperties:
+            type: string
+          description: Update labels
+    PolicyRead:
+      type: object
+      title: Policy Read
+      description: Response body for a policy
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Policy UUID
+        name:
+          type: string
+          description: Policy name
+        description:
+          type:
+            - string
+            - 'null'
+          description: Policy description
+        statements:
+          type: array
+          default: []
+          items:
+            type: object
+            additionalProperties: true
+          description: Policy statements
+        is_builtin:
+          type: boolean
+          default: false
+          description: Whether this is a builtin policy
+        project_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: Project scope (null for system-level)
+        labels:
+          type: object
+          default: {}
+          additionalProperties: true
+          description: Key-value labels
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Last update timestamp
+    PolicyListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ResourcesResponseBase'
+        - type: object
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/PolicyRead'
+          required:
+            - resources
+    RoleCreate:
+      type: object
+      title: Role Create
+      description: Request body for creating a role
+      required:
+        - name
+        - policies
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Unique role name
+        description:
+          type:
+            - string
+            - 'null'
+          description: Role description
+        policies:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          description: List of policy names to attach to this role
+        labels:
+          type: object
+          default: {}
+          additionalProperties:
+            type: string
+          description: Key-value labels
+        project_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: Project scope (null for system-level)
+    RoleUpdate:
+      type: object
+      title: Role Update
+      description: Request body for updating a role (partial)
+      properties:
+        name:
+          type:
+            - string
+            - 'null'
+          minLength: 1
+          maxLength: 255
+          description: Update role name
+        description:
+          type:
+            - string
+            - 'null'
+          description: Update description
+        policies:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
+          description: Update attached policies
+        labels:
+          type:
+            - object
+            - 'null'
+          additionalProperties:
+            type: string
+          description: Update labels
+    RoleRead:
+      type: object
+      title: Role Read
+      description: Response body for a role
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Role UUID
+        name:
+          type: string
+          description: Role name
+        description:
+          type:
+            - string
+            - 'null'
+          description: Role description
+        policies:
+          type: array
+          default: []
+          items:
+            type: string
+          description: Attached policy names
+        is_builtin:
+          type: boolean
+          default: false
+          description: Whether this is a builtin role
+        project_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: Project scope (null for system-level)
+        labels:
+          type: object
+          default: {}
+          additionalProperties: true
+          description: Key-value labels
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Last update timestamp
+    RoleListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ResourcesResponseBase'
+        - type: object
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/RoleRead'
+          required:
+            - resources
+    UserRoleAssignmentCreate:
+      type: object
+      title: User Role Assignment Create
+      description: Request body for assigning a role to a user
+      required:
+        - user_id
+        - role_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID
+        role_id:
+          type: string
+          format: uuid
+          description: Role UUID
+    UserRoleAssignmentRead:
+      type: object
+      title: User Role Assignment Read
+      description: Response body for a user-to-role assignment
+      required:
+        - id
+        - user_id
+        - username
+        - role_id
+        - role_name
+      properties:
+        id:
+          type: string
+          description: Assignment ID
+        user_id:
+          type: string
+          description: User UUID
+        username:
+          type: string
+          description: Username
+        role_id:
+          type: string
+          description: Role UUID
+        role_name:
+          type: string
+          description: Role name
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Creation timestamp
     CredentialCreate:
       type: object
       title: Credential Create
@@ -6521,6 +8185,222 @@ components:
           title: Message
           description: Human-readable message describing the cancellation result
           example: Invocation 550e8400-e29b-41d4-a716-446655440000 cancelled successfully
+    ProjectCreate:
+      type: object
+      title: Project Create
+      description: Request body for creating a project
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Project name
+        description:
+          type:
+            - string
+            - 'null'
+          description: Project description
+        labels:
+          type: object
+          default: {}
+          additionalProperties: true
+          description: Key-value labels
+    ProjectUpdate:
+      type: object
+      title: Project Update
+      description: Request body for updating a project (partial)
+      properties:
+        name:
+          type:
+            - string
+            - 'null'
+          description: Update project name
+        description:
+          type:
+            - string
+            - 'null'
+          description: Update description
+        labels:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+          description: Update labels
+    ProjectRead:
+      type: object
+      title: Project Read
+      description: Response body for a project
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Project UUID
+        name:
+          type: string
+          description: Project name
+        description:
+          type:
+            - string
+            - 'null'
+          description: Project description
+        labels:
+          type: object
+          default: {}
+          additionalProperties: true
+          description: Key-value labels
+        is_default:
+          type: boolean
+          default: false
+          description: Whether this is the default project
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Last update timestamp
+    ProjectRoleAssignmentCreate:
+      type: object
+      title: Project Role Assignment Create
+      description: Request body for assigning a role to a user within a project
+      required:
+        - user_id
+        - role_name
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID
+        role_name:
+          type: string
+          description: Role name (project-admin, project-user, or project-auditor)
+    ProjectRoleAssignmentRead:
+      type: object
+      title: Project Role Assignment Read
+      description: Response body for a project user role assignment
+      required:
+        - id
+        - user_id
+        - project_id
+        - role_id
+        - role_name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Assignment UUID
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID
+        username:
+          type: string
+          default: ''
+          description: Username (resolved via join)
+        project_id:
+          type: string
+          format: uuid
+          description: Project UUID
+        role_id:
+          type: string
+          format: uuid
+          description: Role UUID
+        role_name:
+          type: string
+          description: Role name
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Creation timestamp
+    ProjectGroupRoleAssignmentCreate:
+      type: object
+      title: Project Group Role Assignment Create
+      description: Request body for assigning a role to a group within a project
+      required:
+        - group_id
+        - role_name
+      properties:
+        group_id:
+          type: string
+          format: uuid
+          description: Group UUID
+        role_name:
+          type: string
+          description: Role name (project-admin, project-user, or project-auditor)
+    ProjectGroupRoleAssignmentRead:
+      type: object
+      title: Project Group Role Assignment Read
+      description: Response body for a project group role assignment
+      required:
+        - id
+        - group_id
+        - project_id
+        - role_id
+        - role_name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Assignment UUID
+        group_id:
+          type: string
+          format: uuid
+          description: Group UUID
+        group_name:
+          type: string
+          default: ''
+          description: Group name (resolved via join)
+        project_id:
+          type: string
+          format: uuid
+          description: Project UUID
+        role_id:
+          type: string
+          format: uuid
+          description: Role UUID
+        role_name:
+          type: string
+          description: Role name
+        created_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Creation timestamp
+    WorkflowListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ResourcesResponseBase'
+        - type: object
+          properties:
+            resources:
+              type: array
+              items:
+                type: object
+                description: Workflow resource (see workflows domain spec for full schema)
+          required:
+            - resources
+    ApprovalListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ResourcesResponseBase'
+        - type: object
+          properties:
+            resources:
+              type: array
+              items:
+                type: object
+                description: Approval request resource (see approvals domain spec for full schema)
+          required:
+            - resources
     ToolMetrics:
       type: object
       properties:
@@ -7097,15 +8977,6 @@ components:
           type: string
           format: password
           description: Plaintext password (will be hashed)
-        role:
-          type: string
-          enum:
-            - viewer
-            - creator
-            - approver
-            - administrator
-          default: viewer
-          description: User role for access control
         is_active:
           type: boolean
           default: true
@@ -7127,14 +8998,6 @@ components:
           type: string
           format: password
           description: New password (will be hashed). Omit to keep current password.
-        role:
-          type: string
-          enum:
-            - viewer
-            - creator
-            - approver
-            - administrator
-          description: Update user role
         is_active:
           type: boolean
           description: Enable or disable user account
@@ -7145,7 +9008,6 @@ components:
         - username
         - email
         - full_name
-        - role
         - is_active
         - created_at
         - updated_at
@@ -7164,14 +9026,6 @@ components:
         full_name:
           type: string
           description: Display name
-        role:
-          type: string
-          enum:
-            - viewer
-            - creator
-            - approver
-            - administrator
-          description: User role
         is_active:
           type: boolean
           description: Account active status
@@ -7254,6 +9108,10 @@ components:
           type: string
           nullable: true
           description: Group description
+        is_builtin:
+          type: boolean
+          default: false
+          description: Whether this is a seeded builtin group (e.g. admins, authenticated)
         created_by:
           type: string
           format: uuid
@@ -7267,6 +9125,14 @@ components:
           type: string
           format: date-time
           description: Last update timestamp
+        source:
+          type: string
+          default: local
+          description: Source of group creation (local or idp)
+        member_count:
+          type: integer
+          default: 0
+          description: Number of members in the group
     GroupListResponse:
       allOf:
         - $ref: '#/components/schemas/ResourcesResponse'
@@ -7947,3 +9813,11 @@ components:
         - Contains (explicit): `prompt[contains]=deploy`
         - Starts with: `prompt[starts_with]=Create a workflow`
       example: deploy
+    projectIdParam:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Project UUID

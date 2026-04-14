@@ -75,7 +75,7 @@ class TestCompressionTrigger:
         self,
         test_db_session,
         test_user,
-        test_user_low_token_config,  # noqa: ARG002
+        test_user_low_token_config,
     ) -> None:
         """Test compression triggers when documents exceed token budget.
 
@@ -143,7 +143,7 @@ class TestSuccessfulRetry:
         self,
         test_db_session,
         test_user,
-        test_user_low_token_config,  # noqa: ARG002
+        test_user_low_token_config,
     ) -> None:
         """Test successful compression retry after first failure.
 
@@ -213,7 +213,7 @@ class TestMultipleRetries:
         self,
         test_db_session,
         test_user,
-        test_user_low_token_config,  # noqa: ARG002
+        test_user_low_token_config,
     ) -> None:
         """Test multiple compression retries with progressive strategies.
 
@@ -284,7 +284,7 @@ class TestExhaustedRetriesRejection:
         self,
         test_db_session,
         test_user,
-        test_user_low_token_config,  # noqa: ARG002
+        test_user_low_token_config,
     ) -> None:
         """Test ContextAssemblyError raised when all compression retries exhausted.
 
@@ -350,7 +350,7 @@ class TestCompressionLoopZeroFailure:
         self,
         test_db_session,
         test_user,
-        test_user_low_token_config,  # noqa: ARG002
+        test_user_low_token_config,
     ) -> None:
         """Test immediate failure with compression_loop=0 when documents exceed budget.
 

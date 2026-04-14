@@ -6,7 +6,6 @@ from uuid import UUID
 
 import structlog
 from fastapi import (
-    APIRouter,
     BackgroundTasks,
     Body,
     Depends,
@@ -35,9 +34,10 @@ from nexus.agent_orchestrator.services import InvocationService
 from nexus.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
+from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.utils.session_factory import create_session_factory_from_request
 
-router = APIRouter(prefix="/invocations", tags=["Invocation"])
+router = NexusRouter(prefix="/invocations", tags=["Invocation"])
 logger = structlog.stdlib.get_logger(__name__)
 
 # ============================================================================
@@ -116,6 +116,7 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
     summary="Create Invocation (Async)",
     description="Accept async agent invocation request and return invocation ID immediately. "
     "Supports both application/json and multipart/form-data with optional file uploads.",
+    dependencies=[NO_PERMISSION],
 )
 async def create_invocation(
     request: Request,
@@ -210,6 +211,7 @@ async def create_invocation(
     "",
     summary="List Invocations",
     description="List invocations with cursor-based pagination and filtering",
+    dependencies=[NO_PERMISSION],
 )
 async def list_invocations(
     request: Request,
@@ -260,6 +262,7 @@ async def list_invocations(
     description="Retrieve full invocation details including the result. "
     "NOTE: This endpoint is for testing and debugging. "
     "Production systems should use WebSockets for real-time results.",
+    dependencies=[NO_PERMISSION],
 )
 async def get_invocation(
     invocation_id: Annotated[
@@ -318,6 +321,7 @@ async def get_invocation(
     "/{invocation_id}/cancel",
     summary="Cancel Invocation",
     description="Cancel a running or pending invocation. Only the invocation owner can cancel it.",
+    dependencies=[NO_PERMISSION],
 )
 async def cancel_invocation(
     invocation_id: Annotated[

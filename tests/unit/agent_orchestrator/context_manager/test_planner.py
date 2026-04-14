@@ -19,7 +19,7 @@ from nexus.agent_orchestrator.context_manager import (
 from nexus.agent_orchestrator.context_manager.compressor import get_compressor_service
 from nexus.agent_orchestrator.context_manager.retriever_service.services import get_retriever_service
 from nexus.core.database.session import get_db
-from nexus.core.models import User, UserRole
+from nexus.core.models import User
 from tests.conftest import FakeSettingsCache
 
 
@@ -42,7 +42,6 @@ class TestContextManagerPlanner:
             username="testuser",
             email="testuser@example.com",
             full_name="Test User",
-            role=UserRole.CREATOR,
         )
 
     def test_planner_initialization(self) -> None:

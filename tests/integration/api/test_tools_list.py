@@ -29,7 +29,7 @@ class TestToolsListContract:
     async def test_list_tools_basic_success(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test basic GET /api/v1/tool_manager/tools returns 200."""
         response = await jwt_client.get("/api/v1/tool_manager/tools")
@@ -140,7 +140,7 @@ class TestToolsListContract:
     async def test_list_tools_include_total_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test include_total parameter returns total count."""
         response = await jwt_client.get("/api/v1/tool_manager/tools", params={"include_total": "true"})
@@ -158,7 +158,7 @@ class TestToolsListContract:
     async def test_list_tools_response_schema_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test response matches OpenAPI specification schema."""
         response = await jwt_client.get("/api/v1/tool_manager/tools")
@@ -225,7 +225,7 @@ class TestToolsListContract:
     async def test_list_tools_sorting_by_name_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test sorting tools by name."""
         # Test ascending sort
@@ -253,7 +253,7 @@ class TestToolsListContract:
     async def test_list_tools_combined_filter_and_sort_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test combining filters and sorting."""
         # Filter available tools and sort by name
@@ -276,7 +276,7 @@ class TestToolsListContract:
     async def test_list_tools_filter_by_multiple_criteria_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test filtering by multiple criteria."""
         # Filter available tools with execution count >= 5
@@ -296,7 +296,7 @@ class TestToolsListContract:
     async def test_list_tools_filter_no_results_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test filtering that returns no results."""
         # Filter for tools with a name that won't match any test data
@@ -318,7 +318,7 @@ class TestToolsListContract:
     async def test_list_tools_filter_invalid_enum_value_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test filtering with invalid enum value returns 400."""
         # Filter with invalid status value
@@ -339,7 +339,7 @@ class TestToolsListContract:
     async def test_list_tools_include_total_with_filters_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test include_total works correctly with filters."""
         # Get total for all tools
@@ -369,7 +369,7 @@ class TestToolsListContract:
     async def test_list_tools_pagination_with_filters_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test pagination works correctly with filters."""
         # Get available tools with pagination
@@ -398,7 +398,7 @@ class TestToolsListContract:
     async def test_list_tools_edge_cases_contract(
         self,
         jwt_client: AsyncClient,
-        multiple_test_tools: list[Tool],  # noqa: ARG002
+        multiple_test_tools: list[Tool],
     ) -> None:
         """Test edge cases and boundary conditions."""
         # Test with limit = 0 (should return error)

@@ -6,10 +6,11 @@ HTTP/API concerns in the FastAPI endpoints.
 
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
-from sqlalchemy import delete, insert
+from sqlalchemy import Select, delete, func, insert
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,6 +21,7 @@ from nexus.auth.exceptions import (
     UserAlreadyInGroupError,
     UserNotInGroupError,
 )
+from nexus.authz.resolver import AUTHENTICATED_GROUP_NAME
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.models.group import (
@@ -32,6 +34,7 @@ from nexus.core.models.user_schemas import UserListResponse, UserRead
 from nexus.core.queries.user_queries import get_user_by_id
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
+from nexus.core.utils.filters import Filter
 
 
 class GroupConvertResourceMixin(ConvertResourceMixin):
@@ -90,6 +93,64 @@ class GroupsService(BaseService):
                 raise GroupNameConflictError(group_name) from e
             raise
 
+    async def _get_active_user_count(self) -> int:
+        """Count all active, non-deleted users."""
+        result = await self.session.exec(
+            select(func.count())
+            .select_from(User)
+            .where(
+                User.deleted_at.is_(None),  # type: ignore[union-attr]
+                col(User.is_active) == True,  # noqa: E712
+            )
+        )
+        count: int = result.one()
+        return count
+
+    async def get_member_counts(self, group_ids: list[UUID], group_names: list[str] | None = None) -> dict[UUID, int]:
+        """Get member counts for a batch of groups.
+
+        The implicit ``authenticated`` group counts all active users
+        instead of explicit ``user_groups`` memberships.
+
+        Args:
+            group_ids: UUIDs of the groups to count.
+            group_names: Parallel list of group names (same order as group_ids).
+                         Used to detect the implicit ``authenticated`` group.
+
+        """
+        if not group_ids:
+            return {}
+
+        result = await self.session.exec(
+            select(user_groups.c.group_id, func.count())
+            .where(user_groups.c.group_id.in_(group_ids))
+            .group_by(user_groups.c.group_id)
+        )
+        counts: dict[UUID, int] = dict(result.all())
+
+        # Override count for the implicit "authenticated" group
+        if group_names:
+            auth_ids = [
+                gid for gid, name in zip(group_ids, group_names, strict=True) if name == AUTHENTICATED_GROUP_NAME
+            ]
+            if auth_ids:
+                active_count = await self._get_active_user_count()
+                for gid in auth_ids:
+                    counts[gid] = active_count
+
+        return counts
+
+    async def get_member_count(self, group: Group) -> int:
+        """Get member count for a single group."""
+        counts = await self.get_member_counts([group.id], [group.name])
+        return counts.get(group.id, 0)
+
+    def enrich_group_read(self, group: Group, member_count: int = 0) -> GroupRead:
+        """Convert Group to GroupRead with member_count."""
+        group_read = GroupRead.model_validate(group)
+        group_read.member_count = member_count
+        return group_read
+
     async def create_group(
         self,
         name: str,
@@ -121,6 +182,24 @@ class GroupsService(BaseService):
 
         return group
 
+    @staticmethod
+    def _get_special_field_handlers() -> dict[str, Any]:
+        """Get special field handlers for group-specific filtering."""
+
+        def handle_created_by_name(
+            query: Select[tuple[Group]], filter_obj: Filter, _model: type[Group]
+        ) -> Select[tuple[Group]]:
+            """Filter groups by creator's username (joins User table)."""
+            joined = query.join(User, col(Group.created_by) == col(User.id))
+            value = str(filter_obj.value)
+            if filter_obj.operator.value == "contains":
+                return joined.filter(col(User.username).ilike(f"%{value}%"))
+            if filter_obj.operator.value == "starts_with":
+                return joined.filter(col(User.username).ilike(f"{value}%"))
+            return joined.filter(col(User.username) == value)
+
+        return {"created_by_name": handle_created_by_name}
+
     async def list_groups_cursor(
         self,
         limit: int = 20,
@@ -143,15 +222,26 @@ class GroupsService(BaseService):
             GroupListResponse with groups, pagination metadata, and optional total
 
         """
-        return await self.list_resources(
+        response = await self.list_resources(
             model=Group,
             response_type=GroupListResponse,
             limit=limit,
             cursor=cursor,
             sort=sort or "-created_at",
+            special_field_handlers=self._get_special_field_handlers(),
             query_params_items=query_params_items,
             include_total=include_total,
         )
+
+        # Enrich with member counts
+        if response.resources:
+            group_ids = [r.id for r in response.resources]
+            group_names = [r.name for r in response.resources]
+            counts = await self.get_member_counts(group_ids, group_names)
+            for resource in response.resources:
+                resource.member_count = counts.get(resource.id, 0)
+
+        return response
 
     async def get_group_by_id(self, group_id: UUID) -> Group:
         """Get a group by ID.

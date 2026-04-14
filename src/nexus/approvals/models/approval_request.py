@@ -29,6 +29,14 @@ class BaseApprovalRequest(BaseResource, table=False):
     representations of the deciding user (UUID in database vs UserReference in API).
     """
 
+    # Project scoping (denormalized from execution for efficient filtering)
+    project_id: UUID | None = Field(
+        default=None,
+        foreign_key="projects.id",
+        description="Project this approval belongs to (denormalized from execution)",
+        index=True,
+    )
+
     # User-provided identification
     name: str = Field(
         min_length=1,
@@ -123,6 +131,7 @@ class ApprovalRequest(BaseApprovalRequest, table=True):
         *BaseResource.__filterable_fields__,
         "name",
         "execution_id",
+        "project_id",
         "status",
         "timeout_at",
     ]

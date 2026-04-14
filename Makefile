@@ -268,6 +268,28 @@ temporal-clean: ## Stop Temporal and remove data
 	done
 	@echo "✅ Temporal stopped"
 
+
+# OPA (Authorization)
+# ========================================================
+.PHONY: opa-run
+opa-run: ## Start OPA server (foreground, Ctrl+C to stop)
+	@echo "Starting OPA server..."
+	@echo "OPA API: http://localhost:$${NEXUS_OPA_PORT:-8181}"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	$(COMPOSE_FINAL_CMD) up opa
+
+.PHONY: opa-clean
+opa-clean: ## Stop OPA server
+	@echo "Stopping OPA server..."
+	$(COMPOSE_FINAL_CMD) stop opa || true
+	@echo "OPA stopped"
+
+.PHONY: opa-logs
+opa-logs: ## View OPA server logs
+	@echo "Viewing OPA logs (project: $(PODMAN_PROJECT))..."
+	$(COMPOSE_FINAL_CMD) logs -f opa
+
 .PHONY: build-images
 build-images: ## Build container images for nexus and temporal-worker
 	@echo "🔨 Building container images..."
@@ -326,7 +348,7 @@ services-run: _ensure-secrets ## Start all services (database + cache + temporal
 	@echo "📍 Temporal Server: localhost:$${APP_TEMPORAL_PORT:-7233}"
 	@echo "📍 Temporal UI: http://localhost:$${APP_TEMPORAL_UI_PORT:-8081}"
 	@echo "📍 MCP Server: http://localhost:$${MCP_PORT:-8765}/mcp"
-	$(COMPOSE_FINAL_CMD) up --build --force-recreate -d database redis temporal temporal-ui temporal-worker mcp-server
+	$(COMPOSE_FINAL_CMD) up --build --force-recreate -d database redis temporal temporal-ui temporal-worker mcp-server opa
 	@echo "✅ All services started in background"
 	@echo "   Use 'make services-logs' to view logs"
 	@echo "   Use 'make services-stop' to stop services"
@@ -344,7 +366,7 @@ services-logs: ## View logs from all services
 	@echo ""
 	$(COMPOSE_FINAL_CMD) ps
 	@echo ""
-	$(COMPOSE_FINAL_CMD) logs -f database redis temporal temporal-ui temporal-worker mcp-server
+	$(COMPOSE_FINAL_CMD) logs -f database redis temporal temporal-ui temporal-worker mcp-server opa
 
 
 .PHONY: db-logs
@@ -589,7 +611,7 @@ clean: _clean-test ## Clean up temporary files and development environment
 	rm -rf .mypy_cache/
 	rm -rf dist/ build/ *.egg-info/
 	@if command -v uv >/dev/null 2>&1; then \
-		echo "uv clean"; \
-		uv clean; \
+		echo "uv clean --force"; \
+		uv clean --force; \
 	fi
 	@echo "✅ Cleanup complete"

@@ -40,7 +40,6 @@ def create_service_token() -> str:
         user_id=settings.system_user_id,
         username="system",
         email="system@nexus.local",
-        role="administrator",
         amr=["service"],
         idp="internal",
     )

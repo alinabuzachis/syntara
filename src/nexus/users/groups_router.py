@@ -1,19 +1,15 @@
-"""Groups CRUD API endpoints.
-
-.. todo:: ANSTRAT-1900
-   All endpoints in this module require authentication but lack authorization
-   guards (e.g. ``require_role(ADMINISTRATOR)``).  Role-based access control
-   will be added as part of ANSTRAT-1900.
-"""
+"""Groups CRUD API endpoints."""
 
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import Depends, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
 from nexus.auth.exceptions import UserNotLocalError
+from nexus.auth.session.session_store import SessionStore
+from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.models.base.query_params import BaseListParams
@@ -28,10 +24,17 @@ from nexus.core.models.group import (
     GroupUpdate,
 )
 from nexus.core.models.user_schemas import UserListResponse
+from nexus.core.nexus_router import NexusRouter
 from nexus.core.queries.user_queries import get_user_by_id as get_user
 from nexus.users.services.group_service import GroupsService
 
-router = APIRouter(prefix="/groups", tags=["Groups"])
+router = NexusRouter(prefix="/groups", tags=["Groups"])
+
+_group_create = PermissionChecker("group", "create", roles=["admin"])
+_group_read = PermissionChecker("group", "read", roles=["admin", "auditor", "user", "default"])
+_group_update = PermissionChecker("group", "update", roles=["admin"])
+_group_delete = PermissionChecker("group", "delete", roles=["admin"])
+_group_member_manage = PermissionChecker("group", "manage-members", roles=["admin"])
 
 
 # ============================================================================
@@ -61,8 +64,8 @@ def get_group_service(
 # ============================================================================
 
 
-@router.post("", response_model=GroupRead, status_code=status.HTTP_201_CREATED)
-async def create_group(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.post("", response_model=GroupRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(_group_create)])
+async def create_group(
     request: GroupCreate,
     service: Annotated[GroupsService, Depends(get_group_service)],
 ) -> Group:
@@ -85,8 +88,8 @@ async def create_group(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: 
     )
 
 
-@router.get("")
-async def list_groups(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.get("", dependencies=[Depends(_group_read)])
+async def list_groups(
     request: Request,
     service: Annotated[GroupsService, Depends(get_group_service)],
     params: Annotated[GroupListParams, Query()],
@@ -113,8 +116,8 @@ async def list_groups(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: T
     )
 
 
-@router.get("/{group_id}")
-async def get_group(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.get("/{group_id}", dependencies=[Depends(_group_read)])
+async def get_group(
     group_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
 ) -> GroupRead:
@@ -132,11 +135,12 @@ async def get_group(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD0
 
     """
     group = await service.get_group_by_id(group_id)
-    return GroupRead.model_validate(group)
+    count = await service.get_member_count(group)
+    return service.enrich_group_read(group, count)
 
 
-@router.patch("/{group_id}")
-async def update_group(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.patch("/{group_id}", dependencies=[Depends(_group_update)])
+async def update_group(
     group_id: UUID,
     request: GroupUpdate,
     service: Annotated[GroupsService, Depends(get_group_service)],
@@ -162,11 +166,12 @@ async def update_group(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: 
         name=request.name,
         description=request.description,
     )
-    return GroupRead.model_validate(group)
+    count = await service.get_member_count(group)
+    return service.enrich_group_read(group, count)
 
 
-@router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_group(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(_group_delete)])
+async def delete_group(
     group_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
 ) -> None:
@@ -202,8 +207,8 @@ def _ensure_local_user(user: User) -> None:
         raise UserNotLocalError(user.id)
 
 
-@router.post("/{group_id}/members", status_code=status.HTTP_201_CREATED)
-async def add_member(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.post("/{group_id}/members", status_code=status.HTTP_201_CREATED, dependencies=[Depends(_group_member_manage)])
+async def add_member(
     group_id: UUID,
     request: GroupMemberAdd,
     service: Annotated[GroupsService, Depends(get_group_service)],
@@ -227,11 +232,17 @@ async def add_member(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD
     user = await get_user(db, request.user_id)
     _ensure_local_user(user)
     await service.add_member(group_id, request.user_id)
+    async with SessionStore() as store:
+        await store.increment_token_version(request.user_id)
     return GroupMemberAddResponse()
 
 
-@router.delete("/{group_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_member(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.delete(
+    "/{group_id}/members/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(_group_member_manage)],
+)
+async def remove_member(
     group_id: UUID,
     user_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
@@ -252,10 +263,12 @@ async def remove_member(  # TODO(ANSTRAT-1900): add authorization guard  # noqa:
     user = await get_user(db, user_id)
     _ensure_local_user(user)
     await service.remove_member(group_id, user_id)
+    async with SessionStore() as store:
+        await store.increment_token_version(user_id)
 
 
-@router.get("/{group_id}/members")
-async def list_members(  # TODO(ANSTRAT-1900): add authorization guard  # noqa: TD003
+@router.get("/{group_id}/members", dependencies=[Depends(_group_read)])
+async def list_members(
     group_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
     params: Annotated[BaseListParams, Query()],

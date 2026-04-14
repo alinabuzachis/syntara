@@ -21,7 +21,7 @@ from nexus.auth.exceptions import (
     UserNotInGroupError,
 )
 from nexus.auth.passwords import hash_password
-from nexus.core.models import User, UserRole
+from nexus.core.models import User
 from nexus.core.models.group import Group
 from nexus.users.services.group_service import GroupsService
 
@@ -35,7 +35,6 @@ async def _create_test_user(session: AsyncSession, username: str, email: str) ->
         username=username,
         email=email,
         full_name=f"Test {username}",
-        role=UserRole.VIEWER,
         password_hash=hash_password(TEST_PASSWORD),
     )
     session.add(user)

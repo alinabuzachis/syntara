@@ -7,10 +7,13 @@ from uuid import uuid4
 import pytest
 from fastapi.security import HTTPAuthorizationCredentials
 
-from nexus.auth.dependencies import _user_from_payload, get_current_user, get_token_payload
+from nexus.auth.dependencies import (
+    _user_from_payload,
+    get_current_user,
+    get_token_payload,
+)
 from nexus.auth.exceptions import AuthenticationRequiredError, InvalidTokenError
 from nexus.auth.services.token_service import TokenPayload
-from nexus.core.models.user import UserRole
 
 
 def _make_payload(
@@ -46,7 +49,6 @@ class TestUserFromPayload:
         assert user.id == user_id
         assert user.username == "alice"
         assert user.email == "alice@x.com"
-        assert user.role == UserRole.ADMINISTRATOR
         assert user.is_active is True
 
     def test_raises_invalid_token_for_non_uuid_sub(self) -> None:
@@ -73,16 +75,15 @@ class TestUserFromPayload:
 class TestGetCurrentUser:
     """Tests for get_current_user dependency."""
 
-    @pytest.mark.asyncio
-    async def test_raises_when_no_credentials(self) -> None:
+    def test_raises_when_no_credentials(self) -> None:
         """Should raise AuthenticationRequiredError when credentials are None."""
         request = MagicMock()
+        request.headers = {}
 
         with pytest.raises(AuthenticationRequiredError):
             get_current_user(request, credentials=None)
 
-    @pytest.mark.asyncio
-    async def test_returns_user_for_valid_token(self) -> None:
+    def test_returns_user_for_valid_token(self) -> None:
         """Should return a User for a valid access token."""
         user_id = uuid4()
         payload = _make_payload(sub=str(user_id), preferred_username="bob")
@@ -92,6 +93,7 @@ class TestGetCurrentUser:
 
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="valid-jwt")
         request = MagicMock()
+        request.headers = {}
 
         with patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service):
             user = get_current_user(request, credentials=credentials)
@@ -100,14 +102,14 @@ class TestGetCurrentUser:
         assert user.username == "bob"
         mock_token_service.decode_token.assert_called_once_with("valid-jwt", token_type="access")  # noqa: S106
 
-    @pytest.mark.asyncio
-    async def test_propagates_invalid_token_error(self) -> None:
+    def test_propagates_invalid_token_error(self) -> None:
         """Should propagate InvalidTokenError from token service."""
         mock_token_service = MagicMock()
         mock_token_service.decode_token.side_effect = InvalidTokenError
 
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="bad-jwt")
         request = MagicMock()
+        request.headers = {}
 
         with (
             patch("nexus.auth.dependencies._get_token_service", return_value=mock_token_service),

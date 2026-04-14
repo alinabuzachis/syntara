@@ -257,17 +257,17 @@ The following items are explicitly out of scope for this feature:
 - Require a system-level service account that bypasses RBAC entirely (security risk)
 - Lose traceability of which user initiated the action (ANSTRAT-1740 violation)
 
-**Scope**: This is explicitly **out of scope** for the initial auth implementation. A separate spec/proposal will define the full impersonation mechanism. However, this feature must prepare the entrypoint:
+**Scope**: This is explicitly **out of scope** for the initial auth implementation. A separate spec/proposal will define the full delegation mechanism. However, this feature must prepare the entrypoint:
 
-- **Stub function**: Implement a simple authorization function that receives a user ID and role as parameters and returns `true`. This function will serve as the entrypoint for the future impersonation logic, allowing internal calls to be authorized without a JWT token.
+- **Stub function**: Implement a simple authorization function that receives a user ID and role as parameters and returns `true`. This function will serve as the entrypoint for the future delegation logic, allowing internal calls to be authorized without a JWT token.
 - **Call sites**: Internal API calls from Temporal Workers (e.g., activity node executing `POST /api/v1/invocations`) must use this stub instead of requiring a Bearer token.
 - **Traceability**: Even with the stub, the originating user ID must be propagated through the Temporal workflow context so that audit events (ANSTRAT-1740) can attribute the action to the correct user.
 
 **Future proposal should address**:
 - Secure role delegation mechanism (user → system)
 - Scoped internal tokens or service-to-service auth
-- Time-limited impersonation with audit trail
-- Prevention of privilege escalation through impersonation
+- Time-limited delegation with audit trail
+- Prevention of privilege escalation through delegation
 
 ---
 

@@ -1,7 +1,6 @@
 """Example API endpoints."""
 
-from fastapi import APIRouter
-
+from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.example.models import (
     CreateExampleRequest,
     DeleteResponse,
@@ -11,10 +10,10 @@ from nexus.example.models import (
     UpdateExampleRequest,
 )
 
-router = APIRouter()
+router = NexusRouter()
 
 
-@router.get("/example")
+@router.get("/example", dependencies=[NO_PERMISSION])
 async def get_example(limit: int = 10) -> ExampleListResponse:
     """Get example data.
 
@@ -50,7 +49,7 @@ async def get_example(limit: int = 10) -> ExampleListResponse:
     )
 
 
-@router.post("/example")
+@router.post("/example", dependencies=[NO_PERMISSION])
 async def create_example(request: CreateExampleRequest) -> ExampleItem:
     """Create a new example item.
 
@@ -71,7 +70,7 @@ async def create_example(request: CreateExampleRequest) -> ExampleItem:
     )
 
 
-@router.get("/example/{item_id}")
+@router.get("/example/{item_id}", dependencies=[NO_PERMISSION])
 async def get_example_by_id(item_id: int) -> ExampleItem:
     """Get a single example item by ID.
 
@@ -92,7 +91,7 @@ async def get_example_by_id(item_id: int) -> ExampleItem:
     )
 
 
-@router.put("/example/{item_id}")
+@router.put("/example/{item_id}", dependencies=[NO_PERMISSION])
 async def update_example(
     item_id: int,
     request: UpdateExampleRequest,
@@ -117,7 +116,7 @@ async def update_example(
     )
 
 
-@router.delete("/example/{item_id}")
+@router.delete("/example/{item_id}", dependencies=[NO_PERMISSION])
 async def delete_example(item_id: int) -> DeleteResponse:
     """Delete an example item.
 

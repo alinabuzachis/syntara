@@ -1,0 +1,157 @@
+---
+openapi: 3.1.0
+info:
+  title: Nexus User Role Assignments API
+  version: 1.0.0
+  description: |
+    System-level user-to-role assignment endpoints for the Nexus platform.
+
+    These endpoints manage direct role assignments to individual users
+    at the system level (not project-scoped).
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: User Role Assignments
+    description: System-level user-to-role assignment management
+
+paths:
+  /user-role-assignments:
+    post:
+      summary: Assign a role to a user
+      description: |
+        Assign a role directly to a user at the system level.
+        Requires: admin permission.
+      operationId: assign_user_role
+      tags:
+        - User Role Assignments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRoleAssignmentCreate"
+      responses:
+        "201":
+          description: Role assigned to user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserRoleAssignmentRead"
+        "404":
+          description: User or role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        "409":
+          description: Assignment already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    get:
+      summary: List all user-role assignments
+      description: List all system-level user-to-role assignments.
+      operationId: list_user_role_assignments
+      tags:
+        - User Role Assignments
+      responses:
+        "200":
+          description: List of user-role assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserRoleAssignmentRead"
+
+  /user-role-assignments/{assignment_id}:
+    delete:
+      summary: Remove a user-role assignment
+      description: |
+        Remove a user-to-role assignment.
+        Requires: admin permission.
+      operationId: revoke_user_role_assignment
+      tags:
+        - User Role Assignments
+      parameters:
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Assignment UUID
+      responses:
+        "204":
+          description: Assignment removed
+        "404":
+          description: Assignment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+components:
+  schemas:
+    UserRoleAssignmentCreate:
+      type: object
+      title: User Role Assignment Create
+      description: Request body for assigning a role to a user
+      required:
+        - user_id
+        - role_id
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID
+        role_id:
+          type: string
+          format: uuid
+          description: Role UUID
+
+    UserRoleAssignmentRead:
+      type: object
+      title: User Role Assignment Read
+      description: Response body for a user-to-role assignment
+      required:
+        - id
+        - user_id
+        - username
+        - role_id
+        - role_name
+      properties:
+        id:
+          type: string
+          description: Assignment ID
+        user_id:
+          type: string
+          description: User UUID
+        username:
+          type: string
+          description: Username
+        role_id:
+          type: string
+          description: Role UUID
+        role_name:
+          type: string
+          description: Role name
+        created_at:
+          type: [string, "null"]
+          format: date-time
+          description: Creation timestamp
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication
+
+security:
+  - bearerAuth: []

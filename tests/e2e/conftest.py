@@ -55,7 +55,6 @@ def _generate_e2e_token() -> str:
         user_id=admin_id,
         username="admin",
         email="admin@nexus.local",
-        role="administrator",
     )
 
 

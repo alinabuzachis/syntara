@@ -1291,6 +1291,25 @@ class CredentialEncryptionSettings(BaseSettings):
 
 
 # =============================================================================
+# Authorization Configuration
+# =============================================================================
+
+
+class AuthzSettings(BaseSettings):
+    """Authorization and OPA configuration settings."""
+
+    opa_url: str = Field(
+        default="http://localhost:8181",
+        description="OPA server URL for policy evaluation",
+    )
+
+    authz_default_project: str = Field(
+        default="default",
+        description="Default project name for resources without a project",
+    )
+
+
+# =============================================================================
 # Main Settings
 # =============================================================================
 
@@ -1320,6 +1339,7 @@ class Settings(
     WorkflowClientSettings,
     TelemetrySettings,
     MetricsSettings,
+    AuthzSettings,
 ):
     """Application-wide settings.
 

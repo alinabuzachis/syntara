@@ -88,6 +88,7 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
                 *UserOwnedResource.__filterable_fields__,
                 *SoftDeletableResource.__filterable_fields__,
                 "workflow_id",
+                "project_id",
                 "status",
                 "completed_at",
             ]
@@ -120,6 +121,13 @@ class Execution(UserOwnedResource, SoftDeletableResource, table=True):
         nullable=False,
         ondelete="RESTRICT",
         description="Workflow version ID executed",
+    )
+
+    project_id: UUID | None = Field(
+        default=None,
+        foreign_key="projects.id",
+        description="Project this execution belongs to (denormalized from workflow)",
+        index=True,
     )
 
     # Temporal workflow ID
@@ -270,6 +278,7 @@ class ExecutionRead(SQLModel):
     id: UUID
     workflow_id: UUID
     workflow_version_id: UUID
+    project_id: UUID | None = None
     temporal_workflow_id: str
     status: ExecutionStatus
     created_by: UUID  # User who started the execution

@@ -16,14 +16,14 @@ class TestGroupsCreateContract:
     """Contract tests for group create endpoint."""
 
     @pytest.mark.asyncio
-    async def test_create_group_success(self, auth_client: AsyncClient) -> None:
+    async def test_create_group_success(self, admin_client: AsyncClient) -> None:
         """Test successful group creation returns 201."""
         group_data = {
             "name": "engineering",
             "description": "Engineering team group",
         }
 
-        response = await auth_client.post(GROUPS_URL, json=group_data)
+        response = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response.status_code == 201
 
@@ -33,24 +33,24 @@ class TestGroupsCreateContract:
         assert data["description"] == "Engineering team group"
 
     @pytest.mark.asyncio
-    async def test_create_group_without_description(self, auth_client: AsyncClient) -> None:
+    async def test_create_group_without_description(self, admin_client: AsyncClient) -> None:
         """Test successful group creation without optional description."""
-        group_data = {"name": "admins"}
+        group_data = {"name": "no-desc-group"}
 
-        response = await auth_client.post(GROUPS_URL, json=group_data)
+        response = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response.status_code == 201
 
         data = response.json()
-        assert data["name"] == "admins"
+        assert data["name"] == "no-desc-group"
         assert data["description"] is None
 
     @pytest.mark.asyncio
-    async def test_create_group_response_schema(self, auth_client: AsyncClient) -> None:
+    async def test_create_group_response_schema(self, admin_client: AsyncClient) -> None:
         """Test response includes all required GroupRead fields."""
         group_data = {"name": "schema-test-group"}
 
-        response = await auth_client.post(GROUPS_URL, json=group_data)
+        response = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response.status_code == 201
 
@@ -65,26 +65,26 @@ class TestGroupsCreateContract:
         assert isinstance(data["updated_at"], str)
 
     @pytest.mark.asyncio
-    async def test_create_group_sets_created_by(self, auth_client: AsyncClient, test_user: User) -> None:
+    async def test_create_group_sets_created_by(self, admin_client: AsyncClient, admin_user: User) -> None:
         """Test created_by is set to the authenticated user's ID."""
         group_data = {"name": "created-by-test"}
 
-        response = await auth_client.post(GROUPS_URL, json=group_data)
+        response = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response.status_code == 201
 
         data = response.json()
-        assert data["created_by"] == str(test_user.id)
+        assert data["created_by"] == str(admin_user.id)
 
     @pytest.mark.asyncio
-    async def test_create_group_duplicate_name_conflict(self, auth_client: AsyncClient) -> None:
+    async def test_create_group_duplicate_name_conflict(self, admin_client: AsyncClient) -> None:
         """Test 409 conflict for duplicate group names."""
         group_data = {"name": "duplicate-group"}
 
-        response1 = await auth_client.post(GROUPS_URL, json=group_data)
+        response1 = await admin_client.post(GROUPS_URL, json=group_data)
         assert response1.status_code == 201
 
-        response2 = await auth_client.post(GROUPS_URL, json=group_data)
+        response2 = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response2.status_code == 409
         assert_error_data(
@@ -97,50 +97,50 @@ class TestGroupsCreateContract:
         )
 
     @pytest.mark.asyncio
-    async def test_create_group_missing_name(self, auth_client: AsyncClient) -> None:
+    async def test_create_group_missing_name(self, admin_client: AsyncClient) -> None:
         """Test validation error for missing name field."""
         group_data: dict[str, str] = {}
 
-        response = await auth_client.post(GROUPS_URL, json=group_data)
+        response = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_group_empty_name(self, auth_client: AsyncClient) -> None:
+    async def test_create_group_empty_name(self, admin_client: AsyncClient) -> None:
         """Test validation error for empty name."""
         group_data = {"name": ""}
 
-        response = await auth_client.post(GROUPS_URL, json=group_data)
+        response = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_group_name_too_long(self, auth_client: AsyncClient) -> None:
+    async def test_create_group_name_too_long(self, admin_client: AsyncClient) -> None:
         """Test validation error for name exceeding max length."""
         group_data = {"name": "x" * 256}
 
-        response = await auth_client.post(GROUPS_URL, json=group_data)
+        response = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_group_description_too_long(self, auth_client: AsyncClient) -> None:
+    async def test_create_group_description_too_long(self, admin_client: AsyncClient) -> None:
         """Test validation error for description exceeding max length."""
         group_data = {
             "name": "long-desc-group",
             "description": "x" * 2001,
         }
 
-        response = await auth_client.post(GROUPS_URL, json=group_data)
+        response = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_group_with_max_length_name(self, auth_client: AsyncClient) -> None:
+    async def test_create_group_with_max_length_name(self, admin_client: AsyncClient) -> None:
         """Test group creation with name at max length boundary."""
         group_data = {"name": "x" * 255}
 
-        response = await auth_client.post(GROUPS_URL, json=group_data)
+        response = await admin_client.post(GROUPS_URL, json=group_data)
 
         assert response.status_code == 201
 

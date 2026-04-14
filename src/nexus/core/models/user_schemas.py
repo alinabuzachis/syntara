@@ -15,7 +15,6 @@ from sqlmodel import Field, SQLModel
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.pagination import ResourcesResponse
-from nexus.core.models.user import UserRole
 
 
 class UserCreate(SQLModel):
@@ -28,7 +27,6 @@ class UserCreate(SQLModel):
     email: EmailStr = Field(..., max_length=FieldLimits.NAME_MAX_LENGTH, description="Unique email address")
     full_name: str = Field(..., min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="User's display name")
     password: SecretStr = Field(..., min_length=8, description="Plaintext password (will be hashed)")
-    role: UserRole = Field(default=UserRole.VIEWER, description="User role for access control")
     is_active: bool = Field(default=True, description="Account activation status")
 
 
@@ -45,7 +43,6 @@ class UserUpdate(SQLModel):
     password: SecretStr | None = Field(
         None, description="New password (will be hashed). Omit to keep current password."
     )
-    role: UserRole | None = Field(None, description="Update user role")
     is_active: bool | None = Field(None, description="Enable or disable user account")
 
 
@@ -61,7 +58,6 @@ class UserRead(SQLModel):
     username: str
     email: str
     full_name: str
-    role: UserRole
     is_active: bool
     last_login: datetime | None = None
     created_at: datetime

@@ -18,9 +18,9 @@ class TestAddMember:
     """Tests for POST /auth/groups/{group_id}/members."""
 
     @pytest.mark.asyncio
-    async def test_add_member_success(self, auth_client: AsyncClient, test_group: Group, test_user: User) -> None:
+    async def test_add_member_success(self, admin_client: AsyncClient, test_group: Group, test_user: User) -> None:
         """Test successfully adding a user to a group returns 201."""
-        response = await auth_client.post(
+        response = await admin_client.post(
             f"{GROUPS_URL}/{test_group.id}/members",
             json={"user_id": str(test_user.id)},
         )
@@ -31,13 +31,13 @@ class TestAddMember:
 
     @pytest.mark.asyncio
     async def test_add_member_already_exists(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
         """Test 409 when adding a user who is already a member."""
         group, members = group_with_members
         existing_member = members[0]
 
-        response = await auth_client.post(
+        response = await admin_client.post(
             f"{GROUPS_URL}/{group.id}/members",
             json={"user_id": str(existing_member.id)},
         )
@@ -53,11 +53,11 @@ class TestAddMember:
         )
 
     @pytest.mark.asyncio
-    async def test_add_member_group_not_found(self, auth_client: AsyncClient, test_user: User) -> None:
+    async def test_add_member_group_not_found(self, admin_client: AsyncClient, test_user: User) -> None:
         """Test 404 when group does not exist."""
         fake_group_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await auth_client.post(
+        response = await admin_client.post(
             f"{GROUPS_URL}/{fake_group_id}/members",
             json={"user_id": str(test_user.id)},
         )
@@ -65,11 +65,11 @@ class TestAddMember:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_add_member_user_not_found(self, auth_client: AsyncClient, test_group: Group) -> None:
+    async def test_add_member_user_not_found(self, admin_client: AsyncClient, test_group: Group) -> None:
         """Test 404 when user does not exist."""
         fake_user_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await auth_client.post(
+        response = await admin_client.post(
             f"{GROUPS_URL}/{test_group.id}/members",
             json={"user_id": fake_user_id},
         )
@@ -78,10 +78,10 @@ class TestAddMember:
 
     @pytest.mark.asyncio
     async def test_add_member_non_local_user(
-        self, auth_client: AsyncClient, test_group: Group, non_local_user: User
+        self, admin_client: AsyncClient, test_group: Group, non_local_user: User
     ) -> None:
         """Test 403 when adding a non-local (federated) user to a group."""
-        response = await auth_client.post(
+        response = await admin_client.post(
             f"{GROUPS_URL}/{test_group.id}/members",
             json={"user_id": str(non_local_user.id)},
         )
@@ -114,13 +114,13 @@ class TestRemoveMember:
 
     @pytest.mark.asyncio
     async def test_remove_member_success(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
         """Test successfully removing a member returns 204."""
         group, members = group_with_members
         member_to_remove = members[0]
 
-        response = await auth_client.delete(
+        response = await admin_client.delete(
             f"{GROUPS_URL}/{group.id}/members/{member_to_remove.id}",
         )
 
@@ -128,10 +128,10 @@ class TestRemoveMember:
 
     @pytest.mark.asyncio
     async def test_remove_member_not_a_member(
-        self, auth_client: AsyncClient, test_group: Group, test_user: User
+        self, admin_client: AsyncClient, test_group: Group, test_user: User
     ) -> None:
         """Test 404 when user is not a member of the group."""
-        response = await auth_client.delete(
+        response = await admin_client.delete(
             f"{GROUPS_URL}/{test_group.id}/members/{test_user.id}",
         )
 
@@ -146,11 +146,11 @@ class TestRemoveMember:
         )
 
     @pytest.mark.asyncio
-    async def test_remove_member_group_not_found(self, auth_client: AsyncClient, test_user: User) -> None:
+    async def test_remove_member_group_not_found(self, admin_client: AsyncClient, test_user: User) -> None:
         """Test 404 when group does not exist."""
         fake_group_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await auth_client.delete(
+        response = await admin_client.delete(
             f"{GROUPS_URL}/{fake_group_id}/members/{test_user.id}",
         )
 
@@ -158,10 +158,10 @@ class TestRemoveMember:
 
     @pytest.mark.asyncio
     async def test_remove_member_non_local_user(
-        self, auth_client: AsyncClient, test_group: Group, non_local_user: User
+        self, admin_client: AsyncClient, test_group: Group, non_local_user: User
     ) -> None:
         """Test 403 when removing a non-local (federated) user from a group."""
-        response = await auth_client.delete(
+        response = await admin_client.delete(
             f"{GROUPS_URL}/{test_group.id}/members/{non_local_user.id}",
         )
 
@@ -192,12 +192,12 @@ class TestListMembers:
 
     @pytest.mark.asyncio
     async def test_list_members_basic(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
         """Test listing group members returns 200 with members."""
         group, members = group_with_members
 
-        response = await auth_client.get(f"{GROUPS_URL}/{group.id}/members")
+        response = await admin_client.get(f"{GROUPS_URL}/{group.id}/members")
 
         assert response.status_code == 200
 
@@ -207,17 +207,17 @@ class TestListMembers:
 
     @pytest.mark.asyncio
     async def test_list_members_response_schema(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
         """Test each member in response includes required user fields."""
         group, _members = group_with_members
 
-        response = await auth_client.get(f"{GROUPS_URL}/{group.id}/members")
+        response = await admin_client.get(f"{GROUPS_URL}/{group.id}/members")
 
         assert response.status_code == 200
 
         data = response.json()
-        required_fields = ["id", "username", "email", "full_name", "role", "is_active"]
+        required_fields = ["id", "username", "email", "full_name", "is_active"]
         for member in data["resources"]:
             for field in required_fields:
                 assert field in member, f"Missing required field: {field}"
@@ -225,9 +225,9 @@ class TestListMembers:
             assert "password_hash" not in member
 
     @pytest.mark.asyncio
-    async def test_list_members_empty_group(self, auth_client: AsyncClient, test_group: Group) -> None:
+    async def test_list_members_empty_group(self, admin_client: AsyncClient, test_group: Group) -> None:
         """Test listing members of a group with no members."""
-        response = await auth_client.get(f"{GROUPS_URL}/{test_group.id}/members")
+        response = await admin_client.get(f"{GROUPS_URL}/{test_group.id}/members")
 
         assert response.status_code == 200
 
@@ -237,12 +237,12 @@ class TestListMembers:
 
     @pytest.mark.asyncio
     async def test_list_members_pagination(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
         """Test pagination with limit parameter."""
         group, _members = group_with_members
 
-        response = await auth_client.get(f"{GROUPS_URL}/{group.id}/members", params={"limit": 1})
+        response = await admin_client.get(f"{GROUPS_URL}/{group.id}/members", params={"limit": 1})
 
         assert response.status_code == 200
 
@@ -251,11 +251,11 @@ class TestListMembers:
         assert data.get("next") is not None
 
     @pytest.mark.asyncio
-    async def test_list_members_group_not_found(self, auth_client: AsyncClient) -> None:
+    async def test_list_members_group_not_found(self, admin_client: AsyncClient) -> None:
         """Test 404 when group does not exist."""
         fake_group_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await auth_client.get(f"{GROUPS_URL}/{fake_group_id}/members")
+        response = await admin_client.get(f"{GROUPS_URL}/{fake_group_id}/members")
 
         assert response.status_code == 404
 
@@ -268,12 +268,12 @@ class TestListMembers:
 
     @pytest.mark.asyncio
     async def test_list_members_sorted_by_username(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
         """Test that members are sorted by username."""
         group, _members = group_with_members
 
-        response = await auth_client.get(f"{GROUPS_URL}/{group.id}/members")
+        response = await admin_client.get(f"{GROUPS_URL}/{group.id}/members")
 
         assert response.status_code == 200
 
@@ -287,13 +287,13 @@ class TestListUserGroups:
 
     @pytest.mark.asyncio
     async def test_list_user_groups_basic(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
         """Test listing groups for a user returns 200 with groups."""
         group, members = group_with_members
         member = members[0]
 
-        response = await auth_client.get(f"{USERS_URL}/{member.id}/groups")
+        response = await admin_client.get(f"{USERS_URL}/{member.id}/groups")
 
         assert response.status_code == 200
 
@@ -306,13 +306,13 @@ class TestListUserGroups:
 
     @pytest.mark.asyncio
     async def test_list_user_groups_response_schema(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
         """Test each group in response includes required fields."""
         _group, members = group_with_members
         member = members[0]
 
-        response = await auth_client.get(f"{USERS_URL}/{member.id}/groups")
+        response = await admin_client.get(f"{USERS_URL}/{member.id}/groups")
 
         assert response.status_code == 200
 
@@ -323,22 +323,23 @@ class TestListUserGroups:
                 assert field in group, f"Missing required field: {field}"
 
     @pytest.mark.asyncio
-    async def test_list_user_groups_no_memberships(self, auth_client: AsyncClient, test_user: User) -> None:
-        """Test listing groups for a user with no memberships."""
-        response = await auth_client.get(f"{USERS_URL}/{test_user.id}/groups")
+    async def test_list_user_groups_only_default(self, admin_client: AsyncClient, test_user: User) -> None:
+        """Test listing groups for a user with only default group membership."""
+        response = await admin_client.get(f"{USERS_URL}/{test_user.id}/groups")
 
         assert response.status_code == 200
 
         data = response.json()
         assert "resources" in data
-        assert len(data["resources"]) == 0
+        # test_user is added to the test-users group by conftest for authz
+        assert len(data["resources"]) >= 1
 
     @pytest.mark.asyncio
-    async def test_list_user_groups_user_not_found(self, auth_client: AsyncClient) -> None:
+    async def test_list_user_groups_user_not_found(self, admin_client: AsyncClient) -> None:
         """Test 404 when user does not exist."""
         fake_user_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await auth_client.get(f"{USERS_URL}/{fake_user_id}/groups")
+        response = await admin_client.get(f"{USERS_URL}/{fake_user_id}/groups")
 
         assert response.status_code == 404
 
@@ -350,17 +351,17 @@ class TestListUserGroups:
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_add_then_list_roundtrip(self, auth_client: AsyncClient, test_group: Group, test_user: User) -> None:
+    async def test_add_then_list_roundtrip(self, admin_client: AsyncClient, test_group: Group, test_user: User) -> None:
         """Test adding a member then listing groups for that user shows the group."""
         # Add member
-        add_response = await auth_client.post(
+        add_response = await admin_client.post(
             f"{GROUPS_URL}/{test_group.id}/members",
             json={"user_id": str(test_user.id)},
         )
         assert add_response.status_code == 201
 
         # List user's groups
-        list_response = await auth_client.get(f"{USERS_URL}/{test_user.id}/groups")
+        list_response = await admin_client.get(f"{USERS_URL}/{test_user.id}/groups")
         assert list_response.status_code == 200
 
         data = list_response.json()
@@ -368,29 +369,31 @@ class TestListUserGroups:
         assert str(test_group.id) in group_ids
 
     @pytest.mark.asyncio
-    async def test_add_and_remove_roundtrip(self, auth_client: AsyncClient, test_group: Group, test_user: User) -> None:
+    async def test_add_and_remove_roundtrip(
+        self, admin_client: AsyncClient, test_group: Group, test_user: User
+    ) -> None:
         """Test add, verify membership, remove, verify removal."""
         # Add
-        add_response = await auth_client.post(
+        add_response = await admin_client.post(
             f"{GROUPS_URL}/{test_group.id}/members",
             json={"user_id": str(test_user.id)},
         )
         assert add_response.status_code == 201
 
         # Verify listed
-        list_response = await auth_client.get(f"{GROUPS_URL}/{test_group.id}/members")
+        list_response = await admin_client.get(f"{GROUPS_URL}/{test_group.id}/members")
         assert list_response.status_code == 200
         member_ids = [m["id"] for m in list_response.json()["resources"]]
         assert str(test_user.id) in member_ids
 
         # Remove
-        remove_response = await auth_client.delete(
+        remove_response = await admin_client.delete(
             f"{GROUPS_URL}/{test_group.id}/members/{test_user.id}",
         )
         assert remove_response.status_code == 204
 
         # Verify removed
-        list_response2 = await auth_client.get(f"{GROUPS_URL}/{test_group.id}/members")
+        list_response2 = await admin_client.get(f"{GROUPS_URL}/{test_group.id}/members")
         assert list_response2.status_code == 200
         member_ids2 = [m["id"] for m in list_response2.json()["resources"]]
         assert str(test_user.id) not in member_ids2
@@ -401,13 +404,13 @@ class TestSetUserGroups:
 
     @pytest.mark.asyncio
     async def test_set_user_groups_success(
-        self, auth_client: AsyncClient, test_user: User, multiple_test_groups: list[Group]
+        self, admin_client: AsyncClient, test_user: User, multiple_test_groups: list[Group]
     ) -> None:
         """Test declaratively setting user groups returns 200 with the groups."""
         desired = multiple_test_groups[:2]
         group_ids = [str(g.id) for g in desired]
 
-        response = await auth_client.put(
+        response = await admin_client.put(
             f"{USERS_URL}/{test_user.id}/groups",
             json={"group_ids": group_ids},
         )
@@ -421,7 +424,7 @@ class TestSetUserGroups:
 
     @pytest.mark.asyncio
     async def test_set_user_groups_replaces_existing(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]], multiple_test_groups: list[Group]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]], multiple_test_groups: list[Group]
     ) -> None:
         """Test that PUT replaces existing memberships with the new list."""
         old_group, members = group_with_members
@@ -431,7 +434,7 @@ class TestSetUserGroups:
         new_groups = multiple_test_groups[:2]
         new_ids = [str(g.id) for g in new_groups]
 
-        response = await auth_client.put(
+        response = await admin_client.put(
             f"{USERS_URL}/{member.id}/groups",
             json={"group_ids": new_ids},
         )
@@ -446,13 +449,13 @@ class TestSetUserGroups:
 
     @pytest.mark.asyncio
     async def test_set_user_groups_empty_clears_all(
-        self, auth_client: AsyncClient, group_with_members: tuple[Group, list[User]]
+        self, admin_client: AsyncClient, group_with_members: tuple[Group, list[User]]
     ) -> None:
         """Test that sending an empty list removes all memberships."""
         _group, members = group_with_members
         member = members[0]
 
-        response = await auth_client.put(
+        response = await admin_client.put(
             f"{USERS_URL}/{member.id}/groups",
             json={"group_ids": []},
         )
@@ -464,18 +467,18 @@ class TestSetUserGroups:
 
     @pytest.mark.asyncio
     async def test_set_user_groups_idempotent(
-        self, auth_client: AsyncClient, test_user: User, multiple_test_groups: list[Group]
+        self, admin_client: AsyncClient, test_user: User, multiple_test_groups: list[Group]
     ) -> None:
         """Test that setting the same groups twice is idempotent."""
         group_ids = [str(g.id) for g in multiple_test_groups[:2]]
 
-        response1 = await auth_client.put(
+        response1 = await admin_client.put(
             f"{USERS_URL}/{test_user.id}/groups",
             json={"group_ids": group_ids},
         )
         assert response1.status_code == 200
 
-        response2 = await auth_client.put(
+        response2 = await admin_client.put(
             f"{USERS_URL}/{test_user.id}/groups",
             json={"group_ids": group_ids},
         )
@@ -484,11 +487,11 @@ class TestSetUserGroups:
         assert response1.json()["resources"] == response2.json()["resources"]
 
     @pytest.mark.asyncio
-    async def test_set_user_groups_nonexistent_group(self, auth_client: AsyncClient, test_user: User) -> None:
+    async def test_set_user_groups_nonexistent_group(self, admin_client: AsyncClient, test_user: User) -> None:
         """Test 404 when a group ID does not exist."""
         fake_group_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await auth_client.put(
+        response = await admin_client.put(
             f"{USERS_URL}/{test_user.id}/groups",
             json={"group_ids": [fake_group_id]},
         )
@@ -497,13 +500,13 @@ class TestSetUserGroups:
 
     @pytest.mark.asyncio
     async def test_set_user_groups_nonexistent_user(
-        self, auth_client: AsyncClient, multiple_test_groups: list[Group]
+        self, admin_client: AsyncClient, multiple_test_groups: list[Group]
     ) -> None:
         """Test 404 when user does not exist."""
         fake_user_id = "99999999-9999-9999-9999-999999999999"
         group_ids = [str(g.id) for g in multiple_test_groups[:1]]
 
-        response = await auth_client.put(
+        response = await admin_client.put(
             f"{USERS_URL}/{fake_user_id}/groups",
             json={"group_ids": group_ids},
         )
@@ -512,12 +515,12 @@ class TestSetUserGroups:
 
     @pytest.mark.asyncio
     async def test_set_user_groups_non_local_user(
-        self, auth_client: AsyncClient, non_local_user: User, multiple_test_groups: list[Group]
+        self, admin_client: AsyncClient, non_local_user: User, multiple_test_groups: list[Group]
     ) -> None:
         """Test 403 when setting groups for a non-local (federated) user."""
         group_ids = [str(g.id) for g in multiple_test_groups[:1]]
 
-        response = await auth_client.put(
+        response = await admin_client.put(
             f"{USERS_URL}/{non_local_user.id}/groups",
             json={"group_ids": group_ids},
         )

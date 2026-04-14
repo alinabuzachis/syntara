@@ -62,6 +62,36 @@ async def cleanup_sessions() -> AsyncGenerator[None, None]:
     await _cleanup()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def cleanup_token_version() -> AsyncGenerator[None, None]:
+    """Clean up all user_token_version:* keys before and after each test."""
+    settings = get_settings()
+
+    async def _cleanup() -> None:
+        client = redis.Redis(
+            host=settings.cache_host,
+            port=settings.cache_port,
+            db=settings.cache_db,
+            password=settings.cache_password.get_secret_value() if settings.cache_password else None,
+            decode_responses=True,
+        )
+        try:
+            pattern = "user_token_version:*"
+            cursor = 0
+            while True:
+                cursor, keys = await client.scan(cursor, match=pattern, count=100)
+                if keys:
+                    await client.delete(*keys)
+                if cursor == 0:
+                    break
+        finally:
+            await client.aclose()
+
+    await _cleanup()
+    yield
+    await _cleanup()
+
+
 # ============================================================================
 # Tests
 # ============================================================================
@@ -331,3 +361,43 @@ class TestSessionStoreContextManager:
 
         assert session is not None
         assert session.user_id == str(user_id)
+
+
+class TestTokenVersion:
+    """Tests for token version tracking in Redis."""
+
+    @pytest.mark.asyncio
+    async def test_increment_token_version_returns_incrementing_values(self) -> None:
+        """increment_token_version should return incrementing values."""
+        user_id = uuid4()
+
+        async with SessionStore() as store:
+            v1 = await store.increment_token_version(user_id)
+            v2 = await store.increment_token_version(user_id)
+            v3 = await store.increment_token_version(user_id)
+
+        assert v1 == 1
+        assert v2 == 2
+        assert v3 == 3
+
+    @pytest.mark.asyncio
+    async def test_get_token_version_returns_zero_for_unknown_user(self) -> None:
+        """get_token_version should return 0 for a user with no version set."""
+        user_id = uuid4()
+
+        async with SessionStore() as store:
+            version = await store.get_token_version(user_id)
+
+        assert version == 0
+
+    @pytest.mark.asyncio
+    async def test_get_token_version_returns_correct_value_after_increment(self) -> None:
+        """get_token_version should return the correct value after increments."""
+        user_id = uuid4()
+
+        async with SessionStore() as store:
+            await store.increment_token_version(user_id)
+            await store.increment_token_version(user_id)
+            version = await store.get_token_version(user_id)
+
+        assert version == 2

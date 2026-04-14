@@ -18,7 +18,6 @@ from nexus.auth.exceptions import (
 )
 from nexus.auth.passwords import hash_password
 from nexus.core.models import User
-from nexus.core.models.user import UserRole
 from nexus.core.models.user_schemas import (
     UserListResponse,
     UserRead,
@@ -104,7 +103,6 @@ class UsersService(BaseService):
         email: str,
         full_name: str,
         password: str,
-        role: UserRole,
         *,
         is_active: bool = True,
     ) -> User:
@@ -115,7 +113,6 @@ class UsersService(BaseService):
             email: Unique email address
             full_name: User's display name
             password: Plaintext password (will be hashed)
-            role: User role
             is_active: Account activation status
 
         Returns:
@@ -135,7 +132,6 @@ class UsersService(BaseService):
             email=email,
             full_name=full_name,
             password_hash=hash_password(password),
-            role=role,
             is_active=is_active,
         )
 
@@ -198,7 +194,6 @@ class UsersService(BaseService):
         full_name: str | None = None,
         email: str | None = None,
         password: str | None = None,
-        role: UserRole | None = None,
         *,
         is_active: bool | None = None,
     ) -> User:
@@ -209,7 +204,6 @@ class UsersService(BaseService):
             full_name: New display name (optional)
             email: New email (optional)
             password: New plaintext password (optional, will be hashed)
-            role: New role (optional)
             is_active: New activation status (optional)
 
         Returns:
@@ -243,10 +237,6 @@ class UsersService(BaseService):
 
         if password is not None:
             target_user.password_hash = hash_password(password)
-            has_changes = True
-
-        if role is not None:
-            target_user.role = role
             has_changes = True
 
         if is_active is not None:

@@ -1,0 +1,669 @@
+---
+openapi: 3.1.0
+info:
+  title: Nexus Projects API
+  version: 1.0.0
+  description: |
+    Project management and project-scoped resource access for the Nexus platform.
+
+    Projects provide multi-tenant isolation for workflows, approvals, and other
+    resources. Each project has its own role assignments for users and groups.
+
+    ## Key Features
+    - Project CRUD with soft deletion
+    - Project-scoped workflow and approval listing
+    - User role assignments (project-admin, project-user, project-auditor)
+    - Group role assignments with inherited membership
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Projects
+    description: Project CRUD operations
+  - name: Project Workflows
+    description: Project-scoped workflow listing
+  - name: Project Approvals
+    description: Project-scoped approval listing
+  - name: Project Role Assignments
+    description: User role assignments within a project
+  - name: Project Group Role Assignments
+    description: Group role assignments within a project
+
+paths:
+  # ── Project CRUD ─────────────────────────────────────────────────────
+  /projects:
+    post:
+      summary: Create a project
+      description: |
+        Create a new project. The creator is automatically assigned
+        the project-admin role. Requires: project:create permission.
+      operationId: create_project
+      tags:
+        - Projects
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRead"
+        "409":
+          description: Project name conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    get:
+      summary: List projects
+      description: |
+        List projects the current user has read access to.
+        Results are filtered by the user's project-scoped permissions.
+      operationId: list_projects
+      tags:
+        - Projects
+      responses:
+        "200":
+          description: List of accessible projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectRead"
+
+  /projects/{project_id}:
+    get:
+      summary: Get a project by ID
+      description: Requires project:read permission scoped to this project.
+      operationId: get_project
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRead"
+        "404":
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    patch:
+      summary: Update a project
+      description: |
+        Partially update a project. Only provided fields are updated.
+        Requires: project:update permission scoped to this project.
+      operationId: update_project
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRead"
+        "404":
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    put:
+      summary: Update a project (full replacement)
+      description: |
+        Update a project.
+        Requires: project:update permission scoped to this project.
+      operationId: update_project_put
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRead"
+        "404":
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    delete:
+      summary: Delete a project
+      description: |
+        Soft-delete a project.
+        Requires: project:delete permission scoped to this project.
+      operationId: delete_project
+      tags:
+        - Projects
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+      responses:
+        "204":
+          description: Project deleted
+        "404":
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+  # ── Project Workflows ────────────────────────────────────────────────
+  /projects/{project_id}/workflows:
+    get:
+      summary: List workflows in a project
+      description: |
+        List workflows belonging to a specific project.
+        Requires: workflow:read permission scoped to this project.
+      operationId: list_project_workflows
+      tags:
+        - Project Workflows
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Sort field and direction (e.g., 'name', '-created_at')
+      responses:
+        "200":
+          description: Paginated list of workflows in the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowListResponse"
+        "404":
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+  # ── Project Approvals ────────────────────────────────────────────────
+  /projects/{project_id}/approvals:
+    get:
+      summary: List approvals in a project
+      description: |
+        List approval requests belonging to a specific project.
+        Requires: approval:read permission scoped to this project.
+      operationId: list_project_approvals
+      tags:
+        - Project Approvals
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - approved
+              - rejected
+              - expired
+              - cancelled
+          description: Filter by approval status
+        - name: execution_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by parent workflow execution ID
+      responses:
+        "200":
+          description: Paginated list of approvals in the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalListResponse"
+        "404":
+          description: Project not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+  # ── Project User Role Assignments ────────────────────────────────────
+  /projects/{project_id}/roles:
+    post:
+      summary: Assign a role to a user in a project
+      description: |
+        Assign a project-scoped role to a user.
+        Valid roles: project-admin, project-user, project-auditor.
+        Requires: project-role:assign permission scoped to this project.
+      operationId: assign_project_role
+      tags:
+        - Project Role Assignments
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectRoleAssignmentCreate"
+      responses:
+        "201":
+          description: Role assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectRoleAssignmentRead"
+        "404":
+          description: Project, user, or role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        "409":
+          description: Assignment already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    get:
+      summary: List user role assignments for a project
+      description: List all user-to-role assignments within a project.
+      operationId: list_project_roles
+      tags:
+        - Project Role Assignments
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+      responses:
+        "200":
+          description: List of role assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectRoleAssignmentRead"
+
+  /projects/{project_id}/roles/{assignment_id}:
+    delete:
+      summary: Remove a user role assignment from a project
+      description: |
+        Revoke a user's project-scoped role.
+        Requires: project-role:revoke permission scoped to this project.
+      operationId: revoke_project_role
+      tags:
+        - Project Role Assignments
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Assignment UUID
+      responses:
+        "204":
+          description: Assignment removed
+        "404":
+          description: Assignment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+  # ── Project Group Role Assignments ───────────────────────────────────
+  /projects/{project_id}/group-roles:
+    post:
+      summary: Assign a role to a group in a project
+      description: |
+        Assign a project-scoped role to a group. All members of the group
+        inherit the role for this project.
+        Valid roles: project-admin, project-user, project-auditor.
+        Requires: project-role:assign permission scoped to this project.
+      operationId: assign_project_group_role
+      tags:
+        - Project Group Role Assignments
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectGroupRoleAssignmentCreate"
+      responses:
+        "201":
+          description: Role assigned to group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectGroupRoleAssignmentRead"
+        "404":
+          description: Project, group, or role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        "409":
+          description: Assignment already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    get:
+      summary: List group role assignments for a project
+      description: List all group-to-role assignments within a project.
+      operationId: list_project_group_roles
+      tags:
+        - Project Group Role Assignments
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+      responses:
+        "200":
+          description: List of group role assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectGroupRoleAssignmentRead"
+
+  /projects/{project_id}/group-roles/{assignment_id}:
+    delete:
+      summary: Remove a group role assignment from a project
+      description: |
+        Revoke a group's project-scoped role.
+        Requires: project-role:revoke permission scoped to this project.
+      operationId: revoke_project_group_role
+      tags:
+        - Project Group Role Assignments
+      parameters:
+        - $ref: "#/components/parameters/projectIdParam"
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Assignment UUID
+      responses:
+        "204":
+          description: Assignment removed
+        "404":
+          description: Assignment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+components:
+  parameters:
+    projectIdParam:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Project UUID
+
+  schemas:
+    ProjectCreate:
+      type: object
+      title: Project Create
+      description: Request body for creating a project
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Project name
+        description:
+          type: [string, "null"]
+          description: Project description
+        labels:
+          type: object
+          default: {}
+          additionalProperties: true
+          description: Key-value labels
+
+    ProjectUpdate:
+      type: object
+      title: Project Update
+      description: Request body for updating a project (partial)
+      properties:
+        name:
+          type: [string, "null"]
+          description: Update project name
+        description:
+          type: [string, "null"]
+          description: Update description
+        labels:
+          type: [object, "null"]
+          additionalProperties: true
+          description: Update labels
+
+    ProjectRead:
+      type: object
+      title: Project Read
+      description: Response body for a project
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Project UUID
+        name:
+          type: string
+          description: Project name
+        description:
+          type: [string, "null"]
+          description: Project description
+        labels:
+          type: object
+          default: {}
+          additionalProperties: true
+          description: Key-value labels
+        is_default:
+          type: boolean
+          default: false
+          description: Whether this is the default project
+        created_at:
+          type: [string, "null"]
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: [string, "null"]
+          format: date-time
+          description: Last update timestamp
+
+    ProjectRoleAssignmentCreate:
+      type: object
+      title: Project Role Assignment Create
+      description: Request body for assigning a role to a user within a project
+      required:
+        - user_id
+        - role_name
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID
+        role_name:
+          type: string
+          description: "Role name (project-admin, project-user, or project-auditor)"
+
+    ProjectRoleAssignmentRead:
+      type: object
+      title: Project Role Assignment Read
+      description: Response body for a project user role assignment
+      required:
+        - id
+        - user_id
+        - project_id
+        - role_id
+        - role_name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Assignment UUID
+        user_id:
+          type: string
+          format: uuid
+          description: User UUID
+        username:
+          type: string
+          default: ""
+          description: Username (resolved via join)
+        project_id:
+          type: string
+          format: uuid
+          description: Project UUID
+        role_id:
+          type: string
+          format: uuid
+          description: Role UUID
+        role_name:
+          type: string
+          description: Role name
+        created_at:
+          type: [string, "null"]
+          format: date-time
+          description: Creation timestamp
+
+    ProjectGroupRoleAssignmentCreate:
+      type: object
+      title: Project Group Role Assignment Create
+      description: Request body for assigning a role to a group within a project
+      required:
+        - group_id
+        - role_name
+      properties:
+        group_id:
+          type: string
+          format: uuid
+          description: Group UUID
+        role_name:
+          type: string
+          description: "Role name (project-admin, project-user, or project-auditor)"
+
+    ProjectGroupRoleAssignmentRead:
+      type: object
+      title: Project Group Role Assignment Read
+      description: Response body for a project group role assignment
+      required:
+        - id
+        - group_id
+        - project_id
+        - role_id
+        - role_name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Assignment UUID
+        group_id:
+          type: string
+          format: uuid
+          description: Group UUID
+        group_name:
+          type: string
+          default: ""
+          description: Group name (resolved via join)
+        project_id:
+          type: string
+          format: uuid
+          description: Project UUID
+        role_id:
+          type: string
+          format: uuid
+          description: Role UUID
+        role_name:
+          type: string
+          description: Role name
+        created_at:
+          type: [string, "null"]
+          format: date-time
+          description: Creation timestamp
+
+    # Re-used response schemas from other domains (minimal definitions
+    # for the bundled spec to avoid cross-domain $ref issues)
+    WorkflowListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          properties:
+            resources:
+              type: array
+              items:
+                type: object
+                description: Workflow resource (see workflows domain spec for full schema)
+          required:
+            - resources
+
+    ApprovalListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          properties:
+            resources:
+              type: array
+              items:
+                type: object
+                description: Approval request resource (see approvals domain spec for full schema)
+          required:
+            - resources
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication
+
+security:
+  - bearerAuth: []

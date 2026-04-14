@@ -7,6 +7,7 @@ Groups are included in JWT tokens as the ``groups`` claim.
 """
 
 from datetime import datetime
+from enum import StrEnum
 from typing import ClassVar
 from uuid import UUID
 
@@ -19,6 +20,14 @@ from nexus.core.models.base import BaseResource
 from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.base.soft_deletable import SoftDeletableResource
 from nexus.core.models.pagination import ResourcesResponse
+
+
+class GroupSource(StrEnum):
+    """Source of group creation."""
+
+    LOCAL = "local"
+    IDP = "idp"
+
 
 # Many-to-many association table between users and groups
 user_groups = Table(
@@ -56,7 +65,10 @@ class Group(SoftDeletableResource, table=True):
         "created_at",
         "updated_at",
         "name",
+        "description",
         "created_by",
+        "created_by_name",
+        "source",
     ]
 
     # Sortable fields for API list endpoints
@@ -85,6 +97,19 @@ class Group(SoftDeletableResource, table=True):
         default=None,
         foreign_key="users.id",
         description="User who created this group",
+    )
+
+    is_builtin: bool = Field(
+        default=False,
+        description="Whether this is a built-in system group",
+        index=True,
+    )
+
+    source: str = Field(
+        default=GroupSource.LOCAL,
+        sa_type=String(10),  # type: ignore[call-overload]
+        description="Source of group creation (local or idp)",
+        index=True,
     )
 
     # Partial unique index for name (only for non-deleted groups)
@@ -144,9 +169,12 @@ class GroupRead(SQLModel):
     id: UUID
     name: str
     description: str | None = None
+    is_builtin: bool = False
     created_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
+    source: str = GroupSource.LOCAL
+    member_count: int = 0
 
 
 # ============================================================================

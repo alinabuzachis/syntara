@@ -128,7 +128,7 @@ class TestAAPJobTemplateExecution:
     """Test AAP job template execution (basic flow)."""
 
     @pytest.mark.asyncio
-    async def test_successful_job_execution(self, mock_activity_context: object) -> None:  # noqa: ARG002
+    async def test_successful_job_execution(self, mock_activity_context: object) -> None:
         """Test successful job template launch and completion."""
         # Mock responses
         launch_response = create_http_response(200, {"id": 123, "url": "/api/v2/jobs/123/"})
@@ -160,8 +160,8 @@ class TestAAPJobTemplateExecution:
             assert "elapsed_ms" in result["output"]
 
     @pytest.mark.asyncio
-    async def test_failed_job_execution(self, mock_activity_context: object) -> None:  # noqa: ARG002
-        """Test job template execution failure raises error with output."""
+    async def test_failed_job_execution(self, mock_activity_context: object) -> None:
+        """Test job template execution failure returns error result."""
         launch_response = create_http_response(200, {"id": 456, "url": "/api/v2/jobs/456/"})
         failed_status_response = create_http_response(
             200, {"id": 456, "status": "failed", "artifacts": {"failed": 1, "ok": 5}}
@@ -187,8 +187,12 @@ class TestAAPJobTemplateExecution:
             assert result["output"]["error"]["type"] == "AAPJobExecutionError"
 
     @pytest.mark.asyncio
-    async def test_expression_resolution_in_extra_vars(self, mock_activity_context: object) -> None:  # noqa: ARG002
-        """Test expression resolution in extra_vars."""
+    async def test_extra_vars_forwarded_to_aap(self, mock_activity_context: object) -> None:
+        """Test extra_vars are forwarded correctly to AAP API.
+
+        In V2, template expressions are resolved by the workflow engine before
+        calling the activity. The activity receives already-resolved values.
+        """
         launch_response = create_http_response(200, {"id": 789, "url": "/api/v2/jobs/789/"})
         status_response = create_http_response(200, {"id": 789, "status": "successful", "artifacts": {}})
         output_response = create_http_response(200, text="")
@@ -216,8 +220,12 @@ class TestAAPJobTemplateExecution:
             assert call_body["extra_vars"]["deploy_env"] == "staging"
 
     @pytest.mark.asyncio
-    async def test_expression_resolution_in_nested_lists_and_dicts(self, mock_activity_context: object) -> None:  # noqa: ARG002
-        """Test expression resolution in nested lists and dictionaries within extra_vars."""
+    async def test_nested_extra_vars_forwarded_to_aap(self, mock_activity_context: object) -> None:
+        """Test nested lists and dictionaries within extra_vars are forwarded correctly.
+
+        In V2, template expressions are resolved by the workflow engine before
+        calling the activity. The activity receives already-resolved values.
+        """
         launch_response = create_http_response(200, {"id": 890, "url": "/api/v2/jobs/890/"})
         status_response = create_http_response(200, {"id": 890, "status": "successful", "artifacts": {}})
         output_response = create_http_response(200, text="")
@@ -259,7 +267,7 @@ class TestAAPJobTemplateHeartbeat:
     @patch("temporalio.activity.is_cancelled", return_value=False)
     async def test_heartbeat_sent_during_polling(
         self,
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
         aap_settings_overrides: dict[str, object],
     ) -> None:
@@ -305,7 +313,7 @@ class TestAAPJobTemplateCancellation:
     @patch("temporalio.activity.heartbeat")
     async def test_cancel_aap_job_when_activity_cancelled(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
+        mock_heartbeat: object,
         override_settings: Callable[..., AbstractContextManager[object]],
         aap_settings_overrides: dict[str, object],
     ) -> None:
@@ -432,8 +440,8 @@ class TestAAPJobTemplateTimeout:
     @patch("temporalio.activity.heartbeat")
     async def test_job_timeout_during_polling(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
         aap_settings_overrides: dict[str, object],
     ) -> None:
@@ -477,8 +485,8 @@ class TestAAPJobTemplateTimeout:
     @patch("temporalio.activity.heartbeat")
     async def test_job_completes_within_timeout(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
         aap_settings_overrides: dict[str, object],
     ) -> None:
@@ -543,7 +551,7 @@ class TestAAPJobTemplateAuthentication:
     @patch("temporalio.activity.is_cancelled", return_value=False)
     async def test_token_authentication(
         self,
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test AAP token authentication is used."""
@@ -570,7 +578,7 @@ class TestAAPJobTemplateAuthentication:
     @patch("temporalio.activity.is_cancelled", return_value=False)
     async def test_basic_authentication(
         self,
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test AAP basic authentication is used."""
@@ -633,8 +641,8 @@ class TestAAPJobTemplateNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_successful_name_based_execution(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test successful job execution using name-based reference."""
@@ -677,8 +685,8 @@ class TestAAPJobTemplateNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_lookup_template_not_found(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test error when template lookup returns no results."""
@@ -703,8 +711,8 @@ class TestAAPJobTemplateNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_lookup_multiple_templates_found(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test error when template lookup returns multiple results."""
@@ -793,8 +801,8 @@ class TestAAPJobTemplateNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_pre_resolved_name_based_references(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test name-based references with pre-resolved values (v2: dispatcher resolves templates)."""
@@ -834,8 +842,8 @@ class TestAAPJobTemplateNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_backwards_compatibility_id_based(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test that ID-based references still work (backwards compatibility)."""
@@ -864,8 +872,8 @@ class TestAAPJobTemplateNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_id_takes_precedence_over_name(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test that job_template_id takes precedence over job_template_name when both are provided."""
@@ -940,8 +948,8 @@ class TestAAPInventoryNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_inventory_name_lookup_and_job_execution(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test successful inventory lookup by name and job execution."""
@@ -975,8 +983,8 @@ class TestAAPInventoryNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_combined_job_template_and_inventory_name_lookup(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test both job template and inventory using name-based lookups share organization."""
@@ -1019,8 +1027,8 @@ class TestAAPInventoryNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_inventory_lookup_error_cases(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
         lookup_results: dict[str, Any],
         error_match: str,
@@ -1085,10 +1093,10 @@ class TestAAPInventoryNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_lookup_http_status_errors(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
-        resource_type: str,  # noqa: ARG002
+        resource_type: str,
         config_kwargs: dict[str, Any],
         status_code: int,
         error_match: str,
@@ -1174,10 +1182,10 @@ class TestAAPInventoryNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_lookup_connection_errors(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
-        resource_type: str,  # noqa: ARG002
+        resource_type: str,
         config_kwargs: dict[str, Any],
         error_type: type[httpx.HTTPError],
         error_message: str,
@@ -1210,8 +1218,8 @@ class TestAAPInventoryNameBasedReference:
     @patch("temporalio.activity.heartbeat")
     async def test_inventory_id_takes_precedence_over_name(
         self,
-        mock_heartbeat: object,  # noqa: ARG002
-        mock_is_cancelled: object,  # noqa: ARG002
+        mock_heartbeat: object,
+        mock_is_cancelled: object,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test that inventory_id takes precedence over inventory_name when both are provided."""

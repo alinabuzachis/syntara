@@ -15,12 +15,12 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+# Import individual utilities to avoid circular imports
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
 from nexus.core.services.extensions import ConvertResourceMixin, EnrichQueryMixin, PostProcessingMixin
 from nexus.core.services.types import TModel, TResponse
-
-# Import individual utilities to avoid circular imports
 from nexus.core.utils.cursor import (
     PaginationDirection,
     SortDirection,
@@ -376,6 +376,7 @@ class BaseService:
         sort: str | None,
         model: type[TModel],
         special_field_handlers: dict[str, Any] | None = None,
+        allowed_projects: AllowedProjectsResult | None = None,
     ) -> bool:
         """Check if any items exist before the given item (toward first page).
 
@@ -398,6 +399,7 @@ class BaseService:
             sort: Sort parameter (e.g., "-created_at")
             model: BaseResource class to query
             special_field_handlers: Dict mapping field names to custom handler functions
+            allowed_projects: Optional project scope filter result
 
         Returns:
             True if items exist before first_item (not on first page)
@@ -408,6 +410,17 @@ class BaseService:
         check_query: Select[tuple[TModel]] | SelectOfScalar[tuple[TModel]] = select(model)
         if hasattr(model, "deleted_at"):
             check_query = check_query.filter(model.deleted_at.is_(None))  # type: ignore[attr-defined]
+
+        # Apply project scope filter
+        if (
+            allowed_projects is not None
+            and not allowed_projects.all_projects
+            and hasattr(model, "project_id")
+            and allowed_projects.project_ids
+        ):
+            check_query = check_query.filter(
+                model.project_id.in_(allowed_projects.project_ids)  # type: ignore[attr-defined]
+            )
 
         # Apply same filters as main query
         check_query, _ = self._apply_standard_filters(check_query, query_params, model, special_field_handlers)
@@ -433,12 +446,32 @@ class BaseService:
         check_result = await self.session.exec(check_query.limit(1))  # type: ignore[arg-type]
         return check_result.one_or_none() is not None
 
+    @staticmethod
+    def _apply_label_count_filters(
+        query: SelectOfScalar[int],
+        label_filters: dict[str, str],
+        model: type[TModel],
+    ) -> SelectOfScalar[int]:
+        """Apply label filters to a count query."""
+        existence_filters = {k: v for k, v in label_filters.items() if v == ""}
+        value_filters = {k: v for k, v in label_filters.items() if v != ""}
+
+        if value_filters:
+            query = apply_label_filters(query, value_filters, model)  # type: ignore[assignment]
+
+        if existence_filters and hasattr(model, "labels"):
+            for key in existence_filters:
+                query = query.filter(model.labels.has_key(key))  # type: ignore[attr-defined]
+
+        return query
+
     async def _get_total_count(
         self,
         filters: list[Filter],
         model: type[TModel],
         special_field_handlers: dict[str, Any] | None = None,
         label_filters: dict[str, str] | None = None,
+        allowed_projects: AllowedProjectsResult | None = None,
     ) -> int:
         """Get total count of resources matching filters.
 
@@ -447,6 +480,7 @@ class BaseService:
             model: BaseResource class to count
             special_field_handlers: Dict mapping field names to custom handler functions
             label_filters: Dict of label filters to apply
+            allowed_projects: Optional project scope filter result
 
         Returns:
             Total count of matching resources
@@ -456,6 +490,14 @@ class BaseService:
         # Only apply soft delete filter if model has deleted_at field
         if hasattr(model, "deleted_at"):
             count_query = count_query.filter(model.deleted_at.is_(None))  # type: ignore[attr-defined]
+
+        # Apply project scope filter
+        if allowed_projects is not None and not allowed_projects.all_projects and hasattr(model, "project_id"):
+            if not allowed_projects.project_ids:
+                return 0
+            count_query = count_query.filter(
+                model.project_id.in_(allowed_projects.project_ids)  # type: ignore[attr-defined]
+            )
 
         # Apply regular filters
         regular_filters = [f for f in filters if not special_field_handlers or f.field not in special_field_handlers]
@@ -471,18 +513,7 @@ class BaseService:
 
         # Apply label filters
         if label_filters:
-            # Handle empty values (key existence checks) differently than PostgreSQL JSONB
-            existence_filters = {k: v for k, v in label_filters.items() if v == ""}
-            value_filters = {k: v for k, v in label_filters.items() if v != ""}
-
-            # Apply exact value filters using JSONB contains
-            if value_filters:
-                count_query = apply_label_filters(count_query, value_filters, model)  # type: ignore[assignment]
-
-            # Apply existence filters using has_key
-            if existence_filters and hasattr(model, "labels"):
-                for key in existence_filters:
-                    count_query = count_query.filter(model.labels.has_key(key))  # type: ignore[attr-defined]
+            count_query = self._apply_label_count_filters(count_query, label_filters, model)
 
         total_result = await self.session.exec(count_query)
         return total_result.one() or 0
@@ -533,6 +564,7 @@ class BaseService:
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
+        allowed_projects: AllowedProjectsResult | None = None,
     ) -> TResponse:
         """List resources with unified filtering, sorting, and cursor-based pagination.
 
@@ -583,6 +615,10 @@ class BaseService:
             special_field_handlers: Dict mapping field names to custom handler functions
             query_params_items: Raw query parameter items from request (for filtering)
             include_total: Whether to include total count in response (requires extra COUNT query)
+            allowed_projects: Optional result from ProjectScopeFilter. When provided, filters
+                resources to only those belonging to the user's authorized projects. If
+                all_projects is True, no filtering is applied. Requires model to have a
+                project_id field.
 
         Returns:
             Typed response object containing:
@@ -617,6 +653,16 @@ class BaseService:
         # Only apply soft delete filter if model has deleted_at field
         if hasattr(model, "deleted_at"):
             query = query.filter(model.deleted_at.is_(None))  # type: ignore[attr-defined]
+
+        # Apply project scope filter if provided
+        if allowed_projects is not None and not allowed_projects.all_projects:
+            if not hasattr(model, "project_id"):
+                msg = f"Model {model.__name__} does not have a project_id field for project scope filtering"
+                raise ValueError(msg)
+            if not allowed_projects.project_ids:
+                # User has no project access — return empty result
+                return response_type(resources=[], next=None, prev=None, total=0 if include_total else None)
+            query = query.filter(model.project_id.in_(allowed_projects.project_ids))  # type: ignore[attr-defined]
 
         # Apply standard filters
         query, filters = self._apply_standard_filters(query, query_params, model, special_field_handlers)
@@ -661,7 +707,9 @@ class BaseService:
         # Get total count if requested
         total_count = None
         if include_total:
-            total_count = await self._get_total_count(filters, model, special_field_handlers, label_filters)
+            total_count = await self._get_total_count(
+                filters, model, special_field_handlers, label_filters, allowed_projects
+            )
 
         # Detect if we're on the first page during backward pagination
         # N+1 pattern can detect "has more" in fetch direction, but during backward pagination
@@ -676,6 +724,7 @@ class BaseService:
                 sort=sort,
                 model=model,
                 special_field_handlers=special_field_handlers,
+                allowed_projects=allowed_projects,
             )
             is_first_page = not has_items_before
 

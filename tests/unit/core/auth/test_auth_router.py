@@ -17,7 +17,6 @@ from nexus.auth.schemas import LoginRequest
 from nexus.auth.services.token_service import TokenPayload
 from nexus.auth.session.session_store import SessionInfo
 from nexus.core.models import User
-from nexus.core.models.user import UserRole
 
 
 def _make_request(*, cookie_value: str | None = None) -> MagicMock:
@@ -72,7 +71,6 @@ def _make_user(
         username="testuser",
         email="test@example.com",
         full_name="Test User",
-        role=UserRole.CREATOR,
         is_active=is_active,
         password_hash=password_hash,
     )
@@ -175,8 +173,8 @@ class TestLoginEndpoint:
 
         assert result.access_token == "access-token-123"  # noqa: S105
 
-        # Verify the DB query used the lowercased username
-        stmt = db.exec.call_args[0][0]
+        # Verify the first DB query (user lookup) used the lowercased username
+        stmt = db.exec.call_args_list[0][0][0]
         compiled = stmt.compile(compile_kwargs={"literal_binds": True})
         assert "testuser" in str(compiled).lower()
         assert "TestUser" not in str(compiled)

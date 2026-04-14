@@ -387,10 +387,7 @@ class TestDecideApprovalContract:
             response,
             error_type="https://api.nexus.com/errors/validation-error",
             title="Request Validation Error",
-            detail=(
-                "Validation failed: path -> approval_id: Input should be a valid UUID, "
-                "invalid character: expected an optional prefix of `urn:uuid:` followed by [0-9a-fA-F-], found `n` at 1"
-            ),
+            detail="Validation failed: path -> approval_id: Invalid UUID format: not-a-valid-uuid",
             code="REQUEST_VALIDATION_ERROR",
             retryable=False,
         )

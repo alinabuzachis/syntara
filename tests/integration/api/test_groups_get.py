@@ -17,9 +17,9 @@ class TestGroupsGetContract:
     """Contract tests for group get endpoint."""
 
     @pytest.mark.asyncio
-    async def test_get_group_success(self, auth_client: AsyncClient, test_group: Group) -> None:
+    async def test_get_group_success(self, admin_client: AsyncClient, test_group: Group) -> None:
         """Test successful group retrieval returns 200."""
-        response = await auth_client.get(f"{GROUPS_URL}/{test_group.id}")
+        response = await admin_client.get(f"{GROUPS_URL}/{test_group.id}")
 
         assert response.status_code == 200
 
@@ -29,9 +29,9 @@ class TestGroupsGetContract:
         assert data["description"] == test_group.description
 
     @pytest.mark.asyncio
-    async def test_get_group_all_fields(self, auth_client: AsyncClient, test_group: Group) -> None:
+    async def test_get_group_all_fields(self, admin_client: AsyncClient, test_group: Group) -> None:
         """Test response includes all required GroupRead fields."""
-        response = await auth_client.get(f"{GROUPS_URL}/{test_group.id}")
+        response = await admin_client.get(f"{GROUPS_URL}/{test_group.id}")
 
         assert response.status_code == 200
 
@@ -41,9 +41,9 @@ class TestGroupsGetContract:
             assert field in data, f"Missing required field: {field}"
 
     @pytest.mark.asyncio
-    async def test_get_group_timestamps_format(self, auth_client: AsyncClient, test_group: Group) -> None:
+    async def test_get_group_timestamps_format(self, admin_client: AsyncClient, test_group: Group) -> None:
         """Test timestamp fields are properly formatted."""
-        response = await auth_client.get(f"{GROUPS_URL}/{test_group.id}")
+        response = await admin_client.get(f"{GROUPS_URL}/{test_group.id}")
 
         assert response.status_code == 200
 
@@ -54,11 +54,11 @@ class TestGroupsGetContract:
             assert "T" in data[field]
 
     @pytest.mark.asyncio
-    async def test_get_group_not_found(self, auth_client: AsyncClient) -> None:
+    async def test_get_group_not_found(self, admin_client: AsyncClient) -> None:
         """Test 404 error for non-existent group."""
         group_id = "99999999-9999-9999-9999-999999999999"
 
-        response = await auth_client.get(f"{GROUPS_URL}/{group_id}")
+        response = await admin_client.get(f"{GROUPS_URL}/{group_id}")
 
         assert response.status_code == 404
         assert_error_data(
@@ -71,30 +71,30 @@ class TestGroupsGetContract:
         )
 
     @pytest.mark.asyncio
-    async def test_get_group_invalid_uuid(self, auth_client: AsyncClient) -> None:
+    async def test_get_group_invalid_uuid(self, admin_client: AsyncClient) -> None:
         """Test 422 error for invalid UUID format."""
-        response = await auth_client.get(f"{GROUPS_URL}/not-a-uuid")
+        response = await admin_client.get(f"{GROUPS_URL}/not-a-uuid")
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_get_group_deleted_returns_404(self, auth_client: AsyncClient, test_group: Group) -> None:
+    async def test_get_group_deleted_returns_404(self, admin_client: AsyncClient, test_group: Group) -> None:
         """Test that soft-deleted group returns 404."""
         # Delete the group
-        delete_response = await auth_client.delete(f"{GROUPS_URL}/{test_group.id}")
+        delete_response = await admin_client.delete(f"{GROUPS_URL}/{test_group.id}")
         assert delete_response.status_code == 204
 
         # Attempt to get deleted group
-        response = await auth_client.get(f"{GROUPS_URL}/{test_group.id}")
+        response = await admin_client.get(f"{GROUPS_URL}/{test_group.id}")
 
         assert response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_get_group_created_by_matches(
-        self, auth_client: AsyncClient, test_group: Group, test_user: User
+        self, admin_client: AsyncClient, test_group: Group, test_user: User
     ) -> None:
         """Test created_by field matches the creating user."""
-        response = await auth_client.get(f"{GROUPS_URL}/{test_group.id}")
+        response = await admin_client.get(f"{GROUPS_URL}/{test_group.id}")
 
         assert response.status_code == 200
 

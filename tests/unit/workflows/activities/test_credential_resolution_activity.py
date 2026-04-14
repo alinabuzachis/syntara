@@ -83,7 +83,7 @@ class TestResolveWorkflowCredentials:
     @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity.create_secret_service")
     async def test_disabled_credential_raises_non_retryable(
         self,
-        mock_create_ss: MagicMock,  # noqa: ARG002
+        mock_create_ss: MagicMock,
         mock_session_local: MagicMock,
         mock_credential: MagicMock,
     ) -> None:
@@ -110,7 +110,7 @@ class TestResolveWorkflowCredentials:
     @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity.create_secret_service")
     async def test_missing_credential_raises_non_retryable(
         self,
-        mock_create_ss: MagicMock,  # noqa: ARG002
+        mock_create_ss: MagicMock,
         mock_session_local: MagicMock,
     ) -> None:
         """Test missing credential raises non-retryable ApplicationError."""
@@ -134,7 +134,7 @@ class TestResolveWorkflowCredentials:
     @patch("nexus.workflows.workflow_engine.activities.credential_resolution_activity.create_secret_service")
     async def test_no_secret_id_raises_non_retryable(
         self,
-        mock_create_ss: MagicMock,  # noqa: ARG002
+        mock_create_ss: MagicMock,
         mock_session_local: MagicMock,
         mock_credential: MagicMock,
     ) -> None:

@@ -61,6 +61,13 @@ jobs:
       - name: Install dependencies
         run: make install
 
+      - name: Install OPA CLI
+        run: |
+          OPA_VERSION="v1.4.2"
+          curl -fsSL "https://github.com/open-policy-agent/opa/releases/download/${OPA_VERSION}/opa_linux_amd64_static" -o /usr/local/bin/opa
+          chmod +x /usr/local/bin/opa
+          opa version
+
       - name: Generate secrets
         run: make secrets-generate
 
@@ -114,7 +121,7 @@ jobs:
         timeout-minutes: 5
         run: |
           # Start core services (exclude nexus-ui which is private)
-          uvx podman-compose -p nexus-ci up --build -d database temporal nexus temporal-worker mcp-server
+          uvx podman-compose -p nexus-ci up --build -d database temporal nexus temporal-worker mcp-server opa
 
       - name: Verify services are healthy
         timeout-minutes: 5
@@ -124,14 +131,15 @@ jobs:
             $(podman ps -qf "name=nexus-ci_database") \
             $(podman ps -qf "name=nexus-ci_temporal") \
             $(podman ps -qf "name=nexus-ci_nexus") \
-            $(podman ps -qf "name=nexus-ci_mcp-server")
+            $(podman ps -qf "name=nexus-ci_mcp-server") \
+            $(podman ps -qf "name=nexus-ci_opa")
           echo "✅ All services are healthy"
 
       - name: Show service logs on failure
         if: failure()
         run: |
           echo "=== Compose logs ==="
-          uvx podman-compose -p nexus-ci logs database temporal nexus temporal-worker mcp-server
+          uvx podman-compose -p nexus-ci logs database temporal nexus temporal-worker mcp-server opa
 
       - name: Cleanup
         if: always()

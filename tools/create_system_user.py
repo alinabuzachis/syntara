@@ -34,7 +34,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from nexus.core.config.base import get_settings
-from nexus.core.models.user import User, UserRole
+from nexus.core.models.user import User
 
 # Configure logging
 logger = structlog.stdlib.get_logger(__name__)
@@ -73,7 +73,6 @@ async def create_system_user() -> None:
                 username="system",
                 email="system@nexus.internal",
                 full_name="System User",
-                role=UserRole.ADMINISTRATOR,
                 is_active=True,
             )
 

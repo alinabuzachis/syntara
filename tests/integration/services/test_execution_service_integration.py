@@ -323,8 +323,8 @@ class TestCreateTemporalExecutionServiceFactory:
 
     async def test_create_execution_service_integration(
         self,
-        temporal_env: AsyncGenerator[None, None],  # noqa: ARG002 - needed to ensure env exists
-        temporal_worker: Worker,  # noqa: ARG002 - needed to ensure worker is running
+        temporal_env: AsyncGenerator[None, None],
+        temporal_worker: Worker,
     ) -> None:
         """Test creating TemporalExecutionService via factory function.
 

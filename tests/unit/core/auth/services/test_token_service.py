@@ -799,6 +799,50 @@ class TestKeyRotation:
                 assert "y" in key
 
 
+class TestTokenVersionClaim:
+    """Tests for token_ver claim in access tokens."""
+
+    def test_access_token_includes_token_ver_default(self, token_service: TokenService) -> None:
+        """Test that token_ver claim is included in access token with default value 0."""
+        user_id = uuid4()
+        token = token_service.create_access_token(
+            user_id=user_id,
+            username="testuser",
+            email="test@example.com",
+        )
+
+        payload = jwt.decode(token, options={"verify_signature": False, "verify_aud": False})
+        assert payload["token_ver"] == 0
+
+    def test_access_token_includes_token_ver_custom(self, token_service: TokenService) -> None:
+        """Test that token_ver claim has custom value when passed."""
+        user_id = uuid4()
+        token = token_service.create_access_token(
+            user_id=user_id,
+            username="testuser",
+            email="test@example.com",
+            token_version=42,
+        )
+
+        payload = jwt.decode(token, options={"verify_signature": False, "verify_aud": False})
+        assert payload["token_ver"] == 42
+
+    def test_decode_token_returns_token_version(self, token_service: TokenService) -> None:
+        """Test that token_version is decoded from token payload."""
+        user_id = uuid4()
+        token = token_service.create_access_token(
+            user_id=user_id,
+            username="testuser",
+            email="test@example.com",
+            token_version=7,
+        )
+
+        payload = token_service.decode_token(token, token_type="access")  # noqa: S106
+
+        assert isinstance(payload, TokenPayload)
+        assert payload.token_version == 7
+
+
 class TestCacheInvalidation:
     """Tests for KeyManager and TokenService cache invalidation (AAP-71275)."""
 

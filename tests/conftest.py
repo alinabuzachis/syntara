@@ -45,7 +45,7 @@ from nexus.auth.services.token_service import TokenService
 from nexus.core.config.base import Settings, get_settings
 from nexus.core.database.session import get_db
 from nexus.core.logging.logging import configure_structlog
-from nexus.core.models import User, UserRole
+from nexus.core.models import User
 from nexus.core.models.group import Group
 from nexus.files.models import FileMetadata
 from nexus.tool_manager.lib.providers.factory import ProviderFactory, get_provider_factory
@@ -531,6 +531,13 @@ async def session_app(worker_id: str, test_db_engine: AsyncEngine, test_cache: N
 
     """
     test_session_factory = async_sessionmaker(test_db_engine, class_=AsyncSession, expire_on_commit=False)
+    # Mock OPA client so the lifespan health check passes without a running OPA server.
+    # Individual tests use their own OPA mocks (e.g. CLI-based evaluation).
+    mock_opa_client = AsyncMock()
+    mock_opa_client.health = AsyncMock(return_value=True)
+    mock_opa_client.start = MagicMock()
+    mock_opa_client.stop = AsyncMock()
+
     # Patch module-level DB objects so the lifespan
     # (set_runtime_settings, engine.dispose) uses the test database.
     with (
@@ -538,6 +545,7 @@ async def session_app(worker_id: str, test_db_engine: AsyncEngine, test_cache: N
         patch("nexus.core.database.session.AsyncSessionLocal", test_session_factory),
         patch("nexus.api.main.engine", test_db_engine),
         patch("nexus.api.main.AsyncSessionLocal", test_session_factory),
+        patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
     ):
         # Seed settings before app startup (normally done post-migration)
         from nexus.settings.seeder import seed_settings
@@ -722,7 +730,6 @@ def default_user_data() -> dict[str, Any]:
         "username": "testuser",
         "email": "testuser@example.com",
         "full_name": "Test User",
-        "role": UserRole.CREATOR,
         "password_hash": hash_password("password123"),
     }
 
@@ -757,7 +764,6 @@ async def non_local_user(test_db_session: AsyncSession) -> "User":
         username="federateduser",
         email="federated@example.com",
         full_name="Federated User",
-        role=UserRole.CREATOR,
     )
     test_db_session.add(user)
     await test_db_session.commit()
@@ -989,12 +995,19 @@ def sync_test_client(
     previous_streaming_service = getattr(app.state, "execution_streaming_service", None)
     app.state.execution_streaming_service = ExecutionStreamingService(session_factory=session_factory)
 
+    # Mock OPA client so the lifespan health check passes without a running OPA server.
+    mock_opa_client = AsyncMock()
+    mock_opa_client.health = AsyncMock(return_value=True)
+    mock_opa_client.start = MagicMock()
+    mock_opa_client.stop = AsyncMock()
+
     try:
         with (
             patch("nexus.core.database.session.engine", test_db_engine),
             patch("nexus.core.database.session.AsyncSessionLocal", session_factory),
             patch("nexus.api.main.engine", test_db_engine),
             patch("nexus.api.main.AsyncSessionLocal", session_factory),
+            patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
             TestClient(app) as client,
         ):
             yield client
@@ -1689,7 +1702,6 @@ async def admin_user(user_factory: Callable[..., Awaitable["User"]]) -> "User":
         username="admin",
         email="admin@example.com",
         full_name="Admin User",
-        role=UserRole.ADMINISTRATOR,
     )
 
 
@@ -1734,7 +1746,6 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             username="alice",
             email="alice@example.com",
             full_name="Alice Anderson",
-            role=UserRole.CREATOR,
             password_hash=hash_password("password123"),
             is_active=True,
         ),
@@ -1743,7 +1754,6 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             username="bob",
             email="bob@example.com",
             full_name="Bob Brown",
-            role=UserRole.VIEWER,
             password_hash=hash_password("password123"),
             is_active=True,
         ),
@@ -1752,7 +1762,6 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             username="charlie",
             email="charlie@example.com",
             full_name="Charlie Clark",
-            role=UserRole.APPROVER,
             password_hash=hash_password("password123"),
             is_active=False,
         ),
@@ -1761,7 +1770,6 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             username="diana",
             email="diana@example.com",
             full_name="Diana Davis",
-            role=UserRole.ADMINISTRATOR,
             password_hash=hash_password("password123"),
             is_active=True,
         ),
@@ -1770,7 +1778,6 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             username="edward",
             email="edward@example.com",
             full_name="Edward Evans",
-            role=UserRole.CREATOR,
             password_hash=hash_password("password123"),
             is_active=True,
         ),
@@ -1779,7 +1786,6 @@ async def multiple_local_users(test_db_session: AsyncSession, test_user: User) -
             username="fiona",
             email="fiona@example.com",
             full_name="Fiona Foster",
-            role=UserRole.VIEWER,
             password_hash=hash_password("password123"),
             is_active=True,
         ),

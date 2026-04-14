@@ -261,6 +261,10 @@ components:
             - next_step_approved
             - workflow_context
           properties:
+            project_id:
+              type: [string, "null"]
+              format: uuid
+              description: Project this approval belongs to (denormalized from execution)
             execution_id:
               type: string
               format: uuid
@@ -356,6 +360,10 @@ components:
           type: string
           format: uuid
           description: Parent workflow execution ID
+        project_id:
+          type: [string, "null"]
+          format: uuid
+          description: Project ID (denormalized from execution)
         approval_node_id:
           type: string
           description: Activity ID from workflow definition

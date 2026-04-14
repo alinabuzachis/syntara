@@ -14,9 +14,9 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_basic(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_basic(self, admin_client: AsyncClient) -> None:
         """Test basic user listing returns 200 with users."""
-        response = await auth_client.get(USERS_URL)
+        response = await admin_client.get(USERS_URL)
 
         assert response.status_code == 200
 
@@ -26,9 +26,9 @@ class TestUsersListContract:
         assert len(data["resources"]) >= 7
 
     @pytest.mark.asyncio
-    async def test_list_users_empty(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_empty(self, admin_client: AsyncClient) -> None:
         """Test listing when only the default test_user exists."""
-        response = await auth_client.get(USERS_URL)
+        response = await admin_client.get(USERS_URL)
 
         assert response.status_code == 200
 
@@ -39,9 +39,9 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_response_schema(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_response_schema(self, admin_client: AsyncClient) -> None:
         """Test each user in response includes required fields."""
-        response = await auth_client.get(USERS_URL)
+        response = await admin_client.get(USERS_URL)
 
         assert response.status_code == 200
 
@@ -51,7 +51,6 @@ class TestUsersListContract:
             "username",
             "email",
             "full_name",
-            "role",
             "is_active",
             "created_at",
             "updated_at",
@@ -66,9 +65,9 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_pagination(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_pagination(self, admin_client: AsyncClient) -> None:
         """Test pagination with limit parameter."""
-        response = await auth_client.get(USERS_URL, params={"limit": 2})
+        response = await admin_client.get(USERS_URL, params={"limit": 2})
 
         assert response.status_code == 200
 
@@ -78,10 +77,10 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_cursor_pagination(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_cursor_pagination(self, admin_client: AsyncClient) -> None:
         """Test cursor-based pagination returns different pages."""
         # Get first page
-        response1 = await auth_client.get(USERS_URL, params={"limit": 3})
+        response1 = await admin_client.get(USERS_URL, params={"limit": 3})
         assert response1.status_code == 200
 
         data1 = response1.json()
@@ -90,7 +89,7 @@ class TestUsersListContract:
         assert cursor is not None
 
         # Get second page
-        response2 = await auth_client.get(USERS_URL, params={"limit": 3, "cursor": cursor})
+        response2 = await admin_client.get(USERS_URL, params={"limit": 3, "cursor": cursor})
         assert response2.status_code == 200
 
         data2 = response2.json()
@@ -103,9 +102,9 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_sort_by_username(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_sort_by_username(self, admin_client: AsyncClient) -> None:
         """Test sorting by username ascending."""
-        response = await auth_client.get(USERS_URL, params={"sort": "username"})
+        response = await admin_client.get(USERS_URL, params={"sort": "username"})
 
         assert response.status_code == 200
 
@@ -115,9 +114,9 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_sort_by_username_descending(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_sort_by_username_descending(self, admin_client: AsyncClient) -> None:
         """Test sorting by username descending."""
-        response = await auth_client.get(USERS_URL, params={"sort": "-username"})
+        response = await admin_client.get(USERS_URL, params={"sort": "-username"})
 
         assert response.status_code == 200
 
@@ -127,9 +126,9 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_sort_by_created_at(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_sort_by_created_at(self, admin_client: AsyncClient) -> None:
         """Test sorting by created_at ascending."""
-        response = await auth_client.get(USERS_URL, params={"sort": "created_at"})
+        response = await admin_client.get(USERS_URL, params={"sort": "created_at"})
 
         assert response.status_code == 200
 
@@ -139,21 +138,9 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_filter_by_role(self, auth_client: AsyncClient) -> None:
-        """Test filtering by role."""
-        response = await auth_client.get(USERS_URL, params={"role[eq]": "viewer"})
-
-        assert response.status_code == 200
-
-        data = response.json()
-        for user in data["resources"]:
-            assert user["role"] == "viewer"
-
-    @pytest.mark.asyncio
-    @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_filter_by_is_active(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_filter_by_is_active(self, admin_client: AsyncClient) -> None:
         """Test filtering by is_active status."""
-        response = await auth_client.get(USERS_URL, params={"is_active[eq]": "false"})
+        response = await admin_client.get(USERS_URL, params={"is_active[eq]": "false"})
 
         assert response.status_code == 200
 
@@ -164,9 +151,9 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_filter_by_username_contains(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_filter_by_username_contains(self, admin_client: AsyncClient) -> None:
         """Test filtering by username with contains."""
-        response = await auth_client.get(USERS_URL, params={"username[contains]": "ali"})
+        response = await admin_client.get(USERS_URL, params={"username[contains]": "ali"})
 
         assert response.status_code == 200
 
@@ -176,9 +163,9 @@ class TestUsersListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_local_users")
-    async def test_list_users_include_total(self, auth_client: AsyncClient) -> None:
+    async def test_list_users_include_total(self, admin_client: AsyncClient) -> None:
         """Test include_total returns total count."""
-        response = await auth_client.get(USERS_URL, params={"include_total": "true", "limit": 2})
+        response = await admin_client.get(USERS_URL, params={"include_total": "true", "limit": 2})
 
         assert response.status_code == 200
 

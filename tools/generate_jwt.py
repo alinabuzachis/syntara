@@ -161,7 +161,7 @@ async def generate_tokens(
     key_manager = _build_key_manager(key_name) if key_name else None
     token_service = TokenService(key_manager=key_manager)
 
-    display_role = role_override or user.role.name
+    display_role = role_override or "user"
 
     # Generate access token
     access_token = token_service.create_access_token(

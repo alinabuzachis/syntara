@@ -1,0 +1,158 @@
+---
+openapi: 3.1.0
+info:
+  title: Nexus Group Role Assignments API
+  version: 1.0.0
+  description: |
+    System-level group-to-role assignment endpoints for the Nexus platform.
+
+    These endpoints manage role assignments to groups at the system level.
+    All members of a group inherit the group's role assignments.
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: Group Role Assignments
+    description: System-level group-to-role assignment management
+
+paths:
+  /group-role-assignments:
+    post:
+      summary: Assign a role to a group
+      description: |
+        Assign a role to a group at the system level.
+        All members of the group will inherit this role.
+        Requires: admin permission.
+      operationId: assign_group_role
+      tags:
+        - Group Role Assignments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupRoleAssignmentCreate"
+      responses:
+        "201":
+          description: Role assigned to group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupRoleAssignmentRead"
+        "404":
+          description: Group or role not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        "409":
+          description: Assignment already exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+    get:
+      summary: List all group-role assignments
+      description: List all system-level group-to-role assignments.
+      operationId: list_group_role_assignments
+      tags:
+        - Group Role Assignments
+      responses:
+        "200":
+          description: List of group-role assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupRoleAssignmentRead"
+
+  /group-role-assignments/{assignment_id}:
+    delete:
+      summary: Remove a group-role assignment
+      description: |
+        Remove a group-to-role assignment.
+        Requires: admin permission.
+      operationId: revoke_group_role_assignment
+      tags:
+        - Group Role Assignments
+      parameters:
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Assignment UUID
+      responses:
+        "204":
+          description: Assignment removed
+        "404":
+          description: Assignment not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+
+components:
+  schemas:
+    GroupRoleAssignmentCreate:
+      type: object
+      title: Group Role Assignment Create
+      description: Request body for assigning a role to a group
+      required:
+        - group_id
+        - role_id
+      properties:
+        group_id:
+          type: string
+          format: uuid
+          description: Group UUID
+        role_id:
+          type: string
+          format: uuid
+          description: Role UUID
+
+    GroupRoleAssignmentRead:
+      type: object
+      title: Group Role Assignment Read
+      description: Response body for a group-to-role assignment
+      required:
+        - id
+        - group_id
+        - group_name
+        - role_id
+        - role_name
+      properties:
+        id:
+          type: string
+          description: Assignment ID
+        group_id:
+          type: string
+          description: Group UUID
+        group_name:
+          type: string
+          description: Group name
+        role_id:
+          type: string
+          description: Role UUID
+        role_name:
+          type: string
+          description: Role name
+        created_at:
+          type: [string, "null"]
+          format: date-time
+          description: Creation timestamp
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication
+
+security:
+  - bearerAuth: []

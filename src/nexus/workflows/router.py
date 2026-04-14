@@ -3,13 +3,16 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
+from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
+from nexus.core.nexus_router import NexusRouter
 from nexus.workflows.models import WorkflowListParams
 from nexus.workflows.models.workflow import (
     Workflow,
@@ -27,7 +30,35 @@ from nexus.workflows.models.workflow_version import (
 from nexus.workflows.services import WorkflowService
 from nexus.workflows.utils.serialization import deserialize_workflow_version
 
-router = APIRouter(prefix="/workflows", tags=["workflows", "workflow-versions"])
+router = NexusRouter(prefix="/workflows", tags=["workflows", "workflow-versions"])
+
+_wf_perm_read = PermissionChecker(
+    "workflow",
+    "read",
+    roles=["admin", "auditor", "user", "project-admin", "project-user", "project-auditor"],
+    resource_model=Workflow,
+    resource_id_param="workflow_id",
+)
+_wf_perm_update = PermissionChecker(
+    "workflow",
+    "update",
+    roles=["admin", "user", "project-admin", "project-user"],
+    resource_model=Workflow,
+    resource_id_param="workflow_id",
+)
+_wf_perm_delete = PermissionChecker(
+    "workflow",
+    "delete",
+    roles=["admin", "user", "project-admin", "project-user"],
+    resource_model=Workflow,
+    resource_id_param="workflow_id",
+)
+_wf_perm_create = PermissionChecker(
+    "workflow",
+    "create",
+    roles=["admin", "user", "project-admin", "project-user"],
+    body_project_field="project_id",
+)
 
 WORKFLOW_NOT_FOUND: str = "Workflow not found"
 
@@ -61,7 +92,12 @@ def get_workflow_service(
 # ============================================================================
 
 
-@router.post("", response_model=WorkflowRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=WorkflowRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_wf_perm_create)],
+)
 async def create_workflow(
     request: WorkflowCreate,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
@@ -85,6 +121,7 @@ async def create_workflow(
         labels=request.labels,
         workflow_definition=request.workflow_definition,
         is_enabled=request.is_enabled,
+        project_id=request.project_id,
     )
     return workflow
 
@@ -94,8 +131,9 @@ async def list_workflows(
     request: Request,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
     params: Annotated[WorkflowListParams, Query()],
+    allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("workflow", "read"))],
 ) -> WorkflowListResponse:
-    """List workflows with filtering, sorting, and pagination.
+    """List workflows the current user has read access to.
 
     Supports filtering using query parameters with standard operators:
     - created_by: Filter by creator user ID (created_by=uuid)
@@ -108,6 +146,7 @@ async def list_workflows(
         request: FastAPI request object containing query parameters
         service: Workflow service
         params: Query parameters for pagination and filtering
+        allowed_projects: Resolved project access for the current user
 
     Returns:
         WorkflowListResponse with workflows, pagination metadata, and optional total
@@ -119,10 +158,14 @@ async def list_workflows(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
+        allowed_projects=allowed_projects,
     )
 
 
-@router.get("/{workflow_id}")
+@router.get(
+    "/{workflow_id}",
+    dependencies=[Depends(_wf_perm_read)],
+)
 async def get_workflow(
     workflow_id: UUID,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
@@ -161,7 +204,10 @@ async def get_workflow(
     )
 
 
-@router.patch("/{workflow_id}")
+@router.patch(
+    "/{workflow_id}",
+    dependencies=[Depends(_wf_perm_update)],
+)
 async def update_workflow(
     workflow_id: UUID,
     request: WorkflowUpdate,
@@ -215,7 +261,11 @@ async def update_workflow(
     )
 
 
-@router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{workflow_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(_wf_perm_delete)],
+)
 async def delete_workflow(
     workflow_id: UUID,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
@@ -242,7 +292,10 @@ async def delete_workflow(
 # ============================================================================
 
 
-@router.get("/{workflow_id}/versions")
+@router.get(
+    "/{workflow_id}/versions",
+    dependencies=[Depends(_wf_perm_read)],
+)
 async def list_workflow_versions(
     workflow_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -290,7 +343,10 @@ async def list_workflow_versions(
     return WorkflowVersionListResponse(versions=[WorkflowVersionRead.model_validate(v) for v in version_dicts])
 
 
-@router.get("/{workflow_id}/versions/{version}")
+@router.get(
+    "/{workflow_id}/versions/{version}",
+    dependencies=[Depends(_wf_perm_read)],
+)
 async def get_workflow_version(
     workflow_id: UUID,
     version: int,

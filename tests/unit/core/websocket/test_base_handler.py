@@ -42,7 +42,7 @@ class ConcreteHandler(BaseWebSocketStreamingHandler):
             raise StreamingValidationError(error_data, INTERNAL_ERROR)
         return {"resource_id": resource_id}
 
-    def get_stop_condition(self, session_state: dict[str, Any]) -> Callable[[dict[str, Any]], bool]:  # noqa: ARG002
+    def get_stop_condition(self, session_state: dict[str, Any]) -> Callable[[dict[str, Any]], bool]:
         """Test implementation of get_stop_condition."""
         self.get_stop_condition_called = True
         return lambda e: e.get("event_type") == "stop"

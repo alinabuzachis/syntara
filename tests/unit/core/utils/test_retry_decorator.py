@@ -692,7 +692,7 @@ class TestRetryDecorator:
 
         class MockAgent:
             @retry_with_backoff
-            async def _execute(self, state: dict[str, Any]) -> str:  # noqa: ARG002
+            async def _execute(self, state: dict[str, Any]) -> str:
                 nonlocal call_count
                 call_count += 1
                 if call_count == 1:
@@ -733,7 +733,7 @@ class TestRetryDecorator:
 
         class MockAgent:
             @retry_with_backoff
-            async def _execute(self, state: dict[str, Any]) -> str:  # noqa: ARG002
+            async def _execute(self, state: dict[str, Any]) -> str:
                 nonlocal call_count
                 call_count += 1
                 if call_count < 2:

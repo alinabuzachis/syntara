@@ -22,6 +22,16 @@ import nexus.auth.exceptions  # Side-effect import to trigger exception handler 
 import nexus.identity_providers.exceptions
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.audit.middleware import AuditMiddleware
+from nexus.auth.middleware import StaleTokenMiddleware
+from nexus.authz.exceptions import (  # noqa: F401
+    BuiltinProtectionError,
+    PolicyNameConflictError,
+    PolicyNotFoundError,
+    RoleNameConflictError,
+    RoleNotFoundError,
+)
+from nexus.authz.opa_client import OPAClient
+from nexus.authz.seed import seed_groups_project_admin
 from nexus.core.config.base import get_settings
 from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (
@@ -60,23 +70,17 @@ from nexus.workflows.error_handlers import (
 logger = structlog.stdlib.get_logger(__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
-    """Manage FastAPI application lifespan events.
+async def _seed_authz_data() -> None:
+    """Seed authz groups, default project, and admin user role assignments."""
+    async with AsyncSessionLocal() as session:
+        await seed_groups_project_admin(session)
+    logger.info("Authorization seed data initialized")
 
-    Handles initialization and cleanup of application-scoped resources
-    like the provider factory.
 
-    Database connections are managed by SQLAlchemy via the get_db() dependency.
-    Migrations should be run via Alembic before starting the application:
-        uv run alembic upgrade head
+async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
+    """Initialize application resources during startup.
 
-    Args:
-        app: FastAPI application instance
-
-    Yields:
-        None
-
+    Returns a dict of resources needed for shutdown.
     """
     settings = get_settings()
 
@@ -93,8 +97,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
         )
 
     # Discover and register all routers automatically
-    # This replaces manual router imports and registration
-
     if settings.router_discovery_enabled:
         discover_and_register_routers(
             app=app,
@@ -121,20 +123,34 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     ws_router = build_websocket_router()
     app.include_router(ws_router)
 
+    # Initialize OPA client for authorization
+    opa_client = OPAClient(base_url=settings.opa_url)
+    opa_client.start()
+    if await opa_client.health():
+        logger.info("OPA client connected", opa_url=settings.opa_url)
+    else:
+        logger.error("OPA server not reachable — cannot start without OPA", opa_url=settings.opa_url)
+        msg = f"OPA server not reachable at {settings.opa_url}"
+        raise RuntimeError(msg)
+    app.state.opa_client = opa_client
+
+    # Seed authz groups, default project, and admin user assignments.
+    # NOTE: This runs on every process start. Ideally seeding should be an
+    # install/upgrade step (e.g. a CLI command or post-migration hook) so it
+    # runs once rather than in every worker. Safe for now because the seed
+    # logic is idempotent, but should be moved out of lifespan long-term.
+    await _seed_authz_data()
+
     # Initialize telemetry (reads installation ID from database)
     await initialize_telemetry()
 
     # Start WebSocket connection health monitoring
-    # This background task runs every 30 seconds to clean up stale connections
-    # that haven't responded to ping frames within the timeout period (60s)
     lifecycle_manager = get_connection_lifecycle_manager()
     lifecycle_manager.start_monitoring()
     logger.info("WebSocket connection health monitoring started")
 
     # Initialize periodic analytics collector
-    periodic_collector = PeriodicCollector(
-        registry=get_telemetry_registry(),
-    )
+    periodic_collector = PeriodicCollector(registry=get_telemetry_registry())
 
     completion_poller = get_completion_poller()
     completion_poller.start()
@@ -142,38 +158,67 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
     metrics_cleanup_worker = get_metrics_cleanup_worker()
     metrics_cleanup_worker.start()
 
-    try:
-        periodic_collector.start()
-        logger.info("Periodic analytics collector started")
+    periodic_collector.start()
+    logger.info("Periodic analytics collector started")
 
+    return {
+        "opa_client": opa_client,
+        "lifecycle_manager": lifecycle_manager,
+        "periodic_collector": periodic_collector,
+        "completion_poller": completion_poller,
+        "metrics_cleanup_worker": metrics_cleanup_worker,
+    }
+
+
+async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
+    """Clean up application resources during shutdown."""
+    await resources["metrics_cleanup_worker"].stop()
+    await resources["completion_poller"].stop()
+
+    await resources["periodic_collector"].stop()
+    logger.info("Periodic analytics collector stopped")
+
+    flush_telemetry()
+
+    resources["lifecycle_manager"].stop_monitoring()
+    logger.info("WebSocket connection health monitoring stopped")
+
+    await resources["opa_client"].stop()
+
+    await engine.dispose()
+    logger.info("Database engine disposed")
+
+    lock_file = _get_lock_file_path()
+    try:
+        lock_file.unlink(missing_ok=True)
+        logger.debug("Cleaned up lock file", lock_file=lock_file)
+    except OSError as e:
+        logger.warning("Failed to clean up lock file", lock_file=lock_file, error=str(e))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any]:
+    """Manage FastAPI application lifespan events.
+
+    Handles initialization and cleanup of application-scoped resources
+    like the provider factory.
+
+    Database connections are managed by SQLAlchemy via the get_db() dependency.
+    Migrations should be run via Alembic before starting the application:
+        uv run alembic upgrade head
+
+    Args:
+        app: FastAPI application instance
+
+    Yields:
+        None
+
+    """
+    resources = await _lifespan_startup(app)
+    try:
         yield
     finally:
-        await metrics_cleanup_worker.stop()
-
-        await completion_poller.stop()
-
-        # Stop periodic analytics collector
-        await periodic_collector.stop()
-        logger.info("Periodic analytics collector stopped")
-
-        # Flush any remaining telemetry events (e.g. from middleware)
-        flush_telemetry()
-
-        # Stop WebSocket connection monitoring
-        lifecycle_manager.stop_monitoring()
-        logger.info("WebSocket connection health monitoring stopped")
-
-        # Dispose SQLAlchemy engine/pool for clean shutdown during restarts/deployments
-        await engine.dispose()
-        logger.info("Database engine disposed")
-
-        # Clean up lock file created by this server instance
-        lock_file = _get_lock_file_path()
-        try:
-            lock_file.unlink(missing_ok=True)
-            logger.debug("Cleaned up lock file", lock_file=lock_file)
-        except OSError as e:
-            logger.warning("Failed to clean up lock file", lock_file=lock_file, error=str(e))
+        await _lifespan_shutdown(resources)
 
 
 # Create FastAPI application
@@ -195,7 +240,12 @@ app.add_middleware(
     allow_credentials=_cors_settings.cors_allow_credentials,
     allow_methods=_cors_settings.cors_allow_methods,
     allow_headers=_cors_settings.cors_allow_headers,
+    expose_headers=["X-Token-Stale"],
 )
+
+# Register stale token detection middleware.
+# Added after CORS so it can set X-Token-Stale header on responses.
+app.add_middleware(StaleTokenMiddleware)
 
 # Register analytics middleware.
 # Added after CORS so it wraps the entire request lifecycle.

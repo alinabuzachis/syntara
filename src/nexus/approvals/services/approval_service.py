@@ -32,6 +32,7 @@ from nexus.approvals.models import (
     BatchApprovalResult,
     UserReference,
 )
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
@@ -81,6 +82,7 @@ class ApprovalService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
+        allowed_projects: AllowedProjectsResult | None = None,
     ) -> ApprovalListResponse:
         """List approval requests with filtering, sorting, and pagination.
 
@@ -90,6 +92,7 @@ class ApprovalService(BaseService):
             sort: Sort parameter (e.g., "name", "-created_at")
             query_params_items: Raw query parameter items from request (for filtering)
             include_total: Whether to include total count in response
+            allowed_projects: Project scope filter from authorization
 
         Returns:
             ApprovalListResponse with approval requests, pagination metadata, and optional total
@@ -103,6 +106,7 @@ class ApprovalService(BaseService):
             sort=sort,
             query_params_items=query_params_items,
             include_total=include_total,
+            allowed_projects=allowed_projects,
         )
 
     async def _get_approval_by_id(self, approval_id: UUID) -> ApprovalRequest | None:
@@ -137,6 +141,16 @@ class ApprovalService(BaseService):
 
         return cast("ApprovalRequestRead", self.convert_resource_mixin.convert_resource(approval))
 
+    async def _resolve_project_id(self, request: ApprovalCreateRequest) -> UUID | None:
+        """Resolve project_id from request or by looking up the execution."""
+        if request.project_id is not None:
+            return request.project_id
+
+        from nexus.workflows.models.execution import Execution  # noqa: PLC0415
+
+        result = await self.session.exec(select(Execution.project_id).where(Execution.id == request.execution_id))
+        return result.first()
+
     async def create(
         self,
         request: ApprovalCreateRequest,
@@ -158,6 +172,9 @@ class ApprovalService(BaseService):
         if existing_approval is not None:
             raise ApprovalAlreadyRequestedError(request.execution_id, request.approval_node_id)
 
+        # Resolve project_id from request or execution
+        project_id = await self._resolve_project_id(request)
+
         # Convert typed models to dicts for database storage
         next_step_approved_dict = (
             request.next_step_approved.model_dump(mode="json") if request.next_step_approved else {}
@@ -171,6 +188,7 @@ class ApprovalService(BaseService):
             execution_id=request.execution_id,
             approval_node_id=request.approval_node_id,
             name=request.name,
+            project_id=project_id,
             status=ApprovalRequestStatus.PENDING,
             timeout_at=request.timeout_at,
             next_step_approved=next_step_approved_dict,

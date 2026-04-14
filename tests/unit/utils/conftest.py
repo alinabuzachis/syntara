@@ -10,7 +10,6 @@ import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
-from nexus.core.models.user import UserRole
 
 
 @pytest_asyncio.fixture
@@ -30,7 +29,6 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="alice",
             email="alice@example.com",
             full_name="Alice Smith",
-            role=UserRole.CREATOR,
             is_active=True,
             labels={
                 "environment": "production",
@@ -45,7 +43,6 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="bob",
             email="bob@example.com",
             full_name="Bob Johnson",
-            role=UserRole.APPROVER,
             is_active=True,
             labels={
                 "environment": "production",
@@ -60,7 +57,6 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="charlie",
             email="charlie@example.com",
             full_name="Charlie Brown",
-            role=UserRole.VIEWER,
             is_active=False,
             labels={
                 "environment": "staging",
@@ -75,7 +71,6 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="diana",
             email="diana@example.com",
             full_name="Diana Prince",
-            role=UserRole.ADMINISTRATOR,
             is_active=True,
             labels={
                 "environment": "production",
@@ -90,7 +85,6 @@ async def test_users(test_db_session: AsyncSession) -> list[User]:
             username="eve",
             email="eve@example.com",
             full_name="Eve Davis",
-            role=UserRole.ADMINISTRATOR,
             is_active=False,
             labels={"environment": "development", "region": "us-west-1", "team": "dev", "experimental": "true"},
             created_at=datetime(2025, 1, 5, 14, 0, 0),

@@ -122,6 +122,7 @@ class ApprovalCreateRequest(SQLModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
 
     execution_id: UUID = Field(..., description="Parent workflow execution ID")
+    project_id: UUID | None = Field(None, description="Project ID (denormalized from execution)")
     approval_node_id: str = Field(..., description="Activity ID from workflow definition")
     name: str = Field(..., min_length=1, max_length=255, description="Display name for the approval request")
     timeout_at: datetime | None = Field(None, description="When this request expires (null = no timeout)")

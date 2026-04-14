@@ -13,8 +13,10 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth.exceptions import GroupNameConflictError, GroupNotFoundError
+from nexus.auth.passwords import hash_password
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
+from nexus.core.models.group import GroupRead, GroupSource
 from nexus.users.services.group_service import GroupsService
 
 
@@ -260,3 +262,113 @@ async def test_is_duplicate_name_error(test_db_session: AsyncSession, test_user:
     # Should not match unrelated errors
     e4 = IntegrityError("foreign key constraint violated on user_id", None, BaseException())
     assert service._is_duplicate_name_error(e4) is False
+
+
+# ============================================================================
+# GroupSource and model field tests
+# ============================================================================
+
+TEST_PASSWORD = "securepassword123"  # noqa: S105
+
+
+async def _create_second_user(session: AsyncSession) -> User:
+    """Create a second test user for membership tests."""
+    user = User(
+        id=uuid4(),
+        username="seconduser",
+        email="second@example.com",
+        full_name="Second User",
+        password_hash=hash_password(TEST_PASSWORD),
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
+@pytest.mark.asyncio
+async def test_new_group_has_local_source(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test that new groups have source='local' by default."""
+    service = GroupsService(test_db_session, test_user)
+
+    group = await service.create_group(name="source-test", description=None)
+
+    assert group.source == GroupSource.LOCAL
+    assert group.source == "local"
+
+
+@pytest.mark.asyncio
+async def test_get_member_count_empty_group(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test get_member_count returns 0 for group with no members."""
+    service = GroupsService(test_db_session, test_user)
+
+    group = await service.create_group(name="empty-group", description=None)
+    count = await service.get_member_count(group)
+
+    assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_get_member_count_after_adding_members(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test get_member_count returns correct count after adding members."""
+    service = GroupsService(test_db_session, test_user)
+    second_user = await _create_second_user(test_db_session)
+
+    group = await service.create_group(name="member-count-test", description=None)
+    await service.add_member(group.id, test_user.id)
+    await service.add_member(group.id, second_user.id)
+
+    count = await service.get_member_count(group)
+
+    assert count == 2
+
+
+@pytest.mark.asyncio
+async def test_enrich_group_read_sets_member_count(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test enrich_group_read returns GroupRead with member_count set."""
+    service = GroupsService(test_db_session, test_user)
+
+    group = await service.create_group(name="enrich-test", description="desc")
+    group_read = service.enrich_group_read(group, member_count=42)
+
+    assert isinstance(group_read, GroupRead)
+    assert group_read.member_count == 42
+    assert group_read.name == "enrich-test"
+    assert group_read.description == "desc"
+
+
+@pytest.mark.asyncio
+async def test_list_groups_cursor_includes_member_count(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test list_groups_cursor returns member_count in response."""
+    service = GroupsService(test_db_session, test_user)
+
+    group = await service.create_group(name="list-mc-test", description=None)
+    await service.add_member(group.id, test_user.id)
+
+    result = await service.list_groups_cursor()
+
+    matching = [r for r in result.resources if r.name == "list-mc-test"]
+    assert len(matching) == 1
+    assert matching[0].member_count == 1
+
+
+@pytest.mark.asyncio
+async def test_get_member_counts_multiple_groups(test_db_session: AsyncSession, test_user: User) -> None:
+    """Test get_member_counts returns correct counts for multiple groups."""
+    service = GroupsService(test_db_session, test_user)
+    second_user = await _create_second_user(test_db_session)
+
+    group_a = await service.create_group(name="multi-count-a", description=None)
+    group_b = await service.create_group(name="multi-count-b", description=None)
+
+    await service.add_member(group_a.id, test_user.id)
+    await service.add_member(group_a.id, second_user.id)
+    await service.add_member(group_b.id, test_user.id)
+
+    counts = await service.get_member_counts(
+        [group_a.id, group_b.id],
+        [group_a.name, group_b.name],
+    )
+
+    assert counts[group_a.id] == 2
+    assert counts[group_b.id] == 1

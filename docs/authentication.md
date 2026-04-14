@@ -24,7 +24,7 @@ Both methods produce the same JWT access/refresh token pair. Passwords are hashe
 
 1. The refresh token is read automatically from the `ao_refresh_token` cookie.
 2. The server validates the token signature and checks that the session exists in Redis.
-3. A new access token is issued with fresh claims from the database. The `amr` and `idp` values are preserved from the session metadata (set during login).
+3. A new access token is issued with fresh claims from the database — including current group memberships and the latest `token_ver` from Redis. The `amr` and `idp` values are preserved from the session metadata (set during login).
 4. The refresh token itself is **not rotated** — this is intentional. The fixed expiration acts as a hard session boundary, forcing re-authentication with the identity provider so that group memberships are refreshed on a predictable cadence.
 
 ### Logout (`POST /api/v1/auth/logout`)
@@ -44,7 +44,7 @@ Returns the authenticated user's information from the access token claims (no da
 | Algorithm | ES256 | ES256 |
 | Default lifetime | 15 minutes | 8 hours |
 | Transport | `Authorization: Bearer <token>` | `ao_refresh_token` HttpOnly cookie |
-| Contains | `sub`, `iss`, `iat`, `exp`, `name`, `preferred_username`, `email`, `role`, `groups`, `amr`, `idp` | `sub`, `iss`, `iat`, `exp`, `jti` |
+| Contains | `sub`, `iss`, `iat`, `exp`, `name`, `preferred_username`, `email`, `role`, `groups`, `token_ver`, `amr`, `idp` | `sub`, `iss`, `iat`, `exp`, `jti` |
 | Server-side state | None (stateless) | Session stored in Redis (keyed by `jti`) |
 
 ## Session Storage
@@ -74,6 +74,46 @@ Redis is a **hard dependency** for the session layer, not an optional cache. If 
 | **Access token validation** | **Unaffected** — stateless JWT verified locally |
 
 Existing access tokens continue to work until they expire (default 15 minutes), but no new sessions can be created, refreshed, or revoked. This is by design — sessions should fail explicitly rather than silently degrade.
+
+### Token Version (Stale Token Detection)
+
+When an admin changes a user's account (group memberships, profile, role, etc.), the user's access token becomes stale — its claims no longer reflect reality. Rather than forcing a logout, Nexus uses a lightweight version counter to trigger a seamless background token refresh.
+
+#### Mechanism
+
+Each user has a `token_version` counter in Redis (key: `user_token_version:<user_id>`). The counter is included in the access token as the `token_ver` claim.
+
+```
+Admin changes user's account (groups, profile, etc.)
+  -> Redis: INCR user_token_version:<user_id>
+  -> User's next API request:
+       StaleTokenMiddleware compares token's token_ver vs Redis version
+       Token is stale → response includes X-Token-Stale: true header
+  -> Frontend detects header → triggers background POST /auth/refresh
+  -> New access token has updated claims + current token_ver
+  -> UI reflects correct state without logout
+```
+
+#### What triggers a version bump
+
+| Endpoint | Action |
+|----------|--------|
+| `POST /groups/{id}/members` | User added to group |
+| `DELETE /groups/{id}/members/{user_id}` | User removed from group |
+| `PUT /users/{id}/groups` | User's group memberships replaced |
+| `PATCH /users/{id}` | User profile updated (name, email, active status, password) |
+| `DELETE /users/{id}` | User soft-deleted (next refresh fails → auto-logout) |
+
+#### Backend components
+
+- **`SessionStore.increment_token_version(user_id)`** — called after any admin action that changes a user's account. Uses Redis `INCR` with TTL matching the refresh token lifetime.
+- **`SessionStore.get_token_version(user_id)`** — called during login and refresh to embed the current version in the new access token's `token_ver` claim. Returns `0` if no key exists (no changes have occurred).
+- **`StaleTokenMiddleware`** — Starlette middleware registered in `main.py`. On every authenticated request, it decodes `sub` and `token_ver` from the token (lightweight, no signature verification — the auth dependency already validated it), fetches the Redis version, and sets `X-Token-Stale: true` if the token is outdated. Errors are swallowed to avoid blocking requests.
+- **CORS `expose_headers`** — `X-Token-Stale` is added to the CORS `expose_headers` list so the browser allows the frontend to read it.
+
+#### Frontend handling
+
+The `authMiddleware` in `client.tsx` checks every response for the `X-Token-Stale: true` header. When detected, it fires a background `store.refresh()` call (fire-and-forget). The current response is returned normally — the user is never blocked. After the refresh completes, subsequent requests use the new token with updated claims.
 
 ## Key Management
 
@@ -136,9 +176,11 @@ If the compromise is detected but not actively exploited (e.g., a key was accide
 
 ## Bootstrap Admin User
 
-On first database migration, an `admin` user is seeded with the password from `APP_ADMIN_PASSWORD_PATH`. This happens inside the Alembic migration (`b3a1f7c9d2e4`), which reads the password file, hashes it with Argon2id, and inserts the user with `ON CONFLICT DO NOTHING`.
+On first application startup, an `admin` user is seeded with the password from `APP_ADMIN_PASSWORD_PATH`. This happens in the application lifespan handler via `authz/seed.py`, which reads the password file, hashes it with Argon2id, and creates the user if it doesn't already exist.
 
-> **Note**: If `APP_ADMIN_PASSWORD_PATH` is not set or the file is missing/empty, the migration will skip admin seeding with a warning. You can set the admin password later with `uv run python tools/set_admin_password.py`.
+If the password file is not configured or missing, the application still starts but logs a warning — the admin user will be created without a password (unable to log in locally).
+
+> **Recommended**: Run `make secrets-generate` before first startup to create the password file.
 
 ### Providing a custom admin password
 
@@ -149,7 +191,7 @@ Set the variable **before** secrets are generated:
 ```bash
 export APP_ADMIN_PASSWORD="my-secure-password"
 make secrets-generate-force   # writes the value to .secrets/admin-password
-make run-all                  # migration seeds the admin user with this password
+make run-all                  # app startup seeds the admin user with this password
 ```
 
 If `APP_ADMIN_PASSWORD` is not set, `generate_secrets.sh` creates a random 24-byte base64 password saved to `.secrets/admin-password`:
@@ -158,7 +200,7 @@ If `APP_ADMIN_PASSWORD` is not set, `generate_secrets.sh` creates a random 24-by
 cat .secrets/admin-password
 ```
 
-> **Important**: The admin password is hashed and stored during the initial migration. If the database already has an `admin` user (e.g., from a previous run with a different password), regenerating secrets will **not** update the stored hash. You must either reset the database or manually update the password.
+> **Important**: The admin password is hashed on first creation. If the database already has an `admin` user with a password set, the seed will not overwrite it. To change the password, use the `PATCH /users/{id}` endpoint or reset the database.
 
 ## Identity Providers (OIDC)
 

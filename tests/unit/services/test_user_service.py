@@ -19,7 +19,7 @@ from nexus.auth.exceptions import (
     UserUsernameConflictError,
 )
 from nexus.auth.passwords import verify_password
-from nexus.core.models import User, UserRole
+from nexus.core.models import User
 from nexus.users.services.user_service import UsersService
 
 TEST_PASSWORD = "securepassword123"  # noqa: S105
@@ -35,13 +35,11 @@ async def test_create_user_success(test_db_session: AsyncSession, test_user: Use
         email="newuser@example.com",
         full_name="New User",
         password=TEST_PASSWORD,
-        role=UserRole.CREATOR,
     )
 
     assert user.username == "newuser"
     assert user.email == "newuser@example.com"
     assert user.full_name == "New User"
-    assert user.role == UserRole.CREATOR
     assert user.is_active is True
     assert user.id is not None
     assert user.password_hash is not None
@@ -58,7 +56,6 @@ async def test_create_user_inactive(test_db_session: AsyncSession, test_user: Us
         email="inactive@example.com",
         full_name="Inactive User",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
         is_active=False,
     )
 
@@ -75,7 +72,6 @@ async def test_create_user_duplicate_username(test_db_session: AsyncSession, tes
         email="dup1@example.com",
         full_name="Dup User 1",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
 
     with pytest.raises(UserUsernameConflictError):
@@ -84,7 +80,6 @@ async def test_create_user_duplicate_username(test_db_session: AsyncSession, tes
             email="dup2@example.com",
             full_name="Dup User 2",
             password=TEST_PASSWORD,
-            role=UserRole.VIEWER,
         )
 
 
@@ -98,7 +93,6 @@ async def test_create_user_duplicate_email(test_db_session: AsyncSession, test_u
         email="same@example.com",
         full_name="Email User 1",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
 
     with pytest.raises(UserEmailConflictError):
@@ -107,7 +101,6 @@ async def test_create_user_duplicate_email(test_db_session: AsyncSession, test_u
             email="same@example.com",
             full_name="Email User 2",
             password=TEST_PASSWORD,
-            role=UserRole.VIEWER,
         )
 
 
@@ -121,7 +114,6 @@ async def test_get_user_by_id_success(test_db_session: AsyncSession, test_user: 
         email="getuser@example.com",
         full_name="Get User",
         password=TEST_PASSWORD,
-        role=UserRole.CREATOR,
     )
 
     fetched = await service.get_user_by_id(created.id)
@@ -150,7 +142,6 @@ async def test_update_user_full_name(test_db_session: AsyncSession, test_user: U
         email="updatename@example.com",
         full_name="Original Name",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
 
     updated = await service.update_user(user.id, full_name="Updated Name")
@@ -169,7 +160,6 @@ async def test_update_user_email(test_db_session: AsyncSession, test_user: User)
         email="old@example.com",
         full_name="Update Email User",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
 
     updated = await service.update_user(user.id, email="new@example.com")
@@ -187,30 +177,11 @@ async def test_update_user_email_normalizes_case(test_db_session: AsyncSession, 
         email="original@example.com",
         full_name="Email Case User",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
 
     updated = await service.update_user(user.id, email="New@Example.COM")
 
     assert updated.email == "new@example.com"
-
-
-@pytest.mark.asyncio
-async def test_update_user_role(test_db_session: AsyncSession, test_user: User) -> None:
-    """Test successful role update."""
-    service = UsersService(test_db_session, test_user)
-
-    user = await service.create_user(
-        username="updaterole",
-        email="updaterole@example.com",
-        full_name="Update Role User",
-        password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
-    )
-
-    updated = await service.update_user(user.id, role=UserRole.ADMINISTRATOR)
-
-    assert updated.role == UserRole.ADMINISTRATOR
 
 
 @pytest.mark.asyncio
@@ -223,7 +194,6 @@ async def test_update_user_is_active(test_db_session: AsyncSession, test_user: U
         email="disable@example.com",
         full_name="Disable User",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
 
     updated = await service.update_user(user.id, is_active=False)
@@ -241,7 +211,6 @@ async def test_update_user_email_conflict(test_db_session: AsyncSession, test_us
         email="taken@example.com",
         full_name="Conflict User 1",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
 
     user = await service.create_user(
@@ -249,7 +218,6 @@ async def test_update_user_email_conflict(test_db_session: AsyncSession, test_us
         email="original@example.com",
         full_name="Conflict User 2",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
 
     with pytest.raises(UserEmailConflictError):
@@ -275,7 +243,6 @@ async def test_update_user_updates_timestamp(test_db_session: AsyncSession, test
         email="tsuser@example.com",
         full_name="TS User",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
     original_ts = user.updated_at
 
@@ -295,7 +262,6 @@ async def test_admin_self_disable_allowed(test_db_session: AsyncSession) -> None
         username="admin",
         email="admin@example.com",
         full_name="Admin",
-        role=UserRole.ADMINISTRATOR,
         password_hash=hash_password("adminpassword"),
     )
     test_db_session.add(admin)
@@ -320,7 +286,6 @@ async def test_non_admin_cannot_disable_admin(test_db_session: AsyncSession, tes
         username="admin",
         email="admin@example.com",
         full_name="Admin",
-        role=UserRole.ADMINISTRATOR,
         password_hash=hash_password("adminpassword"),
     )
     test_db_session.add(admin)
@@ -343,7 +308,6 @@ async def test_non_admin_can_update_admin_other_fields(test_db_session: AsyncSes
         username="admin",
         email="admin@example.com",
         full_name="Admin",
-        role=UserRole.ADMINISTRATOR,
         password_hash=hash_password("adminpassword"),
     )
     test_db_session.add(admin)
@@ -367,7 +331,6 @@ async def test_list_users_cursor(test_db_session: AsyncSession, test_user: User)
             email=f"listuser{i}@example.com",
             full_name=f"List User {i}",
             password=TEST_PASSWORD,
-            role=UserRole.VIEWER,
         )
 
     result = await service.list_users_cursor(limit=3)
@@ -386,7 +349,6 @@ async def test_create_user_normalizes_case(test_db_session: AsyncSession, test_u
         email="Bob@Example.COM",
         full_name="Bob Smith",
         password=TEST_PASSWORD,
-        role=UserRole.VIEWER,
     )
 
     assert user.username == "bobsmith"

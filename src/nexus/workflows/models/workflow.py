@@ -52,6 +52,7 @@ class Workflow(Resource, table=True):
     __filterable_fields__: ClassVar[list[str]] = [
         *Resource.__filterable_fields__,
         "is_enabled",
+        "project_id",
     ]
 
     # Define sortable fields for API endpoints - extend base Resource fields
@@ -69,6 +70,13 @@ class Workflow(Resource, table=True):
     is_enabled: bool = Field(
         default=True,
         description="Whether workflow is enabled for execution",
+        index=True,
+    )
+
+    project_id: UUID | None = Field(
+        default=None,
+        foreign_key="projects.id",
+        description="Project namespace for resource isolation",
         index=True,
     )
 
@@ -149,6 +157,7 @@ class WorkflowCreate(WorkflowBase):
 
     workflow_definition: Any = Field(..., description="Workflow definition object")
     is_enabled: bool = Field(default=True, description="Enable workflow for execution")
+    project_id: UUID | None = Field(default=None, description="Project to assign workflow to")
 
 
 class WorkflowUpdate(SQLModel):
@@ -181,6 +190,7 @@ class WorkflowRead(WorkflowBase):
     current_version: int
     is_enabled: bool
     created_by: UUID
+    project_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None

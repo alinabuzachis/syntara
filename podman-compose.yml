@@ -116,6 +116,7 @@ services:
       - APP_ADMIN_PASSWORD_PATH=/run/secrets/admin-password
       # Database encryption key (for encrypting sensitive fields at rest)
       - APP_DB_ENCRYPTION_KEY_PATH=/run/secrets/db-encryption-key
+      - APP_OPA_URL=${APP_OPA_URL:-http://opa:8181}
     volumes:
       - ./src:/opt/app-root/src/src:z
       # JWT signing keys
@@ -136,8 +137,8 @@ services:
       test: [CMD-SHELL, 'python3 -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")"']
       interval: 10s
       timeout: 10s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 60s
 
   # Temporal Worker - Executes workflow and activity tasks
   temporal-worker:
@@ -199,6 +200,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  # OPA - Open Policy Agent for authorization policy evaluation
+  opa:
+    image: docker.io/openpolicyagent/opa:1.4.2-static
+    restart: unless-stopped
+    command: [run, --server, --addr, ':8181', /policies]
+    ports:
+      - ${APP_OPA_PORT:-8181}:8181
+    volumes:
+      - ./src/nexus/authz/rego:/policies:z
+    healthcheck:
+      test: [CMD, /opa, eval, 'true']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # MCP Server - Test MCP server for integration testing
   mcp-server:

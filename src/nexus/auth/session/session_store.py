@@ -430,6 +430,49 @@ class SessionStore:
             idp=metadata.idp,
         )
 
+    # ========================================================================
+    # Token version tracking
+    # ========================================================================
+
+    _TOKEN_VERSION_PREFIX = "user_token_version:"  # noqa: S105
+
+    async def increment_token_version(self, user_id: UUID | str) -> int:
+        """Increment the token version counter for a user.
+
+        Called when an admin changes a user's account (group memberships,
+        role, profile, etc.). The version is compared against the
+        ``token_ver`` claim in the user's access token to detect staleness.
+
+        Args:
+            user_id: User UUID
+
+        Returns:
+            New version number
+
+        """
+        client = self._ensure_connected()
+        key = f"{self._TOKEN_VERSION_PREFIX}{user_id}"
+        ttl_seconds = self._settings.jwt_refresh_token_lifetime_hours * 3600
+        new_version: int = await client.incr(key)
+        await client.expire(key, ttl_seconds)
+        logger.debug("Incremented token version", user_id=str(user_id), version=new_version)
+        return new_version
+
+    async def get_token_version(self, user_id: UUID | str) -> int:
+        """Get the current token version for a user.
+
+        Args:
+            user_id: User UUID
+
+        Returns:
+            Current version (0 if not set)
+
+        """
+        client = self._ensure_connected()
+        key = f"{self._TOKEN_VERSION_PREFIX}{user_id}"
+        value = await client.get(key)
+        return int(value) if value else 0
+
     async def list_user_sessions(self, user_id: UUID | str) -> list[SessionInfo]:
         """List all active sessions for a user.
 

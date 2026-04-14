@@ -11,7 +11,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
-from nexus.core.models.user import UserRole
 from nexus.core.utils.cursor import SortDirection
 from nexus.core.utils.sorting import apply_sorting
 
@@ -97,23 +96,6 @@ class TestApplySortingSQLAlchemy:
         expected_usernames = [u.username for u in sorted(test_users, key=lambda x: x.created_at, reverse=True)]
         assert usernames == expected_usernames
 
-    async def test_apply_sorting_enum_field(self, test_users: list[User], test_db_session: AsyncSession) -> None:
-        """Test sorting by enum field (role)."""
-        query = select(User)
-        sort_tuples = [("role", SortDirection.ASC)]
-
-        sorted_query = apply_sorting(query, sort_tuples, User)
-        result = (await test_db_session.exec(sorted_query)).all()
-
-        # Should be sorted by role ascending (enum order by definition)
-        assert len(result) == len(test_users)
-        usernames = [user.username for user in result]
-        # Database sorts enum values by their definition order, not alphabetically
-        # Order: CREATOR, APPROVER, ADMINISTRATOR, VIEWER
-        role_order = {UserRole.CREATOR: 0, UserRole.APPROVER: 1, UserRole.ADMINISTRATOR: 2, UserRole.VIEWER: 3}
-        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: role_order[x.role])]
-        assert usernames == expected_usernames
-
     async def test_apply_sorting_with_where_clause(self, test_users: list[User], test_db_session: AsyncSession) -> None:
         """Test sorting combined with WHERE clause."""
         query = select(User).where(User.is_active == True)  # noqa: E712
@@ -150,22 +132,17 @@ class TestApplySortingSQLAlchemy:
         query = select(User)
         sort_tuples = [
             ("is_active", SortDirection.ASC),  # Inactive first (False < True)
-            ("role", SortDirection.ASC),  # Then by role ascending
+            ("full_name", SortDirection.ASC),  # Then by full_name ascending
             ("username", SortDirection.ASC),  # Then by username ascending
         ]
 
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
 
-        # Should be sorted by: is_active ASC, role ASC, username ASC
-        # Inactive users (False): charlie(VIEWER), eve(ADMINISTRATOR)
-        # Active users (True): bob(APPROVER), alice(CREATOR), diana(ADMINISTRATOR)
         assert len(result) == len(test_users)
         usernames = [user.username for user in result]
-        # Database sorts enum by definition order, not alphabetical
-        role_order = {UserRole.CREATOR: 0, UserRole.APPROVER: 1, UserRole.ADMINISTRATOR: 2, UserRole.VIEWER: 3}
         expected_usernames = [
-            u.username for u in sorted(test_users, key=lambda x: (x.is_active, role_order[x.role], x.username))
+            u.username for u in sorted(test_users, key=lambda x: (x.is_active, x.full_name, x.username))
         ]
         assert usernames == expected_usernames
         # Verify the expected split between inactive and active users
@@ -200,65 +177,53 @@ class TestApplySortingSQLAlchemy:
     ) -> None:
         """Test all combinations of sort directions."""
         query = select(User)
-        role_order = {UserRole.CREATOR: 0, UserRole.APPROVER: 1, UserRole.ADMINISTRATOR: 2, UserRole.VIEWER: 3}
 
         # Test ASC + ASC
-        sort_tuples = [("role", SortDirection.ASC), ("username", SortDirection.ASC)]
+        sort_tuples = [("is_active", SortDirection.ASC), ("username", SortDirection.ASC)]
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
-        # Should be sorted by role ASC, then username ASC
-        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (role_order[x.role], x.username))]
+        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (x.is_active, x.username))]
         assert usernames == expected_usernames
 
         # Test DESC + ASC
-        sort_tuples = [("role", SortDirection.DESC), ("username", SortDirection.ASC)]
+        sort_tuples = [("is_active", SortDirection.DESC), ("username", SortDirection.ASC)]
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
-        # Should be sorted by role DESC, then username ASC
-        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (-role_order[x.role], x.username))]
+        expected_usernames = [u.username for u in sorted(test_users, key=lambda x: (-x.is_active, x.username))]
         assert usernames == expected_usernames
 
         # Test ASC + DESC
-        sort_tuples = [("role", SortDirection.ASC), ("username", SortDirection.DESC)]
+        sort_tuples = [("is_active", SortDirection.ASC), ("username", SortDirection.DESC)]
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
-        # Should be sorted by role ASC, then username DESC
-        # Use negative sort for username to simulate DESC within ASC role groups
         expected_usernames = []
-        users_by_role: dict[int, list[User]] = {}
+        users_by_active: dict[bool, list[User]] = {}
         for user in test_users:
-            role_key = role_order[user.role]
-            if role_key not in users_by_role:
-                users_by_role[role_key] = []
-            users_by_role[role_key].append(user)
+            users_by_active.setdefault(user.is_active, []).append(user)
 
-        # Sort roles ASC, then usernames DESC within each role
-        for role_key in sorted(users_by_role.keys()):
-            role_users = sorted(users_by_role[role_key], key=lambda x: x.username, reverse=True)
-            expected_usernames.extend([u.username for u in role_users])
+        # Sort is_active ASC (False first), then usernames DESC within each group
+        for active_key in sorted(users_by_active.keys()):
+            group_users = sorted(users_by_active[active_key], key=lambda x: x.username, reverse=True)
+            expected_usernames.extend([u.username for u in group_users])
         assert usernames == expected_usernames
 
         # Test DESC + DESC
-        sort_tuples = [("role", SortDirection.DESC), ("username", SortDirection.DESC)]
+        sort_tuples = [("is_active", SortDirection.DESC), ("username", SortDirection.DESC)]
         sorted_query = apply_sorting(query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
         usernames = [user.username for user in result]
-        # Should be sorted by role DESC, then username DESC
         expected_usernames = []
-        users_by_role = {}
+        users_by_active = {}
         for user in test_users:
-            role_key = role_order[user.role]
-            if role_key not in users_by_role:
-                users_by_role[role_key] = []
-            users_by_role[role_key].append(user)
+            users_by_active.setdefault(user.is_active, []).append(user)
 
-        # Sort roles DESC, then usernames DESC within each role
-        for role_key in sorted(users_by_role.keys(), reverse=True):
-            role_users = sorted(users_by_role[role_key], key=lambda x: x.username, reverse=True)
-            expected_usernames.extend([u.username for u in role_users])
+        # Sort is_active DESC (True first), then usernames DESC within each group
+        for active_key in sorted(users_by_active.keys(), reverse=True):
+            group_users = sorted(users_by_active[active_key], key=lambda x: x.username, reverse=True)
+            expected_usernames.extend([u.username for u in group_users])
         assert usernames == expected_usernames
 
     async def test_apply_sorting_performance_with_many_sorts(
@@ -270,7 +235,7 @@ class TestApplySortingSQLAlchemy:
         sort_tuples = [
             ("is_active", SortDirection.ASC),
             ("username", SortDirection.DESC),
-            ("role", SortDirection.ASC),
+            ("full_name", SortDirection.ASC),
             ("email", SortDirection.DESC),
             ("created_at", SortDirection.ASC),
         ]
@@ -283,20 +248,6 @@ class TestApplySortingSQLAlchemy:
         # Verify it returned all users with correct ordering
         usernames = [user.username for user in result]
         assert len(set(usernames)) == len(test_users)
-        # Verify complex multi-field sorting order
-        role_order = {UserRole.CREATOR: 0, UserRole.APPROVER: 1, UserRole.ADMINISTRATOR: 2, UserRole.VIEWER: 3}
-        expected_usernames = [
-            u.username
-            for u in sorted(
-                test_users,
-                key=lambda x: (x.is_active, x.username, role_order[x.role], x.email, x.created_at),
-                reverse=False,
-            )
-        ]
-        # For this complex sort with mixed directions, we just verify the sorting was applied
-        # without error and all users are present
-        assert len(usernames) == len(expected_usernames)
-        assert set(usernames) == set(expected_usernames)
 
     async def test_apply_sorting_string_field_sorting(
         self, test_users: list[User], test_db_session: AsyncSession
@@ -355,19 +306,18 @@ class TestApplySortingSQLAlchemy:
     ) -> None:
         """Test that apply_sorting works with other SQLAlchemy query operations."""
         # Start with a complex query including WHERE, ORDER BY combination
-        base_query = select(User).where(User.role == UserRole.ADMINISTRATOR)
+        base_query = select(User).where(User.is_active == False)  # noqa: E712
         sort_tuples = [("created_at", SortDirection.DESC)]
 
         sorted_query = apply_sorting(base_query, sort_tuples, User)
         result = (await test_db_session.exec(sorted_query)).all()
 
-        # Should filter ADMINISTRATOR users and sort by created_at DESC
-        admin_users = [u for u in test_users if u.role == UserRole.ADMINISTRATOR]
-        assert len(result) == len(admin_users)
+        # Should filter inactive users and sort by created_at DESC
+        inactive_users = [u for u in test_users if not u.is_active]
+        assert len(result) == len(inactive_users)
         usernames = [user.username for user in result]
-        expected_usernames = [u.username for u in sorted(admin_users, key=lambda x: x.created_at, reverse=True)]
+        expected_usernames = [u.username for u in sorted(inactive_users, key=lambda x: x.created_at, reverse=True)]
         assert usernames == expected_usernames
 
-        # Verify all are administrators
-        roles = [user.role for user in result]
-        assert all(role == UserRole.ADMINISTRATOR for role in roles)
+        # Verify all are inactive
+        assert all(not user.is_active for user in result)

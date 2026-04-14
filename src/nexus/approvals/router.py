@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import Depends, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.approvals.models import ApprovalRequestRead
@@ -12,15 +12,35 @@ from nexus.approvals.models.api_models import (
     ApprovalDecisionRequest,
     BatchApprovalRequest,
 )
-from nexus.approvals.models.approval_request import ApprovalListResponse
+from nexus.approvals.models.approval_request import ApprovalListResponse, ApprovalRequest
 from nexus.approvals.models.batch_response import BatchApprovalResponse
 from nexus.approvals.models.query_params import ApprovalListParams
 from nexus.approvals.services.approval_service import ApprovalService
 from nexus.auth import get_current_user
+from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
+from nexus.core.nexus_router import NexusRouter
 
-router = APIRouter(prefix="/approvals", tags=["approvals"])
+router = NexusRouter(prefix="/approvals", tags=["approvals"])
+
+_ALL_ROLES = ["admin", "auditor", "user", "project-admin", "project-user", "project-auditor"]
+
+_approval_perm_read = PermissionChecker(
+    "approval",
+    "read",
+    roles=_ALL_ROLES,
+    resource_model=ApprovalRequest,
+    resource_id_param="approval_id",
+)
+_approval_perm_decide = PermissionChecker(
+    "approval",
+    "decide",
+    roles=["admin", "user", "project-admin", "project-user"],
+    resource_model=ApprovalRequest,
+    resource_id_param="approval_id",
+)
 
 # Exception handlers are registered globally in main.py via the exception registry
 # Domain exceptions raised by services automatically bubble up to global handlers
@@ -61,6 +81,7 @@ async def list_approvals(
     request: Request,
     service: Annotated[ApprovalService, Depends(get_approval_service)],
     params: Annotated[ApprovalListParams, Depends()],
+    allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("approval", "read"))],
 ) -> ApprovalListResponse:
     """List approval requests with filtering, sorting, and pagination.
 
@@ -74,6 +95,7 @@ async def list_approvals(
         request: FastAPI request object containing query parameters
         service: Approval service
         params: Query parameters for pagination and filtering
+        allowed_projects: Project scope filter from authorization
 
     Returns:
         ApprovalListResponse with approvals, pagination metadata, and optional total
@@ -85,10 +107,17 @@ async def list_approvals(
         sort=params.sort,
         query_params_items=request.query_params.items(),
         include_total=params.include_total,
+        allowed_projects=allowed_projects,
     )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+# Service-to-service endpoint (Temporal worker creates approvals).
+# Gated to admin for now; replace with proper service-to-service auth.
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(PermissionChecker("approval", "create", roles=["admin"]))],
+)
 async def create_approval(
     request: ApprovalCreateRequest,
     service: Annotated[ApprovalService, Depends(get_approval_service)],
@@ -110,7 +139,7 @@ async def create_approval(
     return await service.create(request)
 
 
-@router.get("/{approval_id}")
+@router.get("/{approval_id}", dependencies=[Depends(_approval_perm_read)])
 async def get_approval(
     approval_id: UUID,
     service: Annotated[ApprovalService, Depends(get_approval_service)],
@@ -133,7 +162,7 @@ async def get_approval(
     return await service.get(approval_id)
 
 
-@router.patch("/{approval_id}")
+@router.patch("/{approval_id}", dependencies=[Depends(_approval_perm_decide)])
 async def decide_approval(
     approval_id: UUID,
     request: ApprovalDecisionRequest,
@@ -161,7 +190,12 @@ async def decide_approval(
     return await service.decide(approval_id, request)
 
 
-@router.post("/batch")
+@router.post(
+    "/batch",
+    dependencies=[
+        Depends(PermissionChecker("approval", "decide", roles=["admin", "user", "project-admin", "project-user"]))
+    ],
+)
 async def batch_decide_approvals(
     request: BatchApprovalRequest,
     service: Annotated[ApprovalService, Depends(get_approval_service)],

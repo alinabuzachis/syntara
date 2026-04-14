@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
@@ -55,6 +56,7 @@ class ExecutionsConvertResourceMixin(ConvertResourceMixin):
             id=resource.id,
             workflow_id=resource.workflow_id,
             workflow_version_id=resource.workflow_version_id,
+            project_id=resource.project_id,
             temporal_workflow_id=resource.temporal_workflow_id,
             status=resource.status,
             created_by=resource.created_by,
@@ -209,6 +211,7 @@ class ExecutionService(BaseService):
             id=execution_id,
             workflow_id=workflow.id,
             workflow_version_id=workflow_version.id,
+            project_id=workflow.project_id,
             temporal_workflow_id=temporal_workflow_id,
             status=ExecutionStatus.PENDING,
             input_data=input_data,
@@ -290,6 +293,7 @@ class ExecutionService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
+        allowed_projects: AllowedProjectsResult | None = None,
     ) -> "ExecutionListResponse":
         """List executions with filtering, sorting, and pagination.
 
@@ -299,6 +303,7 @@ class ExecutionService(BaseService):
             sort: Sort parameter (e.g., "created_at", "-status")
             query_params_items: Raw query parameter items from request (for filtering)
             include_total: Whether to include total count in response
+            allowed_projects: Optional project scope filter for authorization
 
         Returns:
             ExecutionListResponse with executions, pagination metadata, and optional total
@@ -313,6 +318,7 @@ class ExecutionService(BaseService):
             sort=sort or "-created_at",  # Default DESC sort if none provided
             query_params_items=query_params_items,
             include_total=include_total,
+            allowed_projects=allowed_projects,
         )
 
     async def get_execution_activities(self, execution_id: UUID) -> list[ActivityExecution]:

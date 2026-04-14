@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.models import User
 from nexus.core.services import BaseService
 from nexus.core.services.extensions import ConvertResourceMixin
@@ -87,6 +88,7 @@ class WorkflowService(BaseService):
         labels: dict[str, Any],
         workflow_definition: dict[str, Any],
         is_enabled: bool,  # noqa: FBT001
+        project_id: UUID | None = None,
     ) -> tuple[Workflow, WorkflowVersion]:
         """Create a new V2 workflow with initial version.
 
@@ -96,6 +98,7 @@ class WorkflowService(BaseService):
             labels: Optional key-value labels
             workflow_definition: V2 workflow definition as dict (triggers + nodes + edges)
             is_enabled: Whether workflow is enabled for execution
+            project_id: Optional project to assign workflow to
 
         Returns:
             Tuple of (created workflow, initial version)
@@ -120,6 +123,7 @@ class WorkflowService(BaseService):
             current_version=1,
             created_by=self.user.id,
             is_enabled=is_enabled,
+            project_id=project_id,
         )
 
         # Create initial version
@@ -151,6 +155,7 @@ class WorkflowService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
+        allowed_projects: AllowedProjectsResult | None = None,
     ) -> "WorkflowListResponse":
         """List workflows with filtering, sorting, and pagination.
 
@@ -160,6 +165,7 @@ class WorkflowService(BaseService):
             sort: Sort parameter (e.g., "name", "-created_at")
             query_params_items: Raw query parameter items from request (for filtering)
             include_total: Whether to include total count in response
+            allowed_projects: Optional project scope filter for authorization
 
         Returns:
             WorkflowListResponse with workflows, pagination metadata, and optional total
@@ -174,6 +180,7 @@ class WorkflowService(BaseService):
             sort=sort or "-created_at",  # Default DESC sort if none provided
             query_params_items=query_params_items,
             include_total=include_total,
+            allowed_projects=allowed_projects,
         )
 
     async def get_workflow_by_id(self, workflow_id: UUID) -> Workflow:

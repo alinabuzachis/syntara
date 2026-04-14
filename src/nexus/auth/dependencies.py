@@ -29,7 +29,6 @@ from nexus.auth.exceptions import (
 )
 from nexus.auth.services.token_service import TokenPayload, TokenService
 from nexus.core.models import User
-from nexus.core.models.user import UserRole
 
 # Optional bearer scheme - doesn't auto-raise 403
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -70,8 +69,6 @@ def _user_from_payload(payload: TokenPayload) -> User:
     """Construct a ``User`` instance from validated JWT claims.
 
     The returned object is **not** attached to any database session.
-    Role is always set to ADMINISTRATOR; fine-grained RBAC will be
-    handled by the permissions layer in ANSTRAT-1900.
 
     Args:
         payload: Decoded and validated access-token payload.
@@ -97,7 +94,6 @@ def _user_from_payload(payload: TokenPayload) -> User:
         username=username,
         email=email,
         full_name=full_name,
-        role=UserRole.ADMINISTRATOR,  # TODO(ANSTRAT-1900): resolve role from JWT claims  # noqa: TD003
         is_active=True,
     )
 

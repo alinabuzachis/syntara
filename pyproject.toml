@@ -128,6 +128,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "D104"]
 "src/nexus/core/models/base/resource.py" = ["A005"]  # Allow module name shadowing stdlib
+"tools/**/*.py" = ["T201", "INP001", "PLC0415", "ARG001", "ANN401", "TRY003", "EM102"]  # CLI tools: print, deferred imports, unused args
 "tests/**/*.py" = [
     "S101",     # Allow assert statements in tests
     "ANN001",   # Don't require type annotations for test function arguments (fixtures)
@@ -136,7 +137,8 @@ ignore = [
     "PLR2004",  # Allow magic values in tests
     "TD002",    # TODO formatting
     "TD003",    # TODO formatting
-    "ARG001",   # Allow unused test fixture arguments
+    "ARG001",   # Allow unused test fixture arguments (functions)
+    "ARG002",   # Allow unused test fixture arguments (methods)
     "SLF001",   # Allow private member access in tests (for unit testing internal state)
     "PERF401",  # Allow append in loops (readability over performance in tests)
     "S110",     # Allow try-except-pass in test cleanup
@@ -147,12 +149,6 @@ ignore = [
     "PT011",    # Allow broad pytest.raises for contract tests
     "PT012",    # Allow multi-statement pytest.raises blocks (async generators)
     "PGH003",   # Allow generic type: ignore comments in tests
-]
-"tools/**/*.py" = [
-    "T201",     # Allow print in tools
-    "ANN401",   # Allow Any for YAML/dynamic data traversal
-    "TRY003",   # Allow long messages in exception raises
-    "EM102",    # Allow f-string literals in exceptions
 ]
 "src/nexus/api/repositories/*.py" = ["ANN401"]  # Allow Any for database row types
 "src/nexus/core/database/migrations/**/*.py" = ["INP001", "D400", "D415", "PLR0915"]  # Alembic files (auto-generated)

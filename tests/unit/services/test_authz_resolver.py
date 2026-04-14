@@ -1,0 +1,292 @@
+"""Unit tests for the authz policy resolver.
+
+Tests cover:
+- resolve_effective_policies() with global and project-scoped roles
+- resolve_user_groups() for group membership resolution
+- _get_user_group_ids() implicit authenticated group inclusion
+- _resolve_roles_to_policies() deduplication and project scoping
+"""
+
+from uuid import uuid4
+
+import pytest
+from sqlalchemy import insert
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from nexus.authz.models.assignments import GroupRoleAssignment, UserRoleAssignment
+from nexus.authz.models.policy import Policy
+from nexus.authz.models.project import Project
+from nexus.authz.models.role import Role, RolePolicyLink
+from nexus.authz.resolver import (
+    _get_user_group_ids,
+    _resolve_roles_to_policies,
+    resolve_effective_policies,
+    resolve_user_groups,
+)
+from nexus.authz.seed import seed_authz_data
+from nexus.core.models import User
+from nexus.core.models.group import Group, user_groups
+
+
+@pytest.fixture
+async def seeded_db(test_db_session: AsyncSession) -> AsyncSession:
+    """Seed authz data and return the session."""
+    await seed_authz_data(test_db_session)
+    return test_db_session
+
+
+# ============================================================================
+# _get_user_group_ids
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_user_group_ids_includes_authenticated(seeded_db: AsyncSession, test_user: User) -> None:
+    """All users implicitly belong to the 'authenticated' group."""
+    group_ids = await _get_user_group_ids(seeded_db, test_user.id)
+    # Find the authenticated group
+    result = await seeded_db.exec(select(Group).where(Group.name == "authenticated"))
+    auth_group = result.first()
+    assert auth_group is not None
+    assert auth_group.id in group_ids
+
+
+@pytest.mark.asyncio
+async def test_get_user_group_ids_includes_explicit_groups(seeded_db: AsyncSession, test_user: User) -> None:
+    """User's explicit group memberships are included."""
+    custom_group = Group(id=uuid4(), name="custom-grp", description="", labels={})
+    seeded_db.add(custom_group)
+    await seeded_db.flush()
+    await seeded_db.exec(insert(user_groups).values(user_id=test_user.id, group_id=custom_group.id))
+    await seeded_db.commit()
+
+    group_ids = await _get_user_group_ids(seeded_db, test_user.id)
+    assert custom_group.id in group_ids
+
+
+# ============================================================================
+# _resolve_roles_to_policies
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_resolve_roles_to_policies_empty(seeded_db: AsyncSession) -> None:
+    """Empty role_ids produces no policies."""
+    seen: set[str] = set()
+    result: list[dict[str, object]] = []
+    await _resolve_roles_to_policies(seeded_db, [], seen, result)
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_resolve_roles_to_policies_with_project(seeded_db: AsyncSession) -> None:
+    """Project parameter injects scope and project into statements."""
+    # Create a policy and role linked to it
+    policy = Policy(
+        name="test:resolve:any",
+        statements=[{"name": "test:resolve:any", "effect": "allow", "actions": ["read"], "scope": "any"}],
+        is_builtin=False,
+        labels={},
+    )
+    seeded_db.add(policy)
+    await seeded_db.flush()
+
+    role = Role(name="resolve-test-role", is_builtin=False, labels={})
+    seeded_db.add(role)
+    await seeded_db.flush()
+
+    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
+    await seeded_db.commit()
+
+    seen: set[str] = set()
+    result: list[dict[str, object]] = []
+    await _resolve_roles_to_policies(seeded_db, [role.id], seen, result, project="my-project")
+
+    assert len(result) >= 1
+    proj_stmts = [s for s in result if s.get("project") == "my-project"]
+    assert len(proj_stmts) >= 1
+    assert proj_stmts[0]["scope"] == "project"
+
+
+@pytest.mark.asyncio
+async def test_resolve_roles_to_policies_deduplication(seeded_db: AsyncSession) -> None:
+    """Duplicate policy names are deduplicated via seen set."""
+    policy = Policy(
+        name="test:dedup:any",
+        statements=[{"name": "test:dedup:any", "effect": "allow", "actions": ["read"], "scope": "any"}],
+        is_builtin=False,
+        labels={},
+    )
+    seeded_db.add(policy)
+    await seeded_db.flush()
+
+    role1 = Role(name="dedup-role-1", is_builtin=False, labels={})
+    role2 = Role(name="dedup-role-2", is_builtin=False, labels={})
+    seeded_db.add(role1)
+    seeded_db.add(role2)
+    await seeded_db.flush()
+
+    seeded_db.add(RolePolicyLink(role_id=role1.id, policy_id=policy.id))
+    seeded_db.add(RolePolicyLink(role_id=role2.id, policy_id=policy.id))
+    await seeded_db.commit()
+
+    seen: set[str] = set()
+    result: list[dict[str, object]] = []
+    await _resolve_roles_to_policies(seeded_db, [role1.id, role2.id], seen, result)
+    # Same policy name should appear only once
+    names = [s.get("name") for s in result]
+    assert names.count("test:dedup:any") == 1
+
+
+# ============================================================================
+# resolve_effective_policies
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_resolve_effective_policies_global_group_roles(seeded_db: AsyncSession, test_user: User) -> None:
+    """User gets policies from group role assignments (global scope)."""
+    # test_user is implicitly in authenticated group which has the default role
+    policies = await resolve_effective_policies(seeded_db, test_user.id)
+    assert len(policies) > 0
+    names = {p["name"] for p in policies}
+    # Default role should include common policies
+    assert any("read" in n for n in names)
+
+
+@pytest.mark.asyncio
+async def test_resolve_effective_policies_direct_user_role(seeded_db: AsyncSession, test_user: User) -> None:
+    """User gets policies from direct user role assignments."""
+    # Create a policy and role, then assign directly to user
+    policy = Policy(
+        name="direct:test:any",
+        statements=[{"name": "direct:test:any", "effect": "allow", "actions": ["direct-action"], "scope": "any"}],
+        is_builtin=False,
+        labels={},
+    )
+    seeded_db.add(policy)
+    await seeded_db.flush()
+
+    role = Role(name="direct-role", is_builtin=False, labels={})
+    seeded_db.add(role)
+    await seeded_db.flush()
+
+    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
+    assignment = UserRoleAssignment(user_id=test_user.id, role_id=role.id)
+    seeded_db.add(assignment)
+    await seeded_db.commit()
+
+    policies = await resolve_effective_policies(seeded_db, test_user.id)
+    names = {p["name"] for p in policies}
+    assert "direct:test:any" in names
+
+
+@pytest.mark.asyncio
+async def test_resolve_effective_policies_project_scoped(seeded_db: AsyncSession, test_user: User) -> None:
+    """User gets project-scoped policies from project role assignments."""
+    project = Project(name="resolver-test-proj", labels={})
+    seeded_db.add(project)
+    await seeded_db.flush()
+
+    policy = Policy(
+        name="proj:test:any",
+        statements=[{"name": "proj:test:any", "effect": "allow", "actions": ["proj-action"], "scope": "any"}],
+        is_builtin=False,
+        labels={},
+    )
+    seeded_db.add(policy)
+    await seeded_db.flush()
+
+    role = Role(name="proj-role", is_builtin=False, labels={})
+    seeded_db.add(role)
+    await seeded_db.flush()
+
+    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
+    assignment = UserRoleAssignment(user_id=test_user.id, role_id=role.id, project_id=project.id)
+    seeded_db.add(assignment)
+    await seeded_db.commit()
+
+    policies = await resolve_effective_policies(seeded_db, test_user.id)
+    proj_policies = [p for p in policies if p.get("scope") == "project" and p.get("project") == "resolver-test-proj"]
+    assert len(proj_policies) >= 1
+
+
+@pytest.mark.asyncio
+async def test_resolve_effective_policies_group_project_scoped(seeded_db: AsyncSession, test_user: User) -> None:
+    """User gets project-scoped policies via group membership."""
+    project = Project(name="group-proj-test", labels={})
+    seeded_db.add(project)
+    await seeded_db.flush()
+
+    policy = Policy(
+        name="grp-proj:test:any",
+        statements=[{"name": "grp-proj:test:any", "effect": "allow", "actions": ["grp-proj-action"], "scope": "any"}],
+        is_builtin=False,
+        labels={},
+    )
+    seeded_db.add(policy)
+    await seeded_db.flush()
+
+    role = Role(name="grp-proj-role", is_builtin=False, labels={})
+    seeded_db.add(role)
+    await seeded_db.flush()
+
+    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
+
+    group = Group(id=uuid4(), name="proj-test-grp", description="", labels={})
+    seeded_db.add(group)
+    await seeded_db.flush()
+
+    # Assign group to project-scoped role
+    seeded_db.add(GroupRoleAssignment(group_id=group.id, role_id=role.id, project_id=project.id, labels={}))
+    # Add user to group
+    await seeded_db.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
+    await seeded_db.commit()
+
+    policies = await resolve_effective_policies(seeded_db, test_user.id)
+    proj_policies = [p for p in policies if p.get("scope") == "project" and p.get("project") == "group-proj-test"]
+    assert len(proj_policies) >= 1
+
+
+# ============================================================================
+# resolve_user_groups
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_resolve_user_groups_includes_authenticated(seeded_db: AsyncSession, test_user: User) -> None:
+    """All users have 'authenticated' in their groups."""
+    groups = await resolve_user_groups(seeded_db, test_user.id)
+    group_names = {g["name"] for g in groups}
+    assert "authenticated" in group_names
+
+
+@pytest.mark.asyncio
+async def test_resolve_user_groups_includes_explicit(seeded_db: AsyncSession, test_user: User) -> None:
+    """Explicit group memberships appear in resolved groups."""
+    group = Group(id=uuid4(), name="explicit-grp", description="", labels={"team": "alpha"})
+    seeded_db.add(group)
+    await seeded_db.flush()
+    await seeded_db.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
+    await seeded_db.commit()
+
+    groups = await resolve_user_groups(seeded_db, test_user.id)
+    match = [g for g in groups if g["name"] == "explicit-grp"]
+    assert len(match) == 1
+    assert match[0]["labels"] == {"team": "alpha"}
+
+
+@pytest.mark.asyncio
+async def test_resolve_user_groups_empty_when_no_groups(
+    seeded_db: AsyncSession,
+) -> None:
+    """User with no explicit groups still gets authenticated group."""
+    # Create a user not in any explicit group
+    orphan = User(id=uuid4(), username="orphan", email="orphan@test.com", full_name="Orphan")
+    seeded_db.add(orphan)
+    await seeded_db.commit()
+
+    groups = await resolve_user_groups(seeded_db, orphan.id)
+    group_names = {g["name"] for g in groups}
+    assert "authenticated" in group_names

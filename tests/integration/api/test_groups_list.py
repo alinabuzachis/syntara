@@ -16,34 +16,36 @@ class TestGroupsListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_basic_success(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_basic_success(self, admin_client: AsyncClient) -> None:
         """Test basic GET /api/v1/groups returns 200."""
-        response = await auth_client.get(GROUPS_URL)
+        response = await admin_client.get(GROUPS_URL)
 
         assert response.status_code == 200
 
         data = response.json()
         assert "resources" in data
         assert isinstance(data["resources"], list)
-        assert len(data["resources"]) == 6
+        # 6 from fixture + 3 seeded (authenticated, admins, test-users)
+        assert len(data["resources"]) == 10
 
     @pytest.mark.asyncio
-    async def test_list_groups_empty_result(self, auth_client: AsyncClient) -> None:
-        """Test response format when no groups exist."""
-        response = await auth_client.get(GROUPS_URL)
+    async def test_list_groups_only_builtin(self, admin_client: AsyncClient) -> None:
+        """Test response format when only builtin groups exist."""
+        response = await admin_client.get(GROUPS_URL)
 
         assert response.status_code == 200
 
         data = response.json()
         assert "resources" in data
         assert isinstance(data["resources"], list)
-        assert len(data["resources"]) == 0
+        # 2 builtin groups (authenticated, admins) + 1 test-users group from conftest
+        assert len(data["resources"]) == 4
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_response_schema(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_response_schema(self, admin_client: AsyncClient) -> None:
         """Test response matches expected schema structure."""
-        response = await auth_client.get(GROUPS_URL)
+        response = await admin_client.get(GROUPS_URL)
 
         assert response.status_code == 200
 
@@ -61,9 +63,9 @@ class TestGroupsListContract:
             assert isinstance(group["updated_at"], str)
 
     @pytest.mark.asyncio
-    async def test_list_groups_pagination(self, auth_client: AsyncClient, multiple_test_groups: list[Group]) -> None:
+    async def test_list_groups_pagination(self, admin_client: AsyncClient, multiple_test_groups: list[Group]) -> None:
         """Test pagination with limit parameter."""
-        response = await auth_client.get(GROUPS_URL, params={"limit": "3"})
+        response = await admin_client.get(GROUPS_URL, params={"limit": "3"})
 
         assert response.status_code == 200
 
@@ -78,7 +80,7 @@ class TestGroupsListContract:
 
         # Follow next cursor
         if data["next"]:
-            next_response = await auth_client.get(GROUPS_URL, params={"limit": "3", "cursor": data["next"]})
+            next_response = await admin_client.get(GROUPS_URL, params={"limit": "3", "cursor": data["next"]})
             assert next_response.status_code == 200
             next_data = next_response.json()
             assert "resources" in next_data
@@ -89,9 +91,9 @@ class TestGroupsListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_cursor_format(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_cursor_format(self, admin_client: AsyncClient) -> None:
         """Test cursor token format in response."""
-        response = await auth_client.get(GROUPS_URL, params={"limit": "1"})
+        response = await admin_client.get(GROUPS_URL, params={"limit": "1"})
 
         assert response.status_code == 200
 
@@ -103,34 +105,35 @@ class TestGroupsListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_sorting_by_name(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_sorting_by_name(self, admin_client: AsyncClient) -> None:
         """Test sorting groups by name ascending and descending."""
-        response = await auth_client.get(GROUPS_URL, params={"sort": "name"})
+        response = await admin_client.get(GROUPS_URL, params={"sort": "name"})
         assert response.status_code == 200
 
         data = response.json()
         names = [g["name"] for g in data["resources"]]
-        assert names == sorted(names)
+        # DB sorts case-insensitively, so compare with key=str.lower
+        assert names == sorted(names, key=str.lower)
 
-        desc_response = await auth_client.get(GROUPS_URL, params={"sort": "-name"})
+        desc_response = await admin_client.get(GROUPS_URL, params={"sort": "-name"})
         assert desc_response.status_code == 200
 
         desc_data = desc_response.json()
         desc_names = [g["name"] for g in desc_data["resources"]]
-        assert desc_names == sorted(desc_names, reverse=True)
+        assert desc_names == sorted(desc_names, key=str.lower, reverse=True)
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_sorting_by_created_at(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_sorting_by_created_at(self, admin_client: AsyncClient) -> None:
         """Test sorting groups by creation date."""
-        response = await auth_client.get(GROUPS_URL, params={"sort": "created_at"})
+        response = await admin_client.get(GROUPS_URL, params={"sort": "created_at"})
         assert response.status_code == 200
 
         data = response.json()
         created_dates = [g["created_at"] for g in data["resources"]]
         assert created_dates == sorted(created_dates)
 
-        desc_response = await auth_client.get(GROUPS_URL, params={"sort": "-created_at"})
+        desc_response = await admin_client.get(GROUPS_URL, params={"sort": "-created_at"})
         assert desc_response.status_code == 200
 
         desc_data = desc_response.json()
@@ -139,9 +142,9 @@ class TestGroupsListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_filter_by_name_contains(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_filter_by_name_contains(self, admin_client: AsyncClient) -> None:
         """Test bracket filter notation for name contains."""
-        response = await auth_client.get(GROUPS_URL, params={"name[contains]": "Alpha"})
+        response = await admin_client.get(GROUPS_URL, params={"name[contains]": "Alpha"})
         assert response.status_code == 200
 
         data = response.json()
@@ -150,34 +153,36 @@ class TestGroupsListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_include_total(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_include_total(self, admin_client: AsyncClient) -> None:
         """Test include_total parameter returns total count."""
-        response = await auth_client.get(GROUPS_URL, params={"include_total": "true"})
+        response = await admin_client.get(GROUPS_URL, params={"include_total": "true"})
 
         assert response.status_code == 200
 
         data = response.json()
         assert "total" in data
         assert isinstance(data["total"], int)
-        assert data["total"] == 6
+        # 6 from fixture + 3 seeded (authenticated, admins, test-users)
+        assert data["total"] == 10
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_include_total_with_pagination(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_include_total_with_pagination(self, admin_client: AsyncClient) -> None:
         """Test total count is accurate even with pagination."""
-        response = await auth_client.get(GROUPS_URL, params={"include_total": "true", "limit": "2"})
+        response = await admin_client.get(GROUPS_URL, params={"include_total": "true", "limit": "2"})
 
         assert response.status_code == 200
 
         data = response.json()
-        assert data["total"] == 6
+        # 6 from fixture + 3 seeded (authenticated, admins, test-users)
+        assert data["total"] == 10
         assert len(data["resources"]) == 2
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_combined_filter_and_sort(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_combined_filter_and_sort(self, admin_client: AsyncClient) -> None:
         """Test combining filters and sorting."""
-        response = await auth_client.get(GROUPS_URL, params={"name[contains]": "Group", "sort": "name"})
+        response = await admin_client.get(GROUPS_URL, params={"name[contains]": "Group", "sort": "name"})
         assert response.status_code == 200
 
         data = response.json()
@@ -186,9 +191,9 @@ class TestGroupsListContract:
 
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("multiple_test_groups")
-    async def test_list_groups_filter_no_results(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_filter_no_results(self, admin_client: AsyncClient) -> None:
         """Test filtering that returns no results."""
-        response = await auth_client.get(GROUPS_URL, params={"name[contains]": "nonexistent"})
+        response = await admin_client.get(GROUPS_URL, params={"name[contains]": "nonexistent"})
 
         assert response.status_code == 200
 
@@ -198,35 +203,35 @@ class TestGroupsListContract:
         assert data["prev"] is None
 
     @pytest.mark.asyncio
-    async def test_list_groups_invalid_limit(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_invalid_limit(self, admin_client: AsyncClient) -> None:
         """Test validation of invalid limit parameter."""
-        response = await auth_client.get(GROUPS_URL, params={"limit": "invalid"})
+        response = await admin_client.get(GROUPS_URL, params={"limit": "invalid"})
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_list_groups_zero_limit(self, auth_client: AsyncClient) -> None:
+    async def test_list_groups_zero_limit(self, admin_client: AsyncClient) -> None:
         """Test validation error for zero limit."""
-        response = await auth_client.get(GROUPS_URL, params={"limit": "0"})
+        response = await admin_client.get(GROUPS_URL, params={"limit": "0"})
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_list_groups_deleted_groups_excluded(self, auth_client: AsyncClient, test_group: Group) -> None:
+    async def test_list_groups_deleted_groups_excluded(self, admin_client: AsyncClient, test_group: Group) -> None:
         """Test that soft-deleted groups are excluded from listing."""
         # Verify group appears in list
-        response = await auth_client.get(GROUPS_URL)
+        response = await admin_client.get(GROUPS_URL)
         assert response.status_code == 200
         data = response.json()
         group_ids = [g["id"] for g in data["resources"]]
         assert str(test_group.id) in group_ids
 
         # Delete the group
-        delete_response = await auth_client.delete(f"{GROUPS_URL}/{test_group.id}")
+        delete_response = await admin_client.delete(f"{GROUPS_URL}/{test_group.id}")
         assert delete_response.status_code == 204
 
         # Verify group no longer appears in list
-        response = await auth_client.get(GROUPS_URL)
+        response = await admin_client.get(GROUPS_URL)
         assert response.status_code == 200
         data = response.json()
         group_ids = [g["id"] for g in data["resources"]]

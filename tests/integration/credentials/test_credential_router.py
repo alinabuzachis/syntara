@@ -318,7 +318,7 @@ class TestCredentialTypeCount:
     async def test_list_types_includes_credential_count(
         self,
         auth_client: AsyncClient,
-        bearer_type: CredentialType,  # noqa: ARG002
+        bearer_type: CredentialType,
     ) -> None:
         """Types with no credentials should show credential_count: 0."""
         resp = await auth_client.get("/api/v1/credential_types")

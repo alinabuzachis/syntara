@@ -25,8 +25,8 @@ class MockMCPProvider(ToolProviderAdapter):
 
     def __init__(
         self,
-        base_url: str,  # noqa: ARG002
-        api_key: str,  # noqa: ARG002
+        base_url: str,
+        api_key: str,
         provider_id: UUID | None = None,
         provider_name: str | None = "mcp-provider",
     ) -> None:

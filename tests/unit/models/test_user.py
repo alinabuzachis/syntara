@@ -3,7 +3,6 @@
 Tests cover:
 - User creation with required fields
 - Soft delete behavior
-- Role enum validation
 - Unique constraint violations
 - last_login update functionality
 """
@@ -16,7 +15,7 @@ from uuid import uuid4
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.core.models import User, UserRole
+from nexus.core.models import User
 
 
 @pytest.mark.asyncio
@@ -32,7 +31,6 @@ async def test_create_user_with_required_fields(
     assert user.username == default_user_data["username"]
     assert user.email == default_user_data["email"]
     assert user.full_name == default_user_data["full_name"]
-    assert user.role == default_user_data["role"].value
     assert user.is_active is True
     assert user.preferences == {}
     assert user.deleted_at is None
@@ -52,7 +50,6 @@ async def test_create_user_with_all_fields(test_db_session: AsyncSession) -> Non
         username="fulluser",
         email="full@example.com",
         full_name="Full Test User",
-        role=UserRole.ADMINISTRATOR,
         is_active=True,
         last_login=now,
         preferences=preferences,
@@ -77,7 +74,6 @@ async def test_user_soft_delete(
         username="admin",
         email="admin@example.com",
         full_name="Admin User",
-        role=UserRole.ADMINISTRATOR.value,
     )
 
     # Create user to be deleted
@@ -86,7 +82,6 @@ async def test_user_soft_delete(
         username="deleteme",
         email="delete@example.com",
         full_name="Delete Me",
-        role=UserRole.VIEWER.value,
     )
 
     # Perform soft delete
@@ -97,26 +92,6 @@ async def test_user_soft_delete(
 
     assert user.deleted_at == now
     assert user.deleted_by == admin.id
-
-
-@pytest.mark.asyncio
-async def test_user_role_validation(user_factory: Callable[..., Awaitable[User]]) -> None:
-    """Test that role enum values are valid."""
-    valid_roles = [
-        UserRole.CREATOR.value,
-        UserRole.APPROVER.value,
-        UserRole.ADMINISTRATOR.value,
-        UserRole.VIEWER.value,
-    ]
-
-    for role in valid_roles:
-        await user_factory(
-            id=uuid4(),
-            username=f"user_{role}",
-            email=f"{role}@example.com",
-            full_name=f"User {role}",
-            role=role,
-        )
 
 
 @pytest.mark.asyncio
@@ -142,14 +117,12 @@ async def test_user_repr() -> None:
         username="repruser",
         email="repr@example.com",
         full_name="Repr User",
-        role=UserRole.VIEWER,
     )
 
     repr_str = repr(user)
     assert "User" in repr_str
     assert str(user_id) in repr_str
     assert "repruser" in repr_str
-    assert UserRole.VIEWER.value in repr_str
 
 
 @pytest.mark.asyncio
@@ -173,7 +146,6 @@ async def test_user_inactive(user_factory: Callable[..., Awaitable[User]]) -> No
         username="inactiveuser",
         email="inactive@example.com",
         full_name="Inactive User",
-        role=UserRole.VIEWER.value,
         is_active=False,
     )
 

@@ -15,7 +15,7 @@ class TestUsersCreateContract:
     """Contract tests for user creation endpoint."""
 
     @pytest.mark.asyncio
-    async def test_create_user_success(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_success(self, admin_client: AsyncClient) -> None:
         """Test successful user creation returns 201."""
         user_data = {
             "username": "newuser",
@@ -24,7 +24,7 @@ class TestUsersCreateContract:
             "password": "securepassword123",
         }
 
-        response = await auth_client.post(USERS_URL, json=user_data)
+        response = await admin_client.post(USERS_URL, json=user_data)
 
         assert response.status_code == 201
 
@@ -32,32 +32,29 @@ class TestUsersCreateContract:
         assert data["username"] == "newuser"
         assert data["email"] == "newuser@example.com"
         assert data["full_name"] == "New User"
-        assert data["role"] == "viewer"  # default role
         assert data["is_active"] is True  # default
 
     @pytest.mark.asyncio
-    async def test_create_user_with_all_fields(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_with_all_fields(self, admin_client: AsyncClient) -> None:
         """Test creating user with all explicit fields."""
         user_data = {
             "username": "fulluser",
             "email": "fulluser@example.com",
             "full_name": "Full User",
             "password": "securepassword123",
-            "role": "administrator",
             "is_active": False,
         }
 
-        response = await auth_client.post(USERS_URL, json=user_data)
+        response = await admin_client.post(USERS_URL, json=user_data)
 
         assert response.status_code == 201
 
         data = response.json()
         assert data["username"] == "fulluser"
-        assert data["role"] == "administrator"
         assert data["is_active"] is False
 
     @pytest.mark.asyncio
-    async def test_create_user_response_schema(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_response_schema(self, admin_client: AsyncClient) -> None:
         """Test response contains all required UserRead fields."""
         user_data = {
             "username": "schemauser",
@@ -66,7 +63,7 @@ class TestUsersCreateContract:
             "password": "securepassword123",
         }
 
-        response = await auth_client.post(USERS_URL, json=user_data)
+        response = await admin_client.post(USERS_URL, json=user_data)
 
         assert response.status_code == 201
 
@@ -76,7 +73,6 @@ class TestUsersCreateContract:
             "username",
             "email",
             "full_name",
-            "role",
             "is_active",
             "last_login",
             "created_at",
@@ -90,7 +86,7 @@ class TestUsersCreateContract:
         assert "password_hash" not in data
 
     @pytest.mark.asyncio
-    async def test_create_user_no_password_in_response(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_no_password_in_response(self, admin_client: AsyncClient) -> None:
         """Test password is never returned in API response."""
         user_data = {
             "username": "nopwduser",
@@ -99,7 +95,7 @@ class TestUsersCreateContract:
             "password": "securepassword123",
         }
 
-        response = await auth_client.post(USERS_URL, json=user_data)
+        response = await admin_client.post(USERS_URL, json=user_data)
 
         assert response.status_code == 201
 
@@ -108,7 +104,7 @@ class TestUsersCreateContract:
         assert "password_hash" not in data
 
     @pytest.mark.asyncio
-    async def test_create_user_duplicate_username(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_duplicate_username(self, admin_client: AsyncClient) -> None:
         """Test 409 conflict when username already exists."""
         user_data = {
             "username": "dupuser",
@@ -118,12 +114,12 @@ class TestUsersCreateContract:
         }
 
         # Create first user
-        response1 = await auth_client.post(USERS_URL, json=user_data)
+        response1 = await admin_client.post(USERS_URL, json=user_data)
         assert response1.status_code == 201
 
         # Try to create second user with same username
         user_data["email"] = "different@example.com"
-        response2 = await auth_client.post(USERS_URL, json=user_data)
+        response2 = await admin_client.post(USERS_URL, json=user_data)
 
         assert response2.status_code == 409
         assert_error_data(
@@ -136,7 +132,7 @@ class TestUsersCreateContract:
         )
 
     @pytest.mark.asyncio
-    async def test_create_user_duplicate_email(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_duplicate_email(self, admin_client: AsyncClient) -> None:
         """Test 409 conflict when email already exists."""
         user_data = {
             "username": "emailuser1",
@@ -146,13 +142,13 @@ class TestUsersCreateContract:
         }
 
         # Create first user
-        response1 = await auth_client.post(USERS_URL, json=user_data)
+        response1 = await admin_client.post(USERS_URL, json=user_data)
         assert response1.status_code == 201
 
         # Try to create second user with same email
         user_data["username"] = "emailuser2"
         user_data["full_name"] = "Email User 2"
-        response2 = await auth_client.post(USERS_URL, json=user_data)
+        response2 = await admin_client.post(USERS_URL, json=user_data)
 
         assert response2.status_code == 409
         assert_error_data(
@@ -165,7 +161,7 @@ class TestUsersCreateContract:
         )
 
     @pytest.mark.asyncio
-    async def test_create_user_missing_username(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_missing_username(self, admin_client: AsyncClient) -> None:
         """Test 422 when username is missing."""
         user_data = {
             "email": "nouser@example.com",
@@ -173,12 +169,12 @@ class TestUsersCreateContract:
             "password": "securepassword123",
         }
 
-        response = await auth_client.post(USERS_URL, json=user_data)
+        response = await admin_client.post(USERS_URL, json=user_data)
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_user_missing_email(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_missing_email(self, admin_client: AsyncClient) -> None:
         """Test 422 when email is missing."""
         user_data = {
             "username": "noemail",
@@ -186,12 +182,12 @@ class TestUsersCreateContract:
             "password": "securepassword123",
         }
 
-        response = await auth_client.post(USERS_URL, json=user_data)
+        response = await admin_client.post(USERS_URL, json=user_data)
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_user_missing_password(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_missing_password(self, admin_client: AsyncClient) -> None:
         """Test 422 when password is missing."""
         user_data = {
             "username": "nopwd",
@@ -199,12 +195,12 @@ class TestUsersCreateContract:
             "full_name": "No Password",
         }
 
-        response = await auth_client.post(USERS_URL, json=user_data)
+        response = await admin_client.post(USERS_URL, json=user_data)
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_user_empty_username(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_empty_username(self, admin_client: AsyncClient) -> None:
         """Test 422 when username is empty string."""
         user_data = {
             "username": "",
@@ -213,12 +209,12 @@ class TestUsersCreateContract:
             "password": "securepassword123",
         }
 
-        response = await auth_client.post(USERS_URL, json=user_data)
+        response = await admin_client.post(USERS_URL, json=user_data)
 
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_user_username_too_long(self, auth_client: AsyncClient) -> None:
+    async def test_create_user_username_too_long(self, admin_client: AsyncClient) -> None:
         """Test 422 when username exceeds max length."""
         user_data = {
             "username": "x" * 256,
@@ -227,22 +223,7 @@ class TestUsersCreateContract:
             "password": "securepassword123",
         }
 
-        response = await auth_client.post(USERS_URL, json=user_data)
-
-        assert response.status_code == 422
-
-    @pytest.mark.asyncio
-    async def test_create_user_invalid_role(self, auth_client: AsyncClient) -> None:
-        """Test 422 when role is invalid."""
-        user_data = {
-            "username": "badrole",
-            "email": "badrole@example.com",
-            "full_name": "Bad Role",
-            "password": "securepassword123",
-            "role": "superadmin",
-        }
-
-        response = await auth_client.post(USERS_URL, json=user_data)
+        response = await admin_client.post(USERS_URL, json=user_data)
 
         assert response.status_code == 422
 

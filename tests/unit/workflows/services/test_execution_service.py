@@ -160,6 +160,7 @@ class TestCreateExecution:
         workflow.id = workflow_id
         workflow.name = "test-workflow"
         workflow.is_enabled = True
+        workflow.project_id = None
 
         workflow_version = Mock(spec=WorkflowVersion)
         workflow_version.id = version_id
@@ -229,6 +230,7 @@ class TestCreateExecution:
         workflow.id = workflow_id
         workflow.name = "test-workflow"
         workflow.is_enabled = True
+        workflow.project_id = None
 
         workflow_version = Mock(spec=WorkflowVersion)
         workflow_version.id = version_id

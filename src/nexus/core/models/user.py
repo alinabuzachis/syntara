@@ -1,28 +1,18 @@
 """User SQLModel for authentication and authorization.
 
 This module provides the User model that combines BaseResource and SoftDeletableResource
-for managing platform users with authentication and role-based access control.
+for managing platform users with authentication and authorization.
 """
 
 from datetime import UTC, datetime
-from enum import Enum
 from typing import Any, ClassVar
 
-from sqlalchemy import String
-from sqlmodel import JSON, DateTime, Field, Index, text
+from sqlalchemy import String, text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import JSON, DateTime, Field, Index
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import SoftDeletableResource
-from nexus.core.utils.sqlmodel import postgres_enum_column
-
-
-class UserRole(str, Enum):
-    """User role enumeration for access control."""
-
-    CREATOR = "creator"
-    APPROVER = "approver"
-    ADMINISTRATOR = "administrator"
-    VIEWER = "viewer"
 
 
 class User(SoftDeletableResource, table=True):
@@ -41,7 +31,6 @@ class User(SoftDeletableResource, table=True):
         username: Unique username for authentication
         email: Unique email address
         full_name: User's display name
-        role: User role for access control (UserRole enum)
         password_hash: Argon2id hash for local auth (null for federated-only users)
         is_active: Account activation status
         last_login: Timestamp of last successful login
@@ -58,7 +47,7 @@ class User(SoftDeletableResource, table=True):
         "updated_at",
         "username",
         "email",
-        "role",
+        "full_name",
         "is_active",
     ]
 
@@ -68,6 +57,8 @@ class User(SoftDeletableResource, table=True):
         "updated_at",
         "username",
         "email",
+        "full_name",
+        "last_login",
     ]
 
     # Required fields
@@ -92,16 +83,6 @@ class User(SoftDeletableResource, table=True):
         max_length=FieldLimits.NAME_MAX_LENGTH,
         sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         description="User's display name",
-    )
-
-    role: UserRole = Field(
-        sa_column=postgres_enum_column(
-            UserRole,
-            "userrole",
-            index=True,
-            create_constraint=True,
-        ),
-        description="User role for access control",
     )
 
     password_hash: str | None = Field(
@@ -130,6 +111,13 @@ class User(SoftDeletableResource, table=True):
         description="User preferences and settings as JSON",
     )
 
+    authz_metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_type=JSONB,
+        sa_column_kwargs={"server_default": text("'{}'::jsonb")},
+        description="User metadata for authorization conditions",
+    )
+
     # Table arguments for partial unique constraints
     __table_args__ = (
         # Partial unique index for username (only for non-deleted users)
@@ -155,7 +143,7 @@ class User(SoftDeletableResource, table=True):
             String representation
 
         """
-        return f"<User(id={self.id}, username={self.username}, role={self.role.value})>"
+        return f"<User(id={self.id}, username={self.username})>"
 
     def update_last_login(self) -> None:
         """Update last_login timestamp to current time."""

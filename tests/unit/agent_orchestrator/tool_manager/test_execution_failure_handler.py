@@ -116,7 +116,7 @@ class MockTool(BaseTool):
     name: str = "test_tool"
     description: str = "Test tool for unit tests"
 
-    def _run(self, *args: Any, **kwargs: Any) -> str:  # noqa: ANN401, ARG002
+    def _run(self, *args: Any, **kwargs: Any) -> str:  # noqa: ANN401
         """Mock run method."""
         return "test result"
 

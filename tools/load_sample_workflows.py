@@ -18,6 +18,9 @@ import structlog
 import yaml
 from sqlmodel import select
 
+from nexus.authz.models import (
+    Project,  # type: ignore[import-untyped]  # noqa: F401 - registers model with SQLAlchemy metadata
+)
 from nexus.core.database.session import AsyncSessionLocal  # type: ignore[import-untyped]
 from nexus.core.models import User  # type: ignore[import-untyped]
 from nexus.workflows.models import Workflow, WorkflowVersion  # type: ignore[import-untyped]

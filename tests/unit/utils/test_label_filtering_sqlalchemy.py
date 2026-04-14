@@ -15,7 +15,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
-from nexus.core.models.user import UserRole
 from nexus.core.utils.labels import apply_label_filters, parse_label_filter
 
 
@@ -263,7 +262,6 @@ class TestLabelFilteringSQLAlchemy:
             username="complex-user",
             email="complex@example.com",
             full_name="Complex User",
-            role=UserRole.CREATOR,
             is_active=True,
             labels={f"label_{i}": f"value_{i}" for i in range(20)},  # 20 labels
             created_at=datetime(2025, 1, 6, 15, 0, 0),

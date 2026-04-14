@@ -72,8 +72,8 @@ class TokenPayload:
     email: str | None = None
     name: str | None = None
     preferred_username: str | None = None
-    role: str | None = None
     groups: list[str] | None = None
+    token_version: int | None = None
     amr: list[str] | None = None
     idp: str | None = None
 
@@ -430,10 +430,10 @@ class TokenService:
         username: str,
         email: str,
         full_name: str | None = None,
-        role: str | None = None,
         amr: list[str] | None = None,
         idp: str = "local",
         groups: list[str] | None = None,
+        token_version: int = 0,
     ) -> str:
         """Create a JWT access token.
 
@@ -442,10 +442,10 @@ class TokenService:
             username: Username
             email: User email
             full_name: User's display name (OIDC 'name' claim)
-            role: User role (e.g., "administrator", "viewer")
             amr: Authentication methods references (e.g., ["pwd"], ["fed", "mfa"])
             idp: Identity provider identifier (e.g., "local", "azure-ad-prod")
             groups: Group memberships
+            token_version: Token version counter for stale token detection
 
         Returns:
             Encoded JWT string
@@ -468,13 +468,12 @@ class TokenService:
             "preferred_username": username,
             "email": email,
             "groups": groups,
+            "token_ver": token_version,
             "amr": amr,
             "idp": idp,
         }
         if full_name:
             payload["name"] = full_name
-        if role:
-            payload["role"] = role
 
         headers = {
             "kid": self._key_manager.key_id,
@@ -607,8 +606,8 @@ class TokenService:
                 email=payload.get("email"),
                 name=payload.get("name"),
                 preferred_username=payload.get("preferred_username"),
-                role=payload.get("role"),
                 groups=payload.get("groups"),
+                token_version=payload.get("token_ver"),
                 amr=payload.get("amr"),
                 idp=payload.get("idp"),
             )
