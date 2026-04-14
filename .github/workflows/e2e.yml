@@ -52,14 +52,13 @@ jobs:
       - name: Port-forward Nexus API
         run: kubectl port-forward svc/myaap-ao-api 8000:8000 &
 
+
       - name: Set up Python
-        working-directory: aap-dev/src/nexus
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install uv
-        working-directory: aap-dev/src/nexus
         uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies

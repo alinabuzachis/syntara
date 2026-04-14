@@ -34,13 +34,14 @@ jobs:
       - name: Commit via GitHub API
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           if git diff --quiet requirements.txt; then
             echo "requirements.txt is already in sync"
             exit 0
           fi
 
-          SHA=$(gh api "repos/${{ github.repository }}/contents/requirements.txt?ref=${{ github.event.pull_request.head.ref }}" \
+          SHA=$(gh api "repos/${{ github.repository }}/contents/requirements.txt?ref=${PR_HEAD_REF}" \
             --jq '.sha')
 
           TMPFILE=$(mktemp)
@@ -48,7 +49,7 @@ jobs:
           jq -Rs \
             --arg message "chore: sync requirements.txt with uv.lock" \
             --arg sha "$SHA" \
-            --arg branch "${{ github.event.pull_request.head.ref }}" \
+            --arg branch "${PR_HEAD_REF}" \
             '{message: $message, content: ., sha: $sha, branch: $branch}' \
             "$TMPFILE" \
             | gh api --method PUT repos/${{ github.repository }}/contents/requirements.txt \
