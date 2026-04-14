@@ -10,103 +10,105 @@ Run with:
 import os
 import time
 from typing import Any
+from uuid import UUID
 
-import httpx
 import pytest
+from nexus_api_client.api import NexusApiRegistry
+from nexus_api_client.models import (
+    ExecutionCreate,
+    ExecutionRead,
+    MCPConfiguration,
+    ToolProviderCreate,
+    WorkflowCreate,
+    WorkflowUpdate,
+)
+from nexus_api_client.models.execution_status import ExecutionStatus
 
-from .conftest import _generate_e2e_token
-
-BASE_URL = os.environ.get("NEXUS_E2E_BASE_URL", "http://127.0.0.1:8000/api/v1")
 MCP_SERVER_URL = os.environ.get("NEXUS_MCP_SERVER_URL", "http://mcp-server:8765/mcp")
 MCP_PROVIDER_NAME = "mcp"
-POLL_INTERVAL = 3
-POLL_TIMEOUT = 60
+POLL_INTERVAL = 1
+POLL_TIMEOUT = 20
 AGENTIC_POLL_TIMEOUT = 120
 
-_AUTH_HEADERS = {"Authorization": f"Bearer {_generate_e2e_token()}"}
+_TERMINAL_STATUSES = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
 
 requires_openrouter = pytest.mark.skipif(
-    not os.environ.get("NEXUS_OPENROUTER_API_KEY"),
-    reason="NEXUS_OPENROUTER_API_KEY not set — full stack required",
+    not os.environ.get("APP_OPENROUTER_API_KEY"),
+    reason="APP_OPENROUTER_API_KEY not set — full stack required",
 )
 
 
-def _get(path: str, **kwargs: object) -> dict[str, Any]:
-    r = httpx.get(f"{BASE_URL}{path}", headers=_AUTH_HEADERS, **kwargs)  # type: ignore[arg-type]
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-def _post(path: str, **kwargs: object) -> dict[str, Any]:
-    r = httpx.post(f"{BASE_URL}{path}", headers=_AUTH_HEADERS, **kwargs)  # type: ignore[arg-type]
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-def _patch(path: str, **kwargs: object) -> dict[str, Any]:
-    r = httpx.patch(f"{BASE_URL}{path}", headers=_AUTH_HEADERS, **kwargs)  # type: ignore[arg-type]
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-def _poll_execution(exec_id: str, timeout: int = POLL_TIMEOUT) -> dict[str, Any]:
-    """Poll until execution reaches a terminal state."""
+def _poll_execution(api: NexusApiRegistry, exec_id: str, timeout: int = POLL_TIMEOUT) -> ExecutionRead:
+    """Poll until execution reaches a terminal state, returning the final ExecutionRead."""
     elapsed = 0
     while elapsed < timeout:
         time.sleep(POLL_INTERVAL)
         elapsed += POLL_INTERVAL
-        data = _get(f"/executions/{exec_id}", params={"include": "activities"})
-        if data["status"] in ("completed", "failed", "cancelled"):
-            return data
+        response = api.executions.get(execution_id=UUID(exec_id), include="activities")
+        assert response.is_success, f"Failed to get execution {exec_id}"
+        assert response.parsed is not None, f"Failed to get execution {exec_id}"
+        execution: ExecutionRead = response.parsed
+        if execution.status in _TERMINAL_STATUSES:
+            return execution
     pytest.fail(f"Execution {exec_id} did not finish within {timeout}s")
 
 
-def _ensure_mcp_provider() -> str:
+def _ensure_mcp_provider(api: NexusApiRegistry) -> str:
     """Register and validate the MCP tool provider if not already present."""
-    providers = _get("/tool_manager/tool_providers")["resources"]
-    existing = [p for p in providers if p["name"] == MCP_PROVIDER_NAME]
+    response = api.tool_manager.get_tool_providers()
+    assert response.is_success, "Failed to list tool providers"
+    assert response.parsed is not None, "Failed to list tool providers"
+    existing = [p for p in response.parsed.resources if p["name"] == MCP_PROVIDER_NAME]
 
     if existing:
-        provider_id = existing[0]["id"]
+        provider_id: str = existing[0]["id"]
     else:
-        data = _post(
-            "/tool_manager/tool_providers",
-            json={
-                "name": MCP_PROVIDER_NAME,
-                "description": "MCP server for E2E tests",
-                "configuration": {
-                    "provider_type": "mcp",
-                    "base_url": MCP_SERVER_URL,
-                },
-            },
+        reg = api.tool_manager.register_tool_provider(
+            body=ToolProviderCreate(
+                name=MCP_PROVIDER_NAME,
+                description="MCP server for E2E tests",
+                configuration=MCPConfiguration(base_url=MCP_SERVER_URL),
+            )
         )
-        provider_id = data["id"]
+        assert reg.is_success, "Failed to register tool provider"
+        assert reg.parsed is not None, "Failed to register tool provider"
+        provider_id = str(reg.parsed.id)
 
-    _post(f"/tool_manager/tool_providers/{provider_id}/validate")
-    _post(f"/tool_manager/tool_providers/{provider_id}/refresh_tools")
-    return str(provider_id)
+    pid = UUID(provider_id)
+    api.tool_manager.validate_tool_provider(provider_id=pid)
+    api.tool_manager.refresh_tool_provider(provider_id=pid)
+    return provider_id
 
 
-def _create_and_run_workflow(name: str, definition: dict[str, Any], timeout: int = POLL_TIMEOUT) -> dict[str, Any]:
-    """Create (or update) a workflow, execute it, and return the completed result."""
-    existing = [w for w in _get("/workflows", params={"name": name})["resources"] if w["name"] == name]
+def _create_and_run_workflow(
+    api: NexusApiRegistry, name: str, definition: dict[str, Any], timeout: int = POLL_TIMEOUT
+) -> ExecutionRead:
+    """Create (or update) a workflow, execute it, and return the completed ExecutionRead."""
+    list_response = api.workflows.list(additional_params={"name": name})
+    assert list_response.is_success, "Failed to list workflows"
+    assert list_response.parsed is not None, "Failed to list workflows"
+    existing = [w for w in list_response.parsed.resources if w["name"] == name]
+
     if existing:
-        wf_id = existing[0]["id"]
-        _patch(f"/workflows/{wf_id}", json={"workflow_definition": definition})
+        wf_id = UUID(existing[0]["id"])
+        api.workflows.update(workflow_id=wf_id, body=WorkflowUpdate(workflow_definition=definition))
     else:
-        data = _post(
-            "/workflows",
-            json={
-                "name": name,
-                "description": f"E2E test: {name}",
-                "is_enabled": True,
-                "workflow_definition": definition,
-            },
+        create_response = api.workflows.create(
+            body=WorkflowCreate(
+                name=name,
+                description=f"E2E test: {name}",
+                is_enabled=True,
+                workflow_definition=definition,
+            )
         )
-        wf_id = data["id"]
+        assert create_response.is_success, f"Failed to create workflow {name}"
+        assert create_response.parsed is not None, f"Failed to create workflow {name}"
+        wf_id = create_response.parsed.id
 
-    exec_data = _post("/executions", json={"workflow_id": wf_id, "input_data": {}})
-    return _poll_execution(exec_data["id"], timeout=timeout)
+    exec_response = api.executions.create(body=ExecutionCreate(workflow_id=wf_id))
+    assert exec_response.is_success, f"Failed to start execution for {name}"
+    assert exec_response.parsed is not None, f"Failed to start execution for {name}"
+    return _poll_execution(api, str(exec_response.parsed.id), timeout=timeout)
 
 
 # ---------------------------------------------------------------------------
@@ -115,9 +117,10 @@ def _create_and_run_workflow(name: str, definition: dict[str, Any], timeout: int
 
 
 @pytest.mark.e2e
-def test_script_node_bash():
+def test_script_node_bash(nexus_api: NexusApiRegistry):
     """A bash script node executes and the workflow completes."""
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-script-bash",
         {
             "schema_version": "2.0.0",
@@ -139,16 +142,17 @@ def test_script_node_bash():
         },
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["trigger"] == "completed"
     assert activities["hello_script"] == "completed"
 
 
 @pytest.mark.e2e
-def test_script_node_python():
+def test_script_node_python(nexus_api: NexusApiRegistry):
     """A python script node executes and the workflow completes."""
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-script-python",
         {
             "schema_version": "2.0.0",
@@ -170,8 +174,8 @@ def test_script_node_python():
         },
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["py_script"] == "completed"
 
 
@@ -181,9 +185,10 @@ def test_script_node_python():
 
 
 @pytest.mark.e2e
-def test_http_request_node():
+def test_http_request_node(nexus_api: NexusApiRegistry):
     """An HTTP request node calls an endpoint and the workflow completes."""
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-http-request",
         {
             "schema_version": "2.0.0",
@@ -205,8 +210,8 @@ def test_http_request_node():
         },
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["health_check"] == "completed"
 
 
@@ -216,9 +221,10 @@ def test_http_request_node():
 
 
 @pytest.mark.e2e
-def test_condition_true_branch():
+def test_condition_true_branch(nexus_api: NexusApiRegistry):
     """A condition that evaluates to true routes to the true branch only."""
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-condition-true",
         {
             "schema_version": "2.0.0",
@@ -253,19 +259,19 @@ def test_condition_true_branch():
         },
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a for a in result["activities"]}
-    assert activities["check"]["status"] == "completed"
-    assert activities["true_branch"]["status"] == "completed"
-    # false_branch should not have executed
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["check"].status == "completed"
+    assert activities["true_branch"].status == "completed"
     if "false_branch" in activities:
-        assert activities["false_branch"]["status"] != "completed", "False branch should not have run"
+        assert activities["false_branch"].status != "completed", "False branch should not have run"
 
 
 @pytest.mark.e2e
-def test_condition_false_branch():
+def test_condition_false_branch(nexus_api: NexusApiRegistry):
     """A condition that evaluates to false routes to the false branch only."""
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-condition-false",
         {
             "schema_version": "2.0.0",
@@ -300,12 +306,12 @@ def test_condition_false_branch():
         },
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a for a in result["activities"]}
-    assert activities["check"]["status"] == "completed"
-    assert activities["false_branch"]["status"] == "completed"
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a for a in (result.activities or [])}
+    assert activities["check"].status == "completed"
+    assert activities["false_branch"].status == "completed"
     if "true_branch" in activities:
-        assert activities["true_branch"]["status"] != "completed", "True branch should not have run"
+        assert activities["true_branch"].status != "completed", "True branch should not have run"
 
 
 # ---------------------------------------------------------------------------
@@ -314,9 +320,10 @@ def test_condition_false_branch():
 
 
 @pytest.mark.e2e
-def test_loop_for_each():
+def test_loop_for_each(nexus_api: NexusApiRegistry):
     """A for_each loop iterates over items and executes the body for each."""
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-loop-foreach",
         {
             "schema_version": "2.0.0",
@@ -348,8 +355,8 @@ def test_loop_for_each():
         },
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["loop"] == "completed"
     assert activities["loop_body"] == "completed"
 
@@ -360,9 +367,10 @@ def test_loop_for_each():
 
 
 @pytest.mark.e2e
-def test_parallel_paths_with_converge():
+def test_parallel_paths_with_converge(nexus_api: NexusApiRegistry):
     """Two parallel script nodes converge before a final node executes."""
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-parallel-converge",
         {
             "schema_version": "2.0.0",
@@ -405,8 +413,8 @@ def test_parallel_paths_with_converge():
         },
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["path_a"] == "completed"
     assert activities["path_b"] == "completed"
     assert activities["join"] == "completed"
@@ -419,9 +427,10 @@ def test_parallel_paths_with_converge():
 
 
 @pytest.mark.e2e
-def test_multi_node_workflow():
+def test_multi_node_workflow(nexus_api: NexusApiRegistry):
     """A workflow combining script, condition, parallel paths, and converge."""
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-multi-node",
         {
             "schema_version": "2.0.0",
@@ -479,8 +488,8 @@ def test_multi_node_workflow():
         },
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["setup"] == "completed"
     assert activities["gate"] == "completed"
     assert activities["task_a"] == "completed"
@@ -496,10 +505,11 @@ def test_multi_node_workflow():
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_script_then_agentic():
+def test_script_then_agentic(nexus_api: NexusApiRegistry):
     """A script node feeds into an agentic node."""
-    _ensure_mcp_provider()
+    _ensure_mcp_provider(nexus_api)
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-script-to-agentic",
         {
             "schema_version": "2.0.0",
@@ -536,18 +546,19 @@ def test_script_then_agentic():
         timeout=AGENTIC_POLL_TIMEOUT,
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["prep"] == "completed"
     assert activities["agent"] == "completed"
 
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_agentic_then_script():
+def test_agentic_then_script(nexus_api: NexusApiRegistry):
     """An agentic node feeds into a script node."""
-    _ensure_mcp_provider()
+    _ensure_mcp_provider(nexus_api)
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-agentic-to-script",
         {
             "schema_version": "2.0.0",
@@ -584,18 +595,19 @@ def test_agentic_then_script():
         timeout=AGENTIC_POLL_TIMEOUT,
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["agent"] == "completed"
     assert activities["post_process"] == "completed"
 
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_loop_with_agentic_body():
+def test_loop_with_agentic_body(nexus_api: NexusApiRegistry):
     """A loop iterates with an agentic node as the loop body."""
-    _ensure_mcp_provider()
+    _ensure_mcp_provider(nexus_api)
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-loop-agentic",
         {
             "schema_version": "2.0.0",
@@ -633,18 +645,19 @@ def test_loop_with_agentic_body():
         timeout=AGENTIC_POLL_TIMEOUT,
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["loop"] == "completed"
     assert activities["greet"] == "completed"
 
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_http_request_then_agentic():
+def test_http_request_then_agentic(nexus_api: NexusApiRegistry):
     """An HTTP request node feeds into an agentic node."""
-    _ensure_mcp_provider()
+    _ensure_mcp_provider(nexus_api)
     result = _create_and_run_workflow(
+        nexus_api,
         "e2e-http-to-agentic",
         {
             "schema_version": "2.0.0",
@@ -678,7 +691,7 @@ def test_http_request_then_agentic():
         timeout=AGENTIC_POLL_TIMEOUT,
     )
 
-    assert result["status"] == "completed", f"Failed: {result.get('error_details')}"
-    activities = {a["activity_id"]: a["status"] for a in result["activities"]}
+    assert result.status == ExecutionStatus.COMPLETED, f"Failed: {result.error_details}"
+    activities = {a.activity_id: a.status for a in (result.activities or [])}
     assert activities["fetch"] == "completed"
     assert activities["analyze"] == "completed"

@@ -151,18 +151,16 @@ test-e2e: check-deps ## Run End to End tests
 ifndef APP_BASE_URL
 	@$(MAKE) _deps-install-dev
 	@{ \
-		$(MAKE) db-run > /tmp/nexus-e2e-db.log 2>&1 & DB_PID=$$!; \
-		$(MAKE) dev > /tmp/nexus-e2e-dev.log 2>&1 & DEV_PID=$$!; \
-		echo "⏳ Waiting for API server to be ready (logs: /tmp/nexus-e2e-*.log)..."; \
+		$(MAKE) run-all > /tmp/nexus-e2e.log 2>&1 & RUN_ALL_PID=$$!; \
+		echo "⏳ Waiting for API server to be ready (logs: /tmp/nexus-e2e.log)..."; \
 		TRIES=0; \
 		until curl -sf http://localhost:8000/health 2>/dev/null | grep -q '"status":"healthy"'; do \
 			sleep 1; TRIES=$$((TRIES+1)); \
-			if [ $$TRIES -ge 60 ]; then \
-				echo "❌ API server failed to start after 60s. Last 20 lines of dev log:"; \
-				tail -20 /tmp/nexus-e2e-dev.log; \
-				kill $$DEV_PID 2>/dev/null || true; \
-				kill $$DB_PID 2>/dev/null || true; \
-				wait $$DEV_PID $$DB_PID 2>/dev/null || true; \
+			if [ $$TRIES -ge 120 ]; then \
+				echo "❌ API server failed to start after 120s. Last 20 lines of log:"; \
+				tail -20 /tmp/nexus-e2e.log; \
+				kill $$RUN_ALL_PID 2>/dev/null || true; \
+				wait $$RUN_ALL_PID 2>/dev/null || true; \
 				$(COMPOSE_FINAL_CMD) down > /dev/null 2>&1 || true; \
 				exit 1; \
 			fi; \
@@ -171,9 +169,8 @@ ifndef APP_BASE_URL
 		APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} uv run pytest tests/e2e/ -v; \
 		EXIT_CODE=$$?; \
 		echo "🧹 Stopping background services..."; \
-		kill $$DEV_PID 2>/dev/null || true; \
-		kill $$DB_PID 2>/dev/null || true; \
-		wait $$DEV_PID $$DB_PID 2>/dev/null || true; \
+		kill $$RUN_ALL_PID 2>/dev/null || true; \
+		wait $$RUN_ALL_PID 2>/dev/null || true; \
 		$(COMPOSE_FINAL_CMD) down > /dev/null 2>&1; \
 		exit $$EXIT_CODE; \
 	}
