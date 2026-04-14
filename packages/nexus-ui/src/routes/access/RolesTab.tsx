@@ -14,7 +14,7 @@ import {
 import { PlusIcon, RhUiEditFillIcon, RhUiLockIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useAlerts } from '../../components/alerts'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
@@ -22,29 +22,70 @@ import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { buildFilterParams } from '../../utils/filterUtils'
 
 import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
-import { builtinFilterDefinitions } from './builtinFilterDefinitions'
 import { EditRoleDialog } from './EditRoleDialog'
 import { PaginationFooter } from './PaginationFooter'
+import { buildFilterDefsWithScope, transformFiltersForApi } from './scopeFilterUtils'
+import { ScopeLabel } from './ScopeLabel'
 import type { RoleRead } from './types'
 import { useBuiltinListState } from './useBuiltinListState'
+
+const BASE_FILTER_FIELD_DEFS = [
+  {
+    key: 'name',
+    label: 'Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by name',
+  },
+  {
+    key: 'description',
+    label: 'Description',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by description',
+  },
+  {
+    key: 'scope',
+    label: 'Scope',
+    type: FilterTypeEnum.SELECT,
+    options: [],
+    placeholder: 'Filter by scope',
+  },
+  {
+    key: 'type',
+    label: 'Type',
+    type: FilterTypeEnum.SELECT,
+    options: [
+      { value: 'builtin', label: 'Built-in' },
+      { value: 'custom', label: 'Custom' },
+    ],
+    placeholder: 'Filter by type',
+  },
+] as const
 
 // Column index → API sort field
 const sortFieldByColumn: Record<number, string> = {
   0: 'name',
-  3: 'is_builtin',
+  4: 'is_builtin',
 }
 
 function RolesTable({
   roles,
+  projectNameMap,
   getSortParams,
   onEdit,
   onDelete,
 }: Readonly<{
   roles: RoleRead[]
+  projectNameMap: Map<string, string>
   getSortParams: (columnIndex: number) => ThProps['sort']
   onEdit: (role: RoleRead) => void
   onDelete: (role: RoleRead) => void
@@ -68,7 +109,8 @@ function RolesTable({
           <Th sort={getSortParams(0)}>Name</Th>
           <Th>Description</Th>
           <Th>Policies</Th>
-          <Th sort={getSortParams(3)} modifier="nowrap">
+          <Th modifier="nowrap">Scope</Th>
+          <Th sort={getSortParams(4)} modifier="nowrap">
             Type
           </Th>
           <Th screenReaderText="Actions" />
@@ -87,6 +129,9 @@ function RolesTable({
                   </Label>
                 ))}
               </LabelGroup>
+            </Td>
+            <Td dataLabel="Scope">
+              <ScopeLabel projectId={role.project_id} projectNameMap={projectNameMap} />
             </Td>
             <Td dataLabel="Type">
               {role.is_builtin ? (
@@ -114,7 +159,7 @@ export function RolesTab() {
     handleFilterChange,
     clearAllFilters,
     getSortParams,
-    queryParams,
+    queryParams: baseQueryParams,
     page,
     perPage,
     handlePerPageChange,
@@ -125,6 +170,26 @@ export function RolesTab() {
   const [roleToDelete, setRoleToDelete] = useState<RoleRead | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const { showSuccess, showError } = useAlerts()
+
+  const projectsQuery = accessClient.useQuery('get', '/projects')
+  const projectNameMap = useMemo(() => {
+    const projects = projectsQuery.data
+    if (!Array.isArray(projects)) return new Map<string, string>()
+    return new Map(projects.map((p) => [p.id, p.name]))
+  }, [projectsQuery.data])
+
+  const filterFieldDefinitions = useMemo(
+    () => buildFilterDefsWithScope([...BASE_FILTER_FIELD_DEFS], projectNameMap),
+    [projectNameMap]
+  )
+
+  const queryParams = useMemo(() => {
+    const params: Record<string, unknown> = { limit: baseQueryParams.limit, include_total: true }
+    if (typeof baseQueryParams.cursor === 'string') params.cursor = baseQueryParams.cursor
+    if (typeof baseQueryParams.sort === 'string') params.sort = baseQueryParams.sort
+    Object.assign(params, buildFilterParams(transformFiltersForApi(filters)))
+    return params
+  }, [baseQueryParams, filters])
 
   const rolesQuery = accessClient.useQuery('get', '/roles', {
     params: { query: queryParams },
@@ -186,7 +251,7 @@ export function RolesTab() {
           <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
             <FlexItem grow={{ default: 'grow' }}>
               <FilterBar
-                fieldDefinitions={builtinFilterDefinitions}
+                fieldDefinitions={filterFieldDefinitions}
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 showClearAll={true}
@@ -207,7 +272,13 @@ export function RolesTab() {
           </StackItem>
         ) : (
           <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-            <RolesTable roles={roles} getSortParams={getSortParams} onEdit={setRoleToEdit} onDelete={setRoleToDelete} />
+            <RolesTable
+              roles={roles}
+              projectNameMap={projectNameMap}
+              getSortParams={getSortParams}
+              onEdit={setRoleToEdit}
+              onDelete={setRoleToDelete}
+            />
           </StackItem>
         )}
 

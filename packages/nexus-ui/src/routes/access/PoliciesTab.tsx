@@ -1,24 +1,63 @@
 import { Label, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiLockIcon } from '@patternfly/react-icons'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { useQueryState } from '../../components/states/useQueryState'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
+import { buildFilterParams } from '../../utils/filterUtils'
 
 import { accessClient } from './accessClient'
-import { builtinFilterDefinitions } from './builtinFilterDefinitions'
 import { PaginationFooter } from './PaginationFooter'
 import { PolicyDetailSidebar } from './PolicyDetailSidebar'
+import { buildFilterDefsWithScope, transformFiltersForApi } from './scopeFilterUtils'
+import { ScopeLabel } from './ScopeLabel'
 import type { PolicyRead } from './types'
 import { useBuiltinListState } from './useBuiltinListState'
+
+const BASE_FILTER_FIELD_DEFS = [
+  {
+    key: 'name',
+    label: 'Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by name',
+  },
+  {
+    key: 'description',
+    label: 'Description',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by description',
+  },
+  {
+    key: 'scope',
+    label: 'Scope',
+    type: FilterTypeEnum.SELECT,
+    options: [],
+    placeholder: 'Filter by scope',
+  },
+  {
+    key: 'type',
+    label: 'Type',
+    type: FilterTypeEnum.SELECT,
+    options: [
+      { value: 'builtin', label: 'Built-in' },
+      { value: 'custom', label: 'Custom' },
+    ],
+    placeholder: 'Filter by type',
+  },
+] as const
 
 // Column index → API sort field
 const sortFieldByColumn: Record<number, string> = {
   0: 'name',
-  2: 'is_builtin',
+  3: 'is_builtin',
 }
 
 export function PoliciesTab() {
@@ -29,7 +68,7 @@ export function PoliciesTab() {
     handleFilterChange,
     clearAllFilters,
     getSortParams,
-    queryParams,
+    queryParams: baseQueryParams,
     page,
     perPage,
     handlePerPageChange,
@@ -44,6 +83,20 @@ export function PoliciesTab() {
     if (!Array.isArray(projects)) return new Map<string, string>()
     return new Map(projects.map((p) => [p.id, p.name]))
   }, [projectsQuery.data])
+
+  const filterFieldDefinitions = useMemo(
+    () => buildFilterDefsWithScope([...BASE_FILTER_FIELD_DEFS], projectNameMap),
+    [projectNameMap]
+  )
+
+  // Build query params from filters, transforming type → is_builtin and scope → project_id
+  const queryParams = useMemo(() => {
+    const params: Record<string, unknown> = { limit: baseQueryParams.limit, include_total: true }
+    if (typeof baseQueryParams.cursor === 'string') params.cursor = baseQueryParams.cursor
+    if (typeof baseQueryParams.sort === 'string') params.sort = baseQueryParams.sort
+    Object.assign(params, buildFilterParams(transformFiltersForApi(filters)))
+    return params
+  }, [baseQueryParams, filters])
 
   const policiesQuery = accessClient.useQuery('get', '/policies', {
     params: { query: queryParams },
@@ -73,7 +126,7 @@ export function PoliciesTab() {
         <Stack style={{ height: '100%' }}>
           <StackItem>
             <FilterBar
-              fieldDefinitions={builtinFilterDefinitions}
+              fieldDefinitions={filterFieldDefinitions}
               filters={filters}
               onFilterChange={handleFilterChange}
               showClearAll={true}
@@ -92,7 +145,8 @@ export function PoliciesTab() {
                   <Tr>
                     <Th sort={getSortParams(0)}>Name</Th>
                     <Th>Description</Th>
-                    <Th sort={getSortParams(2)} modifier="nowrap">
+                    <Th modifier="nowrap">Scope</Th>
+                    <Th sort={getSortParams(3)} modifier="nowrap">
                       Type
                     </Th>
                   </Tr>
@@ -111,6 +165,9 @@ export function PoliciesTab() {
                         <code>{policy.name}</code>
                       </Td>
                       <Td dataLabel="Description">{policy.description ?? '-'}</Td>
+                      <Td dataLabel="Scope">
+                        <ScopeLabel projectId={policy.project_id} projectNameMap={projectNameMap} />
+                      </Td>
                       <Td dataLabel="Type">
                         {policy.is_builtin ? (
                           <Label color="yellow" icon={<RhUiLockIcon />} isCompact>
