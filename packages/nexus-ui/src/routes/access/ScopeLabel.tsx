@@ -1,4 +1,4 @@
-import { Button, Label } from '@patternfly/react-core'
+import { Label } from '@patternfly/react-core'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -25,17 +25,16 @@ export function ScopeLabel({ projectId, projectNameMap }: Readonly<ScopeLabelPro
   }
 
   return (
-    <Label color="green" isCompact>
-      <Button
-        variant="link"
-        isInline
-        onClick={(e) => {
-          e.stopPropagation()
-          navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId))
-        }}
-      >
-        {projectNameMap.get(projectId) ?? projectId}
-      </Button>
+    <Label
+      color="green"
+      isCompact
+      onClick={(e) => {
+        e.stopPropagation()
+        navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId))
+      }}
+      style={{ cursor: 'pointer' }}
+    >
+      {projectNameMap.get(projectId) ?? projectId}
     </Label>
   )
 }
