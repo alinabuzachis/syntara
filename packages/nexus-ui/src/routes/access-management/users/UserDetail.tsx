@@ -1,13 +1,14 @@
 import type { User } from '@ansible/nexus-contracts'
 import {
   Badge,
+  Breadcrumb,
+  BreadcrumbItem,
   Button,
   CompassPanel,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
-  Flex,
   FlexItem,
   StackItem,
   Tab,
@@ -15,7 +16,7 @@ import {
   Tabs,
   Title,
 } from '@patternfly/react-core'
-import { RhUiArrowLeftIcon, RhUiEditIcon } from '@patternfly/react-icons'
+import { RhUiEditIcon } from '@patternfly/react-icons'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -143,22 +144,24 @@ export function UserDetail() {
 
   if (!userData) return null
 
-  const headerTitle = (
-    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-      <FlexItem>
-        <Button variant="plain" aria-label="Back to users" onClick={navigateBack}>
-          <RhUiArrowLeftIcon />
-        </Button>
-      </FlexItem>
-      <FlexItem>
-        <Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>
-      </FlexItem>
-    </Flex>
+  const breadcrumb = (
+    <Breadcrumb>
+      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Users)}>
+        Access Management
+      </BreadcrumbItem>
+      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Users)}>
+        Users
+      </BreadcrumbItem>
+      <BreadcrumbItem isActive>{userData.full_name ?? userData.username}</BreadcrumbItem>
+    </Breadcrumb>
   )
 
   return (
     <AppPage>
-      <AppPageHeader title={headerTitle}>
+      <AppPageHeader
+        title={<Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>}
+        breadcrumb={breadcrumb}
+      >
         <FlexItem grow={{ default: 'grow' }} />
         <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
           Edit user

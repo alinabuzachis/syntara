@@ -1,6 +1,8 @@
 import type { Group } from '@ansible/nexus-contracts'
 import {
   Badge,
+  Breadcrumb,
+  BreadcrumbItem,
   Button,
   CompassPanel,
   DescriptionList,
@@ -16,7 +18,7 @@ import {
   Tabs,
   Title,
 } from '@patternfly/react-core'
-import { RhUiArrowLeftIcon, RhUiEditIcon } from '@patternfly/react-icons'
+import { RhUiEditIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
@@ -183,22 +185,21 @@ export function GroupDetail() {
 
   if (!groupData) return null
 
-  const headerTitle = (
-    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-      <FlexItem>
-        <Button variant="plain" aria-label="Back to groups" onClick={navigateBack}>
-          <RhUiArrowLeftIcon />
-        </Button>
-      </FlexItem>
-      <FlexItem>
-        <Title headingLevel="h1">{groupData.name}</Title>
-      </FlexItem>
-    </Flex>
+  const breadcrumb = (
+    <Breadcrumb>
+      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Groups)}>
+        Access Management
+      </BreadcrumbItem>
+      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Groups)}>
+        Groups
+      </BreadcrumbItem>
+      <BreadcrumbItem isActive>{groupData.name}</BreadcrumbItem>
+    </Breadcrumb>
   )
 
   return (
     <AppPage>
-      <AppPageHeader title={headerTitle}>
+      <AppPageHeader title={<Title headingLevel="h1">{groupData.name}</Title>} breadcrumb={breadcrumb}>
         <FlexItem grow={{ default: 'grow' }} />
         {!groupData.is_builtin && (
           <Button variant="secondary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>
