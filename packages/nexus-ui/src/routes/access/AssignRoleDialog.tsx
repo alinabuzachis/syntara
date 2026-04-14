@@ -37,6 +37,7 @@ interface AssignmentFormFieldsProps {
   projectOptions: { value: string; label: string }[]
   userOptions: { value: string; label: string }[]
   roleOptions: { value: string; label: string }[]
+  isRoleDisabled: boolean
   errors: ReturnType<typeof useForm<AssignRoleFormData>>['formState']['errors']
   control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
   register: ReturnType<typeof useForm<AssignRoleFormData>>['register']
@@ -47,6 +48,7 @@ function AssignmentFormFields({
   projectOptions,
   userOptions,
   roleOptions,
+  isRoleDisabled,
   errors,
   control,
   register,
@@ -119,8 +121,9 @@ function AssignmentFormFields({
               options={roleOptions}
               selected={field.value ?? ''}
               onChange={field.onChange}
-              placeholder="Select a role..."
+              placeholder={isRoleDisabled ? 'Select a project first...' : 'Select a role...'}
               hasError={isProjectScoped ? !!errors.roleName : !!errors.roleId}
+              isDisabled={isRoleDisabled}
             />
           )}
         />
@@ -132,12 +135,11 @@ function AssignmentFormFields({
 // ── Dialog ─────────────────────────────────────────────────────────────────
 
 interface AssignRoleDialogProps {
-  projectId?: string
   onClose: () => void
   onSuccess: () => void
 }
 
-export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<AssignRoleDialogProps>) {
+export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDialogProps>) {
   const { showSuccess, showError } = useAlerts()
 
   const projectsQuery = accessClient.useQuery('get', '/projects')
@@ -158,7 +160,7 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: {
       assignmentType: 'user-project',
-      projectId: projectId ?? '',
+      projectId: '',
       userId: '',
       groupId: '',
       roleName: '',
@@ -167,6 +169,7 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
   })
 
   const assignmentType = useWatch({ control, name: 'assignmentType' })
+  const selectedProjectId = useWatch({ control, name: 'projectId' })
   const isProjectScoped = assignmentType === 'user-project' || assignmentType === 'group-project'
 
   // Reset role selection when switching between project/system scope
@@ -176,6 +179,13 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
     setValue('roleId', '')
   }, [assignmentType, setValue])
 
+  // Reset role selection when project changes (roles are project-specific)
+  useEffect(() => {
+    if (isProjectScoped) {
+      setValue('roleName', '')
+    }
+  }, [selectedProjectId, isProjectScoped, setValue])
+
   const projectOptions = useMemo(
     () => (projectsData ?? []).map((p) => ({ value: p.id, label: p.name })),
     [projectsData]
@@ -183,17 +193,18 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
 
   const userOptions = useMemo(() => users.map((u) => ({ value: u.id, label: u.username })), [users])
 
-  const roleOptions = useMemo(
-    () =>
-      (rolesData?.resources ?? []).map((role) => ({
-        value: isProjectScoped ? role.name : role.id,
-        label: role.name,
-        tag: role.is_system_scoped
-          ? { label: 'System', color: 'blue' as const }
-          : { label: 'Project', color: 'green' as const },
-      })),
-    [rolesData, isProjectScoped]
-  )
+  const roleOptions = useMemo(() => {
+    const allRoles = rolesData?.resources ?? []
+    const filtered =
+      isProjectScoped && selectedProjectId ? allRoles.filter((role) => role.project_id === selectedProjectId) : allRoles
+    return filtered.map((role) => ({
+      value: isProjectScoped ? role.name : role.id,
+      label: role.name,
+      tag: role.is_system_scoped
+        ? { label: 'System', color: 'blue' as const }
+        : { label: 'Project', color: 'green' as const },
+    }))
+  }, [rolesData, isProjectScoped, selectedProjectId])
 
   const { mutate: assignProjectRole, isPending: isPendingProjectRole } = accessClient.useMutation(
     'post',
@@ -289,6 +300,7 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
             projectOptions={projectOptions}
             userOptions={userOptions}
             roleOptions={roleOptions}
+            isRoleDisabled={isProjectScoped && !selectedProjectId}
             errors={errors}
             control={control}
             register={register}

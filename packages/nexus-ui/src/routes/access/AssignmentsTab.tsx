@@ -73,7 +73,6 @@ export function AssignmentsTab() {
     clearAllFilters,
     getSortParams,
     projects,
-    effectiveProjectId,
     allRows,
     sortedRows,
     hasActiveFilters,
@@ -234,13 +233,7 @@ export function AssignmentsTab() {
         />
       </Stack>
 
-      {isAddDialogOpen && (
-        <AssignRoleDialog
-          projectId={effectiveProjectId}
-          onClose={() => setIsAddDialogOpen(false)}
-          onSuccess={refetchAll}
-        />
-      )}
+      {isAddDialogOpen && <AssignRoleDialog onClose={() => setIsAddDialogOpen(false)} onSuccess={refetchAll} />}
 
       <DeleteAssignmentModal
         row={rowToDelete}
