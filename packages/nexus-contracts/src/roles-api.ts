@@ -141,6 +141,8 @@ export interface components {
       labels?: {
         [key: string]: unknown
       }
+      /** @description True when the role is not scoped to a specific project (computed from project_id) */
+      readonly is_system_scoped?: boolean
       /**
        * Format: date-time
        * @description Creation timestamp

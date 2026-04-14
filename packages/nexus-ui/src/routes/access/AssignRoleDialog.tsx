@@ -188,9 +188,9 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
       (rolesData?.resources ?? []).map((role) => ({
         value: isProjectScoped ? role.name : role.id,
         label: role.name,
-        tag: role.project_id
-          ? { label: 'Project', color: 'green' as const }
-          : { label: 'System', color: 'blue' as const },
+        tag: role.is_system_scoped
+          ? { label: 'System', color: 'blue' as const }
+          : { label: 'Project', color: 'green' as const },
       })),
     [rolesData, isProjectScoped]
   )
