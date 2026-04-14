@@ -1,6 +1,6 @@
 import { Button, CompassPanel, Flex, FlexItem, Icon, Popover } from '@patternfly/react-core'
 import {
-  RhStandardCompassIcon,
+  RhUiInformationIcon,
   RhUiCaretDownIcon,
   RhUiCaretUpIcon,
   RhUiCleanUpFillIcon,
@@ -65,7 +65,7 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
                 aria-pressed={legendOpen}
                 icon={
                   <Icon isInline>
-                    <RhStandardCompassIcon />
+                    <RhUiInformationIcon />
                   </Icon>
                 }
               />

@@ -12,7 +12,7 @@ import {
   TitleSizes,
 } from '@patternfly/react-core'
 import {
-  RhStandardCompassIcon,
+  RhUiInformationIcon,
   RhUiBranchFillIcon,
   RhUiCloseIcon,
   RhUiElectricityFillIcon,
@@ -146,7 +146,7 @@ function CanvasLegendHeader(props: Readonly<{ regionId: string; hide: () => void
     >
       <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }} style={{ flex: 1, minWidth: 0 }}>
         <Icon isInline size="lg" iconSize="lg">
-          <RhStandardCompassIcon />
+          <RhUiInformationIcon />
         </Icon>
         <Title headingLevel="h2" size={TitleSizes.lg} id={titleId}>
           Legend
