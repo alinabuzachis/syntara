@@ -1,0 +1,162 @@
+import {
+  Button,
+  CompassPanel,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
+  Flex,
+  FlexItem,
+  Label,
+  LabelGroup,
+  StackItem,
+  Tab,
+  TabTitleText,
+  Tabs,
+  Title,
+} from '@patternfly/react-core'
+import { RhUiArrowLeftIcon } from '@patternfly/react-icons'
+import { useState } from 'react'
+import { useParams } from 'wouter'
+import { navigate } from 'wouter/use-browser-location'
+
+import { AppPage } from '../../../app/AppPage'
+import { AppPageHeader } from '../../../app/AppPageHeader'
+import { AppRoute } from '../../../app/AppRoute'
+import { useQueryState } from '../../../components/states/useQueryState'
+import { formatDateTime } from '../../../utils/dateUtils'
+import { accessClient } from '../../access/accessClient'
+import type { ProjectRead } from '../../access/types'
+
+import { ProjectNotFoundState } from './ProjectNotFoundState'
+
+function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
+  const labelEntries = Object.entries(project.labels ?? {})
+
+  return (
+    <DescriptionList isHorizontal isAutoColumnWidths>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Name</DescriptionListTerm>
+        <DescriptionListDescription>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+            <FlexItem>{project.name}</FlexItem>
+            {project.is_default && (
+              <Label color="blue" isCompact>
+                Default
+              </Label>
+            )}
+          </Flex>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Description</DescriptionListTerm>
+        <DescriptionListDescription>{project.description ?? '-'}</DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Labels</DescriptionListTerm>
+        <DescriptionListDescription>
+          {labelEntries.length > 0 ? (
+            <LabelGroup>
+              {labelEntries.map(([key, value]) => (
+                <Label key={key} isCompact>
+                  {key}: {String(value)}
+                </Label>
+              ))}
+            </LabelGroup>
+          ) : (
+            '-'
+          )}
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Created</DescriptionListTerm>
+        <DescriptionListDescription>{formatDateTime(project.created_at)}</DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Updated</DescriptionListTerm>
+        <DescriptionListDescription>{formatDateTime(project.updated_at)}</DescriptionListDescription>
+      </DescriptionListGroup>
+    </DescriptionList>
+  )
+}
+
+export function ProjectDetail() {
+  const { projectId } = useParams<{ projectId: string }>()
+  const [activeTab, setActiveTab] = useState(0)
+
+  const projectQuery = accessClient.useQuery(
+    'get',
+    '/projects/{project_id}',
+    { params: { path: { project_id: projectId ?? '' } } },
+    { enabled: !!projectId, retry: false }
+  )
+
+  const navigateBack = () => navigate(AppRoute.AccessManagement.Projects)
+
+  const projectData = projectQuery.data
+  const refetchProject = projectQuery.refetch
+  const queryState = useQueryState(projectQuery, {
+    title: 'Error loading project',
+    onRetry: () => {
+      refetchProject().catch(() => {})
+    },
+  })
+
+  if (projectQuery.error) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Project Details" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <ProjectNotFoundState
+              onBack={navigateBack}
+              onRetry={() => {
+                refetchProject().catch(() => {})
+              }}
+            />
+          </CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
+
+  if (queryState) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Project Details" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
+
+  if (!projectData) return null
+
+  const headerTitle = (
+    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+      <FlexItem>
+        <Button variant="plain" aria-label="Back to projects" onClick={navigateBack}>
+          <RhUiArrowLeftIcon />
+        </Button>
+      </FlexItem>
+      <FlexItem>
+        <Title headingLevel="h1">{projectData.name}</Title>
+      </FlexItem>
+    </Flex>
+  )
+
+  return (
+    <AppPage>
+      <AppPageHeader title={headerTitle} />
+      <StackItem>
+        <Tabs activeKey={activeTab} onSelect={(_event, key) => setActiveTab(Number(key))}>
+          <Tab eventKey={0} title={<TabTitleText>Details</TabTitleText>} />
+        </Tabs>
+      </StackItem>
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <CompassPanel isFullHeight>{activeTab === 0 && <ProjectDetailsTab project={projectData} />}</CompassPanel>
+      </StackItem>
+    </AppPage>
+  )
+}

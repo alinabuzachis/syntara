@@ -150,11 +150,6 @@ export interface components {
       /** @description User email */
       email: string
       /**
-       * @description User role
-       * @default
-       */
-      role?: string
-      /**
        * @description Group memberships
        * @default []
        */

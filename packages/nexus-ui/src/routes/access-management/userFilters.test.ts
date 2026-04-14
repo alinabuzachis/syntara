@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 
-import { createFilterChangeHandler, getUsernameFilterDefinition, getUserRoleFilterDefinition } from './userFilters'
+import { createFilterChangeHandler, getUsernameFilterDefinition } from './userFilters'
 
 describe('userFilters', () => {
   describe('getUsernameFilterDefinition', () => {
@@ -22,34 +22,6 @@ describe('userFilters', () => {
     it('returns a new object each time', () => {
       const a = getUsernameFilterDefinition()
       const b = getUsernameFilterDefinition()
-      expect(a).not.toBe(b)
-      expect(a).toEqual(b)
-    })
-  })
-
-  describe('getUserRoleFilterDefinition', () => {
-    it('returns the correct filter definition', () => {
-      const definition = getUserRoleFilterDefinition()
-
-      expect(definition).toEqual({
-        key: 'role',
-        label: 'Role',
-        type: FilterTypeEnum.SELECT,
-        operators: [FilterOperatorEnum.EQ],
-        defaultOperator: FilterOperatorEnum.EQ,
-        placeholder: 'Filter by role',
-        options: [
-          { value: 'administrator', label: 'Administrator' },
-          { value: 'creator', label: 'Creator' },
-          { value: 'approver', label: 'Approver' },
-          { value: 'viewer', label: 'Viewer' },
-        ],
-      })
-    })
-
-    it('returns a new object each time', () => {
-      const a = getUserRoleFilterDefinition()
-      const b = getUserRoleFilterDefinition()
       expect(a).not.toBe(b)
       expect(a).toEqual(b)
     })

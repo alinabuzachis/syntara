@@ -1,0 +1,272 @@
+import {
+  Button,
+  Flex,
+  FlexItem,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Stack,
+  StackItem,
+} from '@patternfly/react-core'
+import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IAction } from '@patternfly/react-table'
+import { useMemo, useState } from 'react'
+
+import { useAlerts } from '../../../components/alerts'
+import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
+import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
+import { FilterBar } from '../../../components/filters'
+import { IconLabel } from '../../../components/IconLabel'
+import { useQueryState } from '../../../components/states/useQueryState'
+import type { FilterConfig, FilterFieldDefinition } from '../../../types/filters'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
+import { getErrorMessage } from '../../../utils/apiErrors'
+import { formatDateTime } from '../../../utils/dateUtils'
+import { accessClient } from '../../access/accessClient'
+import { PaginationFooter } from '../../access/PaginationFooter'
+
+import { AddMemberModal } from './AddMemberModal'
+
+const filterFieldDefinitions: FilterFieldDefinition[] = [
+  {
+    key: 'username',
+    label: 'Username',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by username',
+  },
+]
+
+interface GroupMembersPanelProps {
+  groupId: string
+  onMembershipChange: () => void
+}
+
+interface MemberInfo {
+  id: string
+  username: string
+}
+
+function RemoveMemberDialog({
+  member,
+  isOpen,
+  onClose,
+  onConfirm,
+}: Readonly<{
+  member: MemberInfo | null
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: () => void
+}>) {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} variant="small">
+      <ModalHeader title="Remove member" />
+      <ModalBody>Are you sure you want to remove &quot;{member?.username}&quot; from this group?</ModalBody>
+      <ModalFooter>
+        <Button variant="danger" onClick={onConfirm}>
+          Remove
+        </Button>
+        <Button variant="link" onClick={onClose}>
+          Cancel
+        </Button>
+      </ModalFooter>
+    </Modal>
+  )
+}
+
+function getMemberActions(member: MemberInfo, onRemove: (m: MemberInfo) => void): IAction[] {
+  return [
+    {
+      title: <IconLabel icon={<RhUiTrashIcon />}>Remove</IconLabel>,
+      onClick: () => onRemove(member),
+    },
+  ]
+}
+
+export function GroupMembersPanel({ groupId, onMembershipChange }: Readonly<GroupMembersPanelProps>) {
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<MemberInfo | null>(null)
+  const [filters, setFilters] = useState<FilterConfig[]>([])
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const { showAlert } = useAlerts()
+
+  const handleFilterChange = (newFilters: FilterConfig[]) => {
+    setFilters(newFilters)
+    setPage(1)
+  }
+
+  const handlePerPageChange = (newPerPage: number) => {
+    setPerPage(newPerPage)
+    setPage(1)
+  }
+
+  const query = accessClient.useQuery('get', '/groups/{group_id}/members', {
+    params: { path: { group_id: groupId } },
+  })
+
+  const members = useMemo(() => query.data?.resources ?? [], [query.data])
+
+  const filteredMembers = useMemo(() => {
+    const nameFilter = filters.find((f) => f.key === 'username')
+    if (!nameFilter) return members
+    const term = String(nameFilter.value).toLowerCase()
+    return members.filter((m) => m.username.toLowerCase().includes(term))
+  }, [members, filters])
+
+  const paginatedMembers = useMemo(() => {
+    const start = (page - 1) * perPage
+    return filteredMembers.slice(start, start + perPage)
+  }, [filteredMembers, page, perPage])
+
+  const { mutate: removeMember } = accessClient.useMutation('delete', '/groups/{group_id}/members/{user_id}')
+
+  const handleRemove = () => {
+    if (!memberToRemove) return
+    removeMember(
+      { params: { path: { group_id: groupId, user_id: memberToRemove.id } } },
+      {
+        onSuccess: () => {
+          showAlert({
+            title: 'Member removed',
+            description: `User "${memberToRemove.username}" has been removed from the group.`,
+            variant: 'success',
+            autoDismiss: true,
+          })
+          query.refetch().catch(() => {})
+          onMembershipChange()
+        },
+        onError: (err: unknown) => {
+          showAlert({
+            title: 'Failed to remove member',
+            description: getErrorMessage(err),
+            variant: 'error',
+            autoDismiss: true,
+          })
+        },
+        onSettled: () => setMemberToRemove(null),
+      }
+    )
+  }
+
+  const handleMemberAdded = () => {
+    query.refetch().catch(() => {})
+    onMembershipChange()
+  }
+
+  const queryState = useQueryState(query, {
+    title: 'Error loading members',
+    onRetry: () => {
+      query.refetch().catch(() => {})
+    },
+  })
+  if (queryState) return queryState
+
+  if (members.length === 0) {
+    return (
+      <>
+        <EmptyStateNoData
+          title="No members"
+          description="Add users to this group to manage their access."
+          buttonText="Add member"
+          addData={() => setAddModalOpen(true)}
+        />
+        <AddMemberModal
+          groupId={groupId}
+          isOpen={addModalOpen}
+          onClose={() => setAddModalOpen(false)}
+          onSuccess={handleMemberAdded}
+          existingMemberIds={[]}
+        />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <Stack style={{ height: '100%' }}>
+        <StackItem>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+            <FlexItem grow={{ default: 'grow' }}>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
+                clearAllFilters={() => handleFilterChange([])}
+              />
+            </FlexItem>
+            <FlexItem>
+              <Button variant="primary" icon={<PlusIcon />} onClick={() => setAddModalOpen(true)}>
+                Add member
+              </Button>
+            </FlexItem>
+          </Flex>
+        </StackItem>
+
+        {filteredMembers.length === 0 ? (
+          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
+          </StackItem>
+        ) : (
+          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+            <Table aria-label="Group members table" isStriped style={{ width: '100%' }}>
+              <Thead>
+                <Tr>
+                  <Th>Username</Th>
+                  <Th>Name</Th>
+                  <Th>Email</Th>
+                  <Th>Last Login</Th>
+                  <Th screenReaderText="Actions" />
+                </Tr>
+              </Thead>
+              <Tbody>
+                {paginatedMembers.map((member) => (
+                  <Tr key={member.id}>
+                    <Td dataLabel="Username">{member.username}</Td>
+                    <Td dataLabel="Name">{member.full_name ?? ''}</Td>
+                    <Td dataLabel="Email">{member.email}</Td>
+                    <Td dataLabel="Last Login">{formatDateTime(member.last_login)}</Td>
+                    <Td isActionCell>
+                      <ActionsColumn
+                        items={getMemberActions({ id: member.id, username: member.username }, setMemberToRemove)}
+                      />
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </StackItem>
+        )}
+
+        <PaginationFooter
+          page={page}
+          perPage={perPage}
+          total={filteredMembers.length}
+          hasNext={page * perPage < filteredMembers.length}
+          onPrev={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => p + 1)}
+          onPerPageChange={handlePerPageChange}
+        />
+      </Stack>
+
+      <AddMemberModal
+        groupId={groupId}
+        isOpen={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onSuccess={handleMemberAdded}
+        existingMemberIds={members.map((m) => m.id)}
+      />
+
+      <RemoveMemberDialog
+        member={memberToRemove}
+        isOpen={!!memberToRemove}
+        onClose={() => setMemberToRemove(null)}
+        onConfirm={handleRemove}
+      />
+    </>
+  )
+}

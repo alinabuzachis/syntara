@@ -5,8 +5,9 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { authClient, usersClient } from '../../../client'
+import { authClient } from '../../../client'
 import { AlertProvider } from '../../../components/alerts'
+import { accessClient } from '../../access/accessClient'
 
 import { UserForm } from './UserForm'
 
@@ -15,9 +16,23 @@ vi.mock('../../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
-  usersClient: {
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../../access/accessClient', () => ({
+  accessClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
+  },
+}))
+
+vi.mock('../../access/accessClient', () => ({
+  accessClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+  accessFetchClient: {
+    POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
   },
 }))
 
@@ -56,7 +71,7 @@ function setupCreateMocks(mutateOverrides?: Partial<ReturnType<typeof vi.fn>>) {
     isFetching: false,
     refetch: vi.fn(),
   } as never)
-  vi.mocked(usersClient.useQuery).mockReturnValue({
+  vi.mocked(accessClient.useQuery).mockReturnValue({
     data: undefined,
     isPending: false,
     isError: false,
@@ -65,7 +80,7 @@ function setupCreateMocks(mutateOverrides?: Partial<ReturnType<typeof vi.fn>>) {
     refetch: vi.fn(),
   } as never)
   const mockMutate = vi.fn()
-  vi.mocked(usersClient.useMutation).mockReturnValue({
+  vi.mocked(accessClient.useMutation).mockReturnValue({
     mutate: mockMutate,
     isPending: false,
     ...mutateOverrides,
@@ -78,7 +93,6 @@ const mockUserData = {
   username: 'jdoe',
   email: 'jdoe@nexus.local',
   full_name: 'John Doe',
-  role: 'creator',
   is_active: true,
 }
 
@@ -92,7 +106,7 @@ function setupEditMocks(mutateOverrides?: Partial<ReturnType<typeof vi.fn>>) {
     isFetching: false,
     refetch: vi.fn(),
   } as never)
-  vi.mocked(usersClient.useQuery).mockReturnValue({
+  vi.mocked(accessClient.useQuery).mockReturnValue({
     data: mockUserData,
     isPending: false,
     isError: false,
@@ -101,7 +115,7 @@ function setupEditMocks(mutateOverrides?: Partial<ReturnType<typeof vi.fn>>) {
     refetch: vi.fn(),
   } as never)
   const mockMutate = vi.fn()
-  vi.mocked(usersClient.useMutation).mockReturnValue({
+  vi.mocked(accessClient.useMutation).mockReturnValue({
     mutate: mockMutate,
     isPending: false,
     ...mutateOverrides,
@@ -162,7 +176,6 @@ describe('UserForm', () => {
           email: 'new@nexus.local',
           full_name: 'New User',
           password: 'securepass123',
-          role: 'viewer',
           is_active: true,
         },
       })
@@ -227,7 +240,7 @@ describe('UserForm', () => {
         isFetching: false,
         refetch: vi.fn(),
       } as never)
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: undefined,
         isPending: false,
         isError: false,
@@ -235,7 +248,7 @@ describe('UserForm', () => {
         isFetching: false,
         refetch: vi.fn(),
       } as never)
-      vi.mocked(usersClient.useMutation).mockReturnValue({
+      vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: vi.fn(),
         isPending: true,
       } as never)
@@ -287,7 +300,6 @@ describe('UserForm', () => {
         body: {
           full_name: 'John Doe',
           email: 'updated@nexus.local',
-          role: 'creator',
           is_active: true,
         },
       })
@@ -358,7 +370,7 @@ describe('UserForm', () => {
         isFetching: false,
         refetch: vi.fn(),
       } as never)
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: undefined,
         isPending: false,
         isError: true,
@@ -366,7 +378,7 @@ describe('UserForm', () => {
         isFetching: false,
         refetch: vi.fn(),
       } as never)
-      vi.mocked(usersClient.useMutation).mockReturnValue({
+      vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: vi.fn(),
         isPending: false,
       } as never)
@@ -389,7 +401,7 @@ describe('UserForm', () => {
         isFetching: false,
         refetch: vi.fn(),
       } as never)
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: undefined,
         isPending: false,
         isError: true,
@@ -397,7 +409,7 @@ describe('UserForm', () => {
         isFetching: false,
         refetch: vi.fn(),
       } as never)
-      vi.mocked(usersClient.useMutation).mockReturnValue({
+      vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: vi.fn(),
         isPending: false,
       } as never)
@@ -421,7 +433,7 @@ describe('UserForm', () => {
         isFetching: false,
         refetch: vi.fn(),
       } as never)
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: undefined,
         isPending: false,
         isError: true,
@@ -429,7 +441,7 @@ describe('UserForm', () => {
         isFetching: false,
         refetch: mockRefetch,
       } as never)
-      vi.mocked(usersClient.useMutation).mockReturnValue({
+      vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: vi.fn(),
         isPending: false,
       } as never)
@@ -451,7 +463,7 @@ describe('UserForm', () => {
         isFetching: false,
         refetch: vi.fn(),
       } as never)
-      vi.mocked(usersClient.useQuery).mockReturnValue({
+      vi.mocked(accessClient.useQuery).mockReturnValue({
         data: undefined,
         isPending: true,
         isError: false,
@@ -461,7 +473,7 @@ describe('UserForm', () => {
         status: 'pending',
         fetchStatus: 'fetching',
       } as never)
-      vi.mocked(usersClient.useMutation).mockReturnValue({
+      vi.mocked(accessClient.useMutation).mockReturnValue({
         mutate: vi.fn(),
         isPending: false,
       } as never)

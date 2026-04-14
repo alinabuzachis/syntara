@@ -1,19 +1,292 @@
-import { EmptyState, EmptyStateBody } from '@patternfly/react-core'
-import { RhUiUsersIcon } from '@patternfly/react-icons'
-import { Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { Group } from '@ansible/nexus-contracts'
+import {
+  Button,
+  Flex,
+  FlexItem,
+  Label,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  Stack,
+  StackItem,
+} from '@patternfly/react-core'
+import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IAction } from '@patternfly/react-table'
+import { useMemo, useState } from 'react'
 
-import { usersClient } from '../../../client'
+import { useAlerts } from '../../../components/alerts'
+import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
+import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
+import { FilterBar } from '../../../components/filters'
+import { IconLabel } from '../../../components/IconLabel'
 import { useQueryState } from '../../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
+import type { FilterConfig, FilterFieldDefinition } from '../../../types/filters'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../../types/filters'
+import { getErrorMessage } from '../../../utils/apiErrors'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
+import { accessClient } from '../../access/accessClient'
+import { PaginationFooter } from '../../access/PaginationFooter'
+import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 
-export function UserGroupsPanel({ userId }: Readonly<{ userId: string }>) {
-  const query = usersClient.useQuery('get', '/users/{user_id}/groups', {
+const filterFieldDefinitions: FilterFieldDefinition[] = [
+  {
+    key: 'name',
+    label: 'Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by name',
+  },
+  {
+    key: 'description',
+    label: 'Description',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by description',
+  },
+]
+
+interface UserGroupsPanelProps {
+  userId: string
+}
+
+interface GroupInfo {
+  id: string
+  name: string
+}
+
+function RemoveFromGroupDialog({
+  group,
+  isOpen,
+  onClose,
+  onConfirm,
+}: Readonly<{
+  group: GroupInfo | null
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: () => void
+}>) {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} variant="small">
+      <ModalHeader title="Remove from group" />
+      <ModalBody>Are you sure you want to remove this user from group &quot;{group?.name}&quot;?</ModalBody>
+      <ModalFooter>
+        <Button variant="danger" onClick={onConfirm}>
+          Remove
+        </Button>
+        <Button variant="link" onClick={onClose}>
+          Cancel
+        </Button>
+      </ModalFooter>
+    </Modal>
+  )
+}
+
+function AddToGroupModal({
+  userId,
+  isOpen,
+  onClose,
+  onSuccess,
+  existingGroupIds,
+}: Readonly<{
+  userId: string
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+  existingGroupIds: string[]
+}>) {
+  const [selectedGroupId, setSelectedGroupId] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const { showAlert } = useAlerts()
+
+  const groupsQuery = accessClient.useQuery('get', '/groups', {
+    params: { query: { limit: 100, include_total: true } },
+  })
+
+  const availableGroups = useMemo(() => {
+    const allGroups = groupsQuery.data?.resources ?? []
+    return allGroups
+      .filter((g) => !existingGroupIds.includes(g.id))
+      .map((g) => ({
+        value: g.id,
+        label: g.name,
+        description: g.description ?? undefined,
+      }))
+  }, [groupsQuery.data, existingGroupIds])
+
+  const { mutate: addMember, isPending } = accessClient.useMutation('post', '/groups/{group_id}/members')
+
+  const handleClose = () => {
+    setSelectedGroupId('')
+    setError(null)
+    onClose()
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedGroupId) {
+      setError('Please select a group')
+      return
+    }
+
+    addMember(
+      {
+        params: { path: { group_id: selectedGroupId } },
+        body: { user_id: userId },
+      },
+      {
+        onSuccess: () => {
+          const group = availableGroups.find((g) => g.value === selectedGroupId)
+          showAlert({
+            title: 'Added to group',
+            description: `User has been added to group "${group?.label ?? selectedGroupId}".`,
+            variant: 'success',
+            autoDismiss: true,
+          })
+          handleClose()
+          onSuccess()
+        },
+        onError: (err: unknown) => {
+          showAlert({
+            title: 'Failed to add to group',
+            description: getErrorMessage(err),
+            variant: 'error',
+            autoDismiss: true,
+          })
+        },
+      }
+    )
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} variant="medium">
+      <ModalHeader title="Add to group" />
+      <ModalBody>
+        <form id="add-to-group-form" onSubmit={handleSubmit}>
+          <TypeaheadSelect
+            id="add-to-group-select"
+            ariaLabel="Select a group"
+            options={availableGroups}
+            selected={selectedGroupId}
+            onChange={(value) => {
+              setSelectedGroupId(value)
+              setError(null)
+            }}
+            placeholder="Search for a group..."
+            hasError={!!error}
+          />
+        </form>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="primary" type="submit" form="add-to-group-form" isDisabled={isPending} isLoading={isPending}>
+          Add
+        </Button>
+        <Button variant="link" onClick={handleClose} isDisabled={isPending}>
+          Cancel
+        </Button>
+      </ModalFooter>
+    </Modal>
+  )
+}
+
+function getGroupActions(group: Group, onRemove: (g: GroupInfo) => void): IAction[] {
+  if (group.is_builtin) return []
+  return [
+    {
+      title: <IconLabel icon={<RhUiTrashIcon />}>Remove</IconLabel>,
+      onClick: () => onRemove({ id: group.id, name: group.name }),
+    },
+  ]
+}
+
+export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [groupToRemove, setGroupToRemove] = useState<GroupInfo | null>(null)
+  const [filters, setFilters] = useState<FilterConfig[]>([])
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const { showAlert } = useAlerts()
+
+  const handleFilterChange = (newFilters: FilterConfig[]) => {
+    setFilters(newFilters)
+    setPage(1)
+  }
+
+  const handlePerPageChange = (newPerPage: number) => {
+    setPerPage(newPerPage)
+    setPage(1)
+  }
+
+  const query = accessClient.useQuery('get', '/users/{user_id}/groups', {
     params: { path: { user_id: userId } },
   })
 
-  const groups = query.data?.resources ?? []
+  const allGroupsQuery = accessClient.useQuery('get', '/groups', {
+    params: { query: { limit: 100 } },
+  })
+
+  const groups = useMemo(() => {
+    const userGroups = query.data?.resources ?? []
+    const hasAuthenticated = userGroups.some((g) => g.name === 'authenticated')
+    if (hasAuthenticated) return userGroups
+
+    const authenticatedGroup = (allGroupsQuery.data?.resources ?? []).find((g) => g.name === 'authenticated')
+    if (authenticatedGroup) return [authenticatedGroup, ...userGroups]
+    return userGroups
+  }, [query.data, allGroupsQuery.data])
+
+  const filteredGroups = useMemo(() => {
+    let result = groups
+    const nameFilter = filters.find((f) => f.key === 'name')
+    if (nameFilter) {
+      const term = String(nameFilter.value).toLowerCase()
+      result = result.filter((g) => g.name.toLowerCase().includes(term))
+    }
+    const descFilter = filters.find((f) => f.key === 'description')
+    if (descFilter) {
+      const term = String(descFilter.value).toLowerCase()
+      result = result.filter((g) => (g.description ?? '').toLowerCase().includes(term))
+    }
+    return result
+  }, [groups, filters])
+
+  const paginatedGroups = useMemo(() => {
+    const start = (page - 1) * perPage
+    return filteredGroups.slice(start, start + perPage)
+  }, [filteredGroups, page, perPage])
+
+  const { mutate: removeMember } = accessClient.useMutation('delete', '/groups/{group_id}/members/{user_id}')
+
+  const handleRemove = () => {
+    if (!groupToRemove) return
+    removeMember(
+      { params: { path: { group_id: groupToRemove.id, user_id: userId } } },
+      {
+        onSuccess: () => {
+          showAlert({
+            title: 'Removed from group',
+            description: `User has been removed from group "${groupToRemove.name}".`,
+            variant: 'success',
+            autoDismiss: true,
+          })
+          query.refetch().catch(() => {})
+        },
+        onError: (err: unknown) => {
+          showAlert({
+            title: 'Failed to remove from group',
+            description: getErrorMessage(err),
+            variant: 'error',
+            autoDismiss: true,
+          })
+        },
+        onSettled: () => setGroupToRemove(null),
+      }
+    )
+  }
 
   const queryState = useQueryState(query, {
     title: 'Error loading groups',
@@ -23,30 +296,118 @@ export function UserGroupsPanel({ userId }: Readonly<{ userId: string }>) {
 
   if (groups.length === 0) {
     return (
-      <EmptyState headingLevel="h3" titleText="No groups" icon={RhUiUsersIcon}>
-        <EmptyStateBody>This user is not a member of any groups.</EmptyStateBody>
-      </EmptyState>
+      <>
+        <EmptyStateNoData
+          title="No groups"
+          description="This user is not a member of any groups."
+          buttonText="Add to group"
+          addData={() => setAddModalOpen(true)}
+        />
+        <AddToGroupModal
+          userId={userId}
+          isOpen={addModalOpen}
+          onClose={() => setAddModalOpen(false)}
+          onSuccess={() => {
+            query.refetch().catch(() => {})
+          }}
+          existingGroupIds={[]}
+        />
+      </>
     )
   }
 
   return (
-    <ScrollableTableContainer aria-label="User groups table">
-      <Thead>
-        <Tr>
-          <Th>Name</Th>
-          <Th>Description</Th>
-          <Th>Created</Th>
-        </Tr>
-      </Thead>
-      <Tbody>
-        {groups.map((group) => (
-          <Tr key={group.id}>
-            <Td dataLabel="Name">{group.name}</Td>
-            <Td dataLabel="Description">{group.description ?? ''}</Td>
-            <Td dataLabel="Created">{formatDateTime(group.created_at)}</Td>
-          </Tr>
-        ))}
-      </Tbody>
-    </ScrollableTableContainer>
+    <>
+      <Stack style={{ height: '100%' }}>
+        <StackItem>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+            <FlexItem grow={{ default: 'grow' }}>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
+                clearAllFilters={() => handleFilterChange([])}
+              />
+            </FlexItem>
+            <FlexItem>
+              <Button variant="primary" icon={<PlusIcon />} onClick={() => setAddModalOpen(true)}>
+                Add to group
+              </Button>
+            </FlexItem>
+          </Flex>
+        </StackItem>
+
+        {filteredGroups.length === 0 ? (
+          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
+          </StackItem>
+        ) : (
+          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+            <Table aria-label="User groups table" isStriped style={{ width: '100%' }}>
+              <Thead>
+                <Tr>
+                  <Th>Name</Th>
+                  <Th>Description</Th>
+                  <Th>Created</Th>
+                  <Th>Updated</Th>
+                  <Th screenReaderText="Actions" />
+                </Tr>
+              </Thead>
+              <Tbody>
+                {paginatedGroups.map((group) => (
+                  <Tr key={group.id}>
+                    <Td dataLabel="Name">
+                      {group.name}
+                      {group.name === 'authenticated' && (
+                        <>
+                          {' '}
+                          <Label isCompact color="grey">
+                            All users
+                          </Label>
+                        </>
+                      )}
+                    </Td>
+                    <Td dataLabel="Description">{group.description ?? ''}</Td>
+                    <Td dataLabel="Created">{formatDateTime(group.created_at)}</Td>
+                    <Td dataLabel="Updated">{formatDateTime(group.updated_at)}</Td>
+                    <Td isActionCell>
+                      {!group.is_builtin && <ActionsColumn items={getGroupActions(group, setGroupToRemove)} />}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </StackItem>
+        )}
+
+        <PaginationFooter
+          page={page}
+          perPage={perPage}
+          total={filteredGroups.length}
+          hasNext={page * perPage < filteredGroups.length}
+          onPrev={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => p + 1)}
+          onPerPageChange={handlePerPageChange}
+        />
+      </Stack>
+
+      <AddToGroupModal
+        userId={userId}
+        isOpen={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onSuccess={() => {
+          query.refetch().catch(() => {})
+        }}
+        existingGroupIds={groups.map((g) => g.id)}
+      />
+
+      <RemoveFromGroupDialog
+        group={groupToRemove}
+        isOpen={!!groupToRemove}
+        onClose={() => setGroupToRemove(null)}
+        onConfirm={handleRemove}
+      />
+    </>
   )
 }

@@ -59,10 +59,14 @@ const yamlFiles = [
   'timeout-retry/timeout-with-retry.yaml',
 ]
 
+// Project IDs to distribute workflows across
+const projectIds = ['p-001', 'p-002']
+
 // Convert all YAML files to WorkflowWithVersion objects
-export const workflows: WorkflowWithVersion[] = yamlFiles
+export const workflows: (WorkflowWithVersion & { project_id: string })[] = yamlFiles
   .map((file, index) => {
     const filePath = join(examplesDir, file)
-    return convertYamlToWorkflow(filePath, (index + 1).toString(), 'system')
+    const workflow = convertYamlToWorkflow(filePath, (index + 1).toString(), 'system')
+    return { ...workflow, project_id: projectIds[index % projectIds.length] }
   })
   .sort((a, b) => a.name.localeCompare(b.name))

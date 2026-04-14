@@ -20,6 +20,7 @@ import { useFilterState } from '../../../hooks/useFilterState'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
+import { detachPromise } from '../../../utils/detachPromise'
 import { buildFilterParams } from '../../../utils/filterUtils'
 
 import type { Credential, CredentialType } from './credentialConstants'
@@ -119,7 +120,7 @@ export default function Credentials() {
         {
           onSuccess: () => {
             showAlert({ title: 'Credential enabled', variant: 'success', autoDismiss: true })
-            void query.refetch()
+            detachPromise(query.refetch())
           },
           onError: (error: unknown) => {
             showAlert({
@@ -141,7 +142,7 @@ export default function Credentials() {
       {
         onSuccess: () => {
           showAlert({ title: 'Credential disabled', variant: 'success', autoDismiss: true })
-          void query.refetch()
+          detachPromise(query.refetch())
         },
         onError: (error: unknown) => {
           showAlert({
@@ -168,7 +169,7 @@ export default function Credentials() {
             variant: 'success',
             autoDismiss: true,
           })
-          void query.refetch()
+          detachPromise(query.refetch())
         },
         onError: (error: unknown) => {
           showAlert({
@@ -198,7 +199,7 @@ export default function Credentials() {
   // Query state handling (loading/error)
   const queryState = useQueryState(query, {
     title: 'Error loading credentials',
-    onRetry: () => void query.refetch(),
+    onRetry: () => detachPromise(query.refetch()),
   })
   if (queryState) {
     return (
@@ -368,7 +369,7 @@ export default function Credentials() {
           setCredentialToEdit(null)
         }}
         credentialToEdit={credentialToEdit}
-        onSuccess={() => void query.refetch()}
+        onSuccess={() => detachPromise(query.refetch())}
       />
     </AppPage>
   )

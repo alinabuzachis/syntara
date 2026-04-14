@@ -81,7 +81,7 @@ describe('authMiddleware', () => {
   })
 
   describe('onResponse', () => {
-    it('returns response as-is for non-401 status', async () => {
+    it('returns response as-is for non-401 status without stale header', async () => {
       const request = new Request('https://example.com/api')
       const response = new Response('OK', { status: 200 })
 
@@ -91,6 +91,58 @@ describe('authMiddleware', () => {
 
       expect(result).toBe(response)
       expect(mockGetState).not.toHaveBeenCalled()
+    })
+
+    it('triggers background refresh when X-Token-Stale header is true', async () => {
+      const request = new Request('https://example.com/api')
+      const response = new Response('OK', {
+        status: 200,
+        headers: { 'X-Token-Stale': 'true' },
+      })
+
+      mockGetState.mockReturnValueOnce({
+        refresh: mockRefresh,
+      })
+      mockRefresh.mockResolvedValueOnce(undefined)
+
+      const result = await authMiddleware.onResponse!({ request, response } as Parameters<
+        NonNullable<typeof authMiddleware.onResponse>
+      >[0])
+
+      expect(result).toBe(response)
+      expect(mockRefresh).toHaveBeenCalled()
+    })
+
+    it('does not trigger refresh when X-Token-Stale header is absent', async () => {
+      const request = new Request('https://example.com/api')
+      const response = new Response('OK', { status: 200 })
+
+      const result = await authMiddleware.onResponse!({ request, response } as Parameters<
+        NonNullable<typeof authMiddleware.onResponse>
+      >[0])
+
+      expect(result).toBe(response)
+      expect(mockRefresh).not.toHaveBeenCalled()
+    })
+
+    it('swallows errors from background stale refresh', async () => {
+      const request = new Request('https://example.com/api')
+      const response = new Response('OK', {
+        status: 200,
+        headers: { 'X-Token-Stale': 'true' },
+      })
+
+      mockGetState.mockReturnValueOnce({
+        refresh: mockRefresh,
+      })
+      mockRefresh.mockRejectedValueOnce(new Error('Refresh failed'))
+
+      const result = await authMiddleware.onResponse!({ request, response } as Parameters<
+        NonNullable<typeof authMiddleware.onResponse>
+      >[0])
+
+      // Response is returned normally despite refresh error
+      expect(result).toBe(response)
     })
 
     it('attempts refresh on 401 and retries request', async () => {

@@ -1,13 +1,4 @@
-import {
-  FormGroup,
-  FormHelperText,
-  FormSelect,
-  FormSelectOption,
-  HelperText,
-  HelperTextItem,
-  Switch,
-  TextInput,
-} from '@patternfly/react-core'
+import { FormGroup, FormHelperText, HelperText, HelperTextItem, Switch, TextInput } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { Control } from 'react-hook-form'
 import { Controller } from 'react-hook-form'
@@ -73,13 +64,6 @@ interface UserFormFieldsProps {
   isEdit: boolean
 }
 
-const ROLE_OPTIONS = [
-  { value: 'viewer', label: 'Viewer' },
-  { value: 'creator', label: 'Creator' },
-  { value: 'approver', label: 'Approver' },
-  { value: 'administrator', label: 'Administrator' },
-] as const
-
 export function UserFormFields({ control, isEdit }: Readonly<UserFormFieldsProps>) {
   return (
     <>
@@ -124,36 +108,6 @@ export function UserFormFields({ control, isEdit }: Readonly<UserFormFieldsProps
         placeholder={isEdit ? 'Leave blank to keep current password' : 'Enter password'}
         type="password"
         isRequired={!isEdit}
-      />
-      <Controller
-        name="role"
-        control={control}
-        render={({ field, fieldState }) => (
-          <FormGroup label="System Role" fieldId="user-role" isRequired>
-            <FormSelect
-              id="user-role"
-              aria-label="System Role"
-              validated={fieldState.error ? 'error' : 'default'}
-              value={field.value}
-              onChange={(_event, value) => field.onChange(value)}
-              onBlur={field.onBlur}
-              name={field.name}
-            >
-              {ROLE_OPTIONS.map((option) => (
-                <FormSelectOption key={option.value} value={option.value} label={option.label} />
-              ))}
-            </FormSelect>
-            {fieldState.error && (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                    {fieldState.error.message}
-                  </HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            )}
-          </FormGroup>
-        )}
       />
       <Controller
         name="is_active"

@@ -35,6 +35,13 @@ export const AppRoute = {
     UserDetail: '/access-management/users/:userId',
     EditUser: '/access-management/users/:userId/edit',
     Groups: '/access-management/groups',
+    GroupDetail: '/access-management/groups/:groupId',
+    Policies: '/access-management/policies',
+    Roles: '/access-management/roles',
+    Projects: '/access-management/projects',
+    ProjectDetail: '/access-management/projects/:projectId',
+    Assignments: '/access-management/assignments',
+    CanI: '/access-management/can-i',
     Authentication: {
       Root: '/access-management/authentication',
       AddIdentityProvider: '/access-management/authentication/identity-providers/add',

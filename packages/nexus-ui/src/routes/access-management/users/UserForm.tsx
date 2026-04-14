@@ -8,7 +8,7 @@ import { navigate } from 'wouter/use-browser-location'
 import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
-import { authClient, usersClient } from '../../../client'
+import { authClient } from '../../../client'
 import { useAlerts } from '../../../components/alerts'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { useFormMutationErrorHandler } from '../../../hooks/useFormMutationErrorHandler'
@@ -16,6 +16,7 @@ import { useAuthStore } from '../../../stores/useAuthStore'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
+import { accessClient } from '../../access/accessClient'
 import { userFormSchema, userCreateSchema, splitFullName, toFullName, type UserFormData } from '../userFormSchema'
 
 import { UserFormFields } from './UserFormFields'
@@ -36,7 +37,6 @@ const DEFAULT_VALUES: UserFormData = {
   last_name: '',
   email: '',
   password: '',
-  role: 'viewer',
   is_active: true,
 }
 
@@ -48,7 +48,7 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
   const { userId } = useParams<{ userId: string }>()
   const isValidId = !!userId && isValidUUID(userId)
 
-  const userQuery = usersClient.useQuery(
+  const userQuery = accessClient.useQuery(
     'get',
     '/users/{user_id}',
     { params: { path: { user_id: userId ?? '' } } },
@@ -64,7 +64,6 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
             ...splitFullName(userData.full_name ?? ''),
             email: userData.email,
             password: '',
-            role: userData.role,
             is_active: userData.is_active,
           }
         : undefined,
@@ -79,8 +78,8 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
   })
 
   const handleError = useFormMutationErrorHandler<UserFormData>(setError)
-  const { mutate: createUser, isPending: isCreating } = usersClient.useMutation('post', '/users')
-  const { mutate: updateUser, isPending: isUpdating } = usersClient.useMutation('patch', '/users/{user_id}')
+  const { mutate: createUser, isPending: isCreating } = accessClient.useMutation('post', '/users')
+  const { mutate: updateUser, isPending: isUpdating } = accessClient.useMutation('patch', '/users/{user_id}')
   const { showAlert } = useAlerts()
   const logout = useAuthStore((s) => s.logout)
   const isSaving = isCreating || isUpdating
@@ -132,7 +131,6 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
           body: {
             full_name: fullName,
             email: formData.email,
-            role: formData.role,
             is_active: formData.is_active,
             ...(formData.password ? { password: formData.password } : {}),
           },
@@ -150,7 +148,6 @@ export function UserForm({ mode }: Readonly<UserFormProps>) {
             email: formData.email,
             full_name: fullName,
             password: formData.password ?? '',
-            role: formData.role,
             is_active: formData.is_active,
           },
         },

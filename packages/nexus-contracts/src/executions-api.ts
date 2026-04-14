@@ -101,7 +101,7 @@ export interface paths {
      *     The signal is durable - if the workflow is temporarily unavailable,
      *     the signal will be delivered when it becomes available again.
      */
-    post: operations['signalActivity']
+    post: operations['signal_activity']
     delete?: never
     options?: never
     head?: never
@@ -789,7 +789,7 @@ export interface operations {
       }
     }
   }
-  signalActivity: {
+  signal_activity: {
     parameters: {
       query?: never
       header?: never

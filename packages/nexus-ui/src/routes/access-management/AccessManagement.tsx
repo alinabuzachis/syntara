@@ -4,13 +4,23 @@ import { useLocation } from 'wouter'
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { AppRoute } from '../../app/AppRoute'
+import { AssignmentsTab } from '../access/AssignmentsTab'
+import { CanITab } from '../access/CanITab'
+import { PoliciesTab } from '../access/PoliciesTab'
+import { RolesTab } from '../access/RolesTab'
 
 import { GroupsTab } from './GroupsTab'
+import { ProjectsTab } from './ProjectsTab'
 import { UsersTab } from './UsersTab'
 
 const tabs = [
   { path: AppRoute.AccessManagement.Users, label: 'Users', component: UsersTab },
   { path: AppRoute.AccessManagement.Groups, label: 'Groups', component: GroupsTab },
+  { path: AppRoute.AccessManagement.Projects, label: 'Projects', component: ProjectsTab },
+  { path: AppRoute.AccessManagement.Policies, label: 'Policies', component: PoliciesTab },
+  { path: AppRoute.AccessManagement.Roles, label: 'Roles', component: RolesTab },
+  { path: AppRoute.AccessManagement.Assignments, label: 'Assignments', component: AssignmentsTab },
+  { path: AppRoute.AccessManagement.CanI, label: 'Can I?', component: CanITab },
 ] as const
 
 export function AccessManagement() {

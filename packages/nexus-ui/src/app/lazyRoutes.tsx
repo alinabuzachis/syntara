@@ -42,6 +42,16 @@ export const EditUser = lazy(() =>
     default: m.EditUser,
   }))
 )
+export const GroupDetail = lazy(() =>
+  import('../routes/access-management/groups/GroupDetail').then((m) => ({
+    default: m.GroupDetail,
+  }))
+)
+export const ProjectDetail = lazy(() =>
+  import('../routes/access-management/projects/ProjectDetail').then((m) => ({
+    default: m.ProjectDetail,
+  }))
+)
 export const MyProfile = lazy(() => import('../routes/profile/MyProfile').then((m) => ({ default: m.MyProfile })))
 export const Credentials = lazy(() => import('../routes/configuration/credentials/Credentials'))
 export const CredentialDetail = lazy(() => import('../routes/configuration/credentials/CredentialDetail'))

@@ -1,0 +1,231 @@
+import {
+  Button,
+  CompassPanel,
+  Content,
+  ContentVariants,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
+  Divider,
+  Flex,
+  FlexItem,
+  Icon,
+  Label,
+  Stack,
+  StackItem,
+  Title,
+  TitleSizes,
+} from '@patternfly/react-core'
+import { RhUiCloseIcon, RhUiLockIcon } from '@patternfly/react-icons'
+import { useEffect } from 'react'
+
+import { CodeBlock } from '../../components/details/CodeBlock'
+
+import type { PolicyRead } from './types'
+
+interface PolicyDetailSidebarProps {
+  policy: PolicyRead
+  onClose: () => void
+}
+
+function formatTimestamp(value: string | null): string {
+  if (!value) return 'N/A'
+  try {
+    return new Date(value).toLocaleString()
+  } catch {
+    return value
+  }
+}
+
+export function PolicyDetailSidebar({ policy, onClose }: Readonly<PolicyDetailSidebarProps>) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  const policyJson = {
+    name: policy.name,
+    ...(policy.description && { description: policy.description }),
+    statements: policy.statements,
+  }
+
+  const hasLabels = Object.keys(policy.labels ?? {}).length > 0
+
+  return (
+    <CompassPanel
+      style={{ width: '32rem', borderLeft: '1px solid var(--pf-t--global--border--color--default)' }}
+      isFullHeight
+      isScrollable
+    >
+      <Stack hasGutter style={{ padding: 'var(--pf-t--global--spacer--md)' }}>
+        {/* Header */}
+        <StackItem>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} justifyContent={{ default: 'justifyContentSpaceBetween' }}>
+            <FlexItem>
+              <Title headingLevel="h2" size={TitleSizes.lg}>
+                Policy details
+              </Title>
+            </FlexItem>
+            <FlexItem>
+              <Button variant="plain" onClick={onClose} aria-label="Close policy details">
+                <Icon>
+                  <RhUiCloseIcon />
+                </Icon>
+              </Button>
+            </FlexItem>
+          </Flex>
+        </StackItem>
+
+        {/* Name and type */}
+        <StackItem>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+            <FlexItem>
+              <code style={{ fontSize: 'var(--pf-t--global--font--size--body--lg)' }}>{policy.name}</code>
+            </FlexItem>
+            <FlexItem>
+              {policy.is_builtin ? (
+                <Label color="yellow" icon={<RhUiLockIcon />} isCompact>
+                  Built-in
+                </Label>
+              ) : (
+                <Label color="blue" isCompact>
+                  Custom
+                </Label>
+              )}
+            </FlexItem>
+          </Flex>
+        </StackItem>
+
+        {/* Built-in notice */}
+        {policy.is_builtin && (
+          <StackItem>
+            <Content
+              component={ContentVariants.small}
+              style={{ color: 'var(--pf-t--global--color--status--info--default)' }}
+            >
+              This is a system policy and cannot be modified.
+            </Content>
+          </StackItem>
+        )}
+
+        {/* Description */}
+        {policy.description && (
+          <StackItem>
+            <Content component={ContentVariants.p}>{policy.description}</Content>
+          </StackItem>
+        )}
+
+        {/* Metadata */}
+        <StackItem>
+          <DescriptionList isCompact>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Scope</DescriptionListTerm>
+              <DescriptionListDescription>
+                {policy.project_id ? `Project: ${policy.project_id}` : 'Global'}
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Created</DescriptionListTerm>
+              <DescriptionListDescription>{formatTimestamp(policy.created_at ?? null)}</DescriptionListDescription>
+            </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Updated</DescriptionListTerm>
+              <DescriptionListDescription>{formatTimestamp(policy.updated_at ?? null)}</DescriptionListDescription>
+            </DescriptionListGroup>
+            {hasLabels && (
+              <DescriptionListGroup>
+                <DescriptionListTerm>Labels</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Flex gap={{ default: 'gapSm' }} flexWrap={{ default: 'wrap' }}>
+                    {Object.entries(policy.labels ?? {}).map(([key, value]) => (
+                      <FlexItem key={key}>
+                        <Label isCompact>
+                          {key}: {String(value)}
+                        </Label>
+                      </FlexItem>
+                    ))}
+                  </Flex>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            )}
+          </DescriptionList>
+        </StackItem>
+
+        <StackItem>
+          <Divider />
+        </StackItem>
+
+        {/* Statements - structured view */}
+        <StackItem>
+          <Title headingLevel="h3" size={TitleSizes.md} style={{ marginBottom: 'var(--pf-t--global--spacer--sm)' }}>
+            Statements
+          </Title>
+          {policy.statements.length === 0 ? (
+            <Content component={ContentVariants.small}>No statements defined.</Content>
+          ) : (
+            <Stack hasGutter>
+              {policy.statements.map((stmt) => (
+                <StackItem key={`${stmt.effect}-${stmt.scope}-${stmt.actions.join(',')}`}>
+                  <Flex
+                    gap={{ default: 'gapSm' }}
+                    alignItems={{ default: 'alignItemsFlexStart' }}
+                    direction={{ default: 'column' }}
+                  >
+                    <FlexItem>
+                      <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+                        <Label color={stmt.effect === 'allow' ? 'green' : 'red'} isCompact>
+                          {stmt.effect.toUpperCase()}
+                        </Label>
+                        <Label color="grey" isCompact>
+                          scope: {stmt.scope}
+                        </Label>
+                      </Flex>
+                    </FlexItem>
+                    <FlexItem>
+                      <Flex gap={{ default: 'gapXs' }} flexWrap={{ default: 'wrap' }}>
+                        {stmt.actions.map((action) => (
+                          <FlexItem key={action}>
+                            <Label variant="outline" isCompact>
+                              {action}
+                            </Label>
+                          </FlexItem>
+                        ))}
+                      </Flex>
+                    </FlexItem>
+                    {stmt.conditions && Object.keys(stmt.conditions).length > 0 && (
+                      <FlexItem>
+                        <Content
+                          component={ContentVariants.small}
+                          style={{ marginBottom: 'var(--pf-t--global--spacer--xs)' }}
+                        >
+                          Conditions:
+                        </Content>
+                        <CodeBlock jsonObject={stmt.conditions} noMaxHeight enableCopy={false} />
+                      </FlexItem>
+                    )}
+                  </Flex>
+                </StackItem>
+              ))}
+            </Stack>
+          )}
+        </StackItem>
+
+        <StackItem>
+          <Divider />
+        </StackItem>
+
+        {/* JSON view */}
+        <StackItem>
+          <Title headingLevel="h3" size={TitleSizes.md} style={{ marginBottom: 'var(--pf-t--global--spacer--sm)' }}>
+            Policy JSON
+          </Title>
+          <CodeBlock jsonObject={policyJson} noMaxHeight enableCopy />
+        </StackItem>
+      </Stack>
+    </CompassPanel>
+  )
+}

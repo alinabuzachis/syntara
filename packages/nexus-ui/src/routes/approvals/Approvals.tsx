@@ -1,15 +1,7 @@
 import type { Approval } from '@ansible/nexus-contracts'
-import {
-  CompassPanel,
-  DescriptionList,
-  DescriptionListDescription,
-  DescriptionListGroup,
-  DescriptionListTerm,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
-import { Thead, Tbody, Tr, Th, Td, ExpandableRowContent } from '@patternfly/react-table'
-import { Fragment, useEffect, useMemo, useReducer } from 'react'
+import { CompassPanel, Stack, StackItem } from '@patternfly/react-core'
+import { Thead, Tr, Th } from '@patternfly/react-table'
+import { useEffect, useMemo, useReducer, useState } from 'react'
 
 import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
@@ -17,12 +9,13 @@ import { approvalsClient } from '../../client'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
+import { PageTitleWithProject } from '../../components/PageTitleWithProject'
 import { useQueryState } from '../../components/states/useQueryState'
-import { DateCell } from '../../components/table/DateCell'
-import { LinkCell } from '../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
 import { useFilterState } from '../../hooks/useFilterState'
+import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
+import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
 
 import {
@@ -30,11 +23,10 @@ import {
   getApprovalStatusFilterDefinition,
   createFilterChangeHandler,
 } from './approvalFilters'
-import { ApprovalStatusBadges } from './approvalUtils'
+import { FlatApprovalsTableBody, GroupedApprovalsTableBody } from './ApprovalsTableBody'
 
-type ApprovalWithDetails = Approval & {
+export type ApprovalWithDetails = Approval & {
   approvalName?: string
-  // approvalType?: string // Removed for RH1 - may be added back later
   automationName?: string
   workflowId?: string
   description?: string | null
@@ -50,49 +42,21 @@ const getApprovalDetails = (approval: ApprovalWithDetails) => ({
   workflowId: approval.workflow_context?.workflow_version_id,
 })
 
-const getDecidedInfo = (approval: ApprovalWithDetails) => ({
-  decidedAt: approval.decided_at,
-  decidedBy: approval.decided_by,
-})
-
 const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => {
   switch (sortColumn) {
     case 'approvalName':
       return approval.approvalName || approval.id
-    // case 'approvalType': // Removed for RH1
-    //   return approval.approvalType || ''
     case 'automationName':
       return approval.automationName ?? ''
     case 'requested_at':
-      // Use created_at from BaseResource (represents when approval was requested)
       return approval.created_at ? new Date(approval.created_at).getTime() : 0
     case 'decided_at': {
-      const { decidedAt } = getDecidedInfo(approval)
+      const decidedAt = approval.decided_at
       return decidedAt ? new Date(decidedAt).getTime() : undefined
     }
     case 'status':
       return approval.status ?? ''
   }
-}
-
-const DecidedCell = ({ approval }: { approval: ApprovalWithDetails }) => {
-  const { decidedAt, decidedBy } = getDecidedInfo(approval)
-
-  if (!decidedAt) {
-    return <DateCell dateString={null} />
-  }
-
-  return (
-    <>
-      {decidedBy ? (
-        <>
-          <LinkCell href={`/users/${decidedBy.id}`}>{decidedBy.name}</LinkCell>
-          {' at '}
-        </>
-      ) : null}
-      <DateCell dateString={decidedAt} />
-    </>
-  )
 }
 
 interface ApprovalsState {
@@ -127,6 +91,7 @@ function approvalsReducer(state: ApprovalsState, action: ApprovalsAction): Appro
 
 // eslint-disable-next-line max-lines-per-function
 export default function Approvals() {
+  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const [state, dispatch] = useReducer(approvalsReducer, {
     cursor: null,
     expandedRows: new Set<string>(),
@@ -161,6 +126,11 @@ export default function Approvals() {
       include_total: true,
     }
 
+    // Filter by selected project
+    if (selectedProject?.id) {
+      params.project_id = selectedProject.id
+    }
+
     // Add filter params
     const filterParams = buildFilterParams(filters)
     Object.assign(params, filterParams)
@@ -171,7 +141,7 @@ export default function Approvals() {
     }
 
     return params
-  }, [filters, cursor])
+  }, [filters, cursor, selectedProject])
 
   // Use the table sort hook - default to 'requested_at' (index 2) descending
   const { activeSortIndex, sortDirection, getSortParams } = useTableSort({
@@ -201,6 +171,37 @@ export default function Approvals() {
       }
     })
   }, [approvalsData?.resources])
+
+  // Group approvals by project when viewing all projects
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
+
+  const groupedApprovals = useMemo(() => {
+    if (!isAllProjects) return null
+    const groups = new Map<string, { project: (typeof projects)[number] | null; approvals: ApprovalWithDetails[] }>()
+    for (const approval of enrichedApprovals) {
+      const projectId = (approval as unknown as { project_id?: string }).project_id ?? 'unknown'
+      if (!groups.has(projectId)) {
+        groups.set(projectId, {
+          project: projects.find((p) => p.id === projectId) ?? null,
+          approvals: [],
+        })
+      }
+      groups.get(projectId)!.approvals.push(approval)
+    }
+    return groups
+  }, [enrichedApprovals, projects, isAllProjects])
+
+  const toggleProjectCollapsed = (projectId: string) => {
+    setCollapsedProjects((prev) => {
+      const next = new Set(prev)
+      if (next.has(projectId)) {
+        next.delete(projectId)
+      } else {
+        next.add(projectId)
+      }
+      return next
+    })
+  }
 
   const hasActiveFilters = filters.length > 0
 
@@ -235,13 +236,16 @@ export default function Approvals() {
     return sorted
   }, [enrichedApprovals, sortColumn, sortDirection])
 
-  const queryState = useQueryState(approvalsQuery, 'Error loading approvals')
+  const queryState = useQueryState(approvalsQuery, {
+    title: 'Error loading approvals',
+    onRetry: () => detachPromise(approvalsQuery.refetch()),
+  })
 
   // Show query state (loading/error)
   if (queryState) {
     return (
       <AppPage>
-        <AppPageHeader title="Approvals" />
+        <AppPageHeader title={<PageTitleWithProject title="Approvals" projectSelector={ProjectSelector} />} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>{queryState}</CompassPanel>
         </StackItem>
@@ -266,144 +270,95 @@ export default function Approvals() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Approvals" />
+      <AppPageHeader title={<PageTitleWithProject title="Approvals" projectSelector={ProjectSelector} />} />
 
-      {sortedApprovals.length === 0 && !hasActiveFilters ? (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <EmptyStateNoData
-              title="No approvals found"
-              description="No approvals are currently pending or available."
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <CompassPanel isFullHeight>
+          <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
+            <FilterBar
+              fieldDefinitions={filterFieldDefinitions}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              showClearAll={true}
             />
-          </CompassPanel>
-        </StackItem>
-      ) : (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-              />
 
-              {sortedApprovals.length === 0 ? (
-                <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {sortedApprovals.length === 0 ? (
+              <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-                </StackItem>
-              ) : (
-                <ScrollableTableContainer
-                  aria-label="Approvals table"
-                  isExpandable
-                  footer={{
-                    content: (
-                      <>
-                        {sortedApprovals.length} {sortedApprovals.length === 1 ? 'approval' : 'approvals'}
-                        {approvalsQuery.data?.total && approvalsQuery.data.total > sortedApprovals.length && (
-                          <span style={{ opacity: 0.6 }}> (of {approvalsQuery.data.total} total)</span>
-                        )}
-                      </>
-                    ),
-                    prev: approvalsQuery.data?.prev ?? null,
-                    next: approvalsQuery.data?.next ?? null,
-                    onPrev: () => dispatch({ type: 'SET_CURSOR', payload: approvalsQuery.data?.prev ?? null }),
-                    onNext: () => dispatch({ type: 'SET_CURSOR', payload: approvalsQuery.data?.next ?? null }),
-                  }}
-                >
-                  <Thead>
-                    <Tr>
-                      <Th
-                        expand={{
-                          // PatternFly's areAllExpanded expects the inverse: true when we want to show "expand" state,
-                          // false when we want to show "collapse" state (i.e., when all rows are expanded)
-                          areAllExpanded: !allRowsExpanded,
-                          collapseAllAriaLabel,
-                          onToggle: onCollapseAll,
-                        }}
-                        aria-label="Row expansion"
-                      />
-                      <Th modifier="nowrap" sort={getSortParams(0)}>
-                        Approval name
-                      </Th>
-                      {/* Approval type column removed for RH1 - may be added back later */}
-                      <Th modifier="nowrap" sort={getSortParams(1)}>
-                        Automation
-                      </Th>
-                      <Th modifier="nowrap" sort={getSortParams(2)}>
-                        Approval initiated
-                      </Th>
-                      <Th modifier="nowrap" sort={getSortParams(3)}>
-                        Actioned on
-                      </Th>
-                      <Th modifier="nowrap" sort={getSortParams(4)}>
-                        Status
-                      </Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {sortedApprovals.map((approval, index) => {
-                      const isExpanded = expandedRows.has(approval.id)
-
-                      return (
-                        <Fragment key={approval.id}>
-                          <Tr isContentExpanded={isExpanded}>
-                            <Td
-                              expand={{
-                                rowIndex: index,
-                                isExpanded,
-                                onToggle: () => toggleRow(approval.id),
-                              }}
-                            />
-                            <Td dataLabel="Approval name">
-                              <LinkCell href={`/approvals/${approval.id}`}>
-                                {approval.approvalName || approval.id}
-                              </LinkCell>
-                            </Td>
-                            <Td dataLabel="Automation">
-                              {approval.workflowId ? (
-                                <LinkCell href={`/automation-builder/${approval.workflowId}`}>
-                                  {approval.automationName}
-                                </LinkCell>
-                              ) : (
-                                approval.automationName
-                              )}
-                            </Td>
-                            <Td dataLabel="Approval initiated">
-                              {/* Use created_at from BaseResource (represents when approval was requested) */}
-                              <DateCell dateString={approval.created_at} />
-                            </Td>
-                            <Td dataLabel="Actioned on">
-                              <DecidedCell approval={approval} />
-                            </Td>
-                            <Td dataLabel="Status">
-                              <ApprovalStatusBadges status={approval.status} />
-                            </Td>
-                          </Tr>
-                          <Tr isExpanded={isExpanded}>
-                            <Td colSpan={6}>
-                              <ExpandableRowContent>
-                                <DescriptionList>
-                                  <DescriptionListGroup>
-                                    <DescriptionListTerm>Description</DescriptionListTerm>
-                                    <DescriptionListDescription>
-                                      {approval.description || 'No description provided'}
-                                    </DescriptionListDescription>
-                                  </DescriptionListGroup>
-                                </DescriptionList>
-                              </ExpandableRowContent>
-                            </Td>
-                          </Tr>
-                        </Fragment>
-                      )
-                    })}
-                  </Tbody>
-                </ScrollableTableContainer>
-              )}
-            </Stack>
-          </CompassPanel>
-        </StackItem>
-      )}
+                ) : (
+                  <EmptyStateNoData
+                    title="No approvals found"
+                    description="No approvals are currently pending or available."
+                  />
+                )}
+              </StackItem>
+            ) : (
+              <ScrollableTableContainer
+                aria-label="Approvals table"
+                isExpandable
+                footer={{
+                  content: (
+                    <>
+                      {sortedApprovals.length} {sortedApprovals.length === 1 ? 'approval' : 'approvals'}
+                      {approvalsQuery.data?.total && approvalsQuery.data.total > sortedApprovals.length && (
+                        <span style={{ opacity: 0.6 }}> (of {approvalsQuery.data.total} total)</span>
+                      )}
+                    </>
+                  ),
+                  prev: approvalsQuery.data?.prev ?? null,
+                  next: approvalsQuery.data?.next ?? null,
+                  onPrev: () => dispatch({ type: 'SET_CURSOR', payload: approvalsQuery.data?.prev ?? null }),
+                  onNext: () => dispatch({ type: 'SET_CURSOR', payload: approvalsQuery.data?.next ?? null }),
+                }}
+              >
+                <Thead>
+                  <Tr>
+                    <Th
+                      expand={{
+                        areAllExpanded: !allRowsExpanded,
+                        collapseAllAriaLabel,
+                        onToggle: onCollapseAll,
+                      }}
+                      aria-label="Row expansion"
+                    />
+                    <Th modifier="nowrap" sort={getSortParams(0)}>
+                      Approval name
+                    </Th>
+                    <Th modifier="nowrap" sort={getSortParams(1)}>
+                      Automation
+                    </Th>
+                    <Th modifier="nowrap" sort={getSortParams(2)}>
+                      Approval initiated
+                    </Th>
+                    <Th modifier="nowrap" sort={getSortParams(3)}>
+                      Actioned on
+                    </Th>
+                    <Th modifier="nowrap" sort={getSortParams(4)}>
+                      Status
+                    </Th>
+                  </Tr>
+                </Thead>
+                {isAllProjects && groupedApprovals ? (
+                  <GroupedApprovalsTableBody
+                    groupedApprovals={groupedApprovals}
+                    collapsedProjects={collapsedProjects}
+                    onToggleProject={toggleProjectCollapsed}
+                    expandedRows={expandedRows}
+                    onToggleRow={toggleRow}
+                  />
+                ) : (
+                  <FlatApprovalsTableBody
+                    approvals={sortedApprovals}
+                    expandedRows={expandedRows}
+                    onToggleRow={toggleRow}
+                  />
+                )}
+              </ScrollableTableContainer>
+            )}
+          </Stack>
+        </CompassPanel>
+      </StackItem>
     </AppPage>
   )
 }

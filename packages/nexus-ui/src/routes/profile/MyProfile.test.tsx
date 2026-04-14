@@ -20,7 +20,6 @@ interface MockProfile {
   id: string
   username: string
   email: string
-  role: string | null
   groups: string[]
 }
 
@@ -39,7 +38,6 @@ describe('MyProfile', () => {
     id: 'user-123',
     username: 'demo',
     email: 'demo@example.com',
-    role: 'admin',
     groups: ['developers', 'operators'],
   }
 
@@ -133,17 +131,6 @@ describe('MyProfile', () => {
     expect(screen.getByText('FS')).toBeInTheDocument()
   })
 
-  it('shows role as a Label', () => {
-    // Arrange
-    mockProfileQuery(defaultProfile)
-
-    // Act
-    render(<MyProfile />)
-
-    // Assert
-    expect(screen.getByText('admin')).toBeInTheDocument()
-  })
-
   it('shows groups as Labels', () => {
     // Arrange
     mockProfileQuery(defaultProfile)
@@ -165,17 +152,6 @@ describe('MyProfile', () => {
 
     // Assert
     expect(screen.getByText('No groups assigned')).toBeInTheDocument()
-  })
-
-  it('shows "Unknown" when role is empty or null', () => {
-    // Arrange
-    mockProfileQuery({ ...defaultProfile, role: null })
-
-    // Act
-    render(<MyProfile />)
-
-    // Assert
-    expect(screen.getByText('Unknown')).toBeInTheDocument()
   })
 
   it('has no accessibility violations', async () => {

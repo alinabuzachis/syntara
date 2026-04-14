@@ -1,15 +1,12 @@
 import type { WorkflowAPI } from '@ansible/nexus-contracts'
 import { ExecutionStatusEnum } from '@ansible/nexus-contracts'
-import createFetchClient from 'openapi-fetch'
 
+import { workflowFetchClient } from '../../client'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
 
 // Re-export shared filter change handler
 export { createFilterChangeHandler } from '../../hooks/useFilterChangeHandler'
-
-// Create a fetch client for async workflow queries
-const workflowFetchClient = createFetchClient<WorkflowAPI.paths>({ baseUrl: '/api/v1/' })
 
 /**
  * Transforms workflow resources into filter options
@@ -24,7 +21,7 @@ export function transformWorkflowsToOptions(
       value: workflow.id ?? '',
       label: workflow.name ?? '',
     }))
-    .filter((opt) => opt.value && opt.label) // Filter out invalid entries
+    .filter((opt) => opt.value && opt.label)
 }
 
 /**
@@ -35,6 +32,7 @@ export function transformWorkflowsToOptions(
  * @remarks
  * Uses server-side typeahead via asyncOptions to support filtering by any workflow,
  * not just the first page of results. Queries /workflows with name[contains] parameter.
+ * Uses the shared authenticated workflowFetchClient from client.tsx.
  *
  * @example
  * ```typescript
@@ -49,23 +47,21 @@ export const getExecutionWorkflowFilterDefinition = (): FilterFieldDefinition =>
   type: FilterTypeEnum.SELECT,
   asyncOptions: async (searchValue: string) => {
     const params: Record<string, unknown> = {
-      limit: 50, // Show up to 50 matching workflows
+      limit: 50,
     }
 
-    // Add search filter if provided
     if (searchValue.trim()) {
       params['name[contains]'] = searchValue.trim()
     }
 
     try {
       const response = await workflowFetchClient.GET('/workflows', {
-        params: { query: params },
+        params: { query: params as WorkflowAPI.paths['/workflows']['get']['parameters']['query'] },
       })
 
       const workflows = response.data?.resources ?? []
       return transformWorkflowsToOptions(workflows)
     } catch {
-      // Failed to fetch workflows - return empty list
       return []
     }
   },

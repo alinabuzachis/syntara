@@ -16,6 +16,18 @@ vi.mock('../../client', () => ({
   executionsClient: {
     useQuery: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+// Mock useProjectSelector to avoid needing accessClient / QueryClientProvider
+const mockUseProjectSelector = vi.fn(() => ({
+  selectedProject: null as { id: string; name: string } | null,
+  isAllProjects: false,
+  projects: [] as { id: string; name: string }[],
+  ProjectSelector: null,
+}))
+vi.mock('../../hooks/useProjectSelector', () => ({
+  useProjectSelector: () => mockUseProjectSelector(),
 }))
 
 // Mock wouter
@@ -801,6 +813,191 @@ describe('Executions Component', () => {
 
       // The component should have called setCursor (state update)
       expect(prevButton).toBeInTheDocument()
+    })
+  })
+
+  describe('Grouped view (All Projects)', () => {
+    it('renders grouped executions when all projects are selected', () => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: null,
+        isAllProjects: true,
+        projects: [
+          { id: 'proj-1', name: 'Project Alpha' },
+          { id: 'proj-2', name: 'Project Beta' },
+        ],
+        ProjectSelector: null,
+      })
+
+      const executionsWithProjects = [
+        {
+          ...mockExecutions[0],
+          project_id: 'proj-1',
+        },
+        {
+          ...mockExecutions[1],
+          project_id: 'proj-2',
+        },
+      ]
+
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
+        data: { resources: executionsWithProjects },
+        isPending: false,
+        error: null,
+      } as never)
+
+      vi.mocked(workflowClient.useQuery).mockImplementation(((_method: string, path: string) => {
+        if (path === '/workflows') {
+          return { data: { resources: mockWorkflows }, isPending: false, error: null }
+        }
+        return { data: undefined, isPending: false, error: null }
+      }) as never)
+
+      render(<Executions />)
+
+      // Grouped view shows project names as group headers
+      expect(screen.getByText('Project Alpha')).toBeInTheDocument()
+      expect(screen.getByText('Project Beta')).toBeInTheDocument()
+    })
+
+    it('toggles project group collapsed/expanded', async () => {
+      const user = userEvent.setup()
+
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: null,
+        isAllProjects: true,
+        projects: [{ id: 'proj-1', name: 'Project Alpha' }],
+        ProjectSelector: null,
+      })
+
+      const executionsWithProjects = [
+        {
+          ...mockExecutions[0],
+          project_id: 'proj-1',
+        },
+      ]
+
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
+        data: { resources: executionsWithProjects },
+        isPending: false,
+        error: null,
+      } as never)
+
+      vi.mocked(workflowClient.useQuery).mockImplementation(((_method: string, path: string) => {
+        if (path === '/workflows') {
+          return { data: { resources: mockWorkflows }, isPending: false, error: null }
+        }
+        if (path === '/workflows/{workflow_id}') {
+          return { data: mockWorkflows[0], isPending: false, error: null }
+        }
+        return { data: undefined, isPending: false, error: null }
+      }) as never)
+
+      render(<Executions />)
+
+      expect(screen.getByText('Project Alpha')).toBeInTheDocument()
+      // Execution ID should be visible
+      expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
+
+      // Click to collapse
+      await user.click(screen.getByText('Project Alpha'))
+
+      // Execution should be hidden
+      expect(screen.queryByText('123e4567-e89b-12d3-a456-426614174000')).not.toBeInTheDocument()
+
+      // Click to expand
+      await user.click(screen.getByText('Project Alpha'))
+
+      // Execution should be visible again
+      expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
+    })
+
+    it('falls back to projectId when project is not found', () => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: null,
+        isAllProjects: true,
+        projects: [], // No projects found
+        ProjectSelector: null,
+      })
+
+      const executionsWithProjects = [
+        {
+          ...mockExecutions[0],
+          project_id: 'unknown-proj-id',
+        },
+      ]
+
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
+        data: { resources: executionsWithProjects },
+        isPending: false,
+        error: null,
+      } as never)
+
+      vi.mocked(workflowClient.useQuery).mockImplementation(((_method: string, path: string) => {
+        if (path === '/workflows') {
+          return { data: { resources: mockWorkflows }, isPending: false, error: null }
+        }
+        return { data: undefined, isPending: false, error: null }
+      }) as never)
+
+      render(<Executions />)
+
+      // Falls back to project ID string when project is not in the list
+      expect(screen.getByText('unknown-proj-id')).toBeInTheDocument()
+    })
+  })
+
+  describe('Project filtering', () => {
+    it('includes project_id in query params when a project is selected', () => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: { id: 'proj-1', name: 'Project Alpha' },
+        isAllProjects: false,
+        projects: [{ id: 'proj-1', name: 'Project Alpha' }],
+        ProjectSelector: null,
+      })
+
+      const mockUseQuery = vi.fn().mockReturnValue({
+        data: { resources: mockExecutions },
+        isPending: false,
+        error: null,
+      })
+      vi.mocked(executionsClient.useQuery).mockImplementation(mockUseQuery as never)
+
+      render(<Executions />)
+
+      expect(mockUseQuery).toHaveBeenCalledWith('get', '/executions', {
+        params: {
+          query: expect.objectContaining({
+            project_id: 'proj-1',
+          }) as unknown,
+        },
+      })
+    })
+  })
+
+  describe('Clear all filters', () => {
+    it('clears filters when "Clear all filters" button in EmptyStateFilter is clicked', async () => {
+      const mockSetSearchParams = vi.fn()
+      vi.mocked(useSearch).mockReturnValue('?status=completed')
+      vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams('status=completed'), mockSetSearchParams])
+
+      vi.mocked(executionsClient.useQuery).mockReturnValue({
+        data: { resources: [] },
+        isPending: false,
+        error: null,
+      } as never)
+
+      const user = userEvent.setup()
+      render(<Executions />)
+
+      // EmptyStateFilter should be shown (active filters + empty results)
+      expect(screen.getByText('No results found')).toBeInTheDocument()
+
+      // Click "Clear all filters" in the EmptyStateFilter
+      const clearButtons = screen.getAllByRole('button', { name: /clear all filters/i })
+      await user.click(clearButtons[clearButtons.length - 1])
+
+      // Verify setSearchParams was called to clear filters
+      expect(mockSetSearchParams).toHaveBeenCalled()
     })
   })
 })

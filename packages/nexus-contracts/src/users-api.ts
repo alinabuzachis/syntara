@@ -198,12 +198,6 @@ export interface components {
        */
       password: string
       /**
-       * @description User role for access control
-       * @default viewer
-       * @enum {string}
-       */
-      role?: 'viewer' | 'creator' | 'approver' | 'administrator'
-      /**
        * @description Account activation status
        * @default true
        */
@@ -222,11 +216,6 @@ export interface components {
        * @description New password (will be hashed). Omit to keep current password.
        */
       password?: string
-      /**
-       * @description Update user role
-       * @enum {string}
-       */
-      role?: 'viewer' | 'creator' | 'approver' | 'administrator'
       /** @description Enable or disable user account */
       is_active?: boolean
     }
@@ -245,11 +234,6 @@ export interface components {
       email: string
       /** @description Display name */
       full_name: string
-      /**
-       * @description User role
-       * @enum {string}
-       */
-      role: 'viewer' | 'creator' | 'approver' | 'administrator'
       /** @description Account active status */
       is_active: boolean
       /**
@@ -301,6 +285,11 @@ export interface components {
       /** @description Group description */
       description?: string | null
       /**
+       * @description Whether this is a seeded builtin group (e.g. admins, authenticated)
+       * @default false
+       */
+      is_builtin?: boolean
+      /**
        * Format: uuid
        * @description User who created the group
        */
@@ -315,6 +304,16 @@ export interface components {
        * @description Last update timestamp
        */
       updated_at: string
+      /**
+       * @description Source of group creation (local or idp)
+       * @default local
+       */
+      source?: string
+      /**
+       * @description Number of members in the group
+       * @default 0
+       */
+      member_count?: number
     }
     GroupListResponse: components['schemas']['ResourcesResponse'] & {
       resources?: components['schemas']['GroupRead'][]

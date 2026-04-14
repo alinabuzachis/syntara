@@ -18,9 +18,9 @@ import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
-import { usersClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { useFormMutationErrorHandler } from '../../hooks/useFormMutationErrorHandler'
+import { accessClient } from '../access/accessClient'
 
 import { groupFormSchema, type GroupFormData } from './groupFormSchema'
 
@@ -60,9 +60,9 @@ export function GroupFormModal({ group, isOpen, onClose, onSuccess }: Readonly<G
 
   const handleError = useFormMutationErrorHandler<GroupFormData>(setError)
 
-  const { mutate: createGroup, isPending: isCreating } = usersClient.useMutation('post', '/groups')
+  const { mutate: createGroup, isPending: isCreating } = accessClient.useMutation('post', '/groups')
 
-  const { mutate: updateGroup, isPending: isUpdating } = usersClient.useMutation('patch', '/groups/{group_id}')
+  const { mutate: updateGroup, isPending: isUpdating } = accessClient.useMutation('patch', '/groups/{group_id}')
 
   const isPending = isCreating || isUpdating
 

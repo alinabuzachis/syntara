@@ -1,5 +1,5 @@
 import { CompassPanel, Stack, StackItem } from '@patternfly/react-core'
-import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
+import { Thead, Tr, Th } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
 import { useSearch } from 'wouter'
 
@@ -9,17 +9,14 @@ import { executionsClient } from '../../client'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
+import { PageTitleWithProject } from '../../components/PageTitleWithProject'
 import { useQueryState } from '../../components/states/useQueryState'
-import { DateCell } from '../../components/table/DateCell'
-import { LinkCell } from '../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
-import { WorkflowName } from '../../components/WorkflowName'
 import { useFilterState } from '../../hooks/useFilterState'
+import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { buildFilterParams } from '../../utils/filterUtils'
-import { getDateField } from '../../utils/getDateField'
-import { StatusLabel } from '../builder/ExecutionStatus'
 
 import {
   getExecutionWorkflowFilterDefinition,
@@ -27,6 +24,7 @@ import {
   getExecutionCreatedAtFilterDefinition,
   createFilterChangeHandler,
 } from './executionFilters'
+import { FlatExecutionsTableBody, GroupedExecutionsTableBody } from './ExecutionsTableBody'
 import { getExecutionSortValue } from './getExecutionSortValue'
 
 function buildFilterFieldDefinitions(): FilterFieldDefinition[] {
@@ -38,6 +36,7 @@ function buildFilterFieldDefinitions(): FilterFieldDefinition[] {
 }
 
 export default function Executions() {
+  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const searchParams = useSearch()
   const urlParams = useMemo(() => new URLSearchParams(searchParams), [searchParams])
   const workflowIdFilter = urlParams.get('workflow_id')
@@ -59,6 +58,11 @@ export default function Executions() {
       include_total: true,
     }
 
+    // Filter by selected project
+    if (selectedProject?.id) {
+      params.project_id = selectedProject.id
+    }
+
     const filterParams = buildFilterParams(filters)
     Object.assign(params, filterParams)
 
@@ -67,7 +71,7 @@ export default function Executions() {
     }
 
     return params
-  }, [filters, cursor])
+  }, [filters, cursor, selectedProject])
 
   const executionsQuery = executionsClient.useQuery('get', '/executions', {
     params: {
@@ -95,11 +99,47 @@ export default function Executions() {
     getExecutionSortValue(execution, activeSortIndex, showWorkflowColumn)
   )
 
-  const queryState = useQueryState(executionsQuery, 'Error loading executions')
+  // Group executions by project when viewing all projects
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
+
+  const groupedExecutions = useMemo(() => {
+    if (!isAllProjects) return null
+    const groups = new Map<string, { project: (typeof projects)[number] | null; executions: typeof sortedExecutions }>()
+    for (const execution of sortedExecutions) {
+      const projectId = ((execution as Record<string, unknown>).project_id as string | undefined) ?? 'unknown'
+      if (!groups.has(projectId)) {
+        groups.set(projectId, {
+          project: projects.find((p) => p.id === projectId) ?? null,
+          executions: [],
+        })
+      }
+      groups.get(projectId)!.executions.push(execution)
+    }
+    return groups
+  }, [sortedExecutions, projects, isAllProjects])
+
+  const toggleProjectCollapsed = (projectId: string) => {
+    setCollapsedProjects((prev) => {
+      const next = new Set(prev)
+      if (next.has(projectId)) {
+        next.delete(projectId)
+      } else {
+        next.add(projectId)
+      }
+      return next
+    })
+  }
+
+  const queryState = useQueryState(executionsQuery, {
+    title: 'Error loading executions',
+    onRetry: () => {
+      executionsQuery.refetch().catch(() => {})
+    },
+  })
   if (queryState) {
     return (
       <AppPage>
-        <AppPageHeader title="Automation Runs" />
+        <AppPageHeader title={<PageTitleWithProject title="Automation Runs" projectSelector={ProjectSelector} />} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>{queryState}</CompassPanel>
         </StackItem>
@@ -109,7 +149,7 @@ export default function Executions() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Automation Runs" />
+      <AppPageHeader title={<PageTitleWithProject title="Automation Runs" projectSelector={ProjectSelector} />} />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <CompassPanel isFullHeight>
           <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
@@ -159,33 +199,15 @@ export default function Executions() {
                     <Th sort={getSortParams(4)}>Completed at</Th>
                   </Tr>
                 </Thead>
-                <Tbody>
-                  {sortedExecutions.map((execution) => (
-                    <Tr key={execution.id}>
-                      <Td dataLabel="Automation name" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
-                        <LinkCell href={`/automation-builder/${execution.workflow_id}`}>
-                          {execution.workflow_id && <WorkflowName workflowId={execution.workflow_id} />}
-                        </LinkCell>
-                      </Td>
-                      <Td dataLabel="Run ID" modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
-                        <LinkCell href={`/executions/${execution.id}`}>
-                          <code style={{ fontSize: 'var(--pf-t--global--font-size--sm)' }}>{execution.id}</code>
-                        </LinkCell>
-                      </Td>
-                      <Td dataLabel="Status">{execution.status && <StatusLabel status={execution.status} />}</Td>
-                      <Td dataLabel="Created at">
-                        <DateCell dateString={getDateField(execution, 'createdAt')} />
-                      </Td>
-                      <Td dataLabel="Completed at">
-                        {execution.completed_at ? (
-                          <DateCell dateString={execution.completed_at} />
-                        ) : (
-                          <span style={{ color: 'var(--pf-t--global--color--text--secondary)' }}>—</span>
-                        )}
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
+                {isAllProjects && groupedExecutions ? (
+                  <GroupedExecutionsTableBody
+                    groupedExecutions={groupedExecutions}
+                    collapsedProjects={collapsedProjects}
+                    onToggleProject={toggleProjectCollapsed}
+                  />
+                ) : (
+                  <FlatExecutionsTableBody executions={sortedExecutions} />
+                )}
               </ScrollableTableContainer>
             )}
           </Stack>

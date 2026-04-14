@@ -1,5 +1,6 @@
 import type { Group } from '@ansible/nexus-contracts'
 import {
+  Badge,
   Button,
   Flex,
   FlexItem,
@@ -11,76 +12,118 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
-import type { IAction } from '@patternfly/react-table'
-import { useEffect, useMemo, useReducer } from 'react'
+import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IAction, ThProps } from '@patternfly/react-table'
+import { useCallback, useState } from 'react'
+import { navigate } from 'wouter/use-browser-location'
 
-import { usersClient } from '../../client'
+import { AppRoute } from '../../app/AppRoute'
 import { useAlerts } from '../../components/alerts'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
-import { useFilterState } from '../../hooks/useFilterState'
-import { useTableSort } from '../../hooks/useTableSort'
-import type { FilterFieldDefinition } from '../../types/filters'
+import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
+import { accessClient } from '../access/accessClient'
+import { PaginationFooter } from '../access/PaginationFooter'
 
-import { createFilterChangeHandler, getGroupNameFilterDefinition } from './groupFilters'
 import { GroupFormModal } from './GroupFormModal'
 
-interface GroupsState {
-  cursor: string | null
-  deleteDialogOpen: boolean
-  groupToDelete: Group | null
-  formModalOpen: boolean
-  groupToEdit: Group | null
+const filterFieldDefinitions: FilterFieldDefinition[] = [
+  {
+    key: 'name',
+    label: 'Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by name',
+  },
+  {
+    key: 'description',
+    label: 'Description',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by description',
+  },
+]
+
+// Column index → API sort field
+const sortFieldByColumn: Record<number, string> = {
+  0: 'name',
+  3: 'created_at',
+  4: 'updated_at',
 }
 
-type GroupsAction =
-  | { type: 'SET_CURSOR'; payload: string | null }
-  | { type: 'OPEN_DELETE_DIALOG'; payload: Group }
-  | { type: 'CLOSE_DELETE_DIALOG' }
-  | { type: 'OPEN_CREATE_MODAL' }
-  | { type: 'OPEN_EDIT_MODAL'; payload: Group }
-  | { type: 'CLOSE_FORM_MODAL' }
-
-function groupsReducer(state: GroupsState, action: GroupsAction): GroupsState {
-  switch (action.type) {
-    case 'SET_CURSOR':
-      return { ...state, cursor: action.payload }
-    case 'OPEN_DELETE_DIALOG':
-      return { ...state, groupToDelete: action.payload, deleteDialogOpen: true }
-    case 'CLOSE_DELETE_DIALOG':
-      return { ...state, deleteDialogOpen: false, groupToDelete: null }
-    case 'OPEN_CREATE_MODAL':
-      return { ...state, formModalOpen: true, groupToEdit: null }
-    case 'OPEN_EDIT_MODAL':
-      return { ...state, formModalOpen: true, groupToEdit: action.payload }
-    case 'CLOSE_FORM_MODAL':
-      return { ...state, formModalOpen: false, groupToEdit: null }
-    default:
-      return state
-  }
-}
-
-function getRowActions(group: Group, dispatch: (action: GroupsAction) => void): IAction[] {
+function getRowActions(group: Group, onEdit: (g: Group) => void, onDelete: (g: Group) => void): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
-      onClick: () => dispatch({ type: 'OPEN_EDIT_MODAL', payload: group }),
+      onClick: () => onEdit(group),
     },
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-      onClick: () => dispatch({ type: 'OPEN_DELETE_DIALOG', payload: group }),
+      onClick: () => onDelete(group),
     },
   ]
+}
+
+function GroupsTable({
+  groups,
+  getSortParams,
+  onEdit,
+  onDelete,
+}: Readonly<{
+  groups: Group[]
+  getSortParams: (columnIndex: number) => ThProps['sort']
+  onEdit: (g: Group) => void
+  onDelete: (g: Group) => void
+}>) {
+  return (
+    <Table aria-label="Groups" isStriped style={{ width: '100%' }}>
+      <Thead>
+        <Tr>
+          <Th sort={getSortParams(0)}>Name</Th>
+          <Th>Description</Th>
+          <Th>Members</Th>
+          <Th sort={getSortParams(3)}>Created</Th>
+          <Th sort={getSortParams(4)}>Updated</Th>
+          <Th screenReaderText="Actions" />
+        </Tr>
+      </Thead>
+      <Tbody>
+        {groups.map((group) => (
+          <Tr key={group.id}>
+            <Td dataLabel="Name">
+              <Button
+                variant="link"
+                isInline
+                onClick={() => navigate(AppRoute.AccessManagement.GroupDetail.replace(':groupId', group.id))}
+              >
+                {group.name}
+              </Button>
+            </Td>
+            <Td dataLabel="Description">{group.description ?? ''}</Td>
+            <Td dataLabel="Members">
+              <Badge isRead>{group.member_count ?? 0}</Badge>
+            </Td>
+            <Td dataLabel="Created">{formatDateTime(group.created_at)}</Td>
+            <Td dataLabel="Updated">{formatDateTime(group.updated_at)}</Td>
+            <Td isActionCell>
+              {!group.is_builtin && <ActionsColumn items={getRowActions(group, onEdit, onDelete)} />}
+            </Td>
+          </Tr>
+        ))}
+      </Tbody>
+    </Table>
+  )
 }
 
 function DeleteGroupDialog({
@@ -111,89 +154,68 @@ function DeleteGroupDialog({
 }
 
 export function GroupsTab() {
-  const [state, dispatch] = useReducer(groupsReducer, {
-    cursor: null,
-    deleteDialogOpen: false,
-    groupToDelete: null,
-    formModalOpen: false,
-    groupToEdit: null,
-  })
-  const { cursor, deleteDialogOpen, groupToDelete, formModalOpen, groupToEdit } = state
-
-  const { filters, clearAllFilters, setAllFilters } = useFilterState()
-
-  const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(() => [getGroupNameFilterDefinition()], [])
-
-  const handleFilterChange = createFilterChangeHandler(
-    cursor,
-    () => dispatch({ type: 'SET_CURSOR', payload: null }),
-    clearAllFilters,
-    setAllFilters
-  )
-
-  const handleClearAllFilters = () => {
-    if (cursor) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-    clearAllFilters()
-  }
-
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = {
-      limit: 20,
-      include_total: true,
-      ...buildFilterParams(filters),
-      ...(cursor ? { cursor } : {}),
-    }
-    return params
-  }, [filters, cursor])
-
-  const query = usersClient.useQuery('get', '/groups', {
-    params: {
-      query: queryParams,
-    },
-  })
-
+  const [filters, setFilters] = useState<FilterConfig[]>([])
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const [activeSortIndex, setActiveSortIndex] = useState<number | undefined>(undefined)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [groupToDelete, setGroupToDelete] = useState<Group | null>(null)
+  const [groupToEdit, setGroupToEdit] = useState<Group | null>(null)
+  const [formModalOpen, setFormModalOpen] = useState(false)
   const { showAlert } = useAlerts()
-
-  const data = query.data
-  const groups = data?.resources ?? []
-  const prevCursor = data?.prev ?? null
-  const nextCursor = data?.next ?? null
-  const totalCount = data?.total ?? null
   const hasActiveFilters = filters.length > 0
 
-  useEffect(() => {
-    if (groups.length === 0 && !hasActiveFilters && cursor && !query.isFetching) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-  }, [groups.length, hasActiveFilters, cursor, query.isFetching])
+  const handleFilterChange = (newFilters: FilterConfig[]) => {
+    setFilters(newFilters)
+    setCursor(null)
+    setPage(1)
+  }
 
-  const { activeSortIndex, getSortParams, sortData } = useTableSort({
-    initialSortIndex: 0,
-    initialDirection: 'asc',
-  })
+  const handlePerPageChange = (newPerPage: number) => {
+    setPerPage(newPerPage)
+    setCursor(null)
+    setPage(1)
+  }
 
-  const results = sortData(groups, (group) => {
-    switch (activeSortIndex) {
-      case 0:
-        return group.name ?? ''
-      case 1:
-        return group.description ?? ''
-      case 2:
-        return group.created_at ?? ''
-      case 3:
-        return group.updated_at ?? ''
-      default:
-        return group.name ?? ''
-    }
-  })
+  const getSortParams = useCallback(
+    (columnIndex: number): ThProps['sort'] => ({
+      sortBy: {
+        index: activeSortIndex,
+        direction: sortDirection,
+        defaultDirection: 'asc',
+      },
+      onSort: (_event, index, direction) => {
+        setActiveSortIndex(index)
+        setSortDirection(direction as 'asc' | 'desc')
+        setCursor(null)
+        setPage(1)
+      },
+      columnIndex,
+    }),
+    [activeSortIndex, sortDirection]
+  )
 
-  const { mutate: deleteGroup } = usersClient.useMutation('delete', '/groups/{group_id}')
+  const sortField = activeSortIndex === undefined ? undefined : sortFieldByColumn[activeSortIndex]
+  const sortPrefix = sortDirection === 'desc' ? '-' : ''
+  const sortParam = sortField ? `${sortPrefix}${sortField}` : undefined
+
+  const queryParams = {
+    limit: perPage,
+    include_total: true,
+    ...buildFilterParams(filters),
+    ...(cursor ? { cursor } : {}),
+    ...(sortParam ? { sort: sortParam } : {}),
+  }
+
+  const query = accessClient.useQuery('get', '/groups', { params: { query: queryParams } })
+  const data = query.data
+  const groups = data?.resources ?? []
+
+  const { mutate: deleteGroup } = accessClient.useMutation('delete', '/groups/{group_id}')
 
   const handleDelete = () => {
     if (!groupToDelete) return
-
     deleteGroup(
       { params: { path: { group_id: groupToDelete.id } } },
       {
@@ -214,9 +236,7 @@ export function GroupsTab() {
             autoDismiss: true,
           })
         },
-        onSettled: () => {
-          dispatch({ type: 'CLOSE_DELETE_DIALOG' })
-        },
+        onSettled: () => setGroupToDelete(null),
       }
     )
   }
@@ -225,94 +245,81 @@ export function GroupsTab() {
     title: 'Error loading groups',
     onRetry: () => detachPromise(query.refetch()),
   })
-  if (queryState) {
-    return queryState
+  if (queryState) return queryState
+
+  if (groups.length === 0 && !hasActiveFilters) {
+    return (
+      <EmptyStateNoData
+        title="No groups"
+        description="Create a group to organize users and manage access."
+        buttonText="Add group"
+        addData={() => setFormModalOpen(true)}
+      />
+    )
   }
 
   return (
     <>
-      {results.length === 0 && !hasActiveFilters ? (
-        <EmptyStateNoData
-          title="No groups"
-          description="Create a group to organize users and manage access."
-          buttonText="Add group"
-          addData={() => dispatch({ type: 'OPEN_CREATE_MODAL' })}
-        />
-      ) : (
-        <Stack style={{ height: '100%' }}>
-          <StackItem>
-            <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-              <FlexItem grow={{ default: 'grow' }}>
-                <FilterBar
-                  fieldDefinitions={filterFieldDefinitions}
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  showClearAll={true}
-                />
-              </FlexItem>
-              <FlexItem>
-                <Button variant="primary" icon={<PlusIcon />} onClick={() => dispatch({ type: 'OPEN_CREATE_MODAL' })}>
-                  Add group
-                </Button>
-              </FlexItem>
-            </Flex>
+      <Stack style={{ height: '100%' }}>
+        <StackItem>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+            <FlexItem grow={{ default: 'grow' }}>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
+                clearAllFilters={() => handleFilterChange([])}
+              />
+            </FlexItem>
+            <FlexItem>
+              <Button variant="primary" icon={<PlusIcon />} onClick={() => setFormModalOpen(true)}>
+                Add group
+              </Button>
+            </FlexItem>
+          </Flex>
+        </StackItem>
+        {groups.length === 0 ? (
+          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
           </StackItem>
-
-          {results.length === 0 ? (
-            <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-            </StackItem>
-          ) : (
-            <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-              <ScrollableTableContainer
-                aria-label="Groups table"
-                footer={{
-                  content: (
-                    <>
-                      {results.length} {results.length === 1 ? 'group' : 'groups'}
-                      {totalCount != null && totalCount > results.length && (
-                        <span style={{ opacity: 0.6 }}> (of {totalCount} total)</span>
-                      )}
-                    </>
-                  ),
-                  prev: prevCursor,
-                  next: nextCursor,
-                  onPrev: () => dispatch({ type: 'SET_CURSOR', payload: prevCursor }),
-                  onNext: () => dispatch({ type: 'SET_CURSOR', payload: nextCursor }),
-                }}
-              >
-                <Thead>
-                  <Tr>
-                    <Th sort={getSortParams(0)}>Name</Th>
-                    <Th sort={getSortParams(1)}>Description</Th>
-                    <Th sort={getSortParams(2)}>Created</Th>
-                    <Th sort={getSortParams(3)}>Updated</Th>
-                    <Th screenReaderText="Actions" />
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {results.map((group) => (
-                    <Tr key={group.id}>
-                      <Td dataLabel="Name">{group.name}</Td>
-                      <Td dataLabel="Description">{group.description ?? ''}</Td>
-                      <Td dataLabel="Created">{formatDateTime(group.created_at)}</Td>
-                      <Td dataLabel="Updated">{formatDateTime(group.updated_at)}</Td>
-                      <Td isActionCell>
-                        <ActionsColumn items={getRowActions(group, dispatch)} />
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </ScrollableTableContainer>
-            </StackItem>
-          )}
-        </Stack>
-      )}
+        ) : (
+          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+            <GroupsTable
+              groups={groups}
+              getSortParams={getSortParams}
+              onEdit={(g) => {
+                setGroupToEdit(g)
+                setFormModalOpen(true)
+              }}
+              onDelete={setGroupToDelete}
+            />
+          </StackItem>
+        )}
+        <PaginationFooter
+          page={page}
+          perPage={perPage}
+          total={data?.total}
+          hasNext={!!data?.next}
+          onPrev={() => {
+            setCursor(null)
+            setPage(1)
+          }}
+          onNext={() => {
+            setCursor(data?.next ?? null)
+            setPage(page + 1)
+          }}
+          onPerPageChange={handlePerPageChange}
+        />
+      </Stack>
 
       <GroupFormModal
         group={groupToEdit}
         isOpen={formModalOpen}
-        onClose={() => dispatch({ type: 'CLOSE_FORM_MODAL' })}
+        onClose={() => {
+          setFormModalOpen(false)
+          setGroupToEdit(null)
+        }}
         onSuccess={() => {
           detachPromise(query.refetch())
         }}
@@ -320,8 +327,8 @@ export function GroupsTab() {
 
       <DeleteGroupDialog
         group={groupToDelete}
-        isOpen={deleteDialogOpen}
-        onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}
+        isOpen={!!groupToDelete}
+        onClose={() => setGroupToDelete(null)}
         onDelete={handleDelete}
       />
     </>

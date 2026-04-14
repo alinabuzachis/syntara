@@ -30,6 +30,7 @@ import { ErrorState } from '../../../components/states/ErrorState'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { UserTimestamp } from '../../../components/UserTimestamp'
 import { getErrorMessage } from '../../../utils/apiErrors'
+import { detachPromise } from '../../../utils/detachPromise'
 
 import { ENCRYPTED_SENTINEL } from './credentialConstants'
 import { CredentialWorkflowsTab } from './CredentialWorkflowsTab'
@@ -99,7 +100,7 @@ export default function CredentialDetail() {
         {
           onSuccess: () => {
             showAlert({ title: 'Credential enabled', variant: 'success', autoDismiss: true })
-            void credQuery.refetch()
+            detachPromise(credQuery.refetch())
           },
           onError: (error: unknown) => {
             showAlert({
@@ -121,7 +122,7 @@ export default function CredentialDetail() {
       {
         onSuccess: () => {
           showAlert({ title: 'Credential disabled', variant: 'success', autoDismiss: true })
-          void credQuery.refetch()
+          detachPromise(credQuery.refetch())
         },
         onError: (error: unknown) => {
           showAlert({
@@ -168,7 +169,7 @@ export default function CredentialDetail() {
   // --- Error states ---
   const queryState = useQueryState(credQuery, {
     title: 'Error loading credential',
-    onRetry: () => void credQuery.refetch(),
+    onRetry: () => detachPromise(credQuery.refetch()),
   })
 
   if (!credentialId) {
@@ -382,7 +383,7 @@ export default function CredentialDetail() {
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         credentialToEdit={credential}
-        onSuccess={() => void credQuery.refetch()}
+        onSuccess={() => detachPromise(credQuery.refetch())}
       />
     </AppPage>
   )

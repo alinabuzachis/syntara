@@ -3,12 +3,9 @@ schema_version: "2.0.0"
 name: auth-bearer
 description: API request with bearer token authentication
 
-# SECURITY WARNING: This is a mock example only.
-# NEVER hardcode real secret IDs in production workflow definitions.
-# Use environment-specific references or vault paths instead.
 secrets:
   api_token:
-    secretId: test-bearer-token  # Example only - use ${env.SECRET_ID} in production
+    secretId: test-bearer-token
     type: bearer_token
 
 triggers:

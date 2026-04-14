@@ -20,17 +20,31 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+// Mock useProjectSelector to avoid accessClient dependency and ensure flat table rendering
+const mockUseProjectSelector = vi.fn(() => ({
+  selectedProject: null as { id: string; name: string } | null,
+  isAllProjects: false,
+  projects: [] as { id: string; name: string }[],
+  ProjectSelector: null,
+}))
+vi.mock('../../hooks/useProjectSelector', () => ({
+  useProjectSelector: () => mockUseProjectSelector(),
 }))
 
 const mockSetLocation = vi.fn()
 const mockSetSearchParams = vi.fn()
+
+let mockSearchParams = new URLSearchParams()
 
 vi.mock('wouter', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal()
   return {
     ...actual,
     useLocation: () => ['/automations', mockSetLocation],
-    useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
+    useSearchParams: () => [mockSearchParams, mockSetSearchParams],
   }
 })
 
@@ -80,6 +94,7 @@ describe('Automations Component', () => {
   beforeEach(() => {
     // Reset mocks before each test
     mockSetSearchParams.mockClear()
+    mockSearchParams = new URLSearchParams()
     vi.mocked(workflowClient.useQuery).mockReturnValue({
       data: {
         resources: mockWorkflows,
@@ -1121,6 +1136,426 @@ describe('Automations Component', () => {
       await waitFor(() => {
         expect(screen.queryByText('Delete automation?')).not.toBeInTheDocument()
       })
+    })
+  })
+
+  describe('Empty States', () => {
+    it('shows EmptyStateNoData when no automations and no active filters', () => {
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: [],
+          next: null,
+          prev: null,
+          total: 0,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+        isFetching: false,
+      })
+
+      render(<Automations />, { wrapper })
+
+      expect(screen.getByText('No automations found')).toBeInTheDocument()
+      expect(screen.getByText('Create your first automation to get started.')).toBeInTheDocument()
+      // Both the header and empty state have "Create automation" buttons
+      const createButtons = screen.getAllByRole('button', { name: 'Create automation' })
+      expect(createButtons.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('navigates to builder when empty state "Create automation" button is clicked', async () => {
+      const user = userEvent.setup()
+      mockSetLocation.mockClear()
+
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: [],
+          next: null,
+          prev: null,
+          total: 0,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+        isFetching: false,
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Both the header and empty state have "Create automation" buttons; click the last one (empty state)
+      const createButtons = screen.getAllByRole('button', { name: 'Create automation' })
+      await user.click(createButtons[createButtons.length - 1])
+
+      expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/new')
+    })
+
+    it('shows EmptyStateFilter when active filters return no results', () => {
+      // Set up URL to have an active filter
+      mockSearchParams = new URLSearchParams('name%5Bcontains%5D=nonexistent')
+
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: [],
+          next: null,
+          prev: null,
+          total: 0,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+        isFetching: false,
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Should show EmptyStateFilter (not EmptyStateNoData) because filters are active
+      expect(screen.getByText('No results found')).toBeInTheDocument()
+    })
+  })
+
+  describe('Run automation with navigation', () => {
+    it('navigates to execution detail page on successful run when response has id', async () => {
+      mockSetLocation.mockClear()
+      const mockMutate = vi.fn(
+        (
+          body: unknown,
+          callbacks?: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }
+        ) => {
+          if (callbacks?.onSuccess) {
+            callbacks.onSuccess({ id: 'exec-123' }, body, undefined)
+          }
+        }
+      )
+
+      vi.mocked(executionsClient.useMutation).mockReturnValue({
+        mutate: mockMutate,
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle',
+        submittedAt: 0,
+      })
+
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      // Open actions menu and click "Run automation"
+      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      fireEvent.click(menuTrigger)
+
+      const runItem = await screen.findByText('Run automation')
+      fireEvent.click(runItem)
+
+      const runButton = await screen.findByRole('button', { name: /^Run now$/i })
+      fireEvent.click(runButton)
+
+      await waitFor(() => {
+        expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123')
+      })
+    })
+  })
+
+  describe('Delete automation settled behavior', () => {
+    it('closes dialog and clears workflow on settled (success)', async () => {
+      const mockDeleteMutate = vi.fn(
+        (
+          params: unknown,
+          callbacks?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          callbacks?.onSuccess?.(undefined, params, undefined)
+          callbacks?.onSettled?.()
+        }
+      )
+
+      vi.mocked(workflowClient.useMutation).mockReturnValue({
+        mutate: mockDeleteMutate,
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle',
+        submittedAt: 0,
+      })
+
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      // Open actions menu and click delete
+      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      fireEvent.click(menuTrigger)
+
+      const deleteItem = await screen.findByText('Delete automation')
+      fireEvent.click(deleteItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+      })
+
+      const deleteButton = screen.getByRole('button', { name: 'Delete' })
+      fireEvent.click(deleteButton)
+
+      // After onSettled, the delete dialog should be closed
+      await waitFor(() => {
+        expect(screen.queryByText('Delete automation?')).not.toBeInTheDocument()
+      })
+    })
+
+    it('closes dialog and clears workflow on settled (error)', async () => {
+      const mockDeleteMutate = vi.fn(
+        (
+          params: unknown,
+          callbacks?: {
+            onSuccess?: (...args: unknown[]) => void
+            onError?: (...args: unknown[]) => void
+            onSettled?: () => void
+          }
+        ) => {
+          callbacks?.onError?.(new Error('fail'), params, undefined)
+          callbacks?.onSettled?.()
+        }
+      )
+
+      vi.mocked(workflowClient.useMutation).mockReturnValue({
+        mutate: mockDeleteMutate,
+        mutateAsync: vi.fn(),
+        reset: vi.fn(),
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+        isIdle: true,
+        error: null,
+        data: undefined,
+        variables: undefined,
+        context: undefined,
+        failureCount: 0,
+        failureReason: null,
+        status: 'idle',
+        submittedAt: 0,
+      })
+
+      render(<Automations />, { wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      })
+
+      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const rows = within(table).getAllByRole('row')
+      const firstDataRow = rows[1]
+      const buttons = within(firstDataRow).getAllByRole('button')
+      const menuTrigger = buttons[buttons.length - 1]
+      fireEvent.click(menuTrigger)
+
+      const deleteItem = await screen.findByText('Delete automation')
+      fireEvent.click(deleteItem)
+
+      await waitFor(() => {
+        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+      })
+
+      const deleteButton = screen.getByRole('button', { name: 'Delete' })
+      fireEvent.click(deleteButton)
+
+      // After onSettled, the delete dialog should be closed even on error
+      await waitFor(() => {
+        expect(screen.queryByText('Delete automation?')).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Grouped view (All Projects)', () => {
+    it('renders grouped automations when all projects are selected', () => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: null,
+        isAllProjects: true,
+        projects: [
+          { id: 'proj-1', name: 'Project Alpha' },
+          { id: 'proj-2', name: 'Project Beta' },
+        ],
+        ProjectSelector: null,
+      })
+
+      const workflowsWithProjects = [
+        {
+          id: '1',
+          name: 'Workflow A',
+          description: '',
+          created_at: '2023-01-01T00:00:00Z',
+          updated_at: '2023-01-02T00:00:00Z',
+          is_enabled: true,
+          labels: {},
+          project_id: 'proj-1',
+        },
+        {
+          id: '2',
+          name: 'Workflow B',
+          description: '',
+          created_at: '2023-02-01T00:00:00Z',
+          updated_at: '2023-02-02T00:00:00Z',
+          is_enabled: false,
+          labels: {},
+          project_id: 'proj-2',
+        },
+      ]
+
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: workflowsWithProjects,
+          next: null,
+          prev: null,
+          total: 2,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Grouped view shows project names as group headers
+      expect(screen.getByText('Project Alpha')).toBeInTheDocument()
+      expect(screen.getByText('Project Beta')).toBeInTheDocument()
+
+      // Workflows should still be rendered
+      expect(screen.getByText('Workflow A')).toBeInTheDocument()
+      expect(screen.getByText('Workflow B')).toBeInTheDocument()
+    })
+
+    it('toggles project group collapsed/expanded', async () => {
+      const user = userEvent.setup()
+
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: null,
+        isAllProjects: true,
+        projects: [{ id: 'proj-1', name: 'Project Alpha' }],
+        ProjectSelector: null,
+      })
+
+      const workflowsWithProjects = [
+        {
+          id: '1',
+          name: 'Workflow A',
+          description: '',
+          created_at: '2023-01-01T00:00:00Z',
+          updated_at: '2023-01-02T00:00:00Z',
+          is_enabled: true,
+          labels: {},
+          project_id: 'proj-1',
+        },
+      ]
+
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: workflowsWithProjects,
+          next: null,
+          prev: null,
+          total: 1,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      // Project group header should be visible
+      expect(screen.getByText('Project Alpha')).toBeInTheDocument()
+      // Workflow should be visible (expanded by default)
+      expect(screen.getByText('Workflow A')).toBeInTheDocument()
+
+      // Click the project group header to collapse
+      await user.click(screen.getByText('Project Alpha'))
+
+      // Workflow should be hidden (collapsed)
+      expect(screen.queryByText('Workflow A')).not.toBeInTheDocument()
+
+      // Click again to expand
+      await user.click(screen.getByText('Project Alpha'))
+
+      // Workflow should be visible again
+      expect(screen.getByText('Workflow A')).toBeInTheDocument()
+    })
+  })
+
+  describe('Project filtering', () => {
+    it('includes project_id in query params when a project is selected', () => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: { id: 'proj-1', name: 'Project Alpha' },
+        isAllProjects: false,
+        projects: [{ id: 'proj-1', name: 'Project Alpha' }],
+        ProjectSelector: null,
+      })
+
+      render(<Automations />, { wrapper })
+
+      expect(workflowClient.useQuery).toHaveBeenCalledWith('get', '/workflows', {
+        params: {
+          query: expect.objectContaining({
+            project_id: 'proj-1',
+          }) as unknown,
+        },
+      })
+    })
+  })
+
+  describe('Singular/plural automation count', () => {
+    it('shows singular "automation" for exactly one result', () => {
+      vi.mocked(workflowClient.useQuery).mockReturnValue({
+        data: {
+          resources: [mockWorkflows[0]],
+          next: null,
+          prev: null,
+          total: 1,
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      })
+
+      render(<Automations />, { wrapper })
+
+      expect(screen.getByText(/1 automation$/)).toBeInTheDocument()
     })
   })
 

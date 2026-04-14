@@ -1,0 +1,475 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
+
+import { AlertProvider } from '../../components/alerts'
+import { accessClient } from '../access/accessClient'
+
+import { AssignRoleModal } from './AssignRoleModal'
+
+vi.mock('../access/accessClient', () => ({
+  accessClient: {
+    useQuery: vi.fn(),
+    useMutation: vi.fn(),
+  },
+}))
+
+vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+const mockMutateAsync = vi.fn()
+
+const mockMutationReturn = {
+  mutate: vi.fn(),
+  mutateAsync: mockMutateAsync,
+  isPending: false,
+  isError: false,
+  error: null,
+  data: null,
+  reset: vi.fn(),
+  isIdle: true,
+  isSuccess: false,
+  failureCount: 0,
+  failureReason: null,
+  context: undefined,
+  submittedAt: 0,
+  variables: undefined,
+  status: 'idle',
+  isPaused: false,
+} as never
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+})
+
+const wrapper = ({ children }: { children: ReactNode }) => (
+  <QueryClientProvider client={queryClient}>
+    <AlertProvider>{children}</AlertProvider>
+  </QueryClientProvider>
+)
+
+const mockRoles = {
+  resources: [
+    { id: 'r1', name: 'admin-role', description: 'Admin', project_id: null, policies: [] },
+    { id: 'r2', name: 'viewer-role', description: 'Viewer', project_id: null, policies: [] },
+    { id: 'r3', name: 'project-editor', description: 'Editor', project_id: 'proj1', policies: [] },
+  ],
+}
+
+const mockProjects = [
+  {
+    id: 'proj1',
+    name: 'Project Alpha',
+    description: null,
+    labels: {},
+    is_default: false,
+    created_at: null,
+    updated_at: null,
+  },
+  {
+    id: 'proj2',
+    name: 'Project Beta',
+    description: null,
+    labels: {},
+    is_default: false,
+    created_at: null,
+    updated_at: null,
+  },
+]
+
+describe('AssignRoleModal', () => {
+  const mockOnClose = vi.fn()
+  const mockOnSuccess = vi.fn()
+
+  function setupMocks() {
+    vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+      if (path === '/roles') {
+        return { data: mockRoles, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      }
+      if (path === '/projects') {
+        return { data: mockProjects, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      }
+      return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+    })
+
+    vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn)
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setupMocks()
+  })
+
+  function renderModal(props: Partial<{ principalType: 'user' | 'group'; principalId: string; isOpen: boolean }> = {}) {
+    return render(
+      <AssignRoleModal
+        principalType={props.principalType ?? 'user'}
+        principalId={props.principalId ?? 'u1'}
+        isOpen={props.isOpen ?? true}
+        onClose={mockOnClose}
+        onSuccess={mockOnSuccess}
+      />,
+      { wrapper }
+    )
+  }
+
+  describe('Accessibility', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = renderModal()
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+  })
+
+  describe('Rendering', () => {
+    it('renders modal with "Assign roles" title', () => {
+      renderModal()
+      expect(screen.getByText('Assign roles')).toBeInTheDocument()
+    })
+
+    it('renders Scope, Roles form groups', () => {
+      renderModal()
+      expect(screen.getByText('Scope')).toBeInTheDocument()
+      expect(screen.getByText('Roles')).toBeInTheDocument()
+    })
+
+    it('renders Assign and Cancel buttons', () => {
+      renderModal()
+      expect(screen.getByRole('button', { name: /Assign/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    })
+
+    it('defaults to System scope', () => {
+      renderModal()
+      // The SingleSelect toggle shows "System" by default
+      expect(screen.getByText('System')).toBeInTheDocument()
+    })
+
+    it('does not render Project selector by default (system scope)', () => {
+      renderModal()
+      expect(screen.queryByText('Project')).not.toBeInTheDocument()
+    })
+
+    it('does not render when isOpen is false', () => {
+      renderModal({ isOpen: false })
+      expect(screen.queryByText('Assign roles')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Scope switching', () => {
+    it('shows Project selector when scope is changed to Project', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      // Click the scope toggle to open the select
+      const scopeToggle = screen.getByRole('button', { name: 'System' })
+      await user.click(scopeToggle)
+
+      // Select "Project"
+      await user.click(screen.getByRole('option', { name: 'Project' }))
+
+      // Project form group should appear - use the project placeholder as proof
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Select a project...' })).toBeInTheDocument()
+      })
+    })
+
+    it('clears selected roles when scope changes', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      // First, select a role in system scope — click the typeahead input to open
+      const roleInput = screen.getByPlaceholderText('Search for roles...')
+      await user.click(roleInput)
+
+      // Select admin-role
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      // The Assign button should now show count
+      expect(screen.getByRole('button', { name: /Assign \(1\)/i })).toBeInTheDocument()
+
+      // Switch scope to Project
+      await user.click(screen.getByRole('button', { name: 'System' }))
+      await user.click(screen.getByRole('option', { name: 'Project' }))
+
+      // After scope change, selected roles should be cleared — button text goes back to just "Assign"
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Assign\s*$/i })).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Role filtering by scope', () => {
+    it('shows only system roles (project_id === null) in system scope', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      // Open the role selector
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+
+      // System roles: admin-role, viewer-role (project_id === null)
+      expect(screen.getByRole('option', { name: /admin-role/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /viewer-role/i })).toBeInTheDocument()
+      // project-editor has project_id !== null, should not appear
+      expect(screen.queryByRole('option', { name: /project-editor/i })).not.toBeInTheDocument()
+    })
+
+    it('shows all roles by name in project scope', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      // Switch to project scope
+      const scopeToggle = screen.getByText('System')
+      await user.click(scopeToggle)
+      await user.click(screen.getByRole('option', { name: 'Project' }))
+
+      // Wait for project selector to appear
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Select a project...' })).toBeInTheDocument()
+      })
+
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+
+      // All roles should appear (mapped by name)
+      expect(screen.getByRole('option', { name: /admin-role/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /viewer-role/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /project-editor/i })).toBeInTheDocument()
+    })
+  })
+
+  describe('Submit button state', () => {
+    it('is disabled when no roles are selected', () => {
+      renderModal()
+      expect(screen.getByRole('button', { name: /Assign/i })).toBeDisabled()
+    })
+
+    it('shows role count in button when roles are selected', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      // Select a role
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      expect(screen.getByRole('button', { name: /Assign \(1\)/i })).toBeInTheDocument()
+    })
+  })
+
+  describe('Form submission', () => {
+    it('assigns system user role on submit', async () => {
+      const user = userEvent.setup()
+      mockMutateAsync.mockResolvedValue({})
+
+      renderModal({ principalType: 'user', principalId: 'u1' })
+
+      // Select a role
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      // Submit
+      await user.click(screen.getByRole('button', { name: /Assign \(1\)/i }))
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith({
+          body: { user_id: 'u1', role_id: 'r1' },
+        })
+      })
+
+      // Should call onSuccess and onClose
+      await waitFor(() => {
+        expect(mockOnSuccess).toHaveBeenCalled()
+        expect(mockOnClose).toHaveBeenCalled()
+      })
+    })
+
+    it('assigns system group role on submit', async () => {
+      const user = userEvent.setup()
+      mockMutateAsync.mockResolvedValue({})
+
+      renderModal({ principalType: 'group', principalId: 'g1' })
+
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      await user.click(screen.getByRole('button', { name: /Assign \(1\)/i }))
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith({
+          body: { group_id: 'g1', role_id: 'r1' },
+        })
+      })
+    })
+
+    it('assigns project user role on submit', async () => {
+      const user = userEvent.setup()
+      mockMutateAsync.mockResolvedValue({})
+
+      renderModal({ principalType: 'user', principalId: 'u1' })
+
+      // Switch to project scope
+      await user.click(screen.getByText('System'))
+      await user.click(screen.getByRole('option', { name: 'Project' }))
+
+      // Wait for project selector
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Select a project...' })).toBeInTheDocument()
+      })
+
+      // Open project selector
+      const projectToggle = screen.getByRole('button', { name: 'Select a project...' })
+      await user.click(projectToggle)
+      await user.click(screen.getByRole('option', { name: 'Project Alpha' }))
+
+      // Select a role (in project scope, id = name)
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      // Submit
+      await user.click(screen.getByRole('button', { name: /Assign \(1\)/i }))
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith({
+          params: { path: { project_id: 'proj1' } },
+          body: { user_id: 'u1', role_name: 'admin-role' },
+        })
+      })
+    })
+
+    it('assigns project group role on submit', async () => {
+      const user = userEvent.setup()
+      mockMutateAsync.mockResolvedValue({})
+
+      renderModal({ principalType: 'group', principalId: 'g1' })
+
+      // Switch to project scope
+      await user.click(screen.getByText('System'))
+      await user.click(screen.getByRole('option', { name: 'Project' }))
+
+      // Wait for project selector
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Select a project...' })).toBeInTheDocument()
+      })
+      const projectToggle = screen.getByRole('button', { name: 'Select a project...' })
+      await user.click(projectToggle)
+      await user.click(screen.getByRole('option', { name: 'Project Alpha' }))
+
+      // Select a role
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      await user.click(screen.getByRole('button', { name: /Assign \(1\)/i }))
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalledWith({
+          params: { path: { project_id: 'proj1' } },
+          body: { group_id: 'g1', role_name: 'admin-role' },
+        })
+      })
+    })
+
+    it('does not submit when no roles are selected', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      // The submit button is disabled when no roles are selected
+      const submitButton = screen.getByRole('button', { name: /Assign/i })
+      expect(submitButton).toBeDisabled()
+
+      // Clicking a disabled button does nothing
+      await user.click(submitButton)
+      expect(mockMutateAsync).not.toHaveBeenCalled()
+    })
+
+    it('does not submit in project scope without a project selected', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      // Switch to project scope
+      await user.click(screen.getByText('System'))
+      await user.click(screen.getByRole('option', { name: 'Project' }))
+
+      // Select a role (without selecting a project)
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Select a project...' })).toBeInTheDocument()
+      })
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      // Submit button should be disabled (no project selected)
+      expect(screen.getByRole('button', { name: /Assign \(1\)/i })).toBeDisabled()
+    })
+
+    it('shows success alert with count for single role assignment', async () => {
+      const user = userEvent.setup()
+      mockMutateAsync.mockResolvedValue({})
+
+      renderModal({ principalType: 'user', principalId: 'u1' })
+
+      // Select a role
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      // Submit
+      await user.click(screen.getByRole('button', { name: /Assign \(1\)/i }))
+
+      // Should show singular success alert
+      await waitFor(() => {
+        expect(screen.getByText('Role assigned')).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Error handling', () => {
+    it('shows error alert when assignment fails', async () => {
+      const user = userEvent.setup()
+      mockMutateAsync.mockRejectedValue(new Error('Server error'))
+
+      renderModal({ principalType: 'user', principalId: 'u1' })
+
+      // Select a role
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      // Submit
+      await user.click(screen.getByRole('button', { name: /Assign \(1\)/i }))
+
+      // The alert should appear via AlertProvider
+      await waitFor(() => {
+        expect(screen.getByText('Failed to assign roles')).toBeInTheDocument()
+      })
+
+      // onSuccess should NOT have been called
+      expect(mockOnSuccess).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Cancel and close', () => {
+    it('resets state and calls onClose when Cancel is clicked', async () => {
+      const user = userEvent.setup()
+      renderModal()
+
+      // Select a role first
+      // Open the role multi-select via its placeholder/input
+      await user.click(screen.getByPlaceholderText('Search for roles...'))
+      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+
+      // Click Cancel
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(mockOnClose).toHaveBeenCalled()
+    })
+  })
+})

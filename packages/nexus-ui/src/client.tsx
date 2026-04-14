@@ -44,6 +44,12 @@ const authMiddleware: Middleware = {
   },
 
   async onResponse({ request, response }) {
+    // Trigger background token refresh when the token is stale (e.g. group, profile, or status changes)
+    if (response.headers.get('X-Token-Stale') === 'true') {
+      const store = useAuthStore.getState()
+      store.refresh().catch(() => {})
+    }
+
     if (response.status !== 401) {
       return response
     }
@@ -81,6 +87,7 @@ export { authMiddleware }
 
 const workflowFetchClient = createFetchClient<WorkflowAPI.paths>({ baseUrl: '/api/v1/' })
 workflowFetchClient.use(authMiddleware)
+export { workflowFetchClient }
 export const workflowClient = createClient(workflowFetchClient)
 
 const executionsFetchClient = createFetchClient<ExecutionsAPI.paths>({ baseUrl: '/api/v1/' })

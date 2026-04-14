@@ -22,6 +22,20 @@ import { approvals } from './resources/approvals'
 import { identityProviders, type IdentityProvider } from './resources/identityProviders'
 import { users, type UserRead } from './resources/users'
 import { groups, userGroupMemberships, type GroupRead } from './resources/groups'
+import {
+  mockProjects,
+  mockPolicies,
+  mockRoles,
+  mockProjectRoleAssignments,
+  mockProjectGroupRoleAssignments,
+  mockGroupRoleAssignments,
+  mockUserRoleAssignments,
+  mockUsers,
+  mockGroups,
+  getUserName,
+  getGroupName,
+  getRoleName,
+} from './resources/access'
 
 // Define response types based on API contract
 type ToolsResponse = ToolManagerAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
@@ -312,7 +326,14 @@ export const handlers = [
     const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
     const includeTotal = url.searchParams.get('include_total') === 'true'
 
+    const projectId = url.searchParams.get('project_id')
+
     let resources = workflows
+
+    // Apply project filter
+    if (projectId) {
+      resources = resources.filter((w) => w.project_id === projectId)
+    }
 
     // Apply name filters
     if (nameStartsWith) {
@@ -450,8 +471,24 @@ export const handlers = [
     const limit = parseInt(url.searchParams.get('limit') || '50', 10)
     const includeTotal = url.searchParams.get('include_total') === 'true'
 
-    const filtered = workflow_id ? executions.filter((e) => e.workflow_id === workflow_id) : executions
-    const body: ExecutionsResponse = paginate(filtered, cursor, limit, includeTotal)
+    const project_id = url.searchParams.get('project_id')
+
+    let filtered = workflow_id ? executions.filter((e) => e.workflow_id === workflow_id) : executions
+
+    // Filter by project: find workflow IDs belonging to the project, then filter executions
+    if (project_id) {
+      const projectWorkflowIds = new Set(workflows.filter((w) => w.project_id === project_id).map((w) => w.id))
+      filtered = filtered.filter((e) => e.workflow_id && projectWorkflowIds.has(e.workflow_id))
+    }
+
+    // Enrich executions with project_id from their workflow
+    const workflowProjectMap = new Map(workflows.map((w) => [w.id, w.project_id]))
+    const enriched = filtered.map((e) => ({
+      ...e,
+      project_id: e.workflow_id ? (workflowProjectMap.get(e.workflow_id) ?? null) : null,
+    }))
+
+    const body = paginate(enriched, cursor, limit, includeTotal)
     return HttpResponse.json(body)
   }),
 
@@ -478,6 +515,7 @@ export const handlers = [
     const url = new URL(request.url)
     const status = url.searchParams.get('status')
     const execution_id = url.searchParams.get('execution_id')
+    const project_id = url.searchParams.get('project_id')
     const created_at = url.searchParams.get('created_at')
     const nameContains = url.searchParams.get('name[contains]')
     const sort = url.searchParams.get('sort')
@@ -489,6 +527,10 @@ export const handlers = [
     // Filter approvals
     let filtered = approvals.filter((a) => {
       if (status && a.status !== status) return false
+      if (project_id) {
+        const approvalData = a as unknown as { project_id?: string | null }
+        if (approvalData.project_id !== project_id) return false
+      }
       if (execution_id) {
         const approvalData = a as unknown as { execution_id?: string }
         if (approvalData.execution_id !== execution_id) return false
@@ -715,8 +757,7 @@ export const handlers = [
       id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       username: 'demo',
       email: 'demo@nexus.local',
-      role: 'administrator',
-      groups: ['platform-admins'],
+      groups: ['admins', 'platform-admins', 'authenticated'],
     })
   }),
 
@@ -920,7 +961,6 @@ export const handlers = [
     const includeTotal = url.searchParams.get('include_total') === 'true'
     const sort = url.searchParams.get('sort')
     const usernameContains = url.searchParams.get('username[contains]')
-    const role = url.searchParams.get('role')
 
     let resources = [...users]
 
@@ -929,8 +969,16 @@ export const handlers = [
       resources = resources.filter((u) => u.username.toLowerCase().includes(searchTerm))
     }
 
-    if (role) {
-      resources = resources.filter((u) => u.role === role)
+    const emailContains = url.searchParams.get('email[contains]')
+    if (emailContains) {
+      const searchTerm = emailContains.toLowerCase()
+      resources = resources.filter((u) => u.email.toLowerCase().includes(searchTerm))
+    }
+
+    const fullNameContains = url.searchParams.get('full_name[contains]')
+    if (fullNameContains) {
+      const searchTerm = fullNameContains.toLowerCase()
+      resources = resources.filter((u) => u.full_name.toLowerCase().includes(searchTerm))
     }
 
     if (sort) {
@@ -952,9 +1000,9 @@ export const handlers = [
             aVal = a.email
             bVal = b.email
             break
-          case 'role':
-            aVal = a.role
-            bVal = b.role
+          case 'last_login':
+            aVal = a.last_login ?? ''
+            bVal = b.last_login ?? ''
             break
           default:
             aVal = a.username
@@ -974,7 +1022,6 @@ export const handlers = [
       email?: string
       full_name?: string
       password?: string
-      role?: UserRead['role']
       is_active?: boolean
     }
 
@@ -1002,7 +1049,6 @@ export const handlers = [
       username: body.username ?? '',
       email: body.email ?? '',
       full_name: body.full_name ?? '',
-      role: body.role ?? 'viewer',
       is_active: body.is_active ?? true,
       last_login: null,
       created_at: now,
@@ -1050,7 +1096,6 @@ export const handlers = [
       full_name?: string
       email?: string
       password?: string
-      role?: UserRead['role']
       is_active?: boolean
     }
 
@@ -1076,7 +1121,6 @@ export const handlers = [
       ...user,
       ...(body.full_name !== undefined && { full_name: body.full_name }),
       ...(body.email !== undefined && { email: body.email }),
-      ...(body.role !== undefined && { role: body.role }),
       ...(body.is_active !== undefined && { is_active: body.is_active }),
       updated_at: new Date().toISOString(),
     }
@@ -1170,6 +1214,22 @@ export const handlers = [
       resources = resources.filter((g) => (g.name ?? '').toLowerCase().includes(searchTerm))
     }
 
+    const descContains = url.searchParams.get('description[contains]')
+    if (descContains) {
+      const searchTerm = descContains.toLowerCase()
+      resources = resources.filter((g) => (g.description ?? '').toLowerCase().includes(searchTerm))
+    }
+
+    const createdByContains = url.searchParams.get('created_by_name[contains]')
+    if (createdByContains) {
+      const searchTerm = createdByContains.toLowerCase()
+      resources = resources.filter((g) => {
+        if (!g.created_by) return false
+        const creator = users.find((u) => u.id === g.created_by)
+        return creator?.username.toLowerCase().includes(searchTerm) ?? false
+      })
+    }
+
     if (sort) {
       const isDesc = sort.startsWith('-')
       const field = isDesc ? sort.slice(1) : sort
@@ -1184,6 +1244,18 @@ export const handlers = [
           case 'description':
             aVal = a.description ?? ''
             bVal = b.description ?? ''
+            break
+          case 'created_at':
+            aVal = a.created_at ?? ''
+            bVal = b.created_at ?? ''
+            break
+          case 'updated_at':
+            aVal = a.updated_at ?? ''
+            bVal = b.updated_at ?? ''
+            break
+          case 'created_by':
+            aVal = a.created_by ?? ''
+            bVal = b.created_by ?? ''
             break
           default:
             aVal = a.name ?? ''
@@ -1220,9 +1292,12 @@ export const handlers = [
       id: uuidv4(),
       name: body.name ?? '',
       description: body.description ?? null,
+      is_builtin: false,
       created_by: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       created_at: now,
       updated_at: now,
+      source: 'local',
+      member_count: 0,
     }
     groups.push(newGroup)
     return HttpResponse.json(newGroup, { status: 201 })
@@ -1306,6 +1381,9 @@ export const handlers = [
         },
         { status: 404 }
       )
+    }
+    if (groups[index].is_builtin) {
+      return HttpResponse.json({ detail: 'Cannot delete built-in group' }, { status: 403 })
     }
     groups.splice(index, 1)
     return new HttpResponse(null, { status: 204 })
@@ -1622,5 +1700,395 @@ export const handlers = [
       file_ids: fileResponses.map((f) => f.file_id),
       files: fileResponses,
     })
+  }),
+
+  // ── Access Management: Projects ─────────────────────────────────────────
+
+  http.get('/api/v1/projects', () => {
+    return HttpResponse.json(mockProjects)
+  }),
+
+  http.post('/api/v1/projects', async ({ request }) => {
+    const body = (await request.json()) as { name: string; description?: string; labels?: Record<string, string> }
+    const now = new Date().toISOString()
+    const project = {
+      id: uuidv4(),
+      name: body.name,
+      description: body.description ?? null,
+      labels: body.labels ?? {},
+      is_default: false,
+      created_at: now,
+      updated_at: now,
+    }
+    mockProjects.push(project)
+    return HttpResponse.json(project, { status: 201 })
+  }),
+
+  http.get('/api/v1/projects/:project_id', ({ params }) => {
+    const project = mockProjects.find((p) => p.id === params.project_id)
+    if (!project) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Project not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(project)
+  }),
+
+  http.patch('/api/v1/projects/:project_id', async ({ params, request }) => {
+    const project = mockProjects.find((p) => p.id === params.project_id)
+    if (!project) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Project not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    const body = (await request.json()) as { name?: string; description?: string; labels?: Record<string, string> }
+    if (body.name !== undefined) project.name = body.name
+    if (body.description !== undefined) project.description = body.description
+    if (body.labels !== undefined) project.labels = body.labels
+    project.updated_at = new Date().toISOString()
+    return HttpResponse.json(project)
+  }),
+
+  http.delete('/api/v1/projects/:project_id', ({ params }) => {
+    const idx = mockProjects.findIndex((p) => p.id === params.project_id)
+    if (idx === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Project not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    mockProjects.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Access Management: Project Role Assignments ─────────────────────────
+
+  http.get('/api/v1/projects/:project_id/roles', ({ params }) => {
+    const assignments = mockProjectRoleAssignments.filter((a) => a.project_id === params.project_id)
+    return HttpResponse.json(assignments)
+  }),
+
+  http.post('/api/v1/projects/:project_id/roles', async ({ params, request }) => {
+    const body = (await request.json()) as { user_id: string; role_name: string }
+    const role = mockRoles.find((r) => r.name === body.role_name)
+    const assignment = {
+      id: uuidv4(),
+      user_id: body.user_id,
+      username: users.find((u) => u.id === body.user_id)?.username ?? body.user_id,
+      project_id: params.project_id as string,
+      role_id: role?.id ?? uuidv4(),
+      role_name: body.role_name,
+      created_at: new Date().toISOString(),
+    }
+    mockProjectRoleAssignments.push(assignment)
+    return HttpResponse.json(assignment, { status: 201 })
+  }),
+
+  http.delete('/api/v1/projects/:project_id/roles/:assignment_id', ({ params }) => {
+    const idx = mockProjectRoleAssignments.findIndex(
+      (a) => a.id === params.assignment_id && a.project_id === params.project_id
+    )
+    if (idx === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Assignment not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    mockProjectRoleAssignments.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Access Management: Project Group Role Assignments ───────────────────
+
+  http.get('/api/v1/projects/:project_id/group-roles', ({ params }) => {
+    const assignments = mockProjectGroupRoleAssignments.filter((a) => a.project_id === params.project_id)
+    return HttpResponse.json(assignments)
+  }),
+
+  http.post('/api/v1/projects/:project_id/group-roles', async ({ params, request }) => {
+    const body = (await request.json()) as { group_id: string; role_name: string }
+    const role = mockRoles.find((r) => r.name === body.role_name)
+    const assignment = {
+      id: uuidv4(),
+      group_id: body.group_id,
+      group_name: groups.find((g) => g.id === body.group_id)?.name ?? body.group_id,
+      project_id: params.project_id as string,
+      role_id: role?.id ?? uuidv4(),
+      role_name: body.role_name,
+      created_at: new Date().toISOString(),
+    }
+    mockProjectGroupRoleAssignments.push(assignment)
+    return HttpResponse.json(assignment, { status: 201 })
+  }),
+
+  http.delete('/api/v1/projects/:project_id/group-roles/:assignment_id', ({ params }) => {
+    const idx = mockProjectGroupRoleAssignments.findIndex(
+      (a) => a.id === params.assignment_id && a.project_id === params.project_id
+    )
+    if (idx === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Assignment not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    mockProjectGroupRoleAssignments.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Access Management: Policies (read-only) ─────────────────────────────
+
+  http.get('/api/v1/policies', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const nameContains = url.searchParams.get('name[contains]')
+
+    let filtered = [...mockPolicies]
+
+    if (nameContains) {
+      const term = nameContains.toLowerCase()
+      filtered = filtered.filter((p) => p.name.toLowerCase().includes(term))
+    }
+
+    const descContains = url.searchParams.get('description[contains]')
+    if (descContains) {
+      const term = descContains.toLowerCase()
+      filtered = filtered.filter((p) => (p.description ?? '').toLowerCase().includes(term))
+    }
+
+    const isBuiltin = url.searchParams.get('is_builtin')
+    if (isBuiltin !== null) {
+      const builtin = isBuiltin === 'true'
+      filtered = filtered.filter((p) => p.is_builtin === builtin)
+    }
+
+    const sort = url.searchParams.get('sort')
+    if (sort) {
+      const isDesc = sort.startsWith('-')
+      const field = isDesc ? sort.slice(1) : sort
+      filtered.sort((a, b) => {
+        let cmp = 0
+        switch (field) {
+          case 'name':
+            cmp = a.name.localeCompare(b.name)
+            break
+          case 'description':
+            cmp = (a.description ?? '').localeCompare(b.description ?? '')
+            break
+          case 'is_builtin':
+            cmp = Number(a.is_builtin) - Number(b.is_builtin)
+            break
+          default:
+            cmp = a.name.localeCompare(b.name)
+        }
+        return isDesc ? -cmp : cmp
+      })
+    }
+
+    return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
+  }),
+
+  // ── Access Management: Roles ────────────────────────────────────────────
+
+  http.get('/api/v1/roles', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const nameContains = url.searchParams.get('name[contains]')
+
+    let filtered = [...mockRoles]
+
+    if (nameContains) {
+      const term = nameContains.toLowerCase()
+      filtered = filtered.filter((r) => r.name.toLowerCase().includes(term))
+    }
+
+    const descContains = url.searchParams.get('description[contains]')
+    if (descContains) {
+      const term = descContains.toLowerCase()
+      filtered = filtered.filter((r) => (r.description ?? '').toLowerCase().includes(term))
+    }
+
+    const isBuiltin = url.searchParams.get('is_builtin')
+    if (isBuiltin !== null) {
+      const builtin = isBuiltin === 'true'
+      filtered = filtered.filter((r) => r.is_builtin === builtin)
+    }
+
+    const sort = url.searchParams.get('sort')
+    if (sort) {
+      const isDesc = sort.startsWith('-')
+      const field = isDesc ? sort.slice(1) : sort
+      filtered.sort((a, b) => {
+        let cmp = 0
+        switch (field) {
+          case 'name':
+            cmp = a.name.localeCompare(b.name)
+            break
+          case 'is_builtin':
+            cmp = Number(a.is_builtin) - Number(b.is_builtin)
+            break
+          default:
+            cmp = a.name.localeCompare(b.name)
+        }
+        return isDesc ? -cmp : cmp
+      })
+    }
+
+    return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
+  }),
+
+  http.post('/api/v1/roles', async ({ request }) => {
+    const body = (await request.json()) as { name: string; description?: string; policies: string[] }
+    if (mockRoles.some((r) => r.name === body.name)) {
+      return HttpResponse.json(
+        {
+          type: 'conflict',
+          title: 'Conflict',
+          detail: `Role with name '${body.name}' already exists`,
+          code: 'ROLE_NAME_CONFLICT',
+          retryable: false,
+        },
+        { status: 409 }
+      )
+    }
+    const role = {
+      id: uuidv4(),
+      name: body.name,
+      description: body.description ?? null,
+      policies: body.policies,
+      is_builtin: false,
+      project_id: null,
+      labels: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    mockRoles.push(role)
+    return HttpResponse.json(role, { status: 201 })
+  }),
+
+  http.put('/api/v1/roles/:role_id', async ({ params, request }) => {
+    const { role_id } = params as { role_id: string }
+    const idx = mockRoles.findIndex((r) => r.id === role_id)
+    if (idx === -1) {
+      return HttpResponse.json({ detail: 'Role not found' }, { status: 404 })
+    }
+    if (mockRoles[idx].is_builtin) {
+      return HttpResponse.json({ detail: 'Cannot modify built-in role' }, { status: 403 })
+    }
+    const body = (await request.json()) as { name?: string; description?: string; policies?: string[] }
+    if (body.name && body.name !== mockRoles[idx].name && mockRoles.some((r) => r.name === body.name)) {
+      return HttpResponse.json(
+        {
+          type: 'conflict',
+          title: 'Conflict',
+          detail: `Role with name '${body.name}' already exists`,
+          code: 'ROLE_NAME_CONFLICT',
+          retryable: false,
+        },
+        { status: 409 }
+      )
+    }
+    mockRoles[idx] = {
+      ...mockRoles[idx],
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.description !== undefined && { description: body.description }),
+      ...(body.policies !== undefined && { policies: body.policies }),
+      updated_at: new Date().toISOString(),
+    }
+    return HttpResponse.json(mockRoles[idx])
+  }),
+
+  http.delete('/api/v1/roles/:role_id', ({ params }) => {
+    const { role_id } = params as { role_id: string }
+    const idx = mockRoles.findIndex((r) => r.id === role_id)
+    if (idx === -1) {
+      return HttpResponse.json({ detail: 'Role not found' }, { status: 404 })
+    }
+    if (mockRoles[idx].is_builtin) {
+      return HttpResponse.json({ detail: 'Cannot delete built-in role' }, { status: 403 })
+    }
+    mockRoles.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Access Management: System-level User Role Assignments ───────────────
+
+  http.get('/api/v1/user-role-assignments', () => {
+    return HttpResponse.json(mockUserRoleAssignments)
+  }),
+
+  http.post('/api/v1/user-role-assignments', async ({ request }) => {
+    const body = (await request.json()) as { user_id: string; role_id: string }
+    const assignment = {
+      id: uuidv4(),
+      user_id: body.user_id,
+      username: getUserName(body.user_id),
+      role_id: body.role_id,
+      role_name: getRoleName(body.role_id),
+      created_at: new Date().toISOString(),
+    }
+    mockUserRoleAssignments.push(assignment)
+    return HttpResponse.json(assignment, { status: 201 })
+  }),
+
+  http.delete('/api/v1/user-role-assignments/:assignment_id', ({ params }) => {
+    const idx = mockUserRoleAssignments.findIndex((a) => a.id === params.assignment_id)
+    if (idx === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Assignment not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    mockUserRoleAssignments.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Access Management: System-level Group Role Assignments ──────────────
+
+  http.get('/api/v1/group-role-assignments', () => {
+    return HttpResponse.json(mockGroupRoleAssignments)
+  }),
+
+  http.post('/api/v1/group-role-assignments', async ({ request }) => {
+    const body = (await request.json()) as { group_id: string; role_id: string }
+    const assignment = {
+      id: uuidv4(),
+      group_id: body.group_id,
+      group_name: getGroupName(body.group_id),
+      role_id: body.role_id,
+      role_name: getRoleName(body.role_id),
+      created_at: new Date().toISOString(),
+    }
+    mockGroupRoleAssignments.push(assignment)
+    return HttpResponse.json(assignment, { status: 201 })
+  }),
+
+  http.delete('/api/v1/group-role-assignments/:assignment_id', ({ params }) => {
+    const idx = mockGroupRoleAssignments.findIndex((a) => a.id === params.assignment_id)
+    if (idx === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Assignment not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    mockGroupRoleAssignments.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Access Management: Users (for display in dropdowns) ─────────────────
+
+  http.get('/api/v1/users', () => {
+    return HttpResponse.json(mockUsers)
+  }),
+
+  // ── Access Management: Groups (for display in dropdowns) ────────────────
+
+  http.get('/api/v1/groups', () => {
+    return HttpResponse.json(mockGroups)
   }),
 ]

@@ -257,7 +257,7 @@ export function AppDockedNav() {
                 aria-label="Main navigation"
               >
                 <NavList>
-                  {visibleItems.map((item) => {
+                  {visibleItems.flatMap((item) => {
                     const itemTopLevel = '/' + item.path.split('/')[1]
                     const isActive = itemTopLevel === activeTopLevel
                     const separator = item.separatorBefore ? (

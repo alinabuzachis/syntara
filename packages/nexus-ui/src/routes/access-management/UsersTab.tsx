@@ -3,7 +3,6 @@ import {
   Button,
   Flex,
   FlexItem,
-  Label,
   Modal,
   ModalBody,
   ModalFooter,
@@ -12,61 +11,63 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { useEffect, useMemo, useReducer } from 'react'
+import { useCallback, useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
-import { usersClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
-import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
-import { useFilterState } from '../../hooks/useFilterState'
-import { useTableSort } from '../../hooks/useTableSort'
-import type { FilterFieldDefinition } from '../../types/filters'
+import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
+import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
+import { accessClient } from '../access/accessClient'
+import { PaginationFooter } from '../access/PaginationFooter'
 
-import { ROLE_LABEL_MAP } from './userConstants'
-import { createFilterChangeHandler, getUsernameFilterDefinition, getUserRoleFilterDefinition } from './userFilters'
+const filterFieldDefinitions: FilterFieldDefinition[] = [
+  {
+    key: 'username',
+    label: 'Username',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by username',
+  },
+  {
+    key: 'full_name',
+    label: 'Name',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by name',
+  },
+  {
+    key: 'email',
+    label: 'Email',
+    type: FilterTypeEnum.TEXT,
+    operators: [FilterOperatorEnum.CONTAINS],
+    defaultOperator: FilterOperatorEnum.CONTAINS,
+    placeholder: 'Filter by email',
+  },
+]
 
-interface UsersState {
-  cursor: string | null
-  deleteDialogOpen: boolean
-  userToDelete: User | null
+// Column index → API sort field. undefined = not sortable.
+const sortFieldByColumn: Record<number, string> = {
+  0: 'username',
+  1: 'full_name',
+  2: 'email',
+  3: 'last_login',
 }
 
-type UsersAction =
-  | { type: 'SET_CURSOR'; payload: string | null }
-  | { type: 'OPEN_DELETE_DIALOG'; payload: User }
-  | { type: 'CLOSE_DELETE_DIALOG' }
-
-function usersReducer(state: UsersState, action: UsersAction): UsersState {
-  switch (action.type) {
-    case 'SET_CURSOR':
-      return { ...state, cursor: action.payload }
-    case 'OPEN_DELETE_DIALOG':
-      return { ...state, userToDelete: action.payload, deleteDialogOpen: true }
-    case 'CLOSE_DELETE_DIALOG':
-      return { ...state, deleteDialogOpen: false, userToDelete: null }
-    default:
-      return state
-  }
-}
-
-function RoleLabel({ role }: Readonly<{ role: string }>) {
-  const config = ROLE_LABEL_MAP[role] ?? { text: role, color: 'grey' as const }
-  return <Label color={config.color}>{config.text}</Label>
-}
-
-function getRowActions(user: User, dispatch: (action: UsersAction) => void): IAction[] {
+function getRowActions(user: User, onDelete: (user: User) => void): IAction[] {
   return [
     {
       title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
@@ -75,7 +76,7 @@ function getRowActions(user: User, dispatch: (action: UsersAction) => void): IAc
     { isSeparator: true },
     {
       title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-      onClick: () => dispatch({ type: 'OPEN_DELETE_DIALOG', payload: user }),
+      onClick: () => onDelete(user),
     },
   ]
 }
@@ -107,128 +108,68 @@ function DeleteUserDialog({
   )
 }
 
-function UsersTable({
-  users,
-  dispatch,
-  getSortParams,
-}: Readonly<{
-  users: User[]
-  dispatch: (action: UsersAction) => void
-  getSortParams: (index: number) => ThProps['sort']
-}>) {
-  return (
-    <>
-      <Thead>
-        <Tr>
-          <Th sort={getSortParams(0)}>Username</Th>
-          <Th sort={getSortParams(1)}>Name</Th>
-          <Th sort={getSortParams(2)}>Email</Th>
-          <Th sort={getSortParams(3)}>System Role</Th>
-          <Th sort={getSortParams(4)}>Last Login</Th>
-          <Th screenReaderText="Actions" />
-        </Tr>
-      </Thead>
-      <Tbody>
-        {users.map((user) => (
-          <Tr key={user.id}>
-            <Td dataLabel="Username">
-              <Button
-                variant="link"
-                isInline
-                onClick={() => navigate(AppRoute.AccessManagement.UserDetail.replace(':userId', user.id))}
-              >
-                {user.username}
-              </Button>
-            </Td>
-            <Td dataLabel="Name">{user.full_name ?? ''}</Td>
-            <Td dataLabel="Email">{user.email}</Td>
-            <Td dataLabel="System Role">
-              <RoleLabel role={user.role} />
-            </Td>
-            <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
-            <Td isActionCell>
-              <ActionsColumn items={getRowActions(user, dispatch)} />
-            </Td>
-          </Tr>
-        ))}
-      </Tbody>
-    </>
-  )
-}
-
 export function UsersTab() {
-  const [state, dispatch] = useReducer(usersReducer, {
-    cursor: null,
-    deleteDialogOpen: false,
-    userToDelete: null,
-  })
-  const { cursor, deleteDialogOpen, userToDelete } = state
-  const { filters, clearAllFilters, setAllFilters } = useFilterState()
-
-  const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
-    () => [getUsernameFilterDefinition(), getUserRoleFilterDefinition()],
-    []
-  )
-
-  const handleFilterChange = createFilterChangeHandler(
-    cursor,
-    () => dispatch({ type: 'SET_CURSOR', payload: null }),
-    clearAllFilters,
-    setAllFilters
-  )
-
-  const handleClearAllFilters = () => {
-    if (cursor) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-    clearAllFilters()
-  }
-
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = { limit: 20, include_total: true }
-    Object.assign(params, buildFilterParams(filters))
-    if (cursor) {
-      params.cursor = cursor
-    }
-    return params
-  }, [filters, cursor])
-
-  const query = usersClient.useQuery('get', '/users', { params: { query: queryParams } })
+  const [filters, setFilters] = useState<FilterConfig[]>([])
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null])
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const [activeSortIndex, setActiveSortIndex] = useState<number | undefined>(undefined)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [userToDelete, setUserToDelete] = useState<User | null>(null)
   const { showAlert } = useAlerts()
-
-  const data = query.data
-  const users = data?.resources ?? []
-  const prevCursor = data?.prev ?? null
-  const nextCursor = data?.next ?? null
-  const totalCount = data?.total ?? null
   const hasActiveFilters = filters.length > 0
 
-  useEffect(() => {
-    if (users.length === 0 && !hasActiveFilters && cursor && !query.isFetching) {
-      dispatch({ type: 'SET_CURSOR', payload: null })
-    }
-  }, [users.length, hasActiveFilters, cursor, query.isFetching])
+  const handleFilterChange = (newFilters: FilterConfig[]) => {
+    setFilters(newFilters)
+    setCursor(null)
+    setCursorHistory([null])
+    setPage(1)
+  }
 
-  const { activeSortIndex, getSortParams, sortData } = useTableSort({ initialSortIndex: 0, initialDirection: 'asc' })
+  const handlePerPageChange = (newPerPage: number) => {
+    setPerPage(newPerPage)
+    setCursor(null)
+    setCursorHistory([null])
+    setPage(1)
+  }
 
-  const results = sortData(users, (user) => {
-    switch (activeSortIndex) {
-      case 0:
-        return user.username ?? ''
-      case 1:
-        return user.full_name ?? ''
-      case 2:
-        return user.email ?? ''
-      case 3:
-        return user.role ?? ''
-      case 4:
-        return user.last_login ?? ''
-      default:
-        return user.username ?? ''
-    }
-  })
+  const getSortParams = useCallback(
+    (columnIndex: number): ThProps['sort'] => ({
+      sortBy: {
+        index: activeSortIndex,
+        direction: sortDirection,
+        defaultDirection: 'asc',
+      },
+      onSort: (_event, index, direction) => {
+        setActiveSortIndex(index)
+        setSortDirection(direction as 'asc' | 'desc')
+        setCursor(null)
+        setCursorHistory([null])
+        setPage(1)
+      },
+      columnIndex,
+    }),
+    [activeSortIndex, sortDirection]
+  )
 
-  const { mutate: deleteUser } = usersClient.useMutation('delete', '/users/{user_id}')
+  const sortField = activeSortIndex === undefined ? undefined : sortFieldByColumn[activeSortIndex]
+  const sortPrefix = sortDirection === 'desc' ? '-' : ''
+  const sortParam = sortField ? `${sortPrefix}${sortField}` : undefined
+
+  const queryParams = {
+    limit: perPage,
+    include_total: true,
+    ...buildFilterParams(filters),
+    ...(cursor ? { cursor } : {}),
+    ...(sortParam ? { sort: sortParam } : {}),
+  }
+
+  const query = accessClient.useQuery('get', '/users', { params: { query: queryParams } })
+  const data = query.data
+  const users = data?.resources ?? []
+
+  const { mutate: deleteUser } = accessClient.useMutation('delete', '/users/{user_id}')
 
   const handleDelete = () => {
     if (!userToDelete) return
@@ -252,9 +193,7 @@ export function UsersTab() {
             autoDismiss: true,
           })
         },
-        onSettled: () => {
-          dispatch({ type: 'CLOSE_DELETE_DIALOG' })
-        },
+        onSettled: () => setUserToDelete(null),
       }
     )
   }
@@ -265,71 +204,106 @@ export function UsersTab() {
   })
   if (queryState) return queryState
 
+  if (users.length === 0 && !hasActiveFilters) {
+    return (
+      <EmptyStateNoData
+        title="No users"
+        description="Create a user to manage access to the platform."
+        buttonText="Add user"
+        addData={() => navigate(AppRoute.AccessManagement.CreateUser)}
+      />
+    )
+  }
+
   return (
     <>
-      {results.length === 0 && !hasActiveFilters ? (
-        <EmptyStateNoData
-          title="No users"
-          description="Create a user to manage access to the platform."
-          buttonText="Add user"
-          addData={() => navigate(AppRoute.AccessManagement.CreateUser)}
-        />
-      ) : (
-        <Stack style={{ height: '100%' }}>
-          <StackItem>
-            <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-              <FlexItem grow={{ default: 'grow' }}>
-                <FilterBar
-                  fieldDefinitions={filterFieldDefinitions}
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  showClearAll={true}
-                />
-              </FlexItem>
-              <FlexItem>
-                <Button
-                  variant="primary"
-                  icon={<PlusIcon />}
-                  onClick={() => navigate(AppRoute.AccessManagement.CreateUser)}
-                >
-                  Add user
-                </Button>
-              </FlexItem>
-            </Flex>
-          </StackItem>
-          {results.length === 0 ? (
-            <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
-            </StackItem>
-          ) : (
-            <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-              <ScrollableTableContainer
-                aria-label="Users table"
-                footer={{
-                  content: (
-                    <>
-                      {results.length} {results.length === 1 ? 'user' : 'users'}
-                      {totalCount != null && totalCount > results.length && (
-                        <span style={{ opacity: 0.6 }}> (of {totalCount} total)</span>
-                      )}
-                    </>
-                  ),
-                  prev: prevCursor,
-                  next: nextCursor,
-                  onPrev: () => dispatch({ type: 'SET_CURSOR', payload: prevCursor }),
-                  onNext: () => dispatch({ type: 'SET_CURSOR', payload: nextCursor }),
-                }}
+      <Stack style={{ height: '100%' }}>
+        <StackItem>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+            <FlexItem grow={{ default: 'grow' }}>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
+                clearAllFilters={() => handleFilterChange([])}
+              />
+            </FlexItem>
+            <FlexItem>
+              <Button
+                variant="primary"
+                icon={<PlusIcon />}
+                onClick={() => navigate(AppRoute.AccessManagement.CreateUser)}
               >
-                <UsersTable users={results} dispatch={dispatch} getSortParams={getSortParams} />
-              </ScrollableTableContainer>
-            </StackItem>
-          )}
-        </Stack>
-      )}
+                Add user
+              </Button>
+            </FlexItem>
+          </Flex>
+        </StackItem>
+        {users.length === 0 ? (
+          <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
+          </StackItem>
+        ) : (
+          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+            <Table aria-label="Users" isStriped style={{ width: '100%' }}>
+              <Thead>
+                <Tr>
+                  <Th sort={getSortParams(0)}>Username</Th>
+                  <Th sort={getSortParams(1)}>Name</Th>
+                  <Th sort={getSortParams(2)}>Email</Th>
+                  <Th sort={getSortParams(3)}>Last Login</Th>
+                  <Th screenReaderText="Actions" />
+                </Tr>
+              </Thead>
+              <Tbody>
+                {users.map((user) => (
+                  <Tr key={user.id}>
+                    <Td dataLabel="Username">
+                      <Button
+                        variant="link"
+                        isInline
+                        onClick={() => navigate(AppRoute.AccessManagement.UserDetail.replace(':userId', user.id))}
+                      >
+                        {user.username}
+                      </Button>
+                    </Td>
+                    <Td dataLabel="Name">{user.full_name ?? ''}</Td>
+                    <Td dataLabel="Email">{user.email}</Td>
+                    <Td dataLabel="Last Login">{formatDateTime(user.last_login)}</Td>
+                    <Td isActionCell>
+                      <ActionsColumn items={getRowActions(user, setUserToDelete)} />
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </StackItem>
+        )}
+        <PaginationFooter
+          page={page}
+          perPage={perPage}
+          total={data?.total}
+          hasNext={!!data?.next}
+          onPrev={() => {
+            const prevCursor = cursorHistory[cursorHistory.length - 2] ?? null
+            setCursor(prevCursor)
+            setCursorHistory((prev) => prev.slice(0, -1))
+            setPage(page - 1)
+          }}
+          onNext={() => {
+            const nextCursor = data?.next ?? null
+            setCursorHistory((prev) => [...prev, nextCursor])
+            setCursor(nextCursor)
+            setPage(page + 1)
+          }}
+          onPerPageChange={handlePerPageChange}
+        />
+      </Stack>
       <DeleteUserDialog
         user={userToDelete}
-        isOpen={deleteDialogOpen}
-        onClose={() => dispatch({ type: 'CLOSE_DELETE_DIALOG' })}
+        isOpen={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
         onDelete={handleDelete}
       />
     </>

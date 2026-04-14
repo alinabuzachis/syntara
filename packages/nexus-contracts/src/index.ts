@@ -1,27 +1,37 @@
 import * as ApprovalsAPI from './approvals-api.js'
 import * as AuthAPI from './auth-api.js'
+import * as AuthzAPI from './authz-api.js'
 import * as CredentialsAPI from './credentials-api.js'
 import * as ExecutionsAPI from './executions-api.js'
 import * as FilesAPI from './files-api.js'
+import * as GroupRoleAssignmentsAPI from './group-role-assignments-api.js'
 import * as IdentityProvidersAPI from './identity-providers-api.js'
 import * as InvocationsAPI from './invocations-api.js'
-import * as MetricsAPI from './metrics-api.js'
+import * as PoliciesAPI from './policies-api.js'
+import * as ProjectsAPI from './projects-api.js'
+import * as RolesAPI from './roles-api.js'
 import * as ToolManagerAPI from './tool-manager.js'
 import * as ToolManagerMetricsAPI from './tool-manager-metrics.js'
+import * as UserRoleAssignmentsAPI from './user-role-assignments-api.js'
 import * as UsersAPI from './users-api.js'
 import * as WorkflowAPI from './workflow-api.js'
 
 export {
   ApprovalsAPI,
   AuthAPI,
+  AuthzAPI,
   CredentialsAPI,
   ExecutionsAPI,
   FilesAPI,
+  GroupRoleAssignmentsAPI,
   IdentityProvidersAPI,
   InvocationsAPI,
-  MetricsAPI,
+  PoliciesAPI,
+  ProjectsAPI,
+  RolesAPI,
   ToolManagerAPI,
   ToolManagerMetricsAPI,
+  UserRoleAssignmentsAPI,
   UsersAPI,
   WorkflowAPI,
 }

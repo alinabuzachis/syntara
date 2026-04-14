@@ -3,12 +3,9 @@ schema_version: "2.0.0"
 name: auth-basic
 description: API request with basic authentication
 
-# SECURITY WARNING: This is a mock example only.
-# NEVER hardcode real secret IDs in production workflow definitions.
-# Use environment-specific references or vault paths instead.
 secrets:
   basic_credentials:
-    secretId: test-basic-credentials  # Example only - use ${env.SECRET_ID} in production
+    secretId: test-basic-credentials
     type: basic_auth
 
 triggers:

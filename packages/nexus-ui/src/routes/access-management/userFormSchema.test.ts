@@ -9,7 +9,6 @@ describe('userFormSchema', () => {
     first_name: 'John',
     last_name: 'Doe',
     password: 'securepass123',
-    role: 'viewer' as const,
     is_active: true,
   }
 
@@ -17,13 +16,6 @@ describe('userFormSchema', () => {
     it('accepts valid user data', () => {
       const result = userFormSchema.safeParse(validData)
       expect(result.success).toBe(true)
-    })
-
-    it('accepts all valid roles', () => {
-      for (const role of ['viewer', 'creator', 'approver', 'administrator'] as const) {
-        const result = userFormSchema.safeParse({ ...validData, role })
-        expect(result.success).toBe(true)
-      }
     })
 
     it('accepts empty password (edit mode)', () => {
@@ -96,13 +88,6 @@ describe('userFormSchema', () => {
       }
     })
   })
-
-  describe('role validation', () => {
-    it('rejects invalid role', () => {
-      const result = userFormSchema.safeParse({ ...validData, role: 'superadmin' })
-      expect(result.success).toBe(false)
-    })
-  })
 })
 
 describe('userCreateSchema', () => {
@@ -112,7 +97,6 @@ describe('userCreateSchema', () => {
     first_name: 'John',
     last_name: 'Doe',
     password: 'securepass123',
-    role: 'viewer' as const,
     is_active: true,
   }
 

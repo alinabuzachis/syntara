@@ -5,14 +5,22 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
-import { usersClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
+import { accessClient } from '../access/accessClient'
 
 import { GroupFormModal } from './GroupFormModal'
 
 // Mock dependencies
 vi.mock('../../client', () => ({
   usersClient: {
+    useMutation: vi.fn(),
+  },
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../access/accessClient', () => ({
+  accessClient: {
+    useQuery: vi.fn().mockReturnValue({ data: { resources: [] } }),
     useMutation: vi.fn(),
   },
 }))
@@ -45,6 +53,7 @@ describe('GroupFormModal Component', () => {
     id: 'g1',
     name: 'Admins',
     description: 'Administrator group',
+    is_builtin: false,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-02T00:00:00Z',
   }
@@ -52,7 +61,7 @@ describe('GroupFormModal Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    vi.mocked(usersClient.useMutation).mockImplementation(((_method: string, endpoint: string) => {
+    vi.mocked(accessClient.useMutation).mockImplementation(((_method: string, endpoint: string) => {
       if (endpoint === '/groups') {
         return {
           mutate: mockCreateMutate,

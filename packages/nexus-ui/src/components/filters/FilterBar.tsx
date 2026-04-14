@@ -41,6 +41,8 @@ export interface FilterBarProps {
   onFilterChange: (filters: FilterConfig[]) => void
   /** Show "Clear all filters" button */
   showClearAll?: boolean
+  /** Callback to clear all filters */
+  clearAllFilters?: () => void
   /** Compact mode for narrow panels (reduces padding, hides clear-all) */
   isCompact?: boolean
 }
@@ -71,6 +73,7 @@ export function FilterBar({
   filters,
   onFilterChange,
   showClearAll = true,
+  clearAllFilters,
   isCompact = false,
 }: FilterBarProps) {
   // Separate field definitions for TextFilter (TEXT/SELECT/DATERANGE/MULTISELECT) vs other filter types
@@ -141,8 +144,12 @@ export function FilterBar({
 
   // Handle clear all
   const handleClearAll = useCallback(() => {
-    onFilterChange([])
-  }, [onFilterChange])
+    if (clearAllFilters) {
+      clearAllFilters()
+    } else {
+      onFilterChange([])
+    }
+  }, [clearAllFilters, onFilterChange])
 
   const effectiveShowClearAll = isCompact ? false : showClearAll
 

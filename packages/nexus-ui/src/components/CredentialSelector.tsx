@@ -16,6 +16,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { credentialsClient } from '../client'
 import type { Credential, CredentialType } from '../routes/configuration/credentials/credentialConstants'
 import { CredentialFormModal } from '../routes/configuration/credentials/form/CredentialFormModal'
+import { detachPromise } from '../utils/detachPromise'
 
 import { FormLabelWithHelp } from './FormLabelWithHelp'
 
@@ -76,7 +77,7 @@ interface TypeGroup {
  * Fetches credentials from the API with optional type filtering.
  * Credentials are grouped by credential type when type data is available.
  */
-// eslint-disable-next-line complexity -- select with grouping, create action, and error state requires many branches
+ 
 export function CredentialSelector({
   value,
   onChange,
@@ -145,7 +146,7 @@ export function CredentialSelector({
 
   const handleCreated = useCallback(
     (newCredentialId: string) => {
-      void refetch()
+      detachPromise(refetch())
       onChange(newCredentialId)
     },
     [onChange, refetch]
@@ -229,7 +230,7 @@ export function CredentialSelector({
         </SelectList>
       </Select>
       {isError && (
-        <Button variant="link" size="sm" onClick={() => void refetch()}>
+        <Button variant="link" size="sm" onClick={() => detachPromise(refetch())}>
           Retry loading credentials
         </Button>
       )}

@@ -15,82 +15,7 @@ export interface paths {
      * Get tool usage metrics
      * @description Retrieve usage statistics for tools and providers
      */
-    get: {
-      parameters: {
-        query?: {
-          /**
-           * @description Generic field filtering with operators. Syntax: field[operator]=value
-           *
-           *     Supported operators:
-           *     - eq: equals
-           *     - contains: string contains
-           *     - starts_with: string starts with
-           *     - gt: greater than
-           *     - gte: greater than or equal
-           *     - lt: less than
-           *     - lte: less than or equal
-           *
-           *     Examples:
-           *     - ?time_window[eq]=day
-           *     - ?start_date[gte]=2025-01-01
-           *     - ?provider_id[eq]=uuid1
-           *     - ?user_id[contains]=agent
-           */
-          'field[operator]'?: {
-            [key: string]: string
-          }
-          /** @description Maximum number of metric records to return */
-          limit?: number
-          /** @description Cursor for keyset pagination (metric ID to start after) */
-          cursor?: string
-          /** @description Include total count in response (may impact performance) */
-          include_total?: boolean
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Tool usage metrics */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': {
-              metrics: components['schemas']['ToolMetrics'][]
-              summary: components['schemas']['MetricsSummary']
-              time_window?: string
-              /** Format: date */
-              start_date?: string
-              /** Format: date */
-              end_date?: string
-              /** @description Maximum number of items requested */
-              limit: number
-              /**
-               * Format: uuid
-               * @description Cursor for the next page (null if no more pages)
-               */
-              next_cursor?: string | null
-              /** @description Whether there are more items available */
-              has_more: boolean
-              /** @description Total count (only included if include_total=true) */
-              total?: number
-            }
-          }
-        }
-        /** @description Admin access required */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-      }
-    }
+    get: operations['get_tool_metrics']
     put?: never
     post?: never
     delete?: never
@@ -110,76 +35,7 @@ export interface paths {
      * Get detailed execution logs
      * @description Retrieve detailed execution logs for troubleshooting
      */
-    get: {
-      parameters: {
-        query?: {
-          /**
-           * @description Generic field filtering with operators. Syntax: field[operator]=value
-           *
-           *     Supported operators:
-           *     - eq: equals
-           *     - contains: string contains
-           *     - starts_with: string starts with
-           *     - gt: greater than
-           *     - gte: greater than or equal
-           *     - lt: less than
-           *     - lte: less than or equal
-           *
-           *     Examples:
-           *     - ?status[eq]=success
-           *     - ?execution_start[gte]=2025-01-01T00:00:00Z
-           *     - ?duration_ms[gt]=100
-           *     - ?user_id[contains]=agent
-           */
-          'field[operator]'?: {
-            [key: string]: string
-          }
-          /** @description Maximum number of executions to return */
-          limit?: number
-          /** @description Cursor for keyset pagination (execution ID to start after) */
-          cursor?: string
-          /** @description Include total count in response (may impact performance) */
-          include_total?: boolean
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Execution logs */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': {
-              executions: components['schemas']['ToolExecution'][]
-              /** @description Maximum number of items requested */
-              limit: number
-              /**
-               * Format: uuid
-               * @description Cursor for the next page (null if no more pages)
-               */
-              next_cursor?: string | null
-              /** @description Whether there are more items available */
-              has_more: boolean
-              /** @description Total count (only included if include_total=true) */
-              total?: number
-            }
-          }
-        }
-        /** @description Admin access required */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-      }
-    }
+    get: operations['get_tool_executions']
     put?: never
     post?: never
     delete?: never
@@ -199,123 +55,13 @@ export interface paths {
      * List rate limit configurations
      * @description Retrieve all rate limit configurations
      */
-    get: {
-      parameters: {
-        query?: {
-          /**
-           * @description Generic field filtering with operators. Syntax: field[operator]=value
-           *
-           *     Supported operators:
-           *     - eq: equals
-           *     - contains: string contains
-           *     - starts_with: string starts with
-           *     - gt: greater than
-           *     - gte: greater than or equal
-           *     - lt: less than
-           *     - lte: less than or equal
-           *
-           *     Examples:
-           *     - ?target_type[eq]=tool
-           *     - ?enabled[eq]=true
-           *     - ?requests_per_window[gte]=100
-           *     - ?created_at[gte]=2025-01-01
-           */
-          'field[operator]'?: {
-            [key: string]: string
-          }
-          /** @description Maximum number of rate limits to return */
-          limit?: number
-          /** @description Cursor for keyset pagination (rate limit ID to start after) */
-          cursor?: string
-          /** @description Include total count in response (may impact performance) */
-          include_total?: boolean
-        }
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Rate limit configurations */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': {
-              rate_limits: components['schemas']['RateLimit'][]
-              /** @description Maximum number of items requested */
-              limit: number
-              /**
-               * Format: uuid
-               * @description Cursor for the next page (null if no more pages)
-               */
-              next_cursor?: string | null
-              /** @description Whether there are more items available */
-              has_more: boolean
-              /** @description Total count (only included if include_total=true) */
-              total?: number
-            }
-          }
-        }
-        /** @description Admin access required */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-      }
-    }
+    get: operations['list_rate_limits']
     put?: never
     /**
      * Create rate limit configuration
      * @description Create new rate limit for provider, tool, or user
      */
-    post: {
-      parameters: {
-        query?: never
-        header?: never
-        path?: never
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['RateLimitCreate']
-        }
-      }
-      responses: {
-        /** @description Rate limit created successfully */
-        201: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['RateLimit']
-          }
-        }
-        /** @description Invalid rate limit configuration */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-        /** @description Admin access required */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-      }
-    }
+    post: operations['create_rate_limit']
     delete?: never
     options?: never
     head?: never
@@ -333,146 +79,18 @@ export interface paths {
      * Get rate limit details
      * @description Retrieve specific rate limit configuration
      */
-    get: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          limit_id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Rate limit details */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['RateLimit']
-          }
-        }
-        /** @description Admin access required */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-        /** @description Rate limit not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-      }
-    }
+    get: operations['get_rate_limit']
     /**
      * Update rate limit configuration
      * @description Update existing rate limit configuration
      */
-    put: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          limit_id: string
-        }
-        cookie?: never
-      }
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['RateLimitUpdate']
-        }
-      }
-      responses: {
-        /** @description Rate limit updated successfully */
-        200: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/json': components['schemas']['RateLimit']
-          }
-        }
-        /** @description Invalid rate limit configuration */
-        400: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-        /** @description Admin access required */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-        /** @description Rate limit not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-      }
-    }
+    put: operations['update_rate_limit']
     post?: never
     /**
      * Delete rate limit configuration
      * @description Remove rate limit configuration
      */
-    delete: {
-      parameters: {
-        query?: never
-        header?: never
-        path: {
-          limit_id: string
-        }
-        cookie?: never
-      }
-      requestBody?: never
-      responses: {
-        /** @description Rate limit deleted successfully */
-        204: {
-          headers: {
-            [name: string]: unknown
-          }
-          content?: never
-        }
-        /** @description Admin access required */
-        403: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-        /** @description Rate limit not found */
-        404: {
-          headers: {
-            [name: string]: unknown
-          }
-          content: {
-            'application/problem+json': components['schemas']['ErrorData']
-          }
-        }
-      }
-    }
+    delete: operations['delete_rate_limit']
     options?: never
     head?: never
     patch?: never
@@ -642,4 +260,394 @@ export interface components {
   pathItems: never
 }
 export type $defs = Record<string, never>
-export type operations = Record<string, never>
+export interface operations {
+  get_tool_metrics: {
+    parameters: {
+      query?: {
+        /**
+         * @description Generic field filtering with operators. Syntax: field[operator]=value
+         *
+         *     Supported operators:
+         *     - eq: equals
+         *     - contains: string contains
+         *     - starts_with: string starts with
+         *     - gt: greater than
+         *     - gte: greater than or equal
+         *     - lt: less than
+         *     - lte: less than or equal
+         *
+         *     Examples:
+         *     - ?time_window[eq]=day
+         *     - ?start_date[gte]=2025-01-01
+         *     - ?provider_id[eq]=uuid1
+         *     - ?user_id[contains]=agent
+         */
+        'field[operator]'?: {
+          [key: string]: string
+        }
+        /** @description Maximum number of metric records to return */
+        limit?: number
+        /** @description Cursor for keyset pagination (metric ID to start after) */
+        cursor?: string
+        /** @description Include total count in response (may impact performance) */
+        include_total?: boolean
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Tool usage metrics */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            metrics: components['schemas']['ToolMetrics'][]
+            summary: components['schemas']['MetricsSummary']
+            time_window?: string
+            /** Format: date */
+            start_date?: string
+            /** Format: date */
+            end_date?: string
+            /** @description Maximum number of items requested */
+            limit: number
+            /**
+             * Format: uuid
+             * @description Cursor for the next page (null if no more pages)
+             */
+            next_cursor?: string | null
+            /** @description Whether there are more items available */
+            has_more: boolean
+            /** @description Total count (only included if include_total=true) */
+            total?: number
+          }
+        }
+      }
+      /** @description Admin access required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  get_tool_executions: {
+    parameters: {
+      query?: {
+        /**
+         * @description Generic field filtering with operators. Syntax: field[operator]=value
+         *
+         *     Supported operators:
+         *     - eq: equals
+         *     - contains: string contains
+         *     - starts_with: string starts with
+         *     - gt: greater than
+         *     - gte: greater than or equal
+         *     - lt: less than
+         *     - lte: less than or equal
+         *
+         *     Examples:
+         *     - ?status[eq]=success
+         *     - ?execution_start[gte]=2025-01-01T00:00:00Z
+         *     - ?duration_ms[gt]=100
+         *     - ?user_id[contains]=agent
+         */
+        'field[operator]'?: {
+          [key: string]: string
+        }
+        /** @description Maximum number of executions to return */
+        limit?: number
+        /** @description Cursor for keyset pagination (execution ID to start after) */
+        cursor?: string
+        /** @description Include total count in response (may impact performance) */
+        include_total?: boolean
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Execution logs */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            executions: components['schemas']['ToolExecution'][]
+            /** @description Maximum number of items requested */
+            limit: number
+            /**
+             * Format: uuid
+             * @description Cursor for the next page (null if no more pages)
+             */
+            next_cursor?: string | null
+            /** @description Whether there are more items available */
+            has_more: boolean
+            /** @description Total count (only included if include_total=true) */
+            total?: number
+          }
+        }
+      }
+      /** @description Admin access required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  list_rate_limits: {
+    parameters: {
+      query?: {
+        /**
+         * @description Generic field filtering with operators. Syntax: field[operator]=value
+         *
+         *     Supported operators:
+         *     - eq: equals
+         *     - contains: string contains
+         *     - starts_with: string starts with
+         *     - gt: greater than
+         *     - gte: greater than or equal
+         *     - lt: less than
+         *     - lte: less than or equal
+         *
+         *     Examples:
+         *     - ?target_type[eq]=tool
+         *     - ?enabled[eq]=true
+         *     - ?requests_per_window[gte]=100
+         *     - ?created_at[gte]=2025-01-01
+         */
+        'field[operator]'?: {
+          [key: string]: string
+        }
+        /** @description Maximum number of rate limits to return */
+        limit?: number
+        /** @description Cursor for keyset pagination (rate limit ID to start after) */
+        cursor?: string
+        /** @description Include total count in response (may impact performance) */
+        include_total?: boolean
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Rate limit configurations */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            rate_limits: components['schemas']['RateLimit'][]
+            /** @description Maximum number of items requested */
+            limit: number
+            /**
+             * Format: uuid
+             * @description Cursor for the next page (null if no more pages)
+             */
+            next_cursor?: string | null
+            /** @description Whether there are more items available */
+            has_more: boolean
+            /** @description Total count (only included if include_total=true) */
+            total?: number
+          }
+        }
+      }
+      /** @description Admin access required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  create_rate_limit: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RateLimitCreate']
+      }
+    }
+    responses: {
+      /** @description Rate limit created successfully */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RateLimit']
+        }
+      }
+      /** @description Invalid rate limit configuration */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Admin access required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  get_rate_limit: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        limit_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Rate limit details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RateLimit']
+        }
+      }
+      /** @description Admin access required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Rate limit not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  update_rate_limit: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        limit_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RateLimitUpdate']
+      }
+    }
+    responses: {
+      /** @description Rate limit updated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RateLimit']
+        }
+      }
+      /** @description Invalid rate limit configuration */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Admin access required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Rate limit not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+  delete_rate_limit: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        limit_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Rate limit deleted successfully */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Admin access required */
+      403: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+      /** @description Rate limit not found */
+      404: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/problem+json': components['schemas']['ErrorData']
+        }
+      }
+    }
+  }
+}

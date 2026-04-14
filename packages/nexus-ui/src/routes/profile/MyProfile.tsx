@@ -18,7 +18,6 @@ import { AppPage } from '../../app/AppPage'
 import { AppPageHeader } from '../../app/AppPageHeader'
 import { authClient } from '../../client'
 import { useQueryState } from '../../components/states/useQueryState'
-import { ROLE_LABEL_MAP } from '../access-management/userConstants'
 
 function getInitials(username: string): string {
   return username
@@ -105,18 +104,6 @@ export function MyProfile() {
                     <DescriptionListGroup>
                       <DescriptionListTerm>Email</DescriptionListTerm>
                       <DescriptionListDescription>{profile.email}</DescriptionListDescription>
-                    </DescriptionListGroup>
-                    <DescriptionListGroup>
-                      <DescriptionListTerm>Role</DescriptionListTerm>
-                      <DescriptionListDescription>
-                        {(() => {
-                          const roleConfig = ROLE_LABEL_MAP[profile.role ?? ''] ?? {
-                            text: profile.role ?? 'Unknown',
-                            color: 'grey' as const,
-                          }
-                          return <Label color={roleConfig.color}>{roleConfig.text}</Label>
-                        })()}
-                      </DescriptionListDescription>
                     </DescriptionListGroup>
                     <DescriptionListGroup>
                       <DescriptionListTerm>Groups</DescriptionListTerm>

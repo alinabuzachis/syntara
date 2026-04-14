@@ -30,7 +30,12 @@ vi.mock('wouter/use-browser-location', () => ({
 }))
 
 vi.mock('../../client', () => ({
-  usersClient: {
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../access/accessClient', () => ({
+  accessFetchClient: { use: vi.fn() },
+  accessClient: {
     useQuery: vi.fn().mockReturnValue({
       data: { resources: [] },
       isPending: false,
@@ -46,6 +51,26 @@ vi.mock('../../client', () => ({
   },
 }))
 
+vi.mock('../access/accessClient', () => ({
+  accessClient: {
+    useQuery: vi.fn().mockReturnValue({
+      data: { resources: [] },
+      isPending: false,
+      isError: false,
+      error: null,
+      isFetching: false,
+      refetch: vi.fn(),
+    }),
+    useMutation: vi.fn().mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
+  },
+  accessFetchClient: {
+    POST: vi.fn().mockResolvedValue({ data: { allowed: false } }),
+  },
+}))
+
 describe('AccessManagement', () => {
   it('renders the page header', () => {
     render(<AccessManagement />, { wrapper })
@@ -53,11 +78,15 @@ describe('AccessManagement', () => {
     expect(screen.getByRole('heading', { name: 'Access Management' })).toBeInTheDocument()
   })
 
-  it('renders Users and Groups tabs', () => {
+  it('renders all expected tabs', () => {
     render(<AccessManagement />, { wrapper })
 
     expect(screen.getByRole('tab', { name: 'Users' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Groups' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Policies' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Roles' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Assignments' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Can I?' })).toBeInTheDocument()
   })
 
   it('does not render Identity Providers or Claim Mappings tabs', () => {
@@ -86,7 +115,7 @@ describe('AccessManagement', () => {
   it('has no accessibility violations', async () => {
     const { container } = render(<AccessManagement />, { wrapper })
 
-    // Wrap axe in act() — axe triggers DOM events (focus, scroll) that
+    // Wrap axe in act() -- axe triggers DOM events (focus, scroll) that
     // cause PatternFly Tabs to schedule React state updates
     let results: Awaited<ReturnType<typeof axe>>
     await act(async () => {

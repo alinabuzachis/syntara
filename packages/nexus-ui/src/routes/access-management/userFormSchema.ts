@@ -1,7 +1,5 @@
 import { z } from 'zod'
 
-const SYSTEM_ROLES = ['viewer', 'creator', 'approver', 'administrator'] as const
-
 /**
  * Zod schema for the user create/edit form.
  * The UI splits first/last name; the API uses a single `full_name` field.
@@ -12,7 +10,6 @@ const baseSchema = z.object({
   last_name: z.string().min(1, 'Last name is required').max(127, 'Last name must be 127 characters or fewer'),
   email: z.string().min(1, 'Email is required').email('Must be a valid email address').max(255),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
-  role: z.enum(SYSTEM_ROLES, { message: 'Role is required' }),
   is_active: z.boolean(),
 })
 

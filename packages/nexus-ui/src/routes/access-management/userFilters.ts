@@ -15,21 +15,3 @@ export const getUsernameFilterDefinition = (): FilterFieldDefinition => ({
   defaultOperator: FilterOperatorEnum.CONTAINS,
   placeholder: 'Filter by username',
 })
-
-/**
- * Filter field definition for user role filtering
- */
-export const getUserRoleFilterDefinition = (): FilterFieldDefinition => ({
-  key: 'role',
-  label: 'Role',
-  type: FilterTypeEnum.SELECT,
-  operators: [FilterOperatorEnum.EQ],
-  defaultOperator: FilterOperatorEnum.EQ,
-  placeholder: 'Filter by role',
-  options: [
-    { value: 'administrator', label: 'Administrator' },
-    { value: 'creator', label: 'Creator' },
-    { value: 'approver', label: 'Approver' },
-    { value: 'viewer', label: 'Viewer' },
-  ],
-})

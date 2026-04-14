@@ -14,6 +14,7 @@ vi.mock('../../../client', () => ({
     useMutation: vi.fn(),
   },
   usersClient: { useQuery: vi.fn(), useMutation: vi.fn() },
+  authMiddleware: { onRequest: vi.fn() },
 }))
 
 vi.mock('wouter', () => ({

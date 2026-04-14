@@ -4,25 +4,27 @@ import { AppRoute } from './AppRoute'
 import {
   AccessManagement,
   AddIdentityProvider,
+  ProjectDetail,
   ApprovalDetail,
-  CreateUser,
   Approvals,
   Authentication,
   Automations,
   BuilderEdit,
   BuilderNew,
+  CreateUser,
   CredentialDetail,
   Credentials,
   EditIdentityProvider,
   EditUser,
   ExecutionDetail,
-  UserDetail,
   Executions,
   Glossary,
+  GroupDetail,
   IntegrationForm,
   IntegrationTools,
   Integrations,
   MyProfile,
+  UserDetail,
 } from './lazyRoutes'
 
 export type INavigationItem = {
@@ -84,6 +86,43 @@ export const navigationItems: INavigationItem[] = [
             label: 'Groups',
             path: AppRoute.AccessManagement.Groups,
             element: <AccessManagement />,
+          },
+          {
+            label: 'Policies',
+            path: AppRoute.AccessManagement.Policies,
+            element: <AccessManagement />,
+          },
+          {
+            label: 'Roles',
+            path: AppRoute.AccessManagement.Roles,
+            element: <AccessManagement />,
+          },
+          {
+            label: 'Projects',
+            path: AppRoute.AccessManagement.Projects,
+            element: <AccessManagement />,
+          },
+          {
+            label: 'Project Detail',
+            path: AppRoute.AccessManagement.ProjectDetail,
+            element: <ProjectDetail />,
+            hidden: true,
+          },
+          {
+            label: 'Assignments',
+            path: AppRoute.AccessManagement.Assignments,
+            element: <AccessManagement />,
+          },
+          {
+            label: 'Can I?',
+            path: AppRoute.AccessManagement.CanI,
+            element: <AccessManagement />,
+          },
+          {
+            label: 'Group Detail',
+            path: AppRoute.AccessManagement.GroupDetail,
+            element: <GroupDetail />,
+            hidden: true,
           },
           {
             label: 'Create User',

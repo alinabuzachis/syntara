@@ -16,6 +16,17 @@ vi.mock('../../client', () => ({
   },
 }))
 
+// Mock useProjectSelector to avoid needing accessClient / QueryClientProvider
+const mockUseProjectSelector = vi.fn(() => ({
+  selectedProject: null as { id: string; name: string } | null,
+  isAllProjects: false,
+  projects: [] as { id: string; name: string }[],
+  ProjectSelector: null,
+}))
+vi.mock('../../hooks/useProjectSelector', () => ({
+  useProjectSelector: () => mockUseProjectSelector(),
+}))
+
 // Mock useFilterState - will be configured per-test
 vi.mock('../../hooks/useFilterState', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../hooks/useFilterState')>()
@@ -853,6 +864,83 @@ describe('Approvals Component', () => {
       render(<Approvals />)
 
       expect(screen.getByText('Unknown')).toBeInTheDocument()
+    })
+  })
+
+  describe('Grouped view (All Projects)', () => {
+    it('renders grouped approvals when all projects are selected', () => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: null,
+        isAllProjects: true,
+        projects: [
+          { id: 'proj-1', name: 'Project Alpha' },
+          { id: 'proj-2', name: 'Project Beta' },
+        ],
+        ProjectSelector: null,
+      })
+
+      const approvalsWithProjects = mockApprovals.map((a, i) => ({
+        ...a,
+        project_id: i === 0 ? 'proj-1' : 'proj-2',
+      }))
+      mockApprovalsQuery(approvalsWithProjects as Approval[])
+
+      render(<Approvals />)
+
+      expect(screen.getByText('Project Alpha')).toBeInTheDocument()
+      expect(screen.getByText('Project Beta')).toBeInTheDocument()
+
+      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 2')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
+    })
+
+    it('toggles project group collapsed/expanded', async () => {
+      const user = userEvent.setup()
+
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: null,
+        isAllProjects: true,
+        projects: [{ id: 'proj-1', name: 'Project Alpha' }],
+        ProjectSelector: null,
+      })
+
+      const approvalsWithProject = [{ ...mockApprovals[0], project_id: 'proj-1' }]
+      mockApprovalsQuery(approvalsWithProject as Approval[])
+
+      render(<Approvals />)
+
+      // Approval should be visible initially
+      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
+
+      // Click the project group header to collapse
+      await user.click(screen.getByText('Project Alpha'))
+
+      // Approval should be hidden
+      expect(screen.queryByText('Test Approval 1')).not.toBeInTheDocument()
+
+      // Click again to expand
+      await user.click(screen.getByText('Project Alpha'))
+
+      // Approval visible again
+      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
+    })
+
+    it('shows "No project" for approvals without project_id', () => {
+      mockUseProjectSelector.mockReturnValue({
+        selectedProject: null,
+        isAllProjects: true,
+        projects: [{ id: 'proj-1', name: 'Project Alpha' }],
+        ProjectSelector: null,
+      })
+
+      const approvalsWithoutProject = [{ ...mockApprovals[0], project_id: undefined }]
+      mockApprovalsQuery(approvalsWithoutProject as unknown as Approval[])
+
+      render(<Approvals />)
+
+      expect(screen.getByText('No project')).toBeInTheDocument()
+      expect(screen.getByText('Test Approval 1')).toBeInTheDocument()
     })
   })
 })

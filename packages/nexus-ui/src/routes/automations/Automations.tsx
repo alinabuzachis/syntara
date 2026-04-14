@@ -12,9 +12,9 @@ import {
   StackItem,
 } from '@patternfly/react-core'
 import { RhUiEditFillIcon, RhUiHistoryIcon, RhUiPlayIcon, RhUiTrashIcon } from '@patternfly/react-icons'
-import { ActionsColumn, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useEffect, useMemo, useReducer } from 'react'
+import { useEffect, useMemo, useReducer, useState } from 'react'
 import { useLocation } from 'wouter'
 
 import { AppPage } from '../../app/AppPage'
@@ -25,21 +25,19 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
+import { PageTitleWithProject } from '../../components/PageTitleWithProject'
 import { useQueryState } from '../../components/states/useQueryState'
-import { BadgesCell } from '../../components/table/BadgesCell'
-import { DateCell } from '../../components/table/DateCell'
-import { LinkCell } from '../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../components/table/ScrollableTableContainer'
-import { SwitchCell } from '../../components/table/SwitchCell.tsx'
 import { createFilterChangeHandler } from '../../hooks/useFilterChangeHandler'
 import { useFilterState } from '../../hooks/useFilterState'
+import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import type { FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
 import { buildFilterParams } from '../../utils/filterUtils'
-import { getDateField } from '../../utils/getDateField'
-import { getWorkflowTagsForDisplay } from '../../utils/workflowTags'
+
+import { FlatAutomationsTableBody, GroupedAutomationsTableBody } from './AutomationsTableBody'
 
 type Workflow = WorkflowAPI.components['schemas']['Workflow']
 
@@ -103,6 +101,7 @@ export default function Automations() {
 
   const { showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
+  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
 
   // Filter state management
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
@@ -165,6 +164,11 @@ export default function Automations() {
       include_total: true,
     }
 
+    // Filter by selected project
+    if (selectedProject?.id) {
+      params.project_id = selectedProject.id
+    }
+
     // Add filter params
     const filterParams = buildFilterParams(filters)
     Object.assign(params, filterParams)
@@ -175,7 +179,7 @@ export default function Automations() {
     }
 
     return params
-  }, [filters, cursor])
+  }, [filters, cursor, selectedProject])
 
   // Query workflows with server-side filtering
   const workflowsQuery = workflowClient.useQuery('get', '/workflows', {
@@ -192,6 +196,37 @@ export default function Automations() {
   // Sorting only the current page would produce incorrect results
   // TODO: Implement server-side sorting by passing sort params to the API
   const automations = workflows
+
+  // Group workflows by project when viewing all projects
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
+
+  const groupedAutomations = useMemo(() => {
+    if (!isAllProjects) return null
+    const groups = new Map<string, { project: (typeof projects)[number] | null; workflows: Workflow[] }>()
+    for (const workflow of automations) {
+      const projectId = (workflow as unknown as { project_id?: string }).project_id ?? 'unknown'
+      if (!groups.has(projectId)) {
+        groups.set(projectId, {
+          project: projects.find((p) => p.id === projectId) ?? null,
+          workflows: [],
+        })
+      }
+      groups.get(projectId)!.workflows.push(workflow)
+    }
+    return groups
+  }, [automations, projects, isAllProjects])
+
+  const toggleProjectCollapsed = (projectId: string) => {
+    setCollapsedProjects((prev) => {
+      const next = new Set(prev)
+      if (next.has(projectId)) {
+        next.delete(projectId)
+      } else {
+        next.add(projectId)
+      }
+      return next
+    })
+  }
 
   const hasActiveFilters = filters.length > 0
 
@@ -293,7 +328,7 @@ export default function Automations() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Automations">
+      <AppPageHeader title={<PageTitleWithProject title="Automations" projectSelector={ProjectSelector} />}>
         <Button variant="primary" onClick={() => setLocation('/automation-builder/new')}>
           Create automation
         </Button>
@@ -351,37 +386,16 @@ export default function Automations() {
                     <Th screenReaderText="Actions" />
                   </Tr>
                 </Thead>
-                <Tbody>
-                  {automations.map((workflow) => (
-                    <Tr key={workflow.id}>
-                      <Td dataLabel="Name">
-                        <LinkCell href={`/automation-builder/${workflow.id}`}>{workflow.name}</LinkCell>
-                      </Td>
-                      <Td dataLabel="Created at">
-                        <DateCell dateString={getDateField(workflow, 'createdAt')} />
-                      </Td>
-                      <Td dataLabel="Updated at">
-                        <DateCell dateString={getDateField(workflow, 'updatedAt')} />
-                      </Td>
-                      <Td dataLabel="Tags">
-                        <BadgesCell items={getWorkflowTagsForDisplay(workflow)} />
-                      </Td>
-                      <Td dataLabel="State">
-                        <SwitchCell
-                          checked={workflow?.is_enabled}
-                          handleChange={() => {}} // Read-only display - toggle via edit workflow
-                          showLabels
-                          enabledLabel="Enabled"
-                          disabledLabel="Disabled"
-                          readOnly
-                        />
-                      </Td>
-                      <Td isActionCell>
-                        <ActionsColumn items={getRowActions(workflow)} />
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
+                {isAllProjects && groupedAutomations ? (
+                  <GroupedAutomationsTableBody
+                    groupedAutomations={groupedAutomations}
+                    collapsedProjects={collapsedProjects}
+                    onToggleProject={toggleProjectCollapsed}
+                    getRowActions={getRowActions}
+                  />
+                ) : (
+                  <FlatAutomationsTableBody automations={automations} getRowActions={getRowActions} />
+                )}
               </ScrollableTableContainer>
             )}
           </Stack>

@@ -8,6 +8,7 @@ import { credentialsClient } from '../../../client'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { formatDateTime } from '../../../utils/dateUtils'
+import { detachPromise } from '../../../utils/detachPromise'
 import { StatusLabel } from '../../builder/ExecutionStatus'
 
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
@@ -31,7 +32,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
 
   const queryState = useQueryState(query, {
     title: 'Failed to load workflows',
-    onRetry: () => void query.refetch(),
+    onRetry: () => detachPromise(query.refetch()),
   })
 
   if (queryState) {

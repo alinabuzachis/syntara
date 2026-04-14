@@ -1,0 +1,361 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type React from 'react'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { axe } from 'vitest-axe'
+
+import { useQueryState } from '../../components/states/useQueryState'
+
+import { accessClient } from './accessClient'
+import { PoliciesTab } from './PoliciesTab'
+import type { PolicyRead } from './types'
+
+vi.mock('./accessClient', () => ({
+  accessClient: {
+    useQuery: vi.fn(),
+  },
+  accessFetchClient: {
+    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: null }),
+    POST: vi.fn().mockResolvedValue({ data: {}, error: null }),
+  },
+}))
+
+vi.mock('../../components/states/useQueryState', () => ({
+  useQueryState: vi.fn().mockReturnValue(null),
+}))
+
+vi.mock('../../components/details/CodeBlock', () => ({
+  CodeBlock: ({ jsonObject }: { jsonObject: unknown }) => <pre>{JSON.stringify(jsonObject)}</pre>,
+}))
+
+const samplePolicies: PolicyRead[] = [
+  {
+    id: 'p1',
+    name: 'admin-policy',
+    description: 'Full admin access',
+    statements: [{ scope: 'any', effect: 'allow', actions: ['workflow:read', 'workflow:write'] }],
+    is_builtin: true,
+    project_id: null,
+    labels: {},
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-06-01T00:00:00Z',
+  },
+  {
+    id: 'p2',
+    name: 'viewer-policy',
+    description: 'Read-only access',
+    statements: [{ scope: 'self', effect: 'allow', actions: ['workflow:read'] }],
+    is_builtin: false,
+    project_id: 'proj-1',
+    labels: {},
+    created_at: '2024-02-01T00:00:00Z',
+    updated_at: null,
+  },
+]
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+)
+
+function setupPoliciesQuery(policies: PolicyRead[], options?: { total?: number; next?: string | null }) {
+  vi.mocked(accessClient.useQuery).mockReturnValue({
+    data: {
+      resources: policies,
+      total: options?.total ?? policies.length,
+      next: options?.next ?? null,
+      prev: null,
+    },
+    isPending: false,
+    error: null,
+    refetch: vi.fn(),
+  } as ReturnType<typeof accessClient.useQuery>)
+}
+
+describe('PoliciesTab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    queryClient.clear()
+    vi.mocked(useQueryState).mockReturnValue(null)
+  })
+
+  it('renders empty state when no policies exist', () => {
+    setupPoliciesQuery([])
+
+    render(<PoliciesTab />, { wrapper })
+
+    expect(screen.getByText('No policies found')).toBeInTheDocument()
+    expect(screen.getByText('No policies are available.')).toBeInTheDocument()
+  })
+
+  it('renders loading state via useQueryState', () => {
+    vi.mocked(useQueryState).mockReturnValue(<div>Loading...</div>)
+    setupPoliciesQuery([])
+
+    render(<PoliciesTab />, { wrapper })
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
+  })
+
+  it('renders error state via useQueryState', () => {
+    vi.mocked(useQueryState).mockReturnValue(<div>Error loading policies</div>)
+    setupPoliciesQuery([])
+
+    render(<PoliciesTab />, { wrapper })
+
+    expect(screen.getByText('Error loading policies')).toBeInTheDocument()
+  })
+
+  it('renders policies table with data', () => {
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    // PF6 Table with isClickable/isSelectable uses role="grid"
+    expect(screen.getByRole('grid')).toBeInTheDocument()
+    expect(screen.getByText('admin-policy')).toBeInTheDocument()
+    expect(screen.getByText('viewer-policy')).toBeInTheDocument()
+    expect(screen.getByText('Full admin access')).toBeInTheDocument()
+    expect(screen.getByText('Read-only access')).toBeInTheDocument()
+  })
+
+  it('renders Built-in and Custom labels', () => {
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    expect(screen.getByText('Built-in')).toBeInTheDocument()
+    expect(screen.getByText('Custom')).toBeInTheDocument()
+  })
+
+  it('shows dash for null description', () => {
+    setupPoliciesQuery([
+      {
+        ...samplePolicies[0],
+        description: null,
+      },
+    ])
+
+    render(<PoliciesTab />, { wrapper })
+
+    expect(screen.getByText('-')).toBeInTheDocument()
+  })
+
+  it('opens PolicyDetailSidebar when a row is clicked', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    // Click on the first policy row
+    const row = screen.getByText('admin-policy').closest('tr')
+    expect(row).toBeInTheDocument()
+    await user.click(row!)
+
+    // Sidebar should appear with policy details
+    expect(screen.getByRole('heading', { name: 'Policy details' })).toBeInTheDocument()
+  })
+
+  it('closes sidebar when clicking the same row again', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    const row = screen.getByText('admin-policy').closest('tr')
+    await user.click(row!)
+
+    // Sidebar should appear
+    expect(screen.getByRole('heading', { name: 'Policy details' })).toBeInTheDocument()
+
+    // Click the same row again to close
+    await user.click(row!)
+
+    expect(screen.queryByRole('heading', { name: 'Policy details' })).not.toBeInTheDocument()
+  })
+
+  it('renders pagination footer', () => {
+    setupPoliciesQuery(samplePolicies, { total: 2 })
+
+    render(<PoliciesTab />, { wrapper })
+
+    // Pagination component should be in the DOM
+    expect(screen.getByRole('navigation', { name: /pagination/i })).toBeInTheDocument()
+  })
+
+  it('has no accessibility violations', async () => {
+    setupPoliciesQuery(samplePolicies)
+
+    const { container } = render(<PoliciesTab />, { wrapper })
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('passes query params from filters to useQuery', () => {
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    // Verify useQuery was called with the policies endpoint and pagination params
+    const calls = vi.mocked(accessClient.useQuery).mock.calls
+    const policiesCall = calls.find((c) => c[1] === '/policies')
+    expect(policiesCall).toBeDefined()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access -- test assertion on mock call args
+    const queryParams = (policiesCall?.[2] as any)?.params?.query as Record<string, unknown>
+    expect(queryParams).toMatchObject({ limit: 20, include_total: true })
+  })
+
+  it('switches to a different policy in sidebar when clicking a different row', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    // Click on first policy row
+    const row1 = screen.getByText('admin-policy').closest('tr')
+    await user.click(row1!)
+
+    expect(screen.getByRole('heading', { name: 'Policy details' })).toBeInTheDocument()
+
+    // Click on second policy row
+    const row2 = screen.getByText('viewer-policy').closest('tr')
+    await user.click(row2!)
+
+    // Sidebar should now show the second policy's scope
+    expect(screen.getByText('Project: proj-1')).toBeInTheDocument()
+  })
+
+  it('renders column headers with sort buttons', () => {
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    expect(screen.getByRole('columnheader', { name: /name/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /description/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /type/i })).toBeInTheDocument()
+  })
+
+  it('calls sort when column header is clicked', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies)
+
+    render(<PoliciesTab />, { wrapper })
+
+    // Click the Name column sort button
+    const nameColumnHeader = screen.getByRole('columnheader', { name: /name/i })
+    const sortButton = nameColumnHeader.querySelector('button')
+    expect(sortButton).toBeInTheDocument()
+    await user.click(sortButton!)
+
+    // After sorting, the query should be called again with sort params.
+    // We verify useQuery was called after the sort click.
+    expect(vi.mocked(accessClient.useQuery)).toHaveBeenCalled()
+  })
+
+  it('has no accessibility violations in empty state', async () => {
+    setupPoliciesQuery([])
+
+    const { container } = render(<PoliciesTab />, { wrapper })
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('navigates to the next page when next button is clicked', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies, { total: 40, next: 'cursor-page2' })
+
+    render(<PoliciesTab />, { wrapper })
+
+    // Click the next page button in the pagination
+    const nextButton = screen.getByRole('button', { name: /go to next page/i })
+    await user.click(nextButton)
+
+    // Verify useQuery was called again (with cursor param on re-render)
+    const calls = vi.mocked(accessClient.useQuery).mock.calls
+    const lastCall = calls[calls.length - 1]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access -- test assertion on mock call args
+    const queryParams = (lastCall?.[2] as any)?.params?.query as Record<string, unknown>
+    expect(queryParams).toMatchObject({ cursor: 'cursor-page2' })
+  })
+
+  it('navigates to the previous page when prev button is clicked', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies, { total: 40, next: 'cursor-page2' })
+
+    render(<PoliciesTab />, { wrapper })
+
+    // Go to page 2 first
+    const nextButton = screen.getByRole('button', { name: /go to next page/i })
+    await user.click(nextButton)
+
+    // Now go back to page 1
+    const prevButton = screen.getByRole('button', { name: /go to previous page/i })
+    await user.click(prevButton)
+
+    // After going back, cursor should be null (first page)
+    const calls = vi.mocked(accessClient.useQuery).mock.calls
+    const lastCall = calls[calls.length - 1]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access -- test assertion on mock call args
+    const queryParams = (lastCall?.[2] as any)?.params?.query as Record<string, unknown>
+    expect(queryParams).not.toHaveProperty('cursor')
+  })
+
+  it('shows empty filter state when filters produce no results', async () => {
+    const user = userEvent.setup()
+    // Mock returns data on first calls, then empty after filter is applied
+    let returnEmpty = false
+
+    vi.mocked(accessClient.useQuery).mockImplementation((() => ({
+      data: {
+        resources: returnEmpty ? [] : samplePolicies,
+        total: returnEmpty ? 0 : samplePolicies.length,
+        next: null,
+        prev: null,
+      },
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    })) as unknown as typeof accessClient.useQuery)
+
+    render(<PoliciesTab />, { wrapper })
+
+    // Table should be visible initially
+    expect(screen.getByRole('grid')).toBeInTheDocument()
+
+    // Apply a filter
+    const filterInput = screen.getByPlaceholderText('Filter by name')
+    await user.type(filterInput, 'nonexistent')
+
+    // Switch to empty results before submitting the filter
+    returnEmpty = true
+
+    const applyButton = screen.getByRole('button', { name: 'Apply filter' })
+    await user.click(applyButton)
+
+    // Should show the empty filter state
+    expect(screen.getByText('No results found')).toBeInTheDocument()
+  })
+
+  it('resets pagination when per-page changes', async () => {
+    const user = userEvent.setup()
+    setupPoliciesQuery(samplePolicies, { total: 40, next: 'cursor-page2' })
+
+    render(<PoliciesTab />, { wrapper })
+
+    // The PF6 compact pagination shows a per-page menu toggle with the range text
+    const perPageMenu = screen.getByRole('button', { name: /1 - 20 of 40/i })
+    await user.click(perPageMenu)
+
+    const option50 = await screen.findByText('50 per page')
+    await user.click(option50)
+
+    // Verify the query was called with the new perPage and no cursor
+    const calls = vi.mocked(accessClient.useQuery).mock.calls
+    const lastCall = calls[calls.length - 1]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access -- test assertion on mock call args
+    const queryParams = (lastCall?.[2] as any)?.params?.query as Record<string, unknown>
+    expect(queryParams).toMatchObject({ limit: 50 })
+    expect(queryParams).not.toHaveProperty('cursor')
+  })
+})

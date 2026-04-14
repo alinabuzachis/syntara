@@ -43,6 +43,7 @@ import { AppPageHeader } from '../../app/AppPageHeader'
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
+import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { getActivityMetadata, useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -160,12 +161,110 @@ function isWorkflowQuery(query: Query): boolean {
     query.queryKey[0] === 'get' && typeof query.queryKey[1] === 'string' && query.queryKey[1].startsWith('/workflows')
   )
 }
+
+/**
+ * Processes a raw workflow-with-version from the API into the internal store
+ * representation (flat activities, React Flow edges, init payload).
+ *
+ * Extracted from BuilderContent to reduce cognitive complexity.
+ */
+function processExistingWorkflow(workflow: WorkflowWithVersion) {
+  // Caller guarantees version and workflow_definition are present
+  const workflowDef = workflow.version!.workflow_definition!
+
+  const nodes = (workflowDef.nodes ?? []) as Activity[]
+  const v2Edges = (workflowDef.edges ?? []) as Array<{
+    from: string
+    to: string
+    from_port?: string
+    to_port?: string
+  }>
+
+  // SECURITY: Ensure all triggers have IDs at load time.
+  const triggers = (workflowDef.triggers ?? []).map((t, index) => {
+    const trigger = t as { id?: string; type?: string }
+    if (!trigger.id) {
+      return { ...t, id: `${trigger.type ?? 'trigger'}_${index}` }
+    }
+    return t
+  })
+
+  // SECURITY: Sanitize metadata when loading from API to enforce allowlist
+  const flattenedActivities = nodes.map((a) => {
+    const meta = getActivityMetadata(a)
+    if (meta) return { ...a, metadata: meta }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructuring to strip metadata
+    const { metadata: _unsanitized, ...rest } = a as Activity & { metadata?: unknown }
+    return rest as Activity
+  })
+
+  // Build map: trigger definition ID → React Flow display ID
+  const triggerIdToDisplayId = new Map<string, string>()
+  triggers.forEach((t, index) => {
+    const defId = (t as { id?: string }).id
+    if (defId) {
+      triggerIdToDisplayId.set(defId, buildTriggerNodeId(index))
+    }
+  })
+
+  // Build set of valid node IDs (activities + triggers)
+  const validNodeIds = new Set<string>()
+  flattenedActivities.forEach((a) => validNodeIds.add(a.id))
+  triggers.forEach((_, index) => validNodeIds.add(buildTriggerNodeId(index)))
+
+  // Convert v2 edges to React Flow edges, filtering orphaned edges
+  const generatedEdges: EdgeConnection[] = v2Edges
+    .map((e) => {
+      const source = triggerIdToDisplayId.get(e.from) ?? e.from
+      const target = triggerIdToDisplayId.get(e.to) ?? e.to
+      const portSuffix = e.from_port ? `-${e.from_port}` : ''
+      return {
+        id: `${source}-${target}${portSuffix}`,
+        source,
+        target,
+        sourceHandle: v2PortToHandle(e.from_port),
+        targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target',
+      }
+    })
+    .filter((edge) => {
+      const sourceExists = validNodeIds.has(edge.source)
+      const targetExists = validNodeIds.has(edge.target)
+      const isValid = sourceExists && targetExists
+      if (!isValid) {
+        // eslint-disable-next-line no-console
+        console.warn(`Filtered orphaned edge: ${edge.id} (${edge.source} -> ${edge.target})`, {
+          sourceExists,
+          targetExists,
+        })
+      }
+      return isValid
+    })
+
+  const flattenedWorkflow = {
+    ...workflowDef,
+    workflow: { activities: flattenedActivities },
+  } as unknown as WorkflowDefinition
+
+  const tagKeys = Object.keys(workflow.labels ?? {})
+
+  return {
+    flattenedWorkflow,
+    generatedEdges,
+    initPayload: {
+      name: workflow.name,
+      description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,
+      tags: tagKeys,
+      isEnabled: workflow.is_enabled ?? false,
+    },
+  }
+}
 // v8 ignore stop
 // eslint-disable-next-line max-lines-per-function, complexity
 export function BuilderContent(props: BuilderContentProps) {
   const { workflow, isNew, workflowId } = props
   const [, setLocation] = useLocation()
   const { showSuccess, showError } = useAlerts()
+  const { selectedProject, ProjectSelector } = useProjectSelector({ requireProject: isNew })
   const queryClient = useQueryClient()
   const reactFlowInstance = useReactFlow()
   const nodesInitialized = useNodesInitialized()
@@ -299,113 +398,12 @@ export function BuilderContent(props: BuilderContentProps) {
       })
     } else if (workflow?.version?.workflow_definition && !hasLoadedRef.current && workflow.id === workflowId) {
       // Load existing workflow - ONLY on first load, not during refetch after save
-      // This prevents overwriting user-created edges (including ButtonEdges) with saved edges
       // CRITICAL: Only load if workflow.id matches workflowId (prevents loading stale cached workflow)
-      const workflowDef = workflow.version.workflow_definition
-
-      // V2: activities are at workflowDef.nodes, edges at workflowDef.edges
-      const nodes = (workflowDef.nodes ?? []) as Activity[]
-      const v2Edges = (workflowDef.edges ?? []) as Array<{
-        from: string
-        to: string
-        from_port?: string
-        to_port?: string
-      }>
-      // SECURITY: Ensure all triggers have IDs at load time.
-      // If any trigger loaded from the API lacks an ID, generate one from its type and index.
-      // This prevents display IDs (trigger-0) from leaking to the backend at save time.
-      const triggers = (workflowDef.triggers ?? []).map((t, index) => {
-        const trigger = t as { id?: string; type?: string }
-        if (!trigger.id) {
-          return { ...t, id: `${trigger.type ?? 'trigger'}_${index}` }
-        }
-        return t
-      })
-
-      // Activities are already flat in v2 - sanitize metadata on the write path
-      // SECURITY: Sanitize metadata when loading from API to enforce allowlist
-      const flattenedActivities = nodes.map((a) => {
-        const meta = getActivityMetadata(a)
-        // SECURITY: If meta is defined, replace with sanitized version.
-        // If meta is undefined, strip any raw metadata from the API to prevent
-        // unsanitized properties from reaching the UI.
-        if (meta) return { ...a, metadata: meta }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructuring to strip metadata
-        const { metadata: _unsanitized, ...rest } = a as Activity & { metadata?: unknown }
-        return rest as Activity
-      })
-
-      // Build map: trigger definition ID → React Flow display ID
-      // e.g. "manual_trigger" → "trigger-0"
-      const triggerIdToDisplayId = new Map<string, string>()
-      triggers.forEach((t, index) => {
-        const defId = (t as { id?: string }).id
-        if (defId) {
-          triggerIdToDisplayId.set(defId, buildTriggerNodeId(index))
-        }
-      })
-
-      // Build set of valid node IDs (activities + triggers)
-      const validNodeIds = new Set<string>()
-      flattenedActivities.forEach((a) => validNodeIds.add(a.id))
-      triggers.forEach((_, index) => validNodeIds.add(buildTriggerNodeId(index)))
-
-      // Convert v2 edges to React Flow edges, mapping trigger IDs to display IDs
-      // Filter out orphaned edges (edges referencing non-existent nodes)
-      const generatedEdges: EdgeConnection[] = v2Edges
-        .map((e) => {
-          const source = triggerIdToDisplayId.get(e.from) ?? e.from
-          const target = triggerIdToDisplayId.get(e.to) ?? e.to
-          const portSuffix = e.from_port ? `-${e.from_port}` : ''
-          return {
-            id: `${source}-${target}${portSuffix}`,
-            source,
-            target,
-            sourceHandle: v2PortToHandle(e.from_port),
-            targetHandle: e.to_port ? v2PortToHandle(e.to_port) : 'target',
-          }
-        })
-        .filter((edge) => {
-          // Filter out edges that reference non-existent nodes
-          const sourceExists = validNodeIds.has(edge.source)
-          const targetExists = validNodeIds.has(edge.target)
-          const isValid = sourceExists && targetExists
-
-          if (!isValid) {
-            // eslint-disable-next-line no-console
-            console.warn(`Filtered orphaned edge: ${edge.id} (${edge.source} -> ${edge.target})`, {
-              sourceExists,
-              targetExists,
-            })
-          }
-
-          return isValid
-        })
-
-      // Build internal store representation with workflow.activities wrapper
-      const flattenedWorkflow = {
-        ...workflowDef,
-        workflow: {
-          activities: flattenedActivities,
-        },
-      } as unknown as WorkflowDefinition
+      const { flattenedWorkflow, generatedEdges, initPayload } = processExistingWorkflow(workflow)
 
       queueMicrotask(() => {
-        // Use atomic operation to set both workflow and edges together
-        // This prevents race conditions where BuilderFlow renders with workflow but no edges
-        // Note: loadWorkflowWithEdges already sets isDirty to false
         loadWorkflowWithEdges(flattenedWorkflow, generatedEdges)
-        // Tags come only from workflow.labels (list API returns them)
-        const tagKeys = Object.keys(workflow.labels ?? {})
-        dispatch({
-          type: 'INIT_WORKFLOW',
-          payload: {
-            name: workflow.name,
-            description: workflow.description ?? workflow.name ?? DEFAULT_WORKFLOW_NAME,
-            tags: tagKeys,
-            isEnabled: workflow.is_enabled ?? false,
-          },
-        })
+        dispatch({ type: 'INIT_WORKFLOW', payload: initPayload })
         hasLoadedRef.current = true
       })
     }
@@ -514,6 +512,7 @@ export function BuilderContent(props: BuilderContentProps) {
         is_enabled: isEnabled,
         labels: Object.fromEntries(workflowTags.map((t) => [t, ''])),
         workflow_definition: workflowDef,
+        ...(isNew && selectedProject ? { project_id: selectedProject.id } : {}),
       }
 
       const onSaveSuccess = async (successMessage: string, workflowIdToNavigate?: string) => {
@@ -581,6 +580,7 @@ export function BuilderContent(props: BuilderContentProps) {
     setLocation,
     queryClient,
     markClean,
+    selectedProject,
   ])
 
   // Register save handler with the unsaved changes context
@@ -811,6 +811,7 @@ export function BuilderContent(props: BuilderContentProps) {
                         placeholder="Workflow name"
                       />
                     </FlexItem>
+                    <FlexItem>{ProjectSelector}</FlexItem>
                     <FlexItem>
                       <EditAutomationDetailsPopover
                         name={workflowName}
@@ -907,19 +908,24 @@ export function BuilderContent(props: BuilderContentProps) {
 
                     <Divider orientation={{ default: 'vertical' }} />
 
-                    <Button
-                      variant="plain"
-                      onClick={handleSaveWorkflow}
-                      isDisabled={isPending}
-                      icon={
-                        <Icon isInline>
-                          <RhUiSaveFillIcon />
-                        </Icon>
-                      }
-                      iconPosition="start"
+                    <Tooltip
+                      content="Select a project before saving"
+                      trigger={isNew && !selectedProject ? 'mouseenter focus' : 'manual'}
                     >
-                      {isPending ? 'Saving...' : 'Save'}
-                    </Button>
+                      <Button
+                        variant="plain"
+                        onClick={handleSaveWorkflow}
+                        isAriaDisabled={isPending || (isNew && !selectedProject)}
+                        icon={
+                          <Icon isInline>
+                            <RhUiSaveFillIcon />
+                          </Icon>
+                        }
+                        iconPosition="start"
+                      >
+                        {isPending ? 'Saving...' : 'Save'}
+                      </Button>
+                    </Tooltip>
 
                     {!isNew && (
                       <>

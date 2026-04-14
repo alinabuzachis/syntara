@@ -14,7 +14,6 @@ const defaultValues: UserFormData = {
   last_name: '',
   email: '',
   password: '',
-  role: 'viewer',
   is_active: true,
 }
 
@@ -41,7 +40,6 @@ describe('UserFormFields', () => {
     expect(screen.getByLabelText('Last Name')).toBeInTheDocument()
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toBeInTheDocument()
-    expect(screen.getByLabelText('System Role')).toBeInTheDocument()
     expect(screen.getByLabelText('Active')).toBeInTheDocument()
   })
 
@@ -67,15 +65,6 @@ describe('UserFormFields', () => {
     render(<TestWrapper isEdit />)
 
     expect(screen.getByPlaceholderText('Leave blank to keep current password')).toBeInTheDocument()
-  })
-
-  it('renders all role options in the dropdown', () => {
-    render(<TestWrapper />)
-
-    expect(screen.getByRole('option', { name: 'Viewer' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Creator' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Approver' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Administrator' })).toBeInTheDocument()
   })
 
   it('shows "Active" label on the status switch by default', () => {

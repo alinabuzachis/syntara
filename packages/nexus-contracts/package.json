@@ -23,6 +23,12 @@
     "gen:metrics": "npx openapi-typescript ./nexus/src/nexus/schemas/metrics/openapi.yaml --output ./src/metrics-api.ts --default-non-nullable false",
     "gen:tool-manager-metrics": "npx openapi-typescript ./nexus/src/nexus/schemas/tool_manager/metrics.yaml --output ./src/tool-manager-metrics.ts --default-non-nullable false",
     "gen:credentials": "npx openapi-typescript ./nexus/src/nexus/schemas/credentials/openapi.yaml --output ./src/credentials-api.ts --default-non-nullable false",
+    "gen:projects": "npx openapi-typescript ./nexus/src/nexus/schemas/projects/openapi.yaml --output ./src/projects-api.ts --default-non-nullable false",
+    "gen:authz": "npx openapi-typescript ./nexus/src/nexus/schemas/authz/openapi.yaml --output ./src/authz-api.ts --default-non-nullable false",
+    "gen:roles": "npx openapi-typescript ./nexus/src/nexus/schemas/authz/role.openapi.yaml --output ./src/roles-api.ts --default-non-nullable false",
+    "gen:policies": "npx openapi-typescript ./nexus/src/nexus/schemas/authz/policy.openapi.yaml --output ./src/policies-api.ts --default-non-nullable false",
+    "gen:user-role-assignments": "npx openapi-typescript ./nexus/src/nexus/schemas/authz/user_role.openapi.yaml --output ./src/user-role-assignments-api.ts --default-non-nullable false",
+    "gen:group-role-assignments": "npx openapi-typescript ./nexus/src/nexus/schemas/authz/group_role.openapi.yaml --output ./src/group-role-assignments-api.ts --default-non-nullable false",
     "gen:examples": "cp -r ./nexus/tests/integration/workflow/examples ../nexus-mock-api/src",
     "nexus:clean": "rm -rf nexus"
   }

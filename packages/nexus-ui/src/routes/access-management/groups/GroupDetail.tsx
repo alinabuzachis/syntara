@@ -1,0 +1,238 @@
+import type { Group } from '@ansible/nexus-contracts'
+import {
+  Badge,
+  Button,
+  CompassPanel,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
+  Flex,
+  FlexItem,
+  Label,
+  StackItem,
+  Tab,
+  TabTitleText,
+  Tabs,
+  Title,
+} from '@patternfly/react-core'
+import { RhUiArrowLeftIcon, RhUiEditIcon } from '@patternfly/react-icons'
+import { useState } from 'react'
+import { useParams } from 'wouter'
+import { navigate } from 'wouter/use-browser-location'
+
+import { AppPage } from '../../../app/AppPage'
+import { AppPageHeader } from '../../../app/AppPageHeader'
+import { AppRoute } from '../../../app/AppRoute'
+import { useQueryState } from '../../../components/states/useQueryState'
+import { formatDateTime } from '../../../utils/dateUtils'
+import { accessClient } from '../../access/accessClient'
+import { GroupFormModal } from '../GroupFormModal'
+import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
+
+import { GroupMembersPanel } from './GroupMembersPanel'
+import { GroupNotFoundState } from './GroupNotFoundState'
+
+function GroupDetailsTab({ group }: Readonly<{ group: Group }>) {
+  return (
+    <DescriptionList isHorizontal isAutoColumnWidths>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Name</DescriptionListTerm>
+        <DescriptionListDescription>
+          <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapSm' }}>
+            <FlexItem>{group.name}</FlexItem>
+            {group.is_builtin && <Label isCompact>Built-in</Label>}
+          </Flex>
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Description</DescriptionListTerm>
+        <DescriptionListDescription>{group.description ?? '-'}</DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Created</DescriptionListTerm>
+        <DescriptionListDescription>{formatDateTime(group.created_at)}</DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Updated</DescriptionListTerm>
+        <DescriptionListDescription>{formatDateTime(group.updated_at)}</DescriptionListDescription>
+      </DescriptionListGroup>
+    </DescriptionList>
+  )
+}
+
+function GroupTabBar({
+  activeTab,
+  onSelect,
+  isAuthenticated,
+  memberCount,
+}: Readonly<{
+  activeTab: number
+  onSelect: (_event: React.MouseEvent | React.KeyboardEvent, key: string | number) => void
+  isAuthenticated: boolean
+  memberCount: number
+}>) {
+  return (
+    <Tabs activeKey={activeTab} onSelect={onSelect}>
+      <Tab eventKey={0} title={<TabTitleText>Details</TabTitleText>} />
+      {!isAuthenticated && (
+        <Tab
+          eventKey={1}
+          title={
+            <TabTitleText>
+              Members <Badge isRead>{memberCount}</Badge>
+            </TabTitleText>
+          }
+        />
+      )}
+      <Tab eventKey={2} title={<TabTitleText>Roles</TabTitleText>} />
+    </Tabs>
+  )
+}
+
+function GroupTabContent({
+  group,
+  groupId,
+  activeTab,
+  isAuthenticated,
+  onMembersChange,
+}: Readonly<{
+  group: Group
+  groupId: string
+  activeTab: number
+  isAuthenticated: boolean
+  onMembersChange: () => void
+}>) {
+  return (
+    <>
+      {activeTab === 0 && <GroupDetailsTab group={group} />}
+      {activeTab === 1 && !isAuthenticated && (
+        <GroupMembersPanel groupId={groupId} onMembershipChange={onMembersChange} />
+      )}
+      {activeTab === 2 && <RoleAssignmentsPanel principalType="group" principalId={groupId} />}
+    </>
+  )
+}
+
+export function GroupDetail() {
+  const { groupId } = useParams<{ groupId: string }>()
+  const [activeTab, setActiveTab] = useState(0)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+
+  const groupQuery = accessClient.useQuery(
+    'get',
+    '/groups/{group_id}',
+    { params: { path: { group_id: groupId ?? '' } } },
+    { enabled: !!groupId, retry: false }
+  )
+
+  const isAuthenticated = groupQuery.data?.name === 'authenticated'
+
+  const membersQuery = accessClient.useQuery(
+    'get',
+    '/groups/{group_id}/members',
+    { params: { path: { group_id: groupId ?? '' } } },
+    { enabled: !!groupId && !isAuthenticated }
+  )
+
+  const membersData = membersQuery.data
+  const memberCount = membersData?.total ?? membersData?.resources?.length ?? 0
+
+  const navigateBack = () => navigate(AppRoute.AccessManagement.Groups)
+
+  const groupData = groupQuery.data
+  const refetchGroup = groupQuery.refetch
+  const queryState = useQueryState(groupQuery, {
+    title: 'Error loading group',
+    onRetry: () => {
+      refetchGroup().catch(() => {})
+    },
+  })
+
+  if (groupQuery.error) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Group Details" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <GroupNotFoundState
+              onBack={navigateBack}
+              onRetry={() => {
+                refetchGroup().catch(() => {})
+              }}
+            />
+          </CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
+
+  if (queryState) {
+    return (
+      <AppPage>
+        <AppPageHeader title="Group Details" />
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>{queryState}</CompassPanel>
+        </StackItem>
+      </AppPage>
+    )
+  }
+
+  if (!groupData) return null
+
+  const headerTitle = (
+    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
+      <FlexItem>
+        <Button variant="plain" aria-label="Back to groups" onClick={navigateBack}>
+          <RhUiArrowLeftIcon />
+        </Button>
+      </FlexItem>
+      <FlexItem>
+        <Title headingLevel="h1">{groupData.name}</Title>
+      </FlexItem>
+    </Flex>
+  )
+
+  return (
+    <AppPage>
+      <AppPageHeader title={headerTitle}>
+        <FlexItem grow={{ default: 'grow' }} />
+        {!groupData.is_builtin && (
+          <Button variant="secondary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>
+            Edit group
+          </Button>
+        )}
+      </AppPageHeader>
+      <StackItem>
+        <GroupTabBar
+          activeTab={activeTab}
+          onSelect={(_event, key) => setActiveTab(Number(key))}
+          isAuthenticated={isAuthenticated}
+          memberCount={memberCount}
+        />
+      </StackItem>
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+        <CompassPanel isFullHeight>
+          <GroupTabContent
+            group={groupData}
+            groupId={groupId ?? ''}
+            activeTab={activeTab}
+            isAuthenticated={isAuthenticated}
+            onMembersChange={() => {
+              membersQuery.refetch().catch(() => {})
+            }}
+          />
+        </CompassPanel>
+      </StackItem>
+
+      <GroupFormModal
+        group={groupData}
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSuccess={() => {
+          groupQuery.refetch().catch(() => {})
+        }}
+      />
+    </AppPage>
+  )
+}

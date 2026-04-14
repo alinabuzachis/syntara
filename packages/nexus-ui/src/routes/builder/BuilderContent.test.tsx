@@ -38,6 +38,17 @@ vi.mock('../../client', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+  authMiddleware: { onRequest: vi.fn() },
+}))
+
+// Mock useProjectSelector to avoid accessClient dependency
+vi.mock('../../hooks/useProjectSelector', () => ({
+  useProjectSelector: () => ({
+    selectedProject: { id: 'project-1', name: 'Test Project' },
+    isAllProjects: false,
+    projects: [{ id: 'project-1', name: 'Test Project' }],
+    ProjectSelector: null,
+  }),
 }))
 
 const mockSetLocation = vi.fn()
@@ -55,6 +66,15 @@ vi.mock('../../app/useUnsavedChanges', () => ({
   useUnsavedChanges: () => ({
     registerSaveHandler: vi.fn(),
     unregisterSaveHandler: vi.fn(),
+  }),
+}))
+
+vi.mock('../../hooks/useProjectSelector', () => ({
+  useProjectSelector: () => ({
+    selectedProject: { id: 'project-1', name: 'Test Project' },
+    isAllProjects: false,
+    projects: [{ id: 'project-1', name: 'Test Project' }],
+    ProjectSelector: null,
   }),
 }))
 
