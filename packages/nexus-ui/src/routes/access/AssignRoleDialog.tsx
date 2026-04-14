@@ -185,9 +185,13 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
 
   const roleOptions = useMemo(
     () =>
-      (rolesData?.resources ?? []).map((role) =>
-        isProjectScoped ? { value: role.name, label: role.name } : { value: role.id, label: role.name }
-      ),
+      (rolesData?.resources ?? []).map((role) => ({
+        value: isProjectScoped ? role.name : role.id,
+        label: role.name,
+        tag: role.project_id
+          ? { label: 'Project', color: 'green' as const }
+          : { label: 'System', color: 'blue' as const },
+      })),
     [rolesData, isProjectScoped]
   )
 

@@ -258,7 +258,7 @@ describe('AssignRoleDialog', () => {
       // Select a role from the typeahead
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: 'Admin' })
+      const roleOption = await screen.findByRole('option', { name: /Admin/ })
       await user.click(roleOption)
 
       // Submit
@@ -309,7 +309,7 @@ describe('AssignRoleDialog', () => {
       // Select a role
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: 'Admin' })
+      const roleOption = await screen.findByRole('option', { name: /Admin/ })
       await user.click(roleOption)
 
       await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -408,7 +408,7 @@ describe('AssignRoleDialog', () => {
       // Select a role (system-scoped uses role ID as value)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: 'Admin' })
+      const roleOption = await screen.findByRole('option', { name: /Admin/ })
       await user.click(roleOption)
 
       await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -442,7 +442,7 @@ describe('AssignRoleDialog', () => {
       // Select a role
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: 'Viewer' })
+      const roleOption = await screen.findByRole('option', { name: /Viewer/ })
       await user.click(roleOption)
 
       await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -464,7 +464,7 @@ describe('AssignRoleDialog', () => {
       // Select a role in project scope (default: user-project)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: 'Admin' })
+      const roleOption = await screen.findByRole('option', { name: /Admin/ })
       await user.click(roleOption)
 
       // Verify role is selected (clear button visible)
@@ -491,7 +491,7 @@ describe('AssignRoleDialog', () => {
       // Select a role in system scope
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: 'Admin' })
+      const roleOption = await screen.findByRole('option', { name: /Admin/ })
       await user.click(roleOption)
 
       // Verify role is selected
@@ -519,7 +519,7 @@ describe('AssignRoleDialog', () => {
       // Select a role in project scope
       let roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      let roleOption = await screen.findByRole('option', { name: 'Admin' })
+      let roleOption = await screen.findByRole('option', { name: /Admin/ })
       await user.click(roleOption)
 
       // Switch to user-system
@@ -535,7 +535,7 @@ describe('AssignRoleDialog', () => {
       // Re-select a role (now uses roleId)
       roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      roleOption = await screen.findByRole('option', { name: 'Viewer' })
+      roleOption = await screen.findByRole('option', { name: /Viewer/ })
       await user.click(roleOption)
 
       await user.click(screen.getByRole('button', { name: 'Add' }))

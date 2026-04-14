@@ -1,5 +1,8 @@
 import {
   Button,
+  Flex,
+  FlexItem,
+  Label,
   MenuToggle,
   Select,
   SelectList,
@@ -11,10 +14,16 @@ import {
 import { RhUiCloseIcon } from '@patternfly/react-icons'
 import { type Ref, useMemo, useRef, useState } from 'react'
 
+export interface TypeaheadOptionTag {
+  label: string
+  color: 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'cyan' | 'gold' | 'grey'
+}
+
 export interface TypeaheadOption {
   value: string
   label: string
   description?: string
+  tag?: TypeaheadOptionTag
 }
 
 interface TypeaheadSelectProps {
@@ -125,7 +134,18 @@ export function TypeaheadSelect({
               isSelected={option.value === selected}
               description={option.description}
             >
-              {option.label}
+              {option.tag ? (
+                <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+                  <FlexItem>
+                    <Label isCompact color={option.tag.color}>
+                      {option.tag.label}
+                    </Label>
+                  </FlexItem>
+                  <FlexItem>{option.label}</FlexItem>
+                </Flex>
+              ) : (
+                option.label
+              )}
             </SelectOption>
           ))
         )}
