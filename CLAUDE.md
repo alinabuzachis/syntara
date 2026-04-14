@@ -8,6 +8,7 @@ Claude, you have access to the following skills. Use them when appropriate:
 
 - See `.claude/skills/pr_review.md` for PR review steps
 - See `.claude/skills/playwright_e2e.md` for comprehensive E2E testing with Playwright
+- See `.claude/skills/patternfly_ux_design_system.md` for PatternFly UX design system rules and opinionated component usage
 
 ### Accessibility review (always)
 

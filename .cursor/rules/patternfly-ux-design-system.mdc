@@ -1,0 +1,271 @@
+---
+description: PatternFly UX Design System — Opinionated implementation rules for building frontend UI that adheres to PatternFly standards and the Automation Orchestrator UX team's component usage guidelines.
+globs: ["packages/nexus-ui/src/**/*.tsx", "packages/nexus-ui/src/**/*.ts"]
+alwaysApply: false
+---
+
+<!--
+  SYNC NOTE: This is a condensed version of .claude/skills/patternfly_ux_design_system.md
+  (the comprehensive Claude skill). Both files must stay in sync — when updating one,
+  update the other. This file is optimized for Cursor (auto-loaded, lightweight).
+  The skill file is the source of truth for full details.
+-->
+
+# PatternFly UX Design System — Opinionated Implementation
+
+When building frontend UI in this project, follow these opinionated PatternFly patterns. This ensures consistency across feature teams and reduces cognitive load for users.
+
+## Philosophy
+
+Our UX is designed around the **supervisor** mental model — an operator who must understand, trust, and intervene in complex automation across scale.
+
+- **Standardized compositions** — Combine atomic PatternFly components into larger, prescribed compositions (e.g., a "complete table view" with specific pagination, filtering, and bulk action patterns). These compositions are the unit of consistency.
+- **Data-driven adjustments** — Use side-out panels instead of modals for node configuration to preserve workflow canvas context.
+- **No custom one-offs** — When PatternFly does not meet a requirement, collaborate via the PatternFly liaison path. Never build a custom component.
+
+## AO Design System
+
+How the AO UI is anchored:
+
+- **Foundation** — Built on top of [PatternFly](https://www.patternfly.org/) for components, patterns, and accessibility baselines
+- **Layout** — Page and shell structure follow PatternFly's **Compass** layout architecture
+- **Theming** — Visual treatment uses PatternFly's **Unified Theme**
+- **Icons** — Based on the [Red Hat design system](https://ux.redhat.com/) [icon set](https://ux.redhat.com/foundations/iconography/#ui-icons), NOT standard PatternFly defaults
+- **Automation builder** — Based on [React Flow](https://reactflow.dev/) with PatternFly as visual wrapper
+- **Accessibility** — Must achieve [WCAG 2.1 AA](https://www.w3.org/WAI/WCAG2AA-Conformance) and [Section 508](https://www.section508.gov/) compliance
+- **PatternFly gaps** — Check PF docs first → Raise with UX (@ansible-ux) → Engage PatternFly → Document with `patternfly-override` Jira label → Resolve upstream
+
+## Page Layout (MANDATORY)
+
+Every page must follow this structural hierarchy:
+
+| Layer | Component | Purpose |
+|---|---|---|
+| App Shell | `Compass` | Overall application frame |
+| Navigation | `AppDockedNav` | Left sidebar with icons |
+| Page Content | `CompassContent` + `AppPage` | Main content area wrapper |
+| Page Header | `AppPageHeader` | Page title and actions |
+| Content Frame | `CompassPanel` | Scrollable content container |
+| Main Content | Table / Canvas / Form | Primary page content |
+| Footer (tables) | Pagination component | Navigation between table pages |
+
+### Page Header Types
+- **Main page header** — Left-aligned title, right-aligned actions
+- **Details page header** — Left-aligned back button + title, right-aligned actions
+- **Form page header** — Left-aligned title, right-aligned actions
+
+### Structure Checklist
+- Use `AppPage` as outer wrapper
+- Use `AppPageHeader` for title and actions
+- Use `StackItem isFilled` + `CompassPanel isFullHeight` for content
+- Primary action is the rightmost button
+- Canvas views use `hasNoPadding`
+
+## Navigation
+
+Use a docked icon navigation (left sidebar) with PatternFly's flyout panels component.
+
+- Hover on nav item (no children) → tooltip with label
+- Hover on nav item (has children) → flyout panel with sub-items
+- Click nav item (no children) → navigate to route
+- Click nav item (has children) → navigate to first enabled child route
+- Mouse leaves flyout → close after 150ms grace period
+
+## Filter Bar
+
+- Use PatternFly's Attribute Search component
+- Default filter type: "Keyword" search (`contains` filter on all content)
+- Filter bar is visible when data exists or when filters are active
+- Filter bar is hidden only when the resource type has never had data created
+
+## Table Component
+
+- ALWAYS use `ScrollableTableContainer` wrapper — this applies the standard table variant by default
+- `ScrollableTableContainer` does not set `variant="compact"` — the default (standard) variant is used for main data tables
+- Use `variant="compact"` only for dense, supplementary tables (e.g., activity state tables inside panels) where space is constrained
+- ALWAYS include `<Thead>` with column headers
+- Actions column is rightmost (no column header label)
+- All row actions live inside a kebab menu (⋮) — no direct buttons in the actions column
+- Action order in kebab: non-destructive first, divider, destructive last
+- On the details page header, same actions appear in a kebab; frequently used actions promoted to direct buttons
+- Columns should be sortable if applicable
+- Clicking resource name navigates to details view
+- "Created"/"Modified" columns: username (linked) + date together
+- Footer/pagination: cursor-based via `ScrollableTableContainer`'s `footer` prop (`TableFooterProps`)
+  - Left: item count — `"5 automations (of 100 total)"`
+  - Right: Previous / Next buttons using API cursor tokens (`prev`, `next`) — no page numbers or per-page selector
+  - Pass `{ content, prev, next, onPrev, onNext }` to the `footer` prop
+
+## Form Component
+
+- Use PatternFly's Basic Form component
+- Left-aligned, one column, max-width of 600px
+- Header: title + primary action button + secondary cancel
+- Use typeahead for lists with 10+ options
+- Use Read-only Clipboard Copy for system-pre-populated values
+- Use Validated component for form validation
+- Use Number Input for number fields
+- Use popover help text on form field labels
+- Use Zod + react-hook-form for validation (project standard)
+
+## Details Component
+
+- Use `DescriptionList isCompact isHorizontal`
+- Group related fields using headers
+- Consistent date/duration formatting per PatternFly Date/Time guidelines
+- Header: title + primary actions from the table row
+
+## Empty States
+
+Use PatternFly's Basic Empty State component. Empty states replace the main content area.
+
+| Scenario | Title | CTA | Filter? |
+|---|---|---|---|
+| No data | `"No [resources] yet"` | `"Create [resource]"` if applicable | No |
+| No filter results | `"No results found"` | `"Clear all filters"` | Yes, with active filters |
+| Service error | `"Unable to load [resources]"` | `"Retry"` | No |
+
+## CRUD Patterns
+
+### Create
+- **Full page:** 5+ fields, multi-step wizards
+- **Modal:** 2–4 simple fields, quick creation without leaving context
+
+### Read/Detail
+- Full page for resources with rich information
+
+### Update/Edit
+- **Full page:** 5+ fields, multi-step, or if create is full page
+  - Pre-populate fields, track dirty state, warn on unsaved navigation, show loading while saving
+- **Modal:** 2–4 fields, or if create is a modal
+- **Inline:** Single-field edits, toggles (use PatternFly Switch Checked with Label), renames
+
+### Delete/Remove/Cancel/Stop (Destructive)
+- ALWAYS use destructive confirmation modal
+- Modal variant: Small (PatternFly Small Variant Modal)
+- Title: `"[Delete/Remove/Cancel/Stop] [resource type]?"` with warning icon (PatternFly Title Icon Modal)
+- Body: resource name and consequence
+- Action button: `variant="danger"`
+- Cancel button: `variant="link"`
+- Post-delete: stay on list (from table), navigate back (from detail), show toast alert
+- Post-cancel/stop: stay on list (from table), stay on details (from detail), show toast alert
+
+### Disable (Non-Destructive)
+- Use standard confirmation modal (no warning icon, no danger button)
+- Modal variant: Small (PatternFly Small Variant Modal)
+- Title: `"Disable [resource type]?"`
+- Body: resource name and consequence
+- Confirm button: `variant="primary"`
+- Cancel button: `variant="link"`
+- Post-disable: stay on list (from table), stay on details (from detail), show toast alert
+
+## Feedback & Notifications
+
+### Success Feedback
+- Use PatternFly's Dismissible Success Toast Alert for success messages after create, update, delete actions
+- Toast alerts should auto-dismiss after a reasonable duration
+- Message format: `"[Resource type] [action] successfully"`
+
+### Error Feedback
+- Page-level loading errors: use `useQueryState(query, { title: '...', onRetry: ... })` — hooks up `ErrorState` with retry automatically
+- Mutation errors: use `useMutationErrorHandler` — wires up `ErrorState` and toast alerts automatically
+- Form validation errors: use inline field-level errors via PatternFly's Validated component
+
+### Loading States
+- Use PatternFly's Spinner component during async operations
+- Page-level: centered spinner in content area
+- Button actions: loading spinner on the button, disable during operation
+- Tables: skeleton or spinner while data loads
+
+## Button Placement Rules
+
+Button alignment differs by context (follows PatternFly convention):
+
+| Context | Primary action position |
+|---|---|
+| Page headers | **Rightmost** |
+| Modals | **Leftmost** (Cancel link on right) |
+| Forms (full page) | **Leftmost** (Cancel link on right) |
+| Toolbars | **Leftmost** (kebab menu on far right) |
+
+## Modals
+
+- Use PatternFly's Small Variant Modal
+- Delete modals use Title Icon Modal
+- Buttons: left-aligned, primary → secondary → tertiary
+- Cancel button is `variant="link"` when paired with primary action
+- This applies to all modals, including delete confirmations
+
+## Bulk Actions
+
+- Use PatternFly Selectable with Checkbox Table
+- Expandable table column order: expand/collapse chevron → checkbox → table columns
+- Bulk actions in kebab menu in toolbar (right of primary button)
+- Delete/remove option is always last
+- Always include bulk action confirmation modal
+
+## Statuses and Labels
+
+- **Statuses:** PatternFly Outline Status Label component
+- **Labels/Tags:** PatternFly Filled Non-status Label component, default to gray
+- If labels on a table reference a resource, make them clickable, navigating to the details page
+
+## Icons
+
+All icons MUST come from the Red Hat Design System (RHDS) icon set, NOT standard PatternFly defaults. The project uses Compass and Unified Theme frameworks.
+
+## Expand/Collapse Chevrons
+
+- Collapsed: chevron pointed to the right
+- Expanded: chevron pointed down
+- Use PatternFly Expandable Table component
+- Exception: nodes on the canvas
+
+## Content Rules
+
+- **Sentence case** by default everywhere
+- **Title case** only for navigation items and page titles
+- **User-generated strings** are displayed exactly as entered — do not transform casing
+
+## Workflow Builder
+
+- Based on React Flow with PatternFly as visual wrapper
+- Canvas built left to right
+- Single click: select/expand/collapse step
+- Double click: open panel view with Input/Output info
+- Right click: same as kebab menu
+- Add step: opens side panel, auto-adjusts canvas
+- Canvas controls: anchored to bottom-left corner
+- View-only views: Run view, Run history, Version history
+
+## Accessibility Guidelines
+
+Achieving full WCAG 2.1 AA and Section 508 compliance requires careful implementation beyond PatternFly's built-in component accessibility. Developers are responsible for contextual accessibility:
+
+### Semantic HTML & Page Structure
+- Proper heading hierarchy (`<h1>`–`<h6>`) without skipping levels
+- Use semantic tags (`<main>`, `<nav>`, `<header>`, `<footer>`, `<aside>`) or ARIA landmark roles
+
+### Keyboard Navigation & Focus Management
+- Every interactive element must be fully keyboard-operable
+- Never remove focus outline without providing a visible alternative (3:1 contrast ratio)
+- Manage focus programmatically on route changes and modal open/close
+- Trap focus inside modals until dismissed; return focus to trigger on close
+
+### Dynamic Content & State Changes
+- Use `aria-live` (`polite` or `assertive`) for dynamic updates (job status, toasts)
+- Use `aria-expanded`, `aria-disabled`, `aria-current` for state communication
+
+### Forms & Error Handling
+- Every input must have an associated `<label>` (not just placeholder text)
+- Use `aria-invalid="true"` and `aria-describedby` to link inputs to error messages
+
+### Color, Contrast, and Iconography
+- Text and icons: 4.5:1 contrast for normal text, 3:1 for large text/UI components
+- Never convey information by color alone — include icons and descriptive text
+- Use `alt=""` or `aria-hidden="true"` for decorative images
+
+### Testing
+- Automated: accessibility tools in unit tests and CI/CD
+- Manual: keyboard-only testing with Tab, Shift+Tab, Enter, Space, Arrow keys
+- Screen reader: verify actual user experience with assistive technology
