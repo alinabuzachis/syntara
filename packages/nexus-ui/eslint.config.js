@@ -61,8 +61,8 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-hooks/exhaustive-deps': 'error',
-      // Baseline accessibility linting for JSX (labels, roles, alt text, etc.)
-      ...jsxA11y.configs.recommended.rules,
+      // Strict accessibility linting for JSX (labels, roles, alt text, etc.)
+      ...jsxA11y.configs.strict.rules,
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       '@typescript-eslint/no-floating-promises': 'error',

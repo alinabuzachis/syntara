@@ -29,6 +29,8 @@ export function EdgeActions(props: EdgeActionsProps) {
     <EdgeLabelRenderer>
       {/* Outer div helps position and keep actions up after hovering edge */}
       <div
+        role="toolbar"
+        aria-label="Edge actions"
         style={{
           position: 'absolute',
           transform: `translate(-50%, -120%) translate(${labelX}px,${labelY}px)`,
