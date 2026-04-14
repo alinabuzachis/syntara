@@ -21,6 +21,7 @@ import { accessClient } from './accessClient'
 import { assignRoleSchema } from './assignRoleSchema'
 import type { AssignRoleFormData } from './assignRoleSchema'
 import { TypeaheadSelect } from './TypeaheadSelect'
+import { useAllUsers } from './useAllUsers'
 
 const ASSIGNMENT_TYPE_OPTIONS = [
   { value: 'user-project', label: 'User to Project' },
@@ -34,6 +35,7 @@ const ASSIGNMENT_TYPE_OPTIONS = [
 interface AssignmentFormFieldsProps {
   assignmentType: string
   projectOptions: { value: string; label: string }[]
+  userOptions: { value: string; label: string }[]
   roleOptions: { value: string; label: string }[]
   errors: ReturnType<typeof useForm<AssignRoleFormData>>['formState']['errors']
   control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
@@ -43,6 +45,7 @@ interface AssignmentFormFieldsProps {
 function AssignmentFormFields({
   assignmentType,
   projectOptions,
+  userOptions,
   roleOptions,
   errors,
   control,
@@ -73,13 +76,21 @@ function AssignmentFormFields({
       )}
 
       {(assignmentType === 'user-project' || assignmentType === 'user-system') && (
-        <FormGroup label="User ID" isRequired fieldId="user-id">
-          <TextInput
-            id="user-id"
-            isRequired
-            aria-label="User ID"
-            validated={errors.userId ? 'error' : 'default'}
-            {...register('userId')}
+        <FormGroup label="User" isRequired fieldId="user-id">
+          <Controller
+            name="userId"
+            control={control}
+            render={({ field }) => (
+              <TypeaheadSelect
+                id="user-id"
+                ariaLabel="User"
+                options={userOptions}
+                selected={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Select a user..."
+                hasError={!!errors.userId}
+              />
+            )}
           />
         </FormGroup>
       )}
@@ -132,6 +143,8 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
   const projectsQuery = accessClient.useQuery('get', '/projects')
   const projectsData = projectsQuery.data
 
+  const { users } = useAllUsers()
+
   const rolesQuery = accessClient.useQuery('get', '/roles', { params: { query: { limit: 100 } } })
   const rolesData = rolesQuery.data
 
@@ -167,6 +180,8 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
     () => (projectsData ?? []).map((p) => ({ value: p.id, label: p.name })),
     [projectsData]
   )
+
+  const userOptions = useMemo(() => users.map((u) => ({ value: u.id, label: u.username })), [users])
 
   const roleOptions = useMemo(
     () =>
@@ -268,6 +283,7 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
           <AssignmentFormFields
             assignmentType={assignmentType}
             projectOptions={projectOptions}
+            userOptions={userOptions}
             roleOptions={roleOptions}
             errors={errors}
             control={control}

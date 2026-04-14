@@ -23,6 +23,17 @@ vi.mock('./accessClient', () => ({
   },
 }))
 
+vi.mock('./useAllUsers', () => ({
+  useAllUsers: vi.fn().mockReturnValue({
+    users: [
+      { id: 'u1', username: 'alice', email: 'alice@test.com', full_name: 'Alice' },
+      { id: 'u2', username: 'bob', email: 'bob@test.com', full_name: 'Bob' },
+    ],
+    isLoading: false,
+    error: null,
+  }),
+}))
+
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
@@ -174,10 +185,10 @@ describe('AssignRoleDialog', () => {
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     })
 
-    it('renders User ID field for user-project type (default)', () => {
+    it('renders User field for user-project type (default)', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      expect(screen.getByRole('textbox', { name: 'User ID' })).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Select a user...')).toBeInTheDocument()
     })
 
     it('renders Project field for project-scoped type', () => {
@@ -203,17 +214,17 @@ describe('AssignRoleDialog', () => {
       await user.selectOptions(typeSelect, 'group-project')
 
       expect(screen.getByRole('textbox', { name: 'Group ID' })).toBeInTheDocument()
-      expect(screen.queryByRole('textbox', { name: 'User ID' })).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Select a user...')).not.toBeInTheDocument()
     })
 
-    it('shows User ID field for user-system type', async () => {
+    it('shows User field for user-system type', async () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
       const typeSelect = screen.getByLabelText('Assignment type')
       await user.selectOptions(typeSelect, 'user-system')
 
-      expect(screen.getByRole('textbox', { name: 'User ID' })).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Select a user...')).toBeInTheDocument()
       // No project field for system-scoped
       expect(screen.queryByText('Project')).not.toBeInTheDocument()
     })
@@ -232,9 +243,11 @@ describe('AssignRoleDialog', () => {
 
   describe('Form Submission', () => {
     async function fillAndSubmitUserProjectForm(user: ReturnType<typeof userEvent.setup>) {
-      // Fill in User ID
-      const userIdInput = screen.getByRole('textbox', { name: 'User ID' })
-      await user.type(userIdInput, 'testuser')
+      // Select a user from the typeahead
+      const userInput = screen.getByPlaceholderText('Select a user...')
+      await user.click(userInput)
+      const userOption = await screen.findByRole('option', { name: 'alice' })
+      await user.click(userOption)
 
       // Select a project from the typeahead
       const projectInput = screen.getByPlaceholderText('Select a project...')
@@ -386,9 +399,11 @@ describe('AssignRoleDialog', () => {
       const typeSelect = screen.getByLabelText('Assignment type')
       await user.selectOptions(typeSelect, 'user-system')
 
-      // Fill User ID
-      const userIdInput = screen.getByRole('textbox', { name: 'User ID' })
-      await user.type(userIdInput, 'test-user-id')
+      // Select a user from the typeahead
+      const userInput = screen.getByPlaceholderText('Select a user...')
+      await user.click(userInput)
+      const userOption = await screen.findByRole('option', { name: 'alice' })
+      await user.click(userOption)
 
       // Select a role (system-scoped uses role ID as value)
       const roleInput = screen.getByPlaceholderText('Select a role...')
@@ -403,7 +418,7 @@ describe('AssignRoleDialog', () => {
       })
 
       const callArgs = mockMutate.mock.calls[0] as [{ body: { user_id: string; role_id: string } }]
-      expect(callArgs[0]).toEqual({ body: { user_id: 'test-user-id', role_id: 'r1' } })
+      expect(callArgs[0]).toEqual({ body: { user_id: 'u1', role_id: 'r1' } })
     })
 
     it('calls assignSystemGroupRole mutation for group-system type', async () => {
@@ -511,9 +526,11 @@ describe('AssignRoleDialog', () => {
       const typeSelect = screen.getByLabelText('Assignment type')
       await user.selectOptions(typeSelect, 'user-system')
 
-      // Fill User ID
-      const userIdInput = screen.getByRole('textbox', { name: 'User ID' })
-      await user.type(userIdInput, 'test-user')
+      // Select a user from the typeahead
+      const userInput = screen.getByPlaceholderText('Select a user...')
+      await user.click(userInput)
+      const userOption = await screen.findByRole('option', { name: 'bob' })
+      await user.click(userOption)
 
       // Re-select a role (now uses roleId)
       roleInput = screen.getByPlaceholderText('Select a role...')
@@ -528,7 +545,7 @@ describe('AssignRoleDialog', () => {
       })
 
       const callArgs = mockMutate.mock.calls[0] as [{ body: { user_id: string; role_id: string } }]
-      expect(callArgs[0]).toEqual({ body: { user_id: 'test-user', role_id: 'r2' } })
+      expect(callArgs[0]).toEqual({ body: { user_id: 'u2', role_id: 'r2' } })
     })
   })
 
