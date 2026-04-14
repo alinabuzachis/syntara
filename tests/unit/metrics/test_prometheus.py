@@ -61,9 +61,7 @@ class TestMetricDefinitions:
         assert prom.workflow_completion_rate is not None
         assert prom.temporal_queue_depth is not None
         assert prom.activity_execution_success_rate is not None
-        assert prom.tool_execution_success_rate is not None
-        assert prom.tool_provider_availability is not None
-        assert prom.tool_error_rate is not None
+
         assert prom.database_connection_pool_utilization is not None
         assert prom.database_transaction_rate_tps is not None
         assert prom.system_uptime is not None

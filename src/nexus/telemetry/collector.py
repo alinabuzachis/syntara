@@ -12,6 +12,7 @@ import structlog
 
 from nexus.telemetry.client import TelemetryClientRegistry, get_telemetry_registry
 from nexus.telemetry.events.node_execution import NodeExecutionEventBuilder
+from nexus.telemetry.events.tool_execution import ToolExecutionEventBuilder
 from nexus.telemetry.events.workflow_execution import WorkflowExecutionEventBuilder
 from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityTerminalStatus
@@ -19,6 +20,7 @@ from nexus.workflows.workflow_engine.models.workflow_definition import ActivityT
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from nexus.tool_manager.models.tool_execution import ExecutionStatus
     from nexus.workflows.workflow_engine.models.workflow_definition import (
         NodeType,
         WorkflowTerminalStatus,
@@ -78,20 +80,21 @@ class TelemetryCollector:
         self._registry = registry or get_telemetry_registry()
         self._workflow_builder = WorkflowExecutionEventBuilder()
         self._node_builder = NodeExecutionEventBuilder()
+        self._tool_builder = ToolExecutionEventBuilder()
 
     def capture_workflow_start(
         self,
-        workflow_execution_id: str,
+        execution_id: str,
     ) -> None:
         """Capture a workflow execution start event (fire-and-forget).
 
         Args:
-            workflow_execution_id: Unique workflow execution identifier (UUID v4).
+            execution_id: Unique workflow execution identifier (UUID v4).
 
         """
         try:
             event = self._workflow_builder.build_start_event(
-                workflow_execution_id=workflow_execution_id,
+                execution_id=execution_id,
                 entitlement_id=self._registry.entitlement_id,
             )
             self._registry.send_event(event)
@@ -100,7 +103,7 @@ class TelemetryCollector:
 
     def capture_workflow_completed(
         self,
-        workflow_execution_id: str,
+        execution_id: str,
         status: WorkflowTerminalStatus,
         duration_ms: int,
         node_count: int,
@@ -110,7 +113,7 @@ class TelemetryCollector:
         """Capture a workflow execution completed event (fire-and-forget).
 
         Args:
-            workflow_execution_id: Unique workflow execution identifier (UUID v4).
+            execution_id: Unique workflow execution identifier (UUID v4).
             status: Final execution status.
             duration_ms: Duration in milliseconds.
             node_count: Total number of nodes executed.
@@ -120,7 +123,7 @@ class TelemetryCollector:
         """
         try:
             event = self._workflow_builder.build_completed_event(
-                workflow_execution_id=workflow_execution_id,
+                execution_id=execution_id,
                 status=status,
                 duration_ms=duration_ms,
                 node_count=node_count,
@@ -134,7 +137,7 @@ class TelemetryCollector:
 
     def capture_node_executed(
         self,
-        workflow_execution_id: str,
+        execution_id: str,
         node_type: NodeType,
         node_def: dict[str, object],
         status: ActivityTerminalStatus,
@@ -146,7 +149,7 @@ class TelemetryCollector:
         """Capture a node execution event (fire-and-forget).
 
         Args:
-            workflow_execution_id: Links to parent workflow execution (UUID v4).
+            execution_id: Links to parent workflow execution (UUID v4).
             node_type: Type of node executed.
             node_def: Node definition dictionary.
             status: Node execution outcome.
@@ -158,7 +161,7 @@ class TelemetryCollector:
         """
         try:
             event = self._node_builder.build_event(
-                workflow_execution_id=workflow_execution_id,
+                execution_id=execution_id,
                 node_type=node_type,
                 node_def=node_def,
                 status=status,
@@ -171,6 +174,34 @@ class TelemetryCollector:
             self._registry.send_event(event)
         except Exception:
             logger.exception("Failed to capture node execution event (fire-and-forget)")
+
+    def capture_tool_executed(
+        self,
+        namespaced_name: str,
+        status: ExecutionStatus,
+        duration_ms: int,
+        execution_id: UUID | None = None,
+    ) -> None:
+        """Capture a tool execution telemetry event (fire-and-forget).
+
+        Args:
+            namespaced_name: Tool namespaced name.
+            status: Execution status.
+            duration_ms: Execution duration in milliseconds.
+            execution_id: Optional parent workflow execution ID.
+
+        """
+        try:
+            event = self._tool_builder.build_event(
+                namespaced_name=namespaced_name,
+                status=status,
+                duration_ms=duration_ms,
+                execution_id=execution_id,
+                entitlement_id=self._registry.entitlement_id,
+            )
+            self._registry.send_event(event)
+        except Exception:
+            logger.exception("Failed to capture tool execution event (fire-and-forget)")
 
     def emit_activity_telemetry(
         self,
@@ -189,7 +220,6 @@ class TelemetryCollector:
             updated_activities: List of (activity, old_values) tuples from DB sync.
 
         """
-        workflow_execution_id = str(execution_id)
         logger.info(
             "emit_activity_telemetry called",
             execution_id=str(execution_id),
@@ -200,9 +230,8 @@ class TelemetryCollector:
             self._process_activity_telemetry(
                 activity=activity,
                 old_values=old_values,
-                workflow_execution_id=workflow_execution_id,
-                activity_definitions_map=activity_definitions_map,
                 execution_id=execution_id,
+                activity_definitions_map=activity_definitions_map,
             )
 
     def _should_emit_activity_telemetry(
@@ -249,9 +278,8 @@ class TelemetryCollector:
         self,
         activity: ActivityExecution,
         old_values: dict[str, Any],
-        workflow_execution_id: str,
-        activity_definitions_map: dict[str, dict[str, Any]],
         execution_id: UUID,
+        activity_definitions_map: dict[str, dict[str, Any]],
     ) -> None:
         """Process telemetry emission for a single activity."""
         try:
@@ -274,11 +302,11 @@ class TelemetryCollector:
                 status=telemetry_status,
                 duration_ms=duration_ms,
                 is_failed=is_failed,
-                workflow_execution_id=workflow_execution_id,
+                execution_id=str(execution_id),
             )
 
             self.capture_node_executed(
-                workflow_execution_id=workflow_execution_id,
+                execution_id=str(execution_id),
                 node_type=node_type,
                 node_def=activity_def,
                 status=telemetry_status,

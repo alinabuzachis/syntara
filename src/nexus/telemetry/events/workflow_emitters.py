@@ -42,7 +42,7 @@ def emit_workflow_start(execution: Execution) -> None:
             return
 
         collector = TelemetryCollector(registry=registry)
-        collector.capture_workflow_start(workflow_execution_id=str(execution.id))
+        collector.capture_workflow_start(execution_id=str(execution.id))
 
         logger.debug(
             "Emitted workflow start telemetry",
@@ -95,10 +95,9 @@ def emit_workflow_completed(
         error_count = sum(1 for a in activities if a.status == ActivityStatus.FAILED)
 
         # Emit telemetry
-        workflow_execution_id = str(execution.id)
         collector = TelemetryCollector(registry=registry)
         collector.capture_workflow_completed(
-            workflow_execution_id=workflow_execution_id,
+            execution_id=str(execution.id),
             status=telemetry_status,
             duration_ms=duration_ms,
             node_count=node_count,

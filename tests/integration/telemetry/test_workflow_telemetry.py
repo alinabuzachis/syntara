@@ -30,16 +30,16 @@ class TestEndToEndWorkflowTelemetry:
 
         collector = TelemetryCollector(registry=registry)
 
-        workflow_execution_id = "test-correlation-id"
+        execution_id = "test-correlation-id"
 
         # Capture start event
         collector.capture_workflow_start(
-            workflow_execution_id=workflow_execution_id,
+            execution_id=execution_id,
         )
 
         # Capture completed event
         collector.capture_workflow_completed(
-            workflow_execution_id=workflow_execution_id,
+            execution_id=execution_id,
             status=WorkflowTerminalStatus.COMPLETED,
             duration_ms=1500,
             node_count=3,
@@ -54,7 +54,7 @@ class TestEndToEndWorkflowTelemetry:
         assert start_call.kwargs["event"] == "workflow_execution_start"
         assert "user_id" not in start_call.kwargs
         assert start_call.kwargs["anonymous_id"] == "anon-test-id"
-        assert start_call.kwargs["properties"]["workflow_execution_id"] == workflow_execution_id
+        assert start_call.kwargs["properties"]["workflow_execution_id"] == execution_id
         assert start_call.kwargs["properties"]["entitlement_id"] == "test-install-001"
 
         # Verify completed event
@@ -65,7 +65,7 @@ class TestEndToEndWorkflowTelemetry:
         assert complete_call.kwargs["properties"]["node_count"] == 3
         assert complete_call.kwargs["properties"]["error_count"] == 0
 
-    def test_node_event_sent_with_workflow_execution_id(self) -> None:
+    def test_node_event_sent_with_execution_id(self) -> None:
         """Verify that node execution events include the parent workflow_execution_id."""
         registry = TelemetryClientRegistry()
         mock_client = MagicMock()
@@ -75,11 +75,11 @@ class TestEndToEndWorkflowTelemetry:
 
         collector = TelemetryCollector(registry=registry)
 
-        workflow_execution_id = "parent-workflow-correlation"
+        execution_id = "parent-workflow-correlation"
         node_def: dict[str, object] = {"id": "http-1", "type": "http_request"}
 
         collector.capture_node_executed(
-            workflow_execution_id=workflow_execution_id,
+            execution_id=execution_id,
             node_type=NodeType.HTTP_REQUEST,
             node_def=node_def,
             status=ActivityTerminalStatus.COMPLETED,
@@ -88,7 +88,7 @@ class TestEndToEndWorkflowTelemetry:
         assert mock_client.track.call_count == 1
         call = mock_client.track.call_args
         assert call.kwargs["event"] == "node_execution"
-        assert call.kwargs["properties"]["workflow_execution_id"] == workflow_execution_id
+        assert call.kwargs["properties"]["workflow_execution_id"] == execution_id
         assert call.kwargs["properties"]["node_type"] == "http_request"
         assert call.kwargs["properties"]["status"] == "completed"
 
@@ -109,7 +109,7 @@ class TestEntitlementIdPropagation:
         collector = TelemetryCollector(registry=registry)
 
         collector.capture_workflow_start(
-            workflow_execution_id="test-id",
+            execution_id="test-id",
         )
 
         call = mock_client.track.call_args

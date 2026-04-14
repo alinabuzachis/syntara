@@ -14,8 +14,10 @@ from nexus.telemetry.events.system_analytics import (
     CredentialCounts,
     ExecutionCounts,
     ModelUsage,
+    ToolCounts,
     WorkflowCounts,
 )
+from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
 
@@ -109,6 +111,27 @@ async def query_model_usage(session: AsyncSession) -> list[ModelUsage]:
         )
         for model_name, prompt, completion, count in result
     ]
+
+
+async def query_tool_counts(session: AsyncSession) -> ToolCounts:
+    """Query all-time cumulative tool execution counts from usage_counters table."""
+    tool_filter = UsageCounter.counter_type == CounterType.TOOL
+    result = await session.exec(
+        select(  # type: ignore[call-overload]
+            func.coalesce(func.sum(UsageCounter.request_count), 0),
+            func.coalesce(func.sum(UsageCounter.success_count), 0),
+            func.coalesce(func.sum(UsageCounter.error_count), 0),
+            func.coalesce(func.sum(UsageCounter.timeout_count), 0),
+            func.count(UsageCounter.tool_id.distinct()),  # type: ignore[union-attr]
+        ).where(tool_filter)  # type: ignore[arg-type]
+    )
+    row = result.one()
+    return ToolCounts(
+        success_count=int(row[1]),
+        error_count=int(row[2]),
+        timeout_count=int(row[3]),
+        distinct_tools=int(row[4]),
+    )
 
 
 def get_enabled_feature_flags() -> list[str]:

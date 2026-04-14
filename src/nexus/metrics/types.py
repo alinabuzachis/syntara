@@ -77,12 +77,8 @@ class MetricType(StrEnum):
     WORKFLOW_START_LATENCY = "workflow_start_latency_ms"
     WORKFLOW_COMPLETION_RATE = "workflow_completion_rate"
 
-    # Tool Manager Metrics
-    TOOL_EXECUTION_SUCCESS_RATE = "tool_execution_success_rate"
+    # Tool Metrics
     TOOL_EXECUTION_DURATION = "tool_execution_duration_ms"
-    TOOL_PROVIDER_AVAILABILITY = "tool_provider_availability_ratio"
-    TOOL_EXECUTION_COUNT = "tool_execution_count"
-    TOOL_ERROR_RATE = "tool_error_rate"
     TOOL_EXECUTION_STATUS = "tool_execution_status"
 
     # Database Metrics
@@ -109,7 +105,7 @@ class MetricsCategoryType(StrEnum):
     WORKFLOW_ENGINE = "workflow_engine"
     TEMPORAL_WORKER = "temporal_worker"
     EXECUTION_SERVICE = "execution_service"
-    TOOL_MANAGER = "tool_manager"
+
     DATABASE = "database"
     TOOL = "tool"
     SYSTEM_WIDE = "system_wide"
@@ -171,13 +167,6 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
         MetricType.TOOL_EXECUTION_DURATION,
         MetricType.TOOL_EXECUTION_STATUS,
     ],
-    MetricsCategoryType.TOOL_MANAGER: [
-        MetricType.TOOL_EXECUTION_SUCCESS_RATE,
-        MetricType.TOOL_EXECUTION_DURATION,
-        MetricType.TOOL_PROVIDER_AVAILABILITY,
-        MetricType.TOOL_EXECUTION_COUNT,
-        MetricType.TOOL_ERROR_RATE,
-    ],
     MetricsCategoryType.DATABASE: [
         MetricType.DATABASE_QUERY_RESPONSE_TIME,
         MetricType.DATABASE_CONNECTION_POOL_UTILIZATION,
@@ -190,17 +179,18 @@ METRIC_CATEGORIES: dict[MetricsCategoryType, list[MetricType]] = {
     ],
 }
 
-COMPONENT_LABELS: dict[str, str] = {
-    "api_service": "api_service",
-    "workflow_engine": "workflow_engine",
-    "temporal_worker": "temporal_worker",
-    "execution_service": "execution_service",
-    "invocation_service": "invocation_service",
-    "routing_service": "routing_service",
-    "tool_manager": "tool_manager",
-    "database": "database",
-    "system_wide": "system_wide",
-}
+
+class ComponentLabel(StrEnum):
+    """Valid component identifiers used in the ``component`` metric label."""
+
+    API_SERVICE = "api_service"
+    WORKFLOW_ENGINE = "workflow_engine"
+    TEMPORAL_WORKER = "temporal_worker"
+    EXECUTION_SERVICE = "execution_service"
+    INVOCATION_SERVICE = "invocation_service"
+    ROUTING_SERVICE = "routing_service"
+    DATABASE = "database"
+    SYSTEM_WIDE = "system_wide"
 
 
 def _validate_labels(labels: dict[str, str] | None) -> dict[str, str]:

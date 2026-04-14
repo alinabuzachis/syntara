@@ -38,10 +38,10 @@ class ToolExecutionTelemetryEvent(BaseTelemetryEvent):
     namespaced_name: str = Field(description="Tool namespaced name (e.g., mcp::get_greeting)")
     status: ExecutionStatus = Field(description="Execution status: success, error, timeout")  # from nexus.tool_manager.models.tool_execution
     duration_ms: int = Field(ge=0, description="Execution duration in milliseconds")
-    workflow_execution_id: UUID | None = Field(default=None, description="Parent workflow execution identifier (UUID v4, from AgentState.execution_id)")
+    workflow_execution_id: UUID | None = Field(default=None, description="Parent workflow execution identifier (UUID v4, mapped from execution_id used throughout the codebase)")
 ```
 
-**Note**: Inherits `entitlement_id` from `BaseTelemetryEvent`. Event name auto-derived as `tool_execution_telemetry` via `_get_event_name()`. The `workflow_execution_id` links the tool execution to its parent workflow execution for correlation in Segment (sourced from optional `AgentState.execution_id` field, populated by `InvocationExecutor`). When `None`, the field appears as `null` in the Segment payload (consistent with `model_dump()` default behavior). Only emitted for terminal states (success, error, timeout) — "running" state is excluded.
+**Note**: Inherits `entitlement_id` from `BaseTelemetryEvent`. Event name auto-derived as `tool_execution_telemetry` via `_get_event_name()`. The `workflow_execution_id` field in the telemetry event model is the Segment-facing name for what is called `execution_id` throughout the rest of the codebase. It is sourced from `AgentState.execution_id`, populated by `InvocationExecutor`, and mapped to `workflow_execution_id` in the event builders. When `None`, the field appears as `null` in the Segment payload (consistent with `model_dump()` default behavior). Only emitted for terminal states (success, error, timeout) — "running" state is excluded.
 
 ## Modified Models
 
@@ -69,9 +69,9 @@ Tool Execution (terminal state only: success/error/timeout)
     │
     ├──→ _emit_tool_metrics()          → Prometheus (existing)
     ├──→ _persist_tool_execution_to_db() → PostgreSQL (existing)
-    └──→ TelemetryCollector.capture_tool_executed(workflow_execution_id) → Segment (NEW)
+    └──→ TelemetryCollector.capture_tool_executed(execution_id) → Segment (NEW)
                                                         │
-                                                        └──→ ToolExecutionTelemetryEvent (includes workflow_execution_id)
+                                                        └──→ ToolExecutionTelemetryEvent (maps execution_id → workflow_execution_id in Segment payload)
 
 Every 5 minutes:
     PeriodicCollector._collect_and_send()

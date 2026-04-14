@@ -8,8 +8,8 @@ import pytest
 
 from nexus.core.exceptions import SafeValueError
 from nexus.metrics.types import (
-    COMPONENT_LABELS,
     METRIC_CATEGORIES,
+    ComponentLabel,
     MetricRecord,
     MetricsCategoryType,
     MetricsQuery,
@@ -66,12 +66,8 @@ class TestMetricType:
             # Execution Service
             "WORKFLOW_START_LATENCY",
             "WORKFLOW_COMPLETION_RATE",
-            # Tool Manager
-            "TOOL_EXECUTION_SUCCESS_RATE",
+            # Tool Metrics
             "TOOL_EXECUTION_DURATION",
-            "TOOL_PROVIDER_AVAILABILITY",
-            "TOOL_EXECUTION_COUNT",
-            "TOOL_ERROR_RATE",
             "TOOL_EXECUTION_STATUS",
             # Database
             "DATABASE_QUERY_RESPONSE_TIME",
@@ -124,7 +120,6 @@ class TestMetricType:
             "temporal_worker",
             "execution_service",
             "tool",
-            "tool_manager",
             "database",
             "system_wide",
         }
@@ -138,7 +133,7 @@ class TestMetricType:
         assert MetricType.AGENT_ROUTING_DURATION in METRIC_CATEGORIES[MetricsCategoryType.AGENT]
         assert MetricType.ERROR in METRIC_CATEGORIES[MetricsCategoryType.ERROR]
         assert MetricType.API_RESPONSE_TIME in METRIC_CATEGORIES[MetricsCategoryType.API]
-        assert MetricType.TOOL_EXECUTION_DURATION in METRIC_CATEGORIES[MetricsCategoryType.TOOL_MANAGER]
+        assert MetricType.TOOL_EXECUTION_DURATION in METRIC_CATEGORIES[MetricsCategoryType.TOOL]
         assert MetricType.DATABASE_QUERY_RESPONSE_TIME in METRIC_CATEGORIES[MetricsCategoryType.DATABASE]
         assert MetricType.SYSTEM_UPTIME in METRIC_CATEGORIES[MetricsCategoryType.SYSTEM_WIDE]
         assert MetricType.WORKFLOW_DURATION in METRIC_CATEGORIES[MetricsCategoryType.WORKFLOW_ENGINE]
@@ -154,15 +149,15 @@ class TestMetricType:
 
 
 # =============================================================================
-# COMPONENT_LABELS tests
+# ComponentLabel tests
 # =============================================================================
 
 
-class TestComponentLabels:
-    """Tests for the COMPONENT_LABELS constant."""
+class TestComponentLabel:
+    """Tests for the ComponentLabel enum."""
 
-    def test_all_nine_components_present(self) -> None:
-        """All 9 component categories are defined."""
+    def test_all_components_present(self) -> None:
+        """All expected component labels are defined in the enum."""
         expected = {
             "api_service",
             "workflow_engine",
@@ -170,11 +165,15 @@ class TestComponentLabels:
             "execution_service",
             "invocation_service",
             "routing_service",
-            "tool_manager",
             "database",
             "system_wide",
         }
-        assert set(COMPONENT_LABELS.keys()) == expected
+        assert {label.value for label in ComponentLabel} == expected
+
+    def test_component_label_is_string_enum(self) -> None:
+        """ComponentLabel values are usable as plain strings."""
+        assert ComponentLabel.API_SERVICE.value == "api_service"
+        assert isinstance(ComponentLabel.API_SERVICE, str)
 
 
 # =============================================================================
@@ -335,7 +334,6 @@ class TestMetricsQuery:
             "workflow_engine",
             "temporal_worker",
             "execution_service",
-            "tool_manager",
             "database",
             "system_wide",
         ):

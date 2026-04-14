@@ -24,6 +24,7 @@ from nexus.telemetry.queries import (
     query_credential_counts,
     query_execution_counts,
     query_model_usage,
+    query_tool_counts,
     query_workflow_counts,
 )
 
@@ -52,6 +53,7 @@ async def _collect_and_send(
         execution_counts = await query_execution_counts(session)
         credential_counts = query_credential_counts()
         model_usage_list = await query_model_usage(session)
+        tool_counts = await query_tool_counts(session)
 
     feature_flags = get_enabled_feature_flags()
 
@@ -61,6 +63,7 @@ async def _collect_and_send(
         credentials=credential_counts,
         executions=execution_counts,
         config=ConfigInfo(feature_flags_enabled=feature_flags),
+        tools=tool_counts,
         model_usage=model_usage_list,
     )
 

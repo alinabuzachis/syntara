@@ -7,7 +7,7 @@ import pytest
 from prometheus_client import CollectorRegistry
 
 from nexus.metrics.recorder import MetricsRecorder
-from nexus.metrics.types import MetricType
+from nexus.metrics.types import ComponentLabel, MetricType
 
 
 @pytest.fixture
@@ -409,7 +409,8 @@ class TestRecorderPrometheus:
             MetricType.API_RESPONSE_TIME,
             150.0,
             unit="ms",
-            labels={"component": "api_service", "endpoint": "/chat", "method": "POST"},
+            labels={"endpoint": "/chat", "method": "POST"},
+            component=ComponentLabel.API_SERVICE,
         )
         sample_value = recorder.prometheus.api_response_time_seconds.labels(
             component="api_service",
@@ -423,7 +424,7 @@ class TestRecorderPrometheus:
         recorder.record(
             MetricType.TEMPORAL_QUEUE_DEPTH,
             42.0,
-            labels={"component": "temporal_worker"},
+            component=ComponentLabel.TEMPORAL_WORKER,
         )
         sample_value = recorder.prometheus.temporal_queue_depth.labels(
             component="temporal_worker",
@@ -492,7 +493,7 @@ class TestRecorderPrometheus:
         recorder.record(
             MetricType.SYSTEM_UPTIME,
             0.999,
-            labels={"component": "system_wide"},
+            component=ComponentLabel.SYSTEM_WIDE,
         )
         sample_value = recorder.prometheus.system_uptime.labels(
             component="system_wide",
@@ -563,59 +564,38 @@ class TestStoreDisabledMode:
 
 
 # =============================================================================
-# Component label validation
+# Component label parameter
 # =============================================================================
 
 
-class TestComponentLabelValidation:
-    """Tests for component label validation in record()."""
+class TestComponentLabelParameter:
+    """Tests for the typed component parameter in record()."""
 
-    def test_valid_component_label_accepted(self, recorder: MetricsRecorder) -> None:
-        """Record succeeds when component label is a valid identifier."""
+    def test_component_added_to_labels(self, recorder: MetricsRecorder) -> None:
+        """Component parameter is stored as a label on the record."""
         recorder.record(
             MetricType.API_RESPONSE_TIME,
             120.0,
             unit="ms",
-            labels={"component": "api_service", "endpoint": "/health"},
+            labels={"endpoint": "/health"},
+            component=ComponentLabel.API_SERVICE,
         )
         records = list(recorder.query())
         assert len(records) == 1
         assert records[0].labels["component"] == "api_service"
 
-    def test_invalid_component_label_raises(self, recorder: MetricsRecorder) -> None:
-        """Record raises SafeValueError when component label is not recognised."""
-        from nexus.core.exceptions import SafeValueError
-
-        with pytest.raises(SafeValueError, match="Invalid component label 'bogus'"):
-            recorder.record(
-                MetricType.API_RESPONSE_TIME,
-                100.0,
-                labels={"component": "bogus"},
-            )
-
-    def test_invalid_component_not_stored(self, recorder: MetricsRecorder) -> None:
-        """No metric is persisted when validation fails."""
-        with pytest.raises(ValueError):
-            recorder.record(
-                MetricType.API_RESPONSE_TIME,
-                100.0,
-                labels={"component": "invalid"},
-            )
-        assert list(recorder.query()) == []
-
-    def test_missing_component_label_still_records(self, recorder: MetricsRecorder) -> None:
-        """Metric is recorded even without a component label."""
+    def test_missing_component_still_records(self, recorder: MetricsRecorder) -> None:
+        """Metric is recorded even without a component."""
         recorder.record(MetricType.LLM_DURATION, 50.0, unit="ms")
         records = list(recorder.query())
         assert len(records) == 1
+        assert "component" not in records[0].labels
 
-    def test_all_valid_components_accepted(self, recorder: MetricsRecorder) -> None:
-        """Every value in COMPONENT_LABELS is accepted by validation."""
-        from nexus.metrics.types import COMPONENT_LABELS
-
-        for component in COMPONENT_LABELS:
+    def test_all_component_labels_accepted(self, recorder: MetricsRecorder) -> None:
+        """Every ComponentLabel value is accepted."""
+        for component in ComponentLabel:
             recorder.record(
                 MetricType.SYSTEM_UPTIME,
                 1.0,
-                labels={"component": component},
+                component=component,
             )

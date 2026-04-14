@@ -5,7 +5,7 @@
 
 ## Summary
 
-Integrate tool execution metrics into the existing Segment telemetry system. Two deliverables: (1) add a `ToolCounts` section to the periodic `SystemAnalyticsEvent` with all-time cumulative tool usage stats, and (2) emit a new `ToolExecutionTelemetryEvent` to Segment for each tool execution reaching a terminal state, including optional `workflow_execution_id` for correlation with parent workflow executions. The `workflow_execution_id` is sourced from a new optional `execution_id` field on `AgentState`, populated by `InvocationExecutor`. Only terminal states (success, error, timeout) are counted — "running" state is excluded. Tool names are sent in plaintext (not PII). Both follow existing telemetry patterns (BaseTelemetryEvent, fire-and-forget, TelemetryClientRegistry).
+Integrate tool execution metrics into the existing Segment telemetry system. Two deliverables: (1) add a `ToolCounts` section to the periodic `SystemAnalyticsEvent` with all-time cumulative tool usage stats, and (2) emit a new `ToolExecutionTelemetryEvent` to Segment for each tool execution reaching a terminal state, including optional `execution_id` for correlation with parent workflow executions. The `execution_id` is used consistently throughout the codebase (AgentState, function parameters, tool wrappers) and is only mapped to `workflow_execution_id` in the final Segment telemetry event definitions. Only terminal states (success, error, timeout) are counted — "running" state is excluded. Tool names are sent in plaintext (not PII). Both follow existing telemetry patterns (BaseTelemetryEvent, fire-and-forget, TelemetryClientRegistry).
 
 ## Technical Context
 
@@ -17,7 +17,7 @@ Integrate tool execution metrics into the existing Segment telemetry system. Two
 **Project Type**: Single monolithic Python application
 **Performance Goals**: <5ms overhead per telemetry event emission (fire-and-forget)
 **Constraints**: Non-blocking — telemetry failures must not affect tool execution
-**Scale/Scope**: ~8 files modified/created, ~2 new event models, ~1 query function, threading optional workflow_execution_id (from new AgentState.execution_id field) through tool wrapper
+**Scale/Scope**: ~8 files modified/created, ~2 new event models, ~1 query function, threading optional `execution_id` (from new `AgentState.execution_id` field) through tool wrappers
 
 ## Constitution Check
 
@@ -87,11 +87,11 @@ tests/
     └── test_agentic_workflow_tool_metrics.py  # MODIFY: add telemetry event assertions
 ```
 
-**Structure Decision**: Follows existing telemetry module layout. New event model in `events/` directory, collector and periodic_collector extended in-place. `AgentState.execution_id` maps to `workflow_execution_id` in the telemetry event at the `_create_tool_node()` call site.
+**Structure Decision**: Follows existing telemetry module layout. New event model in `events/` directory, collector and periodic_collector extended in-place. `execution_id` is used consistently throughout the codebase and only mapped to `workflow_execution_id` in the final Segment telemetry event model fields.
 
 ## Key Design Decisions
 
-1. **AgentState field naming**: The `AgentState` TypedDict uses `execution_id` (matching the `Execution` model concept), while the Segment telemetry event uses `workflow_execution_id` (matching existing telemetry event conventions). The mapping happens in `_create_tool_node()`.
+1. **Naming convention**: `execution_id` is used consistently throughout the codebase (AgentState, function parameters, tool wrappers, collector methods) to match the rest of the Nexus codebase. The name `workflow_execution_id` is only used in the final Segment telemetry event model fields, matching existing telemetry event conventions. The mapping from `execution_id` to `workflow_execution_id` happens in the telemetry event builders.
 
 2. **NotRequired field**: `AgentState.execution_id` uses `NotRequired[str | None]` to avoid breaking existing code that constructs `AgentState` without it.
 
@@ -99,7 +99,7 @@ tests/
 
 4. **ToolCounts not frozen**: `ToolCounts` does not set `model_config = {"frozen": True}` — matching sibling models `WorkflowCounts`, `ExecutionCounts`, `CredentialCounts` which also don't have it. Only `BaseTelemetryEvent` (and thus event classes that inherit from it) is frozen.
 
-5. **Both wrappers**: Both `create_tool_awrapper()` (async) and `create_tool_wrapper()` (sync) must be updated to thread `workflow_execution_id`, since both have `finally` blocks that call `_persist_tool_execution_to_db()`.
+5. **Both wrappers**: Both `create_tool_awrapper()` (async) and `create_tool_wrapper()` (sync) must be updated to thread `execution_id`, since both have `finally` blocks that call `_persist_tool_execution_to_db()`.
 
 6. **Telemetry emission pattern**: Follows `workflow_emitters.py` pattern: get registry via `get_telemetry_registry()`, check `registry.is_initialized()`, then create `TelemetryCollector(registry=registry)`.
 

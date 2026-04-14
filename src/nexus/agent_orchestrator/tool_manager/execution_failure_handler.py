@@ -125,6 +125,50 @@ def _emit_tool_metrics(base_tool: Any, duration_ms: float, status: ExecutionStat
         logger.warning("Failed to emit tool execution metrics", exc_info=True)
 
 
+def _emit_tool_telemetry_event(
+    namespaced_name: str,
+    status: ExecutionStatus,
+    duration_ms: float,
+    execution_id: UUID | None = None,
+) -> None:
+    """Emit a tool execution telemetry event to Segment (best-effort, fire-and-forget).
+
+    Telemetry failures are intentionally caught broadly so they never
+    interrupt the tool execution pipeline.
+
+    Args:
+        namespaced_name: Tool namespaced name (e.g. "mcp::get_greeting").
+        status: Resolved execution status.
+        duration_ms: Execution duration in milliseconds.
+        execution_id: Optional parent workflow execution ID for correlation.
+
+    """
+    try:
+        from nexus.telemetry.client import get_telemetry_registry  # noqa: PLC0415
+        from nexus.telemetry.collector import TelemetryCollector  # noqa: PLC0415
+
+        registry = get_telemetry_registry()
+        if registry.is_initialized():
+            logger.debug(
+                "Emitting tool_execution_telemetry event",
+                namespaced_name=namespaced_name,
+                status=status.value,
+                duration_ms=int(duration_ms),
+                execution_id=str(execution_id) if execution_id else None,
+            )
+            TelemetryCollector(registry=registry).capture_tool_executed(
+                namespaced_name=namespaced_name,
+                status=status,
+                duration_ms=int(duration_ms),
+                execution_id=execution_id,
+            )
+        else:
+            logger.debug("Telemetry not initialized, skipping tool_execution_telemetry event")
+    except Exception:  # noqa: BLE001
+        # Broad catch: telemetry must never break the tool execution pipeline
+        logger.warning("Failed to emit tool telemetry event", exc_info=True)
+
+
 async def _persist_tool_execution_to_db(
     base_tool: Any,  # noqa: ANN401
     duration_ms: float,
@@ -173,7 +217,9 @@ async def _persist_tool_execution_to_db(
         logger.warning("Failed to persist tool execution to DB", exc_info=True)
 
 
-def create_tool_awrapper() -> Callable[
+def create_tool_awrapper(
+    execution_id: UUID | None = None,
+) -> Callable[
     [ToolCallRequest, Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]]],
     Awaitable[ToolMessage | Command[Any]],
 ]:
@@ -238,6 +284,12 @@ def create_tool_awrapper() -> Callable[
         finally:
             duration_ms = (time.perf_counter() - start_time) * 1000
             status = _resolve_execution_status(caught_error)
+            tool = request.tool
+            namespaced_name = (
+                tool.metadata.get("namespaced_name", "")
+                if tool and hasattr(tool, "metadata") and isinstance(tool.metadata, dict)
+                else ""
+            )
             _emit_tool_metrics(request.tool, duration_ms, status)
             await _persist_tool_execution_to_db(
                 request.tool,
@@ -245,12 +297,19 @@ def create_tool_awrapper() -> Callable[
                 status,
                 error_message=str(caught_error) if caught_error else None,
             )
+            _emit_tool_telemetry_event(
+                namespaced_name=namespaced_name,
+                status=status,
+                duration_ms=duration_ms,
+                execution_id=execution_id,
+            )
 
     return tool_awrapper
 
 
 def create_tool_wrapper(
     loop: asyncio.AbstractEventLoop | None = None,
+    execution_id: UUID | None = None,
 ) -> Callable[[ToolCallRequest, Callable[[ToolCallRequest], ToolMessage | Command[Any]]], ToolMessage | Command[Any]]:
     """Create a synchronous tool call wrapper that handles failures with tool context.
 
@@ -259,6 +318,7 @@ def create_tool_wrapper(
 
     Args:
         loop: Optional event loop to use for tool disable operations
+        execution_id: Optional parent workflow execution ID for telemetry
 
     Returns:
         A sync ToolCallWrapper function for use with ToolNode wrap_tool_call
@@ -334,6 +394,12 @@ def create_tool_wrapper(
         finally:
             duration_ms = (time.perf_counter() - start_time) * 1000
             status = _resolve_execution_status(caught_error)
+            tool = request.tool
+            namespaced_name = (
+                tool.metadata.get("namespaced_name", "")
+                if tool and hasattr(tool, "metadata") and isinstance(tool.metadata, dict)
+                else ""
+            )
             _emit_tool_metrics(request.tool, duration_ms, status)
             _run_coroutine_from_sync(
                 _persist_tool_execution_to_db(
@@ -344,6 +410,12 @@ def create_tool_wrapper(
                 ),
                 loop,
                 "tool execution DB persistence",
+            )
+            _emit_tool_telemetry_event(
+                namespaced_name=namespaced_name,
+                status=status,
+                duration_ms=duration_ms,
+                execution_id=execution_id,
             )
 
     return tool_wrapper

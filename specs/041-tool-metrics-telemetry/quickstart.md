@@ -46,7 +46,7 @@ Execute any tool (e.g., via an agentic workflow) and check Segment for a `tool_e
 }
 ```
 
-> **Note**: `workflow_execution_id` is optional. When the orchestration context has no associated workflow execution, this field will be `null` in the payload.
+> **Note**: `workflow_execution_id` is the Segment-facing name for what is called `execution_id` throughout the rest of the codebase. It is optional — when the orchestration context has no associated workflow execution, this field will be `null` in the payload.
 
 ### 3. Telemetry Disabled
 

@@ -89,7 +89,7 @@ class OrchestrationService:
         workflow.add_node(AgentRoutes.GENERIC_AGENT, self._create_generic_agent_node(available_tools))
         workflow.add_node(
             AgentRoutes.TOOLS,
-            self._create_tool_node(available_tools),
+            self._create_tool_node(available_tools, execution_id=state.get("execution_id")),
         )
 
         # Set entry point to ToolNode
@@ -141,6 +141,7 @@ class OrchestrationService:
         correlation_id: str | None = None,
         metadata: dict[str, Any] | None = None,
         user_id: UUID | None = None,
+        execution_id: UUID | None = None,
     ) -> dict[str, Any]:
         """Execute agent orchestration with LLM streaming through LangGraph.
 
@@ -154,6 +155,7 @@ class OrchestrationService:
             correlation_id: Optional correlation ID for distributed tracing
             metadata: Optional metadata from invocation context_data (e.g., callback_url)
             user_id: Optional UUID of the user who initiated the invocation
+            execution_id: Optional workflow execution ID for telemetry correlation
 
         Returns:
             Agent execution result with context enhancement metadata (dict format for DB storage)
@@ -174,6 +176,7 @@ class OrchestrationService:
             correlation_id=correlation_id,
             metadata=metadata,
             user_id=user_id,
+            execution_id=execution_id,
         )
 
         graph: CompiledStateGraph[AgentState, None, Any, Any] = await self._setup_graph(initial_state)
@@ -663,7 +666,11 @@ class OrchestrationService:
 
         return _generic_agent_node
 
-    def _create_tool_node(self, tools: list[BaseTool]) -> ToolNode:
+    def _create_tool_node(
+        self,
+        tools: list[BaseTool],
+        execution_id: UUID | None = None,
+    ) -> ToolNode:
         """Create ToolNode with retry error handling for both sync and async tools."""
         # Get the current event loop to pass to sync wrapper for reliable tool disable operations
         try:
@@ -674,8 +681,8 @@ class OrchestrationService:
         # Create ToolNode with both sync and async wrappers for comprehensive failure handling
         return ToolNode(
             tools,
-            awrap_tool_call=create_tool_awrapper(),  # For async tool execution
-            wrap_tool_call=create_tool_wrapper(loop),  # For sync tool execution
+            awrap_tool_call=create_tool_awrapper(execution_id=execution_id),
+            wrap_tool_call=create_tool_wrapper(loop, execution_id=execution_id),
         )
 
     # ===============================

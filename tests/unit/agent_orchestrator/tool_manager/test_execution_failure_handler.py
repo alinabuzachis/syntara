@@ -12,6 +12,7 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 
 from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
+    _emit_tool_telemetry_event,
     _resolve_execution_status,
     create_tool_awrapper,
     create_tool_wrapper,
@@ -493,7 +494,7 @@ class TestToolWrapperFailureScenarios:
             "Tool execution failed during wrapped call",
             tool_name="disk_tool",
         )
-        mock_logger.debug.assert_called_once_with("Extracted tool_id from metadata", tool_id=valid_tool_id)
+        mock_logger.debug.assert_any_call("Extracted tool_id from metadata", tool_id=valid_tool_id)
 
         # Verify tool disable was called directly
         mock_disable_tool.assert_called_once()
@@ -668,3 +669,72 @@ class TestMetricsEmissionAndDbPersistence:
         assert mock_run_coro.call_count == 2
         persist_call = mock_run_coro.call_args_list[-1]
         assert persist_call[0][2] == "tool execution DB persistence"
+
+
+class TestEmitToolTelemetryEvent:
+    """Test _emit_tool_telemetry_event Segment emission."""
+
+    def test_telemetry_emitted_when_registry_initialized(self) -> None:
+        """Test that telemetry event is emitted when registry is initialized."""
+        mock_registry = Mock()
+        mock_registry.is_initialized.return_value = True
+        mock_collector = Mock()
+
+        with (
+            patch(
+                "nexus.telemetry.client.get_telemetry_registry",
+                return_value=mock_registry,
+            ),
+            patch(
+                "nexus.telemetry.collector.TelemetryCollector",
+                return_value=mock_collector,
+            ) as mock_collector_cls,
+        ):
+            exec_id = uuid4()
+            _emit_tool_telemetry_event(
+                namespaced_name="provider::my_tool",
+                status=ExecutionStatus.SUCCESS,
+                duration_ms=150.0,
+                execution_id=exec_id,
+            )
+
+            mock_collector_cls.assert_called_once_with(registry=mock_registry)
+            mock_collector.capture_tool_executed.assert_called_once_with(
+                namespaced_name="provider::my_tool",
+                status=ExecutionStatus.SUCCESS,
+                duration_ms=150,
+                execution_id=exec_id,
+            )
+
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler.logger")
+    def test_telemetry_skipped_when_registry_not_initialized(self, mock_logger: Mock) -> None:
+        """Test that telemetry is skipped with debug log when registry is not initialized."""
+        mock_registry = Mock()
+        mock_registry.is_initialized.return_value = False
+
+        with patch(
+            "nexus.telemetry.client.get_telemetry_registry",
+            return_value=mock_registry,
+        ):
+            _emit_tool_telemetry_event(
+                namespaced_name="provider::my_tool",
+                status=ExecutionStatus.SUCCESS,
+                duration_ms=100.0,
+            )
+
+            mock_logger.debug.assert_any_call("Telemetry not initialized, skipping tool_execution_telemetry event")
+
+    @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler.logger")
+    def test_telemetry_exception_caught_and_logged(self, mock_logger: Mock) -> None:
+        """Test that exceptions during telemetry emission are caught and logged as warning."""
+        with patch(
+            "nexus.telemetry.client.get_telemetry_registry",
+            side_effect=RuntimeError("telemetry broken"),
+        ):
+            _emit_tool_telemetry_event(
+                namespaced_name="provider::my_tool",
+                status=ExecutionStatus.ERROR,
+                duration_ms=200.0,
+            )
+
+            mock_logger.warning.assert_any_call("Failed to emit tool telemetry event", exc_info=True)

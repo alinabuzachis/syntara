@@ -23,8 +23,12 @@ from nexus.telemetry.periodic_collector import _collect_and_send
 from nexus.telemetry.queries import (
     query_execution_counts,
     query_model_usage,
+    query_tool_counts,
     query_workflow_counts,
 )
+from nexus.tool_manager.models.tool import Tool
+from nexus.tool_manager.models.tool_provider import ToolProvider
+from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter, WindowDuration
 from nexus.workflows.models import Workflow, WorkflowVersion
 from nexus.workflows.models.execution import Execution, ExecutionStatus
 
@@ -229,6 +233,10 @@ class TestPeriodicAnalyticsFlow:
 
         assert props["config"]["feature_flags_enabled"] == []
 
+        # Verify tool counts (no usage_counter rows inserted, so all zeros)
+        assert props["tools"]["success_count"] == 0
+        assert props["tools"]["total_executions"] == 0
+
         # Verify model usage aggregation
         model_usage = props["model_usage"]
         assert len(model_usage) == 2
@@ -300,6 +308,8 @@ class TestPeriodicAnalyticsFlow:
         assert props["workflows"]["enabled"] == 0
         assert props["executions"]["total"] == 0
         assert props["credentials"]["total"] == 0
+        assert props["tools"]["total_executions"] == 0
+        assert props["tools"]["distinct_tools"] == 0
         assert props["model_usage"] == []
 
     async def test_soft_deleted_records_excluded(
@@ -726,3 +736,101 @@ class TestQueryModelUsageRealDB:
         result = await query_model_usage(test_db_session)
 
         assert result == []
+
+
+class TestQueryToolCountsRealDB:
+    """Integration tests for query_tool_counts against real PostgreSQL."""
+
+    async def test_empty_database(self, test_db_session: AsyncSession):
+        result = await query_tool_counts(test_db_session)
+        assert result.success_count == 0
+        assert result.error_count == 0
+        assert result.timeout_count == 0
+        assert result.distinct_tools == 0
+        assert result.total_executions == 0
+
+    async def test_counts_from_usage_counters(
+        self, test_db_session: AsyncSession, test_user: User, test_tool_provider: ToolProvider
+    ):
+        """Insert usage_counter rows and verify aggregation."""
+        now = datetime.now(UTC)
+
+        tool_1 = Tool(
+            name="tool-1", provider_id=test_tool_provider.id, namespaced_name="test::tool1", created_by=test_user.id
+        )
+        tool_2 = Tool(
+            name="tool-2", provider_id=test_tool_provider.id, namespaced_name="test::tool2", created_by=test_user.id
+        )
+        test_db_session.add_all([tool_1, tool_2])
+        await test_db_session.flush()
+
+        counters = [
+            UsageCounter(
+                counter_type=CounterType.TOOL,
+                tool_id=tool_1.id,
+                time_window="2026-04-09-14",
+                window_duration=WindowDuration.HOUR,
+                request_count=10,
+                success_count=8,
+                error_count=1,
+                timeout_count=1,
+                total_duration_ms=5000,
+                window_start=now,
+                window_end=now + timedelta(hours=1),
+                created_by=test_user.id,
+            ),
+            UsageCounter(
+                counter_type=CounterType.TOOL,
+                tool_id=tool_2.id,
+                time_window="2026-04-09-14",
+                window_duration=WindowDuration.HOUR,
+                request_count=5,
+                success_count=4,
+                error_count=1,
+                timeout_count=0,
+                total_duration_ms=2000,
+                window_start=now,
+                window_end=now + timedelta(hours=1),
+                created_by=test_user.id,
+            ),
+        ]
+        test_db_session.add_all(counters)
+        await test_db_session.commit()
+
+        result = await query_tool_counts(test_db_session)
+
+        assert result.success_count == 12
+        assert result.error_count == 2
+        assert result.timeout_count == 1
+        assert result.distinct_tools == 2
+        assert result.total_executions == 15
+
+    async def test_excludes_non_tool_counter_types(
+        self, test_db_session: AsyncSession, test_user: User, test_tool_provider: ToolProvider
+    ):
+        """Only counter_type='tool' rows should be included."""
+        now = datetime.now(UTC)
+
+        # Provider counter — should be excluded
+        test_db_session.add(
+            UsageCounter(
+                counter_type=CounterType.PROVIDER,
+                provider_id=test_tool_provider.id,
+                time_window="2026-04-09-14",
+                window_duration=WindowDuration.HOUR,
+                request_count=100,
+                success_count=90,
+                error_count=10,
+                timeout_count=0,
+                total_duration_ms=50000,
+                window_start=now,
+                window_end=now + timedelta(hours=1),
+                created_by=test_user.id,
+            )
+        )
+        await test_db_session.commit()
+
+        result = await query_tool_counts(test_db_session)
+
+        assert result.total_executions == 0
+        assert result.distinct_tools == 0

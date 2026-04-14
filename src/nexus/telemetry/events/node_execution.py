@@ -88,7 +88,7 @@ class NodeExecutionEventBuilder:
 
     def build_event(
         self,
-        workflow_execution_id: str,
+        execution_id: str,
         node_type: NodeType,
         node_def: dict[str, object],
         status: ActivityTerminalStatus,
@@ -101,7 +101,7 @@ class NodeExecutionEventBuilder:
         """Build a node execution event.
 
         Args:
-            workflow_execution_id: Links to parent workflow execution (UUID v4).
+            execution_id: Links to parent workflow execution (UUID v4).
             node_type: Type of node executed.
             node_def: Node definition dictionary for hash calculation.
             status: Node execution outcome.
@@ -118,7 +118,7 @@ class NodeExecutionEventBuilder:
         canonical_json = json.dumps(node_def, sort_keys=True)
         node_hash = self._calculate_definition_hash(canonical_json)
         return NodeExecutionEvent(
-            workflow_execution_id=workflow_execution_id,
+            workflow_execution_id=execution_id,
             node_type=node_type,
             node_hash=node_hash,
             status=status,

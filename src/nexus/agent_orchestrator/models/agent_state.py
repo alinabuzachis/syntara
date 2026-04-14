@@ -5,7 +5,7 @@ state machine during agent orchestration.
 """
 
 import operator
-from typing import Annotated, Any
+from typing import Annotated, Any, NotRequired
 from uuid import UUID
 
 from langchain.messages import AnyMessage
@@ -67,6 +67,10 @@ class AgentState(TypedDict):
     llm_token_usage_log: Annotated[list[dict[str, Any]], operator.add]
     """Per-call token usage entries from LLM provider responses"""
 
+    # Workflow execution correlation
+    execution_id: NotRequired[UUID | None]
+    """Optional workflow execution ID for telemetry correlation"""
+
 
 class AgentStateFactory:
     """Factory for creating AgentState instances."""
@@ -79,6 +83,7 @@ class AgentStateFactory:
         correlation_id: str | None = None,
         metadata: dict[str, Any] | None = None,
         user_id: UUID | None = None,
+        execution_id: UUID | None = None,
     ) -> AgentState:
         """Create initial state for LangGraph execution.
 
@@ -89,6 +94,7 @@ class AgentStateFactory:
             correlation_id: Optional correlation ID (defaults to invocation_id)
             metadata: Optional metadata from invocation context_data (e.g., callback_url)
             user_id: Optional UUID of the user who initiated the invocation
+            execution_id: Optional workflow execution ID for telemetry correlation
 
         Returns:
             Initial AgentState ready for orchestration
@@ -107,4 +113,5 @@ class AgentStateFactory:
             messages=[HumanMessage(prompt)],
             result=None,
             llm_token_usage_log=[],
+            execution_id=execution_id or None,
         )

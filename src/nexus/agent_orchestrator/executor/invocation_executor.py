@@ -150,6 +150,9 @@ class InvocationExecutor:
 
                 # Execute through orchestration service
                 correlation_id = str(invocation.context_data.get("correlation_id", exec_invocation_id))
+                # Extract execution_id from context_data for telemetry correlation
+                raw_execution_id = invocation.context_data.get("execution_id")
+                execution_id = UUID(str(raw_execution_id)) if isinstance(raw_execution_id, str) else None
                 result_dict = await orchestration_service.execute(
                     prompt=invocation.prompt,
                     session_id=invocation.session_id,
@@ -157,6 +160,7 @@ class InvocationExecutor:
                     correlation_id=correlation_id,
                     metadata=invocation.context_data,
                     user_id=invocation.created_by,
+                    execution_id=execution_id,
                 )
 
                 # Check if invocation was cancelled during execution (fix race condition)

@@ -290,27 +290,6 @@ class NexusPrometheusMetrics:
             registry=self.registry,
         )
 
-        self.tool_execution_success_rate = Gauge(
-            "nexus_tool_execution_success_rate",
-            "Tool execution success rate",
-            ["component"],
-            registry=self.registry,
-        )
-
-        self.tool_provider_availability = Gauge(
-            "nexus_tool_provider_availability",
-            "Tool provider availability ratio",
-            ["component"],
-            registry=self.registry,
-        )
-
-        self.tool_error_rate = Gauge(
-            "nexus_tool_error_rate",
-            "Tool error rate",
-            ["component"],
-            registry=self.registry,
-        )
-
         self.database_connection_pool_utilization = Gauge(
             "nexus_database_connection_pool_utilization",
             "Database connection pool utilization ratio",

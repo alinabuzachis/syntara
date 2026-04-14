@@ -28,7 +28,7 @@ import structlog
 from nexus.core.exceptions import SafeValueError
 from nexus.metrics.prometheus import NexusPrometheusMetrics
 from nexus.metrics.store import MetricsStore
-from nexus.metrics.types import COMPONENT_LABELS, MetricRecord, MetricsSummary, MetricType
+from nexus.metrics.types import ComponentLabel, MetricRecord, MetricsSummary, MetricType
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -57,10 +57,6 @@ _COMPONENT_METRIC_MAP: dict[MetricType, tuple[str, str, tuple[str, ...]]] = {
     # Execution Service
     MetricType.WORKFLOW_START_LATENCY: ("workflow_start_latency_seconds", "histogram", ()),
     MetricType.WORKFLOW_COMPLETION_RATE: ("workflow_completion_rate", "gauge", ()),
-    # Tool Manager
-    MetricType.TOOL_EXECUTION_SUCCESS_RATE: ("tool_execution_success_rate", "gauge", ()),
-    MetricType.TOOL_PROVIDER_AVAILABILITY: ("tool_provider_availability", "gauge", ()),
-    MetricType.TOOL_ERROR_RATE: ("tool_error_rate", "gauge", ()),
     # Database
     MetricType.DATABASE_QUERY_RESPONSE_TIME: ("database_query_response_time_seconds", "histogram", ("table_name",)),
     MetricType.DATABASE_CONNECTION_POOL_UTILIZATION: ("database_connection_pool_utilization", "gauge", ()),
@@ -152,21 +148,28 @@ class MetricsRecorder:
         value: float,
         unit: str = "",
         labels: dict[str, str] | None = None,
+        component: ComponentLabel | None = None,
     ) -> None:
         """Record a single metric (non-blocking).
 
         The record is appended to the in-memory store *and* the matching
         Prometheus metric is updated.
 
-        When a ``component`` label is provided its value is validated
-        against :data:`COMPONENT_LABELS`.  An invalid value raises
-        :class:`SafeValueError`.
+        Args:
+            metric_type: The kind of metric being recorded.
+            value: Numeric observation value.
+            unit: Optional unit string (e.g. ``"ms"``, ``"tokens"``).
+            labels: Free-form string labels attached to the record.
+            component: Optional component identifier for component-level
+                metrics dispatched via :data:`_COMPONENT_METRIC_MAP`.
+
         """
         if not self._enabled:
             return
 
         metric_labels = labels or {}
-        self._validate_component_label(metric_labels)
+        if component is not None:
+            metric_labels = {**metric_labels, "component": component.value}
 
         if self._store_enabled:
             record = MetricRecord(
@@ -240,25 +243,6 @@ class MetricsRecorder:
         finally:
             duration_ms = (time.perf_counter() - start) * 1000
             self.record(metric_type, duration_ms, unit="ms", labels=labels)
-
-    # ------------------------------------------------------------------
-    # Validation
-    # ------------------------------------------------------------------
-
-    def _validate_component_label(self, labels: dict[str, str]) -> None:
-        """Validate the ``component`` label if present.
-
-        Raises :class:`SafeValueError` when the value is not one of the
-        recognised component identifiers defined in
-        :data:`COMPONENT_LABELS`.  Silently skips validation when the
-        label is absent.
-        """
-        component = labels.get("component")
-        if component is None:
-            return
-        if component not in COMPONENT_LABELS:
-            msg = f"Invalid component label {component!r}. Must be one of: {sorted(COMPONENT_LABELS)}"
-            raise SafeValueError(msg)
 
     # ------------------------------------------------------------------
     # Querying

@@ -246,7 +246,7 @@ class TestWorkflowExecutionEventBuilder:
     def test_build_start_event(self):
         builder = WorkflowExecutionEventBuilder()
         event = builder.build_start_event(
-            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
             entitlement_id="",
         )
         assert isinstance(event, WorkflowExecutionStartEvent)
@@ -255,7 +255,7 @@ class TestWorkflowExecutionEventBuilder:
     def test_build_completed_event_success(self):
         builder = WorkflowExecutionEventBuilder()
         event = builder.build_completed_event(
-            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
             status="completed",
             duration_ms=12500,
             node_count=8,
@@ -281,7 +281,7 @@ class TestNodeExecutionEventBuilder:
 
         # Build event and verify basic properties
         event = builder.build_event(
-            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
             node_type="script",
             node_def={"a": 1, "b": 2},
             status="completed",
@@ -293,7 +293,7 @@ class TestNodeExecutionEventBuilder:
 
         # Verify hash is deterministic and key-order independent
         event_same = builder.build_event(
-            workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
+            execution_id=VALID_WORKFLOW_EXECUTION_ID,
             node_type="script",
             node_def={"b": 2, "a": 1},
             status="completed",

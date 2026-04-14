@@ -57,13 +57,13 @@ class WorkflowExecutionEventBuilder:
 
     def build_start_event(
         self,
-        workflow_execution_id: str,
+        execution_id: str,
         entitlement_id: str,
     ) -> WorkflowExecutionStartEvent:
         """Build a workflow execution start event.
 
         Args:
-            workflow_execution_id: Unique workflow execution identifier (UUID v4).
+            execution_id: Unique workflow execution identifier (UUID v4).
             entitlement_id: Installation entitlement identifier.
 
         Returns:
@@ -71,13 +71,13 @@ class WorkflowExecutionEventBuilder:
 
         """
         return WorkflowExecutionStartEvent(
-            workflow_execution_id=workflow_execution_id,
+            workflow_execution_id=execution_id,
             entitlement_id=entitlement_id,
         )
 
     def build_completed_event(
         self,
-        workflow_execution_id: str,
+        execution_id: str,
         status: WorkflowTerminalStatus,
         duration_ms: int,
         node_count: int,
@@ -88,7 +88,7 @@ class WorkflowExecutionEventBuilder:
         """Build a workflow execution completed event.
 
         Args:
-            workflow_execution_id: Unique workflow execution identifier (UUID v4).
+            execution_id: Unique workflow execution identifier (UUID v4).
             status: Final execution status.
             duration_ms: Duration in milliseconds.
             node_count: Total number of nodes executed.
@@ -101,7 +101,7 @@ class WorkflowExecutionEventBuilder:
 
         """
         return WorkflowExecutionCompletedEvent(
-            workflow_execution_id=workflow_execution_id,
+            workflow_execution_id=execution_id,
             status=status,
             duration_ms=duration_ms,
             node_count=node_count,

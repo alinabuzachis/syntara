@@ -92,19 +92,19 @@ async def _run_with_telemetry(collector: TelemetryCollector, iterations: int) ->
 
         start = time.perf_counter()
 
-        collector.capture_workflow_start(workflow_execution_id=wf_id)
+        collector.capture_workflow_start(execution_id=wf_id)
         await _run_workflow_activities()
 
         for i in range(_ACTIVITIES_PER_WORKFLOW):
             collector.capture_node_executed(
-                workflow_execution_id=wf_id,
+                execution_id=wf_id,
                 node_type=NodeType.SCRIPT,
                 node_def=_ACTIVITY_DEFS[i],
                 status=ActivityTerminalStatus.COMPLETED,
                 duration_ms=10,
             )
         collector.capture_workflow_completed(
-            workflow_execution_id=wf_id,
+            execution_id=wf_id,
             status=WorkflowTerminalStatus.COMPLETED,
             duration_ms=50,
             node_count=_ACTIVITIES_PER_WORKFLOW,

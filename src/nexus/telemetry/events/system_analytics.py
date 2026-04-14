@@ -4,7 +4,7 @@ All models are stateless snapshots of current database state.
 Sent to Segment at fixed intervals by the PeriodicCollector.
 """
 
-from pydantic import Field
+from pydantic import Field, computed_field
 from sqlmodel import SQLModel
 
 from nexus.telemetry.events.base import BaseTelemetryEvent
@@ -59,6 +59,21 @@ class ConfigInfo(SQLModel):
     )
 
 
+class ToolCounts(SQLModel):
+    """All-time cumulative tool execution counts (terminal states only)."""
+
+    success_count: int = Field(default=0, description="All-time successful executions")
+    error_count: int = Field(default=0, description="All-time failed executions")
+    timeout_count: int = Field(default=0, description="All-time timed-out executions")
+    distinct_tools: int = Field(default=0, description="Number of distinct tools ever used")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def total_executions(self) -> int:
+        """All-time total tool executions (success + error + timeout)."""
+        return self.success_count + self.error_count + self.timeout_count
+
+
 class SystemAnalyticsEvent(BaseTelemetryEvent):
     """Stateless system analytics event sent to Segment.
 
@@ -73,6 +88,7 @@ class SystemAnalyticsEvent(BaseTelemetryEvent):
     credentials: CredentialCounts = Field(..., description="Credential aggregates")
     executions: ExecutionCounts = Field(..., description="Execution aggregates")
     config: ConfigInfo = Field(..., description="Configuration info")
+    tools: ToolCounts = Field(..., description="Tool usage aggregates")
     model_usage: list[ModelUsage] = Field(
         default_factory=list,
         description="Aggregated token usage per LLM model",

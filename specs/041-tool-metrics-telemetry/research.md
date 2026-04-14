@@ -39,10 +39,10 @@
 - `namespaced_name: str` — tool identifier in plaintext (e.g., "mcp::get_greeting")
 - `status: str` — execution status ("success", "error", "timeout")
 - `duration_ms: int` — execution duration in milliseconds
-- `workflow_execution_id: str | None` — optional parent workflow execution identifier (UUID v4)
+- `execution_id: UUID | None` — optional parent workflow execution identifier (named `workflow_execution_id` only in the final Segment telemetry event payload)
 - `entitlement_id: str` — inherited from BaseTelemetryEvent
 
-**Rationale**: Tool names are not PII (confirmed in clarifications). Status and duration are the minimum useful fields for analytics. The entitlement_id enables per-installation aggregation in Segment. The `workflow_execution_id` enables correlation with workflow executions — sourced from a new optional `execution_id` field on `AgentState` (using `NotRequired[str | None]`), populated by `InvocationExecutor`. The telemetry event field is named `workflow_execution_id` to match existing telemetry conventions, while the `AgentState` field is named `execution_id` to match the `Execution` model concept.
+**Rationale**: Tool names are not PII (confirmed in clarifications). Status and duration are the minimum useful fields for analytics. The entitlement_id enables per-installation aggregation in Segment. The `execution_id` enables correlation with workflow executions — sourced from `AgentState.execution_id` (using `NotRequired[UUID | None]`), populated by `InvocationExecutor`. The name `execution_id` is used consistently throughout the codebase to match the rest of Nexus. It is only mapped to `workflow_execution_id` in the final Segment telemetry event model fields, matching existing telemetry event conventions.
 
 **Alternatives considered**:
 - Include `provider_id` or `tool_id`: Rejected — internal UUIDs are not useful in Segment analytics without the name.

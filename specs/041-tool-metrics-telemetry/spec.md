@@ -45,7 +45,7 @@ As a product analytics team member, I want individual tool execution events sent
 - What happens when the telemetry system is disabled (no Segment write key)? Tool metrics recording to the database continues normally; only the Segment event emission is skipped.
 - What happens when the database has no tool execution records? The periodic snapshot includes tool metrics with zero counts.
 - What happens when tool execution recording fails? The telemetry event emission should not block or fail the tool execution itself — it is fire-and-forget.
-- What happens when `workflow_execution_id` is not available in the orchestration context? The telemetry event is still emitted with `workflow_execution_id: null` in the payload.
+- What happens when `execution_id` is not available in the orchestration context? The telemetry event is still emitted with `workflow_execution_id: null` in the Segment payload.
 
 ## Requirements *(mandatory)*
 
@@ -53,13 +53,13 @@ As a product analytics team member, I want individual tool execution events sent
 
 - **FR-001**: The periodic system_analytics event MUST include a tool usage summary section with: all-time total tool executions, success count, error count, timeout count, and distinct tools used (cumulative, not windowed). Only terminal states (success, error, timeout) are counted — executions still in "running" state are excluded.
 - **FR-002**: The tool usage summary in the periodic event MUST query data from the existing UsageCounter and ToolExecution tables (introduced in PR #504) rather than duplicating storage.
-- **FR-003**: A new telemetry event MUST be emitted to Segment for each tool execution that reaches a terminal state (success, error, or timeout), containing: tool namespaced name (plaintext, not hashed — tool names are not PII), execution status, duration in milliseconds, workflow execution ID (optional, linking to the parent workflow execution via new `AgentState.execution_id` field populated by `InvocationExecutor`), and entitlement ID. Executions still in "running" state MUST NOT produce a telemetry event.
+- **FR-003**: A new telemetry event MUST be emitted to Segment for each tool execution that reaches a terminal state (success, error, or timeout), containing: tool namespaced name (plaintext, not hashed — tool names are not PII), execution status, duration in milliseconds, execution ID (optional, linking to the parent workflow execution via `AgentState.execution_id` populated by `InvocationExecutor`), and entitlement ID. The execution ID is named `execution_id` throughout the codebase and only mapped to `workflow_execution_id` in the final Segment telemetry event payload. Executions still in "running" state MUST NOT produce a telemetry event.
 - **FR-004**: Telemetry event emission MUST be non-blocking — failures to send events MUST NOT affect tool execution outcomes.
 - **FR-005**: When telemetry is disabled (no Segment write key), tool metric events MUST be silently skipped with no errors.
 
 ### Key Entities
 
-- **ToolExecutionEvent**: A Segment telemetry event representing a single tool execution. Contains tool namespaced name, execution status, duration, workflow execution ID, and entitlement ID.
+- **ToolExecutionEvent**: A Segment telemetry event representing a single tool execution. Contains tool namespaced name, execution status, duration, execution ID (named `workflow_execution_id` in the Segment payload), and entitlement ID.
 - **ToolCounts**: An aggregate data structure included in the periodic system_analytics event. Contains all-time cumulative counts of executions, successes, errors, timeouts, and distinct tools.
 
 ## Success Criteria *(mandatory)*
@@ -82,7 +82,7 @@ As a product analytics team member, I want individual tool execution events sent
 
 ### Session 2026-04-08
 
-- Q: What identifier should the tool execution telemetry event use to link to the parent workflow execution? → A: Use `workflow_execution_id` (the Execution model UUID). Add a new optional field `execution_id: str | None` to `AgentState`, populated by `InvocationExecutor` before calling orchestration. The field is optional because not all orchestration contexts may have a workflow execution. When `None`, the telemetry event emits `workflow_execution_id: null`.
+- Q: What identifier should the tool execution telemetry event use to link to the parent workflow execution? → A: Use `execution_id` throughout the codebase (AgentState, function parameters, tool wrappers), consistent with the rest of the Nexus codebase. The field is named `workflow_execution_id` only in the final Segment telemetry event definitions, matching existing telemetry event conventions. The field is optional because not all orchestration contexts may have a workflow execution. When `None`, the telemetry event emits `workflow_execution_id: null`.
 
 ## Out of Scope
 
