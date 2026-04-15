@@ -60,7 +60,7 @@ class TestMonitoringWorkflowInboundInterceptor:
             call_args = mock_start.call_args
 
             assert call_args.args[0] == "register_activity_monitoring"
-            assert call_args.kwargs["args"] == [execution_id, temporal_workflow_id]
+            assert call_args.kwargs["args"] == [execution_id, temporal_workflow_id, None]
             assert call_args.kwargs["activity_id"] == "__internal__register_monitoring"
             assert call_args.kwargs["start_to_close_timeout"] == timedelta(seconds=30)
             assert call_args.kwargs["retry_policy"] is None
@@ -144,7 +144,7 @@ class TestMonitoringWorkflowInboundInterceptor:
             await interceptor.execute_workflow(mock_input)
 
             call_args = mock_start.call_args
-            assert call_args.kwargs["args"] == [execution_id, temporal_workflow_id]
+            assert call_args.kwargs["args"] == [execution_id, temporal_workflow_id, None]
 
     @pytest.mark.asyncio
     async def test_execute_workflow_uses_non_blocking_start_activity(self) -> None:

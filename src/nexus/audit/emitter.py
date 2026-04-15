@@ -18,6 +18,7 @@ actor_type_context_var: ContextVar[ActorType | None] = ContextVar("actor_type", 
 workflow_id_context_var: ContextVar[UUID | None] = ContextVar("workflow_id", default=None)
 activity_id_context_var: ContextVar[str | None] = ContextVar("activity_id", default=None)
 execution_id_context_var: ContextVar[UUID | None] = ContextVar("execution_id", default=None)
+request_id_context_var: ContextVar[UUID | None] = ContextVar("request_id", default=None)
 
 
 # Fixed sanitizer with comprehensive PII detectors

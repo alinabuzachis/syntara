@@ -6,7 +6,7 @@ workflow executions via Temporal.
 
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import structlog
 from temporalio.api.enums.v1 import EventType
@@ -84,6 +84,7 @@ class TemporalExecutionService:
         workflow_name: str,
         input_data: dict[str, Any] | None = None,
         workflow_id: str | None = None,
+        request_id: UUID | None = None,
     ) -> WorkflowStartResponse:
         """Start a V2 workflow from dict definition.
 
@@ -92,6 +93,7 @@ class TemporalExecutionService:
             workflow_name: Name for this workflow execution
             input_data: Input parameters for the workflow trigger
             workflow_id: Optional workflow ID (auto-generated if not provided)
+            request_id: Optional X-Request-Id (UUID) from the originating HTTP request
 
         Returns:
             WorkflowStartResponse containing:
@@ -160,7 +162,7 @@ class TemporalExecutionService:
             # Start Temporal workflow with V2 signature
             handle = await self.temporal_client.start_workflow(
                 NexusWorkflow.run,
-                args=[workflow_def, execution_id, trigger_node_id, input_data or {}, False],
+                args=[workflow_def, execution_id, trigger_node_id, input_data or {}, False, request_id],
                 id=temporal_workflow_id,
                 task_queue=self.task_queue,
             )

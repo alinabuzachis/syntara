@@ -225,11 +225,13 @@ endif
 .PHONY: test-e2e-telemetry
 test-e2e-telemetry: check-deps ## Run telemetry E2E tests only
 ifndef APP_BASE_URL
-	$(call _e2e-run,tests/e2e/telemetry/ -v)
+	$(call _e2e-run,tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && SEGMENT_SERVER_URL=http://localhost:$(SEGMENT_SERVER_PORT) APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} uv run pytest tests/e2e/telemetry/test_performance_and_resilience.py -v)
 else
 	@echo "🧪 Running telemetry E2E tests..."
 	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
-	uv run pytest tests/e2e/telemetry/ -v
+	uv run pytest tests/e2e/telemetry/ -v -n auto --dist loadscope --ignore=tests/e2e/telemetry/test_performance_and_resilience.py && \
+	SEGMENT_SERVER_URL=$${SEGMENT_SERVER_URL:-http://localhost:$(SEGMENT_SERVER_PORT)} \
+	uv run pytest tests/e2e/telemetry/test_performance_and_resilience.py -v
 endif
 
 # Development workflow

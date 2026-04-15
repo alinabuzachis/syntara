@@ -13,13 +13,13 @@ import time
 from typing import Any
 from uuid import UUID
 
+import httpx
 import pytest
 from nexus_api_client.api import NexusApiRegistry
-from nexus_api_client.models.execution_create import ExecutionCreate
 from nexus_api_client.models.workflow_create import WorkflowCreate
 from nexus_api_client.models.workflow_update import WorkflowUpdate
 
-from tests.e2e.telemetry.conftest import get_captured_events
+from tests.e2e.telemetry.conftest import get_captured_events, new_request_id
 
 pytestmark = pytest.mark.e2e
 
@@ -62,11 +62,7 @@ PII_FIELDS = {
 
 
 def _poll_execution(nexus_api: NexusApiRegistry, exec_id: str) -> Any:  # noqa: ANN401
-    """Poll until execution reaches a terminal state.
-
-    Raises pytest.fail if the execution never reaches a terminal state,
-    which typically means Temporal is not running.
-    """
+    """Poll until execution reaches a terminal state."""
     elapsed = 0
     last_status = "unknown"
     while elapsed < POLL_TIMEOUT:
@@ -87,11 +83,7 @@ def _poll_execution(nexus_api: NexusApiRegistry, exec_id: str) -> Any:  # noqa: 
 
 @pytest.fixture(scope="module")
 def workflow_id(nexus_api: NexusApiRegistry) -> str:
-    """Create or update the telemetry test workflow, return its ID.
-
-    If updating an existing workflow fails (e.g. schema mismatch from a
-    prior run), delete it and recreate from scratch.
-    """
+    """Create or update the telemetry test workflow, return its ID."""
     existing = nexus_api.workflows.list(
         additional_params={"name": WORKFLOW_NAME},
     ).assert_and_get()
@@ -106,7 +98,6 @@ def workflow_id(nexus_api: NexusApiRegistry) -> str:
             ).assert_and_get()
             return wf_id
         except Exception:
-            # Update failed — delete and recreate below
             nexus_api.workflows.delete(workflow_id=UUID(wf_id))
 
     data = nexus_api.workflows.create(
@@ -123,23 +114,41 @@ def workflow_id(nexus_api: NexusApiRegistry) -> str:
 @pytest.fixture(scope="module")
 def completed_execution(
     nexus_api: NexusApiRegistry,
+    nexus_base_url: str,
+    auth_headers: dict[str, str],
     workflow_id: str,
     segment_server_url: str,
 ) -> dict[str, Any]:
-    """Execute the workflow and return execution data plus captured events."""
-    exec_data = nexus_api.executions.create(
-        body=ExecutionCreate(workflow_id=UUID(workflow_id)),
-    ).assert_and_get()
+    """Execute the workflow with X-Request-Id and return execution data plus captured events.
 
-    execution = _poll_execution(nexus_api, str(exec_data.id))
+    Workflow telemetry events (workflow_execution_start/completed) are
+    emitted by the Temporal worker which may not yet propagate the
+    request_id. We collect all events and tag which ones carry the
+    originating request_id for correlation-aware tests.
+    """
+    rid = new_request_id()
+
+    # Create execution via raw httpx so we can pass X-Request-Id
+    headers = {**auth_headers, "X-Request-Id": rid, "Content-Type": "application/json"}
+    r = httpx.post(
+        f"{nexus_base_url}/api/v1/executions",
+        json={"workflow_id": workflow_id},
+        headers=headers,
+        timeout=10,
+    )
+    r.raise_for_status()
+    exec_data = r.json()
+    exec_id = exec_data["id"]
+
+    execution = _poll_execution(nexus_api, exec_id)
     assert execution.status == "completed", f"Execution failed: {getattr(execution, 'error_details', None)}"
 
-    # Wait for telemetry events to flush to mock Segment.
-    # Activity events may arrive later than workflow events due to
-    # asynchronous activity sync, so use a longer poll timeout.
-    events = get_captured_events(segment_server_url, timeout=10.0)
+    # Collect all events correlated by request_id (api_call + workflow events).
+    # The request_id is propagated through the interceptor chain to the
+    # workflow emitters, so all event types carry it.
+    events = get_captured_events(segment_server_url, request_id=rid, timeout=10.0)
 
-    return {"execution": execution, "events": events, "execution_id": str(exec_data.id)}
+    return {"execution": execution, "events": events, "execution_id": exec_id, "request_id": rid}
 
 
 class TestWorkflowStartEvent:
@@ -162,6 +171,17 @@ class TestWorkflowStartEvent:
         assert len(start_events) >= 1
         props = start_events[0].get("properties", {})
         assert "workflow_execution_id" in props, f"workflow_execution_start missing workflow_execution_id: {props}"
+
+    def test_start_event_carries_request_id(
+        self,
+        completed_execution: dict[str, Any],
+    ) -> None:
+        """The start event must carry the originating X-Request-Id."""
+        rid = completed_execution["request_id"]
+        start_events = [e for e in completed_execution["events"] if e.get("event") == "workflow_execution_start"]
+        assert len(start_events) >= 1
+        props = start_events[0].get("properties", {})
+        assert props.get("request_id") == rid, f"Expected request_id={rid}, got {props.get('request_id')}"
 
 
 class TestWorkflowCompletedEvent:
@@ -201,7 +221,22 @@ class TestWorkflowCompletedEvent:
 
 
 class TestEventCorrelation:
-    """Verify workflow_execution_id stitches all events within a run."""
+    """Verify request_id and workflow_execution_id stitch events together."""
+
+    def test_all_events_share_request_id(
+        self,
+        completed_execution: dict[str, Any],
+    ) -> None:
+        """All events from one workflow run must share the originating X-Request-Id."""
+        rid = completed_execution["request_id"]
+        events = completed_execution["events"]
+        assert len(events) >= 2, f"Expected at least 2 events, got {len(events)}"
+
+        for event in events:
+            props = event.get("properties", {})
+            assert props.get("request_id") == rid, (
+                f"Event {event.get('event')} has request_id={props.get('request_id')}, expected {rid}"
+            )
 
     def test_all_events_share_workflow_execution_id(
         self,
@@ -280,8 +315,6 @@ class TestPeriodicAnalytics:
         segment_server_url: str,
     ) -> None:
         """A system_analytics event should be emitted by the periodic collector."""
-        # The collection interval is 10s in test env; poll long enough
-        # for at least one cycle to complete.
         events = get_captured_events(
             segment_server_url,
             event_type="system_analytics",

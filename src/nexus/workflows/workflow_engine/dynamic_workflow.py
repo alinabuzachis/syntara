@@ -82,6 +82,7 @@ class NexusWorkflow:
         trigger_node_id: str,
         trigger_inputs: dict[str, Any],
         include_node_results: bool = False,  # noqa: FBT001, FBT002
+        request_id: str | None = None,
     ) -> dict[str, Any]:
         """Execute a v2 workflow with concurrent execution and convergence support.
 
@@ -94,6 +95,7 @@ class NexusWorkflow:
             trigger_node_id: ID of the trigger node to execute
             trigger_inputs: User-provided inputs for the trigger
             include_node_results: Whether to include full node results in return value (default: False for production)
+            request_id: Optional X-Request-Id (UUID) from the originating HTTP request
 
         Returns:
             Workflow execution result matching WorkflowResultResponse schema.
@@ -104,7 +106,7 @@ class NexusWorkflow:
         # by the application code BEFORE starting the workflow execution.
         # This keeps the workflow logic independent of infrastructure concerns.
         graph = WorkflowGraph.from_dict(workflow_definition)
-        self._initialize_state(execution_id)
+        self._initialize_state(execution_id, request_id=request_id)
 
         pending_tasks: dict[str, asyncio.Task[Any]] = {}
         await self._execute_trigger(trigger_node_id, trigger_inputs, graph, pending_tasks)
@@ -114,9 +116,10 @@ class NexusWorkflow:
 
         return self._build_result(execution_id, include_node_results)
 
-    def _initialize_state(self, execution_id: str) -> None:
+    def _initialize_state(self, execution_id: str, request_id: str | None = None) -> None:
         """Initialize all workflow state for a new execution."""
         self.execution_id = execution_id
+        self.request_id = request_id
         self.resolver = NamespaceResolver()
         self.node_inputs: dict[str, dict[str, Any]] = {}
         self.node_control_data: dict[str, dict[str, Any]] = {}
@@ -799,7 +802,7 @@ class NexusWorkflow:
         """
         activity_result = await workflow.execute_activity(
             activity_name,
-            args=[resolved_config, outputs, self.execution_id],
+            args=[resolved_config, outputs, self.execution_id, self.request_id],
             activity_id=node_id,
             start_to_close_timeout=timedelta(seconds=timeout_seconds),
         )

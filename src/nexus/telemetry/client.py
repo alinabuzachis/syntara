@@ -145,6 +145,11 @@ class TelemetryClientRegistry:
         The ``entitlement_id`` is always included in event properties
         (empty string when not configured).
 
+        If the event does not carry a ``request_id``, the current value of
+        :data:`~nexus.audit.emitter.request_id_context_var` is injected
+        automatically so that events emitted during an HTTP request are
+        correlated without explicit parameter threading.
+
         Args:
             event: Telemetry event to send.
 
@@ -161,6 +166,14 @@ class TelemetryClientRegistry:
             raw_props = segment_event.get("properties", {})
             properties: dict[str, object] = dict(raw_props) if isinstance(raw_props, dict) else {}
             properties["entitlement_id"] = self._entitlement_id
+
+            # Inject request_id from ContextVar if the event doesn't have one
+            if not properties.get("request_id"):
+                from nexus.audit.emitter import request_id_context_var  # noqa: PLC0415
+
+                ctx_request_id = request_id_context_var.get()
+                if ctx_request_id is not None:
+                    properties["request_id"] = str(ctx_request_id)
 
             client.track(
                 anonymous_id=self._anonymous_id,

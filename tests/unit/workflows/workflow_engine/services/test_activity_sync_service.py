@@ -83,7 +83,7 @@ class TestActivitySyncService:
         temporal_workflow_id = "workflow-123"
         task_key = str(execution_id)
 
-        async def long_running_monitor(exec_id, workflow_id) -> None:
+        async def long_running_monitor(exec_id, workflow_id, request_id) -> None:
             await asyncio.sleep(10)
 
         with patch.object(service, "_monitor_execution", side_effect=long_running_monitor):
@@ -175,7 +175,7 @@ class TestRegisterActivityMonitoring:
             await register_activity_monitoring(execution_id, temporal_workflow_id)
 
             mock_sync_service.start_monitoring_execution.assert_called_once_with(
-                UUID(execution_id), temporal_workflow_id
+                UUID(execution_id), temporal_workflow_id, request_id=None
             )
 
     @pytest.mark.asyncio

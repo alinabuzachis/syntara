@@ -11,9 +11,8 @@ Run with:
 """
 
 import pytest
-from nexus_api_client.api import NexusApiRegistry
 
-from tests.e2e.telemetry.conftest import get_captured_events
+from tests.e2e.telemetry.conftest import api_get, get_captured_events, new_request_id
 
 pytestmark = pytest.mark.e2e
 
@@ -23,30 +22,28 @@ class TestZeroConfigTelemetry:
 
     def test_api_requests_produce_telemetry_events(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        auth_headers: dict[str, str],
         segment_server_url: str,
     ) -> None:
         """Making API requests should produce api_call events without manual config."""
-        nexus_api.workflows.list().assert_and_get()
+        rid = new_request_id()
+        api_get(nexus_base_url, "/api/v1/workflows", auth_headers, request_id=rid)
 
-        events = get_captured_events(segment_server_url, event_type="api_call")
+        events = get_captured_events(segment_server_url, event_type="api_call", request_id=rid)
         assert len(events) >= 1, "No api_call events captured after API request"
 
     def test_events_contain_anonymous_id(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        auth_headers: dict[str, str],
         segment_server_url: str,
     ) -> None:
-        """All events must include an anonymousId that is a SHA-256 hex digest.
+        """All events must include an anonymousId that is a SHA-256 hex digest."""
+        rid = new_request_id()
+        api_get(nexus_base_url, "/api/v1/workflows", auth_headers, request_id=rid)
 
-        Note: The test plan references ``installation_id`` — in the implementation
-        the installation_id is used internally to *derive* the anonymousId
-        (SHA-256 of installation_id:db_host:db_name) but is not sent as a
-        separate event field. This test validates that derived identifier.
-        """
-        nexus_api.workflows.list().assert_and_get()
-
-        events = get_captured_events(segment_server_url)
+        events = get_captured_events(segment_server_url, request_id=rid)
         assert len(events) >= 1, "No events captured"
 
         for event in events:
@@ -57,13 +54,15 @@ class TestZeroConfigTelemetry:
 
     def test_events_contain_entitlement_id(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        auth_headers: dict[str, str],
         segment_server_url: str,
     ) -> None:
         """All events must include entitlement_id in properties."""
-        nexus_api.workflows.list().assert_and_get()
+        rid = new_request_id()
+        api_get(nexus_base_url, "/api/v1/workflows", auth_headers, request_id=rid)
 
-        events = get_captured_events(segment_server_url)
+        events = get_captured_events(segment_server_url, request_id=rid)
         assert len(events) >= 1, "No events captured"
 
         for event in events:
@@ -72,14 +71,16 @@ class TestZeroConfigTelemetry:
 
     def test_consistent_anonymous_id_across_events(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        auth_headers: dict[str, str],
         segment_server_url: str,
     ) -> None:
         """All events from the same deployment must share the same anonymousId."""
-        nexus_api.workflows.list().assert_and_get()
-        nexus_api.executions.list().assert_and_get()
+        rid = new_request_id()
+        api_get(nexus_base_url, "/api/v1/workflows", auth_headers, request_id=rid)
+        api_get(nexus_base_url, "/api/v1/executions", auth_headers, request_id=rid)
 
-        events = get_captured_events(segment_server_url)
+        events = get_captured_events(segment_server_url, request_id=rid)
         assert len(events) >= 2, "Need at least 2 events to verify consistency"
 
         anon_ids = {e["anonymousId"] for e in events}
@@ -96,12 +97,14 @@ class TestStandaloneTelemetry:
 
     def test_telemetry_emits_without_aap_services(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        auth_headers: dict[str, str],
         segment_server_url: str,
     ) -> None:
         """Telemetry events must be emitted from a standalone Nexus deployment."""
-        nexus_api.workflows.list().assert_and_get()
-        nexus_api.executions.list().assert_and_get()
+        rid = new_request_id()
+        api_get(nexus_base_url, "/api/v1/workflows", auth_headers, request_id=rid)
+        api_get(nexus_base_url, "/api/v1/executions", auth_headers, request_id=rid)
 
-        events = get_captured_events(segment_server_url)
+        events = get_captured_events(segment_server_url, request_id=rid)
         assert len(events) >= 2, "Expected at least 2 api_call events from standalone Nexus deployment"

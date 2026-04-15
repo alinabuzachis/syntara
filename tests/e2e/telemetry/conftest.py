@@ -3,13 +3,14 @@
 import os
 import time
 from typing import Any
+from uuid import uuid4
 
 import httpx
 import pytest
 
 SEGMENT_SERVER_PORT = 9999
 DEFAULT_SEGMENT_SERVER_URL = f"http://localhost:{SEGMENT_SERVER_PORT}"
-DEFAULT_POLL_TIMEOUT = 5.0
+DEFAULT_POLL_TIMEOUT = 10.0
 POLL_INTERVAL = 0.5
 
 
@@ -44,21 +45,25 @@ def segment_server_url() -> str:
     return url
 
 
+def new_request_id() -> str:
+    """Generate a new UUID request_id for X-Request-Id correlation."""
+    return str(uuid4())
+
+
 def get_captured_events(
     segment_server_url: str,
     event_type: str | None = None,
+    request_id: str | None = None,
     *,
     wait: bool = True,
     timeout: float = DEFAULT_POLL_TIMEOUT,
 ) -> list[dict[str, Any]]:
-    """Fetch captured events from the Segment server and clear them.
-
-    Events are cleared from the server after capture so each call only
-    returns events produced since the last call, ensuring test isolation.
+    """Fetch captured events from the Segment server.
 
     Args:
         segment_server_url: Base URL of the Segment server.
         event_type: Optional Segment event name filter (e.g. "api_call").
+        request_id: Optional X-Request-Id filter for correlation.
         wait: If True, poll until events appear or timeout.
         timeout: Maximum seconds to poll when ``wait`` is True.
 
@@ -66,7 +71,11 @@ def get_captured_events(
         List of captured Segment event dicts.
 
     """
-    params = {"event_type": event_type} if event_type else {}
+    params: dict[str, str] = {}
+    if event_type:
+        params["event_type"] = event_type
+    if request_id:
+        params["request_id"] = request_id
     if wait:
         elapsed = 0.0
         while elapsed < timeout:
@@ -76,14 +85,26 @@ def get_captured_events(
             r.raise_for_status()
             result: list[dict[str, Any]] = r.json()
             if result:
-                httpx.delete(f"{segment_server_url}/captured-events", timeout=5)
                 return result
         return []
     r = httpx.get(f"{segment_server_url}/captured-events", params=params, timeout=5)
     r.raise_for_status()
-    events: list[dict[str, Any]] = r.json()
-    httpx.delete(f"{segment_server_url}/captured-events", timeout=5)
-    return events
+    return r.json()  # type: ignore[no-any-return]
+
+
+def api_get(
+    nexus_base_url: str,
+    path: str,
+    auth_headers: dict[str, str],
+    request_id: str | None = None,
+    *,
+    timeout: int = 10,
+) -> httpx.Response:
+    """Make an authenticated GET request, optionally with X-Request-Id."""
+    headers = {**auth_headers}
+    if request_id:
+        headers["X-Request-Id"] = request_id
+    return httpx.get(f"{nexus_base_url}{path}", headers=headers, timeout=timeout)
 
 
 def set_mock_behavior(segment_server_url: str, mode: str) -> None:

@@ -21,6 +21,7 @@ from nexus.agent_orchestrator.services.orchestration_service import Orchestratio
 from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDetailsResult
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
 from nexus.agent_orchestrator.utils.workflow_signal_client import WorkflowSignalClient
+from nexus.audit.emitter import request_id_context_var
 from nexus.core.constants import CONTEXT_KEY_FILE_IDS
 from nexus.core.database.session import get_db
 from nexus.core.services.secret_service import create_secret_service
@@ -36,6 +37,17 @@ logger = structlog.stdlib.get_logger(__name__)
 
 # Type alias for optional string used in cast() calls
 type _OptionalStr = str | None
+
+
+def _extract_request_id(context_data: dict[str, object]) -> UUID | None:
+    """Extract request_id UUID from invocation context_data metadata."""
+    meta = context_data.get("metadata")
+    if isinstance(meta, dict):
+        rid = meta.get("request_id")
+        if isinstance(rid, str) and rid:
+            with contextlib.suppress(ValueError):
+                return UUID(rid)
+    return None
 
 
 def _aggregate_token_usage(
@@ -156,6 +168,7 @@ class InvocationExecutor:
                 # Extract execution_id from context_data for telemetry correlation
                 raw_execution_id = invocation.context_data.get("execution_id")
                 execution_id = UUID(str(raw_execution_id)) if isinstance(raw_execution_id, str) else None
+                request_id_context_var.set(_extract_request_id(invocation.context_data))
                 result_dict = await orchestration_service.execute(
                     prompt=invocation.prompt,
                     session_id=invocation.session_id,

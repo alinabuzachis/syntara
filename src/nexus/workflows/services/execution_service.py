@@ -182,6 +182,8 @@ class ExecutionService(BaseService):
         )
 
         # Step 2: Start Temporal workflow FIRST (if temporal_service is available)
+        from nexus.audit.emitter import request_id_context_var  # noqa: PLC0415
+
         if self.temporal_service is not None:
             logger.info("Starting Temporal workflow for execution...")
             temporal_result = await self.temporal_service.start_workflow(
@@ -189,6 +191,7 @@ class ExecutionService(BaseService):
                 workflow_name=workflow.name,
                 input_data=input_data,
                 workflow_id=str(workflow.id),
+                request_id=request_id_context_var.get(),
             )
             temporal_workflow_id = temporal_result.temporal_workflow_id
             execution_id = UUID(temporal_result.execution_id)

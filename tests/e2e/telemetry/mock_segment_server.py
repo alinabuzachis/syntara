@@ -89,12 +89,17 @@ async def segment_track(request: Request) -> JSONResponse:
 
 
 @app.get("/captured-events")
-async def get_captured_events(event_type: str | None = None) -> JSONResponse:
-    """Return captured events, optionally filtered by Segment event name."""
+async def get_captured_events(
+    event_type: str | None = None,
+    request_id: str | None = None,
+) -> JSONResponse:
+    """Return captured events, optionally filtered by event name and/or request_id."""
     with _state.lock:
         events = list(_state.captured_events)
     if event_type:
         events = [e for e in events if e.get("event") == event_type]
+    if request_id:
+        events = [e for e in events if e.get("properties", {}).get("request_id") == request_id]
     return JSONResponse(events)
 
 

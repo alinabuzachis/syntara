@@ -52,6 +52,7 @@ async def execute_agentic_activity(
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,
     execution_id: str = "",
+    request_id: str | None = None,
 ) -> dict[str, Any]:
     """V2 agentic activity with normalized signature.
 
@@ -59,6 +60,7 @@ async def execute_agentic_activity(
         input_config: Activity configuration containing prompt, agent, model, etc.
         output_config: Output mapping configuration
         execution_id: Workflow execution ID for callback URL generation
+        request_id: Optional X-Request-Id (UUID) from the originating HTTP request
 
     Returns:
         dict with keys:
@@ -122,6 +124,8 @@ async def execute_agentic_activity(
             }
             if callback_url:
                 agent_metadata["callback_url"] = callback_url
+            if request_id:
+                agent_metadata["request_id"] = request_id
 
             # Inject LLM credential if resolved from Nexus credential system
             _inject_llm_credential_metadata(agent_metadata, input_config)

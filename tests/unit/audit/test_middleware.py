@@ -54,6 +54,7 @@ def _make_scope(
     query_string: bytes = b"",
     user: Any = None,  # noqa: ANN401
     path_params: dict[str, Any] | None = None,
+    headers: list[tuple[bytes, bytes]] | None = None,
 ) -> dict[str, Any]:
     """Build a minimal ASGI scope dict."""
     scope: dict[str, Any] = {
@@ -61,7 +62,7 @@ def _make_scope(
         "path": path,
         "method": method,
         "query_string": query_string,
-        "headers": [],
+        "headers": headers or [],
     }
     if user is not None:
         scope["user"] = user
@@ -1047,3 +1048,106 @@ class TestAuditMiddlewareErrorResilience:
             assert "audit_middleware_failed" in call_args[0]
             assert call_args[1]["error_type"] == "RuntimeError"
             assert call_args[1]["status_code"] == 200
+
+
+# =============================================================================
+# AuditMiddleware - X-Request-Id extraction
+# =============================================================================
+
+
+class TestAuditMiddlewareRequestId:
+    """Tests for X-Request-Id header extraction and ContextVar propagation."""
+
+    @pytest.mark.asyncio
+    async def test_valid_request_id_sets_context_var(self) -> None:
+        """A valid UUID X-Request-Id header is propagated via ContextVar."""
+        rid = uuid4()
+        scope = _make_scope(headers=[(b"x-request-id", str(rid).encode())])
+        captured: list[UUID | None] = []
+
+        from nexus.audit.emitter import request_id_context_var
+
+        async def capturing_app(scope: Any, receive: Any, send: Any) -> None:  # noqa: ANN401
+            captured.append(request_id_context_var.get())
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = AuditMiddleware(capturing_app)
+        with patch(_EMIT_PATCH):
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        assert captured[0] == rid
+
+    @pytest.mark.asyncio
+    async def test_missing_request_id_sets_none(self) -> None:
+        """Without X-Request-Id header, ContextVar is set to None."""
+        scope = _make_scope()
+        captured: list[UUID | None] = []
+
+        from nexus.audit.emitter import request_id_context_var
+
+        async def capturing_app(scope: Any, receive: Any, send: Any) -> None:  # noqa: ANN401
+            captured.append(request_id_context_var.get())
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = AuditMiddleware(capturing_app)
+        with patch(_EMIT_PATCH):
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        assert captured[0] is None
+
+    @pytest.mark.asyncio
+    async def test_invalid_uuid_is_ignored(self) -> None:
+        """A malformed X-Request-Id is silently ignored (ContextVar stays None)."""
+        scope = _make_scope(headers=[(b"x-request-id", b"not-a-uuid")])
+        captured: list[UUID | None] = []
+
+        from nexus.audit.emitter import request_id_context_var
+
+        async def capturing_app(scope: Any, receive: Any, send: Any) -> None:  # noqa: ANN401
+            captured.append(request_id_context_var.get())
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = AuditMiddleware(capturing_app)
+        with patch(_EMIT_PATCH):
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        assert captured[0] is None
+
+    @pytest.mark.asyncio
+    async def test_context_var_is_reset_after_request(self) -> None:
+        """ContextVar is reset to its previous value after the request completes."""
+        from nexus.audit.emitter import request_id_context_var
+
+        rid = uuid4()
+        scope = _make_scope(headers=[(b"x-request-id", str(rid).encode())])
+        middleware = AuditMiddleware(_make_app())
+
+        before = request_id_context_var.get()
+        with patch(_EMIT_PATCH):
+            await middleware(scope, AsyncMock(), AsyncMock())
+        after = request_id_context_var.get()
+
+        assert before == after
+
+    @pytest.mark.asyncio
+    async def test_mixed_case_header_name(self) -> None:
+        """Header name matching is case-insensitive (ASGI may not lowercase)."""
+        rid = uuid4()
+        scope = _make_scope(headers=[(b"X-Request-Id", str(rid).encode())])
+        captured: list[UUID | None] = []
+
+        from nexus.audit.emitter import request_id_context_var
+
+        async def capturing_app(scope: Any, receive: Any, send: Any) -> None:  # noqa: ANN401
+            captured.append(request_id_context_var.get())
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        middleware = AuditMiddleware(capturing_app)
+        with patch(_EMIT_PATCH):
+            await middleware(scope, AsyncMock(), AsyncMock())
+
+        assert captured[0] == rid

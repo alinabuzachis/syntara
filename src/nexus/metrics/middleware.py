@@ -22,6 +22,7 @@ from uuid import uuid4
 import structlog
 
 from nexus.api.constants import EXCLUDED_PATH_PREFIXES, EXCLUDED_PATHS
+from nexus.audit.emitter import request_id_context_var
 from nexus.metrics.types import MetricType
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
 logger = structlog.stdlib.get_logger(__name__)
 
 _CORRELATION_HEADER: bytes = b"x-correlation-id"
+_REQUEST_ID_HEADER: bytes = b"x-request-id"
 
 # ---- Error type classification -------------------------------------------------
 
@@ -142,12 +144,17 @@ class MetricsMiddleware:
         status_code = 0
         start = time.perf_counter()
 
+        # Read request_id from ContextVar (set by AuditMiddleware, the outermost middleware).
+        request_id = request_id_context_var.get()
+
         async def send_wrapper(message: Message) -> None:
             nonlocal status_code
             if message["type"] == "http.response.start":
                 status_code = message["status"]
                 existing_headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
                 existing_headers.append((_CORRELATION_HEADER, correlation_id.encode()))
+                if request_id is not None:
+                    existing_headers.append((_REQUEST_ID_HEADER, str(request_id).encode()))
                 message = {**message, "headers": existing_headers}
             await send(message)
 

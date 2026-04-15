@@ -239,6 +239,7 @@ class TestAnalyticsMiddlewarePrivacy:
             "response_time_ms",
             "request_payload_size",
             "entitlement_id",
+            "request_id",
         }
         # No header values in properties
         for value in props.values():
@@ -299,6 +300,7 @@ class TestAnalyticsMiddlewarePrivacy:
             "response_time_ms",
             "request_payload_size",
             "entitlement_id",
+            "request_id",
         }
 
 

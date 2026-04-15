@@ -25,7 +25,11 @@ logger = structlog.stdlib.get_logger(__name__)
 
 
 @activity.defn(name="register_activity_monitoring")
-async def register_activity_monitoring(execution_id: str, temporal_workflow_id: str) -> None:
+async def register_activity_monitoring(
+    execution_id: str,
+    temporal_workflow_id: str,
+    request_id: str | None = None,
+) -> None:
     """Register activity monitoring for a workflow execution.
 
     This internal activity is called at the start of every workflow execution
@@ -39,6 +43,7 @@ async def register_activity_monitoring(execution_id: str, temporal_workflow_id: 
     Args:
         execution_id: Database execution ID
         temporal_workflow_id: Temporal workflow ID
+        request_id: Optional X-Request-Id (UUID) from the originating HTTP request
 
     Raises:
         RuntimeError: If activity sync service is not available
@@ -69,7 +74,10 @@ async def register_activity_monitoring(execution_id: str, temporal_workflow_id: 
 
             if execution:
                 # Execution record found, start monitoring
-                sync_service.start_monitoring_execution(execution_uuid, temporal_workflow_id)
+                request_id_uuid = UUID(request_id) if request_id else None
+                sync_service.start_monitoring_execution(
+                    execution_uuid, temporal_workflow_id, request_id=request_id_uuid
+                )
                 logger.info("Activity monitoring registered for execution", execution_id=execution_id)
                 return
 

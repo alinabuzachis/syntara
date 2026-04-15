@@ -21,6 +21,10 @@ class BaseTelemetryEvent(SQLModel):
 
     model_config = {"frozen": True}
     entitlement_id: str = Field(..., description="Installation identifier")
+    request_id: str | None = Field(
+        default=None,
+        description="Optional X-Request-Id (UUID) from the originating HTTP request",
+    )
 
     @classmethod
     def _get_event_name(cls) -> str:

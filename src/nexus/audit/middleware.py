@@ -4,10 +4,15 @@ Logs every HTTP response for observability and debugging.  Provides
 structured logging with method, path, query parameters, user information
 (if authenticated), response status code, and context IDs (workflow,
 execution, activity) when available.
+
+Also extracts the ``X-Request-Id`` header (UUID) from incoming requests
+and propagates it via :data:`~nexus.audit.emitter.request_id_context_var`
+so downstream middleware, handlers, and telemetry can access it.
 """
 
 from __future__ import annotations
 
+import contextlib
 from http import HTTPStatus
 from posixpath import normpath
 from typing import TYPE_CHECKING, Any
@@ -20,6 +25,7 @@ from nexus.api.constants import EXCLUDED_PATHS
 from nexus.audit.emitter import (
     emit_audit_event,
     execution_id_context_var,
+    request_id_context_var,
     workflow_id_context_var,
 )
 from nexus.audit.models import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus, RequestCompletedData
@@ -31,6 +37,7 @@ if TYPE_CHECKING:
 
 _SOURCE_COMPONENT = "nexus.audit.middleware"
 _MAX_PATH_LENGTH = 2048
+_REQUEST_ID_HEADER: bytes = b"x-request-id"
 _CONTROL_CHAR_TABLE = str.maketrans("", "", "".join(chr(c) for c in (*range(0x20), 0x7F)))
 
 
@@ -248,6 +255,16 @@ class AuditMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # Extract X-Request-Id from incoming headers and propagate via ContextVar.
+        # Only valid UUID values are accepted; malformed values are silently ignored.
+        request_id: UUID | None = None
+        for header_name, header_value in scope.get("headers", []):
+            if header_name.lower() == _REQUEST_ID_HEADER:
+                with contextlib.suppress(ValueError, UnicodeDecodeError):
+                    request_id = UUID(header_value.decode("latin-1"))
+                break
+        token = request_id_context_var.set(request_id)
+
         # Fail-closed: default to 500 so a downstream app that returns without
         # ever sending ``http.response.start`` is classified as ERROR rather
         # than silently emitting a SUCCESS/INFO event for an un-observed
@@ -268,6 +285,8 @@ class AuditMiddleware:
             status_code = HTTPStatus.INTERNAL_SERVER_ERROR
             self._emit_completed(scope, path, status_code)
             raise
+        finally:
+            request_id_context_var.reset(token)
 
         self._emit_completed(scope, path, status_code)
 

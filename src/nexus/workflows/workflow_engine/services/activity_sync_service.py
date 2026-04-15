@@ -52,6 +52,7 @@ class ExecutionMonitorMetadata:
         activity_definitions_map: Map of activity ID to activity definition from workflow
         activity_index_map: Map of activity names to their indices in the activities list
         pending_activity_updates: Map of event IDs to activity update data awaiting database sync
+        request_id: Optional X-Request-Id (UUID) from the originating HTTP request, for telemetry correlation
 
     """
 
@@ -60,6 +61,7 @@ class ExecutionMonitorMetadata:
     activity_definitions_map: dict[str, dict[str, Any]]
     activity_index_map: dict[str, int]
     pending_activity_updates: dict[int, dict[str, Any]]
+    request_id: UUID | None = None
 
 
 class ActivitySyncService:
@@ -98,7 +100,13 @@ class ActivitySyncService:
         task_key = str(execution_id)
         return task_key in self._sync_tasks
 
-    def start_monitoring_execution(self, execution_id: UUID, temporal_workflow_id: str) -> None:
+    def start_monitoring_execution(
+        self,
+        execution_id: UUID,
+        temporal_workflow_id: str,
+        *,
+        request_id: UUID | None = None,
+    ) -> None:
         """Start background monitoring for a specific execution.
 
         Monitoring continues until the workflow completes or the service shuts down.
@@ -106,6 +114,7 @@ class ActivitySyncService:
         Args:
             execution_id: Database execution ID
             temporal_workflow_id: Temporal workflow ID
+            request_id: Optional X-Request-Id from the originating HTTP request
 
         """
         task_key = str(execution_id)
@@ -118,7 +127,7 @@ class ActivitySyncService:
 
         # Create background task to monitor this execution
         task = asyncio.create_task(
-            self._monitor_execution(execution_id, temporal_workflow_id),
+            self._monitor_execution(execution_id, temporal_workflow_id, request_id=request_id),
             name=f"activity_sync_{execution_id}",
         )
         self._sync_tasks[task_key] = task
@@ -202,7 +211,7 @@ class ActivitySyncService:
                     await self._publish_snapshot_safely(session, metadata.execution_id, "initial_snapshot")
 
                     # Emit workflow start telemetry
-                    emit_workflow_start(execution)
+                    emit_workflow_start(execution, request_id=metadata.request_id)
                 else:
                     logger.debug(
                         "Skipping RUNNING update for execution - already in state",
@@ -231,11 +240,17 @@ class ActivitySyncService:
         self._sync_tasks.clear()
         logger.info("Activity sync service shutdown complete")
 
-    async def _initialize_monitoring(self, execution_id: UUID) -> ExecutionMonitorMetadata:
+    async def _initialize_monitoring(
+        self,
+        execution_id: UUID,
+        *,
+        request_id: UUID | None = None,
+    ) -> ExecutionMonitorMetadata:
         """Initialize monitoring by fetching execution data and workflow structure.
 
         Args:
             execution_id: Database execution ID
+            request_id: Optional X-Request-Id from the originating HTTP request
 
         Returns:
             ExecutionMonitorMetadata containing execution and related data structures
@@ -270,6 +285,7 @@ class ActivitySyncService:
             activity_definitions_map=activity_definitions_map,
             activity_index_map=activity_index_map,
             pending_activity_updates={},
+            request_id=request_id,
         )
 
     async def _build_activity_index_map(self, execution_id: UUID) -> dict[str, int]:
@@ -345,7 +361,13 @@ class ActivitySyncService:
 
         return None
 
-    async def _monitor_execution(self, execution_id: UUID, temporal_workflow_id: str) -> None:  # noqa: C901
+    async def _monitor_execution(  # noqa: C901
+        self,
+        execution_id: UUID,
+        temporal_workflow_id: str,
+        *,
+        request_id: UUID | None = None,
+    ) -> None:
         """Monitor a single execution and sync activities to database.
 
         Runs until workflow completes or service shuts down.
@@ -353,6 +375,7 @@ class ActivitySyncService:
         Args:
             execution_id: Database execution ID
             temporal_workflow_id: Temporal workflow ID
+            request_id: Optional X-Request-Id from the originating HTTP request
 
         """
         try:
@@ -364,7 +387,7 @@ class ActivitySyncService:
 
             handle: WorkflowHandle[Any, Any] = self.temporal_client.get_workflow_handle(temporal_workflow_id)
 
-            metadata = await self._initialize_monitoring(execution_id)
+            metadata = await self._initialize_monitoring(execution_id, request_id=request_id)
 
             async for event in handle.fetch_history_events(page_size=1000, wait_new_event=True):
                 if self._shutdown:
@@ -742,6 +765,7 @@ class ActivitySyncService:
                     status=status,
                     completed_at=completed_at,
                     error_details=error_details,
+                    request_id=metadata.request_id,
                 )
 
             except Exception:
@@ -935,6 +959,7 @@ class ActivitySyncService:
                     execution_id=metadata.execution_id,
                     activity_definitions_map=metadata.activity_definitions_map,
                     updated_activities=updated_activities,
+                    request_id=metadata.request_id,
                 )
 
             except Exception:

@@ -41,12 +41,15 @@ class _MonitoringWorkflowInboundInterceptor(WorkflowInboundInterceptor):
             Workflow execution result
 
         """
-        # Get execution_id from workflow args (second argument to DynamicWorkflow.run)
-        # Args are: [workflow_def_dict, execution_id, input_data]
+        # Get execution_id and request_id from workflow args (DynamicWorkflow.run)
+        # Args are: [workflow_def_dict, execution_id, trigger_node_id, trigger_inputs, include_node_results, request_id]
         min_args_for_monitoring = 2
         if len(input.args) >= min_args_for_monitoring:
             execution_id = input.args[1]
             temporal_workflow_id = workflow.info().workflow_id
+            # request_id is the 6th argument (index 5), optional
+            request_id_arg_index = 5
+            request_id = input.args[request_id_arg_index] if len(input.args) > request_id_arg_index else None
 
             logger.info(
                 "Starting activity monitoring for execution",
@@ -61,7 +64,7 @@ class _MonitoringWorkflowInboundInterceptor(WorkflowInboundInterceptor):
             # 3. Starting the monitoring if needed
             workflow.start_activity(
                 "register_activity_monitoring",
-                args=[execution_id, temporal_workflow_id],
+                args=[execution_id, temporal_workflow_id, request_id],
                 activity_id="__internal__register_monitoring",
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=None,  # No automatic retry - activity handles retries internally

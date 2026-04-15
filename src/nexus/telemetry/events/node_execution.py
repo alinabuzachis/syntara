@@ -97,6 +97,7 @@ class NodeExecutionEventBuilder:
         inbound_nodes: list[str] | None = None,
         outbound_nodes: list[str] | None = None,
         error_type: Literal["ActivityExecutionError"] | None = None,
+        request_id: str | None = None,
     ) -> NodeExecutionEvent:
         """Build a node execution event.
 
@@ -110,6 +111,7 @@ class NodeExecutionEventBuilder:
             inbound_nodes: Optional array of preceding node hashes.
             outbound_nodes: Optional array of following node hashes.
             error_type: Categorized error type if node failed.
+            request_id: Optional X-Request-Id from the originating HTTP request.
 
         Returns:
             NodeExecutionEvent instance.
@@ -127,4 +129,5 @@ class NodeExecutionEventBuilder:
             outbound_nodes=outbound_nodes,
             error_type=error_type,
             entitlement_id=entitlement_id,
+            request_id=request_id,
         )

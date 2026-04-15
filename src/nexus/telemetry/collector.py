@@ -85,17 +85,20 @@ class TelemetryCollector:
     def capture_workflow_start(
         self,
         execution_id: str,
+        request_id: str | None = None,
     ) -> None:
         """Capture a workflow execution start event (fire-and-forget).
 
         Args:
             execution_id: Unique workflow execution identifier (UUID v4).
+            request_id: Optional X-Request-Id from the originating HTTP request.
 
         """
         try:
             event = self._workflow_builder.build_start_event(
                 execution_id=execution_id,
                 entitlement_id=self._registry.entitlement_id,
+                request_id=request_id,
             )
             self._registry.send_event(event)
         except Exception:
@@ -109,6 +112,7 @@ class TelemetryCollector:
         node_count: int,
         error_count: int,
         error_type: Literal["ActivityExecutionError"] | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Capture a workflow execution completed event (fire-and-forget).
 
@@ -119,6 +123,7 @@ class TelemetryCollector:
             node_count: Total number of nodes executed.
             error_count: Number of nodes that failed.
             error_type: Categorized error type if workflow failed.
+            request_id: Optional X-Request-Id from the originating HTTP request.
 
         """
         try:
@@ -130,6 +135,7 @@ class TelemetryCollector:
                 error_count=error_count,
                 error_type=error_type,
                 entitlement_id=self._registry.entitlement_id,
+                request_id=request_id,
             )
             self._registry.send_event(event)
         except Exception:
@@ -145,6 +151,7 @@ class TelemetryCollector:
         inbound_nodes: list[str] | None = None,
         outbound_nodes: list[str] | None = None,
         error_type: Literal["ActivityExecutionError"] | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Capture a node execution event (fire-and-forget).
 
@@ -157,6 +164,7 @@ class TelemetryCollector:
             inbound_nodes: Optional array of preceding node hashes.
             outbound_nodes: Optional array of following node hashes.
             error_type: Categorized error type if node failed.
+            request_id: Optional X-Request-Id from the originating HTTP request.
 
         """
         try:
@@ -170,6 +178,7 @@ class TelemetryCollector:
                 outbound_nodes=outbound_nodes,
                 error_type=error_type,
                 entitlement_id=self._registry.entitlement_id,
+                request_id=request_id,
             )
             self._registry.send_event(event)
         except Exception:
@@ -208,6 +217,7 @@ class TelemetryCollector:
         execution_id: UUID,
         activity_definitions_map: dict[str, dict[str, Any]],
         updated_activities: list[tuple[ActivityExecution, dict[str, Any]]],
+        request_id: str | None = None,
     ) -> None:
         """Emit telemetry for activities that transitioned to a terminal state.
 
@@ -218,6 +228,7 @@ class TelemetryCollector:
             execution_id: Workflow execution UUID.
             activity_definitions_map: Map of activity name to definition dict.
             updated_activities: List of (activity, old_values) tuples from DB sync.
+            request_id: Optional X-Request-Id from the originating HTTP request.
 
         """
         logger.info(
@@ -232,6 +243,7 @@ class TelemetryCollector:
                 old_values=old_values,
                 execution_id=execution_id,
                 activity_definitions_map=activity_definitions_map,
+                request_id=request_id,
             )
 
     def _should_emit_activity_telemetry(
@@ -280,6 +292,7 @@ class TelemetryCollector:
         old_values: dict[str, Any],
         execution_id: UUID,
         activity_definitions_map: dict[str, dict[str, Any]],
+        request_id: str | None = None,
     ) -> None:
         """Process telemetry emission for a single activity."""
         try:
@@ -312,6 +325,7 @@ class TelemetryCollector:
                 status=telemetry_status,
                 duration_ms=duration_ms,
                 error_type=error_type,
+                request_id=request_id,
             )
         except Exception:  # noqa: BLE001
             logger.info(

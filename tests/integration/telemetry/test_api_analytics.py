@@ -103,6 +103,7 @@ class TestEndToEndMiddleware:
         required_fields = {
             "endpoint",
             "http_method",
+            "request_id",
             "status_code",
             "response_time_ms",
             "request_payload_size",

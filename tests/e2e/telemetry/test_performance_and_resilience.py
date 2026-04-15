@@ -16,7 +16,7 @@ import httpx
 import pytest
 from nexus_api_client.api import NexusApiRegistry
 
-from tests.e2e.telemetry.conftest import get_captured_events, set_mock_behavior
+from tests.e2e.telemetry.conftest import api_get, get_captured_events, new_request_id, set_mock_behavior
 
 pytestmark = pytest.mark.e2e
 
@@ -42,7 +42,7 @@ class TestPerformance:
 
         for _ in range(BATCH_SIZE):
             start = time.monotonic()
-            r = httpx.get(f"{nexus_base_url}/api/v1/workflows", headers=auth_headers, timeout=10)
+            r = api_get(nexus_base_url, "/api/v1/workflows", auth_headers)
             elapsed_ms = (time.monotonic() - start) * 1000
             r.raise_for_status()
             response_times.append(elapsed_ms)
@@ -56,8 +56,13 @@ class TestPerformance:
         assert p95_ms < MAX_RESPONSE_TIME_MS, f"P95 response time {p95_ms:.0f}ms exceeds {MAX_RESPONSE_TIME_MS}ms"
 
 
+@pytest.mark.xdist_group("resilience")
 class TestResilience:
-    """Verify application is unaffected when Segment is unreachable."""
+    """Verify application is unaffected when Segment is unreachable.
+
+    Grouped for serial execution because set_mock_behavior("error")
+    affects the shared mock server globally.
+    """
 
     def test_api_works_when_segment_returns_errors(
         self,
@@ -96,18 +101,20 @@ class TestResilience:
 
     def test_telemetry_resumes_after_segment_recovery(
         self,
-        nexus_api: NexusApiRegistry,
+        nexus_base_url: str,
+        auth_headers: dict[str, str],
         segment_server_url: str,
     ) -> None:
         """After Segment recovers, telemetry events should resume flowing."""
         # Phase 1: Segment is down
         set_mock_behavior(segment_server_url, "error")
-        nexus_api.workflows.list().assert_and_get()
+        api_get(nexus_base_url, "/api/v1/workflows", auth_headers)
         time.sleep(2)
 
-        # Phase 2: Segment recovers
+        # Phase 2: Segment recovers — use a fresh request_id to correlate
         set_mock_behavior(segment_server_url, "normal")
-        nexus_api.executions.list().assert_and_get()
+        rid = new_request_id()
+        api_get(nexus_base_url, "/api/v1/executions", auth_headers, request_id=rid)
 
-        events = get_captured_events(segment_server_url, event_type="api_call")
+        events = get_captured_events(segment_server_url, event_type="api_call", request_id=rid)
         assert len(events) >= 1, "No api_call events captured after Segment recovery"
