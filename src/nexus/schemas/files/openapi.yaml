@@ -181,7 +181,7 @@ components:
   schemas:
     FileUploadResponse:
       type: object
-      title: File Upload Response
+      title: FileUploadResponse
       description: Response from POST /files endpoint
       required:
         - file_ids
@@ -205,7 +205,7 @@ components:
 
     FileUploadInfo:
       type: object
-      title: File Upload Info
+      title: FileUploadInfo
       description: Metadata for an uploaded file (excludes internal file_path for security)
       required:
         - file_id
@@ -277,18 +277,14 @@ components:
           $ref: '#/components/schemas/FileProcessingStatus'
 
   securitySchemes:
-    BearerAuth:
+    bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-Key
+      description: JWT token authentication
 
 security:
-  - BearerAuth: []
-  - ApiKeyAuth: []
+  - bearerAuth: []
 
 tags:
   - name: Files

@@ -11,7 +11,7 @@ from nexus.tool_manager.models.tool import (
     ToolUpdate,
 )
 from nexus.tool_manager.models.tool_bulk_update import MAX_BULK_UPDATES, ToolBulkUpdate
-from nexus.tool_manager.models.tool_execution import ExecutionStatus, ToolExecution, ToolMetricsSummary
+from nexus.tool_manager.models.tool_execution import ToolExecution, ToolExecutionStatus, ToolMetricsSummary
 from nexus.tool_manager.models.tool_metrics_response import (
     ToolExecutionListParams,
     ToolMetricsQuery,
@@ -36,7 +36,6 @@ from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter, W
 __all__ = [
     "MAX_BULK_UPDATES",
     "CounterType",
-    "ExecutionStatus",
     "MCPConfiguration",
     "ProviderConfiguration",
     "ProviderConfigurationTypes",
@@ -47,6 +46,7 @@ __all__ = [
     "ToolBulkUpdate",
     "ToolExecution",
     "ToolExecutionListParams",
+    "ToolExecutionStatus",
     "ToolListParams",
     "ToolListResponse",
     "ToolMetricsQuery",

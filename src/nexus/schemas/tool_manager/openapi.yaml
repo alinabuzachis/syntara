@@ -568,7 +568,9 @@ components:
   schemas:
     ToolWithParameters:
       allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Resource
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
         - type: object
           properties:
             provider_id:
@@ -689,7 +691,9 @@ components:
 
     ToolProviderWithConfiguration:
       allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/Resource
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
         - type: object
           properties:
             configuration:

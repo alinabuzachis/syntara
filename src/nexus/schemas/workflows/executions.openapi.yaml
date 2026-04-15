@@ -4,25 +4,6 @@ info:
   title: Workflow Engine API
   description: |
     API for executing dynamic workflows with agentic and non-agentic tasks.
-
-    ## Schema Composition
-
-    This API uses schema composition to reduce duplication:
-
-    ```
-    BaseResource (id, labels, created_at, updated_at)
-    ├── Execution (+ workflow execution fields)
-    └── ActivityExecution (+ activity execution fields)
-    ```
-
-    Note: Approval resources are in a separate API. See `/api/v1/approvals`.
-
-    ## Labels
-
-    All resources support key-value labels for categorization and filtering:
-    - Format: `{"key": "value"}` (both key and value must be strings)
-    - Use cases: environment tags, team ownership, priority levels, cost centers
-    - Queryable: Filter resources by label selectors in list endpoints
   version: 1.0.0
   contact:
     name: Automation Nexus Team
@@ -35,308 +16,425 @@ paths:
   /executions:
     get:
       summary: List executions
-      description: |
-        Retrieve executions with filtering, sorting, and cursor-based pagination.
+      description: Retrieve executions with filtering, sorting, and cursor-based pagination.
       operationId: list_executions
       tags: [executions]
       parameters:
-        - name: workflow_id
+        - description: Maximum number of results per page
           in: query
+          name: limit
           required: false
           schema:
-            type: string
-            format: uuid
-          description: Filter by workflow ID
-        - name: created_by
+            default: 20
+            description: Maximum number of results per page
+            exclusiveMinimum: 0
+            maximum: 100
+            title: Limit
+            type: integer
+        - description: Pagination cursor from previous response
           in: query
+          name: cursor
           required: false
           schema:
-            type: string
-            format: uuid
-          description: Filter by user who created the execution
-        - name: status
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+        - description: Sort parameter (e.g., 'name', '-created_at')
           in: query
+          name: sort
           required: false
           schema:
-            $ref: '#/components/schemas/ExecutionStatus'
-          description: |
-            Filter executions by status.
-            - Exact match: `status=running`
-            - Multiple values: `status[in]=running,pending`
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+        - description: Include total count in response (expensive)
+          in: query
+          name: include_total
+          required: false
+          schema:
+            default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+            type: boolean
       responses:
         '200':
-          description: List of executions
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Execution'
-                        maxItems: 100
-                    required:
-                      - resources
+                $ref: '#/components/schemas/ExecutionListResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
     post:
       summary: Create execution
-      description: Start a new workflow execution
+      description: Start a new workflow execution.
       operationId: create_execution
       tags: [executions]
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateExecutionRequest'
+              $ref: '#/components/schemas/ExecutionCreate'
+        required: true
       responses:
         '201':
-          description: Execution started
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Execution'
-        '400':
-          description: Workflow is disabled
+                $ref: '#/components/schemas/ExecutionRead'
+          description: Successful Response
+        '422':
           content:
-            application/problem+json:
+            application/json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              example:
-                type: https://api.nexus.com/errors/workflow-disabled
-                title: Workflow Disabled
-                detail: Cannot execute a disabled workflow
-                code: WORKFLOW_DISABLED
-                retryable: false
-                instance: /api/v1/executions
-        '404':
-          description: Workflow not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Workflow Not Found
-                detail: No workflow exists with the provided identifier
-                code: WORKFLOW_NOT_FOUND
-                retryable: false
-                instance: /api/v1/executions
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
 
   /executions/{execution_id}:
     get:
       summary: Get execution
-      description: |
-        Retrieve details of a specific execution with optional includes.
-
-        **Include Parameters**:
-        - `workflow_definition`: Include the workflow definition from the executed version (for building visualization graph)
-        - `activities`: Include the list of activities with their current status (for completed executions or fallback)
-
-        **Usage**:
-        - Normal request: `GET /executions/{id}` - returns execution without optional fields
-        - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
+      description: Retrieve details of a specific execution with optional includes.
       operationId: get_execution
       tags: [executions]
       parameters:
-        - name: execution_id
-          in: path
+        - in: path
+          name: execution_id
           required: true
           schema:
-            type: string
             format: uuid
-        - name: include
+            title: Execution Id
+            type: string
+        - description: 'Comma-separated list of related data to include. Valid values: workflow_definition, activities'
           in: query
+          name: include
           required: false
           schema:
-            type: string
-          description: |
-            Comma-separated list of related data to include in the response.
-            Valid values: workflow_definition, activities
-          example: workflow_definition,activities
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: 'Comma-separated list of related data to include. Valid values: workflow_definition, activities'
+            title: Include
       responses:
         '200':
-          description: Execution details with optional includes
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Execution'
-        '404':
-          description: Execution not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-    patch:
-      summary: Control execution
-      description: Pause, resume, or cancel a workflow execution
-      operationId: control_execution
-      tags: [executions]
-      parameters:
-        - name: execution_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExecutionControlRequest'
-      responses:
-        '200':
-          description: Execution control applied
+                $ref: '#/components/schemas/ExecutionRead'
+          description: Successful Response
+        '422':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Execution'
-        '404':
-          description: Execution not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
 
   /executions/{execution_id}/activities:
     get:
       summary: List activity executions
-      description: |
-        Retrieve activity executions for a workflow execution with cursor-based pagination.
+      description: Retrieve activity executions for a workflow execution.
       operationId: list_execution_activities
       tags: [executions]
       parameters:
-        - name: execution_id
-          in: path
+        - in: path
+          name: execution_id
           required: true
           schema:
-            type: string
             format: uuid
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+            title: Execution Id
+            type: string
       responses:
         '200':
-          description: List of activity executions
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/ActivityExecution'
-                        maxItems: 100
-                    required:
-                      - resources
-        '404':
-          description: Execution not found
+                items:
+                  $ref: '#/components/schemas/ActivityExecution'
+                title: Response List Execution Activities
+                type: array
+          description: Successful Response
+        '422':
           content:
-            application/problem+json:
+            application/json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
 
   /executions/{execution_id}/activities/{activity_id}/signal:
     post:
       summary: Send signal to activity in workflow
-      description: |
-        Send a signal to a specific activity within a running workflow execution.
-
-        This endpoint allows external systems to send arbitrary signals to
-        activities that are waiting for external events. The activity must be
-        designed to handle signals via the workflow's signal handler.
-
-        The signal is durable - if the workflow is temporarily unavailable,
-        the signal will be delivered when it becomes available again.
+      description: Send a signal to a specific activity within a running workflow execution.
       operationId: signal_activity
       tags: [executions]
       parameters:
-        - name: execution_id
-          in: path
+        - in: path
+          name: execution_id
           required: true
           schema:
-            type: string
             format: uuid
-          description: Execution ID of the running workflow
-        - name: activity_id
-          in: path
+            title: Execution Id
+            type: string
+        - in: path
+          name: activity_id
           required: true
           schema:
+            title: Activity Id
             type: string
-          description: Activity ID from the workflow definition
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ActivitySignalPayload'
+        required: true
       responses:
         '200':
-          description: Signal sent successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SignalResponse'
-        '404':
-          description: Execution not found
+          description: Successful Response
+        '422':
           content:
-            application/problem+json:
+            application/json:
               schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-        '500':
-          description: Failed to send signal
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-        '503':
-          description: Temporal workflow engine unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
 
   # Note: Approval endpoints are in a separate API
   # See: src/nexus/schemas/approvals/openapi.yaml
 
 components:
   schemas:
-    # Import base resource schemas
-    BaseResource:
-      $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
+    ExecutionCreate:
+      description: "Schema for creating a new execution (POST /executions).\n\nExcludes auto-generated fields: id, created_at, created_by (set by backend)."
+      properties:
+        input_data:
+          additionalProperties: true
+          description: Input data for workflow execution
+          title: Input Data
+          type: object
+        workflow_id:
+          description: Workflow ID to execute
+          format: uuid
+          title: Workflow Id
+          type: string
+      required:
+        - workflow_id
+      title: ExecutionCreate
+      type: object
 
-    Execution:
-      $ref: ./shared-schemas.yaml#/components/schemas/Execution
+    ExecutionRead:
+      description: "Schema for execution response (GET /executions/{id}).\n\n\nIncludes all fields from the database table model."
+      properties:
+        activities:
+          anyOf:
+            - items:
+                $ref: '#/components/schemas/ActivityData'
+              type: array
+            - type: 'null'
+          description: List of activities with their current status. Only included when requested via ?include=activities query parameter.
+          title: Activities
+        completed_at:
+          anyOf:
+            - format: date-time
+              type: string
+            - type: 'null'
+          title: Completed At
+        created_at:
+          format: date-time
+          title: Created At
+          type: string
+        created_by:
+          format: uuid
+          title: Created By
+          type: string
+        current_activities:
+          description: Currently executing activities
+          items:
+            $ref: '#/components/schemas/CurrentActivity'
+          title: Current Activities
+          type: array
+        deleted_at:
+          anyOf:
+            - format: date-time
+              type: string
+            - type: 'null'
+          title: Deleted At
+        deleted_by:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: 'null'
+          title: Deleted By
+        error_details:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error Details
+        id:
+          format: uuid
+          title: Id
+          type: string
+        input_data:
+          additionalProperties: true
+          title: Input Data
+          type: object
+        labels:
+          additionalProperties: true
+          title: Labels
+          type: object
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        temporal_workflow_id:
+          title: Temporal Workflow Id
+          type: string
+        updated_at:
+          format: date-time
+          title: Updated At
+          type: string
+        updated_by:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: 'null'
+          title: Updated By
+        workflow_definition:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          description: Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter.
+          title: Workflow Definition
+        workflow_id:
+          format: uuid
+          title: Workflow Id
+          type: string
+        workflow_version_id:
+          format: uuid
+          title: Workflow Version Id
+          type: string
+      required:
+        - id
+        - workflow_id
+        - workflow_version_id
+        - temporal_workflow_id
+        - status
+        - created_by
+        - created_at
+        - completed_at
+        - updated_at
+        - updated_by
+        - input_data
+        - error_details
+      title: ExecutionRead
+      type: object
 
-    ActivityExecution:
-      $ref: ./shared-schemas.yaml#/components/schemas/ActivityExecution
+    ExecutionListResponse:
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for next page of results
+          title: Next
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for previous page of results
+          title: Prev
+        resources:
+          items: {}
+          title: Resources
+          type: array
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          description: Total count of resources (only when include_total=true)
+          title: Total
+      required:
+        - resources
+      title: ExecutionListResponse
+      type: object
 
-    # Note: Approval schemas are in src/nexus/schemas/approvals/openapi.yaml
+    ActivityData:
+      properties:
+        activity_id:
+          title: Activity Id
+          type: string
+        completed_at:
+          anyOf:
+            - format: date-time
+              type: string
+            - type: 'null'
+          title: Completed At
+        error_details:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error Details
+        started_at:
+          anyOf:
+            - format: date-time
+              type: string
+            - type: 'null'
+          title: Started At
+        status:
+          title: Status
+          type: string
+      required:
+        - activity_id
+        - status
+      title: ActivityData
+      type: object
+
+    CurrentActivity:
+      description: Currently executing activity information.
+      properties:
+        activity_name:
+          description: Name of the activity
+          title: Activity Name
+          type: string
+        iteration:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          description: Iteration number for loops
+          title: Iteration
+        temporal_activity_id:
+          description: Temporal activity ID
+          title: Temporal Activity Id
+          type: string
+      required:
+        - activity_name
+        - temporal_activity_id
+      title: CurrentActivity
+      type: object
 
     ExecutionStatus:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionStatus
 
-    CreateExecutionRequest:
-      $ref: ./shared-schemas.yaml#/components/schemas/CreateExecutionRequest
-
-    ExecutionControlRequest:
-      $ref: ./shared-schemas.yaml#/components/schemas/ExecutionControlRequest
-
+    ActivityExecution:
+      $ref: ./shared-schemas.yaml#/components/schemas/ActivityExecution
 
     SignalResponse:
       type: object
@@ -374,6 +472,38 @@ components:
             status: "completed"
             result:
               value: 42
+
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          title: Detail
+          type: array
+      title: HTTPValidationError
+      type: object
+
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+          title: Location
+          type: array
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+      required:
+        - loc
+        - msg
+        - type
+      title: ValidationError
+      type: object
 
   securitySchemes:
     bearerAuth:

@@ -7,7 +7,8 @@ from pydantic import ConfigDict
 from sqlmodel import Field, SQLModel
 
 from nexus.core.models.base.query_params import BaseListParams
-from nexus.tool_manager.models.tool_execution import ExecutionStatus
+from nexus.core.models.pagination import ResourcesResponse
+from nexus.tool_manager.models.tool_execution import ToolExecution, ToolExecutionStatus
 
 
 class ToolMetricsToolSummary(SQLModel):
@@ -39,6 +40,14 @@ class ToolExecutionListParams(BaseListParams):
     """Query parameters for the tool execution history endpoint."""
 
     namespaced_name: str | None = Field(default=None, description="Filter by tool namespaced name")
-    status: ExecutionStatus | None = Field(default=None, description="Filter by execution status")
+    status: ToolExecutionStatus | None = Field(default=None, description="Filter by execution status")
     start_time: datetime | None = Field(default=None, description="Start of time range (ISO 8601)")
     end_time: datetime | None = Field(default=None, description="End of time range (ISO 8601)")
+
+
+class ToolMetricsToolSummaryListResponse(ResourcesResponse[ToolMetricsToolSummary]):
+    """Paginated list response for tool metrics summaries."""
+
+
+class ToolExecutionListResponse(ResourcesResponse[ToolExecution]):
+    """Paginated list response for tool executions."""

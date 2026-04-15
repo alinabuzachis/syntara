@@ -14,7 +14,7 @@ from nexus.core.constants import FieldLimits
 from nexus.core.models.base.user_owned import UserOwnedResource
 
 
-class ExecutionStatus(str, Enum):
+class ToolExecutionStatus(str, Enum):
     """Status of a tool execution."""
 
     RUNNING = "running"
@@ -76,7 +76,7 @@ class ToolExecution(UserOwnedResource, table=True):
 
     duration_ms: int | None = Field(default=None, ge=0, description="Execution duration in milliseconds")
 
-    status: ExecutionStatus = Field(description="Execution status")
+    status: ToolExecutionStatus = Field(description="Execution status")
 
     input_parameters: dict[str, Any] = Field(sa_type=JSONB, description="Tool input parameters")
 

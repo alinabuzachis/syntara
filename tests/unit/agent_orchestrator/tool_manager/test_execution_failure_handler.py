@@ -18,7 +18,7 @@ from nexus.agent_orchestrator.tool_manager.execution_failure_handler import (
     create_tool_wrapper,
 )
 from nexus.core.utils.retry import is_retryable_error
-from nexus.tool_manager.models.tool_execution import ExecutionStatus
+from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 
 
 async def _execute_async_wrapper(
@@ -547,26 +547,26 @@ class TestToolWrapperFailureScenarios:
         assert result.status == "error"
 
 
-class TestResolveExecutionStatus:
-    """Test _resolve_execution_status maps exceptions to correct ExecutionStatus."""
+class TestResolveToolExecutionStatus:
+    """Test _resolve_execution_status maps exceptions to correct ToolExecutionStatus."""
 
     def test_none_maps_to_success(self) -> None:
-        assert _resolve_execution_status(None) == ExecutionStatus.SUCCESS
+        assert _resolve_execution_status(None) == ToolExecutionStatus.SUCCESS
 
     def test_timeout_error_maps_to_timeout(self) -> None:
-        assert _resolve_execution_status(TimeoutError("timed out")) == ExecutionStatus.TIMEOUT
+        assert _resolve_execution_status(TimeoutError("timed out")) == ToolExecutionStatus.TIMEOUT
 
     def test_asyncio_timeout_error_maps_to_timeout(self) -> None:
-        assert _resolve_execution_status(TimeoutError()) == ExecutionStatus.TIMEOUT
+        assert _resolve_execution_status(TimeoutError()) == ToolExecutionStatus.TIMEOUT
 
     def test_value_error_maps_to_error(self) -> None:
-        assert _resolve_execution_status(ValueError("bad value")) == ExecutionStatus.ERROR
+        assert _resolve_execution_status(ValueError("bad value")) == ToolExecutionStatus.ERROR
 
     def test_runtime_error_maps_to_error(self) -> None:
-        assert _resolve_execution_status(RuntimeError("runtime")) == ExecutionStatus.ERROR
+        assert _resolve_execution_status(RuntimeError("runtime")) == ToolExecutionStatus.ERROR
 
     def test_connection_error_maps_to_error(self) -> None:
-        assert _resolve_execution_status(ConnectionError("conn")) == ExecutionStatus.ERROR
+        assert _resolve_execution_status(ConnectionError("conn")) == ToolExecutionStatus.ERROR
 
 
 class TestMetricsEmissionAndDbPersistence:
@@ -590,12 +590,12 @@ class TestMetricsEmissionAndDbPersistence:
 
         mock_emit.assert_called_once()
         _, _, emit_status = mock_emit.call_args[0]
-        assert emit_status == ExecutionStatus.SUCCESS
+        assert emit_status == ToolExecutionStatus.SUCCESS
 
         mock_persist.assert_awaited_once()
         persist_args = mock_persist.call_args
         assert persist_args[0][0] is tool
-        assert persist_args[0][2] == ExecutionStatus.SUCCESS
+        assert persist_args[0][2] == ToolExecutionStatus.SUCCESS
         assert persist_args[1]["error_message"] is None
 
     @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._persist_tool_execution_to_db")
@@ -615,12 +615,12 @@ class TestMetricsEmissionAndDbPersistence:
 
         mock_emit.assert_called_once()
         _, _, emit_status = mock_emit.call_args[0]
-        assert emit_status == ExecutionStatus.TIMEOUT
+        assert emit_status == ToolExecutionStatus.TIMEOUT
 
         mock_persist.assert_awaited_once()
         persist_args = mock_persist.call_args
         assert persist_args[0][0] is tool
-        assert persist_args[0][2] == ExecutionStatus.TIMEOUT
+        assert persist_args[0][2] == ToolExecutionStatus.TIMEOUT
         assert persist_args[1]["error_message"] == "Request timed out"
 
     @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._persist_tool_execution_to_db")
@@ -640,10 +640,10 @@ class TestMetricsEmissionAndDbPersistence:
 
         mock_emit.assert_called_once()
         _, _, emit_status = mock_emit.call_args[0]
-        assert emit_status == ExecutionStatus.ERROR
+        assert emit_status == ToolExecutionStatus.ERROR
 
         mock_persist.assert_awaited_once()
-        assert mock_persist.call_args[0][2] == ExecutionStatus.ERROR
+        assert mock_persist.call_args[0][2] == ToolExecutionStatus.ERROR
 
     @pytest.mark.usefixtures("fast_retry_settings")
     @patch("nexus.agent_orchestrator.tool_manager.execution_failure_handler._run_coroutine_from_sync")
@@ -663,7 +663,7 @@ class TestMetricsEmissionAndDbPersistence:
 
         mock_emit.assert_called_once()
         _, _, emit_status = mock_emit.call_args[0]
-        assert emit_status == ExecutionStatus.TIMEOUT
+        assert emit_status == ToolExecutionStatus.TIMEOUT
 
         # _run_coroutine_from_sync is called twice: once for tool disable, once for DB persistence
         assert mock_run_coro.call_count == 2
@@ -693,7 +693,7 @@ class TestEmitToolTelemetryEvent:
             exec_id = uuid4()
             _emit_tool_telemetry_event(
                 namespaced_name="provider::my_tool",
-                status=ExecutionStatus.SUCCESS,
+                status=ToolExecutionStatus.SUCCESS,
                 duration_ms=150.0,
                 execution_id=exec_id,
             )
@@ -701,7 +701,7 @@ class TestEmitToolTelemetryEvent:
             mock_collector_cls.assert_called_once_with(registry=mock_registry)
             mock_collector.capture_tool_executed.assert_called_once_with(
                 namespaced_name="provider::my_tool",
-                status=ExecutionStatus.SUCCESS,
+                status=ToolExecutionStatus.SUCCESS,
                 duration_ms=150,
                 execution_id=exec_id,
             )
@@ -718,7 +718,7 @@ class TestEmitToolTelemetryEvent:
         ):
             _emit_tool_telemetry_event(
                 namespaced_name="provider::my_tool",
-                status=ExecutionStatus.SUCCESS,
+                status=ToolExecutionStatus.SUCCESS,
                 duration_ms=100.0,
             )
 
@@ -733,7 +733,7 @@ class TestEmitToolTelemetryEvent:
         ):
             _emit_tool_telemetry_event(
                 namespaced_name="provider::my_tool",
-                status=ExecutionStatus.ERROR,
+                status=ToolExecutionStatus.ERROR,
                 duration_ms=200.0,
             )
 

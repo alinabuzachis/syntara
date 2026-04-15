@@ -2,7 +2,7 @@
 
 Tests cover:
 - ToolExecution creation with required fields
-- ExecutionStatus enum
+- ToolExecutionStatus enum
 - ToolMetricsSummary dataclass functionality
 - Dictionary conversion methods
 - Field validation and constraints
@@ -18,8 +18,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.core.models import User
 from nexus.tool_manager.models import Tool, ToolProvider
 from nexus.tool_manager.models.tool_execution import (
-    ExecutionStatus,
     ToolExecution,
+    ToolExecutionStatus,
     ToolMetricsSummary,
 )
 
@@ -38,7 +38,7 @@ async def test_create_tool_execution_with_required_fields(
         provider_id=test_tool_provider.id,
         user_id=test_user.id,
         execution_start=now,
-        status=ExecutionStatus.RUNNING,
+        status=ToolExecutionStatus.RUNNING,
         input_parameters={"message": "Hello World"},
         created_by=test_user.id,
     )
@@ -52,7 +52,7 @@ async def test_create_tool_execution_with_required_fields(
     assert execution.execution_start == now
     assert execution.execution_end is None  # Default value
     assert execution.duration_ms is None  # Default value
-    assert execution.status == ExecutionStatus.RUNNING
+    assert execution.status == ToolExecutionStatus.RUNNING
     assert execution.input_parameters == {"message": "Hello World"}
     assert execution.output_data is None  # Default value
     assert execution.error_message is None  # Default value
@@ -79,7 +79,7 @@ async def test_create_tool_execution_with_all_fields(
         execution_start=start_time,
         execution_end=end_time,
         duration_ms=1500,
-        status=ExecutionStatus.SUCCESS,
+        status=ToolExecutionStatus.SUCCESS,
         input_parameters={"param1": "value1", "param2": 42},
         output_data={"result": "success", "data": [1, 2, 3]},
         error_message=None,
@@ -92,7 +92,7 @@ async def test_create_tool_execution_with_all_fields(
 
     assert execution.execution_end == end_time
     assert execution.duration_ms == 1500
-    assert execution.status == ExecutionStatus.SUCCESS
+    assert execution.status == ToolExecutionStatus.SUCCESS
     assert execution.input_parameters == {"param1": "value1", "param2": 42}
     assert execution.output_data == {"result": "success", "data": [1, 2, 3]}
     assert execution.labels == {"env": "test", "version": "1.0"}
@@ -114,7 +114,7 @@ async def test_create_tool_execution_with_error(
         execution_start=now,
         execution_end=now,
         duration_ms=500,
-        status=ExecutionStatus.ERROR,
+        status=ToolExecutionStatus.ERROR,
         input_parameters={"timeout_seconds": 30},
         error_message="Connection timeout",
         error_code="TIMEOUT_ERROR",
@@ -123,17 +123,17 @@ async def test_create_tool_execution_with_error(
     test_db_session.add(execution)
     await test_db_session.commit()
 
-    assert execution.status == ExecutionStatus.ERROR
+    assert execution.status == ToolExecutionStatus.ERROR
     assert execution.error_message == "Connection timeout"
     assert execution.error_code == "TIMEOUT_ERROR"
 
 
 def test_execution_status_enum() -> None:
-    """Test ExecutionStatus enum values."""
-    assert ExecutionStatus.RUNNING.value == "running"
-    assert ExecutionStatus.SUCCESS.value == "success"
-    assert ExecutionStatus.ERROR.value == "error"
-    assert ExecutionStatus.TIMEOUT.value == "timeout"
+    """Test ToolExecutionStatus enum values."""
+    assert ToolExecutionStatus.RUNNING.value == "running"
+    assert ToolExecutionStatus.SUCCESS.value == "success"
+    assert ToolExecutionStatus.ERROR.value == "error"
+    assert ToolExecutionStatus.TIMEOUT.value == "timeout"
 
 
 def test_tool_execution_constraints() -> None:
@@ -152,7 +152,7 @@ def test_tool_execution_constraints() -> None:
         user_id=user_id,
         execution_start=now,
         duration_ms=0,  # Should be valid
-        status=ExecutionStatus.SUCCESS,
+        status=ToolExecutionStatus.SUCCESS,
         input_parameters={"test": "value"},
         created_by=created_by,
     )
@@ -167,7 +167,7 @@ def test_tool_execution_constraints() -> None:
             user_id=user_id,
             execution_start=now,
             duration_ms=-1,  # Should be invalid
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             input_parameters={"test": "value"},
             created_by=created_by,
         )
@@ -208,7 +208,7 @@ async def test_tool_execution_foreign_key_constraints(
         provider_id=test_tool_provider.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
-        status=ExecutionStatus.RUNNING,
+        status=ToolExecutionStatus.RUNNING,
         input_parameters={"exec1": "running"},
         created_by=test_user.id,
     )
@@ -218,7 +218,7 @@ async def test_tool_execution_foreign_key_constraints(
         provider_id=test_tool_provider.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
-        status=ExecutionStatus.TIMEOUT,
+        status=ToolExecutionStatus.TIMEOUT,
         input_parameters={"exec2": "timeout"},
         created_by=test_user.id,
     )
@@ -270,7 +270,7 @@ async def test_tool_execution_input_parameters_field(
         provider_id=test_tool_provider.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
-        status=ExecutionStatus.SUCCESS,
+        status=ToolExecutionStatus.SUCCESS,
         input_parameters=complex_params,
         created_by=test_user.id,
     )
@@ -313,7 +313,7 @@ async def test_tool_execution_output_data_field(
         execution_start=datetime.now(UTC),
         execution_end=datetime.now(UTC),
         duration_ms=1234,
-        status=ExecutionStatus.SUCCESS,
+        status=ToolExecutionStatus.SUCCESS,
         input_parameters={"action": "process"},
         output_data=complex_output,
         created_by=test_user.id,
@@ -341,7 +341,7 @@ async def test_tool_execution_null_output_data(
         provider_id=test_tool_provider.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
-        status=ExecutionStatus.RUNNING,
+        status=ToolExecutionStatus.RUNNING,
         input_parameters={"test": "value"},
         created_by=test_user.id,
         # output_data is intentionally not set (should default to None)
@@ -364,7 +364,7 @@ async def test_tool_execution_empty_json_fields(
         provider_id=test_tool_provider.id,
         user_id=test_user.id,
         execution_start=datetime.now(UTC),
-        status=ExecutionStatus.SUCCESS,
+        status=ToolExecutionStatus.SUCCESS,
         input_parameters={},  # Empty JSON object
         output_data={},  # Empty JSON object
         created_by=test_user.id,
@@ -404,7 +404,7 @@ def test_tool_execution_json_field_types() -> None:
             provider_id=provider_id,
             user_id=user_id,
             execution_start=now,
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             input_parameters=params,
             output_data=params,  # Use same data for output
             created_by=created_by,

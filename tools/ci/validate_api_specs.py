@@ -252,7 +252,8 @@ def _validate_openapi_router(spec_path: Path, rel_path: Path, src_dir: Path, err
         return
 
     router_path = src_dir / python_domain / "router.py"
-    if not router_path.is_file():
+    alt_router_path = src_dir / python_domain / f"{python_domain}_router.py"
+    if not router_path.is_file() and not alt_router_path.is_file():
         errors.append(
             f"  - {rel_path}\n"
             f"    No router module found for component '{python_domain}'\n"

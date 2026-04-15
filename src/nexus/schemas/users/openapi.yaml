@@ -601,13 +601,16 @@ components:
 
     UserListResponse:
       allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponse
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
         - type: object
+          required:
+            - resources
           properties:
             resources:
               type: array
               items:
                 $ref: '#/components/schemas/UserRead'
+              maxItems: 100
 
     UserGroupsSet:
       type: object
@@ -698,13 +701,16 @@ components:
 
     GroupListResponse:
       allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponse
+        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
         - type: object
+          required:
+            - resources
           properties:
             resources:
               type: array
               items:
                 $ref: '#/components/schemas/GroupRead'
+              maxItems: 100
 
     GroupMemberAdd:
       type: object

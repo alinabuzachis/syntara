@@ -207,7 +207,9 @@ class WorkflowReadWithVersion(WorkflowRead):
 
 
 # ============================================================================
-# List Response Type Alias
+# List Response
 # ============================================================================
 
-WorkflowListResponse = ResourcesResponse[WorkflowRead]
+
+class WorkflowListResponse(ResourcesResponse[WorkflowRead]):
+    """Paginated list response for workflows."""

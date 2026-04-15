@@ -132,7 +132,9 @@ class IdentityProviderPatch(SQLModel):
 
 
 # ============================================================================
-# List Response Type Alias
+# List Response
 # ============================================================================
 
-IdentityProviderListResponse = ResourcesResponse[IdentityProviderResponse]
+
+class IdentityProviderListResponse(ResourcesResponse[IdentityProviderResponse]):
+    """Paginated list response for identity providers."""

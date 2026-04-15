@@ -14,12 +14,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.auth import get_current_user
 from nexus.core.database.session import get_db
 from nexus.core.models import User
-from nexus.core.models.pagination import ResourcesResponse
 from nexus.core.services.base import BaseService
 from nexus.tool_manager.models.tool import Tool
-from nexus.tool_manager.models.tool_execution import ExecutionStatus, ToolExecution
+from nexus.tool_manager.models.tool_execution import ToolExecution, ToolExecutionStatus
 from nexus.tool_manager.models.tool_metrics_response import (
     ToolExecutionListParams,
+    ToolExecutionListResponse,
     ToolMetricsQuery,
     ToolMetricsToolSummary,
 )
@@ -86,7 +86,7 @@ class ToolMetricsService(BaseService):
         self,
         namespaced_name: str,
         duration_ms: int,
-        status: ExecutionStatus,
+        status: ToolExecutionStatus,
         error_message: str | None = None,
         error_code: str | None = None,
     ) -> ToolExecution:
@@ -163,7 +163,7 @@ class ToolMetricsService(BaseService):
         self,
         tool: Tool,
         duration_ms: int,
-        status: ExecutionStatus,
+        status: ToolExecutionStatus,
         now: datetime,
     ) -> None:
         """Upsert a UsageCounter row for the current hour window."""
@@ -180,11 +180,11 @@ class ToolMetricsService(BaseService):
 
         counter.request_count += 1
         counter.total_duration_ms += duration_ms
-        if status == ExecutionStatus.SUCCESS:
+        if status == ToolExecutionStatus.SUCCESS:
             counter.success_count += 1
-        elif status == ExecutionStatus.ERROR:
+        elif status == ToolExecutionStatus.ERROR:
             counter.error_count += 1
-        elif status == ExecutionStatus.TIMEOUT:
+        elif status == ToolExecutionStatus.TIMEOUT:
             counter.timeout_count += 1
 
     async def get_tool_metrics_summary(
@@ -282,9 +282,9 @@ class ToolMetricsService(BaseService):
             sa_select(  # type: ignore[call-overload]
                 Tool.namespaced_name,
                 sa_func.count().label("total_executions"),
-                sa_func.sum(case((status_col == ExecutionStatus.SUCCESS.value, 1), else_=0)).label("success_count"),
-                sa_func.sum(case((status_col == ExecutionStatus.ERROR.value, 1), else_=0)).label("error_count"),
-                sa_func.sum(case((status_col == ExecutionStatus.TIMEOUT.value, 1), else_=0)).label("timeout_count"),
+                sa_func.sum(case((status_col == ToolExecutionStatus.SUCCESS.value, 1), else_=0)).label("success_count"),
+                sa_func.sum(case((status_col == ToolExecutionStatus.ERROR.value, 1), else_=0)).label("error_count"),
+                sa_func.sum(case((status_col == ToolExecutionStatus.TIMEOUT.value, 1), else_=0)).label("timeout_count"),
                 sa_func.avg(ToolExecution.duration_ms).label("avg_duration_ms"),
                 sa_func.max(ToolExecution.execution_start).label("last_execution_at"),
             )
@@ -329,7 +329,7 @@ class ToolMetricsService(BaseService):
     async def list_executions(
         self,
         params: ToolExecutionListParams,
-    ) -> ResourcesResponse[ToolExecution]:
+    ) -> ToolExecutionListResponse:
         """Return paginated tool execution history with filtering.
 
         Args:
@@ -354,7 +354,7 @@ class ToolMetricsService(BaseService):
 
         return await self.list_resources(
             model=ToolExecution,
-            response_type=ResourcesResponse[ToolExecution],
+            response_type=ToolExecutionListResponse,
             limit=params.limit,
             cursor=params.cursor,
             sort=params.sort or "-created_at",

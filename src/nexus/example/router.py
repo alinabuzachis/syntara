@@ -1,6 +1,9 @@
 """Example API endpoints."""
 
-from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Path, Query
+
 from nexus.example.models import (
     CreateExampleRequest,
     DeleteResponse,
@@ -10,22 +13,20 @@ from nexus.example.models import (
     UpdateExampleRequest,
 )
 
-router = NexusRouter()
+router = APIRouter(tags=["example"])
 
 
-@router.get("/example", dependencies=[NO_PERMISSION])
-async def get_example(limit: int = 10) -> ExampleListResponse:
-    """Get example data.
-
-    Returns a list of example items for demonstration purposes.
-
-    Args:
-        limit: Maximum number of items to return (default: 10)
-
-    Returns:
-        Dictionary containing list of example items and total count
-
-    """
+@router.get(
+    "/example",
+    summary="Get example data",
+    description="Returns example data for demonstration purposes",
+    operation_id="get_example",
+    response_description="Successful Response",
+)
+async def get_example(
+    limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of items to return")] = 10,
+) -> ExampleListResponse:
+    """Return example data for demonstration purposes."""
     return ExampleListResponse(
         data=[
             ExampleItem(
@@ -49,17 +50,16 @@ async def get_example(limit: int = 10) -> ExampleListResponse:
     )
 
 
-@router.post("/example", dependencies=[NO_PERMISSION])
+@router.post(
+    "/example",
+    summary="Create example item",
+    description="Creates a new example item",
+    operation_id="create_example",
+    status_code=201,
+    response_description="Item created successfully",
+)
 async def create_example(request: CreateExampleRequest) -> ExampleItem:
-    """Create a new example item.
-
-    Args:
-        request: The example item to create
-
-    Returns:
-        The created example item
-
-    """
+    """Create a new example item."""
     return ExampleItem(
         id=3,
         name=request.name,
@@ -70,17 +70,17 @@ async def create_example(request: CreateExampleRequest) -> ExampleItem:
     )
 
 
-@router.get("/example/{item_id}", dependencies=[NO_PERMISSION])
-async def get_example_by_id(item_id: int) -> ExampleItem:
-    """Get a single example item by ID.
-
-    Args:
-        item_id: Example item ID
-
-    Returns:
-        The example item with the specified ID
-
-    """
+@router.get(
+    "/example/{item_id}",
+    summary="Get example item by ID",
+    description="Returns a single example item by its ID",
+    operation_id="get_example_by_id",
+    response_description="Successful Response",
+)
+async def get_example_by_id(
+    item_id: Annotated[int, Path(description="Example item ID")],
+) -> ExampleItem:
+    """Return a single example item by its ID."""
     return ExampleItem(
         id=item_id,
         name=f"Example Item {item_id}",
@@ -91,21 +91,18 @@ async def get_example_by_id(item_id: int) -> ExampleItem:
     )
 
 
-@router.put("/example/{item_id}", dependencies=[NO_PERMISSION])
+@router.put(
+    "/example/{item_id}",
+    summary="Update example item",
+    description="Updates an existing example item",
+    operation_id="update_example",
+    response_description="Item updated successfully",
+)
 async def update_example(
-    item_id: int,
     request: UpdateExampleRequest,
+    item_id: Annotated[int, Path(description="Example item ID")],
 ) -> ExampleItem:
-    """Update an existing example item.
-
-    Args:
-        item_id: Example item ID
-        request: The fields to update
-
-    Returns:
-        The updated example item
-
-    """
+    """Update an existing example item."""
     return ExampleItem(
         id=item_id,
         name=request.name or f"Example Item {item_id}",
@@ -116,15 +113,15 @@ async def update_example(
     )
 
 
-@router.delete("/example/{item_id}", dependencies=[NO_PERMISSION])
-async def delete_example(item_id: int) -> DeleteResponse:
-    """Delete an example item.
-
-    Args:
-        item_id: Example item ID
-
-    Returns:
-        Success message
-
-    """
+@router.delete(
+    "/example/{item_id}",
+    summary="Delete example item",
+    description="Deletes an example item",
+    operation_id="delete_example",
+    response_description="Successful Response",
+)
+async def delete_example(
+    item_id: Annotated[int, Path(description="Example item ID")],
+) -> DeleteResponse:
+    """Delete an example item."""
     return DeleteResponse(message=f"Example item {item_id} deleted successfully")

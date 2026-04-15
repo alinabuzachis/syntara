@@ -216,7 +216,9 @@ class ToolProviderPatch(SQLModel):
 
 
 # ============================================================================
-# List Response Type Alias
+# List Response
 # ============================================================================
 
-ToolProviderListResponse = ResourcesResponse[ToolProviderWithConfiguration]
+
+class ToolProviderListResponse(ResourcesResponse[ToolProviderWithConfiguration]):
+    """Paginated list response for tool providers."""

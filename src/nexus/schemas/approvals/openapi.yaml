@@ -320,7 +320,7 @@ components:
 
     ActivitySummary:
       type: object
-      title: Activity Summary
+      title: ActivitySummary
       description: |
         Summary of a workflow activity for display in approval context.
         Provides enough information for UI rendering without exposing
@@ -345,7 +345,7 @@ components:
 
     ApprovalCreateRequest:
       type: object
-      title: Approval Create Request
+      title: ApprovalCreateRequest
       description: |
         Request payload for creating an approval request.
         This is an internal schema used by the Workflows component.
@@ -389,7 +389,7 @@ components:
 
     WorkflowContext:
       type: object
-      title: Workflow Context
+      title: WorkflowContext
       description: |
         Essential context for approvers to make a decision.
         Contains workflow identification, inputs, and the output from the immediately preceding activity.
@@ -430,7 +430,7 @@ components:
 
     PreviousStepContext:
       type: object
-      title: Previous Step Context
+      title: PreviousStepContext
       description: |
         The activity that immediately preceded this approval node, including its output.
         Null if the approval node is the first activity in the workflow.
@@ -458,7 +458,7 @@ components:
 
     ApprovalDecisionStatus:
       type: string
-      title: Approval Decision Status
+      title: ApprovalDecisionStatus
       description: |
         Status values that can be submitted in approval decisions.
         This is a subset of ApprovalRequestStatus containing only user-actionable values.
@@ -468,7 +468,7 @@ components:
 
     ApprovalDecisionRequest:
       type: object
-      title: Approval Decision Request
+      title: ApprovalDecisionRequest
       description: |
         Request payload for submitting an approval decision.
 
@@ -489,7 +489,7 @@ components:
 
     BatchApprovalDecisionStatus:
       type: string
-      title: Batch Approval Decision Status
+      title: BatchApprovalDecisionStatus
       description: |
         Status values that can be submitted in batch approval decisions.
         This is a subset of ApprovalRequestStatus containing only system-actionable values.
@@ -501,8 +501,8 @@ components:
 
     BatchApprovalDecision:
       type: object
-      title: Batch Approval Decision
-      description: Single decision within a batch approval request
+      title: BatchApprovalDecision
+      description: Single decision within a batch approval request.
       required:
         - approval_id
         - status
@@ -520,8 +520,8 @@ components:
 
     BatchApprovalRequest:
       type: object
-      title: Batch Approval Request
-      description: Request payload for submitting multiple approval decisions at once
+      title: BatchApprovalRequest
+      description: Request payload for submitting multiple approval decisions at once.
       required:
         - decisions
       properties:
@@ -535,7 +535,7 @@ components:
 
     BatchApprovalResult:
       type: object
-      title: Batch Approval Result
+      title: BatchApprovalResult
       description: |
         Confirmation for a single approval within a batch response.
       required:
@@ -570,7 +570,7 @@ components:
 
     BatchApprovalResponse:
       type: object
-      title: Batch Approval Response
+      title: BatchApprovalResponse
       description: Response for batch approval submission
       required:
         - results
@@ -593,7 +593,7 @@ components:
 
     UserReference:
       type: object
-      title: User Reference
+      title: UserReference
       description: Minimal user identification for embedding in other resources
       required:
         - id

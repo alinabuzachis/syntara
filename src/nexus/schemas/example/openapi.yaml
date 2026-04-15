@@ -21,8 +21,6 @@ paths:
       summary: Get example data
       description: Returns example data for demonstration purposes
       operationId: get_example
-      security:
-        - bearerAuth: []
       parameters:
         - name: limit
           in: query
@@ -30,35 +28,29 @@ paths:
           required: false
           schema:
             type: integer
+            title: Limit
+            description: Maximum number of items to return
             minimum: 1
             maximum: 100
             default: 10
-            example: 10
       responses:
         "200":
-          description: Successful response
+          description: Successful Response
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/ExampleItem"
-                  total:
-                    type: integer
-                    description: Total number of items
-                    example: 42
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
+                $ref: "#/components/schemas/ExampleListResponse"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
     post:
       tags: [example]
       summary: Create example item
       description: Creates a new example item
       operationId: create_example
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -72,18 +64,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExampleItem"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
   /example/{item_id}:
     get:
       tags: [example]
       summary: Get example item by ID
       description: Returns a single example item by its ID
       operationId: get_example_by_id
-      security:
-        - bearerAuth: []
       parameters:
         - name: item_id
           in: path
@@ -91,26 +83,26 @@ paths:
           required: true
           schema:
             type: integer
-            format: int64
-            example: 1
+            title: Item Id
+            description: Example item ID
       responses:
         "200":
-          description: Successful response
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExampleItem"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
     put:
       tags: [example]
       summary: Update example item
       description: Updates an existing example item
       operationId: update_example
-      security:
-        - bearerAuth: []
       parameters:
         - name: item_id
           in: path
@@ -118,8 +110,8 @@ paths:
           required: true
           schema:
             type: integer
-            format: int64
-            example: 1
+            title: Item Id
+            description: Example item ID
       requestBody:
         required: true
         content:
@@ -133,19 +125,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExampleItem"
-        "400":
-          $ref: "#/components/responses/BadRequestError"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
     delete:
       tags: [example]
       summary: Delete example item
       description: Deletes an example item
       operationId: delete_example
-      security:
-        - bearerAuth: []
       parameters:
         - name: item_id
           in: path
@@ -153,147 +143,151 @@ paths:
           required: true
           schema:
             type: integer
-            format: int64
-            example: 1
+            title: Item Id
+            description: Example item ID
       responses:
         "200":
-          description: Item deleted successfully
+          description: Successful Response
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Example item deleted successfully
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
+                $ref: "#/components/schemas/DeleteResponse"
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: JWT token authentication
   schemas:
+    ExampleStatus:
+      type: string
+      title: ExampleStatus
+      enum: [active, inactive]
+      description: Status enumeration for example items.
     ExampleItem:
       type: object
+      title: ExampleItem
+      description: Schema for example item response.
       properties:
         id:
           type: integer
-          format: int64
-          description: Unique identifier for the example item
-          example: 1
+          title: Id
         name:
           type: string
+          title: Name
           description: Name of the example item
           minLength: 1
           maxLength: 100
-          example: Example Item
         description:
-          type: string
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: "null"
+          title: Description
           description: Description of the example item
-          maxLength: 500
-          example: This is an example item for demonstration purposes
         status:
-          type: string
-          enum: [active, inactive]
+          $ref: "#/components/schemas/ExampleStatus"
+          default: active
           description: Status of the example item
-          example: active
         created_at:
           type: string
-          format: date-time
-          description: Timestamp when the item was created
-          example: "2025-11-10T10:00:00Z"
+          title: Created At
         updated_at:
           type: string
-          format: date-time
-          description: Timestamp when the item was last updated
-          example: "2025-11-10T10:00:00Z"
-      required: [id, name, status, created_at, updated_at]
+          title: Updated At
+      required: [name, id, created_at, updated_at]
+    ExampleListResponse:
+      type: object
+      title: ExampleListResponse
+      description: Schema for GET /example response.
+      properties:
+        data:
+          type: array
+          title: Data
+          items:
+            $ref: "#/components/schemas/ExampleItem"
+        total:
+          type: integer
+          title: Total
+      required: [data, total]
     CreateExampleRequest:
       type: object
+      title: CreateExampleRequest
+      description: Schema for creating a new example item (POST /example).
       properties:
         name:
           type: string
+          title: Name
           description: Name of the example item
           minLength: 1
           maxLength: 100
-          example: New Example Item
         description:
-          type: string
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: "null"
+          title: Description
           description: Description of the example item
-          maxLength: 500
-          example: This is a new example item
         status:
-          type: string
-          enum: [active, inactive]
-          description: Status of the example item
+          $ref: "#/components/schemas/ExampleStatus"
           default: active
-          example: active
+          description: Status of the example item
       required: [name]
     UpdateExampleRequest:
       type: object
+      title: UpdateExampleRequest
+      description: Schema for updating an example item (PUT /example/{item_id}).
       properties:
         name:
-          type: string
-          description: Name of the example item
-          minLength: 1
-          maxLength: 100
-          example: Updated Example Item
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 100
+            - type: "null"
+          title: Name
         description:
-          type: string
-          description: Description of the example item
-          maxLength: 500
-          example: This is an updated example item
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: "null"
         status:
-          type: string
-          enum: [active, inactive]
-          description: Status of the example item
-          example: active
-    Error:
+          anyOf:
+            - $ref: "#/components/schemas/ExampleStatus"
+            - type: "null"
+    DeleteResponse:
       type: object
+      title: DeleteResponse
+      description: Schema for DELETE response.
       properties:
-        error:
-          type: string
-          description: Error type or code
-          example: validation_error
         message:
           type: string
-          description: Human-readable error message
-          example: Invalid request parameters
-        details:
-          type: object
-          description: Additional error details
-          additionalProperties: true
-      required: [error, message]
-  responses:
-    UnauthorizedError:
-      description: Authentication required or invalid token
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
-          example:
-            error: unauthorized
-            message: Authentication required
-    NotFoundError:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
-          example:
-            error: not_found
-            message: Example item not found
-    BadRequestError:
-      description: Invalid request parameters or validation error
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
-          example:
-            error: validation_error
-            message: Invalid request parameters
+          title: Message
+      required: [message]
+    HTTPValidationError:
+      type: object
+      title: HTTPValidationError
+      properties:
+        detail:
+          type: array
+          title: Detail
+          items:
+            $ref: "#/components/schemas/ValidationError"
+    ValidationError:
+      type: object
+      title: ValidationError
+      properties:
+        loc:
+          type: array
+          title: Location
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      required: [loc, msg, type]

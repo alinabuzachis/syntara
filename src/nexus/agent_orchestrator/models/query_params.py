@@ -1,10 +1,12 @@
 """Query parameter models for agent orchestrator endpoints."""
 
 import re
+from uuid import UUID
 
 from pydantic import field_validator
 from sqlmodel import Field, SQLModel
 
+from nexus.agent_orchestrator.models.invocation import InvocationStatus
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models.base import BaseListParams
 
@@ -12,7 +14,10 @@ from nexus.core.models.base import BaseListParams
 class InvocationListParams(BaseListParams):
     """Query parameters for invocation list endpoint."""
 
-    # Use default base parameters
+    status: InvocationStatus | None = Field(default=None, description="Filter by invocation status")
+    created_by: UUID | None = Field(default=None, description="Filter by creator UUID")
+    session_id: str | None = Field(default=None, description="Filter by session ID")
+    prompt: str | None = Field(default=None, description="Filter by prompt text (substring match)")
 
 
 class StreamingQueryParams(SQLModel):

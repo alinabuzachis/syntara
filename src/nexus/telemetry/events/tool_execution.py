@@ -10,14 +10,14 @@ from uuid import UUID  # noqa: TC003
 from sqlmodel import Field
 
 from nexus.telemetry.events.base import BaseTelemetryEvent
-from nexus.tool_manager.models.tool_execution import ExecutionStatus  # noqa: TC001
+from nexus.tool_manager.models.tool_execution import ToolExecutionStatus  # noqa: TC001
 
 
 class ToolExecutionEvent(BaseTelemetryEvent):
     """Telemetry event emitted for each tool execution reaching a terminal state."""
 
     namespaced_name: str = Field(description="Tool namespaced name (e.g., mcp::get_greeting)")
-    status: ExecutionStatus = Field(description="Execution status: success, error, timeout")
+    status: ToolExecutionStatus = Field(description="Execution status: success, error, timeout")
     duration_ms: int = Field(ge=0, description="Execution duration in milliseconds")
     workflow_execution_id: UUID | None = Field(
         default=None,
@@ -31,7 +31,7 @@ class ToolExecutionEventBuilder:
     def build_event(
         self,
         namespaced_name: str,
-        status: ExecutionStatus,
+        status: ToolExecutionStatus,
         duration_ms: int,
         entitlement_id: str,
         execution_id: UUID | None = None,

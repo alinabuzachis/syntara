@@ -65,10 +65,12 @@ class UserRead(SQLModel):
 
 
 # ============================================================================
-# List Response Type Alias
+# List Response
 # ============================================================================
 
-UserListResponse = ResourcesResponse[UserRead]
+
+class UserListResponse(ResourcesResponse[UserRead]):
+    """Paginated list response for users."""
 
 
 class UserListParams(BaseListParams):

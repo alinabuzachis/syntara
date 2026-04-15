@@ -10,7 +10,7 @@ from nexus.telemetry.events.workflow_execution import (
     WorkflowExecutionCompletedEvent,
     WorkflowExecutionStartEvent,
 )
-from nexus.tool_manager.models.tool_execution import ExecutionStatus
+from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 from nexus.workflows.workflow_engine.models.workflow_definition import (
     ActivityTerminalStatus,
     NodeType,
@@ -204,7 +204,7 @@ class TestCaptureToolExecuted:
         wf_id = UUID("550e8400-e29b-41d4-a716-446655440000")
         collector.capture_tool_executed(
             namespaced_name="mcp::get_greeting",
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             duration_ms=142,
             execution_id=wf_id,
         )
@@ -212,7 +212,7 @@ class TestCaptureToolExecuted:
         event = mock_registry.send_event.call_args[0][0]
         assert isinstance(event, ToolExecutionEvent)
         assert event.namespaced_name == "mcp::get_greeting"
-        assert event.status == ExecutionStatus.SUCCESS
+        assert event.status == ToolExecutionStatus.SUCCESS
         assert event.duration_ms == 142
         assert event.workflow_execution_id == wf_id
         assert event.entitlement_id == "ent-test"
@@ -221,7 +221,7 @@ class TestCaptureToolExecuted:
         collector, mock_registry = self._create_collector()
         collector.capture_tool_executed(
             namespaced_name="mcp::tool",
-            status=ExecutionStatus.ERROR,
+            status=ToolExecutionStatus.ERROR,
             duration_ms=50,
         )
         mock_registry.send_event.assert_called_once()
@@ -237,7 +237,7 @@ class TestCaptureToolExecuted:
         # Should not raise
         collector.capture_tool_executed(
             namespaced_name="mcp::tool",
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             duration_ms=100,
         )
         mock_logger.exception.assert_called_once()

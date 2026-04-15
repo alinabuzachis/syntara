@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.tool_manager.models.tool import Tool
-from nexus.tool_manager.models.tool_execution import ExecutionStatus
+from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.services.tool_metrics_service import ToolMetricsService
 
@@ -32,9 +32,9 @@ async def test_summary_returns_per_tool_metrics(
 ) -> None:
     """Test summary returns correct per-tool breakdowns."""
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 200, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 300, ExecutionStatus.ERROR, error_message="fail")
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 200, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 300, ToolExecutionStatus.ERROR, error_message="fail")
     await test_db_session.commit()
 
     response = await auth_client.get("/api/v1/tool_manager/metrics/tools")
@@ -84,8 +84,8 @@ async def test_summary_filter_by_namespaced_name(
     await test_db_session.commit()
 
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(tool2.namespaced_name, 200, ExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(tool2.namespaced_name, 200, ToolExecutionStatus.SUCCESS)
     await test_db_session.commit()
 
     response = await auth_client.get(
@@ -110,8 +110,8 @@ async def test_summary_filter_by_time_range(
     service = ToolMetricsService(test_db_session, test_user)
 
     # Record executions (all created "now" in the DB)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 200, ExecutionStatus.ERROR, error_message="fail")
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 200, ToolExecutionStatus.ERROR, error_message="fail")
     await test_db_session.commit()
 
     now = datetime.now(UTC)
@@ -155,8 +155,8 @@ async def test_executions_returns_records(
 ) -> None:
     """Test execution history returns individual records."""
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 200, ExecutionStatus.ERROR, error_message="fail")
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 200, ToolExecutionStatus.ERROR, error_message="fail")
     await test_db_session.commit()
 
     response = await auth_client.get("/api/v1/tool_manager/metrics/executions")
@@ -175,8 +175,8 @@ async def test_executions_filter_by_status(
 ) -> None:
     """Test filtering executions by status."""
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 200, ExecutionStatus.ERROR, error_message="fail")
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 200, ToolExecutionStatus.ERROR, error_message="fail")
     await test_db_session.commit()
 
     response = await auth_client.get(
@@ -200,7 +200,7 @@ async def test_executions_pagination(
     """Test cursor-based pagination on execution history."""
     service = ToolMetricsService(test_db_session, test_user)
     for _ in range(5):
-        await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
+        await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
     await test_db_session.commit()
 
     # First page
@@ -243,9 +243,9 @@ async def test_executions_filter_by_namespaced_name(
     await test_db_session.commit()
 
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 150, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(tool2.namespaced_name, 200, ExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 150, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(tool2.namespaced_name, 200, ToolExecutionStatus.SUCCESS)
     await test_db_session.commit()
 
     response = await auth_client.get(
@@ -276,13 +276,13 @@ async def test_record_execution_creates_db_record(
     execution = await service.record_tool_execution(
         namespaced_name=test_tool.namespaced_name,
         duration_ms=1500,
-        status=ExecutionStatus.SUCCESS,
+        status=ToolExecutionStatus.SUCCESS,
     )
     await test_db_session.commit()
 
     assert execution.tool_id == test_tool.id
     assert execution.provider_id == test_tool.provider_id
     assert execution.duration_ms == 1500
-    assert execution.status == ExecutionStatus.SUCCESS
+    assert execution.status == ToolExecutionStatus.SUCCESS
     assert execution.input_parameters == {}
     assert execution.output_data is None

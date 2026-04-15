@@ -20,7 +20,7 @@ from nexus.workflows.workflow_engine.models.workflow_definition import ActivityT
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus.tool_manager.models.tool_execution import ExecutionStatus
+    from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
     from nexus.workflows.workflow_engine.models.workflow_definition import (
         NodeType,
         WorkflowTerminalStatus,
@@ -178,7 +178,7 @@ class TelemetryCollector:
     def capture_tool_executed(
         self,
         namespaced_name: str,
-        status: ExecutionStatus,
+        status: ToolExecutionStatus,
         duration_ms: int,
         execution_id: UUID | None = None,
     ) -> None:

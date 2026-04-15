@@ -88,7 +88,13 @@ paths:
       tags:
         - Projects
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       responses:
         "200":
           description: Project details
@@ -112,7 +118,13 @@ paths:
       tags:
         - Projects
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -142,7 +154,13 @@ paths:
       tags:
         - Projects
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -172,7 +190,13 @@ paths:
       tags:
         - Projects
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       responses:
         "204":
           description: Project deleted
@@ -194,7 +218,13 @@ paths:
       tags:
         - Project Workflows
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
@@ -229,7 +259,13 @@ paths:
       tags:
         - Project Approvals
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
@@ -278,7 +314,13 @@ paths:
       tags:
         - Project Role Assignments
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -312,7 +354,13 @@ paths:
       tags:
         - Project Role Assignments
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       responses:
         "200":
           description: List of role assignments
@@ -333,7 +381,13 @@ paths:
       tags:
         - Project Role Assignments
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
         - name: assignment_id
           in: path
           required: true
@@ -364,7 +418,13 @@ paths:
       tags:
         - Project Group Role Assignments
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -398,7 +458,13 @@ paths:
       tags:
         - Project Group Role Assignments
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       responses:
         "200":
           description: List of group role assignments
@@ -419,7 +485,13 @@ paths:
       tags:
         - Project Group Role Assignments
       parameters:
-        - $ref: "#/components/parameters/projectIdParam"
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
         - name: assignment_id
           in: path
           required: true
@@ -438,16 +510,6 @@ paths:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
 components:
-  parameters:
-    projectIdParam:
-      name: project_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-      description: Project UUID
-
   schemas:
     ProjectCreate:
       type: object

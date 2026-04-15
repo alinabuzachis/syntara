@@ -314,4 +314,6 @@ class ExecutionRead(SQLModel):
 # List Response Schema
 # ============================================================================
 
-ExecutionListResponse = ResourcesResponse[ExecutionRead]
+
+class ExecutionListResponse(ResourcesResponse[ExecutionRead]):
+    """Paginated list response for executions."""

@@ -206,7 +206,7 @@ components:
 
     ExecutionStatus:
       type: string
-      title: Execution Status
+      title: ExecutionStatus
       description: Current state of a workflow execution lifecycle
       enum: [pending, running, paused, completed, failed, cancelled]
 

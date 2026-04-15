@@ -12,7 +12,7 @@ openapi: 3.1.0
 info:
   title: Nexus API
   version: 0.1.0
-  description: Aggregated OpenAPI specification for the Nexus platform.
+  description: A distributed multi-agent workflow orchestration system
 servers:
   - url: /api/v1
     description: API v1
@@ -1568,8 +1568,6 @@ paths:
       summary: Get example data
       description: Returns example data for demonstration purposes
       operationId: get_example
-      security:
-        - bearerAuth: []
       parameters:
         - name: limit
           in: query
@@ -1577,36 +1575,30 @@ paths:
           required: false
           schema:
             type: integer
+            title: Limit
+            description: Maximum number of items to return
             minimum: 1
             maximum: 100
             default: 10
-            example: 10
       responses:
         '200':
-          description: Successful response
+          description: Successful Response
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ExampleItem'
-                  total:
-                    type: integer
-                    description: Total number of items
-                    example: 42
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+                $ref: '#/components/schemas/ExampleListResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     post:
       tags:
         - example
       summary: Create example item
       description: Creates a new example item
       operationId: create_example
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1620,10 +1612,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExampleItem'
-        '400':
-          $ref: '#/components/responses/BadRequestError'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /example/{item_id}:
     get:
       tags:
@@ -1631,8 +1625,6 @@ paths:
       summary: Get example item by ID
       description: Returns a single example item by its ID
       operationId: get_example_by_id
-      security:
-        - bearerAuth: []
       parameters:
         - name: item_id
           in: path
@@ -1640,27 +1632,27 @@ paths:
           required: true
           schema:
             type: integer
-            format: int64
-            example: 1
+            title: Item Id
+            description: Example item ID
       responses:
         '200':
-          description: Successful response
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExampleItem'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     put:
       tags:
         - example
       summary: Update example item
       description: Updates an existing example item
       operationId: update_example
-      security:
-        - bearerAuth: []
       parameters:
         - name: item_id
           in: path
@@ -1668,8 +1660,8 @@ paths:
           required: true
           schema:
             type: integer
-            format: int64
-            example: 1
+            title: Item Id
+            description: Example item ID
       requestBody:
         required: true
         content:
@@ -1683,20 +1675,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExampleItem'
-        '400':
-          $ref: '#/components/responses/BadRequestError'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     delete:
       tags:
         - example
       summary: Delete example item
       description: Deletes an example item
       operationId: delete_example
-      security:
-        - bearerAuth: []
       parameters:
         - name: item_id
           in: path
@@ -1704,23 +1694,21 @@ paths:
           required: true
           schema:
             type: integer
-            format: int64
-            example: 1
+            title: Item Id
+            description: Example item ID
       responses:
         '200':
-          description: Item deleted successfully
+          description: Successful Response
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Example item deleted successfully
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
+                $ref: '#/components/schemas/DeleteResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /files:
     post:
       summary: Upload Files
@@ -2327,10 +2315,31 @@ paths:
             - Ascending: `field` (e.g., `name`)
             - Descending: `-field` (e.g., `-created_at`)
           example: -created_at
-        - $ref: '#/components/parameters/statusFilterParam'
-        - $ref: '#/components/parameters/promptFilterParam'
-        - $ref: '#/components/parameters/createdByFilterParam'
-        - $ref: '#/components/parameters/sessionIdFilterParam'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/InvocationStatus'
+          description: Filter invocations by status (running, paused, cancelled, completed, failed)
+        - name: prompt
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by prompt text (substring match)
+        - name: created_by
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by creator UUID
+        - name: session_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by session ID
         - name: labels
           in: query
           required: false
@@ -2803,7 +2812,13 @@ paths:
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       responses:
         '200':
           description: Project details
@@ -2826,7 +2841,13 @@ paths:
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -2855,7 +2876,13 @@ paths:
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -2884,7 +2911,13 @@ paths:
       tags:
         - Projects
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       responses:
         '204':
           description: Project deleted
@@ -2904,7 +2937,13 @@ paths:
       tags:
         - Project Workflows
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
         - name: limit
           in: query
           required: false
@@ -2959,7 +2998,13 @@ paths:
       tags:
         - Project Approvals
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
         - name: limit
           in: query
           required: false
@@ -3030,7 +3075,13 @@ paths:
       tags:
         - Project Role Assignments
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -3063,7 +3114,13 @@ paths:
       tags:
         - Project Role Assignments
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       responses:
         '200':
           description: List of role assignments
@@ -3083,7 +3140,13 @@ paths:
       tags:
         - Project Role Assignments
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
         - name: assignment_id
           in: path
           required: true
@@ -3112,7 +3175,13 @@ paths:
       tags:
         - Project Group Role Assignments
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       requestBody:
         required: true
         content:
@@ -3145,7 +3214,13 @@ paths:
       tags:
         - Project Group Role Assignments
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
       responses:
         '200':
           description: List of group role assignments
@@ -3165,7 +3240,13 @@ paths:
       tags:
         - Project Group Role Assignments
       parameters:
-        - $ref: '#/components/parameters/projectIdParam'
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project UUID
         - name: assignment_id
           in: path
           required: true
@@ -3329,7 +3410,12 @@ paths:
       tags:
         - Settings
       parameters:
-        - $ref: '#/components/parameters/keyParam'
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`)
       responses:
         '200':
           description: Setting details
@@ -3352,7 +3438,12 @@ paths:
       tags:
         - Settings
       parameters:
-        - $ref: '#/components/parameters/keyParam'
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`)
       requestBody:
         required: true
         content:
@@ -5182,466 +5273,208 @@ paths:
   /executions:
     get:
       summary: List executions
-      description: |
-        Retrieve executions with filtering, sorting, and cursor-based pagination.
+      description: Retrieve executions with filtering, sorting, and cursor-based pagination.
       operationId: list_executions
       tags:
         - executions
       parameters:
-        - name: workflow_id
+        - description: Maximum number of results per page
           in: query
+          name: limit
           required: false
           schema:
-            type: string
-            format: uuid
-          description: Filter by workflow ID
-        - name: created_by
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-          description: Filter by user who created the execution
-        - name: status
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/ExecutionStatus'
-          description: |
-            Filter executions by status.
-            - Exact match: `status=running`
-            - Multiple values: `status[in]=running,pending`
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
             default: 20
-          description: Number of resources to return per page
-          example: 20
-        - name: cursor
+            description: Maximum number of results per page
+            exclusiveMinimum: 0
+            maximum: 100
+            title: Limit
+            type: integer
+        - description: Pagination cursor from previous response
           in: query
+          name: cursor
           required: false
           schema:
-            type: string
-          description: Opaque cursor for pagination (from previous response)
-          example: eyJpZCI6InV1aWQifQ
-        - name: include_total
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+        - description: Sort parameter (e.g., 'name', '-created_at')
           in: query
+          name: sort
           required: false
           schema:
-            type: boolean
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
+        - description: Include total count in response (expensive)
+          in: query
+          name: include_total
+          required: false
+          schema:
             default: false
-          description: Whether to include total count in response (may impact performance)
-          example: true
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-          description: |
-            Sort order for resources.
-            - Ascending: `field` (e.g., `name`)
-            - Descending: `-field` (e.g., `-created_at`)
-          example: -created_at
-        - name: created_at
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            allOf:
-              - type: string
-                format: date-time
-                description: Exact match of creation timestamp. ?created_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?created_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?created_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
-        - name: updated_at
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            allOf:
-              - type: string
-                format: date-time
-                description: Exact match of last update timestamp. ?updated_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?updated_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?updated_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
-        - name: labels
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            type: object
-            additionalProperties:
-              type: string
-          description: |
-            Filter resources by label key-value pairs.
-            - Single label: `labels[environment]=production`
-            - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-            All specified labels must match (AND logic).
-          example:
-            environment: production
-            region: us-east-1
+            description: Include total count in response (expensive)
+            title: Include Total
+            type: boolean
       responses:
         '200':
-          description: List of executions
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ResourcesResponseBase'
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Execution'
-                        maxItems: 100
-                    required:
-                      - resources
+                $ref: '#/components/schemas/ExecutionListResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
     post:
       summary: Create execution
-      description: Start a new workflow execution
+      description: Start a new workflow execution.
       operationId: create_execution
       tags:
         - executions
       requestBody:
-        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateExecutionRequest'
+              $ref: '#/components/schemas/ExecutionCreate'
+        required: true
       responses:
         '201':
-          description: Execution started
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Execution'
-        '400':
-          description: Workflow is disabled
+                $ref: '#/components/schemas/ExecutionRead'
+          description: Successful Response
+        '422':
           content:
-            application/problem+json:
+            application/json:
               schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/workflow-disabled
-                title: Workflow Disabled
-                detail: Cannot execute a disabled workflow
-                code: WORKFLOW_DISABLED
-                retryable: false
-                instance: /api/v1/executions
-        '404':
-          description: Workflow not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-              example:
-                type: https://api.nexus.com/errors/not-found
-                title: Workflow Not Found
-                detail: No workflow exists with the provided identifier
-                code: WORKFLOW_NOT_FOUND
-                retryable: false
-                instance: /api/v1/executions
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
   /executions/{execution_id}:
     get:
       summary: Get execution
-      description: |
-        Retrieve details of a specific execution with optional includes.
-        **Include Parameters**:
-        - `workflow_definition`: Include the workflow definition from the executed version (for building visualization graph)
-        - `activities`: Include the list of activities with their current status (for completed executions or fallback)
-        **Usage**:
-        - Normal request: `GET /executions/{id}` - returns execution without optional fields
-        - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
+      description: Retrieve details of a specific execution with optional includes.
       operationId: get_execution
       tags:
         - executions
       parameters:
-        - name: execution_id
-          in: path
+        - in: path
+          name: execution_id
           required: true
           schema:
-            type: string
             format: uuid
-        - name: include
+            title: Execution Id
+            type: string
+        - description: 'Comma-separated list of related data to include. Valid values: workflow_definition, activities'
           in: query
+          name: include
           required: false
           schema:
-            type: string
-          description: |
-            Comma-separated list of related data to include in the response.
-            Valid values: workflow_definition, activities
-          example: workflow_definition,activities
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: 'Comma-separated list of related data to include. Valid values: workflow_definition, activities'
+            title: Include
       responses:
         '200':
-          description: Execution details with optional includes
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Execution'
-        '404':
-          description: Execution not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-    patch:
-      summary: Control execution
-      description: Pause, resume, or cancel a workflow execution
-      operationId: control_execution
-      tags:
-        - executions
-      parameters:
-        - name: execution_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExecutionControlRequest'
-      responses:
-        '200':
-          description: Execution control applied
+                $ref: '#/components/schemas/ExecutionRead'
+          description: Successful Response
+        '422':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Execution'
-        '404':
-          description: Execution not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
   /executions/{execution_id}/activities:
     get:
       summary: List activity executions
-      description: |
-        Retrieve activity executions for a workflow execution with cursor-based pagination.
+      description: Retrieve activity executions for a workflow execution.
       operationId: list_execution_activities
       tags:
         - executions
       parameters:
-        - name: execution_id
-          in: path
+        - in: path
+          name: execution_id
           required: true
           schema:
-            type: string
             format: uuid
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-          description: Number of resources to return per page
-          example: 20
-        - name: cursor
-          in: query
-          required: false
-          schema:
+            title: Execution Id
             type: string
-          description: Opaque cursor for pagination (from previous response)
-          example: eyJpZCI6InV1aWQifQ
-        - name: include_total
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: false
-          description: Whether to include total count in response (may impact performance)
-          example: true
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-          description: |
-            Sort order for resources.
-            - Ascending: `field` (e.g., `name`)
-            - Descending: `-field` (e.g., `-created_at`)
-          example: -created_at
-        - name: created_at
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            allOf:
-              - type: string
-                format: date-time
-                description: Exact match of creation timestamp. ?created_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?created_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?created_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
       responses:
         '200':
-          description: List of activity executions
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ResourcesResponseBase'
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/ActivityExecution'
-                        maxItems: 100
-                    required:
-                      - resources
-        '404':
-          description: Execution not found
+                items:
+                  $ref: '#/components/schemas/ActivityExecution'
+                title: Response List Execution Activities
+                type: array
+          description: Successful Response
+        '422':
           content:
-            application/problem+json:
+            application/json:
               schema:
-                $ref: '#/components/schemas/ErrorData'
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
   /executions/{execution_id}/activities/{activity_id}/signal:
     post:
       summary: Send signal to activity in workflow
-      description: |
-        Send a signal to a specific activity within a running workflow execution.
-        This endpoint allows external systems to send arbitrary signals to
-        activities that are waiting for external events. The activity must be
-        designed to handle signals via the workflow's signal handler.
-        The signal is durable - if the workflow is temporarily unavailable,
-        the signal will be delivered when it becomes available again.
+      description: Send a signal to a specific activity within a running workflow execution.
       operationId: signal_activity
       tags:
         - executions
       parameters:
-        - name: execution_id
-          in: path
+        - in: path
+          name: execution_id
           required: true
           schema:
-            type: string
             format: uuid
-          description: Execution ID of the running workflow
-        - name: activity_id
-          in: path
+            title: Execution Id
+            type: string
+        - in: path
+          name: activity_id
           required: true
           schema:
+            title: Activity Id
             type: string
-          description: Activity ID from the workflow definition
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ActivitySignalPayload'
+        required: true
       responses:
         '200':
-          description: Signal sent successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SignalResponse'
-        '404':
-          description: Execution not found
+          description: Successful Response
+        '422':
           content:
-            application/problem+json:
+            application/json:
               schema:
-                $ref: '#/components/schemas/ErrorData'
-        '500':
-          description: Failed to send signal
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
-        '503':
-          description: Temporal workflow engine unavailable
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorData'
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+        - bearerAuth: []
   /workflows:
     get:
       summary: List workflows
@@ -6286,26 +6119,7 @@ components:
         - $ref: '#/components/schemas/SoftDeletableResource'
         - $ref: '#/components/schemas/UserOwnedResource'
       title: Resource
-      description: |
-        Composite entity combining all base resource capabilities:
-        - System metadata (from BaseResource): id, timestamps, labels
-        - Naming (from NamedResource): name, description
-        - Soft deletion (from SoftDeletableResource): deletedAt, deletedBy
-        - Ownership (from UserOwnedResource): created_by, updated_by
-        This is the recommended base schema for most API resources.
-      example:
-        id: 550e8400-e29b-41d4-a716-446655440000
-        created_at: '2025-10-09T12:00:00Z'
-        updated_at: '2025-10-09T12:30:00Z'
-        labels:
-          environment: production
-          region: us-east-1
-        name: Authentication Service
-        description: Handles user authentication and authorization
-        deleted_at: null
-        deleted_by: null
-        created_by: 770e8400-e29b-41d4-a716-446655440000
-        updated_by: 880e8400-e29b-41d4-a716-446655440000
+      description: Composite resource combining named, soft-deletable, and user-owned capabilities
     ErrorData:
       type: object
       title: RFC 9457 Problem Details
@@ -6384,22 +6198,6 @@ components:
           title: Total Count
           description: Total count of resources (only when include_total=true)
           example: 150
-    ResourcesResponse:
-      allOf:
-        - $ref: '#/components/schemas/ResourcesResponseBase'
-        - type: object
-          title: Resources Response
-          description: Complete paginated response with resource array
-          required:
-            - resources
-          properties:
-            resources:
-              type: array
-              title: Resources
-              description: Array of resources in current page
-              items:
-                $ref: '#/components/schemas/Resource'
-              maxItems: 100
     ApprovalRequest:
       allOf:
         - $ref: '#/components/schemas/BaseResource'
@@ -6481,7 +6279,7 @@ components:
         - cancelled
     ActivitySummary:
       type: object
-      title: Activity Summary
+      title: ActivitySummary
       description: |
         Summary of a workflow activity for display in approval context.
         Provides enough information for UI rendering without exposing
@@ -6505,7 +6303,7 @@ components:
           example: task
     ApprovalCreateRequest:
       type: object
-      title: Approval Create Request
+      title: ApprovalCreateRequest
       description: |
         Request payload for creating an approval request.
         This is an internal schema used by the Workflows component.
@@ -6552,7 +6350,7 @@ components:
           $ref: '#/components/schemas/WorkflowContext'
     WorkflowContext:
       type: object
-      title: Workflow Context
+      title: WorkflowContext
       description: |
         Essential context for approvers to make a decision.
         Contains workflow identification, inputs, and the output from the immediately preceding activity.
@@ -6592,7 +6390,7 @@ components:
             scan_duration_seconds: 120
     PreviousStepContext:
       type: object
-      title: Previous Step Context
+      title: PreviousStepContext
       description: |
         The activity that immediately preceded this approval node, including its output.
         Null if the approval node is the first activity in the workflow.
@@ -6621,7 +6419,7 @@ components:
           additionalProperties: true
     ApprovalDecisionStatus:
       type: string
-      title: Approval Decision Status
+      title: ApprovalDecisionStatus
       description: |
         Status values that can be submitted in approval decisions.
         This is a subset of ApprovalRequestStatus containing only user-actionable values.
@@ -6630,7 +6428,7 @@ components:
         - rejected
     ApprovalDecisionRequest:
       type: object
-      title: Approval Decision Request
+      title: ApprovalDecisionRequest
       description: |
         Request payload for submitting an approval decision.
         Status values:
@@ -6651,7 +6449,7 @@ components:
           description: Optional notes explaining the decision
     BatchApprovalDecisionStatus:
       type: string
-      title: Batch Approval Decision Status
+      title: BatchApprovalDecisionStatus
       description: |
         Status values that can be submitted in batch approval decisions.
         This is a subset of ApprovalRequestStatus containing only system-actionable values.
@@ -6662,8 +6460,8 @@ components:
         - cancelled
     BatchApprovalDecision:
       type: object
-      title: Batch Approval Decision
-      description: Single decision within a batch approval request
+      title: BatchApprovalDecision
+      description: Single decision within a batch approval request.
       required:
         - approval_id
         - status
@@ -6682,8 +6480,8 @@ components:
           description: Optional notes explaining the decision
     BatchApprovalRequest:
       type: object
-      title: Batch Approval Request
-      description: Request payload for submitting multiple approval decisions at once
+      title: BatchApprovalRequest
+      description: Request payload for submitting multiple approval decisions at once.
       required:
         - decisions
       properties:
@@ -6696,7 +6494,7 @@ components:
           description: List of approval decisions to submit
     BatchApprovalResult:
       type: object
-      title: Batch Approval Result
+      title: BatchApprovalResult
       description: |
         Confirmation for a single approval within a batch response.
       required:
@@ -6712,6 +6510,7 @@ components:
           description: Whether the decision was successfully recorded
         status:
           $ref: '#/components/schemas/ApprovalStatus'
+          description: New status after the decision (if successful)
         decided_at:
           type:
             - string
@@ -6735,7 +6534,7 @@ components:
           description: Error message if the decision failed
     BatchApprovalResponse:
       type: object
-      title: Batch Approval Response
+      title: BatchApprovalResponse
       description: Response for batch approval submission
       required:
         - results
@@ -6757,7 +6556,7 @@ components:
           description: Number of failed decisions
     UserReference:
       type: object
-      title: User Reference
+      title: UserReference
       description: Minimal user identification for embedding in other resources
       required:
         - id
@@ -7552,114 +7351,153 @@ components:
         name:
           type: string
           description: Workflow name
+    ExampleStatus:
+      type: string
+      title: ExampleStatus
+      enum:
+        - active
+        - inactive
+      description: Status enumeration for example items.
     ExampleItem:
       type: object
+      title: ExampleItem
+      description: Schema for example item response.
       properties:
         id:
           type: integer
-          format: int64
-          description: Unique identifier for the example item
-          example: 1
+          title: Id
         name:
           type: string
+          title: Name
           description: Name of the example item
           minLength: 1
           maxLength: 100
-          example: Example Item
         description:
-          type: string
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          title: Description
           description: Description of the example item
-          maxLength: 500
-          example: This is an example item for demonstration purposes
         status:
-          type: string
-          enum:
-            - active
-            - inactive
+          $ref: '#/components/schemas/ExampleStatus'
+          default: active
           description: Status of the example item
-          example: active
         created_at:
           type: string
-          format: date-time
-          description: Timestamp when the item was created
-          example: '2025-11-10T10:00:00Z'
+          title: Created At
         updated_at:
           type: string
-          format: date-time
-          description: Timestamp when the item was last updated
-          example: '2025-11-10T10:00:00Z'
+          title: Updated At
       required:
-        - id
         - name
-        - status
+        - id
         - created_at
         - updated_at
+    ExampleListResponse:
+      type: object
+      title: ExampleListResponse
+      description: Schema for GET /example response.
+      properties:
+        data:
+          type: array
+          title: Data
+          items:
+            $ref: '#/components/schemas/ExampleItem'
+        total:
+          type: integer
+          title: Total
+      required:
+        - data
+        - total
     CreateExampleRequest:
       type: object
+      title: CreateExampleRequest
+      description: Schema for creating a new example item (POST /example).
       properties:
         name:
           type: string
+          title: Name
           description: Name of the example item
           minLength: 1
           maxLength: 100
-          example: New Example Item
         description:
-          type: string
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+          title: Description
           description: Description of the example item
-          maxLength: 500
-          example: This is a new example item
         status:
-          type: string
-          enum:
-            - active
-            - inactive
-          description: Status of the example item
+          $ref: '#/components/schemas/ExampleStatus'
           default: active
-          example: active
+          description: Status of the example item
       required:
         - name
     UpdateExampleRequest:
       type: object
+      title: UpdateExampleRequest
+      description: Schema for updating an example item (PUT /example/{item_id}).
       properties:
         name:
-          type: string
-          description: Name of the example item
-          minLength: 1
-          maxLength: 100
-          example: Updated Example Item
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 100
+            - type: 'null'
+          title: Name
         description:
-          type: string
-          description: Description of the example item
-          maxLength: 500
-          example: This is an updated example item
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
         status:
-          type: string
-          enum:
-            - active
-            - inactive
-          description: Status of the example item
-          example: active
-    Error:
+          anyOf:
+            - $ref: '#/components/schemas/ExampleStatus'
+            - type: 'null'
+    DeleteResponse:
       type: object
+      title: DeleteResponse
+      description: Schema for DELETE response.
       properties:
-        error:
-          type: string
-          description: Error type or code
-          example: validation_error
         message:
           type: string
-          description: Human-readable error message
-          example: Invalid request parameters
-        details:
-          type: object
-          description: Additional error details
-          additionalProperties: true
+          title: Message
       required:
-        - error
         - message
+    HTTPValidationError:
+      type: object
+      title: HTTPValidationError
+      properties:
+        detail:
+          type: array
+          title: Detail
+          items:
+            $ref: '#/components/schemas/ValidationError'
+    ValidationError:
+      type: object
+      title: ValidationError
+      properties:
+        loc:
+          type: array
+          title: Location
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      required:
+        - loc
+        - msg
+        - type
     FileUploadResponse:
       type: object
-      title: File Upload Response
+      title: FileUploadResponse
       description: Response from POST /files endpoint
       required:
         - file_ids
@@ -7682,7 +7520,7 @@ components:
           description: Metadata for each uploaded file
     FileUploadInfo:
       type: object
-      title: File Upload Info
+      title: FileUploadInfo
       description: Metadata for an uploaded file (excludes internal file_path for security)
       required:
         - file_id
@@ -8360,7 +8198,7 @@ components:
           example: null
     InvocationCancelRequest:
       type: object
-      title: Invocation Cancel Request
+      title: InvocationCancelRequest
       description: Request body for cancelling an invocation
       properties:
         reason:
@@ -8373,7 +8211,7 @@ components:
       required: []
     InvocationCancelResponse:
       type: object
-      title: Invocation Cancel Response
+      title: InvocationCancelResponse
       description: Response after attempting to cancel an invocation
       required:
         - success
@@ -9016,7 +8854,9 @@ components:
           type: boolean
     ToolWithParameters:
       allOf:
-        - $ref: '#/components/schemas/Resource'
+        - $ref: '#/components/schemas/NamedResource'
+        - $ref: '#/components/schemas/SoftDeletableResource'
+        - $ref: '#/components/schemas/UserOwnedResource'
         - type: object
           properties:
             provider_id:
@@ -9151,7 +8991,9 @@ components:
         - updated_at
     ToolProviderWithConfiguration:
       allOf:
-        - $ref: '#/components/schemas/Resource'
+        - $ref: '#/components/schemas/NamedResource'
+        - $ref: '#/components/schemas/SoftDeletableResource'
+        - $ref: '#/components/schemas/UserOwnedResource'
         - type: object
           properties:
             configuration:
@@ -9394,13 +9236,16 @@ components:
           description: Last update timestamp
     UserListResponse:
       allOf:
-        - $ref: '#/components/schemas/ResourcesResponse'
+        - $ref: '#/components/schemas/ResourcesResponseBase'
         - type: object
+          required:
+            - resources
           properties:
             resources:
               type: array
               items:
                 $ref: '#/components/schemas/UserRead'
+              maxItems: 100
     UserGroupsSet:
       type: object
       properties:
@@ -9485,13 +9330,16 @@ components:
           description: Number of members in the group
     GroupListResponse:
       allOf:
-        - $ref: '#/components/schemas/ResourcesResponse'
+        - $ref: '#/components/schemas/ResourcesResponseBase'
         - type: object
+          required:
+            - resources
           properties:
             resources:
               type: array
               items:
                 $ref: '#/components/schemas/GroupRead'
+              maxItems: 100
     GroupMemberAdd:
       type: object
       required:
@@ -9587,133 +9435,224 @@ components:
                   - analyze_sentiment
                 model: claude-3-opus
                 prompt: Analyze the sentiment of the following text
-    Execution:
-      allOf:
-        - $ref: '#/components/schemas/BaseResource'
-        - type: object
-          title: Execution
-          description: Runtime instance of a workflow execution with current state, activity tracking, and execution history
-          properties:
-            workflow_id:
-              type: string
-              format: uuid
-              description: ID of the workflow being executed
-            workflow_version_id:
-              type: string
-              format: uuid
-              description: ID of the workflow version being executed
-            temporal_workflow_id:
-              type: string
-              description: Temporal workflow execution ID
-            status:
-              type: string
-              title: Execution Status
-              description: Current state of a workflow execution lifecycle
-              enum:
-                - pending
-                - running
-                - paused
-                - completed
-                - failed
-                - cancelled
-            started_by:
-              type: string
-              format: uuid
-              description: User who started the execution
-            started_at:
-              type:
-                - string
-                - 'null'
-              format: date-time
-              description: When execution transitioned from pending to running status (null if still pending)
-            completed_at:
-              type:
-                - string
-                - 'null'
-              format: date-time
-              description: When execution reached terminal state (completed, failed, or cancelled)
-            input_data:
-              type: object
-              description: Input parameters for the execution
-            error_details:
-              type:
-                - string
-                - 'null'
-              description: Error information if execution failed
-            current_activities:
+    ExecutionCreate:
+      description: |-
+        Schema for creating a new execution (POST /executions).
+        Excludes auto-generated fields: id, created_at, created_by (set by backend).
+      properties:
+        input_data:
+          additionalProperties: true
+          description: Input data for workflow execution
+          title: Input Data
+          type: object
+        workflow_id:
+          description: Workflow ID to execute
+          format: uuid
+          title: Workflow Id
+          type: string
+      required:
+        - workflow_id
+      title: ExecutionCreate
+      type: object
+    ExecutionRead:
+      description: |-
+        Schema for execution response (GET /executions/{id}).
+        Includes all fields from the database table model.
+      properties:
+        activities:
+          anyOf:
+            - items:
+                $ref: '#/components/schemas/ActivityData'
               type: array
-              description: Currently executing activities
-              items:
-                type: object
-                properties:
-                  activity_name:
-                    type: string
-                  temporal_activity_id:
-                    type: string
-                  iteration:
-                    type:
-                      - integer
-                      - 'null'
-            workflow_definition:
-              type:
-                - object
-                - 'null'
-              description: |
-                Workflow definition from the executed version.
-                Only included when requested via ?include=workflow_definition query parameter.
-                Used for building visualization graph.
-            activities:
-              type:
-                - array
-                - 'null'
-              description: |
-                List of activities with their current status.
-                Only included when requested via ?include=activities query parameter.
-                Used for visualization of completed executions or as fallback.
-              items:
-                type: object
-                title: Activity Data
-                description: Activity data for execution response when include=activities is requested
-                required:
-                  - activity_id
-                  - status
-                properties:
-                  activity_id:
-                    type: string
-                    description: Activity ID from workflow definition
-                    example: process_data
-                  status:
-                    type: string
-                    title: Activity Status
-                    description: Current state of an individual activity execution
-                    enum:
-                      - pending
-                      - running
-                      - completed
-                      - failed
-                      - retrying
-                      - skipped
-                      - cancelled
-                  error_details:
-                    type:
-                      - string
-                      - 'null'
-                    description: Error message if status is failed
-                    example: Connection timeout to external service
-                  started_at:
-                    type:
-                      - string
-                      - 'null'
-                    format: date-time
-                    description: When activity started execution
-                    example: '2025-12-10T15:00:10Z'
-                  completed_at:
-                    type:
-                      - string
-                      - 'null'
-                    format: date-time
-                    description: When activity completed
-                    example: '2025-12-10T15:00:15Z'
+            - type: 'null'
+          description: List of activities with their current status. Only included when requested via ?include=activities query parameter.
+          title: Activities
+        completed_at:
+          anyOf:
+            - format: date-time
+              type: string
+            - type: 'null'
+          title: Completed At
+        created_at:
+          format: date-time
+          title: Created At
+          type: string
+        created_by:
+          format: uuid
+          title: Created By
+          type: string
+        current_activities:
+          description: Currently executing activities
+          items:
+            $ref: '#/components/schemas/CurrentActivity'
+          title: Current Activities
+          type: array
+        deleted_at:
+          anyOf:
+            - format: date-time
+              type: string
+            - type: 'null'
+          title: Deleted At
+        deleted_by:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: 'null'
+          title: Deleted By
+        error_details:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error Details
+        id:
+          format: uuid
+          title: Id
+          type: string
+        input_data:
+          additionalProperties: true
+          title: Input Data
+          type: object
+        labels:
+          additionalProperties: true
+          title: Labels
+          type: object
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        temporal_workflow_id:
+          title: Temporal Workflow Id
+          type: string
+        updated_at:
+          format: date-time
+          title: Updated At
+          type: string
+        updated_by:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: 'null'
+          title: Updated By
+        workflow_definition:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          description: Workflow definition from the executed version. Only included when requested via ?include=workflow_definition query parameter.
+          title: Workflow Definition
+        workflow_id:
+          format: uuid
+          title: Workflow Id
+          type: string
+        workflow_version_id:
+          format: uuid
+          title: Workflow Version Id
+          type: string
+      required:
+        - id
+        - workflow_id
+        - workflow_version_id
+        - temporal_workflow_id
+        - status
+        - created_by
+        - created_at
+        - completed_at
+        - updated_at
+        - updated_by
+        - input_data
+        - error_details
+      title: ExecutionRead
+      type: object
+    ExecutionListResponse:
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for next page of results
+          title: Next
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for previous page of results
+          title: Prev
+        resources:
+          items: {}
+          title: Resources
+          type: array
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          description: Total count of resources (only when include_total=true)
+          title: Total
+      required:
+        - resources
+      title: ExecutionListResponse
+      type: object
+    ActivityData:
+      properties:
+        activity_id:
+          title: Activity Id
+          type: string
+        completed_at:
+          anyOf:
+            - format: date-time
+              type: string
+            - type: 'null'
+          title: Completed At
+        error_details:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error Details
+        started_at:
+          anyOf:
+            - format: date-time
+              type: string
+            - type: 'null'
+          title: Started At
+        status:
+          title: Status
+          type: string
+      required:
+        - activity_id
+        - status
+      title: ActivityData
+      type: object
+    CurrentActivity:
+      description: Currently executing activity information.
+      properties:
+        activity_name:
+          description: Name of the activity
+          title: Activity Name
+          type: string
+        iteration:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          description: Iteration number for loops
+          title: Iteration
+        temporal_activity_id:
+          description: Temporal activity ID
+          title: Temporal Activity Id
+          type: string
+      required:
+        - activity_name
+        - temporal_activity_id
+      title: CurrentActivity
+      type: object
+    ExecutionStatus:
+      type: string
+      title: ExecutionStatus
+      description: Current state of a workflow execution lifecycle
+      enum:
+        - pending
+        - running
+        - paused
+        - completed
+        - failed
+        - cancelled
     ActivityExecution:
       allOf:
         - $ref: '#/components/schemas/BaseResource'
@@ -9779,44 +9718,6 @@ components:
                 - integer
                 - 'null'
               description: Iteration number if activity is within a loop (0-indexed)
-    ExecutionStatus:
-      type: string
-      title: Execution Status
-      description: Current state of a workflow execution lifecycle
-      enum:
-        - pending
-        - running
-        - paused
-        - completed
-        - failed
-        - cancelled
-    CreateExecutionRequest:
-      type: object
-      title: Create Execution Request
-      description: Request payload for starting a new workflow execution with optional input parameters
-      required:
-        - workflow_id
-      properties:
-        workflow_id:
-          type: string
-          format: uuid
-          description: ID of the workflow to execute
-        input_data:
-          type: object
-          description: Input parameters for the workflow execution
-    ExecutionControlRequest:
-      type: object
-      title: Execution Control Request
-      description: Request payload for controlling workflow execution state (pause, resume, cancel)
-      required:
-        - action
-      properties:
-        action:
-          type: string
-          enum:
-            - pause
-            - resume
-            - cancel
     SignalResponse:
       type: object
       title: Signal Response
@@ -9970,7 +9871,7 @@ components:
           description: User who soft deleted the version (always null in responses)
     WorkflowVersionListResponse:
       type: object
-      title: Workflow Version List Response
+      title: WorkflowVersionListResponse
       description: List of workflow versions ordered by version number descending
       required:
         - versions
@@ -10037,144 +9938,3 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token authentication
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-Key
-  responses:
-    UnauthorizedError:
-      description: Authentication required or invalid token
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            error: unauthorized
-            message: Authentication required
-    NotFoundError:
-      description: Resource not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            error: not_found
-            message: Example item not found
-    BadRequestError:
-      description: Invalid request parameters or validation error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-          example:
-            error: validation_error
-            message: Invalid request parameters
-  parameters:
-    statusFilterParam:
-      name: status
-      in: query
-      required: false
-      schema:
-        $ref: '#/components/schemas/InvocationStatus'
-      description: |
-        Filter invocations by status.
-        - Exact match: `status=running`
-      example: running
-    createdByFilterParam:
-      name: created_by
-      in: query
-      required: false
-      style: deepObject
-      explode: true
-      schema:
-        allOf:
-          - type: string
-            format: uuid
-            description: Exact match of creator UUID. ?created_by=<uuid>
-          - type: object
-            properties:
-              eq:
-                title: Equals
-                description: Exact match of creator UUID. ?created_by[eq]=<uuid>
-                type: string
-                format: uuid
-      description: |
-        Filter invocations by creator UUID.
-        - Exact match: `created_by=550e8400-e29b-41d4-a716-446655440000`
-        - Explicit equals: `created_by[eq]=550e8400-e29b-41d4-a716-446655440000`
-      example: 550e8400-e29b-41d4-a716-446655440000
-    sessionIdFilterParam:
-      name: session_id
-      in: query
-      required: false
-      style: deepObject
-      explode: true
-      schema:
-        allOf:
-          - type: string
-            description: Exact match of session ID (case-sensitive). ?session_id=<session_id>
-          - type: object
-            properties:
-              eq:
-                title: Equals
-                description: Exact match of session ID (case-sensitive). ?session_id[eq]=<session_id>
-                type: string
-              contains:
-                title: Contains
-                description: Substring match within session ID. ?session_id[contains]=<substring>
-                type: string
-              starts_with:
-                title: Starts With
-                description: Prefix match at start of session ID. ?session_id[starts_with]=<prefix>
-                type: string
-      description: |
-        Filter invocations by session ID.
-        - Exact match: `session_id=session-001`
-        - Contains: `session_id[contains]=session`
-        - Starts with: `session_id[starts_with]=session-`
-      example: session-001
-    promptFilterParam:
-      name: prompt
-      in: query
-      required: false
-      style: deepObject
-      explode: true
-      schema:
-        allOf:
-          - type: string
-            description: Substring match within prompt text. ?prompt=<text>
-          - type: object
-            properties:
-              contains:
-                title: Contains
-                description: Substring match within prompt text (case-insensitive). ?prompt[contains]=<text>
-                type: string
-              starts_with:
-                title: Starts With
-                description: Prefix match at start of prompt. ?prompt[starts_with]=<prefix>
-                type: string
-      description: |
-        Filter invocations by prompt text.
-        - Contains (default): `prompt=deploy`
-        - Contains (explicit): `prompt[contains]=deploy`
-        - Starts with: `prompt[starts_with]=Create a workflow`
-      example: deploy
-    projectIdParam:
-      name: project_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-      description: Project UUID
-    keyParam:
-      name: key
-      in: path
-      required: true
-      schema:
-        type: string
-      description: Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`)

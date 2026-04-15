@@ -173,7 +173,9 @@ class ApprovalRequestRead(BaseApprovalRequest, table=False):
 
 
 # ============================================================================
-# List Response Type Alias
+# List Response
 # ============================================================================
 
-ApprovalListResponse = ResourcesResponse[ApprovalRequest]
+
+class ApprovalListResponse(ResourcesResponse[ApprovalRequest]):
+    """Paginated list response for approval requests."""

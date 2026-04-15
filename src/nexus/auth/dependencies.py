@@ -31,7 +31,12 @@ from nexus.auth.services.token_service import TokenPayload, TokenService
 from nexus.core.models import User
 
 # Optional bearer scheme - doesn't auto-raise 403
-bearer_scheme = HTTPBearer(auto_error=False)
+bearer_scheme = HTTPBearer(
+    auto_error=False,
+    scheme_name="bearerAuth",
+    bearerFormat="JWT",
+    description="JWT token authentication",
+)
 
 
 _token_service_instance: TokenService | None = None

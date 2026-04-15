@@ -256,7 +256,9 @@ class ToolUpdate(SQLModel):
 
 
 # ============================================================================
-# List Response Type Alias
+# List Response
 # ============================================================================
 
-ToolListResponse = ResourcesResponse[ToolWithParameters]
+
+class ToolListResponse(ResourcesResponse[ToolWithParameters]):
+    """Paginated list response for tools."""

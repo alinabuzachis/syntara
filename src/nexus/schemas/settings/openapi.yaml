@@ -141,7 +141,12 @@ paths:
       tags:
         - Settings
       parameters:
-        - $ref: "#/components/parameters/keyParam"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`)
       responses:
         "200":
           description: Setting details
@@ -165,7 +170,12 @@ paths:
       tags:
         - Settings
       parameters:
-        - $ref: "#/components/parameters/keyParam"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`)
       requestBody:
         required: true
         content:
@@ -199,15 +209,6 @@ paths:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
 components:
-  parameters:
-    keyParam:
-      name: key
-      in: path
-      required: true
-      schema:
-        type: string
-      description: Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`)
-
   schemas:
     SettingValueType:
       type: string

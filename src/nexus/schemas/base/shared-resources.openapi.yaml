@@ -144,27 +144,7 @@ components:
         - $ref: '#/components/schemas/SoftDeletableResource'
         - $ref: '#/components/schemas/UserOwnedResource'
       title: Resource
-      description: |
-        Composite entity combining all base resource capabilities:
-        - System metadata (from BaseResource): id, timestamps, labels
-        - Naming (from NamedResource): name, description
-        - Soft deletion (from SoftDeletableResource): deletedAt, deletedBy
-        - Ownership (from UserOwnedResource): created_by, updated_by
-
-        This is the recommended base schema for most API resources.
-      example:
-        id: 550e8400-e29b-41d4-a716-446655440000
-        created_at: '2025-10-09T12:00:00Z'
-        updated_at: '2025-10-09T12:30:00Z'
-        labels:
-          environment: production
-          region: us-east-1
-        name: Authentication Service
-        description: Handles user authentication and authorization
-        deleted_at:
-        deleted_by:
-        created_by: 770e8400-e29b-41d4-a716-446655440000
-        updated_by: 880e8400-e29b-41d4-a716-446655440000
+      description: Composite resource combining named, soft-deletable, and user-owned capabilities
 
     ErrorData:
       type: object
@@ -237,23 +217,6 @@ components:
           title: Total Count
           description: Total count of resources (only when include_total=true)
           example: 150
-
-    ResourcesResponse:
-      allOf:
-        - $ref: '#/components/schemas/ResourcesResponseBase'
-        - type: object
-          title: Resources Response
-          description: Complete paginated response with resource array
-          required:
-            - resources
-          properties:
-            resources:
-              type: array
-              title: Resources
-              description: Array of resources in current page
-              items:
-                $ref: '#/components/schemas/Resource'
-              maxItems: 100
 
   parameters:
     limitParam:

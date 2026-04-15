@@ -181,10 +181,31 @@ paths:
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-        - $ref: '#/components/parameters/statusFilterParam'
-        - $ref: '#/components/parameters/promptFilterParam'
-        - $ref: '#/components/parameters/createdByFilterParam'
-        - $ref: '#/components/parameters/sessionIdFilterParam'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/InvocationStatus'
+          description: Filter invocations by status (running, paused, cancelled, completed, failed)
+        - name: prompt
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by prompt text (substring match)
+        - name: created_by
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by creator UUID
+        - name: session_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by session ID
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
@@ -489,100 +510,6 @@ paths:
                     instance: /api/v1/invocations/550e8400-e29b-41d4-a716-446655440000/cancel
 
 components:
-  parameters:
-    statusFilterParam:
-      name: status
-      in: query
-      required: false
-      schema:
-        $ref: '#/components/schemas/InvocationStatus'
-      description: |
-        Filter invocations by status.
-        - Exact match: `status=running`
-      example: running
-
-    createdByFilterParam:
-      name: created_by
-      in: query
-      required: false
-      style: deepObject
-      explode: true
-      schema:
-        allOf:
-          - type: string
-            format: uuid
-            description: Exact match of creator UUID. ?created_by=<uuid>
-          - type: object
-            properties:
-              eq:
-                title: Equals
-                description: Exact match of creator UUID. ?created_by[eq]=<uuid>
-                type: string
-                format: uuid
-      description: |
-        Filter invocations by creator UUID.
-        - Exact match: `created_by=550e8400-e29b-41d4-a716-446655440000`
-        - Explicit equals: `created_by[eq]=550e8400-e29b-41d4-a716-446655440000`
-      example: 550e8400-e29b-41d4-a716-446655440000
-
-    sessionIdFilterParam:
-      name: session_id
-      in: query
-      required: false
-      style: deepObject
-      explode: true
-      schema:
-        allOf:
-          - type: string
-            description: Exact match of session ID (case-sensitive). ?session_id=<session_id>
-          - type: object
-            properties:
-              eq:
-                title: Equals
-                description: Exact match of session ID (case-sensitive). ?session_id[eq]=<session_id>
-                type: string
-              contains:
-                title: Contains
-                description: Substring match within session ID. ?session_id[contains]=<substring>
-                type: string
-              starts_with:
-                title: Starts With
-                description: Prefix match at start of session ID. ?session_id[starts_with]=<prefix>
-                type: string
-      description: |
-        Filter invocations by session ID.
-        - Exact match: `session_id=session-001`
-        - Contains: `session_id[contains]=session`
-        - Starts with: `session_id[starts_with]=session-`
-      example: session-001
-
-    promptFilterParam:
-      name: prompt
-      in: query
-      required: false
-      style: deepObject
-      explode: true
-      schema:
-        allOf:
-          - type: string
-            description: Substring match within prompt text. ?prompt=<text>
-          - type: object
-            properties:
-              contains:
-                title: Contains
-                description: Substring match within prompt text (case-insensitive). ?prompt[contains]=<text>
-                type: string
-              starts_with:
-                title: Starts With
-                description: Prefix match at start of prompt. ?prompt[starts_with]=<prefix>
-                type: string
-      description: |
-        Filter invocations by prompt text.
-        - Contains (default): `prompt=deploy`
-        - Contains (explicit): `prompt[contains]=deploy`
-        - Starts with: `prompt[starts_with]=Create a workflow`
-      example: deploy
-
   schemas:
     InvocationStatus:
       type: string
@@ -973,7 +900,7 @@ components:
 
     InvocationCancelRequest:
       type: object
-      title: Invocation Cancel Request
+      title: InvocationCancelRequest
       description: Request body for cancelling an invocation
       properties:
         reason:
@@ -987,7 +914,7 @@ components:
 
     InvocationCancelResponse:
       type: object
-      title: Invocation Cancel Response
+      title: InvocationCancelResponse
       description: Response after attempting to cancel an invocation
       required:
         - success
@@ -1005,18 +932,14 @@ components:
           example: Invocation 550e8400-e29b-41d4-a716-446655440000 cancelled successfully
 
   securitySchemes:
-    BearerAuth:
+    bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-Key
+      description: JWT token authentication
 
 security:
-  - BearerAuth: []
-  - ApiKeyAuth: []
+  - bearerAuth: []
 
 tags:
   - name: Invocation

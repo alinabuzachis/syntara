@@ -183,8 +183,24 @@ def _resolve_refs(
             ref = node["$ref"]
             file_part, fragment = ref.split("#", 1) if "#" in ref else (ref, "")
             if file_part:
-                return _resolve_external_ref(file_part, fragment, ref, base_path, visited, shared_refs)
-            return _resolve_same_file_ref(fragment, ref, base_path, visited, root_doc, shared_refs, current_file)
+                resolved = _resolve_external_ref(file_part, fragment, ref, base_path, visited, shared_refs)
+            else:
+                resolved = _resolve_same_file_ref(
+                    fragment, ref, base_path, visited, root_doc, shared_refs, current_file
+                )
+            # OpenAPI 3.1 (JSON Schema 2020-12) allows keywords alongside $ref.
+            # These "sibling keywords" add constraints/metadata to the referenced schema
+            # without modifying it. When the $ref resolves to a named component (stays
+            # as a $ref in output), preserve the siblings so the bundled spec stays
+            # semantically equivalent.
+            siblings = {k: v for k, v in node.items() if k != "$ref"}
+            if siblings and isinstance(resolved, dict) and "$ref" in resolved and len(resolved) == 1:
+                resolved_siblings = {
+                    k: _resolve_refs(v, base_path, visited, root_doc, shared_refs, current_file)
+                    for k, v in siblings.items()
+                }
+                return {**resolved, **resolved_siblings}
+            return resolved
         return {k: _resolve_refs(v, base_path, visited, root_doc, shared_refs, current_file) for k, v in node.items()}
 
     if isinstance(node, list):
@@ -270,7 +286,7 @@ def _load_aggregator_metadata() -> tuple[dict[str, Any], list[dict[str, Any]]]:
     root_info: dict[str, Any] = {
         "title": "Nexus API",
         "version": "0.1.0",
-        "description": "Aggregated OpenAPI specification for the Nexus platform.",
+        "description": "A distributed multi-agent workflow orchestration system",
     }
     root_servers: list[dict[str, Any]] = [{"url": "/api/v1", "description": "API v1"}]
     return root_info, root_servers

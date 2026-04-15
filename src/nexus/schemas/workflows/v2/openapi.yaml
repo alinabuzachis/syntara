@@ -426,7 +426,7 @@ components:
 
     WorkflowVersionListResponse:
       type: object
-      title: Workflow Version List Response
+      title: WorkflowVersionListResponse
       description: List of workflow versions ordered by version number descending
       required:
         - versions

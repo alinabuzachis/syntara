@@ -169,5 +169,5 @@ class Invocation(UserOwnedResource, table=True):
         return f"<Invocation(id={self.id}, status={self.status})>"
 
 
-# Type alias for invocation list responses using the standard pagination model
-InvocationListResponse = ResourcesResponse[Invocation]
+class InvocationListResponse(ResourcesResponse[Invocation]):
+    """Paginated list response for invocations."""

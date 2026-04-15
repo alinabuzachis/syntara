@@ -9,7 +9,7 @@ from nexus.telemetry.events.tool_execution import (
     ToolExecutionEvent,
     ToolExecutionEventBuilder,
 )
-from nexus.tool_manager.models.tool_execution import ExecutionStatus
+from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 
 VALID_WORKFLOW_EXECUTION_ID = UUID("550e8400-e29b-41d4-a716-446655440000")
 
@@ -20,19 +20,19 @@ class TestToolExecutionEvent:
     def test_event_construction(self):
         event = ToolExecutionEvent(
             namespaced_name="mcp::get_greeting",
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             duration_ms=142,
             entitlement_id="ent-123",
         )
         assert event.namespaced_name == "mcp::get_greeting"
-        assert event.status == ExecutionStatus.SUCCESS
+        assert event.status == ToolExecutionStatus.SUCCESS
         assert event.duration_ms == 142
         assert event.workflow_execution_id is None
 
     def test_event_with_workflow_execution_id(self):
         event = ToolExecutionEvent(
             namespaced_name="mcp::get_greeting",
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             duration_ms=100,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             entitlement_id="ent-123",
@@ -42,7 +42,7 @@ class TestToolExecutionEvent:
     def test_to_segment_event_name(self):
         event = ToolExecutionEvent(
             namespaced_name="mcp::get_greeting",
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             duration_ms=100,
             entitlement_id="ent-123",
         )
@@ -52,7 +52,7 @@ class TestToolExecutionEvent:
     def test_to_segment_event_properties(self):
         event = ToolExecutionEvent(
             namespaced_name="mcp::get_greeting",
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             duration_ms=142,
             workflow_execution_id=VALID_WORKFLOW_EXECUTION_ID,
             entitlement_id="ent-123",
@@ -67,7 +67,7 @@ class TestToolExecutionEvent:
     def test_workflow_execution_id_null_when_none(self):
         event = ToolExecutionEvent(
             namespaced_name="mcp::tool",
-            status=ExecutionStatus.ERROR,
+            status=ToolExecutionStatus.ERROR,
             duration_ms=50,
             entitlement_id="ent-123",
         )
@@ -78,7 +78,7 @@ class TestToolExecutionEvent:
         with pytest.raises(ValidationError):
             ToolExecutionEvent(
                 namespaced_name="mcp::tool",
-                status=ExecutionStatus.SUCCESS,
+                status=ToolExecutionStatus.SUCCESS,
                 duration_ms=-1,
                 entitlement_id="ent-123",
             )
@@ -86,7 +86,7 @@ class TestToolExecutionEvent:
     def test_frozen_immutability(self):
         event = ToolExecutionEvent(
             namespaced_name="mcp::tool",
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             duration_ms=100,
             entitlement_id="ent-123",
         )
@@ -101,13 +101,13 @@ class TestToolExecutionEventBuilder:
         builder = ToolExecutionEventBuilder()
         event = builder.build_event(
             namespaced_name="mcp::get_greeting",
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
             duration_ms=142,
             entitlement_id="ent-123",
         )
         assert isinstance(event, ToolExecutionEvent)
         assert event.namespaced_name == "mcp::get_greeting"
-        assert event.status == ExecutionStatus.SUCCESS
+        assert event.status == ToolExecutionStatus.SUCCESS
         assert event.duration_ms == 142
         assert event.workflow_execution_id is None
 
@@ -115,10 +115,10 @@ class TestToolExecutionEventBuilder:
         builder = ToolExecutionEventBuilder()
         event = builder.build_event(
             namespaced_name="mcp::get_greeting",
-            status=ExecutionStatus.TIMEOUT,
+            status=ToolExecutionStatus.TIMEOUT,
             duration_ms=30000,
             entitlement_id="ent-123",
             execution_id=VALID_WORKFLOW_EXECUTION_ID,
         )
         assert event.workflow_execution_id == VALID_WORKFLOW_EXECUTION_ID
-        assert event.status == ExecutionStatus.TIMEOUT
+        assert event.status == ToolExecutionStatus.TIMEOUT

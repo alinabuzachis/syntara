@@ -12,12 +12,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from nexus.core.models.pagination import ResourcesResponse
-from nexus.tool_manager.models.tool_execution import ToolExecution
 from nexus.tool_manager.models.tool_metrics_response import (
     ToolExecutionListParams,
+    ToolExecutionListResponse,
     ToolMetricsQuery,
-    ToolMetricsToolSummary,
+    ToolMetricsToolSummaryListResponse,
 )
 from nexus.tool_manager.services.tool_metrics_service import (
     ToolMetricsService,
@@ -31,7 +30,7 @@ router = APIRouter(prefix="/tool_manager/metrics", tags=["tool_metrics"])
 async def get_tool_metrics_summary(
     service: Annotated[ToolMetricsService, Depends(get_tool_metrics_service)],
     params: Annotated[ToolMetricsQuery, Query()],
-) -> ResourcesResponse[ToolMetricsToolSummary]:
+) -> ToolMetricsToolSummaryListResponse:
     """Return aggregated per-tool metrics summary.
 
     Supports filtering by namespaced_name and time range.
@@ -39,14 +38,14 @@ async def get_tool_metrics_summary(
     for time-filtered queries (flexible path).
     """
     summaries = await service.get_tool_metrics_summary(params)
-    return ResourcesResponse[ToolMetricsToolSummary](resources=summaries)
+    return ToolMetricsToolSummaryListResponse(resources=summaries)
 
 
 @router.get("/executions")
 async def list_tool_executions(
     service: Annotated[ToolMetricsService, Depends(get_tool_metrics_service)],
     params: Annotated[ToolExecutionListParams, Query()],
-) -> ResourcesResponse[ToolExecution]:
+) -> ToolExecutionListResponse:
     """Return paginated tool execution history.
 
     Supports filtering by namespaced_name, status, and time range.

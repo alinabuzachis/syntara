@@ -178,10 +178,12 @@ class GroupRead(SQLModel):
 
 
 # ============================================================================
-# List Response Type Alias
+# List Response
 # ============================================================================
 
-GroupListResponse = ResourcesResponse[GroupRead]
+
+class GroupListResponse(ResourcesResponse[GroupRead]):
+    """Paginated list response for groups."""
 
 
 class GroupListParams(BaseListParams):

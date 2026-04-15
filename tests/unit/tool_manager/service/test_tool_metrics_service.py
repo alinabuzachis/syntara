@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.tool_manager.models.tool import Tool
-from nexus.tool_manager.models.tool_execution import ExecutionStatus
+from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 from nexus.tool_manager.models.tool_metrics_response import ToolMetricsQuery
 from nexus.tool_manager.models.tool_provider import ToolProvider
 from nexus.tool_manager.models.usage_counter import CounterType, UsageCounter
@@ -36,14 +36,14 @@ async def test_record_success_execution(test_db_session: AsyncSession, test_tool
     execution = await service.record_tool_execution(
         namespaced_name=test_tool.namespaced_name,
         duration_ms=1500,
-        status=ExecutionStatus.SUCCESS,
+        status=ToolExecutionStatus.SUCCESS,
     )
 
     assert execution.tool_id == test_tool.id
     assert execution.provider_id == test_tool.provider_id
     assert execution.user_id == test_user.id
     assert execution.duration_ms == 1500
-    assert execution.status == ExecutionStatus.SUCCESS
+    assert execution.status == ToolExecutionStatus.SUCCESS
     assert execution.input_parameters == {}
     assert execution.output_data is None
     assert execution.error_message is None
@@ -57,12 +57,12 @@ async def test_record_error_execution(test_db_session: AsyncSession, test_tool: 
     execution = await service.record_tool_execution(
         namespaced_name=test_tool.namespaced_name,
         duration_ms=5000,
-        status=ExecutionStatus.ERROR,
+        status=ToolExecutionStatus.ERROR,
         error_message="Rate limit exceeded",
         error_code="RATE_LIMIT",
     )
 
-    assert execution.status == ExecutionStatus.ERROR
+    assert execution.status == ToolExecutionStatus.ERROR
     assert execution.error_message == "Rate limit exceeded"
     assert execution.error_code == "RATE_LIMIT"
 
@@ -75,10 +75,10 @@ async def test_record_timeout_execution(test_db_session: AsyncSession, test_tool
     execution = await service.record_tool_execution(
         namespaced_name=test_tool.namespaced_name,
         duration_ms=30000,
-        status=ExecutionStatus.TIMEOUT,
+        status=ToolExecutionStatus.TIMEOUT,
     )
 
-    assert execution.status == ExecutionStatus.TIMEOUT
+    assert execution.status == ToolExecutionStatus.TIMEOUT
 
 
 @pytest.mark.asyncio
@@ -89,7 +89,7 @@ async def test_record_resolves_namespaced_name(test_db_session: AsyncSession, te
     execution = await service.record_tool_execution(
         namespaced_name=test_tool.namespaced_name,
         duration_ms=100,
-        status=ExecutionStatus.SUCCESS,
+        status=ToolExecutionStatus.SUCCESS,
     )
 
     assert execution.tool_id == test_tool.id
@@ -105,7 +105,7 @@ async def test_record_unknown_namespaced_name_raises(test_db_session: AsyncSessi
         await service.record_tool_execution(
             namespaced_name="nonexistent::tool",
             duration_ms=100,
-            status=ExecutionStatus.SUCCESS,
+            status=ToolExecutionStatus.SUCCESS,
         )
 
 
@@ -122,9 +122,9 @@ async def test_summary_unfiltered_uses_counters(
     service = ToolMetricsService(test_db_session, test_user)
 
     # Record some executions to populate counters
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 200, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 300, ExecutionStatus.ERROR, error_message="fail")
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 200, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 300, ToolExecutionStatus.ERROR, error_message="fail")
     await test_db_session.commit()
 
     query = ToolMetricsQuery()
@@ -147,8 +147,8 @@ async def test_summary_time_filtered_uses_executions(
     """Test time-filtered summary aggregates from ToolExecution records."""
     service = ToolMetricsService(test_db_session, test_user)
 
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 200, ExecutionStatus.ERROR, error_message="fail")
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 200, ToolExecutionStatus.ERROR, error_message="fail")
     await test_db_session.commit()
 
     now = datetime.now(UTC)
@@ -184,8 +184,8 @@ async def test_summary_filter_by_namespaced_name(
     await test_db_session.commit()
 
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(tool2.namespaced_name, 200, ExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(tool2.namespaced_name, 200, ToolExecutionStatus.SUCCESS)
     await test_db_session.commit()
 
     query = ToolMetricsQuery(namespaced_name=test_tool.namespaced_name)
@@ -214,8 +214,8 @@ async def test_list_executions_returns_records(test_db_session: AsyncSession, te
     from nexus.tool_manager.models.tool_metrics_response import ToolExecutionListParams
 
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 200, ExecutionStatus.ERROR, error_message="fail")
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 200, ToolExecutionStatus.ERROR, error_message="fail")
     await test_db_session.commit()
 
     params = ToolExecutionListParams()
@@ -232,15 +232,15 @@ async def test_list_executions_filter_by_status(
     from nexus.tool_manager.models.tool_metrics_response import ToolExecutionListParams
 
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 200, ExecutionStatus.ERROR, error_message="fail")
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 200, ToolExecutionStatus.ERROR, error_message="fail")
     await test_db_session.commit()
 
-    params = ToolExecutionListParams(status=ExecutionStatus.ERROR)
+    params = ToolExecutionListParams(status=ToolExecutionStatus.ERROR)
     result = await service.list_executions(params)
 
     assert len(result.resources) == 1
-    assert result.resources[0].status == ExecutionStatus.ERROR
+    assert result.resources[0].status == ToolExecutionStatus.ERROR
 
 
 @pytest.mark.asyncio
@@ -263,8 +263,8 @@ async def test_list_executions_filter_by_namespaced_name(
     await test_db_session.commit()
 
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(tool2.namespaced_name, 200, ExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(tool2.namespaced_name, 200, ToolExecutionStatus.SUCCESS)
     await test_db_session.commit()
 
     params = ToolExecutionListParams(namespaced_name=test_tool.namespaced_name)
@@ -281,7 +281,7 @@ async def test_list_executions_pagination(test_db_session: AsyncSession, test_to
 
     service = ToolMetricsService(test_db_session, test_user)
     for _ in range(5):
-        await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
+        await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
     await test_db_session.commit()
 
     # First page
@@ -307,7 +307,7 @@ async def test_usage_counter_created_on_first_execution(
 ) -> None:
     """Test that a UsageCounter row is created on first execution."""
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
     await test_db_session.commit()
 
     result = await test_db_session.exec(
@@ -329,9 +329,9 @@ async def test_usage_counter_upserted_on_subsequent_executions(
 ) -> None:
     """Test that counter is upserted (not duplicated) on subsequent executions."""
     service = ToolMetricsService(test_db_session, test_user)
-    await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
-    await service.record_tool_execution(test_tool.namespaced_name, 200, ExecutionStatus.ERROR, error_message="fail")
-    await service.record_tool_execution(test_tool.namespaced_name, 300, ExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
+    await service.record_tool_execution(test_tool.namespaced_name, 200, ToolExecutionStatus.ERROR, error_message="fail")
+    await service.record_tool_execution(test_tool.namespaced_name, 300, ToolExecutionStatus.SUCCESS)
     await test_db_session.commit()
 
     result = await test_db_session.exec(
@@ -366,7 +366,7 @@ async def test_usage_counter_concurrent_updates(
     # the same in-memory counter object and updates are atomic)
     num_executions = 10
     for _ in range(num_executions):
-        await service.record_tool_execution(test_tool.namespaced_name, 100, ExecutionStatus.SUCCESS)
+        await service.record_tool_execution(test_tool.namespaced_name, 100, ToolExecutionStatus.SUCCESS)
     await test_db_session.commit()
 
     result = await test_db_session.exec(

@@ -99,7 +99,12 @@ def get_execution_service(
     return ExecutionService(db, current_user, temporal_service=temporal_service)
 
 
-@router.get("")
+@router.get(
+    "",
+    operation_id="list_executions",
+    summary="List executions",
+    description="Retrieve executions with filtering, sorting, and cursor-based pagination.",
+)
 async def list_executions(
     request: Request,
     service: Annotated[ExecutionService, Depends(get_execution_service)],
@@ -140,6 +145,9 @@ async def list_executions(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
+    operation_id="create_execution",
+    summary="Create execution",
+    description="Start a new workflow execution.",
     dependencies=[NO_PERMISSION],
 )
 async def create_execution(
@@ -226,6 +234,9 @@ async def create_execution(
 
 @router.get(
     "/{execution_id}",
+    operation_id="get_execution",
+    summary="Get execution",
+    description="Retrieve details of a specific execution with optional includes.",
     dependencies=[Depends(_exec_perm_read)],
 )
 async def get_execution(
@@ -253,6 +264,9 @@ async def get_execution(
 
 @router.get(
     "/{execution_id}/activities",
+    operation_id="list_execution_activities",
+    summary="List activity executions",
+    description="Retrieve activity executions for a workflow execution.",
     dependencies=[Depends(_exec_perm_read)],
 )
 async def list_execution_activities(
@@ -283,6 +297,9 @@ async def list_execution_activities(
 
 @router.post(
     "/{execution_id}/activities/{activity_id}/signal",
+    operation_id="signal_activity",
+    summary="Send signal to activity in workflow",
+    description="Send a signal to a specific activity within a running workflow execution.",
     dependencies=[Depends(_exec_perm_run)],
 )
 async def signal_activity(

@@ -24,7 +24,7 @@ from nexus.core.models import User
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.types import MetricType
 from nexus.tool_manager.models.tool import ToolStatus
-from nexus.tool_manager.models.tool_execution import ExecutionStatus
+from nexus.tool_manager.models.tool_execution import ToolExecutionStatus
 from nexus.tool_manager.services.tool_metrics_service import ToolMetricsService
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -89,24 +89,24 @@ def _extract_tool_id_from_metadata(base_tool: Any, tool_name: str) -> UUID | Non
         return None
 
 
-def _resolve_execution_status(error: Exception | None) -> ExecutionStatus:
-    """Map an exception to an ExecutionStatus.
+def _resolve_execution_status(error: Exception | None) -> ToolExecutionStatus:
+    """Map an exception to a ToolExecutionStatus.
 
     Args:
         error: The exception from tool execution, or None for success.
 
     Returns:
-        ExecutionStatus.TIMEOUT for TimeoutError, ERROR for other exceptions, SUCCESS otherwise.
+        ToolExecutionStatus.TIMEOUT for TimeoutError, ERROR for other exceptions, SUCCESS otherwise.
 
     """
     if error is None:
-        return ExecutionStatus.SUCCESS
+        return ToolExecutionStatus.SUCCESS
     if isinstance(error, (TimeoutError, asyncio.TimeoutError)):
-        return ExecutionStatus.TIMEOUT
-    return ExecutionStatus.ERROR
+        return ToolExecutionStatus.TIMEOUT
+    return ToolExecutionStatus.ERROR
 
 
-def _emit_tool_metrics(base_tool: Any, duration_ms: float, status: ExecutionStatus) -> None:  # noqa: ANN401
+def _emit_tool_metrics(base_tool: Any, duration_ms: float, status: ToolExecutionStatus) -> None:  # noqa: ANN401
     """Emit tool execution metrics to MetricsRecorder (best-effort).
 
     Args:
@@ -127,7 +127,7 @@ def _emit_tool_metrics(base_tool: Any, duration_ms: float, status: ExecutionStat
 
 def _emit_tool_telemetry_event(
     namespaced_name: str,
-    status: ExecutionStatus,
+    status: ToolExecutionStatus,
     duration_ms: float,
     execution_id: UUID | None = None,
 ) -> None:
@@ -172,7 +172,7 @@ def _emit_tool_telemetry_event(
 async def _persist_tool_execution_to_db(
     base_tool: Any,  # noqa: ANN401
     duration_ms: float,
-    status: ExecutionStatus,
+    status: ToolExecutionStatus,
     error_message: str | None = None,
     session_factory: Callable[[], Any] = AsyncSessionLocal,
 ) -> None:
