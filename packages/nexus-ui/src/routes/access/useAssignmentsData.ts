@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 import { useAlerts } from '../../components/alerts'
@@ -6,7 +7,7 @@ import { useSortState } from '../../hooks/useSortState'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 
-import { accessClient } from './accessClient'
+import { accessClient, accessFetchClient } from './accessClient'
 import type { PermissionRow, ProjectRead } from './types'
 
 function buildPermissionRows(
@@ -136,6 +137,51 @@ function sortRows(
   })
 }
 
+interface ProjectRoleEntry {
+  id: string
+  user_id: string
+  username?: string
+  role_name: string
+  project_id: string
+}
+
+interface ProjectGroupRoleEntry {
+  id: string
+  group_id: string
+  group_name?: string
+  role_name: string
+  project_id: string
+}
+
+/**
+ * Fetches project-scoped user role assignments for a set of projects.
+ * The API requires a project_id path param, so we iterate over every project.
+ */
+async function fetchProjectRolesForProjects(projectIds: string[]): Promise<ProjectRoleEntry[]> {
+  const results: ProjectRoleEntry[] = []
+  for (const projectId of projectIds) {
+    const { data } = await accessFetchClient.GET('/projects/{project_id}/roles', {
+      params: { path: { project_id: projectId } },
+    })
+    if (Array.isArray(data)) results.push(...data)
+  }
+  return results
+}
+
+/**
+ * Fetches project-scoped group role assignments for a set of projects.
+ */
+async function fetchProjectGroupRolesForProjects(projectIds: string[]): Promise<ProjectGroupRoleEntry[]> {
+  const results: ProjectGroupRoleEntry[] = []
+  for (const projectId of projectIds) {
+    const { data } = await accessFetchClient.GET('/projects/{project_id}/group-roles', {
+      params: { path: { project_id: projectId } },
+    })
+    if (Array.isArray(data)) results.push(...data)
+  }
+  return results
+}
+
 export function useAssignmentsData() {
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
   const { activeSortIndex, sortDirection, getSortParams } = useSortState(assignmentsSortFieldByColumn)
@@ -150,7 +196,8 @@ export function useAssignmentsData() {
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data])
   const effectiveProjectId = projects[0]?.id ?? ''
 
-  // Queries
+  // Fetch project-scoped roles for the first project via the typed client.
+  // This query also serves as the primary source of project role data.
   const projectRolesQuery = accessClient.useQuery(
     'get',
     '/projects/{project_id}/roles',
@@ -163,6 +210,22 @@ export function useAssignmentsData() {
     { params: { path: { project_id: effectiveProjectId } } },
     { enabled: !!effectiveProjectId }
   )
+
+  // Fetch project-scoped roles for remaining projects (all except the first).
+  // The API is per-project, so we iterate over each additional project.
+  const remainingProjectIds = useMemo(() => projects.slice(1).map((p) => p.id), [projects])
+
+  const remainingProjectRolesQuery = useQuery({
+    queryKey: ['remaining-project-roles', remainingProjectIds],
+    queryFn: () => fetchProjectRolesForProjects(remainingProjectIds),
+    enabled: remainingProjectIds.length > 0,
+  })
+  const remainingProjectGroupRolesQuery = useQuery({
+    queryKey: ['remaining-project-group-roles', remainingProjectIds],
+    queryFn: () => fetchProjectGroupRolesForProjects(remainingProjectIds),
+    enabled: remainingProjectIds.length > 0,
+  })
+
   const systemUserRolesQuery = accessClient.useQuery('get', '/user-role-assignments')
   const systemGroupRolesQuery = accessClient.useQuery('get', '/group-role-assignments')
 
@@ -181,10 +244,20 @@ export function useAssignmentsData() {
     '/group-role-assignments/{assignment_id}'
   )
 
+  // Merge roles from the first project and remaining projects
+  const allProjectRoles = useMemo(
+    () => [...(projectRolesQuery.data ?? []), ...(remainingProjectRolesQuery.data ?? [])],
+    [projectRolesQuery.data, remainingProjectRolesQuery.data]
+  )
+  const allProjectGroupRoles = useMemo(
+    () => [...(projectGroupRolesQuery.data ?? []), ...(remainingProjectGroupRolesQuery.data ?? [])],
+    [projectGroupRolesQuery.data, remainingProjectGroupRolesQuery.data]
+  )
+
   // Build rows
   const allRows = buildPermissionRows(
-    projectRolesQuery.data ?? [],
-    projectGroupRolesQuery.data ?? [],
+    allProjectRoles,
+    allProjectGroupRoles,
     systemUserRolesQuery.data ?? [],
     systemGroupRolesQuery.data ?? [],
     projects
@@ -200,6 +273,8 @@ export function useAssignmentsData() {
   const refetchAll = () => {
     projectRolesQuery.refetch().catch(() => {})
     projectGroupRolesQuery.refetch().catch(() => {})
+    remainingProjectRolesQuery.refetch().catch(() => {})
+    remainingProjectGroupRolesQuery.refetch().catch(() => {})
     systemUserRolesQuery.refetch().catch(() => {})
     systemGroupRolesQuery.refetch().catch(() => {})
   }
