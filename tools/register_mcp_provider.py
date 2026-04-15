@@ -1,12 +1,15 @@
 """Register an MCP tool provider, validate it, and refresh its tools.
 
 Steps:
+  0. Authenticate with the API (login as admin)
   1. Register the MCP provider (or reuse existing one by name)
   2. Validate the provider connection
   3. Refresh the tools list
 """
 
+import os
 import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -16,14 +19,31 @@ PROVIDER_NAME = "mcp"
 MCP_BASE_URL = "http://nexus_mcp-server_1:8765/mcp"
 
 
+def _get_access_token() -> str:
+    """Authenticate and return a Bearer access token."""
+    password_path = os.environ.get("APP_ADMIN_PASSWORD_PATH", ".secrets/admin-password")
+    password = Path(password_path).read_text().strip()
+    r = httpx.post(
+        f"{BASE_URL}/auth/login",
+        json={"username": "admin", "password": password},
+    )
+    r.raise_for_status()
+    return r.json()["access_token"]  # type: ignore[no-any-return]
+
+
+AUTH_HEADERS = {"Authorization": f"Bearer {_get_access_token()}"}
+
+
 def _post(path: str, **kwargs: Any) -> dict[str, Any]:
-    r = httpx.post(f"{BASE_URL}{path}", **kwargs)
+    headers = {**AUTH_HEADERS, **kwargs.pop("headers", {})}
+    r = httpx.post(f"{BASE_URL}{path}", headers=headers, **kwargs)
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]
 
 
 def _get(path: str, **kwargs: Any) -> dict[str, Any]:
-    r = httpx.get(f"{BASE_URL}{path}", **kwargs)
+    headers = {**AUTH_HEADERS, **kwargs.pop("headers", {})}
+    r = httpx.get(f"{BASE_URL}{path}", headers=headers, **kwargs)
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]
 
