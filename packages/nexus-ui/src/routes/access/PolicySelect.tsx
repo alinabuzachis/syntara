@@ -20,7 +20,7 @@ interface PolicySelectProps {
   selected: string[]
   onChange: (selected: string[]) => void
   hasError?: boolean
-  /** Filter policies by project scope. `null` = system-only, UUID = that project's policies. */
+  /** Filter policies by project scope. Omit or pass `null`/`undefined` for system (unfiltered), UUID for project-scoped. */
   scopeProjectId?: string | null
   /** When true, the select is disabled (e.g. waiting for project selection). */
   isDisabled?: boolean
@@ -58,7 +58,7 @@ export function PolicySelect({
         query: {
           limit: PAGE_SIZE,
           'name[contains]': debouncedFilter || undefined,
-          ...(scopeProjectId !== undefined ? { project_id: scopeProjectId ?? '' } : {}),
+          ...(scopeProjectId ? { project_id: scopeProjectId } : {}),
         },
       },
     },
