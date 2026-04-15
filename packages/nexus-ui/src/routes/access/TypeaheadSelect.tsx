@@ -16,7 +16,7 @@ import { type Ref, useMemo, useRef, useState } from 'react'
 
 export interface TypeaheadOptionTag {
   label: string
-  color: 'blue' | 'green' | 'orange' | 'red' | 'purple' | 'cyan' | 'gold' | 'grey'
+  color: 'blue' | 'green' | 'orange' | 'orangered' | 'red' | 'purple' | 'grey' | 'teal' | 'yellow'
 }
 
 export interface TypeaheadOption {

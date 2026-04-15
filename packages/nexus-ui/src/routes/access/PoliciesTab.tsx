@@ -52,7 +52,7 @@ const BASE_FILTER_FIELD_DEFS = [
     ],
     placeholder: 'Filter by type',
   },
-] as const
+]
 
 // Column index → API sort field
 const sortFieldByColumn: Record<number, string> = {

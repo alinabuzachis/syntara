@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../components/alerts'
-import { useQueryState } from '../../components/states/useQueryState'
 import { accessClient } from '../access/accessClient'
 
 import { RoleAssignmentsPanel } from './RoleAssignmentsPanel'
@@ -26,10 +25,6 @@ vi.mock('../../client', () => ({
 
 vi.mock('../access/useAllPolicies', () => ({
   useAllPolicies: vi.fn().mockReturnValue({ policies: [], isLoading: false, error: null }),
-}))
-
-vi.mock('../../components/states/useQueryState', () => ({
-  useQueryState: vi.fn().mockReturnValue(null),
 }))
 
 const mockDeleteUserAssignment = vi.fn()
@@ -155,8 +150,6 @@ function setupMocks(overrides?: {
     return mockMutationReturn(vi.fn())
   })
 
-  vi.mocked(useQueryState).mockReturnValue(null)
-
   return { mockRefetch }
 }
 
@@ -184,14 +177,52 @@ describe('RoleAssignmentsPanel', () => {
   })
 
   describe('Loading and error states', () => {
-    it('renders loading state from useQueryState', () => {
-      vi.mocked(useQueryState).mockReturnValue(<div>Loading...</div>)
+    it('renders loading state when query is pending', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/user-role-assignments') {
+          return { data: undefined, isPending: true, isError: false, error: null, refetch: vi.fn() } as never
+        }
+        if (path === '/group-role-assignments') {
+          return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+        }
+        if (path === '/roles') {
+          return { data: { resources: [] }, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+        }
+        if (path === '/projects') {
+          return { data: [], isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+        }
+        return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+      vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn(vi.fn()))
+
       render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
-      expect(screen.getByText('Loading...')).toBeInTheDocument()
+      expect(screen.getByRole('progressbar', { name: 'Loading' })).toBeInTheDocument()
     })
 
-    it('renders error state from useQueryState', () => {
-      vi.mocked(useQueryState).mockReturnValue(<div>Error loading role assignments</div>)
+    it('renders error state when query fails', () => {
+      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+        if (path === '/user-role-assignments') {
+          return {
+            data: undefined,
+            isPending: false,
+            isError: true,
+            error: new Error('Server error'),
+            refetch: vi.fn(),
+          } as never
+        }
+        if (path === '/group-role-assignments') {
+          return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+        }
+        if (path === '/roles') {
+          return { data: { resources: [] }, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+        }
+        if (path === '/projects') {
+          return { data: [], isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+        }
+        return { data: undefined, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
+      })
+      vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn(vi.fn()))
+
       render(<RoleAssignmentsPanel principalType="user" principalId="u1" />, { wrapper })
       expect(screen.getByText('Error loading role assignments')).toBeInTheDocument()
     })

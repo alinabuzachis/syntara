@@ -79,6 +79,7 @@ const mockRoles = {
       description: null,
       policies: [],
       is_builtin: true,
+      is_system_scoped: true,
       project_id: null,
       labels: {},
       created_at: null,
@@ -90,7 +91,20 @@ const mockRoles = {
       description: null,
       policies: [],
       is_builtin: true,
+      is_system_scoped: true,
       project_id: null,
+      labels: {},
+      created_at: null,
+      updated_at: null,
+    },
+    {
+      id: 'r3',
+      name: 'ProjectAdmin',
+      description: null,
+      policies: [],
+      is_builtin: true,
+      is_system_scoped: false,
+      project_id: 'p1',
       labels: {},
       created_at: null,
       updated_at: null,
@@ -243,22 +257,22 @@ describe('AssignRoleDialog', () => {
 
   describe('Form Submission', () => {
     async function fillAndSubmitUserProjectForm(user: ReturnType<typeof userEvent.setup>) {
+      // Select a project from the typeahead FIRST (role dropdown is disabled until project is selected)
+      const projectInput = screen.getByPlaceholderText('Select a project...')
+      await user.click(projectInput)
+      const projectOption = await screen.findByRole('option', { name: 'Project Alpha' })
+      await user.click(projectOption)
+
       // Select a user from the typeahead
       const userInput = screen.getByPlaceholderText('Select a user...')
       await user.click(userInput)
       const userOption = await screen.findByRole('option', { name: 'alice' })
       await user.click(userOption)
 
-      // Select a project from the typeahead
-      const projectInput = screen.getByPlaceholderText('Select a project...')
-      await user.click(projectInput)
-      const projectOption = await screen.findByRole('option', { name: 'Project Alpha' })
-      await user.click(projectOption)
-
-      // Select a role from the typeahead
+      // Select a role from the typeahead (options include scope tags, e.g. "Project ProjectAdmin")
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: /Admin/ })
+      const roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
       await user.click(roleOption)
 
       // Submit
@@ -296,20 +310,20 @@ describe('AssignRoleDialog', () => {
       const typeSelect = screen.getByLabelText('Assignment type')
       await user.selectOptions(typeSelect, 'group-project')
 
-      // Fill Group ID
-      const groupIdInput = screen.getByRole('textbox', { name: 'Group ID' })
-      await user.type(groupIdInput, 'test-group')
-
-      // Select a project
+      // Select a project FIRST (role dropdown is disabled until project is selected)
       const projectInput = screen.getByPlaceholderText('Select a project...')
       await user.click(projectInput)
       const projectOption = await screen.findByRole('option', { name: 'Project Alpha' })
       await user.click(projectOption)
 
-      // Select a role
+      // Fill Group ID
+      const groupIdInput = screen.getByRole('textbox', { name: 'Group ID' })
+      await user.type(groupIdInput, 'test-group')
+
+      // Select a role (options include scope tags)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: /Admin/ })
+      const roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
       await user.click(roleOption)
 
       await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -405,10 +419,11 @@ describe('AssignRoleDialog', () => {
       const userOption = await screen.findByRole('option', { name: 'alice' })
       await user.click(userOption)
 
-      // Select a role (system-scoped uses role ID as value)
+      // Select a role (system-scoped uses role ID as value, options include scope tags)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: /Admin/ })
+      // Use exact name to avoid matching "Project ProjectAdmin"
+      const roleOption = await screen.findByRole('option', { name: /^System Admin$/ })
       await user.click(roleOption)
 
       await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -461,20 +476,26 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
+      // Select a project first so the role dropdown becomes enabled
+      const projectInput = screen.getByPlaceholderText('Select a project...')
+      await user.click(projectInput)
+      await user.click(await screen.findByRole('option', { name: 'Project Alpha' }))
+
       // Select a role in project scope (default: user-project)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: /Admin/ })
+      const roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
       await user.click(roleOption)
 
-      // Verify role is selected (clear button visible)
-      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument()
+      // Verify role is selected (clear buttons visible for both project and role)
+      const clearButtons = screen.getAllByRole('button', { name: 'Clear selection' })
+      expect(clearButtons.length).toBeGreaterThanOrEqual(1)
 
-      // Switch to user-system
+      // Switch to user-system (project field disappears, role resets)
       const typeSelect = screen.getByLabelText('Assignment type')
       await user.selectOptions(typeSelect, 'user-system')
 
-      // Role field should be cleared — no clear button
+      // Role field should be cleared — no clear button for role
       await waitFor(() => {
         expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument()
       })
@@ -488,10 +509,10 @@ describe('AssignRoleDialog', () => {
       const typeSelect = screen.getByLabelText('Assignment type')
       await user.selectOptions(typeSelect, 'user-system')
 
-      // Select a role in system scope
+      // Select a role in system scope (use exact name to avoid multiple matches)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      const roleOption = await screen.findByRole('option', { name: /Admin/ })
+      const roleOption = await screen.findByRole('option', { name: /^System Admin$/ })
       await user.click(roleOption)
 
       // Verify role is selected
@@ -516,10 +537,15 @@ describe('AssignRoleDialog', () => {
       const user = userEvent.setup()
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
+      // Select a project first so the role dropdown becomes enabled
+      const projectInput = screen.getByPlaceholderText('Select a project...')
+      await user.click(projectInput)
+      await user.click(await screen.findByRole('option', { name: 'Project Alpha' }))
+
       // Select a role in project scope
       let roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
-      let roleOption = await screen.findByRole('option', { name: /Admin/ })
+      let roleOption = await screen.findByRole('option', { name: /ProjectAdmin/ })
       await user.click(roleOption)
 
       // Switch to user-system
@@ -532,7 +558,7 @@ describe('AssignRoleDialog', () => {
       const userOption = await screen.findByRole('option', { name: 'bob' })
       await user.click(userOption)
 
-      // Re-select a role (now uses roleId)
+      // Re-select a role (now uses roleId, options include scope tags)
       roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
       roleOption = await screen.findByRole('option', { name: /Viewer/ })
@@ -550,10 +576,10 @@ describe('AssignRoleDialog', () => {
   })
 
   describe('Project ID Default', () => {
-    it('uses provided projectId as default value', () => {
-      render(<AssignRoleDialog {...defaultProps} projectId="p1" />, { wrapper })
+    it('renders with default form values', () => {
+      render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      // The projectId is set as a defaultValue; verify the component renders without error
+      // Verify the component renders without error
       expect(screen.getByText('Add Assignment')).toBeInTheDocument()
     })
   })

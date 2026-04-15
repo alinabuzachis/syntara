@@ -87,9 +87,7 @@ async function fetchProjectRolesForPrincipal(
   principalType: 'user' | 'group',
   principalId: string
 ): Promise<RoleAssignmentRow[]> {
-  const { data: projects } = await accessFetchClient.GET('/projects', {
-    params: { query: {} },
-  })
+  const { data: projects } = await accessFetchClient.GET('/projects')
   if (!projects || projects.length === 0) return []
 
   const allRows: RoleAssignmentRow[] = []
@@ -219,18 +217,14 @@ function RoleAssignmentsTable({
 
 function useRoleAssignmentData(principalType: 'user' | 'group', principalId: string) {
   // ── System-level queries (may 403 for non-admin users) ──────────────────
-  const systemUserQuery = accessClient.useQuery(
-    'get',
-    '/user-role-assignments',
-    { params: { query: {} } },
-    { enabled: principalType === 'user', retry: false }
-  )
-  const systemGroupQuery = accessClient.useQuery(
-    'get',
-    '/group-role-assignments',
-    { params: { query: {} } },
-    { enabled: principalType === 'group', retry: false }
-  )
+  const systemUserQuery = accessClient.useQuery('get', '/user-role-assignments', undefined, {
+    enabled: principalType === 'user',
+    retry: false,
+  })
+  const systemGroupQuery = accessClient.useQuery('get', '/group-role-assignments', undefined, {
+    enabled: principalType === 'group',
+    retry: false,
+  })
 
   const activeSystemQuery = principalType === 'user' ? systemUserQuery : systemGroupQuery
   const systemQueryForbidden = useMemo(() => {
