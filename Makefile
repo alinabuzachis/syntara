@@ -232,8 +232,6 @@ else
 	uv run pytest tests/e2e/telemetry/ -v
 endif
 
-BASE_URL ?= http://localhost:8000
-
 # Development workflow
 # ========================================================
 .PHONY: db-seed-settings

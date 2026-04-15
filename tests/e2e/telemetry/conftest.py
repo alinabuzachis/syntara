@@ -17,19 +17,30 @@ POLL_INTERVAL = 0.5
 def segment_server_url() -> str:
     """Return the Segment server URL, verifying it is reachable.
 
-    Currently points to a local mock server. This can be swapped to the
-    real Segment API endpoint when downstream integration tests are needed.
+    Behaviour depends on whether APP_BASE_URL is set (externally-managed
+    environment) or not (locally-managed environment):
+
+    - APP_BASE_URL set, server unreachable  -> skip with a warning (the
+      external environment has no mock Segment server wired up).
+    - APP_BASE_URL not set, server reachable -> proceed normally.
+    - APP_BASE_URL not set, server unreachable -> fail the test
     """
     url = os.environ.get("SEGMENT_SERVER_URL", DEFAULT_SEGMENT_SERVER_URL)
     try:
         r = httpx.get(f"{url}/health", timeout=5)
         r.raise_for_status()
     except (httpx.RequestError, httpx.HTTPStatusError) as exc:
-        pytest.exit(
-            f"Mock Segment server not available at {url}: {exc}\n"
-            "Start it with: uv run python tests/e2e/telemetry/mock_segment_server.py",
-            returncode=1,
-        )
+        if os.environ.get("APP_BASE_URL"):
+            pytest.skip(
+                f"Mock Segment server not available at {url} — skipping telemetry "
+                f"tests because APP_BASE_URL is set and the external environment does "
+                f"not have a mock Segment server configured. ({exc})"
+            )
+        else:
+            pytest.fail(
+                f"Mock Segment server not available at {url}: {exc}\n"
+                "Start it with: uv run python tests/e2e/telemetry/mock_segment_server.py",
+            )
     return url
 
 

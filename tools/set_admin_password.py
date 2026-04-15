@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from nexus.auth.passwords import hash_password
 from nexus.core.config.base import get_settings
-from nexus.core.models.user import User, UserRole
+from nexus.core.models.user import User
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -56,7 +56,6 @@ async def set_admin_password(password: str) -> None:
                     email="admin@nexus.local",
                     full_name="Administrator",
                     password_hash=hashed,
-                    role=UserRole.ADMINISTRATOR,
                     is_active=True,
                 )
                 session.add(admin)

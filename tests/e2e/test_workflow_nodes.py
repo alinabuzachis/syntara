@@ -185,7 +185,7 @@ def test_script_node_python(nexus_api: NexusApiRegistry):
 
 
 @pytest.mark.e2e
-def test_http_request_node(nexus_api: NexusApiRegistry):
+def test_http_request_node(nexus_api: NexusApiRegistry, worker_base_url: str):
     """An HTTP request node calls an endpoint and the workflow completes."""
     result = _create_and_run_workflow(
         nexus_api,
@@ -202,7 +202,7 @@ def test_http_request_node(nexus_api: NexusApiRegistry):
                     "type": "http_request",
                     "config": {
                         "method": "GET",
-                        "url": "http://nexus:8000/health",
+                        "url": f"{worker_base_url}/health",
                     },
                 },
             ],
@@ -653,7 +653,7 @@ def test_loop_with_agentic_body(nexus_api: NexusApiRegistry):
 
 @requires_openrouter
 @pytest.mark.e2e
-def test_http_request_then_agentic(nexus_api: NexusApiRegistry):
+def test_http_request_then_agentic(nexus_api: NexusApiRegistry, worker_base_url: str):
     """An HTTP request node feeds into an agentic node."""
     _ensure_mcp_provider(nexus_api)
     result = _create_and_run_workflow(
@@ -671,7 +671,7 @@ def test_http_request_then_agentic(nexus_api: NexusApiRegistry):
                     "type": "http_request",
                     "config": {
                         "method": "GET",
-                        "url": "http://nexus:8000/health",
+                        "url": f"{worker_base_url}/health",
                     },
                 },
                 {

@@ -139,6 +139,11 @@ jobs:
             nexus-ci_opa_1
           echo "✅ All services are healthy"
 
+      - name: Run E2E tests
+        run: make test-e2e
+        env:
+          APP_BASE_URL: http://localhost:8000
+
       - name: Show service logs on failure
         if: failure()
         run: |

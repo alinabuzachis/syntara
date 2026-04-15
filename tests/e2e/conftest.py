@@ -78,3 +78,15 @@ def nexus_client(nexus_base_url: str) -> AuthenticatedClient:
 def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
     """Return a NexusApiRegistry bound to the authenticated test client."""
     return NexusApiRegistry(nexus_client)
+
+
+@pytest.fixture(scope="session")
+def worker_base_url() -> str:
+    """Return the URL the Temporal worker uses to reach the Nexus API.
+
+    The worker runs inside a container, so it cannot use localhost or the
+    nexus_base_url (which is host-side).  The default uses the podman host
+    gateway so the containerised worker can reach the API process running on
+    the host.  Override with APP_WORKER_BASE_URL in CI or other environments.
+    """
+    return os.environ.get("APP_WORKER_BASE_URL", "http://host.containers.internal:8000")

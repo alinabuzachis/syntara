@@ -52,7 +52,6 @@ jobs:
       - name: Port-forward Nexus API
         run: kubectl port-forward svc/myaap-ao-api 8000:8000 &
 
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -65,11 +64,42 @@ jobs:
         working-directory: aap-dev/src/nexus
         run: make install
 
+      - name: Generate secrets
+        working-directory: aap-dev/src/nexus
+        run: make secrets-generate
+
+      - name: Inject JWT signing key into cluster
+        working-directory: aap-dev/src/nexus
+        run: |
+          JWT_KEY_B64=$(base64 -w 0 .secrets/jwt-primary.pem)
+          kubectl create secret generic myaap-ao-jwt-key \
+            --from-literal=APP_JWT_PRIVATE_KEY_BASE64="$JWT_KEY_B64" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl set env deployment/myaap-ao-api --from=secret/myaap-ao-jwt-key
+          kubectl set env deployment/myaap-ao-worker --from=secret/myaap-ao-jwt-key
+          kubectl rollout status deployment/myaap-ao-api --timeout=120s
+          kubectl rollout status deployment/myaap-ao-worker --timeout=120s
+
+      - name: Initialize admin password
+        working-directory: aap-dev/src/nexus
+        run: |
+          POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
+          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/set_admin_password.py' < tools/set_admin_password.py
+          cat .secrets/admin-password | kubectl exec -i "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/set_admin_password.py'
+
+      - name: Seed settings
+        working-directory: aap-dev/src/nexus
+        run: |
+          POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
+          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/seed_settings.py' < tools/seed_settings.py
+          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/seed_settings.py'
+
       - name: Run E2E tests
         working-directory: aap-dev/src/nexus
         run: make test-e2e
         env:
           APP_BASE_URL: http://localhost:8000
+          APP_WORKER_BASE_URL: http://myaap-ao-api:8000
 
       - name: Cleanup
         if: always()
