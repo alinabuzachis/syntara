@@ -27,13 +27,16 @@ import sys
 from pathlib import Path
 
 import structlog
+from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from nexus.core.config.base import get_settings
+from nexus.core.models.group import Group, user_groups
 from nexus.core.models.user import User
 
 # Configure logging
@@ -65,22 +68,41 @@ async def create_system_user() -> None:
 
             if existing_user:
                 logger.info("System user already exists", user_id=system_user_id)
-                return
+            else:
+                # Create system user
+                system_user = User(
+                    id=system_user_id,
+                    username="system",
+                    email="system@nexus.internal",
+                    full_name="System User",
+                    is_active=True,
+                )
+                session.add(system_user)
+                await session.flush()
+                logger.info("System user created successfully!", user_id=system_user_id)
 
-            # Create system user
-            system_user = User(
-                id=system_user_id,
-                username="system",
-                email="system@nexus.internal",
-                full_name="System User",
-                is_active=True,
-            )
+            # Add system user to "admins" group for cross-project permissions.
+            # The system user sends callback signals to workflow executions in
+            # any project; without admin-level access, OPA denies signals to
+            # executions outside the default project.
+            admins_result = await session.exec(select(Group).where(Group.name == "admins"))
+            admins_group = admins_result.one_or_none()
+            if admins_group:
+                existing_membership = await session.exec(
+                    select(user_groups.c.user_id).where(
+                        user_groups.c.user_id == system_user_id,
+                        user_groups.c.group_id == admins_group.id,
+                    )
+                )
+                if not existing_membership.one_or_none():
+                    await session.exec(insert(user_groups).values(user_id=system_user_id, group_id=admins_group.id))
+                    logger.info("System user added to admins group", group_id=admins_group.id)
+                else:
+                    logger.info("System user already in admins group")
+            else:
+                logger.warning("admins group not found — run authz seed first")
 
-            # Add and commit
-            session.add(system_user)
             await session.commit()
-
-            logger.info("System user created successfully!", user_id=system_user_id)
 
     except OSError as e:
         msg = f"Database connection error: {e}"

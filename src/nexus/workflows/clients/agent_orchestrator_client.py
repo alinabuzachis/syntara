@@ -322,8 +322,14 @@ class AgentOrchestratorClient:
         if isinstance(error, httpx.HTTPStatusError):
             is_server_error = error.response.status_code >= http.HTTPStatus.INTERNAL_SERVER_ERROR
             code = ErrorCode.HTTP_SERVER_ERROR if is_server_error else ErrorCode.HTTP_CLIENT_ERROR
+            response_text = error.response.text
             msg = f"HTTP {error.response.status_code} error"
-            raise AgentOrchestratorClientError(msg, code=code, details=error.response.text) from error
+            logger.error(
+                "Agent Orchestrator HTTP error",
+                status_code=error.response.status_code,
+                response_body=response_text,
+            )
+            raise AgentOrchestratorClientError(msg, code=code, details=response_text) from error
 
         if isinstance(error, AgentOrchestratorClientError):
             raise error
