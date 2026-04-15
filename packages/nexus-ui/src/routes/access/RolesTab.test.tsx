@@ -90,14 +90,26 @@ describe('RolesTab', () => {
     // Default: useQueryState returns null (success state)
     vi.mocked(useQueryState).mockReturnValue(null)
 
-    vi.mocked(accessClient.useQuery).mockReturnValue({
-      data: { resources: mockRoles, next: null, total: 3 },
-      isPending: false,
-      isError: false,
-      error: null,
-      isFetching: false,
-      refetch: mockRefetch,
-    } as never)
+    vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+      if (path === '/projects') {
+        return {
+          data: [],
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          refetch: mockRefetch,
+        } as never
+      }
+      return {
+        data: { resources: mockRoles, next: null, total: 3 },
+        isPending: false,
+        isError: false,
+        error: null,
+        isFetching: false,
+        refetch: mockRefetch,
+      } as never
+    })
 
     vi.mocked(accessClient.useMutation).mockReturnValue({
       mutate: mockDeleteMutate,
