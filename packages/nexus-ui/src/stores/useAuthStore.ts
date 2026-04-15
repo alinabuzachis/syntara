@@ -248,7 +248,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 export const selectIsAuthenticated = (state: AuthStore) => state.isAuthenticated
 export const selectAuthError = (state: AuthStore) => state.error
 export const selectIsRefreshing = (state: AuthStore) => state.isRefreshing
-export const selectUsername = (state: AuthStore) => state.username
 
 // ============================================================================
 // Exported for testing
