@@ -2076,6 +2076,16 @@ export const handlers = [
       filtered = filtered.filter((p) => (p.description ?? '').toLowerCase().includes(term))
     }
 
+    const projectEligible = url.searchParams.get('project_eligible')
+    if (projectEligible === 'true') {
+      // Return only system (builtin) policies whose actions are valid for project-scoped roles
+      const projectActionPrefixes = ['workflow:', 'execution:', 'approval:', 'project-role:', 'audit:']
+      filtered = filtered.filter(
+        (p) =>
+          p.is_builtin && p.project_id === null && projectActionPrefixes.some((prefix) => p.name.startsWith(prefix))
+      )
+    }
+
     const isBuiltin = url.searchParams.get('is_builtin')
     if (isBuiltin !== null) {
       const builtin = isBuiltin === 'true'

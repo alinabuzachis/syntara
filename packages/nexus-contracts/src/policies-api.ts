@@ -298,6 +298,8 @@ export interface operations {
         is_builtin?: boolean
         /** @description Filter by project scope */
         project_id?: string
+        /** @description When true, return only policies whose actions are valid for project-scoped roles */
+        project_eligible?: boolean
       }
       header?: never
       path?: never

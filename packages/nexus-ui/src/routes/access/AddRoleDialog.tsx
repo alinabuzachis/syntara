@@ -98,9 +98,6 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
     )
   }
 
-  // Determine the project_id to pass to PolicySelect for filtering
-  const policyScopeProjectId = scope === 'system' ? null : projectId || undefined
-
   return (
     <Modal isOpen onClose={onClose} variant="medium">
       <ModalHeader title="Add Role" />
@@ -197,7 +194,7 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
                   selected={field.value}
                   onChange={field.onChange}
                   hasError={!!errors.policies}
-                  scopeProjectId={policyScopeProjectId}
+                  projectEligible={scope === 'project'}
                   isDisabled={scope === 'project' && !projectId}
                 />
               )}

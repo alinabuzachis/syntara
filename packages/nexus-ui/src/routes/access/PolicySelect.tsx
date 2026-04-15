@@ -22,6 +22,8 @@ interface PolicySelectProps {
   hasError?: boolean
   /** Filter policies by project scope. Omit or pass `null`/`undefined` for system (unfiltered), UUID for project-scoped. */
   scopeProjectId?: string | null
+  /** When true, fetch only policies whose actions are valid for project-scoped roles. */
+  projectEligible?: boolean
   /** When true, the select is disabled (e.g. waiting for project selection). */
   isDisabled?: boolean
 }
@@ -34,6 +36,7 @@ export function PolicySelect({
   onChange,
   hasError,
   scopeProjectId,
+  projectEligible,
   isDisabled,
 }: Readonly<PolicySelectProps>) {
   const [isOpen, setIsOpen] = useState(false)
@@ -59,6 +62,7 @@ export function PolicySelect({
           limit: PAGE_SIZE,
           'name[contains]': debouncedFilter || undefined,
           ...(scopeProjectId ? { project_id: scopeProjectId } : {}),
+          ...(projectEligible ? { project_eligible: true } : {}),
         },
       },
     },
