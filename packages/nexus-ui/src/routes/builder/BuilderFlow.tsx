@@ -31,6 +31,7 @@ import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
 import { useExecutionStore } from '../automations/stores/useExecutionStore'
 
 import { ButtonEdge } from './edges/ButtonEdge'
+import { BUTTON_EDGE_DEFAULT_STROKE } from './edges/buttonEdgeStrokeColor'
 import { DefaultEdge } from './edges/DefaultEdge'
 import { EdgeMarkers } from './edges/edgeMarkers'
 import { LoopBackEdge } from './edges/LoopBackEdge'
@@ -524,7 +525,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         onConnectEnd={isExecutionView ? undefined : onConnectEnd}
         connectOnClick={false}
         connectionRadius={200}
-        connectionLineStyle={{ stroke: '#6b7280', strokeWidth: 2 }}
+        connectionLineStyle={{ stroke: BUTTON_EDGE_DEFAULT_STROKE, strokeWidth: 2 }}
         defaultEdgeOptions={{ markerEnd }}
         isValidConnection={isValidConnection}
         proOptions={{ hideAttribution: true }}

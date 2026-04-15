@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { DEFAULT_NEUTRAL_EDGE_STROKE } from '../../../../../constants/workflowEdgeStrokeTokens'
+
 import { sourceHandleStyle, targetHandleStyle } from './handleStyle'
 
 describe('handleStyle', () => {
@@ -21,9 +23,13 @@ describe('handleStyle', () => {
       expect(targetHandleStyle.borderRadius).toBe(0)
     })
 
-    it('has background color', () => {
-      expect(targetHandleStyle.background).toBeDefined()
-      expect(typeof targetHandleStyle.background).toBe('string')
+    it('uses the same stroke token as default workflow edges', () => {
+      expect(targetHandleStyle.background).toBe(DEFAULT_NEUTRAL_EDGE_STROKE)
+    })
+
+    it('has no border or outline chrome', () => {
+      expect(targetHandleStyle.border).toBe('none')
+      expect(targetHandleStyle.outline).toBe('none')
     })
 
     it('has crosshair cursor for connection interaction', () => {
@@ -46,9 +52,17 @@ describe('handleStyle', () => {
       expect(sourceHandleStyle.borderRadius).toBe('50%')
     })
 
-    it('has background color', () => {
-      expect(sourceHandleStyle.background).toBeDefined()
-      expect(typeof sourceHandleStyle.background).toBe('string')
+    it('uses the same stroke token as default workflow edges', () => {
+      expect(sourceHandleStyle.background).toBe(DEFAULT_NEUTRAL_EDGE_STROKE)
+    })
+
+    it('has no border or outline chrome', () => {
+      expect(sourceHandleStyle.border).toBe('none')
+      expect(sourceHandleStyle.outline).toBe('none')
+    })
+
+    it('uses border-box for consistent sizing', () => {
+      expect(sourceHandleStyle.boxSizing).toBe('border-box')
     })
 
     it('has crosshair cursor for connection interaction', () => {

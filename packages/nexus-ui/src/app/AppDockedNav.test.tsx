@@ -1,7 +1,10 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
+
+import { COLOR_SCHEME_STORAGE_KEY } from '../theme/colorScheme'
+import { ColorSchemeProvider } from '../theme/ColorSchemeProvider'
 
 import { AppDockedNav } from './AppDockedNav'
 
@@ -29,40 +32,63 @@ vi.mock('../stores/useAuthStore', () => ({
   ),
 }))
 
+function renderDockedNav() {
+  return render(
+    <ColorSchemeProvider>
+      <AppDockedNav />
+    </ColorSchemeProvider>
+  )
+}
+
 describe('AppDockedNav', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
+    document.documentElement.classList.add('pf-v6-theme-dark', 'pf-v6-theme-glass')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    document.documentElement.classList.remove('pf-v6-theme-dark', 'pf-v6-theme-glass')
   })
 
   it('renders navigation items', () => {
-    render(<AppDockedNav />)
+    renderDockedNav()
     expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
   })
 
   it('renders user menu toggle', () => {
-    render(<AppDockedNav />)
+    renderDockedNav()
     expect(screen.getByRole('button', { name: 'User menu' })).toBeInTheDocument()
   })
 
   it('renders help button', () => {
-    render(<AppDockedNav />)
+    renderDockedNav()
     expect(screen.getByRole('button', { name: 'Help' })).toBeInTheDocument()
   })
 
-  // TODO: Uncomment this when mode switcher is implemented
-  // it('renders dark mode toggle', () => {
-  //   render(<AppDockedNav />)
-  //   expect(screen.getByRole('button', { name: 'Toggle dark mode' })).toBeInTheDocument()
-  // })
+  it('renders color scheme toggle when in dark mode', () => {
+    renderDockedNav()
+    expect(screen.getByRole('button', { name: 'Switch to light mode' })).toBeInTheDocument()
+  })
+
+  it('persists light mode and updates document when toggling from dark', async () => {
+    const user = userEvent.setup()
+    renderDockedNav()
+    await user.click(screen.getByRole('button', { name: 'Switch to light mode' }))
+    expect(document.documentElement.classList.contains('pf-v6-theme-dark')).toBe(false)
+    expect(localStorage.getItem(COLOR_SCHEME_STORAGE_KEY)).toBe('light')
+    expect(screen.getByRole('button', { name: 'Switch to dark mode' })).toBeInTheDocument()
+  })
 
   it('renders menu toggle button', () => {
-    render(<AppDockedNav />)
+    renderDockedNav()
     expect(screen.getByRole('button', { name: 'Toggle menu' })).toBeInTheDocument()
   })
 
   it('opens user menu when clicked', async () => {
     const user = userEvent.setup()
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     const userMenuButton = screen.getByRole('button', { name: 'User menu' })
     await user.click(userMenuButton)
@@ -75,7 +101,7 @@ describe('AppDockedNav', () => {
 
   it('toggles user menu isExpanded state when clicked', async () => {
     const user = userEvent.setup()
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     const userMenuButton = screen.getByRole('button', { name: 'User menu' })
 
@@ -89,7 +115,7 @@ describe('AppDockedNav', () => {
 
   it('navigates when help button is clicked', async () => {
     const user = userEvent.setup()
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     const helpButton = screen.getByRole('button', { name: 'Help' })
     await user.click(helpButton)
@@ -99,7 +125,7 @@ describe('AppDockedNav', () => {
 
   it('navigates when nav item is selected', async () => {
     const user = userEvent.setup()
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     const navItem = screen.getByLabelText('Automations')
     await user.click(navItem)
@@ -107,7 +133,7 @@ describe('AppDockedNav', () => {
   })
 
   it('renders with correct active state based on location', () => {
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     // Since we mocked location as '/automations', that nav item should be active
     const nav = screen.getByRole('navigation', { name: 'Main navigation' })
@@ -115,14 +141,14 @@ describe('AppDockedNav', () => {
   })
 
   it('renders masthead', () => {
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     expect(screen.getByRole('banner')).toBeInTheDocument()
   })
 
   it('navigates to Integrations when Configuration is clicked', async () => {
     const user = userEvent.setup()
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     const configItem = screen.getByLabelText('Configuration')
     await user.click(configItem)
@@ -132,7 +158,7 @@ describe('AppDockedNav', () => {
 
   it('shows dropdown with Access Management and Authentication when Access Management is clicked', async () => {
     const user = userEvent.setup()
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     const navButton = screen.getByRole('button', { name: 'Access Management' })
     await user.click(navButton)
@@ -148,7 +174,7 @@ describe('AppDockedNav', () => {
 
   it('navigates to Access Management from Access Management dropdown', async () => {
     const user = userEvent.setup()
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     const navButton = screen.getByRole('button', { name: 'Access Management' })
     await user.click(navButton)
@@ -161,7 +187,7 @@ describe('AppDockedNav', () => {
 
   it('navigates to Authentication from Access Management dropdown', async () => {
     const user = userEvent.setup()
-    render(<AppDockedNav />)
+    renderDockedNav()
 
     const navButton = screen.getByRole('button', { name: 'Access Management' })
     await user.click(navButton)
@@ -171,7 +197,7 @@ describe('AppDockedNav', () => {
   })
 
   it('has no accessibility violations', async () => {
-    const { container } = render(<AppDockedNav />)
+    const { container } = renderDockedNav()
 
     // Exclude aria-required-children: PatternFly Nav renders Divider as
     // <li role="separator"> inside <ul role="list">, which axe flags.

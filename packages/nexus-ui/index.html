@@ -1,14 +1,34 @@
 <!doctype html>
+<!-- Default classes limit FOUC before the inline script runs. pf-v6-theme-glass applies to both light and dark; only pf-v6-theme-dark is toggled below (matches applyDocumentColorScheme in src/theme/colorScheme.ts). -->
 <html lang="en" class="pf-v6-theme-dark pf-v6-theme-glass">
   <head>
     <meta charset="UTF-8" />
+    <!-- Sync theme resolution with `src/theme/colorScheme.ts` (`resolveColorScheme`). The storage key literal must match `COLOR_SCHEME_STORAGE_KEY` there (HTML cannot import TS without a build step). -->
+    <script>
+      ;(function () {
+        function resolveColorScheme() {
+          try {
+            var key = 'nexus-ui-color-scheme'
+            var stored = localStorage.getItem(key)
+            if (stored === 'light' || stored === 'dark') {
+              return stored
+            }
+          } catch {}
+          try {
+            if (window.matchMedia('(prefers-color-scheme: light)').matches) return 'light'
+            if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
+          } catch {}
+          return 'dark'
+        }
+        var scheme = resolveColorScheme()
+        document.documentElement.classList.toggle('pf-v6-theme-dark', scheme === 'dark')
+      })()
+    </script>
     <link rel="icon" type="image/svg+xml" href="/src/assets/redhat.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nexus</title>
   </head>
-  <body
-    style="background: var(--nexus-deep-space-image, none), var(--nexus-deep-space-base, #030308); background-size: cover; background-attachment: fixed"
-  >
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

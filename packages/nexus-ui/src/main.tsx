@@ -4,11 +4,13 @@ import { createRoot } from 'react-dom/client'
 
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { registerAllNodes } from './routes/builder/registry/nodes'
-
 import './index.css'
+import { ensureDocumentColorScheme } from './theme/colorScheme'
 
 // Register all workflow step types (Add step panel) before app initialization
 registerAllNodes()
+
+ensureDocumentColorScheme()
 
 const App = lazy(() => import('./app/App.js'))
 
@@ -20,7 +22,11 @@ createRoot(document.getElementById('root')!).render(
           <Flex
             alignItems={{ default: 'alignItemsCenter' }}
             justifyContent={{ default: 'justifyContentCenter' }}
-            style={{ height: '100vh', width: '100vw', backgroundColor: 'rgb(27, 27, 33)' }}
+            style={{
+              height: '100vh',
+              width: '100vw',
+              backgroundColor: 'var(--pf-t--global--background--color--primary--default)',
+            }}
           >
             <FlexItem>
               <Spinner size="xl" aria-label="Loading application" />

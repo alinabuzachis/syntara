@@ -3,6 +3,13 @@ import type { EdgeProps, MarkerType } from '@xyflow/react'
 import { BaseEdge } from '@xyflow/react'
 import { useMemo } from 'react'
 
+import {
+  BUTTON_EDGE_DEFAULT_STROKE,
+  CANVAS_EDGE_HIGHLIGHT_STROKE,
+  CANVAS_EDGE_MUTED_STROKE,
+} from './buttonEdgeStrokeColor'
+import { EDGE_INTERACTION_DROP_SHADOW } from './edgeInteractionStyles'
+
 /** PatternFly tokens for approval branch edge stroke/marker */
 const APPROVED_EDGE_COLOR = 'var(--pf-t--global--color--status--success--default)'
 const REJECTED_EDGE_COLOR = 'var(--pf-t--global--color--status--danger--default)'
@@ -44,14 +51,14 @@ export function EdgePath(props: EdgePathProps) {
     // Execution status takes precedence over interactive states and approval handle
     if (data?.executionStatus === 'passed') {
       return {
-        strokeColor: '#6b7280', // Gray (matches automation builder default)
+        strokeColor: BUTTON_EDGE_DEFAULT_STROKE,
         strokeOpacity: 1,
         strokeDasharray: 'none', // Solid line
       }
     }
     if (data?.executionStatus === 'pending') {
       return {
-        strokeColor: '#9ca3af', // Dimmed gray (pending edge)
+        strokeColor: CANVAS_EDGE_MUTED_STROKE,
         strokeOpacity: 0.4,
         strokeDasharray: '5,5', // Dashed line
       }
@@ -76,7 +83,7 @@ export function EdgePath(props: EdgePathProps) {
     // Fall back to existing interactive state styling
     const isHighlighted = selected || isEdgeHovered || data?.isActive
     return {
-      strokeColor: isHighlighted ? '#e5e7eb' : '#6b7280',
+      strokeColor: isHighlighted ? CANVAS_EDGE_HIGHLIGHT_STROKE : BUTTON_EDGE_DEFAULT_STROKE,
       strokeOpacity: 1,
       strokeDasharray: 'none',
     }
@@ -97,7 +104,7 @@ export function EdgePath(props: EdgePathProps) {
     strokeDasharray,
     strokeWidth: 2,
     pointerEvents: 'none' as const,
-    filter: selected || isEdgeHovered || data?.isActive ? 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))' : 'none',
+    filter: selected || isEdgeHovered || data?.isActive ? EDGE_INTERACTION_DROP_SHADOW : 'none',
   }
 
   return (
@@ -116,11 +123,11 @@ export function EdgePath(props: EdgePathProps) {
               refY="0"
             >
               <polyline
-                stroke="#e5e7eb"
+                stroke={strokeColor}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth="1"
-                fill="#e5e7eb"
+                fill={strokeColor}
                 points="-5,-4 0,0 -5,4 -5,-4"
               />
             </marker>

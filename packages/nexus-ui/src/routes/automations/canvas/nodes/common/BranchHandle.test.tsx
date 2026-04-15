@@ -129,7 +129,7 @@ describe('BranchHandle', () => {
       const branchDiv = screen.getByTestId('branch-handle-styled')
       expect(branchDiv).toHaveStyle({
         position: 'relative',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: 'var(--pf-t--global--background--color--secondary--default)',
       })
     })
 
@@ -209,7 +209,7 @@ describe('BranchHandle', () => {
       render(<BranchHandle id="true">True</BranchHandle>)
 
       const wrapper = screen.getByTestId('branch-handle-true')
-      expect(wrapper.style.backgroundColor).toBe('rgba(255, 255, 255, 0.1)')
+      expect(wrapper.style.backgroundColor).toBe('var(--pf-t--global--background--color--secondary--default)')
     })
   })
 

@@ -1,6 +1,8 @@
 import { ActivityTypeEnum, TriggerTypeEnum, type Activity } from '@ansible/nexus-contracts'
 import { MarkerType } from '@xyflow/react'
 
+import { BUTTON_EDGE_DEFAULT_STROKE } from '../edges/buttonEdgeStrokeColor'
+
 /**
  * In v2, triggers are { id, type, name, config } nodes.
  * Manual trigger type is 'manual_trigger'.
@@ -18,7 +20,7 @@ export const markerEnd = {
   type: MarkerType.ArrowClosed,
   width: 12,
   height: 12,
-  color: '#6b7280',
+  color: BUTTON_EDGE_DEFAULT_STROKE,
 }
 
 export type EdgeType = {

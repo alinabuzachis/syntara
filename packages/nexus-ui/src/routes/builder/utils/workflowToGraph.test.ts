@@ -1,6 +1,8 @@
 import type { Activity } from '@ansible/nexus-contracts'
 import { describe, expect, it } from 'vitest'
 
+import { BUTTON_EDGE_DEFAULT_STROKE } from '../edges/buttonEdgeStrokeColor'
+
 import type { Trigger } from './workflowToGraph'
 import { extractTaskActivities, getTriggerDisplayData, markerEnd } from './workflowToGraph'
 
@@ -11,7 +13,7 @@ describe('workflowToGraph', () => {
         type: 'arrowclosed',
         width: 12,
         height: 12,
-        color: '#6b7280',
+        color: BUTTON_EDGE_DEFAULT_STROKE,
       })
     })
   })

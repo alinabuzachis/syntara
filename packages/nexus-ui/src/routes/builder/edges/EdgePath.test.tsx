@@ -7,6 +7,12 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 
+import {
+  BUTTON_EDGE_DEFAULT_STROKE,
+  CANVAS_EDGE_HIGHLIGHT_STROKE,
+  CANVAS_EDGE_MUTED_STROKE,
+} from './buttonEdgeStrokeColor'
+import { EDGE_INTERACTION_DROP_SHADOW } from './edgeInteractionStyles'
 import { EdgePath } from './EdgePath'
 
 // Mock @xyflow/react BaseEdge component
@@ -20,8 +26,8 @@ describe('EdgePath', () => {
   const mockEdgePath = 'M 0 0 L 100 100'
   const mockOnMouseEnter = vi.fn()
   const mockOnMouseLeave = vi.fn()
-  const expectStroke = (style: string | null, expectedHex: string, expectedRgb: string) => {
-    expect(style).toMatch(new RegExp(`stroke:\\s*(${expectedHex}|${expectedRgb})`))
+  const expectStrokeVar = (style: string | null, token: string) => {
+    expect(style).toContain(`stroke: ${token}`)
   }
 
   describe('execution status styling', () => {
@@ -44,7 +50,7 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge.getAttribute('style')
-      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)')
+      expectStrokeVar(style ?? null, BUTTON_EDGE_DEFAULT_STROKE)
       expect(style).toContain('stroke-opacity: 1')
       expect(style).toContain('stroke-dasharray: none')
     })
@@ -68,7 +74,7 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge.getAttribute('style')
-      expectStroke(style ?? null, '#9ca3af', 'rgb\\(156, 163, 175\\)')
+      expectStrokeVar(style ?? null, CANVAS_EDGE_MUTED_STROKE)
       expect(style).toContain('stroke-opacity: 0.4')
       expect(style).toContain('stroke-dasharray: 5,5')
     })
@@ -92,7 +98,7 @@ describe('EdgePath', () => {
       expect(baseEdge).toBeInTheDocument()
 
       const style = baseEdge.getAttribute('style')
-      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)') // default
+      expectStrokeVar(style ?? null, BUTTON_EDGE_DEFAULT_STROKE) // default
       expect(style).toContain('stroke-opacity: 1')
       expect(style).toContain('stroke-dasharray: none')
     })
@@ -115,6 +121,7 @@ describe('EdgePath', () => {
         </svg>
       )
 
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- SVG has no roles; base-edge is mock-only
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
       expect(style).toContain('--pf-t--global--color--status--success--default')
@@ -137,6 +144,7 @@ describe('EdgePath', () => {
         </svg>
       )
 
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- SVG has no roles; base-edge is mock-only
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
       expect(style).toContain('--pf-t--global--color--status--danger--default')
@@ -159,10 +167,11 @@ describe('EdgePath', () => {
         </svg>
       )
 
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- SVG has no roles; base-edge is mock-only
       const baseEdge = container.querySelector('[data-testid="base-edge"]')
       const style = baseEdge?.getAttribute('style')
       // Passed takes precedence over approved
-      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)')
+      expectStrokeVar(style ?? null, BUTTON_EDGE_DEFAULT_STROKE)
     })
   })
 
@@ -184,8 +193,8 @@ describe('EdgePath', () => {
 
       const baseEdge = screen.getByTestId('base-edge')
       const style = baseEdge.getAttribute('style')
-      expectStroke(style ?? null, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
-      expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
+      expectStrokeVar(style ?? null, CANVAS_EDGE_HIGHLIGHT_STROKE) // highlighted
+      expect(style).toContain(`filter: ${EDGE_INTERACTION_DROP_SHADOW}`)
     })
 
     it('highlights edge when selected and no execution status', () => {
@@ -205,8 +214,8 @@ describe('EdgePath', () => {
 
       const baseEdge = screen.getByTestId('base-edge')
       const style = baseEdge.getAttribute('style')
-      expectStroke(style ?? null, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
-      expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
+      expectStrokeVar(style ?? null, CANVAS_EDGE_HIGHLIGHT_STROKE) // highlighted
+      expect(style).toContain(`filter: ${EDGE_INTERACTION_DROP_SHADOW}`)
     })
 
     it('highlights edge when active and no execution status', () => {
@@ -226,8 +235,8 @@ describe('EdgePath', () => {
 
       const baseEdge = screen.getByTestId('base-edge')
       const style = baseEdge.getAttribute('style')
-      expectStroke(style ?? null, '#e5e7eb', 'rgb\\(229, 231, 235\\)') // highlighted
-      expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
+      expectStrokeVar(style ?? null, CANVAS_EDGE_HIGHLIGHT_STROKE) // highlighted
+      expect(style).toContain(`filter: ${EDGE_INTERACTION_DROP_SHADOW}`)
     })
   })
 
@@ -250,10 +259,10 @@ describe('EdgePath', () => {
       const baseEdge = screen.getByTestId('base-edge')
       const style = baseEdge.getAttribute('style')
       // Execution status takes precedence
-      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)') // passed
+      expectStrokeVar(style ?? null, BUTTON_EDGE_DEFAULT_STROKE) // passed
       expect(style).toContain('stroke-dasharray: none')
       // But still applies hover filter
-      expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
+      expect(style).toContain(`filter: ${EDGE_INTERACTION_DROP_SHADOW}`)
     })
 
     it('uses passed status styling even when selected', () => {
@@ -274,10 +283,10 @@ describe('EdgePath', () => {
       const baseEdge = screen.getByTestId('base-edge')
       const style = baseEdge.getAttribute('style')
       // Execution status takes precedence
-      expectStroke(style ?? null, '#6b7280', 'rgb\\(107, 114, 128\\)') // passed
+      expectStrokeVar(style ?? null, BUTTON_EDGE_DEFAULT_STROKE) // passed
       expect(style).toContain('stroke-dasharray: none')
       // But still applies selected filter
-      expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
+      expect(style).toContain(`filter: ${EDGE_INTERACTION_DROP_SHADOW}`)
     })
 
     it('uses pending status styling even when active', () => {
@@ -298,11 +307,11 @@ describe('EdgePath', () => {
       const baseEdge = screen.getByTestId('base-edge')
       const style = baseEdge.getAttribute('style')
       // Execution status takes precedence
-      expectStroke(style ?? null, '#9ca3af', 'rgb\\(156, 163, 175\\)') // pending
+      expectStrokeVar(style ?? null, CANVAS_EDGE_MUTED_STROKE) // pending
       expect(style).toContain('stroke-opacity: 0.4')
       expect(style).toContain('stroke-dasharray: 5,5')
       // But still applies active filter
-      expect(style).toContain('filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2))')
+      expect(style).toContain(`filter: ${EDGE_INTERACTION_DROP_SHADOW}`)
     })
   })
 
@@ -322,6 +331,7 @@ describe('EdgePath', () => {
         </svg>
       )
 
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- SVG paths without accessible roles
       const paths = container.querySelectorAll('path')
       expect(paths.length).toBeGreaterThanOrEqual(2)
 
@@ -350,6 +360,7 @@ describe('EdgePath', () => {
         </svg>
       )
 
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- SVG paths without accessible roles
       const paths = container.querySelectorAll('path')
       const hoverPath = Array.from(paths).find((path) => {
         const style = path.getAttribute('style')
@@ -376,13 +387,15 @@ describe('EdgePath', () => {
         </svg>
       )
 
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- SVG marker has no role
       const marker = container.querySelector('marker#pending-arrow-marker')
       expect(marker).toBeInTheDocument()
 
+      // eslint-disable-next-line testing-library/no-node-access -- polyline inside defs is not exposed
       const polyline = marker?.querySelector('polyline')
       expect(polyline).toBeInTheDocument()
-      expect(polyline?.getAttribute('stroke')).toBe('#e5e7eb')
-      expect(polyline?.getAttribute('fill')).toBe('#e5e7eb')
+      expect(polyline?.getAttribute('stroke')).toBe(BUTTON_EDGE_DEFAULT_STROKE)
+      expect(polyline?.getAttribute('fill')).toBe(BUTTON_EDGE_DEFAULT_STROKE)
     })
 
     it('uses BaseEdge for non-pending edges', () => {
@@ -403,6 +416,7 @@ describe('EdgePath', () => {
       const baseEdge = screen.getByTestId('base-edge')
       expect(baseEdge).toBeInTheDocument()
 
+      // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- SVG marker has no role
       const marker = container.querySelector('marker#pending-arrow-marker')
       expect(marker).not.toBeInTheDocument()
     })

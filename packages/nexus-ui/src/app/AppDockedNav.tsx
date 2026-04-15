@@ -25,8 +25,10 @@ import {
 import type { MenuToggleElement } from '@patternfly/react-core'
 import {
   RedhatIcon,
+  RhUiDarkModeIcon,
   RhUiInfrastructureIcon,
   RhUiLikeIcon,
+  RhUiLightModeIcon,
   RhUiListIcon,
   RhUiMenuBarsIcon,
   RhUiPlayCircleIcon,
@@ -40,6 +42,7 @@ import { useLocation } from 'wouter'
 
 import { useAlerts } from '../components/alerts'
 import { useAuthStore } from '../stores/useAuthStore'
+import { useColorScheme } from '../theme/useColorScheme'
 import { getErrorMessage } from '../utils/apiErrors'
 
 import { AppRoute } from './AppRoute'
@@ -213,6 +216,7 @@ function UserMenuDropdown() {
 export function AppDockedNav() {
   const [location] = useLocation()
   const { requestNavigation } = useUnsavedChanges()
+  const { colorScheme, toggleColorScheme } = useColorScheme()
 
   const visibleItems = useMemo(
     () => navigationItems.filter((item) => !item.hidden && !item.path.startsWith('/support')),
@@ -221,8 +225,11 @@ export function AppDockedNav() {
   const activeTopLevel = '/' + location.split('/')[1]
 
   const menuToggleRef = useRef<HTMLButtonElement>(null)
+  const colorSchemeRef = useRef<HTMLButtonElement>(null)
   const helpRef = useRef<HTMLButtonElement>(null)
   const navItemRefs = useMemo(() => createNavItemRefs(visibleItems), [visibleItems])
+
+  const colorSchemeToggleLabel = colorScheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
 
   return (
     <Masthead id="docked-masthead" variant="docked">
@@ -298,6 +305,16 @@ export function AppDockedNav() {
                 <ToolbarItem>
                   <Button
                     variant="plain"
+                    aria-label={colorSchemeToggleLabel}
+                    ref={colorSchemeRef}
+                    onClick={toggleColorScheme}
+                  >
+                    {colorScheme === 'dark' ? <RhUiDarkModeIcon /> : <RhUiLightModeIcon />}
+                  </Button>
+                </ToolbarItem>
+                <ToolbarItem>
+                  <Button
+                    variant="plain"
                     aria-label="Help"
                     ref={helpRef}
                     onClick={() => navigateToHelp(requestNavigation)}
@@ -326,6 +343,13 @@ export function AppDockedNav() {
             position="right"
           />
         ))}
+      <Tooltip
+        aria="none"
+        aria-live="off"
+        triggerRef={colorSchemeRef}
+        content={colorSchemeToggleLabel}
+        position="right"
+      />
       <Tooltip aria="none" aria-live="off" triggerRef={helpRef} content="Documentation" position="right" />
     </Masthead>
   )
