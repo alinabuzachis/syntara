@@ -6,6 +6,10 @@ on:
     workflows: ["CI"]
     types: [requested]
 
+concurrency:
+  group: e2e-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
 jobs:
   test-e2e:
     runs-on: aap-dev
@@ -49,9 +53,6 @@ jobs:
       - name: Export KUBECONFIG
         run: echo "KUBECONFIG=${{ github.workspace }}/aap-dev/.tmp/27.kubeconfig" >> "$GITHUB_ENV"
 
-      - name: Port-forward Nexus API
-        run: kubectl port-forward svc/myaap-ao-api 8000:8000 &
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -93,6 +94,15 @@ jobs:
           POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
           kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/seed_settings.py' < tools/seed_settings.py
           kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/seed_settings.py'
+
+      - name: Port-forward Nexus API
+        run: |
+          kubectl port-forward svc/myaap-ao-api 8000:8000 &
+          # Wait until the port-forward is accepting connections
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health > /dev/null 2>&1 && break
+            sleep 2
+          done
 
       - name: Run E2E tests
         working-directory: aap-dev/src/nexus
