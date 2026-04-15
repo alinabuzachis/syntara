@@ -27,8 +27,9 @@ import {
   Tabs,
   Title,
 } from '@patternfly/react-core'
-import { PlusIcon } from '@patternfly/react-icons'
-import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
+import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import type { IAction } from '@patternfly/react-table'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useParams } from 'wouter'
@@ -40,6 +41,7 @@ import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { useAlerts } from '../../../components/alerts'
 import { EmptyStateNoData } from '../../../components/EmptyStateNoData'
+import { IconLabel } from '../../../components/IconLabel'
 import { ErrorState } from '../../../components/states/ErrorState'
 import { LoadingState } from '../../../components/states/LoadingState'
 import { useQueryState } from '../../../components/states/useQueryState'
@@ -52,6 +54,8 @@ import type { ProjectRead } from '../../access/types'
 import { useAllUsers } from '../../access/useAllUsers'
 
 import { ProjectNotFoundState } from './ProjectNotFoundState'
+import { UnassignProjectRoleDialog } from './UnassignProjectRoleDialog'
+import type { ProjectRoleAssignment } from './UnassignProjectRoleDialog'
 
 function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
   const labelEntries = Object.entries(project.labels ?? {})
@@ -266,8 +270,22 @@ function AssignProjectRoleModal({
   )
 }
 
+function getPermissionRowActions(
+  assignment: ProjectRoleAssignment,
+  onUnassign: (assignment: ProjectRoleAssignment) => void
+): IAction[] {
+  return [
+    {
+      title: <IconLabel icon={<RhUiTrashIcon />}>Unassign</IconLabel>,
+      onClick: () => onUnassign(assignment),
+    },
+  ]
+}
+
 function ProjectPermissionsTab({ projectId }: Readonly<{ projectId: string }>) {
   const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [assignmentToUnassign, setAssignmentToUnassign] = useState<ProjectRoleAssignment | null>(null)
+  const { showSuccess, showError } = useAlerts()
 
   const rolesQuery = accessClient.useQuery('get', '/projects/{project_id}/roles', {
     params: { path: { project_id: projectId } },
@@ -290,6 +308,35 @@ function ProjectPermissionsTab({ projectId }: Readonly<{ projectId: string }>) {
 
   const handleAssignSuccess = () => {
     rolesQuery.refetch().catch(() => {})
+  }
+
+  const { mutate: deleteProjectRole } = accessClient.useMutation(
+    'delete',
+    '/projects/{project_id}/roles/{assignment_id}'
+  )
+
+  const handleUnassign = () => {
+    if (!assignmentToUnassign) return
+    deleteProjectRole(
+      {
+        params: {
+          path: { project_id: projectId, assignment_id: assignmentToUnassign.id },
+        },
+      },
+      {
+        onSuccess: () => {
+          showSuccess(
+            'Role unassigned',
+            `Role "${assignmentToUnassign.role_name}" has been unassigned from ${assignmentToUnassign.username ?? assignmentToUnassign.user_id}.`
+          )
+          rolesQuery.refetch().catch(() => {})
+        },
+        onError: (err: unknown) => {
+          showError('Failed to unassign role', getErrorMessage(err))
+        },
+        onSettled: () => setAssignmentToUnassign(null),
+      }
+    )
   }
 
   if (rolesQuery.isError) {
@@ -343,6 +390,7 @@ function ProjectPermissionsTab({ projectId }: Readonly<{ projectId: string }>) {
             <Th>Username</Th>
             <Th>Role</Th>
             <Th>Assigned</Th>
+            <Th screenReaderText="Actions" />
           </Tr>
         </Thead>
         <Tbody>
@@ -355,6 +403,9 @@ function ProjectPermissionsTab({ projectId }: Readonly<{ projectId: string }>) {
                 </Label>
               </Td>
               <Td dataLabel="Assigned">{formatDateTime(a.created_at)}</Td>
+              <Td isActionCell>
+                <ActionsColumn items={getPermissionRowActions(a, setAssignmentToUnassign)} />
+              </Td>
             </Tr>
           ))}
         </Tbody>
@@ -365,6 +416,12 @@ function ProjectPermissionsTab({ projectId }: Readonly<{ projectId: string }>) {
         onClose={() => setAssignModalOpen(false)}
         onSuccess={handleAssignSuccess}
         assignedRolesByUser={assignedRolesByUser}
+      />
+      <UnassignProjectRoleDialog
+        assignment={assignmentToUnassign}
+        isOpen={!!assignmentToUnassign}
+        onClose={() => setAssignmentToUnassign(null)}
+        onConfirm={handleUnassign}
       />
     </>
   )
