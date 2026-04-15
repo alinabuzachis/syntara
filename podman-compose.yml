@@ -85,7 +85,15 @@ services:
       dockerfile: containers/nexus/Containerfile
     image: ${APP_IMAGE:-localhost/nexus:latest}
     restart: unless-stopped
-    command: [sh, -c, 'uv run alembic upgrade head && uv run tools/seed_settings.py && uv run tools/load_sample_workflows.py samples && uv run python -m nexus.api.main']
+    command:
+      - sh
+      - -c
+      - >-
+        uv run alembic upgrade head &&
+        uv run tools/seed_settings.py &&
+        uv run tools/create_system_user.py &&
+        uv run tools/load_sample_workflows.py samples &&
+        uv run python -m nexus.api.main
     ports:
       - ${APP_API_PORT:-8000}:8000
     environment:
