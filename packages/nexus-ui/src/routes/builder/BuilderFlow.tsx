@@ -21,6 +21,7 @@ import {
   selectEdges,
   selectTriggers,
   selectActivities,
+  selectPositionUndoVersion,
 } from '../../stores/useWorkflowStore'
 import { collectAllActivityIds } from '../../stores/workflowActivityHelpers'
 import { detachPromise } from '../../utils/detachPromise'
@@ -28,6 +29,7 @@ import { buildTriggerNodeId } from '../../utils/triggerNodeIds'
 import { CanvasControls } from '../automations/canvas/CanvasControls'
 import { edgeTypes } from '../automations/canvas/edges/EdgeType'
 import { nodeTypes, type NodeType } from '../automations/canvas/nodes/NodeType'
+import { UndoRedoControls } from '../automations/canvas/UndoRedoControls'
 import { useExecutionStore } from '../automations/stores/useExecutionStore'
 
 import { ButtonEdge } from './edges/ButtonEdge'
@@ -92,6 +94,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   // Use typed selectors for optimized subscriptions
   const workflowVersion = useWorkflowStore(selectWorkflowVersion)
+  const positionUndoVersion = useWorkflowStore(selectPositionUndoVersion)
   const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
   const storedEdges = useWorkflowStore(selectEdges)
   // Subscribe to triggers array to detect when triggers are added/removed/updated
@@ -99,7 +102,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
   // Subscribe to activities array directly to detect updates to individual activities
   const activities = useWorkflowStore(selectActivities)
   // Access actions without subscribing to state changes
-  const { setEdges: setStoredEdges } = useWorkflowStoreActions()
+  const { setEdges: setStoredEdges, updateNodePositions } = useWorkflowStoreActions()
   const reactFlowInstance = useReactFlow()
   const { showError } = useAlerts()
   const { fitView, getViewport, screenToFlowPosition, updateNode } = reactFlowInstance
@@ -129,6 +132,10 @@ export function BuilderFlow(props: BuilderFlowProps) {
   const isInitializedRef = useRef(false)
   const lastWorkflowIdRef = useRef<string | null>(workflowId)
   const lastWorkflowVersionRef = useRef<number>(workflowVersion)
+  const initialNodesRef = useRef(initialNodes)
+  initialNodesRef.current = initialNodes
+  const initialEdgesRef = useRef(initialEdges)
+  initialEdgesRef.current = initialEdges
   const [nodes, setNodes] = useState<NodeType[]>([])
 
   const [edges, setEdges] = useState<EdgeType[]>([])
@@ -151,7 +158,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
       // CRITICAL: Clear nodes and edges state when switching to a different workflow
       // This ensures old workflow's edges don't persist in React Flow
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizing React Flow state with workflow store
       setNodes([])
 
       setEdges([])
@@ -160,14 +166,22 @@ export function BuilderFlow(props: BuilderFlowProps) {
       lastWorkflowIdRef.current = workflowId
       lastWorkflowVersionRef.current = workflowVersion
     } else if (workflowVersionChanged) {
-      // Workflow version changed (fresh data loaded) - need to re-initialize
-      // This handles the case where cached data was used initially, then fresh data arrives
+      // Workflow version changed (fresh data loaded or undo/redo) — re-initialize.
+      // Directly set correct nodes/edges instead of clearing to empty. Clearing
+      // and relying on the init effect to re-populate creates a window where any
+      // condition failure in the init effect leaves the canvas permanently blank.
       isInitializedRef.current = false
-      if (!currentWorkflow) {
-        setNodes([])
-
-        setEdges([])
-      }
+      const positions = useWorkflowStore.getState().nodePositions
+      const currentInitialNodes = initialNodesRef.current
+      const nodesWithPositions =
+        Object.keys(positions).length > 0
+          ? currentInitialNodes.map((n) => {
+              const stored = positions[n.id]
+              return stored ? { ...n, position: stored } : n
+            })
+          : currentInitialNodes
+      setNodes(nodesWithPositions)
+      setEdges(initialEdgesRef.current)
       lastWorkflowVersionRef.current = workflowVersion
     } else if (workflowCleared) {
       // Workflow was cleared from store (by BuilderContent cleanup) but ID didn't change
@@ -232,18 +246,65 @@ export function BuilderFlow(props: BuilderFlowProps) {
       initialNodes.length > 0 &&
       edgesMatchWorkflow
     ) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time initialization from workflow data
-      setNodes(initialNodes)
+      // Apply stored positions from the Zustand store (restored by undo/redo or saved after layout).
+      // Positions are applied here instead of in useBuilderFlowGraph to avoid cascading
+      // recomputations when positions change during normal drag operations.
+      const positions = useWorkflowStore.getState().nodePositions
+      const nodesWithPositions =
+        Object.keys(positions).length > 0
+          ? initialNodes.map((n) => {
+              const stored = positions[n.id]
+              return stored ? { ...n, position: stored } : n
+            })
+          : initialNodes
+
+      setNodes(nodesWithPositions)
 
       setEdges(initialEdges)
       isInitializedRef.current = true
     }
   }, [initialNodes, initialEdges, workflowId, workflowVersion])
 
-  // Use applyNodeChanges and applyEdgeChanges from React Flow for proper change handling
+  // Lightweight position-only undo/redo: apply restored positions in-place
+  // without a full re-initialization cycle (preserves button edges, avoids flicker).
+  const positionUndoVersionRef = useRef(positionUndoVersion)
+  useEffect(() => {
+    if (positionUndoVersion === positionUndoVersionRef.current) return
+    positionUndoVersionRef.current = positionUndoVersion
+
+    const positions = useWorkflowStore.getState().nodePositions
+    if (Object.keys(positions).length === 0) return
+
+    setNodes((prev) =>
+      prev.map((n) => {
+        const stored = positions[n.id]
+        return stored ? { ...n, position: stored } : n
+      })
+    )
+  }, [positionUndoVersion])
+
+  // Apply React Flow node changes (position, selection, etc.) to local state.
+  // Drag-end positions are persisted to the store via onNodeDragStop instead
+  // of here, because onNodesChange drag-end events may omit the final position
+  // for some node types (e.g. loop nodes).
   const onNodesChange = useCallback((changes: NodeChange<NodeType>[]) => {
     setNodes((nds) => applyNodeChanges(changes, nds))
   }, [])
+
+  // Persist final drag positions to the Zustand store for undo/redo tracking.
+  // This fires reliably for ALL node types when a drag completes.
+  const onNodeDragStop = useCallback(
+    (_event: React.MouseEvent, _node: NodeType, draggedNodes: NodeType[]) => {
+      const positions: Record<string, { x: number; y: number }> = {}
+      for (const n of draggedNodes) {
+        positions[n.id] = n.position
+      }
+      if (Object.keys(positions).length > 0) {
+        updateNodePositions(positions)
+      }
+    },
+    [updateNodePositions]
+  )
 
   const onEdgesChange = useCallback((changes: EdgeChange<EdgeType>[]) => {
     setEdges((eds) => applyEdgeChanges(changes, eds))
@@ -253,15 +314,38 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const layouted = getLayoutedElements(nodes, edges, { direction: 'LR' })
     setNodes([...layouted.nodes])
     setEdges([...layouted.edges] as EdgeType[])
+
+    const positions: Record<string, { x: number; y: number }> = {}
+    for (const n of layouted.nodes) {
+      positions[n.id] = n.position
+    }
+    updateNodePositions(positions, { markDirty: false })
+
     detachPromise(fitView({ maxZoom: 1 }))
-  }, [nodes, edges, setNodes, setEdges, fitView])
+  }, [nodes, edges, setNodes, setEdges, fitView, updateNodePositions])
 
   // Use custom hook to manage workflow initialization and layout
+  // Read positions snapshot once per version (non-reactive — avoids re-renders during drag)
+  const hasStoredPositions = useMemo(
+    () => Object.keys(useWorkflowStore.getState().nodePositions).length > 0,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workflowVersion]
+  )
+  const clearUndoHistory = useCallback(() => {
+    const temporal = useWorkflowStore.temporal.getState()
+    temporal.pause()
+    temporal.clear()
+    // Resume after React has settled (edge sync, button edge maintenance, etc.)
+    // so that post-layout derived store updates don't create spurious undo entries.
+    setTimeout(() => temporal.resume(), 200)
+  }, [])
   const { isInitialized } = useWorkflowInitialization({
     nodes,
     workflowVersion,
     triggerLayout,
     onLayout,
+    hasStoredPositions,
+    onAfterInitialLayout: clearUndoHistory,
   })
 
   // Use custom hook to manage node and edge updates
@@ -271,6 +355,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     isInitialized,
     setNodes,
     setEdges,
+    workflowVersion,
   })
 
   // Use custom hook to synchronize edges with workflow store
@@ -278,6 +363,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     edges,
     isInitialized,
     setStoredEdges,
+    workflowVersion,
   })
 
   useLoopBackNodeTypes({ edges, isInitialized, setNodes })
@@ -304,6 +390,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
     setNodes,
     getViewport,
     updateNode,
+    updateNodePositions,
     desiredPosition: newNodeDesiredPosition ?? null,
     onClearDesiredPosition,
   })
@@ -355,7 +442,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
 
   useEffect(() => {
     if (!panelOpen && pendingEdge) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- cleanup stale pending edge on panel close
       setPendingEdge(null)
     }
     if (pendingEdge) {
@@ -420,7 +506,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
     const activitiesById = new Map(activities.map((a) => [a.id, a]))
     const storedEdges = useWorkflowStore.getState().edges
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing node execution state from activity states
     setNodes((currentNodes) => {
       const anyChangedRef = { current: false }
       const updatedNodes = currentNodes.map((node) => {
@@ -457,7 +542,6 @@ export function BuilderFlow(props: BuilderFlowProps) {
     // Get current activities from workflow store
     const activities = currentWorkflow?.workflow.activities ?? []
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing edge status from WebSocket updates
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {
         const edgeExecutionStatus = executionStateEnricher.determineEdgeStatus(edge, activityStates, activities)
@@ -517,6 +601,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         nodeTypes={builderNodeTypes}
         edgeTypes={builderEdgeTypes}
         onNodesChange={onNodesChange}
+        onNodeDragStop={isExecutionView ? undefined : onNodeDragStop}
         onEdgesChange={onEdgesChange}
         onNodesDelete={isExecutionView ? undefined : onNodesDelete}
         onNodeClick={isExecutionView ? undefined : onNodeClick}
@@ -540,6 +625,7 @@ export function BuilderFlow(props: BuilderFlowProps) {
         <EdgeMarkers />
         {!isExecutionView && <Background variant={BackgroundVariant.Dots} gap={20} size={1} />}
         <CanvasControls onLayout={onLayout} hideLayout={isExecutionView} />
+        {!isExecutionView && <UndoRedoControls />}
       </ReactFlow>
     </div>
   )

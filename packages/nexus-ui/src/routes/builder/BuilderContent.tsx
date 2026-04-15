@@ -62,6 +62,7 @@ import { EditAutomationDetailsPopover } from './EditAutomationDetailsPopover'
 import { ExecutionDetailsPanel } from './ExecutionDetailsPanel'
 import { ExecutionViewContent } from './ExecutionViewContent'
 import { formatHistoryDateTime } from './historyDateUtils'
+import { useUndoRedoKeyboard } from './hooks/useUndoRedoKeyboard'
 import { NodeActionsContext, type NodeActionsContextValue } from './NodeActionsContext'
 import { RunHistoryToggleButton } from './RunHistoryToggleButton'
 import type { FlowPosition } from './types'
@@ -318,6 +319,13 @@ export function BuilderContent(props: BuilderContentProps) {
   }, [currentWorkflow])
   const isAddNodePanelOpen = addNodePanelOpen || hasNoWorkflowNodes
   const isNodeEditorOpen = nodeEditorMode !== null
+
+  useUndoRedoKeyboard({ disabled: isNodeEditorOpen || !!selectedExecutionId })
+
+  // Clear undo/redo history when leaving the builder page
+  useEffect(() => {
+    return () => useWorkflowStore.temporal.getState().clear()
+  }, [])
 
   // Fetch executions for history panel (only if not new workflow)
   const executionsQueryParams = useMemo(() => {

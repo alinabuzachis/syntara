@@ -8,6 +8,10 @@ interface UseWorkflowInitializationOptions {
   triggerLayout?: number
   onLayout: () => void
   onVersionChange?: () => void
+  /** When true, skip the automatic layout after initialization (e.g. undo/redo with stored positions). */
+  hasStoredPositions?: boolean
+  /** Called after the first automatic layout completes (useful for clearing undo history). */
+  onAfterInitialLayout?: () => void
 }
 
 /**
@@ -25,16 +29,23 @@ export function useWorkflowInitialization({
   triggerLayout,
   onLayout,
   onVersionChange,
+  hasStoredPositions = false,
+  onAfterInitialLayout,
 }: UseWorkflowInitializationOptions) {
   const [isInitialized, setIsInitialized] = useState(false)
   const hasRunInitialLayoutRef = useRef(false)
   const workflowVersionRef = useRef(workflowVersion)
 
-  // Store latest onLayout in a ref to avoid it being a dependency
+  // Store latest callbacks in refs to avoid them being dependencies
   const onLayoutRef = useRef(onLayout)
   useEffect(() => {
     onLayoutRef.current = onLayout
   }, [onLayout])
+
+  const onAfterInitialLayoutRef = useRef(onAfterInitialLayout)
+  useEffect(() => {
+    onAfterInitialLayoutRef.current = onAfterInitialLayout
+  }, [onAfterInitialLayout])
 
   // Reset initialization when workflow is replaced via setWorkflow (e.g., after save/redirect)
   useEffect(() => {
@@ -61,17 +72,19 @@ export function useWorkflowInitialization({
     }
   }, [nodes, isInitialized])
 
-  // Run layout once after initialization completes
+  // Run layout once after initialization completes.
+  // Skip when positions are already stored (undo/redo restores exact positions).
   useEffect(() => {
     if (isInitialized && !hasRunInitialLayoutRef.current) {
       hasRunInitialLayoutRef.current = true
-      // Use a small delay to ensure nodes are fully rendered before layout
+      if (hasStoredPositions) return
       const timer = setTimeout(() => {
         onLayoutRef.current()
+        onAfterInitialLayoutRef.current?.()
       }, 50)
       return () => clearTimeout(timer)
     }
-  }, [isInitialized])
+  }, [isInitialized, hasStoredPositions])
 
   // Trigger layout when requested from parent
   useEffect(() => {

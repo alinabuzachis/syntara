@@ -10,6 +10,8 @@ interface UseEdgeSynchronizationOptions {
   edges: EdgeType[]
   isInitialized: boolean
   setStoredEdges: (edges: EdgeConnection[]) => void
+  /** UI-only version counter — reset first-sync guard when this changes. */
+  workflowVersion: number
 }
 
 /**
@@ -29,10 +31,22 @@ interface UseEdgeSynchronizationOptions {
  * Note: Condition nodes remain flat during editing. Their then/else branches
  * are built only during save/serialization based on edges with sourceHandle='true'/'false'.
  */
-export function useEdgeSynchronization({ edges, isInitialized, setStoredEdges }: UseEdgeSynchronizationOptions) {
+export function useEdgeSynchronization({
+  edges,
+  isInitialized,
+  setStoredEdges,
+  workflowVersion,
+}: UseEdgeSynchronizationOptions) {
   const lastEdgesSignatureRef = useRef<string>('')
   const isSyncingRef = useRef(false)
   const isFirstSyncRef = useRef(true)
+
+  // Reset first-sync guard on version change (undo/redo, new workflow load)
+  // so the first post-re-initialization sync is skipped just like the initial mount.
+  useEffect(() => {
+    isFirstSyncRef.current = true
+    lastEdgesSignatureRef.current = ''
+  }, [workflowVersion])
 
   useEffect(() => {
     if (!isInitialized) return
@@ -116,6 +130,13 @@ export function useEdgeSynchronization({ edges, isInitialized, setStoredEdges }:
     useWorkflowStore.getState().syncConvergeNodeBranches()
     // Reorder activities to match edge topology
     useWorkflowStore.getState().reorderActivitiesFromEdges()
+
+    // If a temporal batch is pending (node add/remove paused tracking),
+    // resume now so the node mutation + this edge sync form one undo entry.
+    if (useWorkflowStore.getState()._temporalBatchPending) {
+      useWorkflowStore.setState({ _temporalBatchPending: false })
+      useWorkflowStore.temporal.getState().resume()
+    }
 
     // Clear syncing flag after a microtask to allow the workflow update to complete
     queueMicrotask(() => {

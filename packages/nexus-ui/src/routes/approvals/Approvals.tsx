@@ -74,7 +74,6 @@ function approvalsReducer(state: { expandedRows: Set<string> }, action: Approval
   }
 }
 
- 
 export default function Approvals() {
   const { isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const [{ expandedRows }, dispatch] = useReducer(approvalsReducer, {

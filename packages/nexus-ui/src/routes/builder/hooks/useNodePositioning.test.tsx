@@ -12,6 +12,8 @@ describe('useNodePositioning', () => {
   const mockContainerRef = { current: { clientWidth: 1000 } as HTMLDivElement }
   const newlyAddedNodeIdsRef = { current: new Set<string>() }
 
+  const mockUpdateNodePositions = vi.fn()
+
   const defaultParams = {
     nodes: [] as never[],
     edges: [] as never[],
@@ -21,6 +23,7 @@ describe('useNodePositioning', () => {
     setNodes: mockSetNodes,
     getViewport: mockGetViewport,
     updateNode: mockUpdateNode,
+    updateNodePositions: mockUpdateNodePositions,
     desiredPosition: null as FlowPosition | null,
     onClearDesiredPosition: undefined,
   }

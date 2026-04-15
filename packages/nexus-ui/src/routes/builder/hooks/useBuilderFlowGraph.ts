@@ -158,8 +158,6 @@ export function useBuilderFlowGraph({
       const isGeneric = (activity as ActivityWithMetadata).metadata?.__isGeneric === true
       const isApproval = activity.type === ActivityTypeEnum.APPROVAL
 
-      // All nodes start at (0, 0) - the layout engine will position them correctly
-      // Loop body nodes will be positioned relative to their parent loop by the layout engine
       const position = { x: 0, y: 0 }
 
       let nodeType: typeof FlowNodeType.GENERIC | typeof FlowNodeType.APPROVAL | typeof FlowNodeType.TASK =

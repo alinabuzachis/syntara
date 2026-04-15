@@ -1,4 +1,6 @@
-import { useWorkflowStore } from './useWorkflowStore'
+import { useStore } from 'zustand'
+
+import { edgesEqual, useWorkflowStore, workflowEqual } from './useWorkflowStore'
 import type { WorkflowStore } from './workflowStoreTypes'
 
 // ============================================================================
@@ -23,7 +25,7 @@ export const selectCurrentWorkflow = (state: WorkflowStore) => state.currentWork
  * Selector for workflow version counter (UI-only).
  * Use to detect when a completely new workflow has been loaded or batch operations complete.
  * This is a UI-only counter - NOT related to backend workflow.version or workflow.current_version.
- * Incremented by: setWorkflow, loadWorkflowWithEdges, batchAddActivitiesAndEdges.
+ * Incremented by: setWorkflow, loadWorkflowWithEdges, and content undo/redo (wrappedUndo / wrappedRedo).
  * Does NOT change when individual activities/triggers/edges are modified.
  */
 export const selectWorkflowVersion = (state: WorkflowStore) => state.workflowVersion
@@ -33,6 +35,12 @@ export const selectWorkflowVersion = (state: WorkflowStore) => state.workflowVer
  * Use when working with workflow connections.
  */
 export const selectEdges = (state: WorkflowStore) => state.edges
+
+/**
+ * Selector for canvas node positions.
+ * Used by useBuilderFlowGraph to apply stored positions during undo/redo.
+ */
+export const selectNodePositions = (state: WorkflowStore) => state.nodePositions
 
 /**
  * Selector for activities array.
@@ -119,6 +127,7 @@ export const useWorkflowStoreActions = () => {
     reorderActivitiesFromEdges: state.reorderActivitiesFromEdges,
     batchRemoveNodesAndEdges: state.batchRemoveNodesAndEdges,
     batchAddActivitiesAndEdges: state.batchAddActivitiesAndEdges,
+    updateNodePositions: state.updateNodePositions,
   }
 }
 
@@ -163,3 +172,84 @@ export const useWorkflowName = () => useWorkflowStore(selectWorkflowName)
 
 /** Hook to check if workflow is loaded */
 export const useHasWorkflow = () => useWorkflowStore(selectHasWorkflow)
+
+/** Hook to get canvas node positions */
+export const useNodePositions = () => useWorkflowStore(selectNodePositions)
+
+/**
+ * Selector for position-undo version counter (UI-only).
+ * Incremented when undo/redo restores only canvas positions (no content change).
+ */
+export const selectPositionUndoVersion = (state: WorkflowStore) => state._positionUndoVersion
+
+// ============================================================================
+// Undo/Redo (zundo temporal store)
+// ============================================================================
+
+/**
+ * Determines whether the undo/redo changed workflow content (nodes, edges)
+ * or only canvas positions.  Content changes need a full React Flow
+ * re-initialization (`workflowVersion` bump), while position-only changes
+ * can be applied in-place to preserve button edges and avoid flicker.
+ */
+function isContentChange(
+  before: { currentWorkflow: WorkflowStore['currentWorkflow']; edges: WorkflowStore['edges'] },
+  after: { currentWorkflow: WorkflowStore['currentWorkflow']; edges: WorkflowStore['edges'] }
+): boolean {
+  return !workflowEqual(before.currentWorkflow, after.currentWorkflow) || !edgesEqual(before.edges, after.edges)
+}
+
+/**
+ * Pauses temporal tracking around undo/redo so that the inevitable
+ * `useEdgeSynchronization` re-sync (local → store) that follows the React
+ * render cycle does not push a duplicate snapshot onto the undo stack.
+ * Tracking resumes on the next tick, after React has flushed.
+ *
+ * For content changes (added/removed nodes/edges), bumps `workflowVersion`
+ * to force a clean React Flow re-initialization.
+ * For position-only changes (dragged nodes), bumps `_positionUndoVersion`
+ * so BuilderFlow can apply positions in-place without full re-init.
+ */
+export function wrappedUndo(steps?: number) {
+  const temporal = useWorkflowStore.temporal.getState()
+  if (temporal.pastStates.length === 0) return
+  temporal.pause()
+  const before = useWorkflowStore.getState()
+  temporal.undo(steps)
+  const after = useWorkflowStore.getState()
+  if (isContentChange(before, after)) {
+    useWorkflowStore.setState((s) => ({ workflowVersion: s.workflowVersion + 1 }))
+  } else {
+    useWorkflowStore.setState((s) => ({ _positionUndoVersion: s._positionUndoVersion + 1 }))
+  }
+  setTimeout(() => temporal.resume(), 0)
+}
+
+export function wrappedRedo(steps?: number) {
+  const temporal = useWorkflowStore.temporal.getState()
+  if (temporal.futureStates.length === 0) return
+  temporal.pause()
+  const before = useWorkflowStore.getState()
+  temporal.redo(steps)
+  const after = useWorkflowStore.getState()
+  if (isContentChange(before, after)) {
+    useWorkflowStore.setState((s) => ({ workflowVersion: s.workflowVersion + 1 }))
+  } else {
+    useWorkflowStore.setState((s) => ({ _positionUndoVersion: s._positionUndoVersion + 1 }))
+  }
+  setTimeout(() => temporal.resume(), 0)
+}
+
+/**
+ * Hook to access undo/redo actions and state from the temporal middleware.
+ *
+ * Returns `{ undo, redo, canUndo, canRedo, clear }`.
+ */
+export function useWorkflowHistory() {
+  const temporalStore = useWorkflowStore.temporal
+  const canUndo = useStore(temporalStore, (s) => s.pastStates.length > 0)
+  const canRedo = useStore(temporalStore, (s) => s.futureStates.length > 0)
+  const clear = temporalStore.getState().clear
+
+  return { undo: wrappedUndo, redo: wrappedRedo, canUndo, canRedo, clear }
+}

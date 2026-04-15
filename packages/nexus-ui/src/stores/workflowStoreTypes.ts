@@ -121,6 +121,22 @@ export interface WorkflowStore {
    */
   workflowVersion: number
   edges: EdgeConnection[]
+  /** Canvas positions keyed by node ID (activity or trigger display ID). */
+  nodePositions: Record<string, { x: number; y: number }>
+  /**
+   * UI-only counter incremented when undo/redo restores only node positions
+   * (no workflow content change).  BuilderFlow subscribes to this to apply
+   * positions in-place without a full React Flow re-initialization cycle.
+   * NOT partialized — temporal does not track this.
+   */
+  _positionUndoVersion: number
+  /**
+   * When true, the edge sync should resume temporal tracking after pushing edges.
+   * Set by addActivity / batchAddActivitiesAndEdges
+   * to group the node change + subsequent derived edge sync into one undo entry.
+   * NOT partialized — temporal does not track this.
+   */
+  _temporalBatchPending: boolean
   isDirty: boolean // Tracks whether changes have been made since last save/load
   setWorkflow: (workflow: WorkflowDefinition | null) => void
   // Atomic operation to load workflow and edges together - prevents race conditions
@@ -162,4 +178,9 @@ export interface WorkflowStore {
   // Atomic batch update to prevent race conditions
   batchRemoveNodesAndEdges: (params: { nodeIds: string[]; edges: EdgeConnection[]; triggerIndices?: number[] }) => void
   batchAddActivitiesAndEdges: (params: { activities: Activity[]; edges: EdgeConnection[] }) => void
+  /** Batch-update canvas positions (merges with existing). */
+  updateNodePositions: (
+    positions: Record<string, { x: number; y: number }>,
+    options?: { markDirty?: boolean; skipTracking?: boolean }
+  ) => void
 }

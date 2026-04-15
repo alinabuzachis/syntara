@@ -40,6 +40,7 @@ vi.spyOn(workflowStore, 'useWorkflowStoreActions').mockImplementation(() => ({
   reorderActivitiesFromEdges: vi.fn(),
   batchRemoveNodesAndEdges: vi.fn(),
   batchAddActivitiesAndEdges: vi.fn(),
+  updateNodePositions: vi.fn(),
 }))
 
 vi.spyOn(workflowStore, 'createAAPJobTemplateActivity').mockImplementation(mockCreateAAPJobTemplateActivity)

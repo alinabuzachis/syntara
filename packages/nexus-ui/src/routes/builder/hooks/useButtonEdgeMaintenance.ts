@@ -89,16 +89,21 @@ export function useButtonEdgeMaintenance({
   }
   const onAddHandlerSignature = onAddHandlerSerialRef.current
 
-  // Track the last processed signature to prevent duplicate runs in React Strict Mode
+  // Dedup signature prevents duplicate runs when deps change but content is the same.
   const lastProcessedSignatureRef = useRef<string>('')
 
-  // CRITICAL: Reset signature when edges are cleared (workflow switch)
-  // This prevents old workflow signatures from blocking new workflow processing
+  // Reset dedup when isInitialized transitions false → true (after undo/redo or
+  // initial load). This is the authoritative signal that React Flow has settled
+  // with correct restored data. Without this reset, the main effect might skip
+  // processing if the new signature happens to match the stale one.
+  const prevIsInitRef = useRef(isInitialized)
   useEffect(() => {
-    if (edges.length === 0 && lastProcessedSignatureRef.current !== '') {
+    const wasUninit = !prevIsInitRef.current
+    prevIsInitRef.current = isInitialized
+    if (wasUninit && isInitialized) {
       lastProcessedSignatureRef.current = ''
     }
-  }, [edges.length])
+  }, [isInitialized])
 
   // Maintain button edges: add to nodes without outgoing edges, remove from nodes with outgoing edges
   useEffect(() => {

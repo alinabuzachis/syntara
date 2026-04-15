@@ -744,4 +744,115 @@ describe('useWorkflowStore', () => {
       expect(edges.map((e) => e.id)).toEqual(['e-out', 'e-in'])
     })
   })
+
+  describe('undo/redo (temporal middleware)', () => {
+    beforeEach(() => {
+      useWorkflowStore.setState({ _temporalBatchPending: false })
+      useWorkflowStore.temporal.getState().resume()
+      useWorkflowStore.temporal.getState().clear()
+    })
+
+    // Simulate edge sync completing the temporal batch started by addActivity
+    function completeTemporalBatch() {
+      useWorkflowStore.setState({ _temporalBatchPending: false })
+      useWorkflowStore.temporal.getState().resume()
+    }
+
+    // --- Activity undo/redo ---
+
+    it('undoes the last activity addition', () => {
+      const workflow = makeWorkflow('Test')
+      useWorkflowStore.getState().loadWorkflowWithEdges(workflow, [])
+
+      useWorkflowStore.getState().addActivity(createScriptActivity('a1', 'Step 1', 'python', 'pass'))
+      completeTemporalBatch()
+      expect(useWorkflowStore.getState().currentWorkflow?.workflow.activities).toHaveLength(1)
+
+      useWorkflowStore.temporal.getState().undo()
+      expect(useWorkflowStore.getState().currentWorkflow?.workflow.activities).toHaveLength(0)
+    })
+
+    it('redoes after undo', () => {
+      const workflow = makeWorkflow('Test')
+      useWorkflowStore.getState().loadWorkflowWithEdges(workflow, [])
+
+      useWorkflowStore.getState().addActivity(createScriptActivity('a1', 'Step 1', 'python', 'pass'))
+      completeTemporalBatch()
+
+      useWorkflowStore.temporal.getState().undo()
+      expect(useWorkflowStore.getState().currentWorkflow?.workflow.activities).toHaveLength(0)
+
+      useWorkflowStore.temporal.getState().redo()
+      expect(useWorkflowStore.getState().currentWorkflow?.workflow.activities).toHaveLength(1)
+    })
+
+    // --- Edge undo ---
+
+    it('undoes edge changes', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [])
+
+      const edges: EdgeConnection[] = [
+        { id: 'e1', source: 'a', target: 'b', sourceHandle: 'source', targetHandle: 'target' },
+      ]
+      useWorkflowStore.getState().setEdges(edges)
+      expect(useWorkflowStore.getState().edges).toHaveLength(1)
+
+      useWorkflowStore.temporal.getState().undo()
+      expect(useWorkflowStore.getState().edges).toHaveLength(0)
+    })
+
+    // --- Multiple undo steps ---
+
+    it('supports multiple undo steps', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('v0'), [])
+
+      useWorkflowStore.getState().updateWorkflow((wf) => ({ ...wf, name: 'v1' }))
+      useWorkflowStore.getState().updateWorkflow((wf) => ({ ...wf, name: 'v2' }))
+      useWorkflowStore.getState().updateWorkflow((wf) => ({ ...wf, name: 'v3' }))
+
+      expect(useWorkflowStore.getState().currentWorkflow?.name).toBe('v3')
+
+      useWorkflowStore.temporal.getState().undo()
+      expect(useWorkflowStore.getState().currentWorkflow?.name).toBe('v2')
+
+      useWorkflowStore.temporal.getState().undo()
+      expect(useWorkflowStore.getState().currentWorkflow?.name).toBe('v1')
+
+      useWorkflowStore.temporal.getState().undo()
+      expect(useWorkflowStore.getState().currentWorkflow?.name).toBe('v0')
+    })
+
+    // --- Exclusions ---
+
+    it('does not create undo entry for markClean/markDirty (not tracked)', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Test'), [])
+      const pastBefore = useWorkflowStore.temporal.getState().pastStates.length
+
+      useWorkflowStore.getState().markDirty()
+      useWorkflowStore.getState().markClean()
+
+      expect(useWorkflowStore.temporal.getState().pastStates.length).toBe(pastBefore)
+    })
+
+    // --- History cleared on workflow load ---
+
+    it('clears history when a new workflow is loaded via setWorkflow', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Workflow 1'), [])
+      useWorkflowStore.getState().updateWorkflow((wf) => ({ ...wf, name: 'changed' }))
+      expect(useWorkflowStore.temporal.getState().pastStates.length).toBeGreaterThan(0)
+
+      useWorkflowStore.getState().setWorkflow(makeWorkflow('Workflow 2'))
+      expect(useWorkflowStore.temporal.getState().pastStates.length).toBe(0)
+      expect(useWorkflowStore.temporal.getState().futureStates.length).toBe(0)
+    })
+
+    it('clears history when a new workflow is loaded via loadWorkflowWithEdges', () => {
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Workflow 1'), [])
+      useWorkflowStore.getState().updateWorkflow((wf) => ({ ...wf, name: 'changed' }))
+      expect(useWorkflowStore.temporal.getState().pastStates.length).toBeGreaterThan(0)
+
+      useWorkflowStore.getState().loadWorkflowWithEdges(makeWorkflow('Workflow 2'), [])
+      expect(useWorkflowStore.temporal.getState().pastStates.length).toBe(0)
+    })
+  })
 })

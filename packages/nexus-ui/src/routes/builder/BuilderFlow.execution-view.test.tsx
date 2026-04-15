@@ -13,6 +13,7 @@ const workflowStoreState = {
   currentWorkflow: null as Record<string, unknown> | null,
   workflowVersion: 1,
   edges: [] as Array<Record<string, unknown>>,
+  nodePositions: {} as Record<string, { x: number; y: number }>,
   triggers: [] as Array<Record<string, unknown>>,
   activities: [] as Array<Record<string, unknown>>,
 }
@@ -127,10 +128,13 @@ vi.mock('../../stores/useWorkflowStore', () => {
       setWorkflow: vi.fn(),
       setEdges: vi.fn(),
       loadWorkflowWithEdges: vi.fn(),
+      updateNodePositions: vi.fn(),
     }),
     selectCurrentWorkflow: (state: Record<string, unknown>) => state.currentWorkflow,
     selectWorkflowVersion: (state: Record<string, unknown>) => state.workflowVersion,
+    selectPositionUndoVersion: (state: Record<string, unknown>) => state._positionUndoVersion ?? 0,
     selectEdges: (state: Record<string, unknown>) => state.edges,
+    selectNodePositions: (state: Record<string, unknown>) => state.nodePositions,
     selectTriggers: (state: Record<string, unknown>) => state.triggers,
     selectActivities: (state: Record<string, unknown>) => state.activities,
   }

@@ -29,6 +29,8 @@ interface UseNodeUpdatesOptions {
   setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>
   setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
   onNewNodesAdded?: (newNodeIds: string[]) => void
+  /** UI-only version counter — reset tracking refs when this changes (undo/redo, new workflow). */
+  workflowVersion: number
 }
 
 /**
@@ -47,11 +49,24 @@ export function useNodeUpdates({
   setNodes,
   setEdges,
   onNewNodesAdded,
+  workflowVersion,
 }: UseNodeUpdatesOptions) {
   const previousNodeIdsRef = useRef<Set<string>>(new Set())
   const previousInitialNodesRef = useRef<NodeType[]>(initialNodes)
   const previousInitialEdgesRef = useRef<EdgeType[]>(initialEdges)
   const newlyAddedNodeIdsRef = useRef<Set<string>>(new Set())
+
+  // Reset tracking refs when workflowVersion changes (undo/redo, new workflow load).
+  // This prevents useNodeUpdates from mis-detecting "deleted" or "new" nodes based
+  // on stale refs from before the version change.
+  useEffect(() => {
+    previousNodeIdsRef.current = new Set(initialNodes.map((n) => n.id))
+    previousInitialNodesRef.current = initialNodes
+    previousInitialEdgesRef.current = initialEdges
+    newlyAddedNodeIdsRef.current = new Set()
+    // Only reset on version change, not when initialNodes changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workflowVersion])
 
   // Update nodes when workflow changes
   useEffect(() => {
@@ -75,8 +90,11 @@ export function useNodeUpdates({
         return edge.id !== prevEdge?.id || edge.source !== prevEdge?.source || edge.target !== prevEdge?.target
       })
 
-    // If nothing changed, skip the entire update
-    if (!nodesDataChanged && !edgesDataChanged && isInitialized) {
+    // If nothing changed, skip the entire update.
+    // This must apply regardless of isInitialized — when undo/redo triggers
+    // an isInitialized true→false→true cycle, firing the !isInitialized branch
+    // would overwrite correctly-positioned nodes with (0,0) defaults.
+    if (!nodesDataChanged && !edgesDataChanged) {
       return
     }
 
@@ -143,7 +161,7 @@ export function useNodeUpdates({
 
       // DO NOT merge initialEdges after initialization
       // Edge deletions are handled by onNodesDelete in BuilderFlow
-      // Merging initialEdges here causes race conditions and ghost edges
+      // Undo/redo uses workflowVersion bump which triggers full re-initialization
       previousNodeIdsRef.current = currentNodeIds
     } else if (isInitialized && nodesDataChanged) {
       // Handle data changes to existing nodes (no additions or deletions)

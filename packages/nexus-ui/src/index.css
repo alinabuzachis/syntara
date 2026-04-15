@@ -13,7 +13,11 @@
     color-mix(in srgb, var(--pf-t--color--blue--80) 70%, var(--pf-t--color--blue--60) 30%) 88%,
     var(--pf-t--color--purple--70) 12%
   );
-  --nexus-deep-space-chroma-right: color-mix(in srgb, var(--pf-t--color--purple--70) 72%, var(--pf-t--color--purple--80) 28%);
+  --nexus-deep-space-chroma-right: color-mix(
+    in srgb,
+    var(--pf-t--color--purple--70) 72%,
+    var(--pf-t--color--purple--80) 28%
+  );
   --nexus-deep-space-chroma-top: color-mix(in srgb, var(--pf-t--color--blue--70) 52%, var(--pf-t--color--blue--60) 48%);
   /* #00464C legacy ≈ teal-70 #004d4d */
   --nexus-deep-space-chroma-bottom: var(--pf-t--color--teal--70);

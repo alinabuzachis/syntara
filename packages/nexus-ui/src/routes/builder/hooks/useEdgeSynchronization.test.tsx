@@ -35,6 +35,7 @@ describe('useEdgeSynchronization', () => {
         edges: edges as never[],
         isInitialized: false,
         setStoredEdges: mockSetStoredEdges,
+        workflowVersion: 1,
       })
     )
 
@@ -49,6 +50,7 @@ describe('useEdgeSynchronization', () => {
         edges: edges as never[],
         isInitialized: true,
         setStoredEdges: mockSetStoredEdges,
+        workflowVersion: 1,
       })
     )
 
@@ -67,6 +69,7 @@ describe('useEdgeSynchronization', () => {
           edges: edges as never[],
           isInitialized: true,
           setStoredEdges: mockSetStoredEdges,
+          workflowVersion: 1,
         }),
       { initialProps: { edges } }
     )
@@ -97,6 +100,7 @@ describe('useEdgeSynchronization', () => {
           edges: edges as never[],
           isInitialized: true,
           setStoredEdges: mockSetStoredEdges,
+          workflowVersion: 1,
         }),
       { initialProps: { edges } }
     )
@@ -124,6 +128,7 @@ describe('useEdgeSynchronization', () => {
         edges: edges as never[],
         isInitialized: true,
         setStoredEdges: mockSetStoredEdges,
+        workflowVersion: 1,
       })
     )
 
@@ -140,6 +145,7 @@ describe('useEdgeSynchronization', () => {
           edges: edges as never[],
           isInitialized: true,
           setStoredEdges: mockSetStoredEdges,
+          workflowVersion: 1,
         }),
       { initialProps: { edges } }
     )
@@ -169,6 +175,7 @@ describe('useEdgeSynchronization', () => {
           edges: edges as never[],
           isInitialized: true,
           setStoredEdges: mockSetStoredEdges,
+          workflowVersion: 1,
         }),
       { initialProps: { edges } }
     )
@@ -200,6 +207,7 @@ describe('useEdgeSynchronization', () => {
           edges: edges as never[],
           isInitialized: true,
           setStoredEdges: mockSetStoredEdges,
+          workflowVersion: 1,
         }),
       { initialProps: { edges } }
     )
@@ -232,6 +240,7 @@ describe('useEdgeSynchronization', () => {
           edges: edges as never[],
           isInitialized: true,
           setStoredEdges: mockSetStoredEdges,
+          workflowVersion: 1,
         }),
       { initialProps: { edges } }
     )
@@ -262,6 +271,7 @@ describe('useEdgeSynchronization', () => {
           edges: edges as never[],
           isInitialized: true,
           setStoredEdges: mockSetStoredEdges,
+          workflowVersion: 1,
         }),
       { initialProps: { edges } }
     )
@@ -298,6 +308,7 @@ describe('useEdgeSynchronization', () => {
           edges: edges as never[],
           isInitialized: true,
           setStoredEdges: mockSetStoredEdges,
+          workflowVersion: 1,
         }),
       { initialProps: { edges } }
     )
