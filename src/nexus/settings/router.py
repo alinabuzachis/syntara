@@ -3,7 +3,7 @@
 import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit import EventCategory, track_event
@@ -11,6 +11,7 @@ from nexus.auth import get_current_user
 from nexus.authz.dependencies import PermissionChecker
 from nexus.core.database.session import get_db
 from nexus.core.models import User
+from nexus.core.nexus_router import NexusRouter
 from nexus.settings.models.api_models import (
     CategoriesListResponse,
     RuntimeSettingRead,
@@ -21,7 +22,7 @@ from nexus.settings.models.api_models import (
 from nexus.settings.models.query_params import SettingsListParams
 from nexus.settings.services.settings_service import SettingsService
 
-router = APIRouter(prefix="/settings", tags=["settings"])
+router = NexusRouter(prefix="/settings", tags=["settings"])
 
 
 # ============================================================================
