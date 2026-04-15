@@ -28,6 +28,7 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { useDetailTab } from '../../../hooks/useDetailTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { accessClient } from '../../access/accessClient'
+import { DetailPageShell } from '../DetailPageShell'
 import { GroupFormModal } from '../GroupFormModal'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
 
@@ -154,31 +155,19 @@ export function GroupDetail() {
 
   if (groupQuery.error) {
     return (
-      <AppPage>
-        <AppPageHeader title="Group Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <GroupNotFoundState
-              onBack={navigateBack}
-              onRetry={() => {
-                refetchGroup().catch(() => {})
-              }}
-            />
-          </CompassPanel>
-        </StackItem>
-      </AppPage>
+      <DetailPageShell title="Group Details">
+        <GroupNotFoundState
+          onBack={navigateBack}
+          onRetry={() => {
+            refetchGroup().catch(() => {})
+          }}
+        />
+      </DetailPageShell>
     )
   }
 
   if (queryState) {
-    return (
-      <AppPage>
-        <AppPageHeader title="Group Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
-        </StackItem>
-      </AppPage>
-    )
+    return <DetailPageShell title="Group Details">{queryState}</DetailPageShell>
   }
 
   if (!groupData) return null

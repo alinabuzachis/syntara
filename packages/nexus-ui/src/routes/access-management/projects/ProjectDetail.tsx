@@ -29,6 +29,7 @@ import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useEffect, useMemo, useState } from 'react'
+import type { Control, FieldValues, Path } from 'react-hook-form'
 import { Controller, useForm } from 'react-hook-form'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
@@ -50,6 +51,7 @@ import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
 import type { ProjectRead } from '../../access/types'
 import { useAllUsers } from '../../access/useAllUsers'
+import { DetailPageShell } from '../DetailPageShell'
 
 import { ProjectNotFoundState } from './ProjectNotFoundState'
 import { UnassignProjectRoleDialog } from './UnassignProjectRoleDialog'
@@ -111,6 +113,58 @@ const assignProjectRoleSchema = z.object({
 })
 
 type AssignProjectRoleFormData = z.infer<typeof assignProjectRoleSchema>
+
+interface TypeaheadFormFieldProps<T extends FieldValues> {
+  name: Path<T>
+  control: Control<T>
+  label: string
+  fieldId: string
+  ariaLabel: string
+  options: { value: string; label: string; description?: string }[]
+  placeholder: string
+  isDisabled?: boolean
+}
+
+function TypeaheadFormField<T extends FieldValues>({
+  name,
+  control,
+  label,
+  fieldId,
+  ariaLabel,
+  options,
+  placeholder,
+  isDisabled,
+}: Readonly<TypeaheadFormFieldProps<T>>) {
+  return (
+    <FormGroup label={label} fieldId={fieldId} isRequired>
+      <Controller
+        name={name}
+        control={control}
+        render={({ field, fieldState }) => (
+          <>
+            <TypeaheadSelect
+              id={fieldId}
+              ariaLabel={ariaLabel}
+              options={options}
+              selected={field.value as string}
+              onChange={field.onChange}
+              placeholder={placeholder}
+              hasError={!!fieldState.error}
+              isDisabled={isDisabled}
+            />
+            {fieldState.error && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </>
+        )}
+      />
+    </FormGroup>
+  )
+}
 
 interface AssignProjectRoleModalProps {
   projectId: string
@@ -194,60 +248,26 @@ function AssignProjectRoleModal({
       <ModalHeader title="Assign role" />
       <ModalBody>
         <Form id="assign-project-role-form" onSubmit={onSubmit}>
-          <FormGroup label="User" fieldId="user-select" isRequired>
-            <Controller
-              name="userId"
-              control={control}
-              render={({ field, fieldState }) => (
-                <>
-                  <TypeaheadSelect
-                    id="user-select"
-                    ariaLabel="User"
-                    options={userOptions}
-                    selected={field.value}
-                    onChange={field.onChange}
-                    placeholder={usersLoading ? 'Loading users...' : 'Select a user...'}
-                    hasError={!!fieldState.error}
-                    isDisabled={usersLoading}
-                  />
-                  {fieldState.error && (
-                    <FormHelperText>
-                      <HelperText>
-                        <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
-                      </HelperText>
-                    </FormHelperText>
-                  )}
-                </>
-              )}
-            />
-          </FormGroup>
-          <FormGroup label="Role" fieldId="role-select" isRequired>
-            <Controller
-              name="roleName"
-              control={control}
-              render={({ field, fieldState }) => (
-                <>
-                  <TypeaheadSelect
-                    id="role-select"
-                    ariaLabel="Role"
-                    options={roleOptions}
-                    selected={field.value}
-                    onChange={field.onChange}
-                    placeholder={rolesLoading ? 'Loading roles...' : 'Select a role...'}
-                    hasError={!!fieldState.error}
-                    isDisabled={rolesLoading || !selectedUserId}
-                  />
-                  {fieldState.error && (
-                    <FormHelperText>
-                      <HelperText>
-                        <HelperTextItem variant="error">{fieldState.error.message}</HelperTextItem>
-                      </HelperText>
-                    </FormHelperText>
-                  )}
-                </>
-              )}
-            />
-          </FormGroup>
+          <TypeaheadFormField
+            name="userId"
+            control={control}
+            label="User"
+            fieldId="user-select"
+            ariaLabel="User"
+            options={userOptions}
+            placeholder={usersLoading ? 'Loading users...' : 'Select a user...'}
+            isDisabled={usersLoading}
+          />
+          <TypeaheadFormField
+            name="roleName"
+            control={control}
+            label="Role"
+            fieldId="role-select"
+            ariaLabel="Role"
+            options={roleOptions}
+            placeholder={rolesLoading ? 'Loading roles...' : 'Select a role...'}
+            isDisabled={rolesLoading || !selectedUserId}
+          />
         </Form>
       </ModalBody>
       <ModalFooter>
@@ -451,31 +471,19 @@ export function ProjectDetail() {
 
   if (projectQuery.error) {
     return (
-      <AppPage>
-        <AppPageHeader title="Project Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <ProjectNotFoundState
-              onBack={navigateBack}
-              onRetry={() => {
-                refetchProject().catch(() => {})
-              }}
-            />
-          </CompassPanel>
-        </StackItem>
-      </AppPage>
+      <DetailPageShell title="Project Details">
+        <ProjectNotFoundState
+          onBack={navigateBack}
+          onRetry={() => {
+            refetchProject().catch(() => {})
+          }}
+        />
+      </DetailPageShell>
     )
   }
 
   if (queryState) {
-    return (
-      <AppPage>
-        <AppPageHeader title="Project Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
-        </StackItem>
-      </AppPage>
-    )
+    return <DetailPageShell title="Project Details">{queryState}</DetailPageShell>
   }
 
   if (!projectData) return null

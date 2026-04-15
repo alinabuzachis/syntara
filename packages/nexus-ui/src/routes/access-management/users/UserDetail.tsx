@@ -27,6 +27,7 @@ import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { accessClient } from '../../access/accessClient'
+import { DetailPageShell } from '../DetailPageShell'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
 import { splitFullName } from '../userFormSchema'
 
@@ -113,31 +114,19 @@ export function UserDetail() {
 
   if (userQuery.error) {
     return (
-      <AppPage>
-        <AppPageHeader title="User Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <UserNotFoundState
-              onBack={navigateBack}
-              onRetry={() => {
-                detachPromise(refetchUser())
-              }}
-            />
-          </CompassPanel>
-        </StackItem>
-      </AppPage>
+      <DetailPageShell title="User Details">
+        <UserNotFoundState
+          onBack={navigateBack}
+          onRetry={() => {
+            detachPromise(refetchUser())
+          }}
+        />
+      </DetailPageShell>
     )
   }
 
   if (queryState) {
-    return (
-      <AppPage>
-        <AppPageHeader title="User Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
-        </StackItem>
-      </AppPage>
-    )
+    return <DetailPageShell title="User Details">{queryState}</DetailPageShell>
   }
 
   if (!userData) return null
