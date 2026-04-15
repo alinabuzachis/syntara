@@ -71,17 +71,12 @@ async def get_policy(
     return PolicyRead.model_validate(policy)
 
 
-@router.api_route(
-    "/{policy_id}",
-    methods=["PATCH", "PUT"],
-    dependencies=[Depends(PermissionChecker("policy", "update", roles=["admin"]))],
-)
-async def update_policy(
+async def _do_update_policy(
     policy_id: UUID,
     body: PolicyUpdate,
-    service: Annotated[PolicyService, Depends(get_policy_service)],
+    service: PolicyService,
 ) -> PolicyRead:
-    """Update a policy. Builtin policies cannot be modified. Requires: policy:update permission."""
+    """Shared implementation for PATCH and PUT policy updates."""
     statements = None
     if body.statements is not None:
         statements = [s.model_dump(exclude_none=True) for s in body.statements]
@@ -93,6 +88,32 @@ async def update_policy(
         labels=body.labels,
     )
     return PolicyRead.model_validate(policy)
+
+
+@router.patch(
+    "/{policy_id}",
+    dependencies=[Depends(PermissionChecker("policy", "update", roles=["admin"]))],
+)
+async def update_policy(
+    policy_id: UUID,
+    body: PolicyUpdate,
+    service: Annotated[PolicyService, Depends(get_policy_service)],
+) -> PolicyRead:
+    """Patch a policy. Builtin policies cannot be modified. Requires: policy:update permission."""
+    return await _do_update_policy(policy_id, body, service)
+
+
+@router.put(
+    "/{policy_id}",
+    dependencies=[Depends(PermissionChecker("policy", "update", roles=["admin"]))],
+)
+async def replace_policy(
+    policy_id: UUID,
+    body: PolicyUpdate,
+    service: Annotated[PolicyService, Depends(get_policy_service)],
+) -> PolicyRead:
+    """Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission."""
+    return await _do_update_policy(policy_id, body, service)
 
 
 @router.delete(

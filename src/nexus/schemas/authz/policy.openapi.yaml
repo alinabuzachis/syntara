@@ -160,7 +160,7 @@ paths:
       description: |
         Update a policy. Builtin policies cannot be modified.
         Requires: policy:update permission (admin role).
-      operationId: update_policy_put
+      operationId: replace_policy
       tags:
         - Policies
       parameters:

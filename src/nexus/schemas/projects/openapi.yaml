@@ -150,7 +150,7 @@ paths:
       description: |
         Update a project.
         Requires: project:update permission scoped to this project.
-      operationId: update_project_put
+      operationId: replace_project
       tags:
         - Projects
       parameters:

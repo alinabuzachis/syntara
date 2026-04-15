@@ -71,17 +71,12 @@ async def get_role(
     return await service.to_role_read(role)
 
 
-@router.api_route(
-    "/{role_id}",
-    methods=["PATCH", "PUT"],
-    dependencies=[Depends(PermissionChecker("role", "update", roles=["admin"]))],
-)
-async def update_role(
+async def _do_update_role(
     role_id: UUID,
     body: RoleUpdate,
-    service: Annotated[RoleService, Depends(get_role_service)],
+    service: RoleService,
 ) -> RoleRead:
-    """Update a role. Builtin roles cannot be modified. Requires: role:update permission."""
+    """Shared implementation for PATCH and PUT role updates."""
     role = await service.update_role(
         role_id=role_id,
         name=body.name,
@@ -90,6 +85,32 @@ async def update_role(
         labels=body.labels,
     )
     return await service.to_role_read(role)
+
+
+@router.patch(
+    "/{role_id}",
+    dependencies=[Depends(PermissionChecker("role", "update", roles=["admin"]))],
+)
+async def update_role(
+    role_id: UUID,
+    body: RoleUpdate,
+    service: Annotated[RoleService, Depends(get_role_service)],
+) -> RoleRead:
+    """Patch a role. Builtin roles cannot be modified. Requires: role:update permission."""
+    return await _do_update_role(role_id, body, service)
+
+
+@router.put(
+    "/{role_id}",
+    dependencies=[Depends(PermissionChecker("role", "update", roles=["admin"]))],
+)
+async def replace_role(
+    role_id: UUID,
+    body: RoleUpdate,
+    service: Annotated[RoleService, Depends(get_role_service)],
+) -> RoleRead:
+    """Replace a role. Builtin roles cannot be modified. Requires: role:update permission."""
+    return await _do_update_role(role_id, body, service)
 
 
 @router.delete(

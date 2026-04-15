@@ -159,7 +159,7 @@ paths:
       description: |
         Update a role. Builtin roles cannot be modified.
         Requires: role:update permission (admin role).
-      operationId: update_role_put
+      operationId: replace_role
       tags:
         - Roles
       parameters:

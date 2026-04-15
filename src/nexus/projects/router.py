@@ -108,17 +108,12 @@ async def get_project(
     return ProjectRead.model_validate(project)
 
 
-@router.api_route(
-    "/{project_id}",
-    methods=["PATCH", "PUT"],
-    dependencies=[Depends(_perm_project_update)],
-)
-async def update_project(
+async def _do_update_project(
     project_id: UUID,
     body: ProjectUpdate,
-    service: Annotated[ProjectService, Depends(get_project_service)],
+    service: ProjectService,
 ) -> ProjectRead:
-    """Update a project. Requires: project:update permission scoped to this project."""
+    """Shared implementation for PATCH and PUT project updates."""
     project = await service.update_project(
         project_id=project_id,
         name=body.name,
@@ -126,6 +121,32 @@ async def update_project(
         labels=body.labels,
     )
     return ProjectRead.model_validate(project)
+
+
+@router.patch(
+    "/{project_id}",
+    dependencies=[Depends(_perm_project_update)],
+)
+async def update_project(
+    project_id: UUID,
+    body: ProjectUpdate,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+) -> ProjectRead:
+    """Patch a project. Requires: project:update permission scoped to this project."""
+    return await _do_update_project(project_id, body, service)
+
+
+@router.put(
+    "/{project_id}",
+    dependencies=[Depends(_perm_project_update)],
+)
+async def replace_project(
+    project_id: UUID,
+    body: ProjectUpdate,
+    service: Annotated[ProjectService, Depends(get_project_service)],
+) -> ProjectRead:
+    """Replace a project. Requires: project:update permission scoped to this project."""
+    return await _do_update_project(project_id, body, service)
 
 
 @router.delete(

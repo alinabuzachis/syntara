@@ -743,7 +743,7 @@ paths:
       description: |
         Update a policy. Builtin policies cannot be modified.
         Requires: policy:update permission (admin role).
-      operationId: update_policy_put
+      operationId: replace_policy
       tags:
         - Policies
       parameters:
@@ -957,7 +957,7 @@ paths:
       description: |
         Update a role. Builtin roles cannot be modified.
         Requires: role:update permission (admin role).
-      operationId: update_role_put
+      operationId: replace_role
       tags:
         - Roles
       parameters:
@@ -2872,7 +2872,7 @@ paths:
       description: |
         Update a project.
         Requires: project:update permission scoped to this project.
-      operationId: update_project_put
+      operationId: replace_project
       tags:
         - Projects
       parameters:
