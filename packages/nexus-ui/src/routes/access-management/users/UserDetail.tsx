@@ -1,8 +1,6 @@
 import type { User } from '@ansible/nexus-contracts'
 import {
   Badge,
-  Breadcrumb,
-  BreadcrumbItem,
   Button,
   CompassPanel,
   DescriptionList,
@@ -144,24 +142,9 @@ export function UserDetail() {
 
   if (!userData) return null
 
-  const breadcrumb = (
-    <Breadcrumb>
-      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Users)}>
-        Access Management
-      </BreadcrumbItem>
-      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Users)}>
-        Users
-      </BreadcrumbItem>
-      <BreadcrumbItem isActive>{userData.full_name ?? userData.username}</BreadcrumbItem>
-    </Breadcrumb>
-  )
-
   return (
     <AppPage>
-      <AppPageHeader
-        title={<Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>}
-        breadcrumb={breadcrumb}
-      >
+      <AppPageHeader title={<Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>}>
         <FlexItem grow={{ default: 'grow' }} />
         <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
           Edit user

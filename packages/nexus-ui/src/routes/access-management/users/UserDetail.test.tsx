@@ -387,17 +387,6 @@ describe('UserDetail', () => {
   // ---- Navigation ---------------------------------------------------------
 
   describe('Navigation', () => {
-    it('navigates back to users list when Users breadcrumb is clicked', async () => {
-      const user = userEvent.setup()
-      render(<UserDetail />, { wrapper })
-
-      // The breadcrumb renders "Users" as a button that navigates back
-      const breadcrumbButtons = screen.getAllByRole('button', { name: 'Users' })
-      await user.click(breadcrumbButtons[0])
-
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users')
-    })
-
     it('navigates to edit page when Edit user button is clicked', async () => {
       const user = userEvent.setup()
       render(<UserDetail />, { wrapper })

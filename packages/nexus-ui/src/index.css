@@ -207,8 +207,3 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
     display: none !important;
   }
 }
-
-/* Remove underline from breadcrumb links */
-.app-breadcrumb-no-underline .pf-v6-c-breadcrumb__link {
-  text-decoration: none;
-}

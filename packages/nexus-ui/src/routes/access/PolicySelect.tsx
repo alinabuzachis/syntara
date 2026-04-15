@@ -20,12 +20,22 @@ interface PolicySelectProps {
   selected: string[]
   onChange: (selected: string[]) => void
   hasError?: boolean
+  /** Filter policies by project scope. `null` = system-only, UUID = that project's policies. */
+  scopeProjectId?: string | null
+  /** When true, the select is disabled (e.g. waiting for project selection). */
+  isDisabled?: boolean
 }
 
 const DEBOUNCE_MS = 300
 const PAGE_SIZE = 50
 
-export function PolicySelect({ selected, onChange, hasError }: Readonly<PolicySelectProps>) {
+export function PolicySelect({
+  selected,
+  onChange,
+  hasError,
+  scopeProjectId,
+  isDisabled,
+}: Readonly<PolicySelectProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
   const [debouncedFilter, setDebouncedFilter] = useState('')
@@ -43,7 +53,15 @@ export function PolicySelect({ selected, onChange, hasError }: Readonly<PolicySe
   const policiesQuery = accessClient.useQuery(
     'get',
     '/policies',
-    { params: { query: { limit: PAGE_SIZE, 'name[contains]': debouncedFilter || undefined } } },
+    {
+      params: {
+        query: {
+          limit: PAGE_SIZE,
+          'name[contains]': debouncedFilter || undefined,
+          ...(scopeProjectId !== undefined ? { project_id: scopeProjectId ?? '' } : {}),
+        },
+      },
+    },
     { enabled: isOpen }
   )
 
@@ -104,9 +122,10 @@ export function PolicySelect({ selected, onChange, hasError }: Readonly<PolicySe
       onClick={() => setIsOpen(!isOpen)}
       isExpanded={isOpen}
       isFullWidth
+      isDisabled={isDisabled}
       status={hasError ? 'danger' : undefined}
     >
-      <TextInputGroup isPlain>
+      <TextInputGroup isPlain isDisabled={isDisabled}>
         <TextInputGroupMain
           value={filterValue}
           onChange={(_e, val) => {

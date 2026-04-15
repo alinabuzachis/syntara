@@ -1,7 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
-  Breadcrumb,
-  BreadcrumbItem,
   Button,
   CompassPanel,
   DescriptionList,
@@ -482,21 +480,9 @@ export function ProjectDetail() {
 
   if (!projectData) return null
 
-  const breadcrumb = (
-    <Breadcrumb>
-      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Projects)}>
-        Access Management
-      </BreadcrumbItem>
-      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Projects)}>
-        Projects
-      </BreadcrumbItem>
-      <BreadcrumbItem isActive>{projectData.name}</BreadcrumbItem>
-    </Breadcrumb>
-  )
-
   return (
     <AppPage>
-      <AppPageHeader title={<Title headingLevel="h1">{projectData.name}</Title>} breadcrumb={breadcrumb} />
+      <AppPageHeader title={<Title headingLevel="h1">{projectData.name}</Title>} />
       <StackItem>
         <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as ProjectTab)}>
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />

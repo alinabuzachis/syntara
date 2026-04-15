@@ -1,8 +1,6 @@
 import type { Group } from '@ansible/nexus-contracts'
 import {
   Badge,
-  Breadcrumb,
-  BreadcrumbItem,
   Button,
   CompassPanel,
   DescriptionList,
@@ -185,21 +183,9 @@ export function GroupDetail() {
 
   if (!groupData) return null
 
-  const breadcrumb = (
-    <Breadcrumb>
-      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Groups)}>
-        Access Management
-      </BreadcrumbItem>
-      <BreadcrumbItem component="button" onClick={() => navigate(AppRoute.AccessManagement.Groups)}>
-        Groups
-      </BreadcrumbItem>
-      <BreadcrumbItem isActive>{groupData.name}</BreadcrumbItem>
-    </Breadcrumb>
-  )
-
   return (
     <AppPage>
-      <AppPageHeader title={<Title headingLevel="h1">{groupData.name}</Title>} breadcrumb={breadcrumb}>
+      <AppPageHeader title={<Title headingLevel="h1">{groupData.name}</Title>}>
         <FlexItem grow={{ default: 'grow' }} />
         {!groupData.is_builtin && (
           <Button variant="secondary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>
