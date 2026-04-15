@@ -15,7 +15,7 @@ import {
   TextInput,
 } from '@patternfly/react-core'
 import { useMemo } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 
 import { useAlerts } from '../../components/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
@@ -38,7 +38,6 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
     formState: { errors },
   } = useForm<AddRoleFormData>({
@@ -52,8 +51,8 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
     },
   })
 
-  const scope = watch('scope')
-  const projectId = watch('projectId')
+  const scope = useWatch({ control, name: 'scope' })
+  const projectId = useWatch({ control, name: 'projectId' })
 
   const handleScopeChange = (newScope: string) => {
     setValue('scope', newScope as 'system' | 'project')
