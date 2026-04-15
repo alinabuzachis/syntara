@@ -19,12 +19,13 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
-import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 
 import { AssignRoleDialog } from './AssignRoleDialog'
 import { EditAssignmentDialog } from './EditAssignmentDialog'
 import { PaginationFooter } from './PaginationFooter'
+import { buildFilterDefsWithScope } from './scopeFilterUtils'
+import { ScopeLabel } from './ScopeLabel'
 import type { PermissionRow } from './types'
 import { useAssignmentsData } from './useAssignmentsData'
 
@@ -72,7 +73,7 @@ export function AssignmentsTab() {
     handleFilterChange,
     clearAllFilters,
     getSortParams,
-    projects,
+    projectNameMap,
     allRows,
     sortedRows,
     hasActiveFilters,
@@ -80,45 +81,39 @@ export function AssignmentsTab() {
     handleDelete,
   } = useAssignmentsData()
 
-  const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
-    () => [
-      {
-        key: 'name',
-        label: 'Name',
-        type: FilterTypeEnum.TEXT,
-        operators: [FilterOperatorEnum.CONTAINS],
-        defaultOperator: FilterOperatorEnum.CONTAINS,
-        placeholder: 'Filter by name',
-      },
-      {
-        key: 'type',
-        label: 'Type',
-        type: FilterTypeEnum.SELECT,
-        options: [
-          { value: 'user', label: 'User' },
-          { value: 'group', label: 'Group' },
+  const filterFieldDefinitions = useMemo(
+    () =>
+      buildFilterDefsWithScope(
+        [
+          {
+            key: 'name',
+            label: 'Name',
+            type: FilterTypeEnum.TEXT,
+            operators: [FilterOperatorEnum.CONTAINS],
+            defaultOperator: FilterOperatorEnum.CONTAINS,
+            placeholder: 'Filter by name',
+          },
+          {
+            key: 'type',
+            label: 'Type',
+            type: FilterTypeEnum.SELECT,
+            options: [
+              { value: 'user', label: 'User' },
+              { value: 'group', label: 'Group' },
+            ],
+            placeholder: 'Filter by type',
+          },
+          {
+            key: 'scope',
+            label: 'Scope',
+            type: FilterTypeEnum.SELECT,
+            options: [],
+            placeholder: 'Filter by scope',
+          },
         ],
-        placeholder: 'Filter by type',
-      },
-      {
-        key: 'scope',
-        label: 'Scope',
-        type: FilterTypeEnum.SELECT,
-        options: [
-          { value: 'system', label: 'System' },
-          { value: 'project', label: 'Project' },
-        ],
-        placeholder: 'Filter by scope',
-      },
-      {
-        key: 'project',
-        label: 'Project',
-        type: FilterTypeEnum.SELECT,
-        options: projects.map((p) => ({ value: p.id, label: p.name })),
-        placeholder: 'Filter by project',
-      },
-    ],
-    [projects]
+        projectNameMap
+      ),
+    [projectNameMap]
   )
 
   const getAssignmentActions = (row: PermissionRow): IAction[] => [
@@ -184,8 +179,8 @@ export function AssignmentsTab() {
                   <Th width={20} sort={getSortParams(2)}>
                     Role
                   </Th>
-                  <Th width={15} sort={getSortParams(3)}>
-                    Project
+                  <Th width={15} sort={getSortParams(3)} modifier="nowrap">
+                    Scope
                   </Th>
                   <Th screenReaderText="Actions" />
                 </Tr>
@@ -204,14 +199,8 @@ export function AssignmentsTab() {
                         {row.assignmentName}
                       </Label>
                     </Td>
-                    <Td dataLabel="Project">
-                      {row.scopeType === 'project' ? (
-                        <Label color="grey" isCompact>
-                          {row.scopeName}
-                        </Label>
-                      ) : (
-                        '-'
-                      )}
+                    <Td dataLabel="Scope">
+                      <ScopeLabel projectId={row.projectId} projectNameMap={projectNameMap} />
                     </Td>
                     <Td isActionCell>
                       <ActionsColumn items={getAssignmentActions(row)} />

@@ -83,6 +83,9 @@ function buildPermissionRows(
   return rows
 }
 
+/** Sentinel value used in scope filter to represent system-scoped items (no project) */
+const SYSTEM_SCOPE_VALUE = '__system__'
+
 function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): PermissionRow[] {
   if (filters.length === 0) return rows
   return rows.filter((row) => {
@@ -95,8 +98,9 @@ function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): Permissio
         case 'type':
           return row.principalType === value
         case 'scope':
-          return row.scopeType === value
-        case 'project':
+          // System scope: match rows with no projectId
+          if (value === SYSTEM_SCOPE_VALUE) return row.scopeType === 'system'
+          // Project scope: match rows by specific project ID
           return row.projectId === value
         default:
           return true
@@ -194,6 +198,7 @@ export function useAssignmentsData() {
   // Fetch projects
   const projectsQuery = accessClient.useQuery('get', '/projects')
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data])
+  const projectNameMap = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
   const effectiveProjectId = projects[0]?.id ?? ''
 
   // Fetch project-scoped roles for the first project via the typed client.
@@ -315,6 +320,7 @@ export function useAssignmentsData() {
     clearAllFilters,
     getSortParams,
     projects,
+    projectNameMap,
     effectiveProjectId,
     allRows,
     sortedRows,

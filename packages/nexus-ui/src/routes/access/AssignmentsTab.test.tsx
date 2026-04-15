@@ -40,6 +40,7 @@ const defaultHookReturn = {
       updated_at: null,
     },
   ],
+  projectNameMap: new Map([['p1', 'Project Alpha']]),
   effectiveProjectId: 'p1',
   allRows: [] as PermissionRow[],
   sortedRows: [] as PermissionRow[],
@@ -215,7 +216,7 @@ describe('AssignmentsTab', () => {
       expect(screen.getByRole('columnheader', { name: /Principal/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Type/i })).toBeInTheDocument()
       expect(screen.getByRole('columnheader', { name: /Role/i })).toBeInTheDocument()
-      expect(screen.getByRole('columnheader', { name: /Project/i })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: /Scope/i })).toBeInTheDocument()
     })
 
     it('renders User label for user principal type', () => {
@@ -251,13 +252,13 @@ describe('AssignmentsTab', () => {
       expect(projectLabels.length).toBeGreaterThanOrEqual(1)
     })
 
-    it('renders dash for system-scoped rows', () => {
+    it('renders System label for system-scoped rows', () => {
       render(<AssignmentsTab />, { wrapper })
 
       const table = screen.getByRole('grid', { name: 'Role assignments' })
       const rows = within(table).getAllByRole('row')
-      // Row 3 is bob (system-scoped) — project column should show '-'
-      expect(within(rows[3]).getByText('-')).toBeInTheDocument()
+      // Row 3 is bob (system-scoped) — scope column should show 'System' label
+      expect(within(rows[3]).getByText('System')).toBeInTheDocument()
     })
 
     it('renders Add assignment button', () => {
