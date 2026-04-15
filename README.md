@@ -144,10 +144,16 @@ make run-all
 # Install dependencies and setup project
 make install
 
-# Start the database
+# Start the database (Terminal 1)
 make db-run
 
-# Start the development server
+# Start the cache/Redis (Terminal 2 — required for authentication)
+make cache-run
+
+# Start OPA authorization server (Terminal 3 — required for API startup)
+make opa-run
+
+# Start the development server (Terminal 4)
 make dev
 
 # Run tests
@@ -156,6 +162,8 @@ make test-all
 # Check code quality
 make lint
 ```
+
+> **Note:** The API server requires both Redis (`make cache-run`) and OPA (`make opa-run`) to be running before `make dev` can start. Without Redis, authentication endpoints will hang. Without OPA, the server will refuse to start.
 
 ### Database Setup
 
