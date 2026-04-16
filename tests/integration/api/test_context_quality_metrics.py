@@ -78,7 +78,6 @@ class TestContextQualityMetrics:
 
         # Test 2: Simulate high-quality context (for future when context is populated)
         mock_context_package = ContextPackage(
-            correlation_id="test-trace-123",
             payload={
                 "relevant_docs": "High-quality contextual information about the query topic",
                 "related_examples": "Specific examples relevant to the user's question",
@@ -135,7 +134,6 @@ class TestContextQualityMetrics:
 
         for score in test_scores:
             mock_context_package = ContextPackage(
-                correlation_id=f"test-{score}",
                 payload={"test": "data"},
                 grounding_score=score,
                 package_metadata={"test_metadata": f"test-{score}"},
@@ -184,7 +182,6 @@ class TestContextQualityMetrics:
     ) -> None:
         """Test that context enhancement provides complete information for quality assessment."""
         mock_context_package = ContextPackage(
-            correlation_id="metadata-test-123",
             payload={"context": "test content"},
             grounding_score=0.75,
             package_metadata={
@@ -223,12 +220,8 @@ class TestContextQualityMetrics:
             result = data["result"]
 
             # Verify core quality metrics
-            assert "correlation_id" in result
             assert "grounding_score" in result
             assert result["grounding_score"] == 0.75
-
-            # Verify correlation_id is from context package
-            assert result["correlation_id"] == "metadata-test-123"
 
             # If context_enhancement is exposed in response, verify structure
             if "context_enhancement" in result:
@@ -255,7 +248,6 @@ class TestContextQualityMetrics:
         """
         # Test 1: Explicitly empty context
         mock_empty_context = ContextPackage(
-            correlation_id="empty-test",
             payload={},
             grounding_score=0.0,
             package_metadata={"context_status": "empty"},
@@ -292,7 +284,6 @@ class TestContextQualityMetrics:
 
         # Test 2: Populated context
         mock_populated_context = ContextPackage(
-            correlation_id="populated-test",
             payload={"docs": "relevant content"},
             grounding_score=0.6,
             package_metadata={"context_status": "populated"},
@@ -333,57 +324,3 @@ class TestContextQualityMetrics:
         assert isinstance(empty_score, int | float)
         assert isinstance(populated_score, int | float)
         assert empty_score < populated_score, "Populated context should have higher grounding score than empty context"
-
-    @pytest.mark.asyncio
-    async def test_context_correlation_via_correlation_id(
-        self,
-        auth_client_with_mocked_llm: AsyncClient,
-        test_user: User,
-    ) -> None:
-        """Test that correlation_id enables proper correlation between invocation and context.
-
-        This verifies the debugging/observability aspect of context quality.
-        """
-        unique_correlation_id = "correlation-test-12345"
-        mock_context_package = ContextPackage(
-            correlation_id=unique_correlation_id,
-            payload={"test": "correlation"},
-            grounding_score=0.5,
-            package_metadata={"test_metadata": unique_correlation_id},
-            citations=[],
-        )
-
-        with patch.object(ContextManagerPlanner, "plan_request", return_value=mock_context_package):
-            prompt = "Test trace ID correlation"
-            session_id = "correlation-test"
-
-            # Create invocation via API
-            response = await auth_client_with_mocked_llm.post(
-                "/api/v1/invocations",
-                json={
-                    "prompt": prompt,
-                    "created_by": str(test_user.id),
-                    "session_id": session_id,
-                },
-            )
-
-            assert response.status_code == 202
-            data = response.json()
-            invocation_id = data["id"]
-
-            # Wait for completion using the helper
-            async with wait_for_invocation_execution(
-                auth_client_with_mocked_llm, invocation_id, max_wait_time=10.0
-            ) as final_data:
-                data = final_data or data
-
-            assert data["status"] == "completed", f"Invocation failed: {data.get('error_message')}"
-            assert data["result"] is not None
-            result = data["result"]
-
-            # Verify correlation_id correlation
-            assert "correlation_id" in result
-            assert result["correlation_id"] == unique_correlation_id
-
-            # Correlation_id should enable correlation between invocation.id and context processing
-            # This is essential for debugging and observability

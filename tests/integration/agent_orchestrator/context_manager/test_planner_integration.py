@@ -72,7 +72,6 @@ async def execute_planner_request(
     planner: ContextManagerPlanner,
     test_db_session: AsyncSession,
     test_user: User,
-    correlation_id: str,
 ) -> ContextPackage:
     """Execute plan_request with standard mocking setup.
 
@@ -88,7 +87,6 @@ async def execute_planner_request(
 
     with patch.object(planner, "get_async_session_context", mock_session_context):
         return await planner.plan_request(
-            correlation_id=correlation_id,
             session_id="test-session",
             query="test query",
             user_id=test_user.id,
@@ -115,12 +113,10 @@ class TestPlannerAssemblerIntegration:
             compressor_service_factory=lambda: mock_compressor,
         )
 
-        result = await execute_planner_request(planner, test_db_session, test_user, "test-integration")
+        result = await execute_planner_request(planner, test_db_session, test_user)
 
         # Verify ContextPackage was returned
         assert result is not None
-        assert result.correlation_id == "test-integration"
-
         # Verify package_metadata contains compression info
         assert "compression_applied" in result.package_metadata
         assert "compression_retry_count" in result.package_metadata
@@ -145,12 +141,10 @@ class TestPlannerAssemblerIntegration:
             compressor_service_factory=lambda: mock_compressor,
         )
 
-        result = await execute_planner_request(planner, test_db_session, test_user, "test-dependencies")
+        result = await execute_planner_request(planner, test_db_session, test_user)
 
         # Verify result is valid
         assert result is not None
-        assert result.correlation_id == "test-dependencies"
-
         # Verify grounding score was computed (indicates AssemblerService worked)
         assert math.isclose(result.grounding_score, 0.9)
 
@@ -177,11 +171,10 @@ class TestPlannerAssemblerIntegration:
             compressor_service_factory=lambda: custom_mock_compressor,
         )
 
-        result = await execute_planner_request(planner, test_db_session, test_user, "test-compression")
+        result = await execute_planner_request(planner, test_db_session, test_user)
 
         # Verify result is valid
         assert result is not None
-        assert result.correlation_id == "test-compression"
 
     @pytest.mark.usefixtures("test_user_token_config")
     async def test_planner_returns_context_package_directly_from_assembler(
@@ -201,10 +194,9 @@ class TestPlannerAssemblerIntegration:
             compressor_service_factory=lambda: mock_compressor,
         )
 
-        result = await execute_planner_request(planner, test_db_session, test_user, "test-direct-return")
+        result = await execute_planner_request(planner, test_db_session, test_user)
 
         # Verify ContextPackage has all AssemblerService-generated fields
-        assert result.correlation_id == "test-direct-return"
         assert math.isclose(result.grounding_score, 0.8)  # (0.7 + 0.9) / 2
 
         # Verify citations from AssemblerService (now use FileMetadata.id UUIDs)

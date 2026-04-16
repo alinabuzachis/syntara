@@ -4,7 +4,7 @@ Tests cover system overhead and error metrics:
 - Total request duration recorded for every API request
 - Component timing breakdown labels available
 - Error counts by type (timeout, rate_limit, validation, internal)
-- Error timestamps and correlation_id in labels
+- Error timestamps in labels
 """
 
 import asyncio
@@ -207,44 +207,6 @@ class TestMetricsMiddlewareRequestDuration:
 
         results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
         assert results[0].labels["endpoint"] == "/api/v1/nonexistent"
-
-
-# =============================================================================
-# MetricsMiddleware - correlation ID
-# =============================================================================
-
-
-class TestMetricsMiddlewareCorrelationId:
-    """Correlation ID in response header (not in metric labels to avoid memory bloat)."""
-
-    @pytest.mark.asyncio
-    async def test_correlation_id_not_in_metric_labels(self, recorder: MetricsRecorder) -> None:
-        """correlation_id is excluded from stored labels to avoid high-cardinality memory growth."""
-        app = await _make_app(status_code=200)
-        middleware = MetricsMiddleware(app, recorder=recorder)
-
-        await middleware(_make_scope(), AsyncMock(), AsyncMock())
-
-        results = list(recorder.query(metric_types={MetricType.REQUEST_DURATION}))
-        assert "correlation_id" not in results[0].labels
-
-    @pytest.mark.asyncio
-    async def test_correlation_id_in_response_header(self, recorder: MetricsRecorder) -> None:
-        """The correlation_id is added to the response via X-Correlation-ID header."""
-        app = await _make_app(status_code=200)
-        middleware = MetricsMiddleware(app, recorder=recorder)
-
-        captured_headers: list[tuple[bytes, bytes]] = []
-
-        async def capture_send(message: dict[str, Any]) -> None:
-            if message["type"] == "http.response.start":
-                captured_headers.extend(message.get("headers", []))
-
-        scope = _make_scope()
-        await middleware(scope, AsyncMock(), capture_send)  # type: ignore[arg-type]
-
-        header_names = {h[0] for h in captured_headers}
-        assert b"x-correlation-id" in header_names
 
 
 # =============================================================================

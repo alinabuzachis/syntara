@@ -31,7 +31,7 @@ class ContextManagerPlanner:
     """Main planner that orchestrates context management workflow.
 
     Coordinates the retrieve → compress → assemble sequence and
-    handles errors gracefully while maintaining correlation_id tracing.
+    handles errors gracefully.
     """
 
     def __init__(
@@ -85,7 +85,6 @@ class ContextManagerPlanner:
 
     async def plan_request(
         self,
-        correlation_id: str,
         session_id: str,
         query: str,
         invocation_id: UUID | None = None,
@@ -98,7 +97,6 @@ class ContextManagerPlanner:
         2. Assembly: Create final context package (with internal compression retry loop)
 
         Args:
-            correlation_id: Correlation identifier for distributed tracing
             session_id: Session identifier for grouping related invocations
             query: User query string for context retrieval
             invocation_id: Optional invocation ID for cancellation checking
@@ -113,7 +111,7 @@ class ContextManagerPlanner:
         """
         start_time = time.time()
 
-        logger.info("Starting context planning", correlation_id=correlation_id)
+        logger.info("Starting context planning")
         logger.debug("Context planning", tenant=session_id, query=query)
 
         # Initialize timing metadata
@@ -164,7 +162,6 @@ class ContextManagerPlanner:
             # Assemble context package (with internal compression retry loop)
             context_package = await assembler.assemble(
                 documents=retrieved_docs,
-                correlation_id=correlation_id,
                 max_tokens=max_tokens,
                 compression_loop=compression_loop,
                 invocation_id=invocation_id,
@@ -179,7 +176,7 @@ class ContextManagerPlanner:
         total_time_ms = int((time.time() - start_time) * 1000)
         timing_data["total_time_ms"] = total_time_ms
 
-        logger.info("Context planning completed", correlation_id=correlation_id, total_time_ms=total_time_ms)
+        logger.info("Context planning completed", total_time_ms=total_time_ms)
         logger.debug(
             "Context Package created", package_id=context_package.id, grounding_score=context_package.grounding_score
         )

@@ -34,7 +34,6 @@ class TestOrchestratorAgentContextIntegration:
         # Arrange
         mock_context_manager = MagicMock()
         test_context = ContextPackage(
-            correlation_id="test-correlation",
             payload={"relevant_docs": "Documentation about deployment tools"},
             grounding_score=0.85,
             citations=["file-id-doc1", "file-id-doc2"],
@@ -47,7 +46,6 @@ class TestOrchestratorAgentContextIntegration:
             "prompt": "What deployment tools are available?",
             "original_prompt": "What deployment tools are available?",
             "session_id": "test-session",
-            "correlation_id": "initial-correlation",
             "invocation_id": invocation_id,
             "user_id": None,
             "context_package": None,
@@ -64,7 +62,6 @@ class TestOrchestratorAgentContextIntegration:
         # Assert
         assert result_state["current_agent"] == AgentRoutes.GENERIC_AGENT
         assert result_state["context_package"] is not None
-        assert result_state["context_package"]["correlation_id"] == "test-correlation"
         assert result_state["context_package"]["grounding_score"] == 0.85
         assert result_state["context_package"]["context_applied"] is True
 
@@ -88,7 +85,6 @@ class TestOrchestratorAgentContextIntegration:
             "prompt": original_prompt,
             "original_prompt": original_prompt,
             "session_id": "test-session",
-            "correlation_id": "initial-correlation",
             "invocation_id": invocation_id,
             "user_id": None,
             "context_package": None,
@@ -139,7 +135,6 @@ class TestOrchestratorAgentContextIntegration:
                 "prompt": original_prompt,
                 "original_prompt": original_prompt,
                 "session_id": "test-session",
-                "correlation_id": "initial-correlation",
                 "invocation_id": invocation_id,
                 "user_id": None,
                 "context_package": None,
@@ -175,9 +170,7 @@ class TestOrchestratorAgentRouting:
         for prompt in workflow_prompts:
             # Arrange
             mock_context_manager = MagicMock()
-            mock_context_manager.plan_request = AsyncMock(
-                return_value=ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
-            )
+            mock_context_manager.plan_request = AsyncMock(return_value=ContextPackage(payload={}, grounding_score=0.0))
 
             orchestrator = OrchestratorAgent(mock_context_manager)
             invocation_id = str(uuid4())
@@ -185,7 +178,6 @@ class TestOrchestratorAgentRouting:
                 "prompt": prompt,
                 "original_prompt": prompt,
                 "session_id": "test-session",
-                "correlation_id": "initial-correlation",
                 "invocation_id": invocation_id,
                 "user_id": None,
                 "context_package": None,
@@ -215,9 +207,7 @@ class TestOrchestratorAgentRouting:
         for prompt in default_prompts:
             # Arrange
             mock_context_manager = MagicMock()
-            mock_context_manager.plan_request = AsyncMock(
-                return_value=ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
-            )
+            mock_context_manager.plan_request = AsyncMock(return_value=ContextPackage(payload={}, grounding_score=0.0))
 
             orchestrator = OrchestratorAgent(mock_context_manager)
             invocation_id = str(uuid4())
@@ -225,7 +215,6 @@ class TestOrchestratorAgentRouting:
                 "prompt": prompt,
                 "original_prompt": prompt,
                 "session_id": "test-session",
-                "correlation_id": "initial-correlation",
                 "invocation_id": invocation_id,
                 "user_id": None,
                 "context_package": None,
@@ -252,7 +241,6 @@ class TestOrchestratorAgentPromptFormatting:
         # Arrange
         mock_context_manager = MagicMock()
         test_context = ContextPackage(
-            correlation_id="test-correlation",
             payload={
                 "Documentation": "Deployment tools documentation",
                 "Examples": "Example deployment configurations",
@@ -269,7 +257,6 @@ class TestOrchestratorAgentPromptFormatting:
             "prompt": original_prompt,
             "original_prompt": original_prompt,
             "session_id": "test-session",
-            "correlation_id": "initial-correlation",
             "invocation_id": invocation_id,
             "user_id": None,
             "context_package": None,
@@ -303,7 +290,6 @@ class TestOrchestratorAgentPromptFormatting:
         # Arrange
         mock_context_manager = MagicMock()
         test_context = ContextPackage(
-            correlation_id="test-correlation",
             payload={},  # Empty payload
             grounding_score=0.0,
         )
@@ -316,7 +302,6 @@ class TestOrchestratorAgentPromptFormatting:
             "prompt": original_prompt,
             "original_prompt": original_prompt,
             "session_id": "test-session",
-            "correlation_id": "initial-correlation",
             "invocation_id": invocation_id,
             "user_id": None,
             "context_package": None,
@@ -347,7 +332,7 @@ class TestOrchestratorAgentSettings:
     ) -> None:
         """_integrate_context() must read context_manager.request_timeout_seconds from runtime settings."""
         mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.5)
+        test_context = ContextPackage(payload={}, grounding_score=0.5)
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         invocation_id = str(uuid4())
@@ -355,7 +340,6 @@ class TestOrchestratorAgentSettings:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "correlation_id": "test-correlation",
             "invocation_id": invocation_id,
             "context_package": None,
             "current_agent": "",
@@ -379,7 +363,7 @@ class TestOrchestratorAgentLogging:
         """Test that orchestrator logs execution flow with correlation IDs."""
         # Arrange
         mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test-correlation", payload={}, grounding_score=0.75)
+        test_context = ContextPackage(payload={}, grounding_score=0.75)
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         orchestrator = OrchestratorAgent(mock_context_manager)
@@ -388,7 +372,6 @@ class TestOrchestratorAgentLogging:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "correlation_id": "initial-correlation",
             "invocation_id": invocation_id,
             "user_id": None,
             "context_package": None,

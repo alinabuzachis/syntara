@@ -53,7 +53,6 @@ class TestWithinBudgetNoCompression:
 
         result = await assembler_service.assemble(
             documents=docs,
-            correlation_id="test-correlation",
             max_tokens=10000,
             compression_loop=3,
         )
@@ -115,7 +114,6 @@ class TestCompressionTrigger:
         # Assemble with user_id and session - should trigger compression
         result = await assembler.assemble(
             documents=docs,
-            correlation_id="test-compression-trigger",
             max_tokens=100,  # Very low budget to trigger compression
             compression_loop=3,  # Allow retries
             user_id=test_user.id,
@@ -124,7 +122,6 @@ class TestCompressionTrigger:
 
         # Verify compression was triggered and succeeded
         assert result is not None
-        assert result.correlation_id == "test-compression-trigger"
         assert result.package_metadata["compression_applied"] is True
         assert result.package_metadata["compression_retry_count"] == 0  # Succeeded on first attempt
 
@@ -188,7 +185,6 @@ class TestSuccessfulRetry:
         # Assemble with user_id and session - should succeed on second retry
         result = await assembler.assemble(
             documents=docs,
-            correlation_id="test-successful-retry",
             max_tokens=100,  # Very low budget to trigger compression
             compression_loop=3,  # Allow up to 3 retries
             user_id=test_user.id,
@@ -197,7 +193,6 @@ class TestSuccessfulRetry:
 
         # Verify assembly succeeded
         assert result is not None
-        assert result.correlation_id == "test-successful-retry"
         assert result.package_metadata["compression_applied"] is True
         assert result.package_metadata["compression_retry_count"] == 1  # Succeeded on second attempt (retry 1)
 
@@ -259,7 +254,6 @@ class TestMultipleRetries:
         # Assemble with user_id and session - should succeed on third attempt
         result = await assembler.assemble(
             documents=docs,
-            correlation_id="test-multiple-retries",
             max_tokens=100,  # Very low budget to trigger compression
             compression_loop=3,  # Allow up to 3 retries
             user_id=test_user.id,
@@ -268,7 +262,6 @@ class TestMultipleRetries:
 
         # Verify assembly succeeded
         assert result is not None
-        assert result.correlation_id == "test-multiple-retries"
         assert result.package_metadata["compression_applied"] is True
         assert result.package_metadata["compression_retry_count"] == 2  # Succeeded on third attempt (retry 2)
 
@@ -292,7 +285,7 @@ class TestExhaustedRetriesRejection:
         1. Documents exceed the token budget
         2. Compression is triggered via TokenValidationService
         3. All compression retry attempts fail
-        Then a ContextAssemblyError is raised with the correct retry_count and correlation_id.
+        Then a ContextAssemblyError is raised with the correct retry_count.
         """
         # Create documents that will exceed the low token budget
         docs = [
@@ -324,7 +317,6 @@ class TestExhaustedRetriesRejection:
         with pytest.raises(ContextAssemblyError) as exc_info:
             await assembler.assemble(
                 documents=docs,
-                correlation_id="test-exhausted-retries",
                 max_tokens=100,  # Very low budget to trigger compression
                 compression_loop=3,  # 3 retry attempts
                 user_id=test_user.id,
@@ -333,7 +325,6 @@ class TestExhaustedRetriesRejection:
 
         # Verify error details
         error = exc_info.value
-        assert error.correlation_id == "test-exhausted-retries"
         assert error.retry_count == 3
         assert "Content exceeds token limit" in str(error)
         assert "after 3 compression retries" in str(error)
@@ -389,7 +380,6 @@ class TestCompressionLoopZeroFailure:
         with pytest.raises(ContextAssemblyError) as exc_info:
             await assembler.assemble(
                 documents=docs,
-                correlation_id="test-zero-retries",
                 max_tokens=100,  # Very low budget to trigger failure
                 compression_loop=0,  # No retries allowed
                 user_id=test_user.id,
@@ -398,7 +388,6 @@ class TestCompressionLoopZeroFailure:
 
         # Verify error details
         error = exc_info.value
-        assert error.correlation_id == "test-zero-retries"
         assert error.retry_count == 0  # No retries with compression_loop=0
         # Error message should indicate retries were exhausted with 0 attempts
         assert "Compression retries exhausted" in str(error) or "0 attempts" in str(error)
@@ -447,7 +436,6 @@ class TestEndToEndWithCitations:
 
         result = await assembler_service.assemble(
             documents=docs,
-            correlation_id="test-correlation",
             max_tokens=10000,
             compression_loop=0,
         )

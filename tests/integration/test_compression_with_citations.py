@@ -56,7 +56,6 @@ class TestCompressionWithCitations:
             max_tokens=max_tokens,
             strategy="greedy",
             goal="Extract key information",
-            correlation_id="test_compression",
         )
 
         # Assert
@@ -97,7 +96,6 @@ class TestCompressionWithCitations:
             max_tokens=150,
             strategy="greedy",
             goal="Extract pricing information",
-            correlation_id="test_goal",
         )
 
         # Assert
@@ -122,7 +120,7 @@ class TestCompressionWithCitations:
 
         # Act & Assert - exceptions bubble up to caller
         with pytest.raises(Exception, match="LLM service unavailable"):
-            await compressor.compress(data=documents, max_tokens=100, strategy="greedy", correlation_id="test_failure")
+            await compressor.compress(data=documents, max_tokens=100, strategy="greedy")
 
     async def test_document_formatting_for_llm_prompt(self, mock_token_calculator: Mock) -> None:
         """Test that documents are properly formatted with numeric labels for LLM."""
@@ -140,7 +138,7 @@ class TestCompressionWithCitations:
         documents = ["First document content", "Second document content", "Third document content"]
 
         # Act
-        await compressor.compress(data=documents, max_tokens=100, strategy="greedy", correlation_id="test_formatting")
+        await compressor.compress(data=documents, max_tokens=100, strategy="greedy")
 
         # Assert
         call_args = mock_llm.ainvoke.call_args[0][0]
@@ -167,9 +165,7 @@ class TestCompressionWithCitations:
         documents = ["Long content"]
 
         # Act
-        result = await compressor.compress(
-            data=documents, max_tokens=100, strategy="greedy", correlation_id="test_verification"
-        )
+        result = await compressor.compress(data=documents, max_tokens=100, strategy="greedy")
 
         # Assert
         assert result == mock_response.content
@@ -208,7 +204,6 @@ class TestCompressionWithCitations:
             max_tokens=100,
             strategy="greedy",
             goal=None,  # No goal provided
-            correlation_id="test_default_goal",
         )
 
         # Assert
@@ -233,9 +228,7 @@ class TestCompressionWithCitations:
         document = "Very long single document that exceeds the token budget and needs compression"
 
         # Act
-        result = await compressor.compress(
-            data=document, max_tokens=100, strategy="greedy", correlation_id="test_single_compression"
-        )
+        result = await compressor.compress(data=document, max_tokens=100, strategy="greedy")
 
         # Assert
         assert result == mock_response.content
@@ -268,7 +261,6 @@ class TestCompressionWithCitations:
             max_tokens=100,
             strategy="greedy",
             goal="Extract key points",
-            correlation_id="test_large_single_doc",
         )
 
         # Assert
@@ -294,9 +286,7 @@ class TestCompressionWithCitations:
 
         # Act & Assert
         with pytest.raises(Exception, match="Token calculation failed"):
-            await compressor.compress(
-                data=["Test content"], max_tokens=100, strategy="greedy", correlation_id="test_token_calc_failure"
-            )
+            await compressor.compress(data=["Test content"], max_tokens=100, strategy="greedy")
 
         # Verify token calculator was called before failure
         mock_token_calculator.count_tokens.assert_called_once()
@@ -320,30 +310,11 @@ class TestCompressionWithCitations:
                 data=["Long content that exceeds budget"],
                 max_tokens=100,
                 strategy="greedy",
-                correlation_id="test_verification_failure",
             )
 
         # Verify both services were called before failure
         assert mock_token_calculator.count_tokens.call_count == 2
         mock_llm.ainvoke.assert_called_once()
-
-    async def test_compression_preserves_correlation_id_in_errors(self, mock_token_calculator: Mock) -> None:
-        """Test that exceptions bubble up to caller for handling."""
-        # Arrange
-        mock_token_calculator.count_tokens.return_value = 500
-
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.side_effect = Exception("Test error")
-
-        compressor = CompressorService(token_calculator=mock_token_calculator, llm=mock_llm)
-
-        correlation_id = "test_error_correlation_456"
-
-        # Act & Assert - exceptions bubble up to caller
-        with pytest.raises(Exception, match="Test error"):
-            await compressor.compress(
-                data=["Long content"], max_tokens=100, strategy="greedy", correlation_id=correlation_id
-            )
 
     async def test_llm_response_without_proper_citations(self, mock_token_calculator: Mock) -> None:
         """Test handling of LLM responses that don't include proper document citations."""
@@ -362,9 +333,7 @@ class TestCompressionWithCitations:
         documents = ["First document with details", "Second document with facts"]
 
         # Act
-        result = await compressor.compress(
-            data=documents, max_tokens=100, strategy="greedy", correlation_id="test_partial_citations"
-        )
+        result = await compressor.compress(data=documents, max_tokens=100, strategy="greedy")
 
         # Assert
         # Service should still return the result even if citations are malformed
@@ -401,7 +370,6 @@ class TestCompressionWithCitations:
             max_tokens=120,
             strategy="greedy",
             goal="Extract pricing and features",
-            correlation_id="test_mixed_citations",
         )
 
         # Assert
@@ -440,9 +408,7 @@ class TestCompressionWithCitations:
         )
 
         # Act
-        result = await compressor.compress(
-            data=documents, max_tokens=100, strategy="greedy", goal=long_goal, correlation_id="test_long_goal"
-        )
+        result = await compressor.compress(data=documents, max_tokens=100, strategy="greedy", goal=long_goal)
 
         # Assert
         assert result == mock_response.content
@@ -480,7 +446,6 @@ class TestCompressionWithCitations:
             max_tokens=120,
             strategy="greedy",
             goal=special_goal,
-            correlation_id="test_special_chars_goal",
         )
 
         # Assert
@@ -515,7 +480,6 @@ class TestCompressionWithCitations:
             max_tokens=80,
             strategy="greedy",
             goal="",  # Empty string goal
-            correlation_id="test_empty_goal",
         )
 
         # Assert

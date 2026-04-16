@@ -30,12 +30,9 @@ class AgentState(TypedDict):
     original_prompt: str
     """The original user prompt before context enhancement"""
 
-    # Session and correlation tracking
+    # Session tracking
     session_id: str
     """Session identifier for multi-turn conversation tracking"""
-
-    correlation_id: str
-    """Correlation ID for distributed tracing and debugging"""
 
     invocation_id: str
     """UUID of the invocation being processed"""
@@ -80,7 +77,6 @@ class AgentStateFactory:
         prompt: str,
         session_id: str,
         invocation_id: UUID,
-        correlation_id: str | None = None,
         metadata: dict[str, Any] | None = None,
         user_id: UUID | None = None,
         execution_id: UUID | None = None,
@@ -91,7 +87,6 @@ class AgentStateFactory:
             prompt: User's original prompt
             session_id: Session identifier
             invocation_id: Invocation UUID
-            correlation_id: Optional correlation ID (defaults to invocation_id)
             metadata: Optional metadata from invocation context_data (e.g., callback_url)
             user_id: Optional UUID of the user who initiated the invocation
             execution_id: Optional workflow execution ID for telemetry correlation
@@ -104,7 +99,6 @@ class AgentStateFactory:
             prompt=prompt,
             original_prompt=prompt,
             session_id=session_id,
-            correlation_id=correlation_id or str(invocation_id),
             invocation_id=str(invocation_id),
             user_id=str(user_id) if user_id else None,
             context_package=None,

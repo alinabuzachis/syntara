@@ -75,7 +75,6 @@ class TestOrchestrationServiceStreamingExecution:
 
         mock_context_manager = MagicMock()
         test_context = ContextPackage(
-            correlation_id="test-correlation",
             payload={"docs": "Relevant documentation"},
             grounding_score=0.8,
             citations=["file-id-doc1"],
@@ -101,7 +100,6 @@ class TestOrchestrationServiceStreamingExecution:
                 prompt="Test prompt",
                 session_id="test-session",
                 invocation_id=invocation_id,
-                correlation_id="initial-correlation",
             )
 
             # Assert - Result should contain streaming metadata
@@ -133,7 +131,7 @@ class TestOrchestrationServiceStreamingExecution:
         mock_llm.model_name = "test-model"
 
         mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        test_context = ContextPackage(payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
 
         service = OrchestrationService(mock_llm, mock_context_manager)
@@ -174,7 +172,7 @@ class TestOrchestrationServiceStreamingExecution:
         mock_llm.model_name = "test-model"
 
         mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        test_context = ContextPackage(payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
 
         service = OrchestrationService(mock_llm, mock_context_manager)
@@ -219,7 +217,7 @@ class TestOrchestrationServiceErrorHandling:
         mock_llm.model_name = "test-model"
 
         mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        test_context = ContextPackage(payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
 
         service = OrchestrationService(mock_llm, mock_context_manager)
@@ -264,7 +262,7 @@ class TestOrchestrationServiceErrorHandling:
         mock_llm.model_name = "test-model"
 
         mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        test_context = ContextPackage(payload={}, grounding_score=0.0)
         mock_context_manager.plan_request.return_value = test_context
 
         service = OrchestrationService(mock_llm, mock_context_manager)
@@ -312,7 +310,7 @@ class TestOrchestrationServiceSessionManagement:
         mock_llm.model_name = "test-model"
 
         mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        test_context = ContextPackage(payload={}, grounding_score=0.0)
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         service = OrchestrationService(mock_llm, mock_context_manager)
@@ -378,7 +376,7 @@ class TestOrchestrationServiceLogging:
         mock_llm.model_name = "test-model"
 
         mock_context_manager = MagicMock()
-        test_context = ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+        test_context = ContextPackage(payload={}, grounding_score=0.0)
         mock_context_manager.plan_request = AsyncMock(return_value=test_context)
 
         service = OrchestrationService(mock_llm, mock_context_manager)

@@ -30,10 +30,6 @@ class ContextPackage(BaseModel):
         default_factory=generate_uuid,
         description="Unique identifier for this context package",
     )
-    correlation_id: str = Field(
-        ...,
-        description="Correlation identifier for distributed tracing and cross-service correlation",
-    )
     invocation_id: UUID | None = Field(
         default=None,
         description="Reference to the agent invocation ID (in-memory reference, not a foreign key)",

@@ -205,7 +205,6 @@ class TestEmptyAndNullDocuments:
         # This test verifies graceful handling of empty input
         result = await assembler_service.assemble(
             documents=[],
-            correlation_id="test-correlation",
             max_tokens=1000,
             compression_loop=0,
         )
@@ -219,7 +218,6 @@ class TestEmptyAndNullDocuments:
         """Test assembly with null documents returns default ContextPackage."""
         result = await assembler_service.assemble(
             documents=None,
-            correlation_id="test-correlation",
             max_tokens=1000,
             compression_loop=0,
         )
@@ -335,7 +333,6 @@ class TestCompressionRetryLoop:
             documents=docs,
             max_tokens=1000,
             compression_loop=3,
-            correlation_id="test-correlation",
         )
 
         # Verify compression was attempted
@@ -398,10 +395,8 @@ class TestExhaustedRetries:
                 documents=docs,
                 max_tokens=100,
                 compression_loop=3,
-                correlation_id="test-correlation",
             )
 
-        assert exc_info.value.correlation_id == "test-correlation"
         assert exc_info.value.retry_count == 3
 
 
@@ -446,7 +441,6 @@ class TestPackageMetadataRetryCount:
 
         result = await assembler_service.assemble(
             documents=docs,
-            correlation_id="test-correlation",
             max_tokens=10000,
             compression_loop=0,
         )
@@ -475,7 +469,6 @@ class TestPackageMetadataRetryCount:
 
         result = await assembler_service.assemble(
             documents=docs,
-            correlation_id="test-correlation",
             max_tokens=10000,
             compression_loop=0,
         )
@@ -524,7 +517,6 @@ class TestAssemblerServiceInvocationIdWiring:
 
         await assembler_service.assemble(
             documents=docs,
-            correlation_id="test-correlation",
             max_tokens=10000,
             compression_loop=0,
             invocation_id=invocation_id,

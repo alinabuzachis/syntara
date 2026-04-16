@@ -65,12 +65,11 @@ class TestContextPerformanceImpact:
 
         # Test 2: Context-enhanced performance (simulated heavy context)
         mock_context_package = ContextPackage(
-            correlation_id="perf-test-123",
             payload={
                 "large_context": "This is simulated large context data " * 100  # ~4KB of context
             },
             grounding_score=0.8,
-            package_metadata={"correlation_id": "perf-test-123"},
+            package_metadata={},
             citations=[f"file-id-doc{i}" for i in range(10)],
         )
 
@@ -129,7 +128,7 @@ class TestContextPerformanceImpact:
         # Mock slow context processing
         def slow_context_processing(*args: object, **kwargs: object) -> ContextPackage:
             time.sleep(2.0)  # 2 second delay
-            return ContextPackage(correlation_id="slow-test", payload={}, grounding_score=0.0)
+            return ContextPackage(payload={}, grounding_score=0.0)
 
         with patch.object(ContextManagerPlanner, "plan_request", side_effect=slow_context_processing):
             prompt = "Test slow context processing"
@@ -175,7 +174,6 @@ class TestContextPerformanceImpact:
         def context_with_delay(*args: object, **kwargs: object) -> ContextPackage:
             time.sleep(0.1)  # 100ms processing time
             return ContextPackage(
-                correlation_id=str(args[0]) if args else "concurrent-test",
                 payload={"concurrent": "test"},
                 grounding_score=0.5,
             )
@@ -238,12 +236,11 @@ class TestContextPerformanceImpact:
 
         for context_size in large_context_sizes:
             mock_context_package = ContextPackage(
-                correlation_id=f"memory-test-{context_size}",
                 payload={
                     "large_data": "x" * context_size  # Create context of specified size
                 },
                 grounding_score=0.7,
-                package_metadata={"correlation_id": f"memory-test-{context_size}"},
+                package_metadata={},
                 citations=[],
             )
 

@@ -40,8 +40,7 @@ async def execute_approval_activity(
             - output: Mapped output containing approval request metadata
 
     """
-    correlation_id = str(uuid4())
-    logger.info("Creating approval request (v2)", correlation_id=correlation_id)
+    logger.info("Creating approval request (v2)")
 
     # Generate approval ID
     approval_id = f"apr_{uuid4()}"
@@ -64,7 +63,6 @@ async def execute_approval_activity(
         timeout=input_config.get("timeout"),
         activity_id=activity_id,
         callback_url=callback_url,
-        correlation_id=correlation_id,
     )
 
     # Build full result
@@ -75,7 +73,6 @@ async def execute_approval_activity(
         "callback_url": callback_url,
         "description": input_config.get("description"),
         "timeout": input_config.get("timeout"),
-        "correlation_id": correlation_id,
     }
 
     # Apply output mapping

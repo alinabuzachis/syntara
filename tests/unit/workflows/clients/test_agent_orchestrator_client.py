@@ -546,19 +546,8 @@ class TestAgentOrchestratorClientEdgeCases:
     """Test suite for edge cases."""
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("payload_key", "is_in_context_data"),
-        [
-            ("correlation_id", True),
-            ("sessionId", False),
-        ],
-    )
-    async def test_auto_generates_ids(
-        self,
-        payload_key: str,
-        is_in_context_data: bool,  # noqa: FBT001
-    ) -> None:
-        """Test that IDs are auto-generated when not provided."""
+    async def test_auto_generates_session_id(self) -> None:
+        """Test that session ID is auto-generated when not provided."""
         captured_payload: dict[str, Any] = {}
 
         mock_post = create_payload_capturing_mock(captured_payload)
@@ -572,34 +561,11 @@ class TestAgentOrchestratorClientEdgeCases:
             )
 
         # Verify ID was generated and is a valid UUID
-        if is_in_context_data:
-            assert payload_key in captured_payload["contextData"]
-            generated_id = captured_payload["contextData"][payload_key]
-        else:
-            assert payload_key in captured_payload
-            generated_id = captured_payload[payload_key]
+        assert "sessionId" in captured_payload
+        generated_id = captured_payload["sessionId"]
 
         # Should be a valid UUID
         uuid.UUID(generated_id)
-
-    @pytest.mark.asyncio
-    async def test_uses_provided_correlation_id(self) -> None:
-        """Test that provided correlation ID is used."""
-        captured_payload: dict[str, Any] = {}
-        test_correlation_id = "test-correlation-123"
-
-        mock_post = create_payload_capturing_mock(captured_payload)
-
-        async with AgentOrchestratorClient() as client:
-            client.http_client.post = AsyncMock(side_effect=mock_post)  # type: ignore[method-assign]
-
-            await client.invoke_agent_async(
-                prompt="Test",
-                user_id="test-user",
-                correlation_id=test_correlation_id,
-            )
-
-        assert captured_payload["contextData"]["correlation_id"] == test_correlation_id
 
     @pytest.mark.asyncio
     async def test_callback_url_extracted_from_metadata(self) -> None:
@@ -662,68 +628,17 @@ class TestAgentOrchestratorClientEdgeCases:
                 input_data={"key": "value"},
                 file_ids=["file1", "file2"],
                 metadata={"custom": "data"},
-                correlation_id="test-correlation",
             )
 
         # Verify all parameters in payload
         assert captured_payload["prompt"] == "Test prompt"
         assert captured_payload["createdBy"] == "test-user"
         assert captured_payload["sessionId"] == "test-session"
-        assert captured_payload["contextData"]["correlation_id"] == "test-correlation"
         assert captured_payload["contextData"]["agent"] == "test-agent"
         assert captured_payload["contextData"]["model"] == "test-model"
         assert captured_payload["contextData"]["input_data"] == {"key": "value"}
         assert captured_payload["contextData"]["file_ids"] == ["file1", "file2"]
         assert captured_payload["contextData"]["metadata"] == {"custom": "data"}
-
-    @pytest.mark.asyncio
-    async def test_correlation_id_from_metadata_fallback(self) -> None:
-        """Test that correlation_id falls back to metadata.correlation_id when not provided."""
-        captured_payload: dict[str, Any] = {}
-        metadata_correlation_id = "from-metadata-123"
-
-        mock_post = create_payload_capturing_mock(captured_payload)
-
-        async with AgentOrchestratorClient() as client:
-            client.http_client.post = AsyncMock(side_effect=mock_post)  # type: ignore[method-assign]
-
-            await client.invoke_agent_async(
-                prompt="Test",
-                user_id="test-user",
-                metadata={"correlation_id": metadata_correlation_id, "other": "value"},
-            )
-
-        # Should use correlation_id from metadata
-        assert captured_payload["contextData"]["correlation_id"] == metadata_correlation_id
-        # Metadata should still contain all original keys (correlation_id is not removed)
-        assert captured_payload["contextData"]["metadata"] == {
-            "correlation_id": metadata_correlation_id,
-            "other": "value",
-        }
-
-    @pytest.mark.asyncio
-    async def test_correlation_id_explicit_overrides_metadata(self) -> None:
-        """Test that explicit correlation_id parameter takes precedence over metadata."""
-        captured_payload: dict[str, Any] = {}
-        explicit_correlation_id = "explicit-123"
-        metadata_correlation_id = "from-metadata-456"
-
-        mock_post = create_payload_capturing_mock(captured_payload)
-
-        async with AgentOrchestratorClient() as client:
-            client.http_client.post = AsyncMock(side_effect=mock_post)  # type: ignore[method-assign]
-
-            await client.invoke_agent_async(
-                prompt="Test",
-                user_id="test-user",
-                correlation_id=explicit_correlation_id,
-                metadata={"correlation_id": metadata_correlation_id},
-            )
-
-        # Should use explicit correlation_id, not the one from metadata
-        assert captured_payload["contextData"]["correlation_id"] == explicit_correlation_id
-        # Metadata correlation_id remains (it's not removed, just not used for top-level)
-        assert captured_payload["contextData"]["metadata"]["correlation_id"] == metadata_correlation_id
 
 
 class TestAgentOrchestratorClientConfiguration:

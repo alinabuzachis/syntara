@@ -209,7 +209,6 @@ class AgentOrchestratorClient:
         prompt: str,
         user_id: str,
         session_id: str,
-        correlation_id: str,
         agent: str | None,
         model: str | None,
         input_data: dict[str, Any] | None,
@@ -222,7 +221,6 @@ class AgentOrchestratorClient:
             prompt: Natural language prompt
             user_id: User identifier
             session_id: Session ID
-            correlation_id: Correlation ID
             agent: Optional agent identifier
             model: Optional model identifier
             input_data: Optional input data
@@ -248,7 +246,6 @@ class AgentOrchestratorClient:
             "contextData": {
                 k: v
                 for k, v in {
-                    "correlation_id": correlation_id,
                     "input_data": input_data,
                     "file_ids": file_ids,
                     "model": model,
@@ -263,14 +260,12 @@ class AgentOrchestratorClient:
     async def _attempt_invocation(
         self,
         payload: dict[str, Any],
-        correlation_id: str,
         attempt: int,
     ) -> str:
         """Attempt a single invocation request.
 
         Args:
             payload: Request payload
-            correlation_id: Correlation ID for logging
             attempt: Current attempt number
 
         Returns:
@@ -281,7 +276,7 @@ class AgentOrchestratorClient:
             Exception: For HTTP errors
 
         """
-        logger.debug("Retry attempt", attempt=attempt, max_retries=self.max_retries, correlation_id=correlation_id)
+        logger.debug("Retry attempt", attempt=attempt, max_retries=self.max_retries)
 
         response = await self.http_client.post(
             "/invocations",
@@ -298,7 +293,6 @@ class AgentOrchestratorClient:
 
         logger.info(
             "Invocation created",
-            correlation_id=correlation_id,
             invocation_id=invocation_id,
             status=result.get("status"),
         )
@@ -348,7 +342,6 @@ class AgentOrchestratorClient:
         input_data: dict[str, Any] | None = None,
         file_ids: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
-        correlation_id: str | None = None,
     ) -> str:
         """Invoke Agent Orchestrator asynchronously and return immediately with invocation ID.
 
@@ -365,7 +358,6 @@ class AgentOrchestratorClient:
             input_data: Optional input data for the agent
             file_ids: Optional list of file IDs to include as context
             metadata: Optional additional metadata (should include callback_url)
-            correlation_id: Optional correlation ID for tracking (auto-generated if not provided)
 
         Returns:
             str: The invocation ID for tracking
@@ -375,13 +367,10 @@ class AgentOrchestratorClient:
             AgentOrchestratorClientError: For other invocation errors
 
         """
-        # Generate IDs if not provided
-        correlation_id = correlation_id or (metadata or {}).get("correlation_id") or str(uuid4())
         session_id = session_id or str(uuid4())
 
         logger.info(
             "Invoking agent asynchronously",
-            correlation_id=correlation_id,
             prompt_length=len(prompt),
             agent=agent,
             model=model,
@@ -390,7 +379,7 @@ class AgentOrchestratorClient:
 
         # Build request payload
         payload = self._build_invocation_payload(
-            prompt, user_id, session_id, correlation_id, agent, model, input_data, file_ids, metadata
+            prompt, user_id, session_id, agent, model, input_data, file_ids, metadata
         )
 
         # Invoke with retry logic for transient failures
@@ -398,7 +387,7 @@ class AgentOrchestratorClient:
 
         for attempt in range(self.max_retries + 1):
             try:
-                return await self._attempt_invocation(payload, correlation_id, attempt)
+                return await self._attempt_invocation(payload, attempt)
 
             except Exception as e:  # noqa: BLE001 - Broad exception catch is intentional for retry logic
                 # Determine if we should retry
@@ -416,7 +405,6 @@ class AgentOrchestratorClient:
                     attempt=attempt,
                     max_retries=self.max_retries,
                     backoff_seconds=backoff,
-                    correlation_id=correlation_id,
                     error=str(e),
                 )
                 await asyncio.sleep(backoff)

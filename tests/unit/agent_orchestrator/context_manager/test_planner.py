@@ -64,7 +64,6 @@ class TestContextManagerPlanner:
 
         # Mock AssemblerService to return a ContextPackage
         mock_context_package = ContextPackage(
-            correlation_id="test-run-123",
             payload={"documents": []},
             grounding_score=0.0,
             citations=[],
@@ -87,7 +86,6 @@ class TestContextManagerPlanner:
             return_value=mock_context_package,
         ) as mock_assemble:
             result = await planner.plan_request(
-                correlation_id="test-run-123",
                 session_id="test-session",
                 query="test query",
                 user_id=mock_user.id,
@@ -95,14 +93,12 @@ class TestContextManagerPlanner:
 
         # Verify return type and structure
         assert isinstance(result, ContextPackage)
-        assert result.correlation_id == "test-run-123"
         assert result.grounding_score == pytest.approx(0.0)
         assert result.id is not None  # UUID generated
 
         # Verify AssemblerService.assemble was called with correct parameters
         mock_assemble.assert_called_once()
         call_kwargs = mock_assemble.call_args.kwargs
-        assert call_kwargs["correlation_id"] == "test-run-123"
         assert call_kwargs["documents"] == []
         assert "max_tokens" in call_kwargs
         assert "compression_loop" in call_kwargs
@@ -116,7 +112,6 @@ class TestContextManagerPlanner:
     async def test_plan_request_with_different_parameters(self, mock_user: User, mock_compressor) -> None:
         """Test plan_request with different parameter combinations."""
         mock_context_package = ContextPackage(
-            correlation_id="different-run",
             payload={},
             grounding_score=0.0,
             citations=[],
@@ -131,19 +126,17 @@ class TestContextManagerPlanner:
             return_value=mock_context_package,
         ):
             result = await planner.plan_request(
-                correlation_id="different-run",
                 session_id="different-session",
                 query="different query",
                 user_id=mock_user.id,
             )
 
-        assert result.correlation_id == "different-run"
+        assert isinstance(result, ContextPackage)
 
     @pytest.mark.asyncio
     async def test_plan_request_timing_metadata(self, mock_user: User, mock_compressor) -> None:
         """Test that timing metadata is properly recorded in AssemblerService."""
         mock_context_package = ContextPackage(
-            correlation_id="timing-test",
             payload={},
             grounding_score=0.0,
             citations=[],
@@ -163,7 +156,6 @@ class TestContextManagerPlanner:
             return_value=mock_context_package,
         ):
             result = await planner.plan_request(
-                correlation_id="timing-test",
                 session_id="test-session",
                 query="timing query",
                 user_id=mock_user.id,
@@ -190,7 +182,6 @@ class TestContextManagerPlanner:
 
         # Mock AssemblerService to return a valid package (called even after retrieval fails)
         mock_context_package = ContextPackage(
-            correlation_id="error-test",
             payload={},
             grounding_score=0.0,
             citations=[],
@@ -210,7 +201,6 @@ class TestContextManagerPlanner:
         ) as mock_assemble:
             # Should not raise exception despite retrieval failure
             result = await planner.plan_request(
-                correlation_id="error-test",
                 session_id="test-session",
                 query="error query",
                 invocation_id=UUID("12345678-1234-5678-1234-567812345678"),
@@ -219,8 +209,6 @@ class TestContextManagerPlanner:
 
             # Verify planner still returns a result despite retrieval error
             assert isinstance(result, ContextPackage)
-            assert result.correlation_id == "error-test"
-
             # Verify AssemblerService was still called (with empty documents)
             assert mock_assemble.called
 
@@ -231,7 +219,6 @@ class TestContextManagerPlanner:
     async def test_plan_request_passes_config_to_assembler(self, mock_user: User, mock_compressor) -> None:
         """Test that planner passes configuration values to AssemblerService."""
         mock_context_package = ContextPackage(
-            correlation_id="config-test",
             payload={},
             grounding_score=0.0,
             citations=[],
@@ -246,7 +233,6 @@ class TestContextManagerPlanner:
             return_value=mock_context_package,
         ) as mock_assemble:
             await planner.plan_request(
-                correlation_id="config-test",
                 session_id="test-session",
                 query="config query",
                 user_id=mock_user.id,
@@ -267,7 +253,6 @@ class TestContextManagerPlanner:
     ) -> None:
         """plan_request() must read context_manager.max_total_tokens from runtime settings."""
         mock_context_package = ContextPackage(
-            correlation_id="cache-test",
             payload={},
             grounding_score=0.0,
             citations=[],
@@ -283,7 +268,7 @@ class TestContextManagerPlanner:
             ) as mock_assemble,
         ):
             planner = ContextManagerPlanner(compressor_service_factory=lambda: mock_compressor)
-            await planner.plan_request(correlation_id="cache-test", session_id="test-session", query="cache query")
+            await planner.plan_request(session_id="test-session", query="cache query")
 
         call_kwargs = mock_assemble.call_args.kwargs
         assert call_kwargs["max_tokens"] == 8000
@@ -292,14 +277,12 @@ class TestContextManagerPlanner:
         """Test ContextPackage model validation."""
         # Test valid ContextPackage creation
         package = ContextPackage(
-            correlation_id="validation-test",
             payload={"test": "data"},
             grounding_score=0.5,
             citations=["file-id-1"],  # Updated to use file_id strings
             package_metadata={"key": "value"},
         )
 
-        assert package.correlation_id == "validation-test"
         assert package.payload == {"test": "data"}
         assert package.grounding_score == pytest.approx(0.5)
         assert len(package.citations) == 1
@@ -312,15 +295,15 @@ class TestContextManagerPlanner:
     def test_context_package_grounding_score_validation(self) -> None:
         """Test ContextPackage grounding score validation bounds."""
         # Test valid grounding scores
-        package1 = ContextPackage(correlation_id="test", grounding_score=0.0)
+        package1 = ContextPackage(grounding_score=0.0)
         assert package1.grounding_score == pytest.approx(0.0)
 
-        package2 = ContextPackage(correlation_id="test", grounding_score=1.0)
+        package2 = ContextPackage(grounding_score=1.0)
         assert package2.grounding_score == pytest.approx(1.0)
 
         # Test invalid grounding scores (should be caught by pydantic validation)
         with pytest.raises(Exception, match=r"ensure this value is greater than or equal to|validation error"):
-            ContextPackage(correlation_id="test", grounding_score=-0.1)
+            ContextPackage(grounding_score=-0.1)
 
         with pytest.raises(Exception, match=r"ensure this value is less than or equal to|validation error"):
-            ContextPackage(correlation_id="test", grounding_score=1.1)
+            ContextPackage(grounding_score=1.1)

@@ -7,7 +7,7 @@ integrating with the Agent Orchestrator service for AI-driven task execution.
 from __future__ import annotations
 
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from pydantic import ValidationError
@@ -67,8 +67,7 @@ async def execute_agentic_activity(
             - output: Mapped output containing invocation metadata
 
     """
-    correlation_id = str(uuid4())
-    logger.info("Starting agentic activity (v2)", correlation_id=correlation_id)
+    logger.info("Starting agentic activity (v2)")
 
     try:
         # Validate config
@@ -106,7 +105,6 @@ async def execute_agentic_activity(
 
         logger.info(
             "Invoking Agent Orchestrator",
-            correlation_id=correlation_id,
             user_id=user_id,
             agent=config.agent,
             model=config.model,
@@ -139,12 +137,10 @@ async def execute_agentic_activity(
                 input_data={},  # input_data is part of prompt in v2
                 file_ids=file_ids,
                 metadata=agent_metadata,
-                correlation_id=correlation_id,
             )
 
             logger.info(
                 "Agent invocation created successfully",
-                correlation_id=correlation_id,
                 invocation_id=invocation_id,
             )
 
@@ -154,7 +150,6 @@ async def execute_agentic_activity(
                 "activity_id": activity_id,
                 "invocation_id": invocation_id,
                 "callback_url": callback_url,
-                "correlation_id": correlation_id,
             }
 
             mapped_output = apply_output_mapping(full_result, output_config)
@@ -176,7 +171,7 @@ async def execute_agentic_activity(
         return {"output": mapped_output}
 
     except AgentOrchestratorClientConnectionError as e:
-        logger.exception("Failed to connect to Agent Orchestrator", correlation_id=correlation_id)
+        logger.exception("Failed to connect to Agent Orchestrator")
         full_result = {
             "status": "failed",
             "error": f"Failed to connect to Agent Orchestrator: {e}",
@@ -185,7 +180,7 @@ async def execute_agentic_activity(
         return {"output": mapped_output}
 
     except Exception as e:
-        logger.exception("Unexpected error during agentic activity", correlation_id=correlation_id)
+        logger.exception("Unexpected error during agentic activity")
         full_result = {
             "status": "failed",
             "error": f"Unexpected error: {e}",

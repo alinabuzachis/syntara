@@ -43,7 +43,6 @@ class TestGenericAgentLLMIntegration:
             "prompt": "What tools are available for deployment?",
             "original_prompt": "What tools are available for deployment?",
             "session_id": "test-session",
-            "correlation_id": str(invocation_id),
             "invocation_id": str(invocation_id),
             "user_id": None,
             "context_package": None,
@@ -80,7 +79,6 @@ class TestGenericAgentLLMIntegration:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "correlation_id": str(invocation_id),
             "invocation_id": str(invocation_id),
             "user_id": None,
             "context_package": None,
@@ -114,7 +112,6 @@ class TestGenericAgentLLMIntegration:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "correlation_id": invocation_id,
             "invocation_id": invocation_id,
             "user_id": None,
             "context_package": None,
@@ -146,7 +143,6 @@ class TestGenericAgentLLMIntegration:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "correlation_id": invocation_id,
             "invocation_id": invocation_id,
             "user_id": None,
             "context_package": None,
@@ -178,7 +174,6 @@ class TestGenericAgentLLMIntegration:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "correlation_id": invocation_id,
             "invocation_id": invocation_id,
             "user_id": None,
             "context_package": None,
@@ -214,7 +209,6 @@ class TestGenericAgentPromptEngineering:
             "prompt": user_prompt,
             "original_prompt": user_prompt,
             "session_id": "test-session",
-            "correlation_id": str(invocation_id),
             "invocation_id": str(invocation_id),
             "user_id": None,
             "context_package": None,
@@ -246,7 +240,6 @@ class TestGenericAgentPromptEngineering:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "correlation_id": str(invocation_id),
             "invocation_id": str(invocation_id),
             "user_id": None,
             "context_package": None,
@@ -280,7 +273,6 @@ class TestGenericAgentPromptEngineering:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "correlation_id": invocation_id,
             "invocation_id": invocation_id,
             "user_id": None,
             "context_package": None,
@@ -298,13 +290,13 @@ class TestGenericAgentPromptEngineering:
 
 
 class TestGenericAgentLogging:
-    """Test GenericAgent logging and correlation IDs."""
+    """Test GenericAgent logging."""
 
     @pytest.mark.asyncio
-    async def test_generic_agent_logs_llm_interactions_with_correlation_id(
+    async def test_generic_agent_logs_llm_interactions(
         self,
     ) -> None:
-        """Test GenericAgent logs all LLM interactions with correlation IDs."""
+        """Test GenericAgent logs all LLM interactions."""
         mock_llm = Mock()
         mock_llm_with_tools = AsyncMock()
         mock_llm_with_tools.ainvoke.return_value = AIMessage(content="Test response", response_metadata={})
@@ -317,7 +309,6 @@ class TestGenericAgentLogging:
             "prompt": "test query",
             "original_prompt": "test query",
             "session_id": "test-session",
-            "correlation_id": str(invocation_id),
             "invocation_id": str(invocation_id),
             "user_id": None,
             "context_package": None,
@@ -421,7 +412,6 @@ class TestTokenUsageLogAccumulation:
             "prompt": "test",
             "original_prompt": "test",
             "session_id": "test-session",
-            "correlation_id": str(invocation_id),
             "invocation_id": str(invocation_id),
             "user_id": None,
             "context_package": None,
@@ -458,7 +448,6 @@ class TestTokenUsageLogAccumulation:
             "prompt": "test",
             "original_prompt": "test",
             "session_id": "test-session",
-            "correlation_id": str(invocation_id),
             "invocation_id": str(invocation_id),
             "user_id": None,
             "context_package": None,

@@ -47,9 +47,7 @@ class TestCompressorService:
         test_docs = ["test document"]
 
         # Method should execute and return string content
-        result = await service.compress(
-            data=test_docs, max_tokens=100, strategy="greedy", correlation_id="test-correlation-789"
-        )
+        result = await service.compress(data=test_docs, max_tokens=100, strategy="greedy")
         assert isinstance(result, str)
         assert len(result) > 0
 
@@ -82,13 +80,11 @@ class TestAssemblerService:
         # Method should execute and return ContextPackage
         result = await service.assemble(
             documents=[],
-            correlation_id="test-correlation-101",
             max_tokens=1000,
             compression_loop=0,
         )
 
         assert result is not None
-        assert result.correlation_id == "test-correlation-101"
         assert math.isclose(result.grounding_score, 0.0)
 
     @pytest.mark.asyncio
@@ -104,7 +100,6 @@ class TestAssemblerService:
         # Method should execute without raising exception
         result = await service.assemble(
             documents=None,
-            correlation_id="null-docs-correlation",
             max_tokens=1000,
             compression_loop=0,
         )

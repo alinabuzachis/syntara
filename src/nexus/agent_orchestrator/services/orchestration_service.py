@@ -138,7 +138,6 @@ class OrchestrationService:
         prompt: str,
         session_id: str,
         invocation_id: UUID,
-        correlation_id: str | None = None,
         metadata: dict[str, Any] | None = None,
         user_id: UUID | None = None,
         execution_id: UUID | None = None,
@@ -152,7 +151,6 @@ class OrchestrationService:
             prompt: User's prompt to process
             session_id: Session identifier for multi-turn tracking
             invocation_id: Invocation UUID
-            correlation_id: Optional correlation ID for distributed tracing
             metadata: Optional metadata from invocation context_data (e.g., callback_url)
             user_id: Optional UUID of the user who initiated the invocation
             execution_id: Optional workflow execution ID for telemetry correlation
@@ -173,7 +171,6 @@ class OrchestrationService:
             prompt=prompt,
             session_id=session_id,
             invocation_id=invocation_id,
-            correlation_id=correlation_id,
             metadata=metadata,
             user_id=user_id,
             execution_id=execution_id,
@@ -728,14 +725,9 @@ class OrchestrationService:
         result = state.get("result")
         context_package = state.get("context_package")
         if result is not None and context_package is not None:
-            # Use correlation_id from context package when context is applied
-            result["correlation_id"] = context_package["correlation_id"]
             result["grounding_score"] = context_package["grounding_score"]
             result["context_enhancement"] = {
                 "turn_id": context_package["package_id"],  # Use turn_id as per API schema
                 "citations": context_package["citations"],
                 "context_applied": context_package["context_applied"],
             }
-        elif result is not None:
-            # Use correlation_id from state when no context is applied
-            result["correlation_id"] = state.get("correlation_id")

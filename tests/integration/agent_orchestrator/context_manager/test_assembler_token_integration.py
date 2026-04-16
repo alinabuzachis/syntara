@@ -57,7 +57,6 @@ class TestTokenValidationIntegration:
         # Assemble with user_id and session
         result = await assembler.assemble(
             documents=docs,
-            correlation_id="test-correlation",
             max_tokens=10000,  # Large budget
             compression_loop=3,
             user_id=test_user.id,
@@ -112,7 +111,6 @@ class TestTokenValidationIntegration:
         # Assemble - should trigger compression
         result = await assembler.assemble(
             documents=docs,
-            correlation_id="test-correlation",
             max_tokens=10000,
             compression_loop=3,
             user_id=test_user.id,
@@ -166,7 +164,6 @@ class TestTokenValidationIntegration:
 
         result = await assembler.assemble(
             documents=docs,
-            correlation_id="test-correlation",
             max_tokens=10000,
             compression_loop=3,
             user_id=test_user.id,
@@ -186,14 +183,11 @@ class TestTokenValidationIntegration:
             assert "data" in kwargs
             assert "max_tokens" in kwargs
             assert "strategy" in kwargs
-            assert "correlation_id" in kwargs
-
             # Verify argument values
             assert isinstance(kwargs["data"], list)
             assert all(isinstance(item, str) for item in kwargs["data"])
             assert kwargs["max_tokens"] == 10000
             assert kwargs["strategy"] == "greedy"
-            assert kwargs["correlation_id"] == "test-correlation"
 
     @pytest.mark.usefixtures("test_user_low_token_config")
     async def test_all_retries_exhausted_raises_context_assembly_error(
@@ -233,7 +227,6 @@ class TestTokenValidationIntegration:
         with pytest.raises(ContextAssemblyError) as exc_info:
             await assembler.assemble(
                 documents=docs,
-                correlation_id="test-correlation",
                 max_tokens=10000,
                 compression_loop=2,  # Allow 2 retries
                 user_id=test_user.id,
@@ -241,7 +234,6 @@ class TestTokenValidationIntegration:
             )
 
         # Verify error details
-        assert exc_info.value.correlation_id == "test-correlation"
         assert exc_info.value.retry_count == 2
 
     @pytest.mark.usefixtures("test_user_token_config")
@@ -281,7 +273,6 @@ class TestTokenValidationIntegration:
         # Assemble documents
         await assembler.assemble(
             documents=docs,
-            correlation_id="test-correlation",
             max_tokens=10000,
             compression_loop=3,
             user_id=test_user.id,

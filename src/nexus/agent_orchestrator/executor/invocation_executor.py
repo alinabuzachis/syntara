@@ -163,8 +163,6 @@ class InvocationExecutor:
                     prompt=invocation.prompt,
                 )
 
-                # Execute through orchestration service
-                correlation_id = str(invocation.context_data.get("correlation_id", exec_invocation_id))
                 # Extract execution_id from context_data for telemetry correlation
                 raw_execution_id = invocation.context_data.get("execution_id")
                 execution_id = UUID(str(raw_execution_id)) if isinstance(raw_execution_id, str) else None
@@ -173,7 +171,6 @@ class InvocationExecutor:
                     prompt=invocation.prompt,
                     session_id=invocation.session_id,
                     invocation_id=exec_invocation_id,
-                    correlation_id=correlation_id,
                     metadata=invocation.context_data,
                     user_id=invocation.created_by,
                     execution_id=execution_id,

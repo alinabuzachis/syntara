@@ -91,7 +91,6 @@ class OrchestratorAgent:
             user_id = UUID(state["user_id"]) if state.get("user_id") else None
             context_package = await asyncio.wait_for(
                 self.context_manager.plan_request(
-                    correlation_id=state["correlation_id"],
                     session_id=state["session_id"],
                     query=state["original_prompt"],
                     invocation_id=UUID(state["invocation_id"]),
@@ -108,7 +107,6 @@ class OrchestratorAgent:
             updated_state["prompt"] = enhanced_prompt
             updated_state["context_package"] = {
                 "package_id": context_package.id,
-                "correlation_id": context_package.correlation_id,
                 "grounding_score": context_package.grounding_score,
                 "citations": context_package.citations,
                 "context_applied": True,

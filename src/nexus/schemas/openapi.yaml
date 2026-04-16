@@ -2574,7 +2574,6 @@ paths:
                       content: Based on the available documentation, the Nexus system provides several deployment tools including Docker for containerization, Kubernetes for orchestration, and Terraform for infrastructure as code...
                       response_metadata:
                         model: anthropic/claude-3.5-sonnet
-                      correlation_id: workflow-correlation-456
                       grounding_score: 0.8
                       context_enhancement:
                         turn_id: 770e8400-e29b-41d4-a716-446655440003
@@ -7869,7 +7868,6 @@ components:
               description: |
                 Invocation result data (populated on completion).
                 For context-enhanced invocations, includes additional metadata:
-                - correlation_id: ID for distributed tracing and correlation
                 - grounding_score: Relevance score (0.0-1.0) indicating context quality
                 - context_enhancement: Additional context enhancement information including citations
               additionalProperties: true
@@ -7886,10 +7884,6 @@ components:
                   type: object
                   description: Metadata from the AI model response
                   additionalProperties: true
-                correlation_id:
-                  type: string
-                  description: Correlation ID for distributed tracing and debugging (optional)
-                  example: workflow-correlation-123
                 grounding_score:
                   type: number
                   format: float
@@ -7927,7 +7921,6 @@ components:
                 content: The deployment tools available include Docker, Kubernetes, and Terraform...
                 response_metadata:
                   model: anthropic/claude-3.5-sonnet
-                correlation_id: workflow-correlation-123
                 grounding_score: 0.85
                 context_enhancement:
                   turn_id: 660e8400-e29b-41d4-a716-446655440001

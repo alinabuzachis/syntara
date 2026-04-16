@@ -5,19 +5,12 @@ Records per-request metrics:
 * Total request duration for every API request.
 * Component timing breakdown labels (endpoint, method).
 * Error counts categorised by type (timeout, rate_limit, validation, internal).
-
-Each request receives a unique ``correlation_id`` (UUID4) that appears in
-the ``X-Correlation-ID`` response header, enabling end-to-end tracing from
-the client through to server logs.  The correlation_id is intentionally
-*not* stored in metric labels to avoid high-cardinality memory growth in
-the in-memory metrics store.
 """
 
 from __future__ import annotations
 
 import time
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import structlog
 
@@ -32,7 +25,6 @@ if TYPE_CHECKING:
 
 logger = structlog.stdlib.get_logger(__name__)
 
-_CORRELATION_HEADER: bytes = b"x-correlation-id"
 _REQUEST_ID_HEADER: bytes = b"x-request-id"
 
 # ---- Error type classification -------------------------------------------------
@@ -91,14 +83,12 @@ class MetricsMiddleware:
 
     For every non-excluded HTTP request the middleware:
 
-    1. Generates a unique ``correlation_id``.
-    2. Times the full request lifecycle.
-    3. Records a ``REQUEST_DURATION`` metric with endpoint, method, and
+    1. Times the full request lifecycle.
+    2. Records a ``REQUEST_DURATION`` metric with endpoint, method, and
        status labels.
-    4. For error responses (>= 400), records an ``ERROR`` metric with the
+    3. For error responses (>= 400), records an ``ERROR`` metric with the
        classified ``error_type``.
-    5. Injects the ``X-Correlation-ID`` response header so clients can
-       correlate their requests to server-side logs.
+    4. Injects the ``X-Request-Id`` response header when present.
 
     Args:
         app: The next ASGI application in the chain.
@@ -139,7 +129,6 @@ class MetricsMiddleware:
             await self.app(scope, receive, send)
             return
 
-        correlation_id = str(uuid4())
         method: str = scope.get("method", "UNKNOWN")
         status_code = 0
         start = time.perf_counter()
@@ -152,7 +141,6 @@ class MetricsMiddleware:
             if message["type"] == "http.response.start":
                 status_code = message["status"]
                 existing_headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
-                existing_headers.append((_CORRELATION_HEADER, correlation_id.encode()))
                 if request_id is not None:
                     existing_headers.append((_REQUEST_ID_HEADER, str(request_id).encode()))
                 message = {**message, "headers": existing_headers}

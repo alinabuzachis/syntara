@@ -2,7 +2,6 @@
 
 Tests approval request creation including:
 - Basic approval request creation
-- Correlation ID generation
 - Output mapping
 """
 
@@ -38,7 +37,6 @@ def assert_valid_approval_metadata(output: dict[str, Any]) -> None:
     assert "approval_id" in output
     assert output["approval_id"].startswith("apr_")
     assert output["approval_status"] == "pending"
-    assert "correlation_id" in output
 
 
 @pytest.mark.asyncio

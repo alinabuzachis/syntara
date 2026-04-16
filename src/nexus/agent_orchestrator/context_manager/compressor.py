@@ -58,7 +58,6 @@ class CompressorService:
         max_tokens: int,
         strategy: Literal["greedy"] = "greedy",
         goal: str | None = None,
-        correlation_id: str = "unknown",
     ) -> str:
         """Compress data to fit within token budget using specified strategy.
 
@@ -67,7 +66,6 @@ class CompressorService:
             max_tokens: Maximum tokens allowed in output
             strategy: Compression strategy to use (currently only "greedy" supported)
             goal: Optional context for LLM summarization to focus on specific aspects
-            correlation_id: Correlation identifier for distributed tracing
 
         Returns:
             String content: Either original content or compressed summary
@@ -75,7 +73,6 @@ class CompressorService:
         """
         logger.debug(
             "CompressorService.compress called",
-            correlation_id=correlation_id,
             strategy=strategy,
             max_tokens=max_tokens,
         )
@@ -86,10 +83,10 @@ class CompressorService:
         # Normalize input data to consistent format
         documents = self._normalize_input(data)
 
-        logger.debug("Compression input", correlation_id=correlation_id, doc_count=len(documents))
+        logger.debug("Compression input", doc_count=len(documents))
 
         # Execute compression strategy
-        return await self._greedy_strategy(documents, max_tokens, goal, correlation_id)
+        return await self._greedy_strategy(documents, max_tokens, goal)
 
     def _normalize_input(self, data: list[str] | str) -> list[str]:
         """Convert input data to normalized list format.
@@ -105,16 +102,13 @@ class CompressorService:
             return [data]
         return data
 
-    async def _greedy_strategy(
-        self, documents: list[str], max_tokens: int, goal: str | None, correlation_id: str
-    ) -> str:
+    async def _greedy_strategy(self, documents: list[str], max_tokens: int, goal: str | None) -> str:
         """Execute greedy compression strategy (binary decision).
 
         Args:
             documents: List of document strings
             max_tokens: Maximum tokens allowed in output
             goal: Optional goal for summarization
-            correlation_id: Correlation identifier for logging
 
         Returns:
             Either concatenated content or compressed summary
@@ -134,7 +128,6 @@ class CompressorService:
 
         logger.debug(
             "Token analysis",
-            correlation_id=correlation_id,
             total_tokens=total_tokens,
             max_tokens=max_tokens,
         )
@@ -144,7 +137,6 @@ class CompressorService:
             # Documents fit within budget - pass through unchanged
             logger.info(
                 "No compression needed",
-                correlation_id=correlation_id,
                 tokens_used=total_tokens,
                 max_tokens=max_tokens,
             )
@@ -152,11 +144,10 @@ class CompressorService:
         # Documents exceed budget - compress entire collection
         logger.info(
             "Compression required",
-            correlation_id=correlation_id,
             tokens_before=total_tokens,
             target=max_tokens,
         )
-        return await self._compress_with_llm(documents, max_tokens, goal, correlation_id)
+        return await self._compress_with_llm(documents, max_tokens, goal)
 
     def _format_documents(self, documents: list[str], *, always_prefix: bool = False) -> str:
         """Format documents with clear separators and optional document identifiers.
@@ -179,16 +170,13 @@ class CompressorService:
 
         return "\n\n".join(formatted_docs)
 
-    async def _compress_with_llm(
-        self, documents: list[str], max_tokens: int, goal: str | None, correlation_id: str
-    ) -> str:
+    async def _compress_with_llm(self, documents: list[str], max_tokens: int, goal: str | None) -> str:
         """Compress documents using LLM summarization with structured citations.
 
         Args:
             documents: List of document strings to compress
             max_tokens: Maximum tokens allowed in output
             goal: Optional context for summarization focus
-            correlation_id: Correlation identifier for logging
 
         Returns:
             Compressed content with structured citations
@@ -229,14 +217,12 @@ Goal: {goal_text}"""
         if compressed_tokens > max_tokens:
             logger.warning(
                 "Compressed output exceeds target",
-                correlation_id=correlation_id,
                 tokens_after=compressed_tokens,
                 target=max_tokens,
             )
         else:
             logger.info(
                 "Compression completed",
-                correlation_id=correlation_id,
                 tokens_after=compressed_tokens,
                 target=max_tokens,
                 ratio=compressed_tokens / max_tokens,

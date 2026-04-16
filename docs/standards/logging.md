@@ -99,7 +99,6 @@ logger.debug(
 logger.info(
     "Executing streaming orchestration for invocation",
     invocation_id=invocation_id,
-    correlation_id=correlation_id,
 )
 
 logger.info(
@@ -196,7 +195,6 @@ Pass all relevant identifiers and state:
 logger.info(
     "Executing streaming orchestration for invocation",
     invocation_id=invocation_id,
-    correlation_id=correlation_id,
     user_id=user_id,
     workflow_name=workflow_name,
 )
@@ -213,7 +211,7 @@ Use consistent keyword argument names across the codebase:
 | Activity ID | `activity_id` |
 | User ID | `user_id` |
 | Invocation ID | `invocation_id` |
-| Correlation ID | `correlation_id` |
+| Request ID | `request_id` |
 | Error type | `error_type` |
 | Error message | `error` or `error_message` |
 | Temporal workflow ID | `temporal_workflow_id` |
@@ -315,7 +313,6 @@ logger.exception(
     "Streaming orchestration failed",
     invocation_id=invocation_id,
     error_type=type(e).__name__,
-    correlation_id=correlation_id,
 )
 ```
 

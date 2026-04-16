@@ -78,7 +78,6 @@ class TestContextErrorHandling:
             assert len(result["content"]) > 0
 
             # Context metadata may not be present on failure
-            result.get("correlation_id")
             result.get("grounding_score")
 
             # If context metadata is missing due to failure, that's acceptable
@@ -99,7 +98,7 @@ class TestContextErrorHandling:
         # Mock Context Manager to simulate slow response
         async def slow_plan_request(*args: object, **kwargs: object) -> ContextPackage:
             await asyncio.sleep(5.0)  # Simulate 5 second delay
-            return ContextPackage(correlation_id="test", payload={}, grounding_score=0.0)
+            return ContextPackage(payload={}, grounding_score=0.0)
 
         with (
             patch.object(ContextManagerPlanner, "plan_request", side_effect=slow_plan_request),
@@ -149,10 +148,9 @@ class TestContextErrorHandling:
         """
         # Mock Context Manager to return context package with some fields missing/invalid
         mock_context_package = ContextPackage(
-            correlation_id="partial-failure-test",
             payload={},  # Empty payload (acceptable)
             grounding_score=0.0,  # Valid score
-            package_metadata={},  # Missing correlation_id (should be handled)
+            package_metadata={},
             citations=[],
         )
 
@@ -186,9 +184,6 @@ class TestContextErrorHandling:
             result = data["result"]
 
             assert "content" in result
-
-            # Should handle missing correlation_id gracefully
-            # Implementation should either generate fallback correlation_id or omit field
 
     @pytest.mark.asyncio
     async def test_context_manager_exception_types(

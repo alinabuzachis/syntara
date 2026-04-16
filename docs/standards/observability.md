@@ -449,23 +449,9 @@ When adding a new component:
 2. Update metrics map if needed
 3. Use consistently across all metrics for that component
 
-## Correlation IDs
+## Request IDs
 
-**Metrics:** `MetricsMiddleware` generates a UUID4 `correlation_id` for each request, included in:
-- Metric labels (`correlation_id`)
-- Response header (`X-Correlation-ID`)
-
-**Logs:** Use structured logging with `correlation_id` for request tracing:
-
-```python
-logger.info(
-    "Processing workflow execution",
-    workflow_execution_id=execution_id,
-    correlation_id=correlation_id,
-)
-```
-
-**Tracing:** Correlation IDs enable end-to-end tracing from client through logs and metrics.
+**Tracing:** Clients can pass an `X-Request-Id` header (UUID) on any HTTP request. The value is validated, stored in a ContextVar, echoed back in the response, and automatically included in every telemetry event emitted during that request. Use `request_id` for end-to-end request tracing.
 
 ## Best Practices Summary
 

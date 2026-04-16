@@ -38,7 +38,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         mock_invocation.status = InvocationStatus.RUNNING
         mock_invocation.prompt = "test prompt"
         mock_invocation.session_id = "test-session"
-        mock_invocation.context_data = {"correlation_id": str(uuid4())}
+        mock_invocation.context_data = {}
 
         # Mock the invocation being cancelled DURING execution
         # First get() call returns RUNNING invocation
@@ -91,7 +91,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         mock_invocation.status = InvocationStatus.RUNNING
         mock_invocation.prompt = "test prompt"
         mock_invocation.session_id = "test-session"
-        mock_invocation.context_data = {"correlation_id": str(uuid4())}
+        mock_invocation.context_data = {}
 
         mock_session.get.return_value = mock_invocation
         # refresh() keeps status as RUNNING (not cancelled)
@@ -174,7 +174,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         mock_invocation.status = InvocationStatus.RUNNING
         mock_invocation.prompt = "test prompt"
         mock_invocation.session_id = "test-session"
-        mock_invocation.context_data = {"correlation_id": str(uuid4())}
+        mock_invocation.context_data = {}
 
         mock_session.get.return_value = mock_invocation
 
@@ -218,7 +218,7 @@ class TestInvocationExecutorCancellationRaceCondition:
         mock_invocation.status = InvocationStatus.RUNNING
         mock_invocation.prompt = "test prompt"
         mock_invocation.session_id = "test-session"
-        mock_invocation.context_data = {"correlation_id": str(uuid4())}
+        mock_invocation.context_data = {}
 
         mock_session.get.return_value = mock_invocation
 

@@ -39,9 +39,7 @@ class TestCompressionPassthrough:
         max_tokens = 500  # Larger than the mocked token count
 
         # Act
-        result = await compressor.compress(
-            data=documents, max_tokens=max_tokens, strategy="greedy", correlation_id="test_passthrough"
-        )
+        result = await compressor.compress(data=documents, max_tokens=max_tokens, strategy="greedy")
 
         # Assert - should return concatenated original content
         expected_content = "Document 1:\nShort document content\n\nDocument 2:\nAnother brief text"
@@ -63,9 +61,7 @@ class TestCompressionPassthrough:
         document = "Single document content"
 
         # Act
-        result = await compressor.compress(
-            data=document, max_tokens=100, strategy="greedy", correlation_id="test_single"
-        )
+        result = await compressor.compress(data=document, max_tokens=100, strategy="greedy")
 
         # Assert
         expected_content = "Single document content"
@@ -83,36 +79,11 @@ class TestCompressionPassthrough:
         documents = ["First doc", "Second doc", "Third doc"]
 
         # Act
-        result = await compressor.compress(
-            data=documents, max_tokens=200, strategy="greedy", correlation_id="test_format"
-        )
+        result = await compressor.compress(data=documents, max_tokens=200, strategy="greedy")
 
         # Assert - check proper document separation
         expected_lines = ["Document 1:", "First doc", "", "Document 2:", "Second doc", "", "Document 3:", "Third doc"]
         assert result == "\n".join(expected_lines)
-
-    async def test_correlation_id_logging(self, mock_token_calculator: Mock) -> None:
-        """Test that correlation_id is used in service operations."""
-        # Arrange
-        mock_token_calculator.count_tokens.return_value = 50
-
-        mock_llm = AsyncMock()
-        mock_llm.model_name = "test-model"
-        compressor = CompressorService(token_calculator=mock_token_calculator, llm=mock_llm)
-        documents = ["Test"]
-
-        correlation_id = "test_correlation_123"
-
-        # Act
-        result = await compressor.compress(
-            data=documents, max_tokens=100, strategy="greedy", correlation_id=correlation_id
-        )
-
-        # Assert - verify the service executed successfully with correlation_id parameter
-        # The service accepts correlation_id parameter and processes documents correctly
-        assert result == "Test"  # Passthrough behavior
-        assert mock_token_calculator.count_tokens.called
-        assert not mock_llm.ainvoke.called  # No LLM needed for passthrough
 
     async def test_goal_parameter_in_passthrough(self, mock_token_calculator: Mock) -> None:
         """Test that goal parameter is accepted but not used in passthrough case."""
@@ -131,7 +102,6 @@ class TestCompressionPassthrough:
             max_tokens=100,
             strategy="greedy",
             goal="Extract pricing information",
-            correlation_id="test_goal_passthrough",
         )
 
         # Assert - should pass through unchanged despite goal
