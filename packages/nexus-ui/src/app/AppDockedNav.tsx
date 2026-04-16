@@ -155,7 +155,6 @@ function UserMenuDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const [, setLocation] = useLocation()
   const logout = useAuthStore((s) => s.logout)
-  const username = useAuthStore((s) => s.username)
   const { showAlert } = useAlerts()
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
@@ -172,7 +171,7 @@ function UserMenuDropdown() {
   )
 
   return (
-    <Tooltip aria="none" aria-live="off" content={username ? `${username} — User menu` : 'User menu'} position="right">
+    <Tooltip aria="none" aria-live="off" content="User menu" position="right">
       <Dropdown
         isOpen={isOpen}
         onOpenChange={setIsOpen}
@@ -180,11 +179,6 @@ function UserMenuDropdown() {
         popperProps={{ position: 'right', preventOverflow: true }}
       >
         <DropdownList>
-          {username && (
-            <DropdownItem key="username" isDisabled style={{ fontWeight: 'bold', opacity: 1 }}>
-              {username}
-            </DropdownItem>
-          )}
           <DropdownItem
             key="profile"
             onClick={() => {
