@@ -1,5 +1,6 @@
-import { List, ListItem, Popover, Stack, StackItem } from '@patternfly/react-core'
-import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
+import { List, ListItem, Stack, StackItem } from '@patternfly/react-core'
+
+import { HelpPopover } from '../../../../components/expressions/HelpPopover'
 
 /**
  * Popover help icon explaining the behavior when max iterations is reached parameter.
@@ -8,8 +9,8 @@ import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
  */
 export function BehaviorHelp() {
   return (
-    <Popover
-      aria-label="Behaviour when max iteration is reached help"
+    <HelpPopover
+      ariaLabel="Behaviour when max iteration is reached help"
       headerContent="Behaviour when max iteration is reached"
       bodyContent={
         <Stack hasGutter>
@@ -40,23 +41,6 @@ export function BehaviorHelp() {
           </StackItem>
         </Stack>
       }
-      triggerAction="click"
-    >
-      <button
-        type="button"
-        aria-label="Behaviour when max iteration is reached help"
-        onClick={(e) => e.preventDefault()}
-        style={{
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-        }}
-      >
-        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--color--icon--default)' }} />
-      </button>
-    </Popover>
+    />
   )
 }

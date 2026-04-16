@@ -1,5 +1,6 @@
-import { Popover, Stack, StackItem } from '@patternfly/react-core'
-import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
+import { Stack, StackItem } from '@patternfly/react-core'
+
+import { HelpPopover } from '../../../../components/expressions/HelpPopover'
 
 /**
  * Popover help icon explaining conditional expression options:
@@ -10,8 +11,8 @@ import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
  */
 export function ConditionalExpressionHelp() {
   return (
-    <Popover
-      aria-label="Conditional expression help"
+    <HelpPopover
+      ariaLabel="Conditional expression help"
       headerContent="Conditional expression"
       bodyContent={
         <Stack hasGutter>
@@ -28,23 +29,6 @@ export function ConditionalExpressionHelp() {
           </StackItem>
         </Stack>
       }
-      triggerAction="click"
-    >
-      <button
-        type="button"
-        aria-label="Conditional expression help"
-        onClick={(e) => e.preventDefault()}
-        style={{
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-        }}
-      >
-        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--color--icon--default)' }} />
-      </button>
-    </Popover>
+    />
   )
 }

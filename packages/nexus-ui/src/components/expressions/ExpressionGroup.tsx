@@ -7,10 +7,14 @@
 import {
   Button,
   Checkbox,
+  Content,
+  ContentVariants,
   Flex,
   FlexItem,
   FormSelect,
   FormSelectOption,
+  List,
+  ListItem,
   Stack,
   StackItem,
   FormGroup,
@@ -34,10 +38,10 @@ const GroupHelp = () => (
     ariaLabel="Group help"
     headerContent="Group"
     bodyContent={
-      <div>
+      <Content component={ContentVariants.p}>
         A container for nested logic. Groups allow you to create complex "If/Then" scenarios, such as: (Condition A AND
         Condition B) OR (Condition C).
-      </div>
+      </Content>
     }
   />
 )
@@ -47,22 +51,19 @@ const RuleHelp = () => (
     ariaLabel="Rule help"
     headerContent="Rule"
     bodyContent={
-      <div>
-        <p>Define the relationship between your top-level conditions and groups.</p>
-        <ul
-          style={{
-            marginTop: 'var(--pf-t--global--spacer--sm)',
-            paddingLeft: 'var(--pf-t--global--spacer--lg)',
-          }}
-        >
-          <li>
+      <Content>
+        <Content component={ContentVariants.p}>
+          Define the relationship between your top-level conditions and groups.
+        </Content>
+        <List>
+          <ListItem>
             <strong>AND:</strong> All conditions/groups must be true to proceed.
-          </li>
-          <li style={{ marginTop: 'var(--pf-t--global--spacer--xs)' }}>
+          </ListItem>
+          <ListItem>
             <strong>OR:</strong> Only one condition/group needs to be true to proceed.
-          </li>
-        </ul>
-      </div>
+          </ListItem>
+        </List>
+      </Content>
     }
   />
 )
@@ -72,22 +73,17 @@ const GroupRuleHelp = () => (
     ariaLabel="Group rule help"
     headerContent="Group rule"
     bodyContent={
-      <div>
-        <p>Determine the logic for this specific subset of conditions.</p>
-        <ul
-          style={{
-            marginTop: 'var(--pf-t--global--spacer--sm)',
-            paddingLeft: 'var(--pf-t--global--spacer--lg)',
-          }}
-        >
-          <li>
+      <Content>
+        <Content component={ContentVariants.p}>Determine the logic for this specific subset of conditions.</Content>
+        <List>
+          <ListItem>
             <strong>AND:</strong> Every condition inside this nested group must be true.
-          </li>
-          <li style={{ marginTop: 'var(--pf-t--global--spacer--xs)' }}>
+          </ListItem>
+          <ListItem>
             <strong>OR:</strong> If any single condition inside this group is true, the entire group evaluates as true.
-          </li>
-        </ul>
-      </div>
+          </ListItem>
+        </List>
+      </Content>
     }
   />
 )
@@ -97,10 +93,10 @@ const GroupNotHelp = () => (
     ariaLabel="Group NOT operator help"
     headerContent="Not"
     bodyContent={
-      <div>
+      <Content component={ContentVariants.p}>
         Inverse the logic of this entire group. When checked, the group evaluates as true only if all its conditions
         would normally evaluate as false.
-      </div>
+      </Content>
     }
   />
 )

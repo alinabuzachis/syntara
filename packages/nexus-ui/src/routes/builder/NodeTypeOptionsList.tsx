@@ -1,6 +1,7 @@
 import {
   CompassPanel,
   Content,
+  ContentVariants,
   Flex,
   FlexItem,
   Label,
@@ -91,11 +92,7 @@ export function NodeTypeOptionsList(props: NodeTypeOptionsListProps) {
                   </Split>
                 </StackItem>
                 <StackItem>
-                  {nodeType.description && (
-                    <Content>
-                      <small>{nodeType.description}</small>
-                    </Content>
-                  )}
+                  {nodeType.description && <Content component={ContentVariants.small}>{nodeType.description}</Content>}
                 </StackItem>
               </Stack>
             </PanelMainBody>

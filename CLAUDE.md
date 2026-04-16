@@ -279,6 +279,29 @@ const deleteDialog = useDialogState<User>()
 // Use: deleteDialog.isOpen, deleteDialog.item
 ```
 
+#### 16. Prefer PF6 components over native HTML elements
+
+Use PatternFly 6 components instead of native HTML elements wherever a PF6 equivalent exists. This ensures consistent styling, accessibility, and design-system alignment.
+
+```typescript
+// ❌ BAD: Native HTML elements with manual styling
+<button onClick={handleClick} style={{ padding: '8px' }}>Save</button>
+<ul><li>Item 1</li><li>Item 2</li></ul>
+<p>Some descriptive text</p>
+
+// ✅ GOOD: PF6 components
+<Button onClick={handleClick}>Save</Button>
+<List><ListItem>Item 1</ListItem><ListItem>Item 2</ListItem></List>
+<Content component={ContentVariants.p}>Some descriptive text</Content>
+```
+
+**Exceptions (no PF6 equivalent — use native HTML):**
+
+- `<span>` — `ContentVariants.span` does **not** exist in PF6; use native `<span>`
+- `<code>` — no PF6 inline code wrapper
+- `<div>` — generic layout containers (use `Flex`/`Stack`/`Card` when semantic)
+- `<strong>` / `<em>` — inline emphasis
+
 ### Pull Request Rules
 
 All changes must follow the PR sizing and slicing policy defined in [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md).

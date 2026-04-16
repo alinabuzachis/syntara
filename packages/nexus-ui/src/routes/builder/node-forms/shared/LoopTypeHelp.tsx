@@ -1,5 +1,6 @@
-import { List, ListItem, Popover, Stack, StackItem } from '@patternfly/react-core'
-import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
+import { List, ListItem, Stack, StackItem } from '@patternfly/react-core'
+
+import { HelpPopover } from '../../../../components/expressions/HelpPopover'
 
 /**
  * Popover help icon explaining the loop type parameter.
@@ -8,8 +9,8 @@ import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
  */
 export function LoopTypeHelp() {
   return (
-    <Popover
-      aria-label="Loop type help"
+    <HelpPopover
+      ariaLabel="Loop type help"
       headerContent="Loop type"
       bodyContent={
         <Stack hasGutter>
@@ -35,23 +36,6 @@ export function LoopTypeHelp() {
           </StackItem>
         </Stack>
       }
-      triggerAction="click"
-    >
-      <button
-        type="button"
-        aria-label="Loop type help"
-        onClick={(e) => e.preventDefault()}
-        style={{
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-        }}
-      >
-        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--color--icon--default)' }} />
-      </button>
-    </Popover>
+    />
   )
 }

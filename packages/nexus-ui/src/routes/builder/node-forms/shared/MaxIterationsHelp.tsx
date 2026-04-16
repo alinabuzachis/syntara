@@ -1,5 +1,6 @@
-import { Popover, Stack, StackItem } from '@patternfly/react-core'
-import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
+import { Stack, StackItem } from '@patternfly/react-core'
+
+import { HelpPopover } from '../../../../components/expressions/HelpPopover'
 
 /**
  * Popover help icon explaining the max iterations parameter for while loops.
@@ -8,8 +9,8 @@ import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
  */
 export function MaxIterationsHelp() {
   return (
-    <Popover
-      aria-label="Max iterations help"
+    <HelpPopover
+      ariaLabel="Max iterations help"
       headerContent="Max iterations"
       bodyContent={
         <Stack hasGutter>
@@ -24,23 +25,6 @@ export function MaxIterationsHelp() {
           </StackItem>
         </Stack>
       }
-      triggerAction="click"
-    >
-      <button
-        type="button"
-        aria-label="Max iterations help"
-        onClick={(e) => e.preventDefault()}
-        style={{
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-        }}
-      >
-        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--color--icon--default)' }} />
-      </button>
-    </Popover>
+    />
   )
 }
