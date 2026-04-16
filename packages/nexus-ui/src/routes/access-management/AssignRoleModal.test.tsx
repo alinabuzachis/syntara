@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../components/alerts'
 import { accessClient } from '../access/accessClient'
+import { useAllRoles } from '../access/useAllRoles'
 
 import { AssignRoleModal } from './AssignRoleModal'
 
@@ -19,6 +20,10 @@ vi.mock('../access/accessClient', () => ({
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../access/useAllRoles', () => ({
+  useAllRoles: vi.fn(),
 }))
 
 const mockMutateAsync = vi.fn()
@@ -88,10 +93,13 @@ describe('AssignRoleModal', () => {
   const mockOnSuccess = vi.fn()
 
   function setupMocks() {
+    vi.mocked(useAllRoles).mockReturnValue({
+      roles: mockRoles.resources as never,
+      isLoading: false,
+      error: null,
+    })
+
     vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-      if (path === '/roles') {
-        return { data: mockRoles, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
-      }
       if (path === '/projects') {
         return { data: mockProjects, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
       }

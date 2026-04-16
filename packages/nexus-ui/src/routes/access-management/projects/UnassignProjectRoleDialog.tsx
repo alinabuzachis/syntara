@@ -1,14 +1,5 @@
-import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
-
-export interface ProjectRoleAssignment {
-  id: string
-  user_id: string
-  username?: string
-  project_id: string
-  role_id: string
-  role_name: string
-  created_at?: string | null
-}
+import { ConfirmationDialog } from '../../../components/ConfirmationDialog'
+import type { ProjectRoleAssignmentRead } from '../../access/types'
 
 export function UnassignProjectRoleDialog({
   assignment,
@@ -16,26 +7,22 @@ export function UnassignProjectRoleDialog({
   onClose,
   onConfirm,
 }: Readonly<{
-  assignment: ProjectRoleAssignment | null
+  assignment: ProjectRoleAssignmentRead | null
   isOpen: boolean
   onClose: () => void
   onConfirm: () => void
 }>) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} variant="small">
-      <ModalHeader title="Unassign role" />
-      <ModalBody>
-        Are you sure you want to unassign role &quot;{assignment?.role_name}&quot; from{' '}
-        {assignment?.username ?? assignment?.user_id}?
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm}>
-          Unassign
-        </Button>
-        <Button variant="link" onClick={onClose}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
+    <ConfirmationDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      title="Unassign role"
+      confirmLabel="Unassign"
+      confirmVariant="danger"
+    >
+      Are you sure you want to unassign role &quot;{assignment?.role_name}&quot; from{' '}
+      {assignment?.username ?? assignment?.user_id}?
+    </ConfirmationDialog>
   )
 }

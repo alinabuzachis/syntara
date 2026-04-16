@@ -26,13 +26,14 @@ import { IconLabel } from '../../components/IconLabel'
 import { useFilterState } from '../../hooks/useFilterState'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
-import { useAuthStore } from '../../stores/useAuthStore'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
 import { accessClient, accessFetchClient } from '../access/accessClient'
 import { PaginationFooter } from '../access/PaginationFooter'
+import type { ProjectGroupRoleAssignmentRead, ProjectRoleAssignmentRead } from '../access/types'
 import { useAllPolicies } from '../access/useAllPolicies'
+import { useAllRoles } from '../access/useAllRoles'
 
 import { AssignRoleModal } from './AssignRoleModal'
 
@@ -69,16 +70,6 @@ interface RoleAssignmentsPanelProps {
   principalId: string
 }
 
-interface ProjectRoleAssignment {
-  id: string
-  user_id?: string
-  group_id?: string
-  role_name: string
-  role_id: string
-  project_id: string
-  created_at: string | null
-}
-
 /**
  * Fetches project-scoped role assignments for a principal across all accessible projects.
  * Used as a fallback when system-level queries return 403.
@@ -91,37 +82,44 @@ async function fetchProjectRolesForPrincipal(
   if (!projects || projects.length === 0) return []
 
   const allRows: RoleAssignmentRow[] = []
-  const token = useAuthStore.getState().accessToken
 
-  for (const project of projects) {
-    try {
-      const endpoint =
-        principalType === 'user' ? `/projects/${project.id}/roles` : `/projects/${project.id}/group-roles`
-
-      const headers: Record<string, string> = {}
-      if (token) headers.Authorization = `Bearer ${token}`
-
-      const resp = await fetch(`/api/v1${endpoint}`, { headers })
-      if (!resp.ok) continue
-
-      const assignments = (await resp.json()) as ProjectRoleAssignment[]
-      const principalField = principalType === 'user' ? 'user_id' : 'group_id'
-      const matching = assignments.filter((a) => a[principalField] === principalId)
-
-      for (const a of matching) {
-        allRows.push({
-          id: a.id,
-          roleName: a.role_name,
-          roleDescription: null,
-          policies: [],
-          scope: project.name,
-          scopeType: 'project',
-          createdAt: a.created_at,
-          projectId: project.id,
+  const fetchResults = await Promise.allSettled(
+    projects.map(async (project) => {
+      if (principalType === 'user') {
+        const { data } = await accessFetchClient.GET('/projects/{project_id}/roles', {
+          params: { path: { project_id: project.id } },
         })
+        const assignments = data ?? []
+        return { project, assignments, type: 'user' as const }
       }
-    } catch {
-      // Skip projects we can't access
+      const { data } = await accessFetchClient.GET('/projects/{project_id}/group-roles', {
+        params: { path: { project_id: project.id } },
+      })
+      const assignments = data ?? []
+      return { project, assignments, type: 'group' as const }
+    })
+  )
+
+  for (const result of fetchResults) {
+    if (result.status !== 'fulfilled') continue
+    const { project, assignments, type } = result.value
+
+    const matching =
+      type === 'user'
+        ? (assignments as ProjectRoleAssignmentRead[]).filter((a) => a.user_id === principalId)
+        : (assignments as ProjectGroupRoleAssignmentRead[]).filter((a) => a.group_id === principalId)
+
+    for (const a of matching) {
+      allRows.push({
+        id: a.id,
+        roleName: a.role_name,
+        roleDescription: null,
+        policies: [],
+        scope: project.name,
+        scopeType: 'project',
+        createdAt: a.created_at ?? null,
+        projectId: project.id,
+      })
     }
   }
 
@@ -242,14 +240,14 @@ function useRoleAssignmentData(principalType: 'user' | 'group', principalId: str
     enabled: systemQueryForbidden,
   })
 
-  const rolesQuery = accessClient.useQuery('get', '/roles', { params: { query: { limit: 100 } } })
+  const { roles: allRoles } = useAllRoles()
   const { policies: allPolicies } = useAllPolicies()
 
   // ── Build rows from system-level data (when available) ──────────────────
   const systemRows = useMemo((): RoleAssignmentRow[] => {
     if (systemQueryForbidden) return []
 
-    const rolesData = rolesQuery.data?.resources ?? []
+    const rolesData = allRoles
     const policyDescMap = new Map(allPolicies.map((p) => [p.name, p.description]))
     const roleMap = new Map(rolesData.map((r) => [r.name, r]))
 
@@ -281,7 +279,7 @@ function useRoleAssignmentData(principalType: 'user' | 'group', principalId: str
     principalId,
     systemUserQuery.data,
     systemGroupQuery.data,
-    rolesQuery.data,
+    allRoles,
     allPolicies,
   ])
 

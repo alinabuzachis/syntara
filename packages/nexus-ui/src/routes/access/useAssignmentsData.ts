@@ -159,29 +159,42 @@ interface ProjectGroupRoleEntry {
 
 /**
  * Fetches project-scoped user role assignments for a set of projects.
- * The API requires a project_id path param, so we iterate over every project.
+ * The API requires a project_id path param, so we fetch all projects in parallel.
  */
 async function fetchProjectRolesForProjects(projectIds: string[]): Promise<ProjectRoleEntry[]> {
+  const settled = await Promise.allSettled(
+    projectIds.map((projectId) =>
+      accessFetchClient.GET('/projects/{project_id}/roles', {
+        params: { path: { project_id: projectId } },
+      })
+    )
+  )
   const results: ProjectRoleEntry[] = []
-  for (const projectId of projectIds) {
-    const { data } = await accessFetchClient.GET('/projects/{project_id}/roles', {
-      params: { path: { project_id: projectId } },
-    })
-    if (Array.isArray(data)) results.push(...data)
+  for (const result of settled) {
+    if (result.status === 'fulfilled' && Array.isArray(result.value.data)) {
+      results.push(...result.value.data)
+    }
   }
   return results
 }
 
 /**
  * Fetches project-scoped group role assignments for a set of projects.
+ * The API requires a project_id path param, so we fetch all projects in parallel.
  */
 async function fetchProjectGroupRolesForProjects(projectIds: string[]): Promise<ProjectGroupRoleEntry[]> {
+  const settled = await Promise.allSettled(
+    projectIds.map((projectId) =>
+      accessFetchClient.GET('/projects/{project_id}/group-roles', {
+        params: { path: { project_id: projectId } },
+      })
+    )
+  )
   const results: ProjectGroupRoleEntry[] = []
-  for (const projectId of projectIds) {
-    const { data } = await accessFetchClient.GET('/projects/{project_id}/group-roles', {
-      params: { path: { project_id: projectId } },
-    })
-    if (Array.isArray(data)) results.push(...data)
+  for (const result of settled) {
+    if (result.status === 'fulfilled' && Array.isArray(result.value.data)) {
+      results.push(...result.value.data)
+    }
   }
   return results
 }

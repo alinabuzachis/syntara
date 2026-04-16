@@ -1,4 +1,5 @@
 import { Label } from '@patternfly/react-core'
+import type { KeyboardEvent, MouseEvent } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -24,15 +25,40 @@ export function ScopeLabel({ projectId, projectNameMap }: Readonly<ScopeLabelPro
     )
   }
 
+  const handleNavigate = () => {
+    navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId))
+  }
+
+  const handleClick = (e: MouseEvent) => {
+    e.stopPropagation()
+    handleNavigate()
+  }
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleNavigate()
+    }
+  }
+
   return (
     <Label
       color="green"
       isCompact
-      onClick={(e) => {
-        e.stopPropagation()
-        navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId))
-      }}
-      style={{ cursor: 'pointer' }}
+      isClickable
+      render={({ className, content, componentRef }) => (
+        <span
+          ref={componentRef as React.Ref<HTMLSpanElement>}
+          className={className}
+          role="link"
+          tabIndex={0}
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
+          style={{ cursor: 'pointer' }}
+        >
+          {content}
+        </span>
+      )}
     >
       {projectNameMap.get(projectId) ?? projectId}
     </Label>

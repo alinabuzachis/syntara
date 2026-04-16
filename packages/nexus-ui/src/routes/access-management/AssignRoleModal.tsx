@@ -19,6 +19,7 @@ import { z } from 'zod'
 import { useAlerts } from '../../components/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { accessClient } from '../access/accessClient'
+import { useAllRoles } from '../access/useAllRoles'
 
 import { MultiRoleSelect, type RoleOption } from './MultiRoleSelect'
 
@@ -122,11 +123,10 @@ export function AssignRoleModal({
     }
   }, [isOpen, reset])
 
-  const rolesQuery = accessClient.useQuery('get', '/roles', { params: { query: { limit: 100 } } })
+  const { roles: allRoles } = useAllRoles()
   const projectsQuery = accessClient.useQuery('get', '/projects')
 
   const roleOptions = useMemo((): RoleOption[] => {
-    const allRoles = rolesQuery.data?.resources ?? []
     if (scope === 'system') {
       return allRoles
         .filter((r) => r.project_id === null)
@@ -136,7 +136,7 @@ export function AssignRoleModal({
     return allRoles
       .filter((r) => r.project_id === null && r.name.startsWith('project-'))
       .map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
-  }, [rolesQuery.data, scope])
+  }, [allRoles, scope])
 
   const projectOptions = useMemo(() => {
     return (projectsQuery.data ?? []).map((p) => ({ value: p.id, label: p.name }))
