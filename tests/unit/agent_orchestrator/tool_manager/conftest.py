@@ -7,7 +7,7 @@ tools, and mock clients used across tool manager unit tests.
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import httpx
@@ -61,6 +61,16 @@ class PaginationMockFactory:
             return httpx.Response(200, json={"resources": [], "total_count": 0, "next": None})
 
         return mock_response
+
+
+@pytest.fixture
+def mock_service_token() -> Iterator[None]:
+    """Mock create_service_token so ToolManagerClient can be instantiated without auth settings."""
+    with patch(
+        "nexus.agent_orchestrator.tool_manager.tool_manager_client.create_service_token",
+        return_value="mock-service-token",
+    ):
+        yield
 
 
 @contextmanager

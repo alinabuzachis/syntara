@@ -7,6 +7,7 @@ from nexus.agent_orchestrator.tool_manager.tool_manager_client import ToolManage
 from nexus.core.exceptions import SafeValueError
 
 
+@pytest.mark.usefixtures("mock_service_token")
 class TestToolManagerClientInit:
     """Test client initialization scenarios."""
 

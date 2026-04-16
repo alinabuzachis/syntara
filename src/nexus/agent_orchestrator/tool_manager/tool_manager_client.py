@@ -8,6 +8,7 @@ from uuid import UUID
 import httpx
 import structlog
 
+from nexus.auth import create_service_token
 from nexus.core.exceptions import SafeValueError
 from nexus.core.utils.retry import retry_with_backoff
 from nexus.tool_manager.models.tool import ToolStatus, ToolWithParameters
@@ -109,13 +110,15 @@ class ToolManagerClient:
         self.max_connections = max_connections
         self.max_keepalive_connections = max_keepalive_connections
 
-        # Configure HTTP session
+        # Configure HTTP session with service-to-service auth
+        token = create_service_token()
         self.session = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=httpx.Timeout(timeout),
             limits=httpx.Limits(
                 max_connections=self.max_connections, max_keepalive_connections=self.max_keepalive_connections
             ),
+            headers={"Authorization": f"Bearer {token}"},
             follow_redirects=True,
         )
 

@@ -13,6 +13,7 @@ from nexus.tool_manager.models.tool_provider import ProviderStatus, ToolProvider
 from .conftest import mock_paginated_api
 
 
+@pytest.mark.usefixtures("mock_service_token")
 class TestToolProviderDiscovery:
     """Test tool provider discovery scenarios."""
 

@@ -73,6 +73,7 @@ def _create_mock_tool_provider_response(
     }
 
 
+@pytest.mark.usefixtures("mock_service_token")
 class TestErrorReporting:
     """Test error reporting and status update scenarios."""
 

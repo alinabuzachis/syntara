@@ -13,6 +13,7 @@ from nexus.tool_manager.models.tool import ToolParameter, ToolParameterType, Too
 from .conftest import mock_paginated_api
 
 
+@pytest.mark.usefixtures("mock_service_token")
 class TestToolRetrieval:
     """Test tool retrieval and filtering scenarios."""
 
