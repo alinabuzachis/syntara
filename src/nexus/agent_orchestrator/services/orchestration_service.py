@@ -190,7 +190,7 @@ class OrchestrationService:
                 await self._publish_completion_event(invocation_id, stream_id, client)
 
                 # Handle completion callback
-                await self._handle_completion_callback(final_state, invocation_id)
+                await self._handle_completion_callback(final_state, invocation_id, metadata)
 
                 logger.info("Streaming orchestration completed", invocation_id=invocation_id)
 
@@ -273,12 +273,19 @@ class OrchestrationService:
 
         return current_final_state
 
-    async def _handle_completion_callback(self, final_state: AgentState | None, invocation_id: UUID) -> None:
+    async def _handle_completion_callback(
+        self,
+        final_state: AgentState | None,
+        invocation_id: UUID,
+        original_metadata: dict[str, Any] | None = None,
+    ) -> None:
         """Handle completion callback with error handling.
 
         Args:
             final_state: Final agent state with callback metadata
             invocation_id: Invocation UUID for logging
+            original_metadata: Original invocation metadata (fallback when final_state
+                doesn't preserve metadata, e.g. some LangGraph configurations)
 
         """
         logger.info(
@@ -292,7 +299,7 @@ class OrchestrationService:
             return
 
         try:
-            await self._send_completion_callback(final_state, invocation_id)
+            await self._send_completion_callback(final_state, invocation_id, original_metadata)
         except (httpx.RequestError, httpx.HTTPStatusError, httpx.TimeoutException):
             logger.exception("Activity signal failed for invocation", invocation_id=invocation_id)
             # Continue without failing - notification is not critical
@@ -569,15 +576,24 @@ class OrchestrationService:
 
         return response.model_dump()
 
-    async def _send_completion_callback(self, final_state: AgentState, invocation_id: UUID) -> None:
+    async def _send_completion_callback(
+        self,
+        final_state: AgentState,
+        invocation_id: UUID,
+        original_metadata: dict[str, Any] | None = None,
+    ) -> None:
         """Send completion callback to workflow after agent execution.
 
         Sends HTTP callback to workflow when agent completes, replicating the functionality
         previously handled by NotificationNode.
 
+        Falls back to ``original_metadata`` (from invocation context_data) when LangGraph's
+        final state doesn't preserve ``metadata`` or ``result``.
+
         Args:
             final_state: Final state containing agent result and metadata
             invocation_id: Invocation UUID for logging
+            original_metadata: Original invocation metadata (fallback for callback_url)
 
         """
         logger.info(
@@ -586,14 +602,15 @@ class OrchestrationService:
             final_state_keys=list(final_state.keys()) if final_state else None,
         )
 
-        # Extract callback URL from metadata
-        metadata = final_state.get("metadata") or {}
-        callback_url = metadata.get("callback_url")
+        # Extract callback URL from final_state metadata, falling back to original metadata
+        state_metadata = final_state.get("metadata") or {}
+        callback_url = state_metadata.get("callback_url")
+        if not callback_url and original_metadata:
+            callback_url = original_metadata.get("callback_url")
 
         logger.info(
             "CALLBACK CHECK: callback details",
             callback_url=callback_url,
-            has_metadata=metadata is not None,
             invocation_id=invocation_id,
         )
 
@@ -601,7 +618,6 @@ class OrchestrationService:
             logger.warning(
                 "No callback_url found in metadata for invocation, skipping callback",
                 invocation_id=invocation_id,
-                metadata=metadata,
             )
             return
 
@@ -612,7 +628,6 @@ class OrchestrationService:
             return
 
         logger.info("CALLBACK: Sending activity signal", callback_url=callback_url, invocation_id=invocation_id)
-        # Send the activity signal
         await WorkflowSignalClient.send_success_signal(callback_url, invocation_id, result)
 
     # ===============================

@@ -206,9 +206,6 @@ class InvocationExecutor:
 
                 self._record_invocation_metrics(recorder, invocation_start, exec_invocation_id, status="success")
 
-                # Send success signal to workflow after result is committed
-                await self._send_success_signal(invocation, exec_invocation_id, result_dict)
-
             except InvocationCancelledError:
                 # Invocation was cancelled during execution - this is expected behavior
                 # Don't mark as failed since cancellation is already handled
@@ -399,23 +396,6 @@ class InvocationExecutor:
             fresh_invocation.error_message = str(error)
             fresh_invocation.completed_at = now
             await session.commit()
-
-    @staticmethod
-    async def _send_success_signal(invocation: Invocation, invocation_id: UUID, result_dict: dict[str, Any]) -> None:
-        """Send success signal to workflow after result is committed (best-effort)."""
-        callback_url = cast(
-            "_OptionalStr", invocation.context_data.get("callback_url") if invocation.context_data else None
-        )
-        if not callback_url or not result_dict:
-            return
-        try:
-            await WorkflowSignalClient.send_success_signal(callback_url, invocation_id, result_dict)
-        except Exception:
-            logger.exception(
-                "Failed to send success signal to workflow",
-                invocation_id=invocation_id,
-                callback_url=callback_url,
-            )
 
     async def _log_conversion_failures(self, invocation: Invocation, session: AsyncSession) -> None:
         """Log conversion failures but allow execution to proceed (FR-020).
