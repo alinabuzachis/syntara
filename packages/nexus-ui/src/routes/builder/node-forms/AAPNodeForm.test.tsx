@@ -2,6 +2,8 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { credentialsClient } from '../../../client'
+
 import { AAPNodeForm } from './AAPNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
@@ -209,6 +211,21 @@ describe('AAPNodeForm', () => {
     expect(screen.getByDisplayValue('deploy')).toBeInTheDocument()
     expect(screen.getByDisplayValue('testing')).toBeInTheDocument()
     expect(screen.getByDisplayValue('2 - More Verbose')).toBeInTheDocument()
+  })
+
+  it('passes projectId to CredentialSelector', () => {
+    const useQueryMock = vi.mocked(credentialsClient.useQuery)
+    useQueryMock.mockClear()
+
+    renderWithHeader(
+      <AAPNodeForm onSubmit={mockOnSubmit} onCancel={vi.fn()} onHeaderContentChange={vi.fn()} projectId="project-456" />
+    )
+
+    const hasProjectIdCall = useQueryMock.mock.calls.some((call) => {
+      const params = (call[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
+      return params?.project_id === 'project-456'
+    })
+    expect(hasProjectIdCall).toBe(true)
   })
 
   it('uses custom submit button text when provided', () => {

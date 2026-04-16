@@ -11,6 +11,7 @@ export interface BaseNodeFormProps<TData = unknown> {
   initialData?: Partial<TData>
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
+  projectId?: string
 }
 
 export interface NodeSubtypeDefinition<TFormData = unknown> {

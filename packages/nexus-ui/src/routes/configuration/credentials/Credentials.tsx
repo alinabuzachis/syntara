@@ -12,11 +12,14 @@ import { useAlerts } from '../../../components/alerts'
 import { EmptyStateFilter } from '../../../components/EmptyStateFilter'
 import { FilterBar } from '../../../components/filters/FilterBar'
 import { IconLabel } from '../../../components/IconLabel'
+import { PageTitleWithProject } from '../../../components/PageTitleWithProject'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { LinkCell } from '../../../components/table/LinkCell'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { UserTimestamp } from '../../../components/UserTimestamp'
+import { useCursorReset } from '../../../hooks/useCursorPagination'
 import { useFilterState } from '../../../hooks/useFilterState'
+import { useProjectSelector } from '../../../hooks/useProjectSelector'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
 import { getErrorMessage } from '../../../utils/apiErrors'
@@ -34,6 +37,7 @@ import { useDisableCredentialState } from './useDisableCredentialState'
 // eslint-disable-next-line max-lines-per-function
 export default function Credentials() {
   const { showAlert } = useAlerts()
+  const { selectedProject, ProjectSelector } = useProjectSelector()
 
   // UI state
   const [cursor, setCursor] = useState<string | null>(null)
@@ -52,15 +56,20 @@ export default function Credentials() {
   // Query params
   const queryParams = useMemo(() => {
     const params: Record<string, unknown> = { limit: 20, include_total: true }
+    if (selectedProject?.id) {
+      params.project_id = selectedProject.id
+    }
     Object.assign(params, buildFilterParams(filters))
     if (cursor) params.cursor = cursor
     return params
-  }, [filters, cursor])
+  }, [filters, cursor, selectedProject])
 
   // Fetch credentials
   const query = credentialsClient.useQuery('get', '/credentials', { params: { query: queryParams } })
   const credentials = query.data?.resources ?? []
   const hasActiveFilters = filters.length > 0
+
+  useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, setCursor)
 
   // Fetch credential types for type name lookup
   const typesQuery = credentialsClient.useQuery('get', '/credential_types')
@@ -204,7 +213,7 @@ export default function Credentials() {
   if (queryState) {
     return (
       <AppPage>
-        <AppPageHeader title="Credentials" />
+        <AppPageHeader title={<PageTitleWithProject title="Credentials" projectSelector={ProjectSelector} />} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>{queryState}</CompassPanel>
         </StackItem>
@@ -214,8 +223,8 @@ export default function Credentials() {
 
   return (
     <AppPage>
-      <AppPageHeader title="Credentials">
-        <Button variant="secondary" onClick={() => setCreateModalOpen(true)}>
+      <AppPageHeader title={<PageTitleWithProject title="Credentials" projectSelector={ProjectSelector} />}>
+        <Button variant="secondary" onClick={() => setCreateModalOpen(true)} isDisabled={!selectedProject}>
           Create credential
         </Button>
       </AppPageHeader>
@@ -370,6 +379,7 @@ export default function Credentials() {
         }}
         credentialToEdit={credentialToEdit}
         onSuccess={() => detachPromise(query.refetch())}
+        defaultProjectId={selectedProject?.id}
       />
     </AppPage>
   )

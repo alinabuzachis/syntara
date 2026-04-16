@@ -3,8 +3,6 @@ import {
   Button,
   CompassPanel,
   DescriptionList,
-  EmptyState,
-  EmptyStateBody,
   Flex,
   FlexItem,
   Label,
@@ -318,46 +316,6 @@ export default function CredentialDetail() {
               }
             >
               <CredentialWorkflowsTab credentialId={credential.id} />
-            </Tab>
-
-            {/* Team Access Tab */}
-            <Tab
-              eventKey={2}
-              title={
-                <>
-                  Team Access <Badge isRead>0</Badge>
-                </>
-              }
-            >
-              <Stack hasGutter style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
-                <StackItem>
-                  <EmptyState headingLevel="h3" titleText="Team access control">
-                    <EmptyStateBody>
-                      Team-based access control for credentials will be available in a future release.
-                    </EmptyStateBody>
-                  </EmptyState>
-                </StackItem>
-              </Stack>
-            </Tab>
-
-            {/* User Access Tab */}
-            <Tab
-              eventKey={3}
-              title={
-                <>
-                  User Access <Badge isRead>0</Badge>
-                </>
-              }
-            >
-              <Stack hasGutter style={{ padding: 'var(--pf-t--global--spacer--lg)' }}>
-                <StackItem>
-                  <EmptyState headingLevel="h3" titleText="User access control">
-                    <EmptyStateBody>
-                      User-based access control for credentials will be available in a future release.
-                    </EmptyStateBody>
-                  </EmptyState>
-                </StackItem>
-              </Stack>
             </Tab>
           </Tabs>
         </CompassPanel>

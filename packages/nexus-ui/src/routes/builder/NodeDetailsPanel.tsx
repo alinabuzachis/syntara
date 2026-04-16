@@ -67,10 +67,12 @@ interface NodeDetailsPanelProps {
   replacementNodeId?: string | null
   onConnect?: (sourceId: string, targetId: string) => void
   onClose: () => void
+  projectId?: string
 }
 
 export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
-  const { mode, node, nodeTypeId, nodeSubtypeId, sourceNodeId, replacementNodeId, onConnect, onClose } = props
+  const { mode, node, nodeTypeId, nodeSubtypeId, sourceNodeId, replacementNodeId, onConnect, onClose, projectId } =
+    props
   const { showError } = useAlerts()
   // Use typed selector for optimized subscription
   const currentWorkflow = useWorkflowStore(selectCurrentWorkflow)
@@ -178,6 +180,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           onCancel={onClose}
           onSubmit={(data) => handleCreate(data as Record<string, unknown>)}
           onHeaderContentChange={setHeaderContent}
+          projectId={projectId}
         />
       )
     }

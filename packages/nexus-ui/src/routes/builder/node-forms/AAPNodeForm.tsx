@@ -33,6 +33,7 @@ interface AAPNodeFormProps {
   initialData?: Partial<AAPFormData>
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
+  projectId?: string
 }
 
 function AAPFormFields({
@@ -40,11 +41,13 @@ function AAPFormFields({
   onHeaderContentChange,
   extraVarsEditorRef,
   validationErrors,
+  projectId,
 }: {
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
   extraVarsEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
   validationErrors?: { jobTemplateId?: { message?: string }; extraVars?: { message?: string } }
+  projectId?: string
 }) {
   const {
     register,
@@ -81,6 +84,7 @@ function AAPFormFields({
               fieldId="aap-credential"
               placeholder="Select credential"
               allowCreate
+              projectId={projectId}
               helpText={credentialHelpText(
                 'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
               )}
@@ -287,6 +291,7 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
           onHeaderContentChange={props.onHeaderContentChange}
           extraVarsEditorRef={extraVarsEditorRef}
           validationErrors={errors}
+          projectId={props.projectId}
         />
       </NodeFormContainer>
     </FormProvider>

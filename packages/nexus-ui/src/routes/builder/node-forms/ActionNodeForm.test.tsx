@@ -2,6 +2,8 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { credentialsClient } from '../../../client'
+
 import { ActionNodeForm } from './ActionNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
@@ -164,6 +166,21 @@ describe('ActionNodeForm', () => {
     renderWithHeader(<ActionNodeForm onSubmit={mockOnSubmit} submitButtonText="Update step" />)
 
     expect(screen.getByRole('button', { name: /Update step/i })).toBeInTheDocument()
+  })
+
+  it('passes projectId to CredentialSelector for HTTP request executor', () => {
+    const useQueryMock = vi.mocked(credentialsClient.useQuery)
+    useQueryMock.mockClear()
+
+    renderWithHeader(
+      <ActionNodeForm onSubmit={mockOnSubmit} initialData={{ executor: 'http_request' }} projectId="project-123" />
+    )
+
+    const hasProjectIdCall = useQueryMock.mock.calls.some((call) => {
+      const params = (call[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
+      return params?.project_id === 'project-123'
+    })
+    expect(hasProjectIdCall).toBe(true)
   })
 
   it('validates URL field for API executor', () => {

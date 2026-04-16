@@ -14,11 +14,25 @@ const { mockNavigate } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
 }))
 
+const { mockSelectedProject } = vi.hoisted(() => ({
+  mockSelectedProject: { current: null as { id: string; name: string } | null },
+}))
+const MockProjectSelector = () => <span>Mock Project Selector</span>
+
 vi.mock('../../../client', () => ({
   credentialsClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
+}))
+
+vi.mock('../../../hooks/useProjectSelector', () => ({
+  useProjectSelector: () => ({
+    selectedProject: mockSelectedProject.current,
+    isAllProjects: mockSelectedProject.current === null,
+    projects: [],
+    ProjectSelector: <MockProjectSelector />,
+  }),
 }))
 
 vi.mock('wouter', () => ({
@@ -120,6 +134,7 @@ describe('Credentials', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockMutate = vi.fn()
+    mockSelectedProject.current = { id: 'proj-1', name: 'My Project' }
 
     vi.mocked(credentialsClient.useQuery).mockImplementation(mockQuery(mockCredentials))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -474,5 +489,47 @@ describe('Credentials', () => {
 
     render(<Credentials />, { wrapper })
     expect(screen.getByText('Credentials')).toBeInTheDocument()
+  })
+
+  it('renders project switcher in the header', () => {
+    render(<Credentials />, { wrapper })
+    expect(screen.getByText('Mock Project Selector')).toBeInTheDocument()
+  })
+
+  it('disables create credential button when no project is selected', () => {
+    mockSelectedProject.current = null
+    render(<Credentials />, { wrapper })
+    expect(screen.getByRole('button', { name: 'Create credential' })).toBeDisabled()
+  })
+
+  it('enables create credential button when a project is selected', () => {
+    mockSelectedProject.current = { id: 'proj-1', name: 'My Project' }
+    render(<Credentials />, { wrapper })
+    expect(screen.getByRole('button', { name: 'Create credential' })).toBeEnabled()
+  })
+
+  it('includes project_id in query params when project is selected', () => {
+    mockSelectedProject.current = { id: 'proj-1', name: 'My Project' }
+    render(<Credentials />, { wrapper })
+
+    // The credentialsClient.useQuery for /credentials should have been called with project_id
+    const calls = vi.mocked(credentialsClient.useQuery).mock.calls
+    const credentialsCalls = calls.filter((c) => c[1] === '/credentials')
+    expect(credentialsCalls.length).toBeGreaterThan(0)
+    const lastCall = credentialsCalls[credentialsCalls.length - 1]
+    const queryParams = (lastCall[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
+    expect(queryParams).toHaveProperty('project_id', 'proj-1')
+  })
+
+  it('does not include project_id in query params when all projects mode is active', () => {
+    mockSelectedProject.current = null
+    render(<Credentials />, { wrapper })
+
+    const calls = vi.mocked(credentialsClient.useQuery).mock.calls
+    const credentialsCalls = calls.filter((c) => c[1] === '/credentials')
+    expect(credentialsCalls.length).toBeGreaterThan(0)
+    const lastCall = credentialsCalls[credentialsCalls.length - 1]
+    const queryParams = (lastCall[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
+    expect(queryParams).not.toHaveProperty('project_id')
   })
 })

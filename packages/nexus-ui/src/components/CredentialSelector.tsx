@@ -1,3 +1,4 @@
+import type { CredentialsAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   Divider,
@@ -12,6 +13,7 @@ import {
 } from '@patternfly/react-core'
 import { PlusIcon } from '@patternfly/react-icons'
 import React, { useCallback, useMemo, useState } from 'react'
+
 
 import { credentialsClient } from '../client'
 import type { Credential, CredentialType } from '../routes/configuration/credentials/credentialConstants'
@@ -41,6 +43,8 @@ export interface CredentialSelectorProps {
   placeholder?: string
   /** Help text shown in a popover next to the label */
   helpText?: React.ReactNode
+  /** Filter credentials to this project */
+  projectId?: string
 }
 
 const NO_CREDENTIAL_VALUE = '__none__'
@@ -89,11 +93,22 @@ export function CredentialSelector({
   preSelectedTypeId,
   placeholder = 'Select a credential...',
   helpText,
+  projectId,
 }: Readonly<CredentialSelectorProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
-  const { data, isPending, isError, refetch } = credentialsClient.useQuery('get', '/credentials')
+  // TODO: Remove type extension when project_id is added to the OpenAPI spec
+  type CredentialQueryParams = CredentialsAPI.operations['list_credentials']['parameters']['query'] & {
+    project_id?: string
+  }
+  const credentialQueryParams: CredentialQueryParams = useMemo(
+    () => (projectId ? { project_id: projectId } : {}),
+    [projectId]
+  )
+  const { data, isPending, isError, refetch } = credentialsClient.useQuery('get', '/credentials', {
+    params: { query: credentialQueryParams },
+  })
 
   const { data: typesData } = credentialsClient.useQuery('get', '/credential_types')
 

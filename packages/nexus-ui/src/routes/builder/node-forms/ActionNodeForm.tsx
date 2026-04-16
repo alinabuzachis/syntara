@@ -45,6 +45,7 @@ interface ActionNodeFormProps {
   submitButtonText?: string
   initialData?: Partial<RegistryActionFormData>
   onHeaderContentChange?: (content: ReactNode | null) => void
+  projectId?: string
 }
 
 // Constants (Priority 4)
@@ -69,8 +70,9 @@ function ActionParametersContent(props: {
   executor: ActionFormValues['executor']
   scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
   editorLanguage: CodeLanguage
+  projectId?: string
 }) {
-  const { register, control, errors, executor, scriptEditorRef, editorLanguage } = props
+  const { register, control, errors, executor, scriptEditorRef, editorLanguage, projectId } = props
   return (
     <Stack
       hasGutter
@@ -169,6 +171,7 @@ function ActionParametersContent(props: {
                   fieldId="action-credential"
                   placeholder="Select credential"
                   allowCreate
+                  projectId={projectId}
                   helpText={credentialHelpText(
                     'Select a stored credential to authenticate this request. Credentials securely store sensitive information like API tokens and passwords.'
                   )}
@@ -245,11 +248,13 @@ function ActionFormFields({
   onHeaderContentChange,
   validationErrors,
   scriptEditorRef,
+  projectId,
 }: {
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
   validationErrors?: { code?: { message?: string }; url?: { message?: string } }
   scriptEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
+  projectId?: string
 }) {
   const {
     register,
@@ -307,6 +312,7 @@ function ActionFormFields({
       executor={executor}
       scriptEditorRef={scriptEditorRef}
       editorLanguage={editorLanguage}
+      projectId={projectId}
     />
   )
 
@@ -362,6 +368,7 @@ export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
           onHeaderContentChange={props.onHeaderContentChange}
           validationErrors={errors}
           scriptEditorRef={scriptEditorRef}
+          projectId={props.projectId}
         />
       </NodeFormContainer>
     </FormProvider>

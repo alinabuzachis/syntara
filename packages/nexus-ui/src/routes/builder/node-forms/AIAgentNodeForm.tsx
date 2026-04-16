@@ -51,14 +51,17 @@ interface AIAgentNodeFormProps {
   submitButtonText?: string
   initialData?: AIAgentFormInitialData
   onHeaderContentChange?: (content: ReactNode | null) => void
+  projectId?: string
 }
 
 function AIAgentFormFields({
   submitButtonText,
   onHeaderContentChange,
+  projectId,
 }: {
   submitButtonText?: string
   onHeaderContentChange?: (content: ReactNode | null) => void
+  projectId?: string
 }) {
   const { register, control } = useFormContext<AIAgentFormData>()
   const { errors } = useFormState({ control })
@@ -161,6 +164,7 @@ function AIAgentFormFields({
               fieldId="agent-credential"
               placeholder="Select LLM credential"
               allowCreate
+              projectId={projectId}
               helpText={credentialHelpText(
                 'Select a stored credential for the LLM provider. Credentials securely store API keys and authentication tokens.'
               )}
@@ -261,6 +265,7 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
           <AIAgentFormFields
             submitButtonText={props.submitButtonText}
             onHeaderContentChange={props.onHeaderContentChange}
+            projectId={props.projectId}
           />
         </NodeFormContainer>
       </FormProvider>

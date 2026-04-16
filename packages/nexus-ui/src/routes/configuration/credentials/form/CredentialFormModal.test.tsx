@@ -301,6 +301,36 @@ describe('CredentialFormModal', () => {
     expect(screen.getByLabelText('Token', { selector: 'input' })).toBeInTheDocument()
   })
 
+  it('includes project_id in create payload when defaultProjectId is provided', async () => {
+    const user = userEvent.setup()
+    render(<CredentialFormModal isOpen onClose={vi.fn()} defaultProjectId="proj-1" />, { wrapper })
+
+    await user.type(screen.getByLabelText('Credential name'), 'New Token')
+    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'my-secret-token')
+    await user.click(screen.getByRole('button', { name: 'Create credential' }))
+
+    await waitFor(() => expect(mockMutate).toHaveBeenCalled())
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const callArgs = mockMutate.mock.calls[0][0]
+    expect(callArgs).toHaveProperty('body.project_id', 'proj-1')
+  })
+
+  it('does not include project_id when defaultProjectId is not provided', async () => {
+    const user = userEvent.setup()
+    render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
+
+    await user.type(screen.getByLabelText('Credential name'), 'New Token')
+    await user.selectOptions(screen.getByLabelText('Credential type'), 'type-1')
+    await user.type(screen.getByLabelText('Token', { selector: 'input' }), 'my-secret-token')
+    await user.click(screen.getByRole('button', { name: 'Create credential' }))
+
+    await waitFor(() => expect(mockMutate).toHaveBeenCalled())
+     
+    const callArgs = mockMutate.mock.calls[0][0] as { body: Record<string, unknown> }
+    expect(callArgs.body).not.toHaveProperty('project_id')
+  })
+
   it('calls onCreated with the new credential ID on successful create', async () => {
     const onCreated = vi.fn()
     const onClose = vi.fn()

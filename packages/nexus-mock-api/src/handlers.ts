@@ -1556,6 +1556,11 @@ export const handlers = [
       resources = resources.filter((c) => c.credential_type_id === credTypeId)
     }
 
+    const projectId = url.searchParams.get('project_id')
+    if (projectId) {
+      resources = resources.filter((c) => c.project_id === projectId)
+    }
+
     return HttpResponse.json(paginate(resources, cursor, limit, includeTotal))
   }),
 
@@ -1565,6 +1570,7 @@ export const handlers = [
       description?: string | null
       credential_type_id: string
       inputs?: Record<string, unknown>
+      project_id?: string
     }
 
     // Validate credential type exists
@@ -1614,6 +1620,7 @@ export const handlers = [
       labels: {},
       deleted_at: null,
       deleted_by: null,
+      project_id: body.project_id,
     }
     credentials.push(newCredential)
     matchingType.credential_count = (matchingType.credential_count ?? 0) + 1

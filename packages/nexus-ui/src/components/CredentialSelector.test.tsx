@@ -244,7 +244,9 @@ describe('CredentialSelector', () => {
     mockUseQuery()
     renderSelector({ compatibleTypeNames: ['HTTP Bearer Token'] })
 
-    expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials')
+    expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials', {
+      params: { query: {} },
+    })
   })
 
   it('filters credentials client-side by compatible type names', async () => {
@@ -310,6 +312,34 @@ describe('CredentialSelector', () => {
 
     const results = await axe(container)
     expect(results).toHaveNoViolations()
+  })
+
+  describe('projectId filtering', () => {
+    it('includes project_id in the query when projectId prop is provided', () => {
+      mockUseQuery()
+      renderSelector({ projectId: 'proj-123' })
+
+      expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials', {
+        params: { query: { project_id: 'proj-123' } },
+      })
+    })
+
+    it('does not include project_id filter when projectId is undefined', () => {
+      mockUseQuery()
+      renderSelector()
+
+      expect(credentialsClient.useQuery).toHaveBeenCalledWith('get', '/credentials', {
+        params: { query: {} },
+      })
+    })
+
+    it('has no accessibility violations when projectId is provided', async () => {
+      mockUseQuery()
+      const { container } = renderSelector({ projectId: 'proj-123' })
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
   })
 
   describe('grouped display by credential type', () => {

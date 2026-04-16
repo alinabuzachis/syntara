@@ -404,6 +404,10 @@ export function BuilderContent(props: BuilderContentProps) {
                   replacementNodeId={replacementNodeId}
                   onConnect={handleConnectFromPanel}
                   onClose={() => dispatch({ type: 'CLOSE_NODE_EDITOR' })}
+                  projectId={
+                    // TODO: Remove cast when project_id is added to the OpenAPI spec
+                    (workflow as unknown as { project_id?: string })?.project_id ?? selectedProject?.id
+                  }
                 />
               </Flex>
             </StackItem>

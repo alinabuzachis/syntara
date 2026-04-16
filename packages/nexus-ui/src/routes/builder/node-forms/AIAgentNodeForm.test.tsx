@@ -2,6 +2,8 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { credentialsClient } from '../../../client'
+
 import { AIAgentNodeForm } from './AIAgentNodeForm'
 import { renderWithHeader } from './test-utils/renderWithHeader'
 
@@ -154,6 +156,19 @@ describe('AIAgentNodeForm', () => {
     expect(screen.getByDisplayValue('Existing Agent')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Analyze the data')).toBeInTheDocument()
     expect(screen.getByDisplayValue('All tools selected')).toBeInTheDocument()
+  })
+
+  it('passes projectId to CredentialSelector', () => {
+    const useQueryMock = vi.mocked(credentialsClient.useQuery)
+    useQueryMock.mockClear()
+
+    renderWithHeader(<AIAgentNodeForm onSubmit={mockOnSubmit} projectId="project-789" />)
+
+    const hasProjectIdCall = useQueryMock.mock.calls.some((call) => {
+      const params = (call[2] as unknown as { params?: { query?: Record<string, unknown> } })?.params?.query
+      return params?.project_id === 'project-789'
+    })
+    expect(hasProjectIdCall).toBe(true)
   })
 
   it('uses custom submit button text when provided', () => {

@@ -40,6 +40,8 @@ interface CredentialFormModalProps {
   preSelectedTypeId?: string
   /** Called with the new credential's ID on successful creation */
   onCreated?: (credentialId: string) => void
+  /** When provided, includes `project_id` in the create payload */
+  defaultProjectId?: string
 }
 
 interface TypeInputs {
@@ -110,6 +112,7 @@ export function CredentialFormModal({
   onSuccess,
   preSelectedTypeId,
   onCreated,
+  defaultProjectId,
 }: Readonly<CredentialFormModalProps>) {
   const isEditMode = !!credentialToEdit
   const { showAlert } = useAlerts()
@@ -281,6 +284,8 @@ export function CredentialFormModal({
             description: formData.description || null,
             credential_type_id: formData.credential_type_id,
             inputs: formData.inputs,
+            // TODO: Remove cast when project_id is added to the OpenAPI spec
+            ...(defaultProjectId && { project_id: defaultProjectId }),
           },
         },
         {

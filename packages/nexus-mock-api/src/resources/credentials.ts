@@ -187,7 +187,8 @@ export const credentialWorkflows: Record<string, { id: string; name: string }[]>
   ],
 }
 
-export const credentials: CredentialRead[] = [
+/** TODO: Revert to CredentialRead[] once project_id is added to the OpenAPI spec */
+export const credentials: (CredentialRead & { project_id?: string })[] = [
   {
     id: 'cred-001',
     name: 'Production API Auth',
@@ -201,6 +202,7 @@ export const credentials: CredentialRead[] = [
     labels: {},
     deleted_at: null,
     deleted_by: null,
+    project_id: 'p-001',
   },
   {
     id: 'cred-002',
@@ -215,6 +217,7 @@ export const credentials: CredentialRead[] = [
     labels: {},
     deleted_at: null,
     deleted_by: null,
+    project_id: 'p-001',
   },
   {
     id: 'cred-003',
@@ -229,5 +232,6 @@ export const credentials: CredentialRead[] = [
     labels: {},
     deleted_at: null,
     deleted_by: null,
+    project_id: 'p-002',
   },
 ]

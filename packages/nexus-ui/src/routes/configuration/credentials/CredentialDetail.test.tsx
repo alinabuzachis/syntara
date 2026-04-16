@@ -299,16 +299,20 @@ describe('CredentialDetail', () => {
     expect(badges.length).toBeGreaterThan(0)
   })
 
-  it('renders Team Access tab', () => {
+  it('does not render Team Access or User Access tabs', () => {
     render(<CredentialDetail />, { wrapper })
 
-    expect(screen.getByRole('tab', { name: /Team Access/ })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Team Access/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /User Access/ })).not.toBeInTheDocument()
   })
 
-  it('renders User Access tab', () => {
+  it('renders only Details and Workflows tabs', () => {
     render(<CredentialDetail />, { wrapper })
 
-    expect(screen.getByRole('tab', { name: /User Access/ })).toBeInTheDocument()
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs).toHaveLength(2)
+    expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Workflows/ })).toBeInTheDocument()
   })
 
   it('switches to Workflows tab when clicked', async () => {
@@ -318,28 +322,6 @@ describe('CredentialDetail', () => {
     await user.click(screen.getByRole('tab', { name: /Workflows/ }))
 
     expect(screen.getByRole('tab', { name: /Workflows/ })).toHaveAttribute('aria-selected', 'true')
-  })
-
-  it('switches to Team Access tab when clicked', async () => {
-    const user = userEvent.setup()
-    render(<CredentialDetail />, { wrapper })
-
-    await user.click(screen.getByRole('tab', { name: /Team Access/ }))
-
-    expect(
-      screen.getByText('Team-based access control for credentials will be available in a future release.')
-    ).toBeInTheDocument()
-  })
-
-  it('switches to User Access tab when clicked', async () => {
-    const user = userEvent.setup()
-    render(<CredentialDetail />, { wrapper })
-
-    await user.click(screen.getByRole('tab', { name: /User Access/ }))
-
-    expect(
-      screen.getByText('User-based access control for credentials will be available in a future release.')
-    ).toBeInTheDocument()
   })
 
   it('calls patch mutation to enable credential', async () => {
