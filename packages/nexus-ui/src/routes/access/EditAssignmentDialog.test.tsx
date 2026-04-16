@@ -114,6 +114,7 @@ const systemUserRow: PermissionRow = {
   scopeType: 'system',
   scopeName: 'System',
   sourceEndpoint: 'user-role-assignments',
+  roleId: 'r2',
 }
 
 const systemGroupRow: PermissionRow = {
@@ -126,11 +127,12 @@ const systemGroupRow: PermissionRow = {
   scopeType: 'system',
   scopeName: 'System',
   sourceEndpoint: 'group-role-assignments',
+  roleId: 'r1',
 }
 
 const mockMutationReturn = {
   mutate: vi.fn(),
-  mutateAsync: vi.fn().mockResolvedValue({}),
+  mutateAsync: vi.fn().mockResolvedValue({ id: 'default-new-assignment-id' }),
   isPending: false,
   isError: false,
   error: null,
@@ -250,8 +252,8 @@ describe('EditAssignmentDialog', () => {
       expect(onClose).toHaveBeenCalled()
     })
 
-    it('executes delete-then-create for project-roles when role changes', async () => {
-      const mutateAsyncSpy = vi.fn().mockResolvedValue({})
+    it('executes assign-then-delete for project-roles when role changes', async () => {
+      const mutateAsyncSpy = vi.fn().mockResolvedValue({ id: 'new-assignment' })
       vi.mocked(accessClient.useMutation).mockReturnValue({
         ...mockMutationReturn,
         mutateAsync: mutateAsyncSpy,
@@ -311,8 +313,8 @@ describe('EditAssignmentDialog', () => {
       })
     })
 
-    it('executes delete-then-create for user-role-assignments when role changes', async () => {
-      const mutateAsyncSpy = vi.fn().mockResolvedValue({})
+    it('executes assign-then-delete for user-role-assignments when role changes', async () => {
+      const mutateAsyncSpy = vi.fn().mockResolvedValue({ id: 'new-assignment' })
       vi.mocked(accessClient.useMutation).mockReturnValue({
         ...mockMutationReturn,
         mutateAsync: mutateAsyncSpy,
@@ -340,8 +342,8 @@ describe('EditAssignmentDialog', () => {
       })
     })
 
-    it('executes delete-then-create for group-role-assignments when role changes', async () => {
-      const mutateAsyncSpy = vi.fn().mockResolvedValue({})
+    it('executes assign-then-delete for group-role-assignments when role changes', async () => {
+      const mutateAsyncSpy = vi.fn().mockResolvedValue({ id: 'new-assignment' })
       vi.mocked(accessClient.useMutation).mockReturnValue({
         ...mockMutationReturn,
         mutateAsync: mutateAsyncSpy,
@@ -369,7 +371,7 @@ describe('EditAssignmentDialog', () => {
     })
 
     it('calls onSuccess and onClose on successful update', async () => {
-      const mutateAsyncSpy = vi.fn().mockResolvedValue({})
+      const mutateAsyncSpy = vi.fn().mockResolvedValue({ id: 'new-assignment' })
       vi.mocked(accessClient.useMutation).mockReturnValue({
         ...mockMutationReturn,
         mutateAsync: mutateAsyncSpy,
@@ -418,6 +420,88 @@ describe('EditAssignmentDialog', () => {
 
       expect(screen.getByText('Ops')).toBeInTheDocument()
       expect(screen.getByText('System')).toBeInTheDocument()
+    })
+  })
+
+  describe('Invalid row data', () => {
+    it('shows error when project user assignment is missing projectId', async () => {
+      const user = userEvent.setup()
+      const rowMissingProject: PermissionRow = { ...projectRow, projectId: undefined }
+      render(<EditAssignmentDialog {...defaultProps} row={rowMissingProject} />, { wrapper })
+
+      const roleToggle = screen.getByPlaceholderText('Select a role...')
+      await user.click(roleToggle)
+      await user.click(await screen.findByRole('option', { name: 'Viewer' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Invalid assignment: missing project ID')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when project group assignment is missing projectId', async () => {
+      const user = userEvent.setup()
+      const rowMissingProject: PermissionRow = { ...projectGroupRow, projectId: undefined }
+      render(<EditAssignmentDialog {...defaultProps} row={rowMissingProject} displayName="Devs" />, { wrapper })
+
+      const roleToggle = screen.getByPlaceholderText('Select a role...')
+      await user.click(roleToggle)
+      await user.click(await screen.findByRole('option', { name: 'Viewer' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Invalid assignment: missing project ID')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when system user assignment is missing roleId', async () => {
+      const user = userEvent.setup()
+      const rowMissingRole: PermissionRow = { ...systemUserRow, roleId: undefined }
+      render(<EditAssignmentDialog {...defaultProps} row={rowMissingRole} displayName="bob" />, { wrapper })
+
+      const roleToggle = screen.getByPlaceholderText('Select a role...')
+      await user.click(roleToggle)
+      await user.click(await screen.findByRole('option', { name: 'Admin' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Invalid assignment: missing role ID')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when system group assignment is missing roleId', async () => {
+      const user = userEvent.setup()
+      const rowMissingRole: PermissionRow = { ...systemGroupRow, roleId: undefined }
+      render(<EditAssignmentDialog {...defaultProps} row={rowMissingRole} displayName="Ops" />, { wrapper })
+
+      const roleToggle = screen.getByPlaceholderText('Select a role...')
+      await user.click(roleToggle)
+      await user.click(await screen.findByRole('option', { name: 'Viewer' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Invalid assignment: missing role ID')).toBeInTheDocument()
+      })
+    })
+
+    it('shows error when assign response has no assignment id', async () => {
+      const mutateAsyncSpy = vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce(undefined)
+      vi.mocked(accessClient.useMutation).mockReturnValue({
+        ...mockMutationReturn,
+        mutateAsync: mutateAsyncSpy,
+      } as never)
+
+      const user = userEvent.setup()
+      render(<EditAssignmentDialog {...defaultProps} row={projectRow} />, { wrapper })
+
+      const roleToggle = screen.getByPlaceholderText('Select a role...')
+      await user.click(roleToggle)
+      await user.click(await screen.findByRole('option', { name: 'Viewer' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/did not include an assignment id/i)).toBeInTheDocument()
+      })
     })
   })
 
@@ -482,13 +566,13 @@ describe('EditAssignmentDialog', () => {
       })
     })
 
-    it('attempts rollback for system user role when assign fails after delete', async () => {
-      // Delete succeeds, first assign (new role) fails, second assign (rollback) succeeds
+    it('revokes new assignment when delete fails after assign (system user)', async () => {
+      // Assign new succeeds, delete old fails, revoke new succeeds
       const mutateAsyncSpy = vi
         .fn()
-        .mockResolvedValueOnce({}) // delete succeeds
-        .mockRejectedValueOnce(new Error('Assign failed')) // assign new role fails
-        .mockResolvedValueOnce({}) // rollback assign succeeds
+        .mockResolvedValueOnce({ id: 'new-assignment-id' })
+        .mockRejectedValueOnce(new Error('Delete failed'))
+        .mockResolvedValueOnce(undefined)
       vi.mocked(accessClient.useMutation).mockReturnValue({
         ...mockMutationReturn,
         mutateAsync: mutateAsyncSpy,
@@ -509,19 +593,17 @@ describe('EditAssignmentDialog', () => {
       await user.click(screen.getByRole('button', { name: 'Save' }))
 
       await waitFor(() => {
-        // 3 calls: delete, assign new, rollback assign original
         expect(mutateAsyncSpy).toHaveBeenCalledTimes(3)
         expect(onSuccess).not.toHaveBeenCalled()
       })
     })
 
-    it('attempts rollback for system group role when assign fails after delete', async () => {
-      // Delete succeeds, first assign (new role) fails, second assign (rollback) succeeds
+    it('revokes new assignment when delete fails after assign (system group)', async () => {
       const mutateAsyncSpy = vi
         .fn()
-        .mockResolvedValueOnce({}) // delete succeeds
-        .mockRejectedValueOnce(new Error('Assign failed')) // assign new role fails
-        .mockResolvedValueOnce({}) // rollback assign succeeds
+        .mockResolvedValueOnce({ id: 'new-assignment-id' })
+        .mockRejectedValueOnce(new Error('Delete failed'))
+        .mockResolvedValueOnce(undefined)
       vi.mocked(accessClient.useMutation).mockReturnValue({
         ...mockMutationReturn,
         mutateAsync: mutateAsyncSpy,
@@ -542,7 +624,6 @@ describe('EditAssignmentDialog', () => {
       await user.click(screen.getByRole('button', { name: 'Save' }))
 
       await waitFor(() => {
-        // 3 calls: delete, assign new, rollback assign original
         expect(mutateAsyncSpy).toHaveBeenCalledTimes(3)
         expect(onSuccess).not.toHaveBeenCalled()
       })

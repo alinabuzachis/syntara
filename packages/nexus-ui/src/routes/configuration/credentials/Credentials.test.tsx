@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { credentialsClient } from '../../../client'
@@ -100,6 +100,21 @@ function mockQuery(resources: typeof mockCredentials, workflowsOverride?: { data
 }
 
 describe('Credentials', () => {
+  const previousTz = process.env.TZ
+
+  beforeAll(() => {
+    // formatDate() uses local timezone; pin UTC so table date expectations are stable in CI and on developer machines.
+    process.env.TZ = 'UTC'
+  })
+
+  afterAll(() => {
+    if (previousTz === undefined) {
+      delete process.env.TZ
+    } else {
+      process.env.TZ = previousTz
+    }
+  })
+
   let mockMutate: ReturnType<typeof vi.fn>
 
   beforeEach(() => {

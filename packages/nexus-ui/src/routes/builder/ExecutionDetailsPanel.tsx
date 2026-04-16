@@ -60,28 +60,38 @@ function normalizeBranches(branches: (ActivityLike[] | ActivityLike | string)[])
     .map((b) => (Array.isArray(b) ? b : [b]))
 }
 
+function collectNamesFromActivityList(acts: ActivityLike[], map: Map<string, string>): void {
+  for (const act of acts) {
+    collectNamesFromActivity(act, map)
+  }
+}
+
+function collectNamesFromActivity(act: ActivityLike, map: Map<string, string>): void {
+  if (act.id && act.name) map.set(act.id, act.name)
+
+  if (act.branches) {
+    for (const branch of normalizeBranches(act.branches)) {
+      collectNamesFromActivityList(branch, map)
+    }
+  }
+
+  for (const key of CHILD_KEYS) {
+    const children = act[key]
+    if (Array.isArray(children)) {
+      collectNamesFromActivityList(children as ActivityLike[], map)
+    }
+  }
+
+  if (act.loop?.do) {
+    collectNamesFromActivityList(act.loop.do, map)
+  }
+}
+
 function buildNameMap(activities: ActivityLike[] | undefined): Map<string, string> {
   const map = new Map<string, string>()
   if (!activities) return map
 
-  function traverse(acts: ActivityLike[]) {
-    for (const act of acts) {
-      if (act.id && act.name) map.set(act.id, act.name)
-
-      if (act.branches) {
-        for (const branch of normalizeBranches(act.branches)) traverse(branch)
-      }
-
-      for (const key of CHILD_KEYS) {
-        const children = act[key]
-        if (Array.isArray(children)) traverse(children as ActivityLike[])
-      }
-
-      if (act.loop?.do) traverse(act.loop.do)
-    }
-  }
-
-  traverse(activities)
+  collectNamesFromActivityList(activities, map)
   return map
 }
 

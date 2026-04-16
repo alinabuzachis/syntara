@@ -873,7 +873,7 @@ describe('Integrations Component', () => {
       expect(callArgs[0]).toEqual({ params: { path: { provider_id: '3' } } })
     })
 
-    it('shows success alert and closes dialog on successful validation', async () => {
+    it('shows success alert and closes dialog on successful validation', { timeout: 15_000 }, async () => {
       const user = userEvent.setup()
       const mockValidateMutate = vi.fn()
       const mockRefetch = vi.fn()

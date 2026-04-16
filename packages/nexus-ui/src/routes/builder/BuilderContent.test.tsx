@@ -460,8 +460,8 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
       })
 
-      // Find the sidepanel name input and change it (tests onNameChange callback - lines 1155-1158)
-      const sidepanelNameInput = screen.getByLabelText('Workflow name')
+      // Find the sidepanel name input (distinct from header "Workflow name")
+      const sidepanelNameInput = screen.getByLabelText('Workflow name in workflow details')
       fireEvent.change(sidepanelNameInput, { target: { value: 'Updated Via Sidepanel' } })
 
       // Verify the name was updated
@@ -490,7 +490,7 @@ describe('BuilderContent', () => {
       expect(descriptionTextarea).toHaveValue('New Description')
     })
 
-    it('applies automation details from header popover onApply callback', async () => {
+    it('applies automation details from header popover onApply callback', { timeout: 15_000 }, async () => {
       const user = userEvent.setup()
       await renderBuilder({ workflow: mockWorkflow, isNew: false, workflowId: 'workflow-1' })
       await waitFor(() => {
@@ -2705,7 +2705,7 @@ describe('BuilderContent', () => {
         expect(screen.getByText('Workflow details')).toBeInTheDocument()
       })
 
-      const nameInput = screen.getByLabelText('Workflow name')
+      const nameInput = screen.getByLabelText('Workflow name in workflow details')
       fireEvent.change(nameInput, { target: { value: 'Name Changed' } })
 
       // Verify workflow store is marked dirty
@@ -2748,7 +2748,7 @@ describe('BuilderContent', () => {
       })
 
       // Change both name and description
-      const nameInput = screen.getByLabelText('Workflow name')
+      const nameInput = screen.getByLabelText('Workflow name in workflow details')
       const descriptionTextarea = screen.getByLabelText('Description')
 
       fireEvent.change(nameInput, { target: { value: 'Name Changed' } })

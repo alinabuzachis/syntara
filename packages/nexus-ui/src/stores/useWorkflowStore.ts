@@ -1,6 +1,9 @@
 import { ActivityTypeEnum } from '@ansible/nexus-contracts'
 import { temporal } from 'zundo'
+import type { TemporalState } from 'zundo'
 import { create } from 'zustand'
+import type { Mutate, StoreApi } from 'zustand'
+import type { UseBoundStore } from 'zustand/react'
 
 import type { EdgeConnection } from '../routes/builder/types/edge'
 import { buildTriggerIndexRemappping, remapTriggerIdsInEdges } from '../routes/builder/utils/triggerIndexRemapping'
@@ -15,6 +18,14 @@ import {
   updateActivityInList,
 } from './workflowActivityHelpers'
 import type { Activity, WorkflowDefinition, WorkflowStore } from './workflowStoreTypes'
+
+/** Partialize shape passed to zundo — must match `temporal({ partialize })` below. */
+type WorkflowUndoPartialize = Pick<WorkflowStore, 'currentWorkflow' | 'edges' | 'nodePositions'>
+
+/** Bound store including zundo’s `temporal` API (explicit so ESLint/tsserver always see `.temporal`). */
+export type UseWorkflowStoreBound = UseBoundStore<
+  Mutate<StoreApi<WorkflowStore>, [['temporal', StoreApi<TemporalState<WorkflowUndoPartialize>>]]>
+>
 
 // ============================================================================
 // Zustand Store (with undo/redo via zundo temporal middleware)
@@ -92,7 +103,7 @@ function beginTemporalBatch(set: (partial: Partial<WorkflowStore>) => void) {
   }, TEMPORAL_BATCH_SAFETY_MS)
 }
 
-export const useWorkflowStore = create<WorkflowStore>()(
+export const useWorkflowStore: UseWorkflowStoreBound = create<WorkflowStore>()(
   temporal(
     // eslint-disable-next-line max-lines-per-function
     (set, get) => ({

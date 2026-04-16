@@ -71,14 +71,14 @@ describe('WorkflowSidepanel', () => {
   it('renders workflow name input with value', () => {
     render(<WorkflowSidepanel {...defaultProps} />)
 
-    const nameInput = screen.getByLabelText('Workflow name')
+    const nameInput = screen.getByLabelText('Workflow name in workflow details')
     expect(nameInput).toHaveValue('Test Workflow')
   })
 
   it('calls onNameChange when name input changes', () => {
     render(<WorkflowSidepanel {...defaultProps} />)
 
-    const nameInput = screen.getByLabelText('Workflow name')
+    const nameInput = screen.getByLabelText('Workflow name in workflow details')
     fireEvent.change(nameInput, { target: { value: 'New Name' } })
 
     expect(mockOnNameChange).toHaveBeenCalledWith('New Name')
@@ -151,7 +151,7 @@ describe('WorkflowSidepanel', () => {
   it('handles empty workflow name', () => {
     render(<WorkflowSidepanel {...defaultProps} workflowName="" />)
 
-    const nameInput = screen.getByLabelText('Workflow name')
+    const nameInput = screen.getByLabelText('Workflow name in workflow details')
     expect(nameInput).toHaveValue('')
   })
 

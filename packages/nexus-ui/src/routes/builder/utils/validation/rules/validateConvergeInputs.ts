@@ -12,6 +12,12 @@ interface ConditionBranchInfo {
   branch: 'then' | 'else'
 }
 
+function resolveConditionBranchFromHandle(sourceHandle: string | null | undefined): 'then' | 'else' | null {
+  if (sourceHandle === EdgeHandleEnum.TRUE) return 'then'
+  if (sourceHandle === EdgeHandleEnum.FALSE) return 'else'
+  return null
+}
+
 /**
  * Traces backwards from a node to find all condition branches it originates from.
  *
@@ -43,8 +49,7 @@ function traceToConditions(
 
     // If source is a condition node, record which branch we came from
     if (sourceNode.type === ActivityTypeEnum.CONDITION) {
-      const branch =
-        edge.sourceHandle === EdgeHandleEnum.TRUE ? 'then' : edge.sourceHandle === EdgeHandleEnum.FALSE ? 'else' : null
+      const branch = resolveConditionBranchFromHandle(edge.sourceHandle)
       if (branch) {
         results.push({
           conditionId: sourceNode.id,
@@ -81,12 +86,6 @@ function traceToConditions(
  *   Task E ──┐
  *   Task F ──┴─→ Converge G  ✅ Valid (different conditions)
  */
-function resolveConditionBranch(sourceHandle: string | null | undefined): 'then' | 'else' | null {
-  if (sourceHandle === EdgeHandleEnum.TRUE) return 'then'
-  if (sourceHandle === EdgeHandleEnum.FALSE) return 'else'
-  return null
-}
-
 function addConditionBranch(
   branches: Map<string, Set<'then' | 'else'>>,
   conditionId: string,
@@ -109,7 +108,7 @@ function collectConditionBranches(
   for (const edge of incomingEdges) {
     const sourceNode = activities.find((a) => a.id === edge.source)
     if (sourceNode?.type === ActivityTypeEnum.CONDITION) {
-      const branch = resolveConditionBranch(edge.sourceHandle)
+      const branch = resolveConditionBranchFromHandle(edge.sourceHandle)
       if (branch) {
         addConditionBranch(conditionBranches, sourceNode.id, branch)
       }

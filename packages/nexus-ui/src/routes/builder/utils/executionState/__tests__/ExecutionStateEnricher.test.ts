@@ -347,6 +347,26 @@ describe('ExecutionStateEnricher', () => {
       expect(result).toBe('pending')
     })
 
+    it('returns pending for branching edge when target is skipped', () => {
+      const edge = { source: 'cond-1', target: 'task-false', sourceHandle: 'false' }
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'cond-1',
+          {
+            activityId: 'cond-1',
+            status: 'completed',
+            startedAt: '2024-01-01T00:00:00Z',
+            completedAt: '2024-01-01T00:01:00Z',
+          },
+        ],
+        ['task-false', { activityId: 'task-false', status: 'skipped', startedAt: null, completedAt: null }],
+      ])
+
+      const result = enricher.determineEdgeStatus(edge, activityStates)
+
+      expect(result).toBe('pending')
+    })
+
     it('returns passed for trigger edges when target has started', () => {
       const edge = { source: 'trigger-0', target: 'task-1', sourceHandle: null }
       const activityStates = new Map<string, ActivityState>([
@@ -401,6 +421,21 @@ describe('ExecutionStateEnricher', () => {
       const result = enricher.determineEdgeStatus(edge, activityStates)
 
       expect(result).toBe('pending')
+    })
+
+    it('detects converge outgoing edge when activities list omits source but id has converge prefix', () => {
+      const edge = { source: 'converge-abc', target: 'task-after', sourceHandle: null }
+      const activityStates = new Map<string, ActivityState>([
+        [
+          'task-after',
+          { activityId: 'task-after', status: 'running', startedAt: '2024-01-01T00:00:00Z', completedAt: null },
+        ],
+      ])
+      const activities: Activity[] = []
+
+      const result = enricher.determineEdgeStatus(edge, activityStates, activities)
+
+      expect(result).toBe('passed')
     })
   })
 

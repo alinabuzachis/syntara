@@ -209,7 +209,26 @@ function parseCondition(expr: string): ExpressionCondition {
  * splitByOperator('a && (b || c)', '||')
  * // Returns: ['a && (b || c)'] - doesn't split because || is inside parentheses
  */
+function pushTrimmedPart(parts: string[], fragment: string): void {
+  const trimmed = fragment.trim()
+  if (trimmed) {
+    parts.push(trimmed)
+  }
+}
+
+function indexAfterAsciiSpaces(expr: string, from: number): number {
+  let j = from
+  while (j < expr.length && expr[j] === ' ') {
+    j++
+  }
+  return j
+}
+
 export function splitByOperator(expr: string, operator: string): string[] {
+  if (!operator || operator.trim().length === 0) {
+    throw new Error('splitByOperator: operator must be a non-empty string')
+  }
+
   const parts: string[] = []
   let current = ''
   let depth = 0
@@ -222,33 +241,29 @@ export function splitByOperator(expr: string, operator: string): string[] {
       depth++
       current += char
       i++
-    } else if (char === ')') {
+      continue
+    }
+
+    if (char === ')') {
       depth--
       current += char
       i++
-    } else if (depth === 0 && expr.substring(i, i + operator.length) === operator) {
-      // Found operator at depth 0 - split here
-      const trimmed = current.trim()
-      if (trimmed) {
-        parts.push(trimmed)
-      }
+      continue
+    }
+
+    if (depth === 0 && i + operator.length <= expr.length && expr.substring(i, i + operator.length) === operator) {
+      pushTrimmedPart(parts, current)
       current = ''
       i += operator.length
-      // Skip whitespace after operator
-      while (i < expr.length && expr[i] === ' ') {
-        i++
-      }
-    } else {
-      current += char
-      i++
+      i = indexAfterAsciiSpaces(expr, i)
+      continue
     }
+
+    current += char
+    i++
   }
 
-  // Add the last part
-  if (current.trim()) {
-    parts.push(current.trim())
-  }
+  pushTrimmedPart(parts, current)
 
-  // Return original if no split occurred
   return parts.length > 1 ? parts : [expr]
 }

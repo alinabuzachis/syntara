@@ -66,7 +66,7 @@ export function WorkflowSidepanel(props: WorkflowSidepanelProps) {
                   type="text"
                   value={props.workflowName}
                   onChange={(_event, value) => props.onNameChange(value)}
-                  aria-label="Workflow name"
+                  aria-label="Workflow name in workflow details"
                 />
               </DescriptionListDescription>
             </DescriptionListGroup>

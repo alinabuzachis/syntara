@@ -10,8 +10,8 @@ import type { PermissionRow, ProjectRead } from './types'
 function buildPermissionRows(
   projectRoles: { id: string; user_id: string; username?: string; role_name: string; project_id: string }[],
   projectGroupRoles: { id: string; group_id: string; group_name?: string; role_name: string; project_id: string }[],
-  systemUserRoles: { id: string; user_id: string; username: string; role_name: string }[],
-  systemGroupRoles: { id: string; group_id: string; group_name: string; role_name: string }[],
+  systemUserRoles: { id: string; user_id: string; username: string; role_id: string; role_name: string }[],
+  systemGroupRoles: { id: string; group_id: string; group_name: string; role_id: string; role_name: string }[],
   projects: ProjectRead[]
 ): PermissionRow[] {
   const rows: PermissionRow[] = []
@@ -55,6 +55,7 @@ function buildPermissionRows(
       principalName: a.username,
       assignmentType: 'role',
       assignmentName: a.role_name,
+      roleId: a.role_id,
       scopeType: 'system',
       scopeName: 'System',
       sourceEndpoint: 'user-role-assignments',
@@ -69,6 +70,7 @@ function buildPermissionRows(
       principalName: a.group_name,
       assignmentType: 'role',
       assignmentName: a.role_name,
+      roleId: a.role_id,
       scopeType: 'system',
       scopeName: 'System',
       sourceEndpoint: 'group-role-assignments',

@@ -518,7 +518,7 @@ describe('TaskNodeDetails Component', () => {
     // Invalid headers JSON should show an error and prevent save
     expect(mockShowError).toHaveBeenCalledWith(
       'Invalid Headers Format',
-      'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type": "application/json"}'
+      'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type":"application/json"}'
     )
 
     // updateActivity should NOT be called when headers are invalid

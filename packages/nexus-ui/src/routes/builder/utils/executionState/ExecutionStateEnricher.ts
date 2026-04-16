@@ -13,6 +13,30 @@ import {
 } from './nodeStateInference'
 import { WorkflowTraversal } from './traversal'
 
+function edgePassedWhenTargetStarted(
+  activityStates: Map<string, ActivityState>,
+  targetId: string
+): 'passed' | 'pending' {
+  const targetState = activityStates.get(targetId)
+  if (!targetState) {
+    return 'pending'
+  }
+  if (targetState.status === ACTIVITY_STATUS.PENDING || targetState.status === ACTIVITY_STATUS.SKIPPED) {
+    return 'pending'
+  }
+  return 'passed'
+}
+
+function isConvergeSource(edge: { source: string }, activities?: Activity[]): boolean {
+  if (activities) {
+    const sourceActivity = activities.find((a) => a.id === edge.source)
+    if (sourceActivity) {
+      return sourceActivity.type === ActivityTypeEnum.CONVERGE
+    }
+  }
+  return edge.source.startsWith('converge-')
+}
+
 /**
  * Activity with execution metadata attached.
  */
@@ -236,35 +260,20 @@ export class ExecutionStateEnricher {
   ): 'passed' | 'pending' {
     // For trigger edges, check if target has started
     // Edge is "passed" when trigger has fired (i.e., when target node started)
-    const isSourceTrigger = edge.source.startsWith('trigger-')
-    if (isSourceTrigger) {
-      const targetState = activityStates.get(edge.target)
-      return targetState && targetState.status !== ACTIVITY_STATUS.PENDING ? 'passed' : 'pending'
+    if (edge.source.startsWith('trigger-')) {
+      return edgePassedWhenTargetStarted(activityStates, edge.target)
     }
 
     // For branching nodes (conditional, approval, or loop), check if target has started
     // This determines which branch was actually taken
     if (isBranchHandle(edge.sourceHandle)) {
-      const targetState = activityStates.get(edge.target)
-      // If target is no longer pending, this branch was taken
-      return targetState && targetState.status !== ACTIVITY_STATUS.PENDING ? 'passed' : 'pending'
+      return edgePassedWhenTargetStarted(activityStates, edge.target)
     }
 
     // For converge nodes, check if target has started (not source)
     // This shows when execution has actually moved past the converge point
-    let isSourceConverge: boolean
-    if (activities) {
-      // Check activity type directly (most reliable)
-      const sourceActivity = activities.find((a) => a.id === edge.source)
-      isSourceConverge = sourceActivity?.type === ActivityTypeEnum.CONVERGE
-    } else {
-      // Fallback to ID pattern matching
-      isSourceConverge = edge.source.startsWith('converge-')
-    }
-
-    if (isSourceConverge) {
-      const targetState = activityStates.get(edge.target)
-      return targetState && targetState.status !== ACTIVITY_STATUS.PENDING ? 'passed' : 'pending'
+    if (isConvergeSource(edge, activities)) {
+      return edgePassedWhenTargetStarted(activityStates, edge.target)
     }
 
     // For regular edges, edge is "passed" if source activity completed/failed/cancelled

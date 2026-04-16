@@ -18,7 +18,7 @@ import {
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, type UseFormSetError } from 'react-hook-form'
 
 import { credentialsClient } from '../../../../client'
 import { useAlerts } from '../../../../components/alerts'
@@ -65,6 +65,41 @@ function getDefaultInputs(credType: CredentialType | undefined): Record<string, 
     }
   }
   return defaults
+}
+
+function validateEditModeRequiredDynamicField(
+  requiredId: string,
+  val: unknown,
+  field: FieldDefinition | undefined,
+  touchedSecrets: Set<string>,
+  setError: UseFormSetError<CredentialFormData>
+): boolean {
+  const isSecret = field?.secret === true
+  if (isSecret) {
+    if (touchedSecrets.has(requiredId) && (val == null || val === '')) {
+      setError(`inputs.${requiredId}`, { message: `${field?.label ?? requiredId} is required` })
+      return false
+    }
+    return true
+  }
+  if (val == null || val === '') {
+    setError(`inputs.${requiredId}`, { message: `${field?.label ?? requiredId} is required` })
+    return false
+  }
+  return true
+}
+
+function validateCreateModeRequiredDynamicField(
+  requiredId: string,
+  val: unknown,
+  field: FieldDefinition | undefined,
+  setError: UseFormSetError<CredentialFormData>
+): boolean {
+  if (val == null || val === '') {
+    setError(`inputs.${requiredId}`, { message: `${field?.label ?? requiredId} is required` })
+    return false
+  }
+  return true
 }
 
 // eslint-disable-next-line max-lines-per-function
@@ -190,26 +225,11 @@ export function CredentialFormModal({
       const field = typeInputs.fields.find((f) => f.id === requiredId)
 
       if (isEditMode) {
-        // In edit mode, only validate if the field is a secret that was touched,
-        // or a non-secret field that was cleared
-        const isSecret = field?.secret === true
-        if (isSecret) {
-          // Secret field: validate only if user touched it and left it empty
-          if (touchedSecrets.has(requiredId) && (val == null || val === '')) {
-            setError(`inputs.${requiredId}`, { message: `${field?.label ?? requiredId} is required` })
-            valid = false
-          }
-        } else if (val == null || val === '') {
-          // Non-secret required field cleared in edit mode
-          setError(`inputs.${requiredId}`, { message: `${field?.label ?? requiredId} is required` })
+        if (!validateEditModeRequiredDynamicField(requiredId, val, field, touchedSecrets, setError)) {
           valid = false
         }
-      } else {
-        // Create mode: all required fields must be filled
-        if (val == null || val === '') {
-          setError(`inputs.${requiredId}`, { message: `${field?.label ?? requiredId} is required` })
-          valid = false
-        }
+      } else if (!validateCreateModeRequiredDynamicField(requiredId, val, field, setError)) {
+        valid = false
       }
     }
 

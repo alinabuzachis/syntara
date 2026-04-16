@@ -80,6 +80,7 @@ export interface PermissionRow {
   principalName: string
   assignmentType: 'role'
   assignmentName: string
+  roleId?: string
   scopeType: 'project' | 'system'
   scopeName: string
   projectId?: string

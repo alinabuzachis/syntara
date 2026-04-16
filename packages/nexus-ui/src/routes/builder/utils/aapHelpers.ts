@@ -45,37 +45,38 @@ export interface AAPJobConfig {
   credentialId?: string
 }
 
+function mergeCopiedStringJobFields(config: AAPJobConfig, data: AAPFormData): void {
+  if (data.limit) config.limit = data.limit
+  if (data.tags) config.tags = data.tags
+  if (data.skipTags) config.skipTags = data.skipTags
+  if (data.credentialId) config.credentialId = data.credentialId
+}
+
+function mergeParsedAapJobFields(config: AAPJobConfig, data: AAPFormData): void {
+  if (data.inventory) {
+    const inventory = parsePositiveInt(data.inventory)
+    if (inventory) config.inventory = inventory
+  }
+  if (data.credentials) {
+    const credentials = parseCredentials(data.credentials)
+    if (credentials) config.credentials = credentials
+  }
+  if (data.extraVars) {
+    const extraVars = parseExtraVars(data.extraVars)
+    if (extraVars) config.extraVars = extraVars
+  }
+  if (data.verbosity) {
+    const verbosity = parsePositiveInt(data.verbosity, 0)
+    if (verbosity !== undefined && verbosity <= 5) config.verbosity = verbosity
+  }
+}
+
 /**
  * Build optional AAP job configuration from form data
  */
 export function buildAAPConfig(data: AAPFormData): AAPJobConfig | undefined {
   const config: AAPJobConfig = {}
-
-  if (data.inventory) {
-    const inventory = parsePositiveInt(data.inventory)
-    if (inventory) config.inventory = inventory
-  }
-
-  if (data.credentials) {
-    const credentials = parseCredentials(data.credentials)
-    if (credentials) config.credentials = credentials
-  }
-
-  if (data.extraVars) {
-    const extraVars = parseExtraVars(data.extraVars)
-    if (extraVars) config.extraVars = extraVars
-  }
-
-  if (data.limit) config.limit = data.limit
-  if (data.tags) config.tags = data.tags
-  if (data.skipTags) config.skipTags = data.skipTags
-
-  if (data.verbosity) {
-    const verbosity = parsePositiveInt(data.verbosity, 0)
-    if (verbosity !== undefined && verbosity <= 5) config.verbosity = verbosity
-  }
-
-  if (data.credentialId) config.credentialId = data.credentialId
-
+  mergeParsedAapJobFields(config, data)
+  mergeCopiedStringJobFields(config, data)
   return Object.keys(config).length > 0 ? config : undefined
 }

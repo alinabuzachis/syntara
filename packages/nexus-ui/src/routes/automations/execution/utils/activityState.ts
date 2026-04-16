@@ -112,6 +112,59 @@ function resolveActivityId(
  * @param activityArray - Optional array for index-based lookups
  * @throws Error if operation is invalid or path doesn't exist
  */
+function applyAddOperation(
+  activities: Map<string, ActivityState>,
+  resolvedId: string,
+  field: string,
+  value: unknown,
+  existing: ActivityState | undefined
+): void {
+  if (value === undefined) {
+    throw new Error(`Operation 'add' requires a value`)
+  }
+
+  if (!existing) {
+    if (field !== 'status') {
+      throw new Error(`Cannot create activity with field '${field}'. 'status' is required first.`)
+    }
+    activities.set(resolvedId, { activityId: resolvedId, status: value as ActivityStatus })
+    return
+  }
+
+  activities.set(resolvedId, applyFieldUpdate(existing, field, value))
+}
+
+function applyReplaceOperation(
+  activities: Map<string, ActivityState>,
+  resolvedId: string,
+  field: string,
+  value: unknown,
+  existing: ActivityState | undefined
+): void {
+  if (value === undefined) {
+    throw new Error(`Operation 'replace' requires a value`)
+  }
+  if (!existing) {
+    throw new Error(`Cannot replace field '${field}' on non-existent activity '${resolvedId}'`)
+  }
+  activities.set(resolvedId, applyFieldUpdate(existing, field, value))
+}
+
+function applyRemoveOperation(
+  activities: Map<string, ActivityState>,
+  resolvedId: string,
+  field: string,
+  existing: ActivityState | undefined
+): void {
+  if (field !== 'error_details') {
+    throw new Error(`Cannot remove field '${field}' from activity. Only 'error_details' can be removed.`)
+  }
+  if (!existing) {
+    throw new Error(`Cannot remove field '${field}' from non-existent activity '${resolvedId}'`)
+  }
+  activities.set(resolvedId, { ...existing, errorDetails: null })
+}
+
 export function applyOperation(
   activities: Map<string, ActivityState>,
   operation: JsonPatchOperation,
@@ -123,45 +176,15 @@ export function applyOperation(
   const existing = activities.get(resolvedId)
 
   switch (op) {
-    case 'add': {
-      if (value === undefined) {
-        throw new Error(`Operation 'add' requires a value`)
-      }
-
-      if (!existing) {
-        if (field !== 'status') {
-          throw new Error(`Cannot create activity with field '${field}'. 'status' is required first.`)
-        }
-        activities.set(resolvedId, { activityId: resolvedId, status: value as ActivityStatus })
-        return
-      }
-
-      activities.set(resolvedId, applyFieldUpdate(existing, field, value))
+    case 'add':
+      applyAddOperation(activities, resolvedId, field, value, existing)
       break
-    }
-
-    case 'replace': {
-      if (value === undefined) {
-        throw new Error(`Operation 'replace' requires a value`)
-      }
-      if (!existing) {
-        throw new Error(`Cannot replace field '${field}' on non-existent activity '${resolvedId}'`)
-      }
-      activities.set(resolvedId, applyFieldUpdate(existing, field, value))
+    case 'replace':
+      applyReplaceOperation(activities, resolvedId, field, value, existing)
       break
-    }
-
-    case 'remove': {
-      if (field !== 'error_details') {
-        throw new Error(`Cannot remove field '${field}' from activity. Only 'error_details' can be removed.`)
-      }
-      if (!existing) {
-        throw new Error(`Cannot remove field '${field}' from non-existent activity '${resolvedId}'`)
-      }
-      activities.set(resolvedId, { ...existing, errorDetails: null })
+    case 'remove':
+      applyRemoveOperation(activities, resolvedId, field, existing)
       break
-    }
-
     case 'move':
     case 'copy':
     case 'test':

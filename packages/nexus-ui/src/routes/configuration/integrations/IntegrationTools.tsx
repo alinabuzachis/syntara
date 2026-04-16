@@ -9,6 +9,7 @@ import {
   Stack,
   StackItem,
 } from '@patternfly/react-core'
+import type { ThProps } from '@patternfly/react-table'
 import { Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -27,7 +28,7 @@ import { FilterBar } from '../../../components/filters/FilterBar'
 import { useQueryState } from '../../../components/states/useQueryState'
 import { ScrollableTableContainer } from '../../../components/table/ScrollableTableContainer'
 import { TotalCount } from '../../../components/table/TotalCount'
-import { useCursorPagination, useCursorReset } from '../../../hooks/useCursorPagination'
+import { useCursorPagination, useCursorReset, type UseCursorPaginationResult } from '../../../hooks/useCursorPagination'
 import { useMutationErrorHandler } from '../../../hooks/useMutationErrorHandler'
 import { useTableSort } from '../../../hooks/useTableSort'
 import type { FilterFieldDefinition } from '../../../types/filters'
@@ -57,7 +58,184 @@ function mergeEnabledToolIdsFromApi(previous: Set<string>, tools: Tool[]): Set<s
   return next
 }
 
-// eslint-disable-next-line max-lines-per-function
+type IntegrationToolsLoadedViewProps = Readonly<{
+  providerName: string
+  navigate: (path: string) => void
+  setRefreshDialogOpen: (open: boolean) => void
+  handleRefreshTools: () => void
+  handleSubmit: () => Promise<void>
+  handleMutationError: ReturnType<typeof useMutationErrorHandler>
+  results: Tool[]
+  hasActiveFilters: boolean
+  filterFieldDefinitions: FilterFieldDefinition[]
+  filters: UseCursorPaginationResult['filters']
+  handleFilterChange: UseCursorPaginationResult['handleFilterChange']
+  handleClearAllFilters: UseCursorPaginationResult['handleClearAllFilters']
+  getFooterProps: UseCursorPaginationResult['getFooterProps']
+  queryData: { total?: number | null } | undefined
+  selectedToolIds: Set<string>
+  allSelected: boolean
+  getSortParams: (index: number) => ThProps['sort']
+  handleSelectAll: (checked: boolean) => void
+  handleSelectTool: (tool: Tool, checked: boolean) => void
+  refreshDialogOpen: boolean
+}>
+
+/** Presentational split for line limits; props mirror parent state — follow-up: smaller slices (table body only) or context. */
+function IntegrationToolsLoadedView({
+  providerName,
+  navigate,
+  setRefreshDialogOpen,
+  handleRefreshTools,
+  handleSubmit,
+  handleMutationError,
+  results,
+  hasActiveFilters,
+  filterFieldDefinitions,
+  filters,
+  handleFilterChange,
+  handleClearAllFilters,
+  getFooterProps,
+  queryData,
+  selectedToolIds,
+  allSelected,
+  getSortParams,
+  handleSelectAll,
+  handleSelectTool,
+  refreshDialogOpen,
+}: IntegrationToolsLoadedViewProps) {
+  return (
+    <AppPage>
+      <AppPageHeader title={`${providerName} tools`}>
+        <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
+          Refresh tools
+        </Button>
+        <Button
+          onClick={async () => {
+            try {
+              await handleSubmit()
+            } catch (error: unknown) {
+              handleMutationError({ title: 'Failed to save tools' })(error)
+            }
+          }}
+        >
+          Save
+        </Button>
+        <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
+          Cancel
+        </Button>
+      </AppPageHeader>
+      {results.length === 0 && !hasActiveFilters ? (
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <EmptyStateNoData
+              title="No tools available"
+              description={`No tools found for "${providerName}". Click the button below to refresh and fetch the latest tools from this integration.`}
+              buttonText="Refresh tools"
+              addData={handleRefreshTools}
+              imageSrc={noToolsImage}
+              imageAlt="No tools available"
+            />
+          </CompassPanel>
+        </StackItem>
+      ) : (
+        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
+          <CompassPanel isFullHeight>
+            <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
+              <FilterBar
+                fieldDefinitions={filterFieldDefinitions}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                showClearAll={true}
+              />
+
+              {results.length === 0 ? (
+                <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <EmptyStateFilter
+                    clearAllFilters={handleClearAllFilters}
+                    imageSrc={noToolsImage}
+                    imageAlt="No results"
+                  />
+                </StackItem>
+              ) : (
+                <ScrollableTableContainer
+                  aria-label="Tools table"
+                  isExpandable
+                  footer={{
+                    ...getFooterProps(queryData, results.length, 'tool', 'tools'),
+                    content: (
+                      <>
+                        {selectedToolIds.size > 0 ? (
+                          <>
+                            {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'} enabled
+                          </>
+                        ) : (
+                          <>
+                            {results.length} {results.length === 1 ? 'tool' : 'tools'}
+                          </>
+                        )}
+                        {queryData?.total != null && queryData.total > results.length && (
+                          <TotalCount total={queryData.total} />
+                        )}
+                      </>
+                    ),
+                  }}
+                >
+                  <Thead>
+                    <Tr>
+                      <Th
+                        select={{
+                          onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
+                          isSelected: allSelected,
+                          isHeaderSelectDisabled: results.length === 0,
+                        }}
+                        screenReaderText="Select all tools"
+                      />
+                      <Th sort={getSortParams(0)}>Name</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {results.map((tool, index) => (
+                      <Tr key={tool.id}>
+                        <Td
+                          select={{
+                            rowIndex: index,
+                            onSelect: (_event, isSelecting) => handleSelectTool(tool, isSelecting),
+                            isSelected: selectedToolIds.has(tool.id),
+                          }}
+                        />
+                        <Td dataLabel="Name">
+                          <DescriptionList>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>{tool.namespaced_name}</DescriptionListTerm>
+                              <DescriptionListDescription>{tool.description}</DescriptionListDescription>
+                            </DescriptionListGroup>
+                          </DescriptionList>
+                        </Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </ScrollableTableContainer>
+              )}
+            </Stack>
+          </CompassPanel>
+        </StackItem>
+      )}
+
+      <ConfirmationDialog
+        isOpen={refreshDialogOpen}
+        onClose={() => setRefreshDialogOpen(false)}
+        onConfirm={handleRefreshTools}
+        title="Refresh tools"
+        confirmLabel="Refresh"
+      >
+        Are you sure you want to refresh tools for &quot;{providerName}&quot;? This will fetch the latest tools from the
+        integration.
+      </ConfirmationDialog>
+    </AppPage>
+  )
+}
+
 export default function IntegrationTools() {
   const params = useParams()
   const [, navigate] = useLocation()
@@ -216,133 +394,27 @@ export default function IntegrationTools() {
   }
 
   return (
-    <AppPage>
-      <AppPageHeader title={`${provider?.name} tools`}>
-        <Button variant="secondary" onClick={() => setRefreshDialogOpen(true)}>
-          Refresh tools
-        </Button>
-        <Button
-          onClick={async () => {
-            try {
-              await handleSubmit()
-            } catch (error: unknown) {
-              handleMutationError({ title: 'Failed to save tools' })(error)
-            }
-          }}
-        >
-          Save
-        </Button>
-        <Button variant="secondary" onClick={() => navigate(AppRoute.Configuration.Integrations.Root)}>
-          Cancel
-        </Button>
-      </AppPageHeader>
-      {results.length === 0 && !hasActiveFilters ? (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <EmptyStateNoData
-              title="No tools available"
-              description={`No tools found for "${provider?.name}". Click the button below to refresh and fetch the latest tools from this integration.`}
-              buttonText="Refresh tools"
-              addData={handleRefreshTools}
-              imageSrc={noToolsImage}
-              imageAlt="No tools available"
-            />
-          </CompassPanel>
-        </StackItem>
-      ) : (
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
-              <FilterBar
-                fieldDefinitions={filterFieldDefinitions}
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                showClearAll={true}
-              />
-
-              {results.length === 0 ? (
-                <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <EmptyStateFilter
-                    clearAllFilters={handleClearAllFilters}
-                    imageSrc={noToolsImage}
-                    imageAlt="No results"
-                  />
-                </StackItem>
-              ) : (
-                <ScrollableTableContainer
-                  aria-label="Tools table"
-                  isExpandable
-                  footer={{
-                    ...getFooterProps(query.data, results.length, 'tool', 'tools'),
-                    content: (
-                      <>
-                        {selectedToolIds.size > 0 ? (
-                          <>
-                            {selectedToolIds.size} of {results.length} {results.length === 1 ? 'tool' : 'tools'} enabled
-                          </>
-                        ) : (
-                          <>
-                            {results.length} {results.length === 1 ? 'tool' : 'tools'}
-                          </>
-                        )}
-                        {query.data?.total != null && query.data.total > results.length && (
-                          <TotalCount total={query.data.total} />
-                        )}
-                      </>
-                    ),
-                  }}
-                >
-                  <Thead>
-                    <Tr>
-                      <Th
-                        select={{
-                          onSelect: (_event, isSelecting) => handleSelectAll(isSelecting),
-                          isSelected: allSelected,
-                          isHeaderSelectDisabled: results.length === 0,
-                        }}
-                        screenReaderText="Select all tools"
-                      />
-                      <Th sort={getSortParams(0)}>Name</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {results.map((tool, index) => (
-                      <Tr key={tool.id}>
-                        <Td
-                          select={{
-                            rowIndex: index,
-                            onSelect: (_event, isSelecting) => handleSelectTool(tool, isSelecting),
-                            isSelected: selectedToolIds.has(tool.id),
-                          }}
-                        />
-                        <Td dataLabel="Name">
-                          <DescriptionList>
-                            <DescriptionListGroup>
-                              <DescriptionListTerm>{tool.namespaced_name}</DescriptionListTerm>
-                              <DescriptionListDescription>{tool.description}</DescriptionListDescription>
-                            </DescriptionListGroup>
-                          </DescriptionList>
-                        </Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </ScrollableTableContainer>
-              )}
-            </Stack>
-          </CompassPanel>
-        </StackItem>
-      )}
-
-      <ConfirmationDialog
-        isOpen={refreshDialogOpen}
-        onClose={() => setRefreshDialogOpen(false)}
-        onConfirm={handleRefreshTools}
-        title="Refresh tools"
-        confirmLabel="Refresh"
-      >
-        Are you sure you want to refresh tools for &quot;{provider?.name}&quot;? This will fetch the latest tools from
-        the integration.
-      </ConfirmationDialog>
-    </AppPage>
+    <IntegrationToolsLoadedView
+      providerName={provider?.name ?? ''}
+      navigate={navigate}
+      setRefreshDialogOpen={setRefreshDialogOpen}
+      handleRefreshTools={handleRefreshTools}
+      handleSubmit={handleSubmit}
+      handleMutationError={handleMutationError}
+      results={results}
+      hasActiveFilters={hasActiveFilters}
+      filterFieldDefinitions={filterFieldDefinitions}
+      filters={filters}
+      handleFilterChange={handleFilterChange}
+      handleClearAllFilters={handleClearAllFilters}
+      getFooterProps={getFooterProps}
+      queryData={query.data}
+      selectedToolIds={selectedToolIds}
+      allSelected={allSelected}
+      getSortParams={getSortParams}
+      handleSelectAll={handleSelectAll}
+      handleSelectTool={handleSelectTool}
+      refreshDialogOpen={refreshDialogOpen}
+    />
   )
 }

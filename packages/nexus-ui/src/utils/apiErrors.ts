@@ -519,32 +519,36 @@ const ERROR_TITLES: Record<string, string> = {
  * const title = getErrorTitle(error)
  * showAlert({ title, message: getErrorMessage(error) })
  */
-export function getErrorTitle(error: unknown): string {
-  if (error && typeof error === 'object') {
-    const err = error as ApiError
+function extractEmbeddedErrorTitle(err: ApiError): string | undefined {
+  if (err.title && typeof err.title === 'string') {
+    return finalizeUserFacingMessage(err.title)
+  }
 
-    // RFC 9457 explicit title (priority)
-    if (err.title && typeof err.title === 'string') {
-      return finalizeUserFacingMessage(err.title)
-    }
-
-    // Check wrapped (data, cause)
-    if (err.data && typeof err.data === 'object') {
-      const data = err.data as { title?: unknown }
-      if (typeof data.title === 'string') {
-        return finalizeUserFacingMessage(data.title)
-      }
-    }
-
-    if (err.cause && typeof err.cause === 'object') {
-      const cause = err.cause as { title?: unknown }
-      if (typeof cause.title === 'string') {
-        return finalizeUserFacingMessage(cause.title)
-      }
+  if (err.data && typeof err.data === 'object') {
+    const data = err.data as { title?: unknown }
+    if (typeof data.title === 'string') {
+      return finalizeUserFacingMessage(data.title)
     }
   }
 
-  // Derive from error code
+  if (err.cause && typeof err.cause === 'object') {
+    const cause = err.cause as { title?: unknown }
+    if (typeof cause.title === 'string') {
+      return finalizeUserFacingMessage(cause.title)
+    }
+  }
+
+  return undefined
+}
+
+export function getErrorTitle(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const embedded = extractEmbeddedErrorTitle(error as ApiError)
+    if (embedded) {
+      return embedded
+    }
+  }
+
   const code = getErrorCode(error)
   if (code && ERROR_TITLES[code]) {
     return ERROR_TITLES[code]

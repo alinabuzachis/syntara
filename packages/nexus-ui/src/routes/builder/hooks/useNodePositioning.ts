@@ -123,6 +123,7 @@ function positionLoopBranch(ctx: LoopPositioningContext) {
       : null
 
   const loopBranchPositions: Record<string, { x: number; y: number }> = {}
+  const clearDesiredAfterUpdate = { should: false }
 
   setNodes((currentNodes) => {
     const loopPositions = new Map<string, { x: number; y: number; width: number; height: number }>()
@@ -145,6 +146,15 @@ function positionLoopBranch(ctx: LoopPositioningContext) {
       return positionLoopBodyNode(node, newlyAddedNodeIdsRef, loopBodyNodeMap, loopPositions, positionedNodes)
     })
 
+    const nodesChanged = updatedNodes.some((node, index) => node !== currentNodes[index])
+    if (!nodesChanged && positionedNodes.size === 0) {
+      clearDesiredAfterUpdate.should = false
+      return currentNodes
+    }
+
+    clearDesiredAfterUpdate.should =
+      ctx.desiredPosition != null && (overrideForFirstLoop != null || positionedNodes.size > 0)
+
     if (positionedNodes.size > 0) {
       positionedNodes.forEach((node, nodeId) => {
         loopBranchPositions[nodeId] = node.position
@@ -163,7 +173,7 @@ function positionLoopBranch(ctx: LoopPositioningContext) {
     ctx.updateNodePositions(loopBranchPositions, { skipTracking: true })
   }
 
-  if (ctx.desiredPosition != null) {
+  if (clearDesiredAfterUpdate.should) {
     ctx.onClearDesiredPosition?.()
   }
 }
@@ -216,6 +226,16 @@ function positionStandardNodes(ctx: StandardPositioningContext) {
   }
 }
 
+function buildLoopBodyNodeMap(edges: EdgeType[]): Map<string, string> {
+  const loopBodyNodeMap = new Map<string, string>()
+  edges.forEach((e) => {
+    if (e.sourceHandle === EdgeHandleEnum.LOOP) {
+      loopBodyNodeMap.set(e.target, e.source)
+    }
+  })
+  return loopBodyNodeMap
+}
+
 /**
  * Custom hook to handle positioning of newly added nodes in the workflow canvas.
  *
@@ -242,12 +262,7 @@ export function useNodePositioning({
   useEffect(() => {
     if (newlyAddedNodeIdsRef.current.size === 0 || !isInitialized) return
 
-    const loopBodyNodeMap = new Map<string, string>()
-    edges.forEach((e) => {
-      if (e.sourceHandle === EdgeHandleEnum.LOOP) {
-        loopBodyNodeMap.set(e.target, e.source)
-      }
-    })
+    const loopBodyNodeMap = buildLoopBodyNodeMap(edges)
 
     const nodesToPosition = nodes.filter((node) => {
       if (!newlyAddedNodeIdsRef.current.has(node.id) || !node.measured) return false
@@ -256,7 +271,7 @@ export function useNodePositioning({
 
     if (nodesToPosition.length === 0) return
 
-    const hasLoopBodyNodes = nodesToPosition.some((n) => loopBodyNodeMap.has(n.id))
+    const hasLoopBodyNodes = nodesToPosition.some((n) => n.type === 'loop' || loopBodyNodeMap.has(n.id))
 
     if (hasLoopBodyNodes) {
       positionLoopBranch({

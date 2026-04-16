@@ -16,6 +16,7 @@ import { useAlerts } from '../../components/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
+import { assignNewThenDeleteOldWithRollback } from './editAssignmentMutations'
 import { TypeaheadSelect } from './TypeaheadSelect'
 import type { PermissionRow } from './types'
 
@@ -89,66 +90,66 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
 
     setIsPending(true)
     try {
-      // Delete old assignment, then create new one.
-      // If the create fails, attempt to restore the original assignment.
+      // Assign the new role first, then remove the old assignment, so the principal is never
+      // left without a role. If delete fails, revoke the new assignment to roll back.
       if (row.sourceEndpoint === 'project-roles') {
         if (!row.projectId) {
           showError('Invalid assignment: missing project ID', 'Update Failed')
           setIsPending(false)
           return
         }
-        await deleteProjectRole({ params: { path: { project_id: row.projectId, assignment_id: row.id } } })
-        try {
-          await assignProjectRole({
-            params: { path: { project_id: row.projectId } },
-            body: { user_id: row.principalId, role_name: newRole },
-          })
-        } catch (assignError) {
-          await assignProjectRole({
-            params: { path: { project_id: row.projectId } },
-            body: { user_id: row.principalId, role_name: row.assignmentName },
-          }).catch(() => {})
-          throw assignError
-        }
+        const pid = row.projectId
+        await assignNewThenDeleteOldWithRollback({
+          assignNew: () =>
+            assignProjectRole({
+              params: { path: { project_id: pid } },
+              body: { user_id: row.principalId, role_name: newRole },
+            }),
+          deleteOld: () => deleteProjectRole({ params: { path: { project_id: pid, assignment_id: row.id } } }),
+          revokeNew: (newAssignmentId) =>
+            deleteProjectRole({ params: { path: { project_id: pid, assignment_id: newAssignmentId } } }),
+        })
       } else if (row.sourceEndpoint === 'project-group-roles') {
         if (!row.projectId) {
           showError('Invalid assignment: missing project ID', 'Update Failed')
           setIsPending(false)
           return
         }
-        await deleteProjectGroupRole({ params: { path: { project_id: row.projectId, assignment_id: row.id } } })
-        try {
-          await assignProjectGroupRole({
-            params: { path: { project_id: row.projectId } },
-            body: { group_id: row.principalId, role_name: newRole },
-          })
-        } catch (assignError) {
-          await assignProjectGroupRole({
-            params: { path: { project_id: row.projectId } },
-            body: { group_id: row.principalId, role_name: row.assignmentName },
-          }).catch(() => {})
-          throw assignError
-        }
+        const pid = row.projectId
+        await assignNewThenDeleteOldWithRollback({
+          assignNew: () =>
+            assignProjectGroupRole({
+              params: { path: { project_id: pid } },
+              body: { group_id: row.principalId, role_name: newRole },
+            }),
+          deleteOld: () => deleteProjectGroupRole({ params: { path: { project_id: pid, assignment_id: row.id } } }),
+          revokeNew: (newAssignmentId) =>
+            deleteProjectGroupRole({ params: { path: { project_id: pid, assignment_id: newAssignmentId } } }),
+        })
       } else if (row.sourceEndpoint === 'user-role-assignments') {
-        await deleteSystemUserRole({ params: { path: { assignment_id: row.id } } })
-        try {
-          await assignSystemUserRole({ body: { user_id: row.principalId, role_id: newRole } })
-        } catch (assignError) {
-          await assignSystemUserRole({ body: { user_id: row.principalId, role_id: row.assignmentName } }).catch(
-            () => {}
-          )
-          throw assignError
+        if (!row.roleId) {
+          showError('Invalid assignment: missing role ID', 'Update Failed')
+          setIsPending(false)
+          return
         }
+        await assignNewThenDeleteOldWithRollback({
+          assignNew: () => assignSystemUserRole({ body: { user_id: row.principalId, role_id: newRole } }),
+          deleteOld: () => deleteSystemUserRole({ params: { path: { assignment_id: row.id } } }),
+          revokeNew: (newAssignmentId) =>
+            deleteSystemUserRole({ params: { path: { assignment_id: newAssignmentId } } }),
+        })
       } else {
-        await deleteSystemGroupRole({ params: { path: { assignment_id: row.id } } })
-        try {
-          await assignSystemGroupRole({ body: { group_id: row.principalId, role_id: newRole } })
-        } catch (assignError) {
-          await assignSystemGroupRole({ body: { group_id: row.principalId, role_id: row.assignmentName } }).catch(
-            () => {}
-          )
-          throw assignError
+        if (!row.roleId) {
+          showError('Invalid assignment: missing role ID', 'Update Failed')
+          setIsPending(false)
+          return
         }
+        await assignNewThenDeleteOldWithRollback({
+          assignNew: () => assignSystemGroupRole({ body: { group_id: row.principalId, role_id: newRole } }),
+          deleteOld: () => deleteSystemGroupRole({ params: { path: { assignment_id: row.id } } }),
+          revokeNew: (newAssignmentId) =>
+            deleteSystemGroupRole({ params: { path: { assignment_id: newAssignmentId } } }),
+        })
       }
 
       showSuccess(`Updated role for ${displayName}`, 'Assignment Updated')

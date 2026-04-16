@@ -7,6 +7,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y'
 import importPlugin from 'eslint-plugin-import-x'
 import noOnlyTests from 'eslint-plugin-no-only-tests'
 import testingLibrary from 'eslint-plugin-testing-library'
+import sonarjs from 'eslint-plugin-sonarjs'
 import unicorn from 'eslint-plugin-unicorn'
 import vitest from '@vitest/eslint-plugin'
 import pluginQuery from '@tanstack/eslint-plugin-query'
@@ -56,6 +57,7 @@ export default tseslint.config(
       'jsx-a11y': jsxA11y,
       'import-x': importPlugin,
       'no-only-tests': noOnlyTests,
+      sonarjs,
       unicorn,
     },
     rules: {
@@ -107,6 +109,8 @@ export default tseslint.config(
       'max-lines': ['error', { max: 500, skipBlankLines: true, skipComments: true }],
       'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true, IIFEs: true }],
       complexity: ['error', 20],
+      // Aligns with Sonar typescript:S3776 (cognitive complexity). Prefer extraction over suppressions.
+      'sonarjs/cognitive-complexity': ['error', 15],
       'max-depth': ['error', 4],
       'max-params': ['error', 5],
       // Limit nested functions/callbacks (e.g. hooks → timeout → setState updater). Complements max-depth
@@ -140,6 +144,7 @@ export default tseslint.config(
       'max-lines-per-function': 'off',
       'max-nested-callbacks': 'off',
       complexity: 'off',
+      'sonarjs/cognitive-complexity': 'off',
     },
   },
   {

@@ -67,6 +67,63 @@ function categorizeDeletedNodes(
   return { activityIds, triggerIndices }
 }
 
+function tryReconnectLoopForDeletedNode(
+  deletedNodeId: string,
+  storedEdges: EdgeConnection[],
+  deletedNodeIds: Set<string>,
+  nodes: NodeType[]
+): LoopReconnection | undefined {
+  const loopBackEdge = storedEdges.find(
+    (edge) => edge.source === deletedNodeId && edge.targetHandle === EdgeHandleEnum.END
+  )
+
+  if (!loopBackEdge || deletedNodeIds.has(loopBackEdge.target)) {
+    return undefined
+  }
+
+  const pickIncomingEdge = (targetId: string) => {
+    const candidates = storedEdges.filter((edge) => edge.target === targetId)
+    return (
+      candidates.find(
+        (edge) =>
+          !deletedNodeIds.has(edge.source) &&
+          !(edge.source === loopBackEdge.target && edge.sourceHandle === EdgeHandleEnum.LOOP)
+      ) ?? candidates.find((edge) => deletedNodeIds.has(edge.source))
+    )
+  }
+
+  let cursorTarget = deletedNodeId
+  const visited = new Set<string>()
+  let incomingEdge = pickIncomingEdge(cursorTarget)
+
+  while (incomingEdge && deletedNodeIds.has(incomingEdge.source) && !visited.has(cursorTarget)) {
+    visited.add(cursorTarget)
+    cursorTarget = incomingEdge.source
+    incomingEdge = pickIncomingEdge(cursorTarget)
+  }
+
+  if (!incomingEdge || deletedNodeIds.has(incomingEdge.source)) {
+    return undefined
+  }
+
+  const isFromLoopNode =
+    incomingEdge.source === loopBackEdge.target && incomingEdge.sourceHandle === EdgeHandleEnum.LOOP
+
+  if (isFromLoopNode) {
+    return undefined
+  }
+
+  const newLastNode = nodes.find((n) => n.id === incomingEdge.source)
+  const sourceHandle = newLastNode?.type === FlowNodeType.LOOP ? EdgeHandleEnum.DONE : EdgeHandleEnum.SOURCE
+
+  return {
+    source: incomingEdge.source,
+    target: loopBackEdge.target,
+    targetHandle: EdgeHandleEnum.END,
+    sourceHandle,
+  }
+}
+
 export function findLoopReconnections(
   storedEdges: EdgeConnection[],
   deletedNodeIds: Set<string>,
@@ -75,48 +132,9 @@ export function findLoopReconnections(
   const loopReconnections: LoopReconnection[] = []
 
   deletedNodeIds.forEach((deletedNodeId) => {
-    const loopBackEdge = storedEdges.find(
-      (edge) => edge.source === deletedNodeId && edge.targetHandle === EdgeHandleEnum.END
-    )
-
-    if (loopBackEdge && !deletedNodeIds.has(loopBackEdge.target)) {
-      const pickIncomingEdge = (targetId: string) => {
-        const candidates = storedEdges.filter((edge) => edge.target === targetId)
-        return (
-          candidates.find(
-            (edge) =>
-              !deletedNodeIds.has(edge.source) &&
-              !(edge.source === loopBackEdge.target && edge.sourceHandle === EdgeHandleEnum.LOOP)
-          ) ?? candidates.find((edge) => deletedNodeIds.has(edge.source))
-        )
-      }
-
-      let cursorTarget = deletedNodeId
-      const visited = new Set<string>()
-      let incomingEdge = pickIncomingEdge(cursorTarget)
-
-      while (incomingEdge && deletedNodeIds.has(incomingEdge.source) && !visited.has(cursorTarget)) {
-        visited.add(cursorTarget)
-        cursorTarget = incomingEdge.source
-        incomingEdge = pickIncomingEdge(cursorTarget)
-      }
-
-      if (incomingEdge && !deletedNodeIds.has(incomingEdge.source)) {
-        const isFromLoopNode =
-          incomingEdge.source === loopBackEdge.target && incomingEdge.sourceHandle === EdgeHandleEnum.LOOP
-
-        if (!isFromLoopNode) {
-          const newLastNode = nodes.find((n) => n.id === incomingEdge.source)
-          const sourceHandle = newLastNode?.type === FlowNodeType.LOOP ? EdgeHandleEnum.DONE : EdgeHandleEnum.SOURCE
-
-          loopReconnections.push({
-            source: incomingEdge.source,
-            target: loopBackEdge.target,
-            targetHandle: EdgeHandleEnum.END,
-            sourceHandle,
-          })
-        }
-      }
+    const reconnection = tryReconnectLoopForDeletedNode(deletedNodeId, storedEdges, deletedNodeIds, nodes)
+    if (reconnection) {
+      loopReconnections.push(reconnection)
     }
   })
 

@@ -357,19 +357,25 @@ export const handlers = [
     return HttpResponse.json(body)
   }),
   http.post('/api/v1/workflows', async (req) => {
-    const body = (await req.request.json()) as CreateWorkflowBody
+    const body = (await req.request.json()) as CreateWorkflowBody & {
+      labels?: Record<string, string>
+      project_id?: string
+    }
     const now = new Date().toISOString()
     const workflowId = uuidv4()
-    const createdWorkflow: WorkflowWithVersion = {
+    const labelRecord = body.labels ?? {}
+    const projectId = typeof body.project_id === 'string' && body.project_id.length > 0 ? body.project_id : 'p-001'
+    const createdWorkflow: WorkflowWithVersion & { project_id: string } = {
       id: workflowId,
       name: body.name ?? 'new-workflow',
       description: body.description ?? body.name ?? 'New workflow',
-      labels: {},
+      labels: labelRecord,
       is_enabled: body.is_enabled ?? false,
       created_at: now,
       updated_at: now,
       created_by: 'user-1',
       updated_by: null,
+      project_id: projectId,
       version: {
         version: 1,
         schema_version: body.workflow_definition?.schema_version ?? '2.0.0',
