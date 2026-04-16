@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         GroupNotFoundError,
         InvalidTokenError,
         RefreshTokenRevokedError,
+        SessionStoreUnavailableError,
         TokenExpiredError,
         UserAlreadyInGroupError,
         UserEmailConflictError,
@@ -33,6 +34,31 @@ if TYPE_CHECKING:
     )
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+def session_store_unavailable_handler(
+    request: Request,
+    exc: SessionStoreUnavailableError,
+) -> JSONResponse:
+    """Handle SessionStoreUnavailableError with RFC 9457 format."""
+    # Strip query string to avoid leaking sensitive params (e.g. OIDC code/state)
+    safe_url = str(request.url).split("?", 1)[0]
+
+    logger.error(
+        "Session store unavailable",
+        path=safe_url,
+        method=request.method,
+    )
+
+    return create_problem_details_response(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        problem_type=PROBLEM_TYPES["service_unavailable"],
+        title="Service Unavailable",
+        detail=exc.message,
+        code="SESSION_STORE_UNAVAILABLE",
+        retryable=True,
+        instance=safe_url,
+    )
 
 
 def authentication_required_handler(

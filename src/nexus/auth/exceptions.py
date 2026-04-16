@@ -14,8 +14,27 @@ from nexus.core.exception_registry import fastapi_exception
 from nexus.core.exceptions import NexusError
 
 
+class AuthError(NexusError):
+    """Base exception for all authentication errors."""
+
+
+@fastapi_exception(handler="nexus.auth.error_handlers.session_store_unavailable_handler")
+class SessionStoreUnavailableError(AuthError):
+    """Raised when the session store (Redis) is unreachable (503 Service Unavailable)."""
+
+    def __init__(self, message: str = "Session service is temporarily unavailable") -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Human-readable error message
+
+        """
+        self.message = message
+        super().__init__(message)
+
+
 @fastapi_exception(handler="nexus.auth.error_handlers.authentication_required_handler")
-class AuthenticationRequiredError(Exception):
+class AuthenticationRequiredError(AuthError):
     """Raised when no valid credentials are provided (401 Unauthorized).
 
     This exception is raised when:
@@ -36,7 +55,7 @@ class AuthenticationRequiredError(Exception):
 
 
 @fastapi_exception(handler="nexus.auth.error_handlers.token_expired_handler")
-class TokenExpiredError(Exception):
+class TokenExpiredError(AuthError):
     """Raised when an access or refresh token has expired (401 Unauthorized).
 
     This exception is raised when:
@@ -56,7 +75,7 @@ class TokenExpiredError(Exception):
 
 
 @fastapi_exception(handler="nexus.auth.error_handlers.invalid_token_handler")
-class InvalidTokenError(Exception):
+class InvalidTokenError(AuthError):
     """Raised when token validation fails for reasons other than expiration.
 
     This exception is raised when:
@@ -78,7 +97,7 @@ class InvalidTokenError(Exception):
 
 
 @fastapi_exception(handler="nexus.auth.error_handlers.refresh_token_revoked_handler")
-class RefreshTokenRevokedError(Exception):
+class RefreshTokenRevokedError(AuthError):
     """Raised when a refresh token has been revoked.
 
     This exception is raised when:
@@ -102,7 +121,7 @@ class RefreshTokenRevokedError(Exception):
 # ============================================================================
 
 
-class GroupError(NexusError):
+class GroupError(AuthError):
     """Base exception for all group errors."""
 
 
@@ -141,7 +160,7 @@ class GroupNameConflictError(GroupError):
 # ============================================================================
 
 
-class UserError(NexusError):
+class UserError(AuthError):
     """Base exception for all user errors."""
 
 
@@ -204,7 +223,7 @@ class AdminDisableByNonAdminError(UserError):
 # ============================================================================
 
 
-class MembershipError(NexusError):
+class MembershipError(AuthError):
     """Base exception for all membership errors."""
 
 

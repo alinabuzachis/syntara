@@ -11,6 +11,7 @@ from nexus.auth.exceptions import (
     AuthenticationRequiredError,
     InvalidTokenError,
     RefreshTokenRevokedError,
+    SessionStoreUnavailableError,
 )
 from nexus.auth.router import login, logout, refresh_token
 from nexus.auth.schemas import LoginRequest
@@ -91,6 +92,16 @@ def _patch_session_store(mock_store: AsyncMock) -> MagicMock:
     """Create a patched SessionStore class whose context manager yields *mock_store*."""
     ctx = AsyncMock()
     ctx.__aenter__ = AsyncMock(return_value=mock_store)
+    ctx.__aexit__ = AsyncMock(return_value=None)
+    return MagicMock(return_value=ctx)
+
+
+def _patch_session_store_unavailable() -> MagicMock:
+    """Create a patched SessionStore whose context manager raises OSError (Redis down)."""
+    from redis.exceptions import ConnectionError as RedisConnectionError
+
+    ctx = AsyncMock()
+    ctx.__aenter__ = AsyncMock(side_effect=RedisConnectionError("Connection refused"))
     ctx.__aexit__ = AsyncMock(return_value=None)
     return MagicMock(return_value=ctx)
 
@@ -248,6 +259,46 @@ class TestLoginEndpoint:
         with pytest.raises(AuthenticationRequiredError):
             await login(body, request, response, db)
 
+    @pytest.mark.asyncio
+    async def test_login_raises_503_when_redis_unavailable(self) -> None:
+        """Login should raise SessionStoreUnavailableError when Redis is down."""
+        user = _make_user()
+        request = _make_request()
+        response = _make_response()
+        body = LoginRequest(username="testuser", password="correct-password")  # noqa: S106
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.one_or_none.return_value = user
+        db.exec.return_value = mock_result
+
+        mock_token_service = MagicMock()
+        mock_token_service.create_access_token.return_value = "access-token-123"
+        mock_token_service.create_refresh_token.return_value = ("refresh-jwt", "jti-1", datetime.now(UTC))
+
+        # First SessionStore call (get_token_version) succeeds;
+        # second call (create session) fails with ConnectionError.
+        ok_store = AsyncMock()
+        ok_store.get_token_version = AsyncMock(return_value=1)
+
+        mock_session_store_cls = MagicMock(
+            side_effect=[
+                _patch_session_store(ok_store).return_value,
+                _patch_session_store_unavailable().return_value,
+            ]
+        )
+
+        with (
+            patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.router.verify_password", return_value=True),
+            patch("nexus.auth.router._get_user_group_names", return_value=["authenticated"]),
+            patch("nexus.auth.router.SessionStore", mock_session_store_cls),
+            pytest.raises(SessionStoreUnavailableError),
+        ):
+            await login(body, request, response, db)
+
+        db.rollback.assert_called_once()
+
 
 # =============================================================================
 # get_refresh_token dependency
@@ -394,6 +445,22 @@ class TestRefreshEndpoint:
         assert result.token_type == "Bearer"  # noqa: S105
 
     @pytest.mark.asyncio
+    async def test_raises_503_when_redis_unavailable(self) -> None:
+        """Refresh should raise SessionStoreUnavailableError when Redis is down."""
+        db = AsyncMock()
+
+        payload = _make_payload()
+        mock_token_service = MagicMock()
+        mock_token_service.decode_token.return_value = payload
+
+        with (
+            patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.router.SessionStore", _patch_session_store_unavailable()),
+            pytest.raises(SessionStoreUnavailableError),
+        ):
+            await refresh_token("valid-token", db)
+
+    @pytest.mark.asyncio
     async def test_refresh_preserves_amr_and_idp(self) -> None:
         """Refresh should carry forward the amr and idp claims from the original token."""
         user = _make_user()
@@ -514,6 +581,22 @@ class TestLogoutEndpoint:
         assert result == {"detail": "Successfully logged out"}
         mock_store.revoke.assert_called_once_with("jti-123")
         mock_clear.assert_called_once_with(response)
+
+    @pytest.mark.asyncio
+    async def test_raises_503_when_redis_unavailable(self) -> None:
+        """Logout should raise SessionStoreUnavailableError when Redis is down."""
+        response = _make_response()
+
+        payload = _make_payload(jti="jti-123")
+        mock_token_service = MagicMock()
+        mock_token_service.decode_token.return_value = payload
+
+        with (
+            patch("nexus.auth.router._get_token_service", return_value=mock_token_service),
+            patch("nexus.auth.router.SessionStore", _patch_session_store_unavailable()),
+            pytest.raises(SessionStoreUnavailableError),
+        ):
+            await logout("the-refresh-jwt", response)
 
     @pytest.mark.asyncio
     async def test_success_when_session_already_expired(self) -> None:

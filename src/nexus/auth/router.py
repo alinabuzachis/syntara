@@ -16,6 +16,7 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -28,6 +29,7 @@ from nexus.auth.exceptions import (
     AuthenticationRequiredError,
     InvalidTokenError,
     RefreshTokenRevokedError,
+    SessionStoreUnavailableError,
 )
 from nexus.auth.passwords import verify_password
 from nexus.auth.schemas import (
@@ -178,14 +180,12 @@ async def login(
                 amr=[AMR_PASSWORD],
                 idp="local",
             )
-    except (OSError, RuntimeError):
+    except (OSError, RedisConnectionError, RuntimeError) as exc:
         # Redis connection or session store errors — roll back last_login
         # so user state stays consistent (they didn't get a session).
-        # OSError covers redis.ConnectionError; RuntimeError covers
-        # SessionStore misconfiguration.  Programming errors (TypeError,
-        # AttributeError, etc.) propagate without rollback.
+        logger.exception("Redis connection failed during login", error=str(exc))
         await db.rollback()
-        raise
+        raise SessionStoreUnavailableError from exc
 
     # Commit last_login only after Redis session is successfully created
     await db.commit()
@@ -263,65 +263,69 @@ async def refresh_token(
         raise AuthenticationRequiredError from e
 
     # Check refresh token in Redis
-    async with SessionStore() as store:
-        session = await store.get(payload.jti) if payload.jti else None
+    try:
+        async with SessionStore() as store:
+            session = await store.get(payload.jti) if payload.jti else None
 
-        if session is None:
-            logger.warning("Refresh token not found in session store", jti=payload.jti)
-            raise RefreshTokenRevokedError
+            if session is None:
+                logger.warning("Refresh token not found in session store", jti=payload.jti)
+                raise RefreshTokenRevokedError
 
-        # Acceptable race window: the refresh token could be revoked (e.g. via
-        # logout or session revocation) between the session check above and the
-        # access token creation below.  This is acceptable because the resulting
-        # access token has a short lifetime (default 15 minutes) and is stateless,
-        # so it cannot be individually revoked anyway.
+            # Acceptable race window: the refresh token could be revoked (e.g. via
+            # logout or session revocation) between the session check above and the
+            # access token creation below.  This is acceptable because the resulting
+            # access token has a short lifetime (default 15 minutes) and is stateless,
+            # so it cannot be individually revoked anyway.
 
-        # Load user from database to get current info
-        result = await db.exec(select(User).filter(User.id == payload.sub))  # type: ignore[arg-type]
-        user = result.one_or_none()
+            # Load user from database to get current info
+            result = await db.exec(select(User).filter(User.id == payload.sub))  # type: ignore[arg-type]
+            user = result.one_or_none()
 
-        if not user:
-            logger.warning("User not found for refresh token", user_id=payload.sub)
-            raise AuthenticationRequiredError
+            if not user:
+                logger.warning("User not found for refresh token", user_id=payload.sub)
+                raise AuthenticationRequiredError
 
-        if not user.is_active:
-            logger.warning("Inactive user attempted token refresh", user_id=payload.sub)
-            raise AuthenticationRequiredError
+            if not user.is_active:
+                logger.warning("Inactive user attempted token refresh", user_id=payload.sub)
+                raise AuthenticationRequiredError
 
-        # Create new access token with fresh claims from the database
-        username = payload.preferred_username or user.username
+            # Create new access token with fresh claims from the database
+            username = payload.preferred_username or user.username
 
-        # Preserve amr/idp from the session metadata (set during login)
-        amr = session.amr or payload.amr or ["pwd"]
-        idp = session.idp or payload.idp or "local"
+            # Preserve amr/idp from the session metadata (set during login)
+            amr = session.amr or payload.amr or ["pwd"]
+            idp = session.idp or payload.idp or "local"
 
-        # Refresh group memberships from DB on token refresh
-        user_group_names = await _get_user_group_names(db, user.id)
+            # Refresh group memberships from DB on token refresh
+            user_group_names = await _get_user_group_names(db, user.id)
 
-        # Fetch current groups version from Redis
-        token_version = await store.get_token_version(user.id)
+            # Fetch current groups version from Redis
+            token_version = await store.get_token_version(user.id)
 
-        access_token = token_service.create_access_token(
-            user_id=user.id,
-            username=username,
-            email=user.email,
-            full_name=user.full_name,
-            amr=amr,
-            idp=idp,
-            groups=user_group_names,
-            token_version=token_version,
-        )
+            access_token = token_service.create_access_token(
+                user_id=user.id,
+                username=username,
+                email=user.email,
+                full_name=user.full_name,
+                amr=amr,
+                idp=idp,
+                groups=user_group_names,
+                token_version=token_version,
+            )
 
-        logger.info(
-            "Token refreshed successfully",
-            user_id=str(user.id),
-            jti=payload.jti,
-        )
+            logger.info(
+                "Token refreshed successfully",
+                user_id=str(user.id),
+                jti=payload.jti,
+            )
 
-        return AccessTokenResponse(
-            access_token=access_token,
-            expires_in=settings.jwt_access_token_lifetime_minutes * 60,
-        )
+            return AccessTokenResponse(
+                access_token=access_token,
+                expires_in=settings.jwt_access_token_lifetime_minutes * 60,
+            )
+    except (OSError, RedisConnectionError) as exc:
+        logger.exception("Redis connection failed during refresh", error=str(exc))
+        raise SessionStoreUnavailableError from exc
 
 
 @router.post(
@@ -381,21 +385,25 @@ async def logout(
         raise AuthenticationRequiredError
 
     # Revoke the session in Redis
-    async with SessionStore() as store:
-        revoked = await store.revoke(payload.jti)
+    try:
+        async with SessionStore() as store:
+            revoked = await store.revoke(payload.jti)
 
-        if revoked:
-            logger.info(
-                "User logged out successfully",
-                user_id=payload.sub,
-                jti=payload.jti,
-            )
-        else:
-            logger.info(
-                "Logout for already-expired session",
-                user_id=payload.sub,
-                jti=payload.jti,
-            )
+            if revoked:
+                logger.info(
+                    "User logged out successfully",
+                    user_id=payload.sub,
+                    jti=payload.jti,
+                )
+            else:
+                logger.info(
+                    "Logout for already-expired session",
+                    user_id=payload.sub,
+                    jti=payload.jti,
+                )
+    except (OSError, RedisConnectionError) as exc:
+        logger.exception("Redis connection failed during logout", error=str(exc))
+        raise SessionStoreUnavailableError from exc
 
     # Clear the refresh cookie
     clear_refresh_cookie(response)
@@ -787,15 +795,23 @@ async def oidc_callback(
     token_service = _get_token_service()
     refresh_token_str, jti, _exp = token_service.create_refresh_token(user.id)
 
-    async with SessionStore() as store:
-        await store.create(
-            jti=jti,
-            user_id=user.id,
-            device=request.headers.get("User-Agent"),
-            ip_address=request.client.host if request.client else None,
-            amr=[AMR_FEDERATED],
-            idp=provider.name,
-        )
+    try:
+        async with SessionStore() as store:
+            await store.create(
+                jti=jti,
+                user_id=user.id,
+                device=request.headers.get("User-Agent"),
+                ip_address=request.client.host if request.client else None,
+                amr=[AMR_FEDERATED],
+                idp=provider.name,
+            )
+    except (OSError, RedisConnectionError) as exc:
+        logger.exception("Redis connection failed during OIDC callback", error=str(exc))
+        await db.rollback()
+        raise SessionStoreUnavailableError from exc
+
+    # Commit last_login only after Redis session is successfully created
+    await db.commit()
 
     # Redirect to the page the user was on before login, or fall back to frontend URL
     # Re-validate stored origin against current CORS settings in case they changed
@@ -962,6 +978,5 @@ async def _process_oidc_callback(
 
     user.update_last_login()
     db.add(user)
-    await db.commit()
 
     return user, provider, state_data
