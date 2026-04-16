@@ -10,6 +10,7 @@ export const IntegrationForm = lazy(() =>
 )
 export const Integrations = lazy(() => import('../routes/configuration/integrations/Integrations'))
 export const IntegrationTools = lazy(() => import('../routes/configuration/integrations/IntegrationTools'))
+export const Settings = lazy(() => import('../routes/configuration/settings/Settings'))
 export const Glossary = lazy(() => import('../routes/documentation/glossary/Glossary'))
 export const Approvals = lazy(() => import('../routes/approvals/Approvals'))
 export const ApprovalDetail = lazy(() => import('../routes/approvals/ApprovalDetail'))

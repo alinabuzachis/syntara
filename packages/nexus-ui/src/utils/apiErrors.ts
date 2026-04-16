@@ -37,6 +37,11 @@ export type ApiErrorCode =
   | 'FILE_TOO_LARGE'
   | 'UNSUPPORTED_FILE_FORMAT'
   | 'TOO_MANY_FILES'
+  // Settings errors
+  | 'VERSION_CONFLICT'
+  | 'SETTING_NOT_FOUND'
+  | 'SETTING_VERSION_CONFLICT'
+  | 'SETTING_VALIDATION_ERROR'
   // System errors
   | 'LLM_CONFIGURATION_ERROR'
   | 'TEMPORAL_UNAVAILABLE'
@@ -492,6 +497,11 @@ const ERROR_TITLES: Record<string, string> = {
   FILE_TOO_LARGE: 'File Too Large',
   UNSUPPORTED_FILE_FORMAT: 'Unsupported File Format',
   TOO_MANY_FILES: 'Too Many Files',
+  // Settings errors
+  VERSION_CONFLICT: 'Version Conflict',
+  SETTING_NOT_FOUND: 'Setting Not Found',
+  SETTING_VERSION_CONFLICT: 'Version Conflict',
+  SETTING_VALIDATION_ERROR: 'Setting Validation Error',
   // System errors
   LLM_CONFIGURATION_ERROR: 'Configuration Error',
   TEMPORAL_UNAVAILABLE: 'Workflow Engine Unavailable',

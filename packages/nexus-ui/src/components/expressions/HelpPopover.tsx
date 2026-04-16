@@ -11,7 +11,7 @@ interface HelpPopoverProps {
   /** Accessible label for the help button */
   ariaLabel: string
   /** Header text for the popover */
-  headerContent: string
+  headerContent?: string
   /** Body content for the popover */
   bodyContent: ReactNode
 }

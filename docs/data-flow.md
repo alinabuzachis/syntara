@@ -163,6 +163,13 @@ const approvalsFetchClient = createFetchClient<ApprovalsAPI.paths>({
   baseUrl: '/api/v1/',
 })
 export const approvalsClient = createClient(approvalsFetchClient)
+
+// Settings API client
+const settingsFetchClient = createFetchClient<SettingsAPI.paths>({
+  baseUrl: '/api/v1/',
+})
+settingsFetchClient.use(authMiddleware)
+export const settingsClient = createClient(settingsFetchClient)
 ```
 
 > **Note:** File uploads use a direct fetch call via the `useFileUploadWithProgress` hook (not a generated client), since `openapi-react-query` doesn't support upload progress tracking.

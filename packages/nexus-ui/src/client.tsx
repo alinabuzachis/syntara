@@ -4,6 +4,7 @@ import type {
   CredentialsAPI,
   ExecutionsAPI,
   IdentityProvidersAPI,
+  SettingsAPI,
   ToolManagerAPI,
   UsersAPI,
   WorkflowAPI,
@@ -101,6 +102,10 @@ export const toolManagerClient = createClient(toolManagerFetchClient)
 const approvalsFetchClient = createFetchClient<ApprovalsAPI.paths>({ baseUrl: '/api/v1/' })
 approvalsFetchClient.use(authMiddleware)
 export const approvalsClient = createClient(approvalsFetchClient)
+
+const settingsFetchClient = createFetchClient<SettingsAPI.paths>({ baseUrl: '/api/v1/' })
+settingsFetchClient.use(authMiddleware)
+export const settingsClient = createClient(settingsFetchClient)
 
 const identityProvidersFetchClient = createFetchClient<IdentityProvidersAPI.paths>({
   baseUrl: '/api/v1/identity_providers',

@@ -19,6 +19,7 @@ import { workflows } from './resources/workflows'
 import { tools } from './resources/tools'
 import { executions } from './resources/executions'
 import { approvals } from './resources/approvals'
+import { settings, settingsCategories } from './resources/settings'
 import { identityProviders, type IdentityProvider } from './resources/identityProviders'
 import { users, type UserRead } from './resources/users'
 import { groups, userGroupMemberships, type GroupRead } from './resources/groups'
@@ -749,6 +750,29 @@ export const handlers = [
         provider_type: p.configuration?.provider_type ?? 'oidc',
       })),
     })
+  }),
+
+  // Auth login
+  http.post('/api/v1/auth/login', () => {
+    return HttpResponse.json({
+      access_token: 'mock-access-token',
+      token_type: 'bearer',
+      expires_in: 3600,
+    })
+  }),
+
+  // Auth refresh
+  http.post('/api/v1/auth/refresh', () => {
+    return HttpResponse.json({
+      access_token: 'mock-access-token-refreshed',
+      token_type: 'bearer',
+      expires_in: 3600,
+    })
+  }),
+
+  // Auth logout
+  http.post('/api/v1/auth/logout', () => {
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // Current user (mock profile)
@@ -1700,6 +1724,130 @@ export const handlers = [
       file_ids: fileResponses.map((f) => f.file_id),
       files: fileResponses,
     })
+  }),
+
+  // Settings endpoints
+  http.get('/api/v1/settings/categories', () => {
+    return HttpResponse.json({ results: settingsCategories })
+  }),
+
+  http.get('/api/v1/settings', ({ request }) => {
+    const url = new URL(request.url)
+    const category = url.searchParams.get('category')
+    const group = url.searchParams.get('group')
+    const cursor = url.searchParams.get('cursor')
+    const parsedLimit = parseInt(url.searchParams.get('limit') || '20', 10)
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20
+
+    let filtered = settings
+    if (category) filtered = filtered.filter((s) => s.category === category)
+    if (group) filtered = filtered.filter((s) => s.group === group)
+
+    const body = paginate(filtered, cursor, limit, false)
+    return HttpResponse.json(body)
+  }),
+
+  http.get('/api/v1/settings/:key', (request) => {
+    const key = request.params.key as string
+    const setting = settings.find((s) => s.key === key)
+    if (!setting) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/setting-not-found',
+          title: 'Setting Not Found',
+          detail: `Setting with key '${key}' not found`,
+          code: 'SETTING_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/settings/${key}`,
+        },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(setting)
+  }),
+
+  http.patch('/api/v1/settings', async (req) => {
+    const body = (await req.request.json()) as {
+      updates: Array<{ key: string; value: unknown; expected_version: number }>
+    }
+    const updated = []
+
+    for (const update of body.updates) {
+      const setting = settings.find((s) => s.key === update.key)
+      if (!setting) {
+        return HttpResponse.json(
+          {
+            type: 'https://api.nexus.com/errors/setting-not-found',
+            title: 'Setting Not Found',
+            detail: `Setting with key '${update.key}' not found`,
+            code: 'SETTING_NOT_FOUND',
+            retryable: false,
+            instance: '/api/v1/settings',
+          },
+          { status: 404 }
+        )
+      }
+      if (setting.version !== update.expected_version) {
+        return HttpResponse.json(
+          {
+            type: 'https://api.nexus.com/errors/version-conflict',
+            title: 'Version Conflict',
+            detail: `Setting '${update.key}' has been modified (expected v${String(update.expected_version)}, current v${String(setting.version)})`,
+            code: 'VERSION_CONFLICT',
+            retryable: false,
+            instance: '/api/v1/settings',
+          },
+          { status: 409 }
+        )
+      }
+
+      setting.value = update.value
+      setting.effective_value = update.value
+      setting.version += 1
+      setting.updated_at = new Date().toISOString()
+      updated.push(setting)
+    }
+
+    return HttpResponse.json(updated)
+  }),
+
+  http.patch('/api/v1/settings/:key', async (req) => {
+    const key = req.params.key as string
+    const setting = settings.find((s) => s.key === key)
+    if (!setting) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/setting-not-found',
+          title: 'Setting Not Found',
+          detail: `Setting with key '${key}' not found`,
+          code: 'SETTING_NOT_FOUND',
+          retryable: false,
+          instance: `/api/v1/settings/${key}`,
+        },
+        { status: 404 }
+      )
+    }
+
+    const body = (await req.request.json()) as { value: unknown; expected_version: number }
+    if (setting.version !== body.expected_version) {
+      return HttpResponse.json(
+        {
+          type: 'https://api.nexus.com/errors/version-conflict',
+          title: 'Version Conflict',
+          detail: `Setting '${key}' has been modified (expected v${String(body.expected_version)}, current v${String(setting.version)})`,
+          code: 'VERSION_CONFLICT',
+          retryable: false,
+          instance: `/api/v1/settings/${key}`,
+        },
+        { status: 409 }
+      )
+    }
+
+    setting.value = body.value
+    setting.effective_value = body.value
+    setting.version += 1
+    setting.updated_at = new Date().toISOString()
+    return HttpResponse.json(setting)
   }),
 
   // ── Access Management: Projects ─────────────────────────────────────────

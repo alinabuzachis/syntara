@@ -353,6 +353,7 @@ flowchart LR
   subgraph URL["Browser URL"]
     U["/automations"]
     U2["/automation-builder/:workflowId"]
+    U3["/configuration/settings"]
   end
 
   AR --> NI

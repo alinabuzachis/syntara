@@ -95,7 +95,6 @@ describe('AppDockedNav', () => {
 
     // Menu should be open - check for dropdown items
     expect(screen.getByText('My Profile')).toBeInTheDocument()
-    expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.getByText('Logout')).toBeInTheDocument()
   })
 
@@ -167,8 +166,8 @@ describe('AppDockedNav', () => {
     const menu = screen.getByRole('menu')
     const menuItems = within(menu).getAllByRole('menuitem')
 
-    // Access Management has 2 child items: Users and Groups
-    expect(menuItems.length).toBe(2)
+    // Access Management has 3 child items: Access Management, Identity Providers, Settings
+    expect(menuItems.length).toBe(3)
     expect(menu).toBeInTheDocument()
   })
 

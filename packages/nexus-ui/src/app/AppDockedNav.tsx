@@ -188,7 +188,6 @@ function UserMenuDropdown() {
           >
             My Profile
           </DropdownItem>
-          <DropdownItem key="settings">Settings</DropdownItem>
           <DropdownItem
             key="logout"
             onClick={async () => {

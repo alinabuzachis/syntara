@@ -188,6 +188,7 @@ export default tseslint.config(
       '**/routes/**/Integrations.tsx',
       '**/routes/**/IntegrationTools.tsx',
       '**/routes/**/Glossary.tsx',
+      '**/routes/**/Settings.tsx',
       '**/routes/**/Approvals.tsx',
       '**/routes/**/ApprovalDetail.tsx',
       '**/routes/**/Authentication.tsx',
