@@ -1,9 +1,11 @@
 import type { Group } from '@ansible/nexus-contracts'
-import { Button, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
+import { Badge, Button, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { Thead, Tbody, Tr, Th, Td, ActionsColumn } from '@patternfly/react-table'
 import { useMemo } from 'react'
+import { navigate } from 'wouter/use-browser-location'
 
+import { AppRoute } from '../../app/AppRoute'
 import { usersClient } from '../../client'
 import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
@@ -20,7 +22,7 @@ import type { FilterFieldDefinition } from '../../types/filters'
 import { formatDateTime } from '../../utils/dateUtils'
 import { detachPromise } from '../../utils/detachPromise'
 
-import { getGroupNameFilterDefinition } from './groupFilters'
+import { getGroupDescriptionFilterDefinition, getGroupNameFilterDefinition } from './groupFilters'
 import { GroupFormModal } from './GroupFormModal'
 
 export function GroupsTab() {
@@ -38,7 +40,10 @@ export function GroupsTab() {
     getFooterProps,
   } = useCursorPagination()
 
-  const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(() => [getGroupNameFilterDefinition()], [])
+  const filterFieldDefinitions = useMemo<FilterFieldDefinition[]>(
+    () => [getGroupNameFilterDefinition(), getGroupDescriptionFilterDefinition()],
+    []
+  )
 
   const query = usersClient.useQuery('get', '/groups', {
     params: {
@@ -51,12 +56,25 @@ export function GroupsTab() {
 
   useCursorReset(groups.length, hasActiveFilters, cursor, query.isFetching, setCursor)
 
-  const { getSortParams, sortData } = useTableSort({
+  const { activeSortIndex, getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,
     initialDirection: 'asc',
   })
 
-  const results = sortData(groups, (group) => group.name ?? '')
+  const results = sortData(groups, (group) => {
+    switch (activeSortIndex) {
+      case 0:
+        return group.name ?? ''
+      case 1:
+        return group.description
+      case 3:
+        return group.created_at ? new Date(group.created_at).getTime() : undefined
+      case 4:
+        return group.updated_at ? new Date(group.updated_at).getTime() : undefined
+      default:
+        return group.name ?? ''
+    }
+  })
 
   const { mutate: deleteGroup } = usersClient.useMutation('delete', '/groups/{group_id}')
 
@@ -98,6 +116,7 @@ export function GroupsTab() {
                   filters={filters}
                   onFilterChange={handleFilterChange}
                   showClearAll={true}
+                  clearAllFilters={handleClearAllFilters}
                 />
               </FlexItem>
               <FlexItem>
@@ -122,32 +141,46 @@ export function GroupsTab() {
                   <Tr>
                     <Th sort={getSortParams(0)}>Name</Th>
                     <Th sort={getSortParams(1)}>Description</Th>
-                    <Th sort={getSortParams(2)}>Created</Th>
-                    <Th sort={getSortParams(3)}>Updated</Th>
+                    <Th>Members</Th>
+                    <Th sort={getSortParams(3)}>Created</Th>
+                    <Th sort={getSortParams(4)}>Updated</Th>
                     <Th screenReaderText="Actions" />
                   </Tr>
                 </Thead>
                 <Tbody>
                   {results.map((group) => (
                     <Tr key={group.id}>
-                      <Td dataLabel="Name">{group.name}</Td>
+                      <Td dataLabel="Name">
+                        <Button
+                          variant="link"
+                          isInline
+                          onClick={() => navigate(AppRoute.AccessManagement.GroupDetail.replace(':groupId', group.id))}
+                        >
+                          {group.name}
+                        </Button>
+                      </Td>
                       <Td dataLabel="Description">{group.description ?? ''}</Td>
+                      <Td dataLabel="Members">
+                        <Badge isRead>{group.member_count ?? 0}</Badge>
+                      </Td>
                       <Td dataLabel="Created">{formatDateTime(group.created_at)}</Td>
                       <Td dataLabel="Updated">{formatDateTime(group.updated_at)}</Td>
                       <Td isActionCell>
-                        <ActionsColumn
-                          items={[
-                            {
-                              title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
-                              onClick: () => formDialog.open(group),
-                            },
-                            { isSeparator: true },
-                            {
-                              title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-                              onClick: () => deleteDialog.open(group),
-                            },
-                          ]}
-                        />
+                        {!group.is_builtin && (
+                          <ActionsColumn
+                            items={[
+                              {
+                                title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
+                                onClick: () => formDialog.open(group),
+                              },
+                              { isSeparator: true },
+                              {
+                                title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
+                                onClick: () => deleteDialog.open(group),
+                              },
+                            ]}
+                          />
+                        )}
                       </Td>
                     </Tr>
                   ))}

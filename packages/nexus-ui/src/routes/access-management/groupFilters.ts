@@ -15,3 +15,15 @@ export const getGroupNameFilterDefinition = (): FilterFieldDefinition => ({
   defaultOperator: FilterOperatorEnum.CONTAINS,
   placeholder: 'Filter by name',
 })
+
+/**
+ * Filter field definition for group description filtering
+ */
+export const getGroupDescriptionFilterDefinition = (): FilterFieldDefinition => ({
+  key: 'description',
+  label: 'Description',
+  type: FilterTypeEnum.TEXT,
+  operators: [FilterOperatorEnum.CONTAINS],
+  defaultOperator: FilterOperatorEnum.CONTAINS,
+  placeholder: 'Filter by description',
+})
