@@ -1,0 +1,177 @@
+---
+name: E2E Tests
+
+on:
+  workflow_run:
+    workflows: ['Pull Request']
+    types: [requested]
+
+concurrency:
+  group: e2e-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  test-e2e:
+    runs-on: aap-dev
+    steps:
+      # - name: Report pending status
+      #   uses: actions/github-script@v7
+      #   with:
+      #     script: |
+      #       await github.rest.repos.createCommitStatus({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         sha: '${{ github.event.workflow_run.head_sha }}',
+      #         state: 'pending',
+      #         context: 'E2E Tests',
+      #         description: 'E2E tests in progress...',
+      #         target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+      #       });
+
+      - name: Checkout nexus-ui
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.workflow_run.repository.full_name }}
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Generate token for syntara-orchestration org
+        id: token-nexus
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: syntara-orchestration
+          repositories: nexus
+
+      - name: Checkout nexus (for deploy-nexus action)
+        uses: actions/checkout@v4
+        with:
+          repository: syntara-orchestration/syntara
+          path: _nexus
+          token: ${{ steps.token-nexus.outputs.token }}
+
+      - name: Deploy Nexus
+        uses: ./_nexus/.github/actions/deploy-nexus
+        with:
+          deployment-mode: standalone
+          nexus-ui-ref: ${{ github.event.workflow_run.head_sha }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          rh-registry-token: ${{ secrets.RH_REGISTRY_TOKEN }}
+          rh-registry-user: ${{ secrets.RH_REGISTRY_USER }}
+          quay-user: ${{ secrets.QUAY_USER }}
+          quay-token: ${{ secrets.QUAY_TOKEN }}
+          quay-aap-user: ${{ secrets.QUAY_AAP_USER }}
+          quay-aap-token: ${{ secrets.QUAY_AAP_TOKEN }}
+
+      - name: Export KUBECONFIG
+        run: echo "KUBECONFIG=${{ github.workspace }}/aap-dev/.tmp/27.kubeconfig" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        working-directory: aap-dev/src/nexus
+        run: make install
+
+      - name: Generate secrets
+        working-directory: aap-dev/src/nexus
+        run: make secrets-generate
+
+      - name: Inject JWT signing key into cluster
+        working-directory: aap-dev/src/nexus
+        run: |
+          JWT_KEY_B64=$(base64 -w 0 .secrets/jwt-primary.pem)
+          kubectl create secret generic myaap-ao-jwt-key \
+            --from-literal=APP_JWT_PRIVATE_KEY_BASE64="$JWT_KEY_B64" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl set env deployment/myaap-ao-api --from=secret/myaap-ao-jwt-key
+          kubectl set env deployment/myaap-ao-worker --from=secret/myaap-ao-jwt-key
+          kubectl rollout status deployment/myaap-ao-api --timeout=120s
+          kubectl rollout status deployment/myaap-ao-worker --timeout=120s
+
+      - name: Initialize admin password
+        working-directory: aap-dev/src/nexus
+        run: |
+          POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
+          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/set_admin_password.py' < tools/set_admin_password.py
+          cat .secrets/admin-password | kubectl exec -i "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/set_admin_password.py'
+
+      - name: Seed settings
+        working-directory: aap-dev/src/nexus
+        run: |
+          POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
+          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/seed_settings.py' < tools/seed_settings.py
+          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/seed_settings.py'
+
+      - name: Port-forward Nexus UI
+        run: |
+          kubectl port-forward svc/myaap-ao-ui 8000:80 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health > /dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "::error::Service did not become healthy after 60s"
+          exit 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.13.0'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: packages/nexus-ui
+        run: npx playwright install --with-deps chromium
+
+      - name: Read admin password
+        working-directory: aap-dev/src/nexus
+        run: |
+          password=$(cat .secrets/admin-password)
+          echo "::add-mask::$password"
+          echo "NEXUS_E2E_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Run E2E tests
+        working-directory: packages/nexus-ui
+        run: npm run e2e
+        env:
+          NEXUS_E2E_SKIP_WEB_SERVER: '1'
+          NEXUS_E2E_BASE_URL: http://localhost:8000
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: packages/nexus-ui/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        working-directory: aap-dev
+        run: make clean
+
+      # - name: Report final status
+      #   if: always()
+      #   uses: actions/github-script@v7
+      #   with:
+      #     script: |
+      #       const state = '${{ job.status }}' === 'success' ? 'success' : 'failure';
+      #       await github.rest.repos.createCommitStatus({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         sha: '${{ github.event.workflow_run.head_sha }}',
+      #         state: state,
+      #         context: 'E2E Tests',
+      #         description: `E2E tests ${state}`,
+      #         target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+      #       });
