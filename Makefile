@@ -15,7 +15,7 @@ help: ## Show this help message
 # Support multiple project instances via PODMAN_PROJECT environment variable
 PODMAN_PROJECT ?= nexus
 POSTGRES_IMAGE ?= quay.io/sclorg/postgresql-15-c9s
-REDIS_IMAGE ?= quay.io/sclorg/redis-6-c9s
+REDIS_IMAGE ?= mirror.gcr.io/library/redis:6
 APP_IMAGE ?= localhost/nexus:latest
 APP_UI_IMAGE ?= quay.io/ansible/nexus-ui
 APP_UI_VERSION ?= latest
