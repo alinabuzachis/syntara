@@ -98,9 +98,11 @@ jobs:
           kubectl port-forward svc/myaap-ao-api 8000:8000 &
           # Wait until the port-forward is accepting connections
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/health > /dev/null 2>&1 && break
+            curl -sf http://localhost:8000/health > /dev/null 2>&1 && exit 0
             sleep 2
           done
+          echo "::error::Service did not become healthy after 60s"
+          exit 1
 
       - name: Run E2E tests
         working-directory: aap-dev/src/nexus
