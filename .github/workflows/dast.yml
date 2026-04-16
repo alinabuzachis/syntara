@@ -1,0 +1,85 @@
+---
+name: DAST
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  dast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Generate secrets
+        run: make secrets-generate
+
+      - name: Start services with podman-compose
+        timeout-minutes: 5
+        run: |
+          uvx podman-compose -p nexus-ci up --build -d database redis temporal opa nexus
+
+      - name: Verify services are healthy
+        timeout-minutes: 5
+        run: |
+          echo "Waiting for services to become healthy..."
+          podman wait --condition=healthy \
+            nexus-ci_database_1 \
+            nexus-ci_temporal_1 \
+            nexus-ci_opa_1 \
+            nexus-ci_nexus_1
+          echo "All services are healthy"
+
+      - name: Verify Nexus API is reachable
+        run: |
+          curl -sf http://localhost:8000/health
+
+      - name: Create results directory
+        run: mkdir -p dast/results
+
+      - name: Write GCP key file
+        env:
+          GCS_KEY: ${{ secrets.RAPIDAST_GCP_KEY }}
+        run: printenv GCS_KEY > "${{ runner.temp }}/gcs-key.json"
+
+      - name: Run RapidAST scan
+        continue-on-error: true
+        run: |
+          podman run --rm --network=host \
+            -v ${{ github.workspace }}/dast/rapidast-config.yaml:/opt/rapidast/config/config.yaml:z \
+            -v ${{ github.workspace }}/dast/results:/opt/rapidast/results:z,U \
+            -v ${{ runner.temp }}/gcs-key.json:/opt/rapidast/gcs-key.json:z,ro \
+            quay.io/redhatproductsecurity/rapidast:latest \
+            --config /opt/rapidast/config/config.yaml
+
+      - name: Upload DAST results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dast-results
+          path: dast/results/
+          retention-days: 30
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          echo "=== Compose logs ==="
+          uvx podman-compose -p nexus-ci logs database redis temporal opa nexus
+
+      - name: Cleanup
+        if: always()
+        run: |
+          uvx podman-compose -p nexus-ci down -v || true
