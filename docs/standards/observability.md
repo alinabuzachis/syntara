@@ -284,7 +284,7 @@ def capture_my_feature_event(
 
 **AVOID unbounded labels:**
 - User IDs (use hashed/anonymized identifiers or omit)
-- UUIDs in metric labels (use as correlation IDs in logs, not labels)
+- UUIDs in metric labels (use as request IDs in logs, not labels)
 - Raw file paths (use normalized paths or component names)
 - Arbitrary user input
 
@@ -299,7 +299,7 @@ def capture_my_feature_event(
 Prometheus labels create a combinatorial explosion of time series:
 - Keep label count per metric under 5
 - Ensure each label has a bounded set of values (preferably < 100)
-- Use structured logs for high-cardinality data (correlation IDs, stack traces)
+- Use structured logs for high-cardinality data (request IDs, stack traces)
 
 ## Middleware Patterns
 
@@ -316,7 +316,7 @@ app.add_middleware(MetricsMiddleware, recorder=metrics_recorder)
 **Automatic metrics:**
 - Request duration with endpoint template, method, status
 - Error classification (timeout, rate_limit, validation, internal)
-- Correlation ID generation and header injection (`X-Correlation-ID`)
+- Request ID validation and `X-Request-Id` header echo
 
 **Excluded paths:**
 - `/metrics` (avoid self-instrumentation loops)
@@ -479,7 +479,7 @@ When adding a new component:
 - Label cardinality limits (< 100 values per label, < 5 labels per metric)
 - `COMPONENT_LABELS` registry maintenance
 - Privacy rules (no PII, no credentials)
-- Correlation ID propagation via structured logging
+- Request ID propagation via structured logging
 - Choosing metrics vs telemetry for a given use case
 
 ## Reference
