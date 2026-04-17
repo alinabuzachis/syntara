@@ -22,7 +22,7 @@ export default function App() {
                 className="pf-m-no-screen-warning bg-deep-space"
                 dock={<AppDockedNav />}
                 main={
-                  <CompassContent>
+                  <CompassContent role="main">
                     <AppRouter />
                   </CompassContent>
                 }

@@ -49,4 +49,11 @@ describe('App', () => {
       expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
     })
   })
+
+  it('renders main landmark region', async () => {
+    render(<App />)
+    await waitFor(() => {
+      expect(screen.getByRole('main')).toBeInTheDocument()
+    })
+  })
 })
