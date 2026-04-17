@@ -61,7 +61,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/opt/app-root/src/src \
-    PATH="/opt/app-root/bin:$PATH"
+    PATH="/opt/app-root/src/.venv/bin:/opt/app-root/bin:$PATH"
 
 WORKDIR /opt/app-root/src
 
@@ -77,4 +77,4 @@ EXPOSE 8000
 
 # Default command runs the API server
 # Override with different commands for other services.
-CMD ["sh", "-c", "uv run uvicorn nexus.api.main:app --host 0.0.0.0 --port 8000"]
+CMD ["uvicorn", "nexus.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
