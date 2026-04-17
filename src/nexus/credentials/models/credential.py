@@ -101,7 +101,8 @@ class CredentialPatch(SQLModel):
     labels: dict[str, str] | None = None
 
 
-CredentialListResponse = ResourcesResponse[CredentialRead]
+class CredentialListResponse(ResourcesResponse[CredentialRead]):
+    """Paginated list response for credentials."""
 
 
 class CredentialWorkflowRef(SQLModel):

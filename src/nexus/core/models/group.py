@@ -133,10 +133,7 @@ class Group(SoftDeletableResource, table=True):
 
 
 class GroupCreate(SQLModel):
-    """Schema for creating a new group (POST /groups).
-
-    Excludes auto-generated fields: id, created_at, updated_at, created_by.
-    """
+    """Schema for creating a new group (POST /groups)."""
 
     name: str = Field(..., min_length=1, max_length=FieldLimits.NAME_MAX_LENGTH, description="Group name")
     description: str | None = Field(

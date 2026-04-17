@@ -241,7 +241,7 @@ components:
       type: object
 
     ExecutionRead:
-      description: "Schema for execution response (GET /executions/{id}).\n\n\nIncludes all fields from the database table model."
+      description: "Schema for execution response (GET /executions/{id}).\n\nIncludes all fields from the database table model."
       properties:
         activities:
           anyOf:
@@ -300,6 +300,12 @@ components:
           additionalProperties: true
           title: Labels
           type: object
+        project_id:
+          anyOf:
+            - format: uuid
+              type: string
+            - type: 'null'
+          title: Project Id
         status:
           $ref: '#/components/schemas/ExecutionStatus'
         temporal_workflow_id:
@@ -347,6 +353,12 @@ components:
       type: object
 
     ExecutionListResponse:
+      description: Paginated list response for executions.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
       properties:
         next:
           anyOf:
@@ -361,6 +373,7 @@ components:
           description: Cursor for previous page of results
           title: Prev
         resources:
+          description: Array of resources in current page
           items: {}
           title: Resources
           type: array
@@ -377,6 +390,7 @@ components:
       type: object
 
     ActivityData:
+      description: Activity data for execution response.
       properties:
         activity_id:
           title: Activity Id
@@ -392,6 +406,12 @@ components:
             - type: string
             - type: 'null'
           title: Error Details
+        output_data:
+          anyOf:
+            - additionalProperties: true
+              type: object
+            - type: 'null'
+          title: Output Data
         started_at:
           anyOf:
             - format: date-time
@@ -433,6 +453,9 @@ components:
     ExecutionStatus:
       $ref: ./shared-schemas.yaml#/components/schemas/ExecutionStatus
 
+    ActivityStatus:
+      $ref: ./shared-schemas.yaml#/components/schemas/ActivityStatus
+
     ActivityExecution:
       $ref: ./shared-schemas.yaml#/components/schemas/ActivityExecution
 
@@ -445,33 +468,33 @@ components:
       properties:
         status:
           type: string
-          enum:
-            - signal_sent
+          pattern: ^signal_sent$
+          title: Status
           description: Confirmation that the signal was successfully sent
         message:
-          type: string
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Message
           description: Human-readable confirmation message
 
     ActivitySignalPayload:
       type: object
       title: Activity Signal Payload
-      description: |
-        Generic signal payload for sending arbitrary data to a specific activity
-        within a running workflow execution.
+      description: Generic signal payload for sending arbitrary data to a specific activity within a running workflow execution.
       required:
         - signal_data
       properties:
         signal_data:
           type: object
           additionalProperties: true
-          description: |
-            Arbitrary JSON data to send to the activity. The structure depends
-            on what the activity expects to receive.
-          example:
-            action: "resume"
-            status: "completed"
-            result:
-              value: 42
+          title: Signal Data
+          description: Arbitrary JSON data to send to the activity. The structure depends on what the activity expects to receive.
+          examples:
+            - action: "resume"
+              status: "completed"
+              result:
+                value: 42
 
     HTTPValidationError:
       properties:

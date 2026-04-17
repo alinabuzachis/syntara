@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import re
 import sys
 from pathlib import Path
 
@@ -16,6 +17,28 @@ import yaml
 # Tags are metadata managed in sub-specs / bundle_openapi.py,
 # not derived from the FastAPI implementation; exclude them from the diff.
 _EXCLUDED_KEYS: frozenset[str] = frozenset({"tags"})
+
+# Fields where whitespace and backtick-style differences are normalized before comparison.
+# This avoids false positives from YAML block-scalar vs Python triple-quoted-string formatting.
+_TEXT_NORMALIZE_KEYS: frozenset[str] = frozenset({"description", "summary"})
+
+
+def _normalize_text(text: str) -> str:
+    """Collapse whitespace runs and normalize RST ``backticks`` → `backticks` for comparison."""
+    return re.sub(r"\s+", " ", text).strip().replace("``", "`")
+
+
+def _normalize_for_comparison(obj: object) -> object:
+    """Recursively normalize description/summary text fields for equality comparison."""
+    if isinstance(obj, dict):
+        return {
+            k: _normalize_text(v) if k in _TEXT_NORMALIZE_KEYS and isinstance(v, str) else _normalize_for_comparison(v)
+            for k, v in obj.items()
+        }
+    if isinstance(obj, list):
+        return [_normalize_for_comparison(item) for item in obj]
+    return obj
+
 
 _VERBOSITY_DETAILED = 1
 _VERBOSITY_FULL_DIFF = 2
@@ -35,13 +58,17 @@ def _subkey_diffs(committed_val: object, generated_val: object) -> dict[str, lis
     """Return added/modified/removed sub-keys between two dicts."""
     c = committed_val if isinstance(committed_val, dict) else {}
     g = generated_val if isinstance(generated_val, dict) else {}
+    c_norm = _normalize_for_comparison(c)
+    g_norm = _normalize_for_comparison(g)
+    if not isinstance(c_norm, dict) or not isinstance(g_norm, dict):
+        return {"added": [], "modified": [], "removed": []}
     result: dict[str, list[str]] = {"added": [], "modified": [], "removed": []}
     for sub in sorted(c.keys() | g.keys()):
         if sub in c and sub not in g:
             result["removed"].append(sub)
         elif sub not in c and sub in g:
             result["added"].append(sub)
-        elif c.get(sub) != g.get(sub):
+        elif c_norm.get(sub) != g_norm.get(sub):
             result["modified"].append(sub)
     return result
 
@@ -182,9 +209,15 @@ def main() -> int:
     committed_dict = committed if isinstance(committed, dict) else {}
     generated_dict = generated if isinstance(generated, dict) else {}
 
+    # Normalize text fields for comparison only; originals are kept for display.
+    committed_norm = _normalize_for_comparison(committed_dict)
+    generated_norm = _normalize_for_comparison(generated_dict)
+    if not isinstance(committed_norm, dict) or not isinstance(generated_norm, dict):
+        return 0
+
     all_keys = sorted(committed_dict.keys() | generated_dict.keys())
     differing_keys: list[str] = [
-        key for key in all_keys if key not in _EXCLUDED_KEYS and committed_dict.get(key) != generated_dict.get(key)
+        key for key in all_keys if key not in _EXCLUDED_KEYS and committed_norm.get(key) != generated_norm.get(key)
     ]
 
     if not differing_keys:

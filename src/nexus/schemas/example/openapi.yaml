@@ -251,6 +251,7 @@ components:
             - type: string
               maxLength: 500
             - type: "null"
+          title: Description
         status:
           anyOf:
             - $ref: "#/components/schemas/ExampleStatus"

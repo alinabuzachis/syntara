@@ -6,11 +6,12 @@ Provides three query patterns:
 - What can I? — List all permissions for the current user
 """
 
-from typing import Annotated, Any
+from typing import Annotated, Any, ClassVar
 from uuid import UUID
 
 import structlog
 from fastapi import Depends
+from pydantic import ConfigDict
 from sqlmodel import Field, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -25,7 +26,7 @@ from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 
 logger = structlog.stdlib.get_logger(__name__)
 
-router = NexusRouter(prefix="/authz", tags=["authorization"])
+router = NexusRouter(prefix="/authz", tags=["Authorization"])
 
 
 # ============================================================================
@@ -34,24 +35,30 @@ router = NexusRouter(prefix="/authz", tags=["authorization"])
 
 
 class CanIRequest(SQLModel):
-    """Request body for the Can I? endpoint."""
+    """Request body for the Can I? authorization check."""
 
-    action: str
-    resource_type: str
-    resource_id: str = ""
-    resource_labels: dict[str, str] = {}
-    resource_metadata: dict[str, Any] = {}
-    resource_project: str = ""
+    model_config: ClassVar[ConfigDict] = ConfigDict(title="Can I Request")  # type: ignore[assignment]
+
+    action: str = Field(title=None, description='The action to check (e.g., "read", "create", "delete")')
+    resource_type: str = Field(title=None, description='The type of resource (e.g., "workflow", "project")')
+    resource_id: str = Field(default="", title=None, description="Optional specific resource ID")
+    resource_labels: Annotated[dict[str, str], Field(description="Labels on the target resource")] = {}
+    resource_metadata: Annotated[
+        dict[str, Any], Field(description="Additional metadata about the target resource")
+    ] = {}
+    resource_project: str = Field(default="", title=None, description="Project scope of the resource")
 
 
 class CanIResponse(SQLModel):
-    """Response body for the Can I? endpoint."""
+    """Authorization decision result."""
 
-    allowed: bool
-    denied: bool
-    matched_policy: str
-    denial_reason: str
-    denied_by: str
+    model_config: ClassVar[ConfigDict] = ConfigDict(title="Can I Response")  # type: ignore[assignment]
+
+    allowed: bool = Field(title=None, description="Whether the action is allowed")
+    denied: bool = Field(title=None, description="Whether the action is explicitly denied")
+    matched_policy: str = Field(title=None, description="Name of the policy that matched")
+    denial_reason: str = Field(title=None, description="Reason for denial (empty if allowed)")
+    denied_by: str = Field(title=None, description="Name of the deny policy (empty if allowed)")
 
 
 class WhoCanRequest(SQLModel):
@@ -88,7 +95,7 @@ class PermissionEntry(SQLModel):
     effect: str
     actions: list[str]
     scope: str
-    project: str = ""
+    project: str = Field(default="", description="Project scope (empty for system-level)")
 
 
 class WhatCanIResponse(SQLModel):
@@ -105,7 +112,17 @@ class WhatCanIResponse(SQLModel):
 _authz_query_perm = PermissionChecker("authz", "query", roles=["admin"])
 
 
-@router.post("/can-i", dependencies=[NO_PERMISSION])
+@router.post(
+    "/can-i",
+    dependencies=[NO_PERMISSION],
+    operation_id="can_i",
+    summary="Check if the current user can perform an action",
+    description=(
+        "Evaluates the current user's effective policies against OPA to determine if a specific action"
+        " is allowed on a resource."
+    ),
+    response_description="Authorization decision",
+)
 async def can_i(
     body: CanIRequest,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -151,7 +168,16 @@ async def can_i(
     )
 
 
-@router.post("/who-can", dependencies=[Depends(_authz_query_perm)])
+@router.post(
+    "/who-can",
+    dependencies=[Depends(_authz_query_perm)],
+    operation_id="who_can",
+    summary="List users who can perform an action",
+    description=(
+        "Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging endpoint."
+    ),
+    response_description="List of authorized users",
+)
 async def who_can(
     body: WhoCanRequest,
     _current_user: Annotated[User, Depends(get_current_user)],
@@ -223,7 +249,17 @@ async def who_can(
     return WhoCanResponse(users=authorized_users, next_cursor=None)
 
 
-@router.post("/what-can-i", dependencies=[NO_PERMISSION])
+@router.post(
+    "/what-can-i",
+    dependencies=[NO_PERMISSION],
+    operation_id="what_can_i",
+    summary="List all permissions for the current user",
+    description=(
+        "Resolves the current user's effective policies and returns them as a flat list of permission entries."
+        " No OPA call needed."
+    ),
+    response_description="List of permission entries",
+)
 async def what_can_i(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],

@@ -33,7 +33,7 @@ class ExecutionInclude(str, Enum):
 
 
 class ExecutionStatus(str, Enum):
-    """Execution status enumeration."""
+    """Current state of a workflow execution lifecycle."""
 
     PENDING = "pending"
     RUNNING = "running"

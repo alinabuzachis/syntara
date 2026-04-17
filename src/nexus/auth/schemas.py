@@ -7,7 +7,7 @@ class LoginRequest(BaseModel):
     """Login request with username and password."""
 
     username: str = Field(description="Username")
-    password: str = Field(description="Password")
+    password: str = Field(description="Password", json_schema_extra={"format": "password"})
 
 
 class AccessTokenResponse(BaseModel):

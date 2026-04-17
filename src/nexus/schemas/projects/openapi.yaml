@@ -35,7 +35,7 @@ paths:
   # ── Project CRUD ─────────────────────────────────────────────────────
   /projects:
     post:
-      summary: Create a project
+      summary: Create Project
       description: |
         Create a new project. The creator is automatically assigned
         the project-admin role. Requires: project:create permission.
@@ -62,11 +62,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     get:
-      summary: List projects
-      description: |
+      summary: List Projects
+      description: |-
         List projects the current user has read access to.
-        Results are filtered by the user's project-scoped permissions.
       operationId: list_projects
       tags:
         - Projects
@@ -80,10 +81,12 @@ paths:
                 items:
                   $ref: "#/components/schemas/ProjectRead"
 
+      security:
+        - bearerAuth: []
   /projects/{project_id}:
     get:
-      summary: Get a project by ID
-      description: Requires project:read permission scoped to this project.
+      summary: Get Project
+      description: Get a project by ID.
       operationId: get_project
       tags:
         - Projects
@@ -109,11 +112,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     patch:
-      summary: Update a project
-      description: |
-        Partially update a project. Only provided fields are updated.
-        Requires: project:update permission scoped to this project.
+      summary: Update Project
+      description: |-
+        Patch a project. Requires: project:update permission scoped to this project.
       operationId: update_project
       tags:
         - Projects
@@ -145,11 +149,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     put:
-      summary: Update a project (full replacement)
-      description: |
-        Update a project.
-        Requires: project:update permission scoped to this project.
+      summary: Replace Project
+      description: |-
+        Replace a project. Requires: project:update permission scoped to this project.
       operationId: replace_project
       tags:
         - Projects
@@ -181,11 +186,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     delete:
-      summary: Delete a project
-      description: |
-        Soft-delete a project.
-        Requires: project:delete permission scoped to this project.
+      summary: Delete Project
+      description: |-
+        Delete a project (soft-delete). Requires: project:delete permission scoped to this project.
       operationId: delete_project
       tags:
         - Projects
@@ -207,12 +213,16 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
-  # ── Project Workflows ────────────────────────────────────────────────
+      # ── Project Workflows ────────────────────────────────────────────────
+      security:
+        - bearerAuth: []
   /projects/{project_id}/workflows:
     get:
-      summary: List workflows in a project
-      description: |
+      summary: List Project Workflows
+      description: |-
         List workflows belonging to a specific project.
+
+        Returns only workflows with project_id matching the given project.
         Requires: workflow:read permission scoped to this project.
       operationId: list_project_workflows
       tags:
@@ -248,12 +258,16 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
-  # ── Project Approvals ────────────────────────────────────────────────
+      # ── Project Approvals ────────────────────────────────────────────────
+      security:
+        - bearerAuth: []
   /projects/{project_id}/approvals:
     get:
-      summary: List approvals in a project
-      description: |
+      summary: List Project Approvals
+      description: |-
         List approval requests belonging to a specific project.
+
+        Returns only approvals with project_id matching the given project.
         Requires: approval:read permission scoped to this project.
       operationId: list_project_approvals
       tags:
@@ -302,12 +316,15 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
-  # ── Project User Role Assignments ────────────────────────────────────
+      # ── Project User Role Assignments ────────────────────────────────────
+      security:
+        - bearerAuth: []
   /projects/{project_id}/roles:
     post:
-      summary: Assign a role to a user in a project
-      description: |
-        Assign a project-scoped role to a user.
+      summary: Assign Project Role
+      description: |-
+        Assign a role to a user within a project.
+
         Valid roles: project-admin, project-user, project-auditor.
         Requires: project-role:assign permission scoped to this project.
       operationId: assign_project_role
@@ -347,9 +364,11 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     get:
-      summary: List user role assignments for a project
-      description: List all user-to-role assignments within a project.
+      summary: List Project Roles
+      description: List all role assignments for a project.
       operationId: list_project_roles
       tags:
         - Project Role Assignments
@@ -371,12 +390,13 @@ paths:
                 items:
                   $ref: "#/components/schemas/ProjectRoleAssignmentRead"
 
+      security:
+        - bearerAuth: []
   /projects/{project_id}/roles/{assignment_id}:
     delete:
-      summary: Remove a user role assignment from a project
-      description: |
-        Revoke a user's project-scoped role.
-        Requires: project-role:revoke permission scoped to this project.
+      summary: Revoke Project Role
+      description: |-
+        Remove a role assignment from a project. Requires: project-role:revoke permission.
       operationId: revoke_project_role
       tags:
         - Project Role Assignments
@@ -405,13 +425,16 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
-  # ── Project Group Role Assignments ───────────────────────────────────
+      # ── Project Group Role Assignments ───────────────────────────────────
+      security:
+        - bearerAuth: []
   /projects/{project_id}/group-roles:
     post:
-      summary: Assign a role to a group in a project
-      description: |
-        Assign a project-scoped role to a group. All members of the group
-        inherit the role for this project.
+      summary: Assign Project Group Role
+      description: |-
+        Assign a role to a group within a project.
+
+        All members of the group inherit the role for this project.
         Valid roles: project-admin, project-user, project-auditor.
         Requires: project-role:assign permission scoped to this project.
       operationId: assign_project_group_role
@@ -451,9 +474,11 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     get:
-      summary: List group role assignments for a project
-      description: List all group-to-role assignments within a project.
+      summary: List Project Group Roles
+      description: List all group role assignments for a project.
       operationId: list_project_group_roles
       tags:
         - Project Group Role Assignments
@@ -475,12 +500,13 @@ paths:
                 items:
                   $ref: "#/components/schemas/ProjectGroupRoleAssignmentRead"
 
+      security:
+        - bearerAuth: []
   /projects/{project_id}/group-roles/{assignment_id}:
     delete:
-      summary: Remove a group role assignment from a project
-      description: |
-        Revoke a group's project-scoped role.
-        Requires: project-role:revoke permission scoped to this project.
+      summary: Revoke Project Group Role
+      description: |-
+        Remove a group role assignment from a project. Requires: project-role:revoke permission.
       operationId: revoke_project_group_role
       tags:
         - Project Group Role Assignments
@@ -509,47 +535,57 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     ProjectCreate:
       type: object
-      title: Project Create
-      description: Request body for creating a project
+      title: ProjectCreate
+      description: Request body for creating a project.
       required:
         - name
       properties:
         name:
           type: string
-          description: Project name
+          title: Name
         description:
-          type: [string, "null"]
-          description: Project description
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         labels:
           type: object
           default: {}
           additionalProperties: true
-          description: Key-value labels
+          title: Labels
 
     ProjectUpdate:
       type: object
-      title: Project Update
-      description: Request body for updating a project (partial)
+      title: ProjectUpdate
+      description: Request body for updating a project.
       properties:
         name:
-          type: [string, "null"]
-          description: Update project name
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Name
         description:
-          type: [string, "null"]
-          description: Update description
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         labels:
-          type: [object, "null"]
-          additionalProperties: true
-          description: Update labels
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+          title: Labels
 
     ProjectRead:
       type: object
-      title: Project Read
-      description: Response body for a project
+      title: ProjectRead
+      description: Response body for a project.
       required:
         - id
         - name
@@ -557,35 +593,41 @@ components:
         id:
           type: string
           format: uuid
-          description: Project UUID
+          title: Id
         name:
           type: string
-          description: Project name
+          title: Name
         description:
-          type: [string, "null"]
-          description: Project description
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         labels:
           type: object
           default: {}
           additionalProperties: true
-          description: Key-value labels
+          title: Labels
         is_default:
           type: boolean
           default: false
-          description: Whether this is the default project
+          title: Is Default
         created_at:
-          type: [string, "null"]
-          format: date-time
-          description: Creation timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          title: Created At
         updated_at:
-          type: [string, "null"]
-          format: date-time
-          description: Last update timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          title: Updated At
 
     ProjectRoleAssignmentCreate:
       type: object
-      title: Project Role Assignment Create
-      description: Request body for assigning a role to a user within a project
+      title: ProjectRoleAssignmentCreate
+      description: Request body for assigning a role to a user within a project.
       required:
         - user_id
         - role_name
@@ -593,15 +635,15 @@ components:
         user_id:
           type: string
           format: uuid
-          description: User UUID
+          title: User Id
         role_name:
           type: string
-          description: "Role name (project-admin, project-user, or project-auditor)"
+          title: Role Name
 
     ProjectRoleAssignmentRead:
       type: object
-      title: Project Role Assignment Read
-      description: Response body for a project user role assignment
+      title: ProjectRoleAssignmentRead
+      description: Response body for a project role assignment.
       required:
         - id
         - user_id
@@ -612,35 +654,37 @@ components:
         id:
           type: string
           format: uuid
-          description: Assignment UUID
+          title: Id
         user_id:
           type: string
           format: uuid
-          description: User UUID
+          title: User Id
         username:
           type: string
           default: ""
-          description: Username (resolved via join)
+          title: Username
         project_id:
           type: string
           format: uuid
-          description: Project UUID
+          title: Project Id
         role_id:
           type: string
           format: uuid
-          description: Role UUID
+          title: Role Id
         role_name:
           type: string
-          description: Role name
+          title: Role Name
         created_at:
-          type: [string, "null"]
-          format: date-time
-          description: Creation timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          title: Created At
 
     ProjectGroupRoleAssignmentCreate:
       type: object
-      title: Project Group Role Assignment Create
-      description: Request body for assigning a role to a group within a project
+      title: ProjectGroupRoleAssignmentCreate
+      description: Request body for assigning a role to a group within a project.
       required:
         - group_id
         - role_name
@@ -648,15 +692,15 @@ components:
         group_id:
           type: string
           format: uuid
-          description: Group UUID
+          title: Group Id
         role_name:
           type: string
-          description: "Role name (project-admin, project-user, or project-auditor)"
+          title: Role Name
 
     ProjectGroupRoleAssignmentRead:
       type: object
-      title: Project Group Role Assignment Read
-      description: Response body for a project group role assignment
+      title: ProjectGroupRoleAssignmentRead
+      description: Response body for a project group role assignment.
       required:
         - id
         - group_id
@@ -667,45 +711,71 @@ components:
         id:
           type: string
           format: uuid
-          description: Assignment UUID
+          title: Id
         group_id:
           type: string
           format: uuid
-          description: Group UUID
+          title: Group Id
         group_name:
           type: string
           default: ""
-          description: Group name (resolved via join)
+          title: Group Name
         project_id:
           type: string
           format: uuid
-          description: Project UUID
+          title: Project Id
         role_id:
           type: string
           format: uuid
-          description: Role UUID
+          title: Role Id
         role_name:
           type: string
-          description: Role name
+          title: Role Name
         created_at:
-          type: [string, "null"]
-          format: date-time
-          description: Creation timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          title: Created At
 
     # Re-used response schemas from other domains (minimal definitions
     # for the bundled spec to avoid cross-domain $ref issues)
     WorkflowListResponse:
-      allOf:
-        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
-        - type: object
-          properties:
-            resources:
-              type: array
-              items:
-                type: object
-                description: Workflow resource (see workflows domain spec for full schema)
-          required:
-            - resources
+      type: object
+      title: WorkflowListResponse
+      description: Paginated list response for workflows.
+      required:
+        - resources
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for next page of results
+          title: Next
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for previous page of results
+          title: Prev
+        resources:
+          type: array
+          items: {}
+          description: Array of resources in current page
+          title: Resources
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          description: Total count of resources (only when include_total=true)
+          title: Total
 
     ApprovalListResponse:
       allOf:

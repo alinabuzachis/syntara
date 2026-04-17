@@ -29,6 +29,7 @@ from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.utils.session_factory import create_session_factory_from_request
 from nexus.files import FileManager, get_file_manager
 from nexus.files.document_conversion.tasks import DocumentConversionTask
+from nexus.files.models.file_metadata import FileStatus
 
 router = NexusRouter(prefix="/files", tags=["Files"])
 logger = structlog.stdlib.get_logger(__name__)
@@ -63,17 +64,17 @@ class FileUploadInfo(BaseModel):
         exposing internal filesystem paths in API responses.
     """
 
-    file_id: str = Field(description="Unique file identifier (UUID)")
-    filename: str = Field(description="Original filename")
+    file_id: str = Field(title="File ID", description="Unique file identifier (UUID)")
+    filename: str = Field(description="Original filename from upload")
     size_bytes: int = Field(description="File size in bytes")
-    mime_type: str = Field(description="Detected MIME type")
-    status: str = Field(description="Processing status (pending_conversion)")
+    mime_type: str = Field(title="MIME Type", description="Detected MIME type of the file")
+    status: FileStatus = Field(description="Processing status (pending_conversion)")
 
 
 class FileUploadResponse(BaseModel):
     """Response model for POST /api/v1/files endpoint."""
 
-    file_ids: list[str] = Field(description="List of file IDs for later reference")
+    file_ids: list[str] = Field(title="File IDs", description="List of file IDs for later reference in invocations")
     files: list[FileUploadInfo] = Field(description="Metadata for each uploaded file")
 
 
@@ -85,6 +86,8 @@ class FileUploadResponse(BaseModel):
     "Returns file_ids that can be stored in workflow configuration and passed to invocations. "
     "Files are validated, stored, and queued for document conversion.",
     dependencies=[NO_PERMISSION],
+    operation_id="upload_files",
+    response_description="Files uploaded successfully",
 )
 async def upload_files(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -157,7 +160,7 @@ async def upload_files(
             filename=metadata.filename,
             size_bytes=metadata.size_bytes,
             mime_type=metadata.mime_type,
-            status=metadata.status.value,
+            status=metadata.status,
         )
         for metadata in file_metadata_list
     ]

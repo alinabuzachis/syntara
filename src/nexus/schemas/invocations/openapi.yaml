@@ -12,7 +12,6 @@ info:
     ## Key Features
     - Async-only POST /invocations endpoint (returns invocation ID immediately)
     - List invocations with cursor-based pagination: GET /invocations
-    - Interactive messaging: POST /invocations/{id}/message for multi-turn conversations
     - Process control: POST /invocations/{id}/pause and POST /invocations/{id}/cancel
     - Real-time progress and results: WS /ws/invocations/{id} (WebSocket)
 
@@ -34,14 +33,9 @@ servers:
 paths:
   /invocations:
     post:
-      summary: Create Invocation (Async) with Optional File Attachments
-      description: |
-        Accept async agent invocation request and return invocation ID immediately.
-
-        Supports optional file attachments (PDF, DOC, DOCX, TXT, MD). Max 10MB per file (configurable).
-        Max 10 files per invocation (configurable). File metadata is included in the invocation context.
-
-        Connect to WS /ws/invocations/{id} to monitor progress and receive results via WebSocket.
+      summary: Create Invocation (Async)
+      description: |-
+        Accept async agent invocation request and return invocation ID immediately. Supports both application/json and multipart/form-data with optional file uploads.
 
       operationId: create_invocation
       tags:
@@ -51,23 +45,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InvocationRequest'
+              $ref: '#/components/schemas/InvocationCreateRequest'
             examples:
               workflowGeneration:
                 summary: Workflow generation request
                 value:
                   prompt: Create a workflow to deploy customer service app to production with health checks
-                  created_by: 550e8400-e29b-41d4-a716-446655440000
-                  session_id: session-001
-                  context_data:
+                  sessionId: session-001
+                  contextData:
                     environment: production
                     app_id: customer-svc
               toolAnalysis:
                 summary: Tool analysis request
                 value:
                   prompt: What tools are available for deployment?
-                  created_by: 550e8400-e29b-41d4-a716-446655440000
-                  session_id: session-002
+                  sessionId: session-002
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/InvocationRequestWithFile'
@@ -151,28 +143,12 @@ paths:
                   value:
                     error: service_unavailable
                     message: APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys
+      security:
+        - bearerAuth: []
     get:
       summary: List Invocations
-      description: |
-        List invocations with cursor-based pagination and filtering.
-
-        **Filtering Options:**
-        - `status`: Filter by invocation status (running, paused, cancelled, completed, failed)
-        - `prompt`: Filter by prompt text with operators (contains, starts_with)
-        - `created_by`: Filter by creator UUID with operators (eq)
-        - `session_id`: Filter by session ID with operators (eq, contains, starts_with)
-        - `labels`: Filter by label key-value pairs (e.g., labels[environment]=production)
-        - `created_at`: Filter by creation timestamp with operators (eq, gt, gte, lt, lte)
-        - `updated_at`: Filter by last update timestamp with operators (eq, gt, gte, lt, lte)
-
-        **Sorting:**
-        - Sort by timestamp fields only: `created_at`, `updated_at`, `started_at`, `completed_at`
-        - Ascending: `sort=field` (e.g., `sort=created_at`)
-        - Descending: `sort=-field` (e.g., `sort=-created_at`)
-
-        **Pagination:**
-        - Cursor-based pagination with `cursor` and `limit` parameters
-        - Optionally includes total count with `include_total=true`
+      description: |-
+        List invocations with cursor-based pagination and filtering
 
       operationId: list_invocations
       tags:
@@ -267,26 +243,13 @@ paths:
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
 
+      security:
+        - bearerAuth: []
   /invocations/{invocation_id}:
     get:
       summary: Get Invocation Details (Testing/Debug)
-      description: |
-        Retrieve full invocation details including the result.
-
-        **NOTE: This endpoint is primarily for TESTING and DEBUGGING purposes.**
-
-        Production systems should use WebSockets (see `/ws/invocations/{invocationId}`)
-        for real-time result streaming instead of polling this endpoint.
-
-        **Use Cases:**
-        - View the actual LLM responses from GenericAgent during development
-        - Inspect workflow execution results for debugging
-        - Debug routing decisions and agent behavior
-        - Manual testing of agent integrations
-
-        **Production Alternative:**
-        Use the WebSocket endpoint at `/ws/invocations/{invocation_id}` for real-time
-        progress updates and results.
+      description: |-
+        Retrieve full invocation details including the result. NOTE: This endpoint is for testing and debugging. Production systems should use WebSockets for real-time results.
 
       operationId: get_invocation
       tags:
@@ -398,14 +361,13 @@ paths:
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
 
+      security:
+        - bearerAuth: []
   /invocations/{invocation_id}/cancel:
     post:
       summary: Cancel Invocation
-      description: |
+      description: |-
         Cancel a running or pending invocation. Only the invocation owner can cancel it.
-
-        Cancellation is irreversible - invocation cannot be resumed after cancellation.
-        Agent performs cleanup and transitions to cancelled state with optional reason tracking.
 
       operationId: cancel_invocation
       tags:
@@ -508,162 +470,148 @@ paths:
                     detail: Internal server error
                     instance: /api/v1/invocations/550e8400-e29b-41d4-a716-446655440000/cancel
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     InvocationStatus:
       type: string
-      enum: [running, paused, cancelled, completed, failed]
-      description: Current invocation status
-      example: running
+      title: InvocationStatus
+      description: Status enum for invocation lifecycle.
+      enum:
+        - created
+        - running
+        - paused
+        - cancelled
+        - completed
+        - failed
 
     Invocation:
-      allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
-        - type: object
-          title: Invocation
-          description: |
-            Agent invocation resource representing an async agent execution.
+      type: object
+      title: Invocation
+      additionalProperties: false
+      description: |-
+        SQLModel for async workflow invocations.
 
-            Invocations track the execution state, results, and metadata for agent requests.
-
-            Extends UserOwnedResource to inherit: id, created_at, updated_at, created_by, updated_by, labels.
-          required:
-            - prompt
-            - session_id
-            - status
-          properties:
-            prompt:
-              type: string
-              minLength: 1
-              maxLength: 10000
-              title: Prompt
-              description: Natural language request describing desired automation task
-              example: Deploy customer service app to production
-            session_id:
-              type: string
+        Attributes:
+            id: Primary key UUID (inherited from BaseResource)
+            created_at: Timestamp when invocation was created
+                (inherited from BaseResource)
+            updated_at: Timestamp of last update (inherited from BaseResource)
+            created_by: UUID of user who created the invocation
+                (inherited from UserOwnedResource)
+            updated_by: UUID of user who last updated the invocation
+                (inherited from UserOwnedResource)
+            labels: Optional key-value metadata (inherited from BaseResource)
+            prompt: Natural language user request
+            session_id: Session identifier for multi-tenant isolation
+            status: Current invocation status (running, paused, cancelled, completed, failed)
+            started_at: Timestamp when workflow execution started
+            completed_at: Timestamp when workflow completed
+            context_data: Additional context for the request
+            result: Workflow result data
+            error_message: Error message if invocation failed
+            checkpoint_data: Checkpoint data for pause/resume
+      required:
+        - created_by
+        - prompt
+        - session_id
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique identifier for the resource
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Timestamp when resource was created
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: Timestamp when resource was last updated
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+          description: User who created the resource
+        updated_by:
+          title: Updated By
+          description: User who last updated the resource
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        labels:
+          type: object
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          title: Prompt
+          description: Natural language user request
+        session_id:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Session Id
+          description: Session identifier for multi-tenant isolation
+        status:
+          $ref: '#/components/schemas/InvocationStatus'
+          default: created
+          description: Current invocation status
+        model_name:
+          title: Model Name
+          description: LLM model name used for the invocation
+          anyOf:
+            - type: string
               maxLength: 255
-              title: Session ID
-              description: Session identifier for grouping related invocations
-              example: session-001
-            status:
-              $ref: '#/components/schemas/InvocationStatus'
-            started_at:
-              type: [string, "null"]
+            - type: 'null'
+        started_at:
+          title: Started At
+          description: Timestamp when workflow execution started
+          anyOf:
+            - type: string
               format: date-time
-              readOnly: true
-              title: Started At
-              description: When agent started processing
-              example: '2025-10-21T10:30:01Z'
-            completed_at:
-              type: [string, "null"]
+            - type: 'null'
+        completed_at:
+          title: Completed At
+          description: Timestamp when workflow completed
+          anyOf:
+            - type: string
               format: date-time
-              readOnly: true
-              title: Completed At
-              description: When agent completed or failed
-              example: '2025-10-21T10:35:00Z'
-            context_data:
-              type: object
-              default: {}
-              title: Context Data
-              description: |
-                Additional context for the invocation.
-                When files are uploaded, includes file_ids array (list of UUID strings referencing FileMetadata table).
-              properties:
-                file_ids:
-                  type: array
-                  description: File IDs referencing FileMetadata records (populated when files are attached)
-                  items:
-                    type: string
-                    format: uuid
-                    description: UUID of a FileMetadata record
+            - type: 'null'
+        context_data:
+          type: object
+          title: Context Data
+          description: Additional context for the request, including file_ids array if files uploaded
+          additionalProperties: true
+        result:
+          title: Result
+          description: Workflow result data
+          anyOf:
+            - type: object
               additionalProperties: true
-              example:
-                environment: production
-                app_id: customer-svc
-                file_ids:
-                  - 550e8400-e29b-41d4-a716-446655440000
-                  - 660e8400-e29b-41d4-a716-446655440001
-            result:
-              type: [object, "null"]
-              title: Result
-              description: |
-                Invocation result data (populated on completion).
-
-                For context-enhanced invocations, includes additional metadata:
-                - grounding_score: Relevance score (0.0-1.0) indicating context quality
-                - context_enhancement: Additional context enhancement information including citations
+            - type: 'null'
+        error_message:
+          title: Error Message
+          description: Error message if invocation failed
+          anyOf:
+            - type: string
+            - type: 'null'
+        checkpoint_data:
+          title: Checkpoint Data
+          description: Checkpoint data for pause/resume
+          anyOf:
+            - type: object
               additionalProperties: true
-              properties:
-                type:
-                  type: string
-                  description: Type of response (typically "answer")
-                  example: answer
-                content:
-                  type: string
-                  description: Main response content from the AI agent
-                  example: The deployment tools available include...
-                response_metadata:
-                  type: object
-                  description: Metadata from the AI model response
-                  additionalProperties: true
-                grounding_score:
-                  type: number
-                  format: float
-                  minimum: 0.0
-                  maximum: 1.0
-                  description: 'Relevance score indicating context quality: 0.0 (no context) to 1.0 (high-quality context) (optional)'
-                  example: 0.85
-                context_enhancement:
-                  type: object
-                  description: Additional context enhancement information when context enhancement is applied (optional)
-                  properties:
-                    turn_id:
-                      type: string
-                      format: uuid
-                      description: Context package identifier for correlation
-                      example: 660e8400-e29b-41d4-a716-446655440001
-                    citations:
-                      type: array
-                      description: Source citations for context information
-                      items:
-                        type: object
-                        additionalProperties: true
-                      example:
-                        - source: api-docs.md
-                          relevance: 0.9
-                        - source: deployment-guide.yaml
-                          relevance: 0.8
-                    context_applied:
-                      type: boolean
-                      description: Whether context enhancement was successfully applied
-                      example: true
-                  additionalProperties: true
-              example:
-                type: answer
-                content: The deployment tools available include Docker, Kubernetes, and Terraform...
-                response_metadata:
-                  model: anthropic/claude-3.5-sonnet
-                grounding_score: 0.85
-                context_enhancement:
-                  turn_id: 660e8400-e29b-41d4-a716-446655440001
-                  citations:
-                    - source: deployment-tools.md
-                      relevance: 0.9
-                  context_applied: true
-            error_message:
-              type: [string, "null"]
-              maxLength: 2000
-              title: Error Message
-              description: Error message if invocation failed
-              example: Tool execution timeout
-            checkpoint_data:
-              type: [object, "null"]
-              title: Checkpoint Data
-              description: Checkpoint state for paused invocations
-              additionalProperties: true
-              example:
-                phase: complete
-                step: 5
+            - type: 'null'
 
     InvocationRequest:
       type: object
@@ -734,167 +682,46 @@ components:
                 $ref: '#/components/schemas/Invocation'
               maxItems: 100
 
-    MessageRequest:
+    InvocationCreateRequest:
       type: object
-      title: Message Request
-      description: Request to send message to running agent
+      title: InvocationCreateRequest
+      description: |-
+        Request schema for creating a new invocation.
+
+        Supports multiple field name formats:
+        - snake_case (API contract): session_id, context_data
+        - camelCase (backward compatibility): sessionId, contextData
+
+        Note: created_by is automatically set from authenticated user context.
       required:
-        - message
+        - prompt
+        - sessionId
       properties:
-        message:
+        prompt:
           type: string
           minLength: 1
-          maxLength: 5000
-          title: Message
-          description: User message to inject into agent conversation
-          example: Use blue-green deployment strategy instead
-        context:
+          maxLength: 10000
+          title: Prompt
+          description: Natural language request describing desired automation task
+        sessionId:
+          type: string
+          title: Sessionid
+          description: Session identifier for grouping related invocations
+        contextData:
           type: object
-          title: Context
-          description: Additional context for the message
+          title: Contextdata
+          description: "Optional additional context for the request. Use 'file_ids' (array of UUID strings) to reference uploaded files."
           additionalProperties: true
-          example:
-            deploymentStrategy: blue-green
-
-    MessageResponse:
-      type: object
-      title: Message Response
-      description: Response after sending message to agent
-      required:
-        - invocation_id
-        - message_id
-        - status
-        - acknowledged_at
-      properties:
-        invocation_id:
-          type: string
-          format: uuid
-          title: Invocation ID
-          description: Invocation ID that received the message
-          example: 550e8400-e29b-41d4-a716-446655440000
-        message_id:
-          type: string
-          format: uuid
-          title: Message ID
-          description: Unique identifier for this message
-          example: 770e8400-e29b-41d4-a716-446655440002
-        status:
-          type: string
-          enum: [accepted, rejected]
-          title: Status
-          description: Whether message was accepted for processing
-          example: accepted
-        acknowledged_at:
-          type: string
-          format: date-time
-          title: Acknowledged At
-          description: When message was acknowledged
-          example: '2025-10-21T10:35:00Z'
-        error:
-          type: [string, "null"]
-          title: Error
-          description: Error message (if status=rejected)
-          example:
-
-    ProgressEvent:
-      type: object
-      title: Progress Event
-      description: WebSocket progress event from agent
-      required:
-        - event_type
-        - invocation_id
-        - timestamp
-        - data
-      properties:
-        event_type:
-          type: string
-          enum: [progress, log, status_change, message, completion, error]
-          title: Event Type
-          description: Type of progress event
-          example: progress
-        invocation_id:
-          type: string
-          format: uuid
-          title: Invocation ID
-          description: Invocation ID this event belongs to
-          example: 550e8400-e29b-41d4-a716-446655440000
-        timestamp:
-          type: string
-          format: date-time
-          title: Timestamp
-          description: When this event occurred
-          example: '2025-10-21T10:30:01Z'
-        data:
-          type: object
-          title: Data
-          description: Event-specific data (structure varies by eventType)
-          additionalProperties: true
-          example:
-            phase: tool_assessment
-            message: Evaluating deployment tools
-            progressPercentage: 45
-        sequence_number:
-          type: integer
-          title: Sequence Number
-          description: Sequence number for event ordering
-          example: 5
-
-    ControlResponse:
-      type: object
-      title: Control Response
-      description: Response after sending control signal to agent
-      required:
-        - invocation_id
-        - action
-        - status
-        - current_state
-        - acknowledged_at
-      properties:
-        invocation_id:
-          type: string
-          format: uuid
-          title: Invocation ID
-          description: Invocation ID that received control signal
-          example: 550e8400-e29b-41d4-a716-446655440000
-        action:
-          type: string
-          enum: [pause, cancel, resume]
-          title: Action
-          description: Control action requested
-          example: pause
-        status:
-          type: string
-          enum: [acknowledged, completed, rejected]
-          title: Status
-          description: Control signal processing status
-          example: acknowledged
-        current_state:
-          type: string
-          enum: [running, paused, cancelled, completed]
-          title: Current State
-          description: Current invocation state after control signal
-          example: paused
-        acknowledged_at:
-          type: string
-          format: date-time
-          title: Acknowledged At
-          description: When control signal was acknowledged
-          example: '2025-10-21T10:35:00Z'
-        message:
-          type: [string, "null"]
-          title: Message
-          description: Human-readable message about control signal processing
-          example: Agent paused successfully
-        error:
-          type: [string, "null"]
-          title: Error
-          description: Error message (if status=rejected)
-          example:
 
     InvocationCancelRequest:
       type: object
       title: InvocationCancelRequest
-      description: Request body for cancelling an invocation
+      description: |-
+        Request schema for cancelling an invocation.
+
+        Supports multiple field name formats:
+        - camelCase (API contract): reason
+        - snake_case (internal): reason
       properties:
         reason:
           type: string
@@ -902,13 +729,14 @@ components:
           default: User cancelled
           title: Reason
           description: Optional reason for cancellation
-          example: Request taking too long
-      required: []
 
     InvocationCancelResponse:
       type: object
       title: InvocationCancelResponse
-      description: Response after attempting to cancel an invocation
+      description: |-
+        Response schema for invocation cancellation.
+
+        Indicates whether the cancellation was successful or failed.
       required:
         - success
         - message
@@ -917,12 +745,10 @@ components:
           type: boolean
           title: Success
           description: True if cancellation was successful, False otherwise
-          example: true
         message:
           type: string
           title: Message
           description: Human-readable message describing the cancellation result
-          example: Invocation 550e8400-e29b-41d4-a716-446655440000 cancelled successfully
 
   securitySchemes:
     bearerAuth:

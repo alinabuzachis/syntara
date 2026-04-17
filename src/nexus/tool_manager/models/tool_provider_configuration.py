@@ -16,7 +16,7 @@ class MCPConfiguration(SQLModel):
 
     provider_type: Literal["mcp"] = "mcp"
 
-    base_url: str = Field(description="Base URL for the MCP provider")
+    base_url: str = Field(description="Base URL for the MCP provider", json_schema_extra={"format": "uri"})
 
     api_key: str | None = Field(default=None, description="API key for authentication (optional)")
 

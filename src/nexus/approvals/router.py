@@ -76,7 +76,12 @@ def get_approval_service(
 # ============================================================================
 
 
-@router.get("")
+@router.get(
+    "",
+    operation_id="list_approvals",
+    summary="List approval requests",
+    response_description="List of approval requests",
+)
 async def list_approvals(
     request: Request,
     service: Annotated[ApprovalService, Depends(get_approval_service)],
@@ -90,15 +95,6 @@ async def list_approvals(
     - execution_id: Filter by parent execution ID (execution_id=uuid)
 
     Uses cursor-based pagination for scalability and consistency.
-
-    Args:
-        request: FastAPI request object containing query parameters
-        service: Approval service
-        params: Query parameters for pagination and filtering
-        allowed_projects: Project scope filter from authorization
-
-    Returns:
-        ApprovalListResponse with approvals, pagination metadata, and optional total
 
     """
     return await service.list(
@@ -117,6 +113,9 @@ async def list_approvals(
     "",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("approval", "create", roles=["admin"]))],
+    operation_id="create_approval",
+    summary="Create approval request",
+    response_description="Approval request created",
 )
 async def create_approval(
     request: ApprovalCreateRequest,
@@ -128,18 +127,17 @@ async def create_approval(
     a workflow execution reaches an approval node. It should not be called
     directly by end users.
 
-    Args:
-        request: Approval creation request
-        service: Approval service
-
-    Returns:
-        Created approval request
-
     """
     return await service.create(request)
 
 
-@router.get("/{approval_id}", dependencies=[Depends(_approval_perm_read)])
+@router.get(
+    "/{approval_id}",
+    dependencies=[Depends(_approval_perm_read)],
+    operation_id="get_approval",
+    summary="Get approval request",
+    response_description="Approval request details",
+)
 async def get_approval(
     approval_id: UUID,
     service: Annotated[ApprovalService, Depends(get_approval_service)],
@@ -151,18 +149,17 @@ async def get_approval(
     - Next steps for both approval and rejection paths
     - Decision history if already decided
 
-    Args:
-        approval_id: Approval request UUID
-        service: Approval service
-
-    Returns:
-        Approval request details
-
     """
     return await service.get(approval_id)
 
 
-@router.patch("/{approval_id}", dependencies=[Depends(_approval_perm_decide)])
+@router.patch(
+    "/{approval_id}",
+    dependencies=[Depends(_approval_perm_decide)],
+    operation_id="decide_approval",
+    summary="Submit approval decision",
+    response_description="Updated approval request",
+)
 async def decide_approval(
     approval_id: UUID,
     request: ApprovalDecisionRequest,
@@ -178,14 +175,6 @@ async def decide_approval(
     2. The decided_by, decided_at, and decision_notes fields are populated
     3. A signal is sent to the workflow to resume execution on the appropriate path
 
-    Args:
-        approval_id: Approval request UUID
-        request: Decision request with status and notes
-        service: Approval service
-
-    Returns:
-        Updated approval request
-
     """
     return await service.decide(approval_id, request)
 
@@ -195,6 +184,9 @@ async def decide_approval(
     dependencies=[
         Depends(PermissionChecker("approval", "decide", roles=["admin", "user", "project-admin", "project-user"]))
     ],
+    operation_id="batch_decide_approvals",
+    summary="Batch approve/reject multiple requests",
+    response_description="Batch decision results",
 )
 async def batch_decide_approvals(
     request: BatchApprovalRequest,
@@ -209,13 +201,6 @@ async def batch_decide_approvals(
     Use cases:
     - Approving multiple related requests at once
     - Bulk rejection of stale or irrelevant requests
-
-    Args:
-        request: Batch approval request with multiple decisions
-        service: Approval service
-
-    Returns:
-        Batch response with individual results and summary counts
 
     """
     return await service.batch_decide(request)

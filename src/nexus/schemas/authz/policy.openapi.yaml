@@ -21,10 +21,9 @@ tags:
 paths:
   /policies:
     post:
-      summary: Create a custom policy
-      description: |
-        Create a new custom policy with one or more statements.
-        Requires: policy:create permission (admin role).
+      summary: Create Policy
+      description: |-
+        Create a custom policy. Requires: policy:create permission.
       operationId: create_policy
       tags:
         - Policies
@@ -48,8 +47,10 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     get:
-      summary: List policies
+      summary: List Policies
       description: List policies with filtering and pagination.
       operationId: list_policies
       tags:
@@ -91,9 +92,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/PolicyListResponse"
 
+      security:
+        - bearerAuth: []
   /policies/{policy_id}:
     get:
-      summary: Get a policy by ID
+      summary: Get Policy
       operationId: get_policy
       tags:
         - Policies
@@ -104,7 +107,6 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Policy UUID
       responses:
         "200":
           description: Policy details
@@ -119,11 +121,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     patch:
-      summary: Update a policy
-      description: |
-        Update a policy. Builtin policies cannot be modified.
-        Requires: policy:update permission (admin role).
+      summary: Update Policy
+      description: |-
+        Patch a policy. Builtin policies cannot be modified. Requires: policy:update permission.
       operationId: update_policy
       tags:
         - Policies
@@ -134,7 +137,6 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Policy UUID
       requestBody:
         required: true
         content:
@@ -155,11 +157,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     put:
-      summary: Update a policy (full replacement)
-      description: |
-        Update a policy. Builtin policies cannot be modified.
-        Requires: policy:update permission (admin role).
+      summary: Replace Policy
+      description: |-
+        Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.
       operationId: replace_policy
       tags:
         - Policies
@@ -170,7 +173,6 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Policy UUID
       requestBody:
         required: true
         content:
@@ -191,11 +193,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     delete:
-      summary: Delete a policy
-      description: |
-        Delete a policy. Builtin policies cannot be deleted.
-        Requires: policy:delete permission (admin role).
+      summary: Delete Policy
+      description: |-
+        Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.
       operationId: delete_policy
       tags:
         - Policies
@@ -206,7 +209,6 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Policy UUID
       responses:
         "204":
           description: Policy deleted
@@ -217,12 +219,14 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     PolicyStatementSchema:
       type: object
-      title: Policy Statement
-      description: A single policy statement defining an access rule
+      title: PolicyStatementSchema
+      description: A single policy statement.
       required:
         - effect
         - actions
@@ -230,30 +234,30 @@ components:
       properties:
         effect:
           type: string
-          enum:
-            - allow
-            - deny
-          description: Whether this statement allows or denies access
+          title: Effect
+          description: allow or deny
         actions:
           type: array
           items:
             type: string
-          description: List of resource_type:action strings (e.g., "workflow:read")
+          title: Actions
+          description: List of resource_type:action strings
         scope:
           type: string
-          enum:
-            - any
-            - self
-          description: Scope of the statement (any = all resources, self = owned resources)
+          title: Scope
+          description: any or self
         conditions:
-          type: [object, "null"]
-          additionalProperties: true
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+          title: Conditions
           description: Optional attribute-based conditions
 
     PolicyCreate:
       type: object
-      title: Policy Create
-      description: Request body for creating a policy
+      title: PolicyCreate
+      description: Request body for creating a policy.
       required:
         - name
         - statements
@@ -262,55 +266,67 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-          description: Unique policy name
+          title: Name
         description:
-          type: [string, "null"]
-          description: Policy description
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         statements:
           type: array
           minItems: 1
           items:
             $ref: "#/components/schemas/PolicyStatementSchema"
-          description: Policy statements
+          title: Statements
         labels:
           type: object
           default: {}
           additionalProperties:
             type: string
-          description: Key-value labels
+          title: Labels
         project_id:
-          type: [string, "null"]
-          format: uuid
-          description: Project scope (null for system-level)
+          anyOf:
+            - type: string
+              format: uuid
+            - type: "null"
+          title: Project Id
 
     PolicyUpdate:
       type: object
-      title: Policy Update
-      description: Request body for updating a policy (partial)
+      title: PolicyUpdate
+      description: Request body for updating a policy (partial).
       properties:
         name:
-          type: [string, "null"]
-          minLength: 1
-          maxLength: 255
-          description: Update policy name
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: "null"
+          title: Name
         description:
-          type: [string, "null"]
-          description: Update description
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         statements:
-          type: [array, "null"]
-          items:
-            $ref: "#/components/schemas/PolicyStatementSchema"
-          description: Update statements
+          anyOf:
+            - type: array
+              items:
+                $ref: "#/components/schemas/PolicyStatementSchema"
+            - type: "null"
+          title: Statements
         labels:
-          type: [object, "null"]
-          additionalProperties:
-            type: string
-          description: Update labels
+          anyOf:
+            - type: object
+              additionalProperties:
+                type: string
+            - type: "null"
+          title: Labels
 
     PolicyRead:
       type: object
-      title: Policy Read
-      description: Response body for a policy
+      title: PolicyRead
+      description: Response body for a policy.
       required:
         - id
         - name
@@ -318,41 +334,49 @@ components:
         id:
           type: string
           format: uuid
-          description: Policy UUID
+          title: Id
         name:
           type: string
-          description: Policy name
+          title: Name
         description:
-          type: [string, "null"]
-          description: Policy description
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         statements:
           type: array
           default: []
           items:
             type: object
             additionalProperties: true
-          description: Policy statements
+          title: Statements
         is_builtin:
           type: boolean
           default: false
-          description: Whether this is a builtin policy
+          title: Is Builtin
         project_id:
-          type: [string, "null"]
-          format: uuid
-          description: Project scope (null for system-level)
+          anyOf:
+            - type: string
+              format: uuid
+            - type: "null"
+          title: Project Id
         labels:
           type: object
           default: {}
           additionalProperties: true
-          description: Key-value labels
+          title: Labels
         created_at:
-          type: [string, "null"]
-          format: date-time
-          description: Creation timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          title: Created At
         updated_at:
-          type: [string, "null"]
-          format: date-time
-          description: Last update timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          title: Updated At
 
     PolicyListResponse:
       allOf:

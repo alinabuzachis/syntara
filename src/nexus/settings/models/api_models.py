@@ -33,7 +33,8 @@ class RuntimeSettingRead(SQLModel):
     updated_at: datetime
 
 
-SettingsListResponse = ResourcesResponse[RuntimeSettingRead]
+class SettingsListResponse(ResourcesResponse[RuntimeSettingRead]):
+    """Paginated list response for runtime settings."""
 
 
 class SettingUpdate(SQLModel):

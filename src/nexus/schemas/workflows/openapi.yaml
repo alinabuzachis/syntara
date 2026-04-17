@@ -38,9 +38,16 @@ servers:
 paths:
   /workflows:
     get:
-      summary: List workflows
-      description: |
-        Retrieve a list of workflows with filtering, sorting, and cursor-based pagination.
+      summary: List Workflows
+      description: |-
+        List workflows the current user has read access to.
+
+        Supports filtering using query parameters with standard operators:
+        - created_by: Filter by creator user ID (created_by=uuid)
+        - is_enabled: Filter by enabled status (is_enabled=true|false)
+        - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+        Uses cursor-based pagination for scalability and consistency.
       operationId: list_workflows
       tags: [workflows]
       parameters:
@@ -71,20 +78,12 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Workflow'
-                        maxItems: 100
-                    required:
-                      - resources
+                $ref: '#/components/schemas/WorkflowListResponse'
+      security:
+        - bearerAuth: []
     post:
-      summary: Create workflow
-      description: Create a new workflow entity with its initial version. The workflow definition is validated and stored as version 1.
+      summary: Create Workflow
+      description: Create a new workflow with initial version.
       operationId: create_workflow
       tags: [workflows]
       requestBody:
@@ -92,14 +91,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateWorkflowRequest'
+              $ref: '#/components/schemas/WorkflowCreate'
       responses:
         '201':
           description: Workflow created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Workflow'
+                $ref: '#/components/schemas/WorkflowRead'
         '400':
           description: Invalid workflow definition
           content:
@@ -140,10 +139,12 @@ paths:
                 retryable: false
                 instance: /api/v1/workflows
 
+      security:
+        - bearerAuth: []
   /workflows/{workflow_id}:
     get:
-      summary: Get workflow
-      description: Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field.
+      summary: Get Workflow
+      description: Get a workflow by ID including its current active version.
       operationId: get_workflow
       tags: [workflows]
       parameters:
@@ -159,19 +160,24 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkflowWithVersion'
+                $ref: '#/components/schemas/WorkflowReadWithVersion'
         '404':
           description: Workflow not found
           content:
             application/problem+json:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+      security:
+        - bearerAuth: []
     patch:
-      summary: Update workflow
-      description: |
-        Update workflow fields. Supports both metadata updates and workflow definition updates:
+      summary: Update Workflow
+      description: |-
+        Update workflow.
+
+        Supports both metadata-only updates and workflow definition updates:
         - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-        - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
+        - With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion
+          only if definition differs (change detection optimization)
       operationId: update_workflow
       tags: [workflows]
       parameters:
@@ -186,14 +192,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchWorkflowRequest'
+              $ref: '#/components/schemas/WorkflowUpdate'
       responses:
         '200':
           description: Workflow updated successfully (may include new version if workflow_definition changed)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkflowWithVersion'
+                $ref: '#/components/schemas/WorkflowReadWithVersion'
         '400':
           description: Invalid workflow definition or validation error
           content:
@@ -218,9 +224,11 @@ paths:
             application/problem+json:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+      security:
+        - bearerAuth: []
     delete:
-      summary: Delete workflow (soft delete)
-      description: Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
+      summary: Delete Workflow
+      description: Soft delete a workflow.
       operationId: delete_workflow
       tags: [workflows]
       parameters:
@@ -246,13 +254,13 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
   /workflows/{workflow_id}/versions:
     get:
-      summary: List workflow versions
-      description: |
-        Retrieve all versions for a workflow with cursor-based pagination.
-        WorkflowVersion entities are read-only and managed automatically by the system.
-        Versions are ordered by version number descending (newest first) by default.
+      summary: List Workflow Versions
+      description: |-
+        List all versions for a workflow.
       operationId: list_workflow_versions
       tags: [workflows]
       parameters:
@@ -273,17 +281,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/WorkflowVersionResponse'
-                        maxItems: 100
-                    required:
-                      - resources
+                $ref: '#/components/schemas/WorkflowVersionListResponse'
         '404':
           description: Workflow not found
           content:
@@ -291,10 +289,12 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
   /workflows/{workflow_id}/versions/{version}:
     get:
-      summary: Get workflow version
-      description: Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
+      summary: Get Workflow Version
+      description: Get a specific workflow version.
       operationId: get_workflow_version
       tags: [workflows]
       parameters:
@@ -317,7 +317,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkflowVersionResponse'
+                $ref: '#/components/schemas/WorkflowVersionRead'
         '404':
           description: Workflow or version not found
           content:
@@ -325,106 +325,156 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  # Note: Approval endpoints are in a separate API
-  # See: src/nexus/schemas/approvals/openapi.yaml
+      # Note: Approval endpoints are in a separate API
+      # See: src/nexus/schemas/approvals/openapi.yaml
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
-    # Import base resource schemas
-    BaseResource:
-      $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
-
-    NamedResource:
-      $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
-
-    SoftDeletableResource:
-      $ref: ../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
-
-    UserOwnedResource:
-      $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
-
     # Import workflow-specific schemas
-    Workflow:
-      $ref: ./shared-schemas.yaml#/components/schemas/Workflow
+    WorkflowRead:
+      $ref: ./shared-schemas.yaml#/components/schemas/WorkflowRead
 
-    WorkflowWithVersion:
-      $ref: ./shared-schemas.yaml#/components/schemas/WorkflowWithVersion
-
-    WorkflowVersionResponse:
+    WorkflowReadWithVersion:
       type: object
-      title: Workflow Version Response
-      description: Complete details of a specific workflow version including workflow definition. Note that deleted_at and deleted_by are always null since soft-deleted versions are excluded from queries.
+      title: WorkflowReadWithVersion
+      description: |-
+        Schema for workflow response with current version details.
+
+        Used when retrieving a single workflow to include the active workflow definition.
       required:
+        - name
         - id
-        - workflow_id
-        - version
-        - schema_version
-        - workflow_definition
+        - current_version
+        - is_enabled
         - created_by
         - created_at
         - updated_at
+        - version
       properties:
         id:
           type: string
           format: uuid
-          description: Version unique identifier
-        workflow_id:
+          title: Id
+        name:
           type: string
-          format: uuid
-          description: Parent workflow ID
-        version:
+          minLength: 1
+          maxLength: 255
+          description: Workflow name
+          title: Name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          description: Workflow description
+          title: Description
+        labels:
+          type: object
+          additionalProperties: true
+          description: Workflow labels
+          title: Labels
+        current_version:
           type: integer
-          description: Version number
-        schema_version:
-          type: string
-          description: YAML schema version (e.g., "1.0.0")
-        workflow_definition:
-          $ref: ./shared-schemas.yaml#/components/schemas/WorkflowDefinition
-          description: Workflow definition object conforming to workflow-definition.schema.json
+          title: Current Version
+        is_enabled:
+          type: boolean
+          title: Is Enabled
         created_by:
           type: string
           format: uuid
-          description: User who created this version
+          title: Created By
+        project_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Project Id
         created_at:
           type: string
           format: date-time
-          description: Version creation timestamp
+          title: Created At
         updated_at:
           type: string
           format: date-time
-          description: Last update timestamp
-        change_description:
-          type: [string, "null"]
-          description: Description of changes in this version
+          title: Updated At
         deleted_at:
-          type: [string, "null"]
-          format: date-time
-          description: Soft delete timestamp (always null in responses)
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Deleted At
         deleted_by:
-          type: [string, "null"]
-          format: uuid
-          description: User who soft deleted the version (always null in responses)
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Deleted By
+        version:
+          $ref: '#/components/schemas/WorkflowVersionRead'
+          description: Current active version details
+
+    WorkflowVersionRead:
+      $ref: ./shared-schemas.yaml#/components/schemas/WorkflowVersionRead
+
+    WorkflowListResponse:
+      type: object
+      title: WorkflowListResponse
+      description: Paginated list response for workflows.
+      required:
+        - resources
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for next page of results
+          title: Next
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for previous page of results
+          title: Prev
+        resources:
+          type: array
+          items: {}
+          description: Array of resources in current page
+          title: Resources
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          description: Total count of resources (only when include_total=true)
+          title: Total
 
     WorkflowVersionListResponse:
       type: object
       title: WorkflowVersionListResponse
-      description: List of workflow versions ordered by version number descending
+      description: Schema for workflow version list response.
       required:
         - versions
       properties:
         versions:
           type: array
           items:
-            $ref: '#/components/schemas/WorkflowVersionResponse'
-          description: Array of workflow versions
+            $ref: '#/components/schemas/WorkflowVersionRead'
+          title: Versions
 
     # Note: Approval schemas are in src/nexus/schemas/approvals/openapi.yaml
 
-    CreateWorkflowRequest:
-      $ref: ./shared-schemas.yaml#/components/schemas/CreateWorkflowRequest
+    WorkflowCreate:
+      $ref: ./shared-schemas.yaml#/components/schemas/WorkflowCreate
 
-    PatchWorkflowRequest:
-      $ref: ./shared-schemas.yaml#/components/schemas/PatchWorkflowRequest
+    WorkflowUpdate:
+      $ref: ./shared-schemas.yaml#/components/schemas/WorkflowUpdate
 
   securitySchemes:
     bearerAuth:

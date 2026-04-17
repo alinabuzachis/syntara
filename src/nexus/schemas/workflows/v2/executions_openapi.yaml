@@ -278,13 +278,11 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Execution ID of the running workflow
         - name: activity_id
           in: path
           required: true
           schema:
             type: string
-          description: Node ID from the workflow definition
       requestBody:
         required: true
         content:
@@ -322,10 +320,6 @@ paths:
 
 components:
   schemas:
-    # Import base resource schemas
-    BaseResource:
-      $ref: ../../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
-
     Execution:
       $ref: ./shared-schemas.yaml#/components/schemas/Execution
 
@@ -352,11 +346,14 @@ components:
       properties:
         status:
           type: string
-          enum:
-            - signal_sent
+          pattern: ^signal_sent$
+          title: Status
           description: Confirmation that the signal was successfully sent
         message:
-          type: string
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Message
           description: Human-readable confirmation message
 
     ActivitySignalPayload:

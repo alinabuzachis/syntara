@@ -23,9 +23,7 @@ paths:
   /authz/can-i:
     post:
       summary: Check if the current user can perform an action
-      description: |
-        Evaluates the current user's effective policies against OPA to determine
-        if a specific action is allowed on a resource.
+      description: Evaluates the current user's effective policies against OPA to determine if a specific action is allowed on a resource.
       operationId: can_i
       tags:
         - Authorization
@@ -43,12 +41,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/CanIResponse"
 
+      security:
+        - bearerAuth: []
   /authz/who-can:
     post:
       summary: List users who can perform an action
-      description: |
-        Iterates all active users, resolves their policies, and checks each
-        against OPA. This is a debugging endpoint.
+      description: Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging endpoint.
       operationId: who_can
       tags:
         - Authorization
@@ -66,12 +64,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/WhoCanResponse"
 
+      security:
+        - bearerAuth: []
   /authz/what-can-i:
     post:
       summary: List all permissions for the current user
-      description: |
-        Resolves the current user's effective policies and returns them as a
-        flat list of permission entries. No OPA call needed.
+      description: Resolves the current user's effective policies and returns them as a flat list of permission entries. No OPA call needed.
       operationId: what_can_i
       tags:
         - Authorization
@@ -83,46 +81,54 @@ paths:
               schema:
                 $ref: "#/components/schemas/WhatCanIResponse"
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     CanIRequest:
       type: object
       title: Can I Request
-      description: Request body for the Can I? authorization check
+      description: Request body for the Can I? authorization check.
       required:
         - action
         - resource_type
       properties:
         action:
           type: string
+          title: Action
           description: The action to check (e.g., "read", "create", "delete")
         resource_type:
           type: string
+          title: Resource Type
           description: The type of resource (e.g., "workflow", "project")
         resource_id:
           type: string
+          title: Resource Id
           default: ""
           description: Optional specific resource ID
         resource_labels:
           type: object
+          title: Resource Labels
           default: {}
           additionalProperties:
             type: string
           description: Labels on the target resource
         resource_metadata:
           type: object
+          title: Resource Metadata
           default: {}
           additionalProperties: true
           description: Additional metadata about the target resource
         resource_project:
           type: string
+          title: Resource Project
           default: ""
           description: Project scope of the resource
 
     CanIResponse:
       type: object
       title: Can I Response
-      description: Authorization decision result
+      description: Authorization decision result.
       required:
         - allowed
         - denied
@@ -132,70 +138,76 @@ components:
       properties:
         allowed:
           type: boolean
+          title: Allowed
           description: Whether the action is allowed
         denied:
           type: boolean
+          title: Denied
           description: Whether the action is explicitly denied
         matched_policy:
           type: string
+          title: Matched Policy
           description: Name of the policy that matched
         denial_reason:
           type: string
+          title: Denial Reason
           description: Reason for denial (empty if allowed)
         denied_by:
           type: string
+          title: Denied By
           description: Name of the deny policy (empty if allowed)
 
     WhoCanRequest:
       type: object
-      title: Who Can Request
-      description: Request body for the Who Can? query
+      title: WhoCanRequest
+      description: Request body for the Who can? endpoint.
       required:
         - action
         - resource_type
       properties:
         action:
           type: string
-          description: The action to check
+          title: Action
         resource_type:
           type: string
-          description: The type of resource
+          title: Resource Type
         resource_id:
           type: string
           default: ""
-          description: Optional specific resource ID
+          title: Resource Id
         resource_labels:
           type: object
           default: {}
           additionalProperties:
             type: string
-          description: Labels on the target resource
+          title: Resource Labels
         resource_metadata:
           type: object
           default: {}
           additionalProperties: true
-          description: Additional metadata about the target resource
+          title: Resource Metadata
         resource_project:
           type: string
           default: ""
-          description: Project scope of the resource
+          title: Resource Project
         limit:
           type: integer
           default: 20
-          minimum: 1
-          maximum: 100
+          exclusiveMinimum: 0.0
+          maximum: 100.0
           description: Maximum number of results per page
+          title: Limit
         cursor:
-          type: string
-          format: uuid
-          nullable: true
-          default: null
-          description: Cursor for pagination (UUID of last user from previous page)
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Cursor
 
     WhoCanUser:
       type: object
-      title: Who Can User
-      description: A user who can perform the requested action
+      title: WhoCanUser
+      description: A user who can perform the requested action.
       required:
         - id
         - username
@@ -203,15 +215,15 @@ components:
         id:
           type: string
           format: uuid
-          description: User UUID
+          title: Id
         username:
           type: string
-          description: Username
+          title: Username
 
     WhoCanResponse:
       type: object
-      title: Who Can Response
-      description: Paginated list of users authorized to perform the action
+      title: WhoCanResponse
+      description: Response body for the Who can? endpoint.
       required:
         - users
       properties:
@@ -219,16 +231,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WhoCanUser"
+          title: Users
         next_cursor:
-          type: string
-          format: uuid
-          nullable: true
-          description: Cursor for the next page (null when no more results)
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Next Cursor
 
     PermissionEntry:
       type: object
-      title: Permission Entry
-      description: A single permission from a policy statement
+      title: PermissionEntry
+      description: A single permission from a policy statement.
       required:
         - policy_name
         - effect
@@ -237,27 +251,28 @@ components:
       properties:
         policy_name:
           type: string
-          description: Name of the policy
+          title: Policy Name
         effect:
           type: string
-          description: "allow or deny"
+          title: Effect
         actions:
           type: array
           items:
             type: string
-          description: List of resource_type:action strings
+          title: Actions
         scope:
           type: string
-          description: "any or self"
+          title: Scope
         project:
           type: string
           default: ""
+          title: Project
           description: Project scope (empty for system-level)
 
     WhatCanIResponse:
       type: object
-      title: What Can I Response
-      description: All permissions for the current user
+      title: WhatCanIResponse
+      description: Response body for the What can I? endpoint.
       required:
         - permissions
       properties:
@@ -265,6 +280,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PermissionEntry"
+          title: Permissions
 
   securitySchemes:
     bearerAuth:

@@ -10,10 +10,7 @@ from nexus.approvals.models.api_models import UserReference
 
 
 class BatchApprovalResult(SQLModel):
-    """Result for a single approval within a batch response.
-
-    Matches the BatchApprovalResult schema from the OpenAPI specification.
-    """
+    """Confirmation for a single approval within a batch response."""
 
     approval_id: UUID = Field(description="ID of the approval request")
     success: bool = Field(description="Whether the decision was successfully recorded")
@@ -29,10 +26,7 @@ class BatchApprovalResult(SQLModel):
 
 
 class BatchApprovalResponse(SQLModel):
-    """Response for batch approval submission.
-
-    Matches the BatchApprovalResponse schema from the OpenAPI specification.
-    """
+    """Response for batch approval submission."""
 
     results: list[BatchApprovalResult] = Field(description="Individual results for each decision")
     total_success: int = Field(ge=0, description="Number of successfully processed decisions")

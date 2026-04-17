@@ -88,6 +88,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post(
     "/login",
+    operation_id="login",
     summary="Login with username and password",
     description="""
     Authenticate with a username and password to receive a JWT access token.
@@ -95,6 +96,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     On success the response body contains an access token and the
     ``ao_refresh_token`` HttpOnly cookie is set.
     """,
+    response_description="Successful authentication",
     responses={
         401: {"description": "Invalid username or password"},
     },
@@ -204,6 +206,7 @@ async def login(
 
 @router.post(
     "/refresh",
+    operation_id="refresh_token",
     summary="Refresh access token",
     description="""
     Exchange a valid refresh token for a new access token.
@@ -213,6 +216,7 @@ async def login(
     lifetime (default 8 hours from login).  The cookie is re-set on every
     successful refresh so the ``max-age`` counter restarts.
     """,
+    response_description="New access token issued",
     responses={
         401: {"description": "Invalid or expired refresh token"},
     },
@@ -330,6 +334,7 @@ async def refresh_token(
 
 @router.post(
     "/logout",
+    operation_id="logout",
     summary="Terminate session",
     description="""
     Terminate the current session by revoking the refresh token.
@@ -340,6 +345,7 @@ async def refresh_token(
     minutes) since access tokens are stateless JWTs validated without a
     server round-trip.
     """,
+    response_description="Successfully logged out",
     responses={
         401: {"description": "Invalid or expired refresh token"},
     },
@@ -413,11 +419,13 @@ async def logout(
 
 @router.get(
     "/me",
+    operation_id="get_current_user",
     summary="Get current user",
     description="""
     Returns information about the currently authenticated user
     from the access token claims. No database round-trip is performed.
     """,
+    response_description="Current user information",
     responses={
         401: {"description": "Invalid or missing authentication"},
     },
@@ -444,12 +452,14 @@ async def get_me(
 
 @router.get(
     "/providers",
+    operation_id="list_auth_providers",
     summary="List enabled identity providers",
     description="""
     Returns a list of enabled identity providers for the login page.
     This is a public endpoint that does not require authentication.
     Only returns provider id, name, and type — no secrets or configuration details.
     """,
+    response_description="List of enabled identity providers",
 )
 async def list_auth_providers(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -477,6 +487,7 @@ async def list_auth_providers(
 
 @router.get(
     "/oidc/authorize",
+    operation_id="oidc_authorize",
     summary="Initiate OIDC login",
     description="""
     Initiates the OIDC authorization code flow. Redirects the user's browser
@@ -763,6 +774,7 @@ _OIDC_ERR_USER_FAILED = "Unable to sign in. Contact your administrator."
 
 @router.get(
     "/oidc/callback",
+    operation_id="oidc_callback",
     summary="OIDC callback",
     description="""
     Handles the OIDC callback after the user authenticates at the identity provider.

@@ -217,9 +217,9 @@ components:
       enum: [pending, running, completed, failed, retrying, skipped, cancelled]
 
     # Request/Response schemas
-    CreateWorkflowRequest:
+    WorkflowCreate:
       type: object
-      title: Create Workflow Request
+      title: WorkflowCreate
       description: Request payload for creating a new workflow from a v2 graph-based workflow definition
       required:
         - name
@@ -227,47 +227,79 @@ components:
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 255
+          description: Workflow name
         description:
           type: string
           maxLength: 2000
+          description: Workflow description
+        labels:
+          type: object
+          additionalProperties: true
+          default: {}
+          description: Workflow labels
         workflow_definition:
           $ref: ./workflow_definition.schema.json
         is_enabled:
           type: boolean
           default: true
-          description: Enable workflow for execution (defaults to true if not specified)
+          description: Enable workflow for execution
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Project to assign workflow to
 
-    PatchWorkflowRequest:
+    WorkflowUpdate:
       type: object
-      title: Patch Workflow Request
-      description: |
-        Request payload for updating workflow fields. Behavior depends on which fields are provided:
-        - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-        - With workflow_definition: Validates workflow definition, compares with current version, and creates new WorkflowVersion only if definition differs (change detection)
+      title: WorkflowUpdate
+      description: |-
+        Schema for updating workflow (PATCH /workflows/{id}).
 
-        Note: WorkflowVersion entities are read-only and managed automatically by the system.
+        All fields are optional for partial updates.
+        Supports metadata updates and workflow definition updates (creates new version).
       properties:
         name:
-          type: string
-          description: Update workflow name (metadata only, no version created)
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: "null"
+          title: Name
+          description: Update workflow name
         description:
-          type: string
-          maxLength: 2000
-          description: Update workflow description (metadata only, no version created)
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: "null"
+          title: Description
+          description: Update workflow description
         is_enabled:
-          type: boolean
-          description: Enable or disable workflow for execution (metadata only, no version created)
+          anyOf:
+            - type: boolean
+            - type: "null"
+          title: Is Enabled
+          description: Enable/disable workflow
         labels:
-          type: object
-          additionalProperties:
-            type: string
-          description: Update workflow labels (metadata only, no version created)
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+          title: Labels
+          description: Update workflow labels
         workflow_definition:
-          $ref: ./workflow_definition.schema.json
-          description: New workflow definition - creates new version only if definition differs from current version (change detection)
+          anyOf:
+            - $ref: ./workflow_definition.schema.json
+            - type: "null"
+          title: Workflow Definition
+          description: New workflow definition (auto-creates version)
         change_description:
-          type: string
-          description: Description of changes (used when creating new version via workflow_definition)
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Change Description
+          description: Description of changes for version history
 
     CreateExecutionRequest:
       type: object

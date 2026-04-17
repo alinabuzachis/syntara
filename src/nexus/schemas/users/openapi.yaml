@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Nexus Users & Groups API
   version: 1.0.0
@@ -24,8 +24,11 @@ paths:
   # ── Users ───────────────────────────────────────────────────────────
   /users:
     get:
-      summary: List users
-      description: Retrieve list of users with filtering and pagination
+      summary: List Users
+      description: |-
+        List users with filtering, sorting, and pagination.
+
+        Uses cursor-based pagination for scalability and consistency.
       operationId: list_users
       tags:
         - Users
@@ -47,9 +50,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserListResponse'
 
+      security:
+        - bearerAuth: []
     post:
-      summary: Create a new local user
-      description: Create a new local user account with username and password
+      summary: Create User
+      description: Create a new local user.
       operationId: create_user
       tags:
         - Users
@@ -73,10 +78,12 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
   /users/{user_id}:
     get:
-      summary: Get user by ID
-      description: Retrieve a user by their UUID
+      summary: Get User
+      description: Get a user by ID.
       operationId: get_user
       tags:
         - Users
@@ -102,11 +109,14 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     patch:
-      summary: Update user
-      description: |
-        Partially update a user. Only provided fields are updated.
-        Include the password field to change the user's password.
+      summary: Update User
+      description: |-
+        Update a user.
+
+        Supports partial updates - only provided fields are updated.
       operationId: update_user
       tags:
         - Users
@@ -150,9 +160,11 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     delete:
-      summary: Delete user
-      description: Soft delete a user account
+      summary: Delete User
+      description: Soft delete a user.
       operationId: delete_user
       tags:
         - Users
@@ -174,10 +186,12 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
   /users/{user_id}/groups:
     get:
-      summary: List user's groups
-      description: List groups that a user belongs to
+      summary: List User Groups
+      description: List groups that a user belongs to.
       operationId: list_user_groups
       tags:
         - Users
@@ -205,11 +219,15 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     put:
-      summary: Set user's group memberships
-      description: |
-        Declaratively set a user's group memberships. The provided list replaces
-        all current memberships. An empty list removes the user from all groups.
+      summary: Set User Groups
+      description: |-
+        Set a user's group memberships declaratively.
+
+        Replace all current memberships with the provided list of group IDs.
+        An empty list removes the user from all groups.
       operationId: set_user_groups
       tags:
         - Users
@@ -241,11 +259,13 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  # ── Groups ──────────────────────────────────────────────────────────
+      # ── Groups ──────────────────────────────────────────────────────────
+      security:
+        - bearerAuth: []
   /groups:
     get:
-      summary: List groups
-      description: Retrieve list of groups with filtering and pagination
+      summary: List Groups
+      description: Retrieve list of groups with filtering and pagination.
       operationId: list_groups
       tags:
         - Groups
@@ -267,9 +287,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/GroupListResponse'
 
+      security:
+        - bearerAuth: []
     post:
-      summary: Create a new group
-      description: Create a new group for organizing users
+      summary: Create Group
+      description: Create a new group for organizing users.
       operationId: create_group
       tags:
         - Groups
@@ -293,10 +315,12 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
   /groups/{group_id}:
     get:
-      summary: Get group by ID
-      description: Retrieve a group by its UUID
+      summary: Get Group
+      description: Retrieve a group by its UUID.
       operationId: get_group
       tags:
         - Groups
@@ -322,8 +346,10 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     patch:
-      summary: Update group
+      summary: Update Group
       description: Partially update a group. Only provided fields are updated.
       operationId: update_group
       tags:
@@ -362,9 +388,11 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     delete:
-      summary: Delete group
-      description: Soft delete a group
+      summary: Delete Group
+      description: Soft delete a group.
       operationId: delete_group
       tags:
         - Groups
@@ -386,10 +414,12 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
   /groups/{group_id}/members:
     get:
-      summary: List group members
-      description: List members of a group with pagination
+      summary: List Members
+      description: List members of a group with pagination.
       operationId: list_members
       tags:
         - Groups
@@ -417,9 +447,11 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     post:
-      summary: Add member to group
-      description: Add a local user to a group
+      summary: Add Member
+      description: Add a local user to a group.
       operationId: add_member
       tags:
         - Groups
@@ -463,10 +495,12 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
   /groups/{group_id}/members/{user_id}:
     delete:
-      summary: Remove member from group
-      description: Remove a user from a group
+      summary: Remove Member
+      description: Remove a user from a group.
       operationId: remove_member
       tags:
         - Groups
@@ -501,11 +535,18 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     # ── User schemas ────────────────────────────────────────────────
     UserCreate:
       type: object
+      title: UserCreate
+      description: |-
+        Schema for creating a new local user (POST /users).
+
+        Excludes auto-generated fields: id, created_at, updated_at, last_login, preferences.
       required:
         - username
         - email
@@ -517,48 +558,78 @@ components:
           minLength: 1
           maxLength: 255
           description: Unique username
+          title: Username
         email:
           type: string
           format: email
           maxLength: 255
           description: Unique email address
+          title: Email
         full_name:
           type: string
           minLength: 1
           maxLength: 255
           description: User's display name
+          title: Full Name
         password:
           type: string
           format: password
+          writeOnly: true
+          minLength: 8
           description: Plaintext password (will be hashed)
+          title: Password
         is_active:
           type: boolean
           default: true
           description: Account activation status
+          title: Is Active
 
     UserUpdate:
       type: object
+      title: UserUpdate
+      description: |-
+        Schema for updating a user (PATCH /users/{id}).
+
+        All fields are optional for partial updates.
       properties:
         full_name:
-          type: string
-          minLength: 1
-          maxLength: 255
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: 'null'
           description: Update display name
+          title: Full Name
         email:
-          type: string
-          format: email
-          maxLength: 255
+          anyOf:
+            - type: string
+              format: email
+              maxLength: 255
+            - type: 'null'
           description: Update email address
+          title: Email
         password:
-          type: string
-          format: password
+          anyOf:
+            - type: string
+              format: password
+              writeOnly: true
+            - type: 'null'
           description: New password (will be hashed). Omit to keep current password.
+          title: Password
         is_active:
-          type: boolean
+          anyOf:
+            - type: boolean
+            - type: 'null'
           description: Enable or disable user account
+          title: Is Active
 
     UserRead:
       type: object
+      title: UserRead
+      description: |-
+        Schema for user response (GET /users/{id}).
+
+        Includes all user fields except sensitive data (password_hash, preferences).
       required:
         - id
         - username
@@ -571,33 +642,33 @@ components:
         id:
           type: string
           format: uuid
-          description: User UUID
+          title: Id
         username:
           type: string
-          description: Username
+          title: Username
         email:
           type: string
-          format: email
-          description: Email address
+          title: Email
         full_name:
           type: string
-          description: Display name
+          title: Full Name
         is_active:
           type: boolean
-          description: Account active status
+          title: Is Active
         last_login:
-          type: string
-          format: date-time
-          nullable: true
-          description: Last login timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Login
         created_at:
           type: string
           format: date-time
-          description: Creation timestamp
+          title: Created At
         updated_at:
           type: string
           format: date-time
-          description: Last update timestamp
+          title: Updated At
 
     UserListResponse:
       allOf:
@@ -614,18 +685,27 @@ components:
 
     UserGroupsSet:
       type: object
+      title: UserGroupsSet
+      description: |-
+        Schema for declaratively setting a user's group memberships (PUT /users/{id}/groups).
+
+        The provided list replaces all current memberships. An empty list removes
+        the user from all groups.
       properties:
         group_ids:
           type: array
           items:
             type: string
             format: uuid
-          default: []
           description: Complete list of group IDs the user should belong to
+          title: Group Ids
 
     # ── Group schemas ───────────────────────────────────────────────
     GroupCreate:
       type: object
+      title: GroupCreate
+      description: |-
+        Schema for creating a new group (POST /groups).
       required:
         - name
       properties:
@@ -633,29 +713,47 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-          description: Unique group name
+          description: Group name
+          title: Name
         description:
-          type: string
-          maxLength: 1000
-          nullable: true
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
           description: Group description
+          title: Description
 
     GroupUpdate:
       type: object
+      title: GroupUpdate
+      description: |-
+        Schema for updating a group (PATCH /groups/{id}).
+
+        All fields are optional for partial updates.
       properties:
         name:
-          type: string
-          minLength: 1
-          maxLength: 255
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: 'null'
           description: Update group name
+          title: Name
         description:
-          type: string
-          maxLength: 1000
-          nullable: true
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
           description: Update group description
+          title: Description
 
     GroupRead:
       type: object
+      title: GroupRead
+      description: |-
+        Schema for group response (GET /groups/{id}).
+
+        Includes all fields from the database table model.
       required:
         - id
         - name
@@ -665,39 +763,41 @@ components:
         id:
           type: string
           format: uuid
-          description: Group UUID
+          title: Id
         name:
           type: string
-          description: Group name
+          title: Name
         description:
-          type: string
-          nullable: true
-          description: Group description
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Description
         is_builtin:
           type: boolean
           default: false
-          description: Whether this is a seeded builtin group (e.g. admins, authenticated)
+          title: Is Builtin
         created_by:
-          type: string
-          format: uuid
-          nullable: true
-          description: User who created the group
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Created By
         created_at:
           type: string
           format: date-time
-          description: Creation timestamp
+          title: Created At
         updated_at:
           type: string
           format: date-time
-          description: Last update timestamp
+          title: Updated At
         source:
           type: string
           default: local
-          description: Source of group creation (local or idp)
+          title: Source
         member_count:
           type: integer
           default: 0
-          description: Number of members in the group
+          title: Member Count
 
     GroupListResponse:
       allOf:
@@ -714,6 +814,8 @@ components:
 
     GroupMemberAdd:
       type: object
+      title: GroupMemberAdd
+      description: Schema for adding a member to a group (POST /groups/{id}/members).
       required:
         - user_id
       properties:
@@ -721,14 +823,18 @@ components:
           type: string
           format: uuid
           description: UUID of the user to add to the group
+          title: User Id
 
     GroupMemberAddResponse:
       type: object
+      title: GroupMemberAddResponse
+      description: Response schema for adding a member to a group.
       properties:
         message:
           type: string
           default: Member added successfully
           description: Confirmation message
+          title: Message
 
   securitySchemes:
     bearerAuth:

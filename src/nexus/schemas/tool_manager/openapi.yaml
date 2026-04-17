@@ -6,7 +6,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: /api/v1/tool_manager
+  - url: /api/v1
     description: API server (relative path)
 
 # Reference shared resource schemas
@@ -15,10 +15,29 @@ x-shared-contracts:
     namespace: shared
 
 paths:
-  /tools:
+  /tool_manager/tools:
     get:
-      summary: List all tools
-      description: Retrieve list of tools from all Tool Providers with filtering
+      summary: Get Tools
+      description: |-
+        List tools with filtering, sorting, and pagination.
+
+        Supports filtering using query parameters with standard operators:
+        - name: Filter by tool name (name=tool_name, name[contains]=text)
+        - enabled: Filter by enabled status (enabled=true|false)
+        - status: Filter by tool status (status=available|missing|error)
+        - provider_id: Filter by provider ID (provider_id=uuid)
+        - namespaced_name: Filter by namespaced name (namespaced_name[contains]=text)
+        - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+        Uses cursor-based pagination for scalability and consistency.
+
+        Args:
+            request: FastAPI request object containing query parameters
+            service: Tool service
+            params: Query parameters for pagination and filtering
+
+        Returns:
+            ToolListResponse with tools, pagination metadata, and optional total
       operationId: get_tools
       parameters:
         - name: status
@@ -79,17 +98,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/ToolWithParameters'
-                        maxItems: 100
-                    required:
-                      - resources
+                $ref: '#/components/schemas/ToolListResponse'
         '403':
           description: Admin access required
           content:
@@ -97,10 +106,26 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  /tools/{tool_id}:
+      security:
+        - bearerAuth: []
+  /tool_manager/tools/{tool_id}:
     get:
-      summary: Get tool details
-      description: Retrieve detailed information about specific tool
+      summary: Get Tool
+      description: |-
+        Get tool details by ID.
+
+        Returns detailed information about a specific tool including
+        parameters, status, and metadata.
+
+        Args:
+            tool_id: UUID of the tool to retrieve
+            service: Tool service
+
+        Returns:
+            ToolWithParameters instance with full details
+
+        Raises:
+            HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
       operationId: get_tool
       parameters:
         - name: tool_id
@@ -129,9 +154,26 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     patch:
-      summary: Update tool configuration
-      description: Update tool enablement status and configuration
+      summary: Patch Tool
+      description: |-
+        Update tool status (enable/disable).
+
+        Updates the tool's status to enable or disable it for use.
+        Only admin-controllable status changes are allowed (available/disabled).
+
+        Args:
+            tool_id: UUID of the tool to update
+            tool_update: Tool update data with status
+            service: Tool service
+
+        Returns:
+            Updated Tool instance
+
+        Raises:
+            HTTPException: 400 for validation errors, 404 if not found, 403 for auth
       operationId: patch_tool
       parameters:
         - name: tool_id
@@ -172,10 +214,26 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  /tools/bulk_update:
+      security:
+        - bearerAuth: []
+  /tool_manager/tools/bulk_update:
     patch:
-      summary: Bulk update tool enablement
-      description: Enable or disable multiple tools at once
+      summary: Bulk Update Tools
+      description: |-
+        Bulk update tool status (enable/disable multiple tools).
+
+        Updates the status of multiple tools in a single operation.
+        Only admin-controllable status changes are allowed (available/disabled).
+
+        Args:
+            bulk_update: Bulk update request with tool IDs and status
+            service: Tool service
+
+        Returns:
+            Dictionary with update statistics and timestamp
+
+        Raises:
+            HTTPException: 400 for validation errors, 403 for auth
       operationId: bulk_update_tools
       requestBody:
         required: true
@@ -186,10 +244,6 @@ paths:
       responses:
         '200':
           description: Tools updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ToolBulkUpdateResponse'
         '400':
           description: Invalid request
           content:
@@ -203,10 +257,30 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  /tool_providers:
+      security:
+        - bearerAuth: []
+  /tool_manager/tool_providers:
     get:
-      summary: List all registered Tool Providers
-      description: Retrieve list of all Tool Providers with optional filtering
+      summary: Get Tool Providers
+      description: |-
+        List tool providers with filtering, sorting, and pagination.
+
+        Supports filtering using query parameters with standard operators:
+        - name: Filter by provider name (name=provider_name, name[contains]=text)
+        - status: Filter by provider status (status=validating|available|error)
+        - enabled: Filter by enabled status (enabled=true|false)
+        - provider_type: Filter by provider type (provider_type=openapi)
+        - labels: Filter by labels using bracket notation (labels[environment]=production)
+
+        Uses cursor-based pagination for scalability and consistency.
+
+        Args:
+            request: FastAPI request object containing query parameters
+            service: Tool provider service
+            params: Query parameters for pagination and filtering
+
+        Returns:
+            ToolProviderListResponse with providers, pagination metadata, and optional total
       operationId: get_tool_providers
       parameters:
         - name: status
@@ -286,9 +360,25 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     post:
-      summary: Register new Tool Provider
-      description: Register a new external Tool Provider
+      summary: Register Tool Provider
+      description: |-
+        Register a new Tool Provider.
+
+        Creates a new tool provider with the specified configuration.
+        The provider starts in 'validating' status.
+
+        Args:
+            provider_create: Provider configuration and metadata
+            service: Tool provider service
+
+        Returns:
+            Created ToolProvider instance
+
+        Raises:
+            HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
       operationId: register_tool_provider
       requestBody:
         required: true
@@ -322,10 +412,26 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  /tool_providers/{provider_id}:
+      security:
+        - bearerAuth: []
+  /tool_manager/tool_providers/{provider_id}:
     get:
-      summary: Get Tool Provider details
-      description: Retrieve detailed information about specific Tool Provider
+      summary: Get Tool Provider
+      description: |-
+        Get Tool Provider details by ID.
+
+        Returns detailed information about a specific Tool Provider including
+        configuration, status, and metadata.
+
+        Args:
+            provider_id: UUID of the provider to retrieve
+            service: Tool provider service
+
+        Returns:
+            ToolProvider instance with full details
+
+        Raises:
+            HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
       operationId: get_tool_provider
       parameters:
         - name: provider_id
@@ -354,9 +460,26 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     put:
-      summary: Update Tool Provider configuration
-      description: Update configuration of existing Tool Provider
+      summary: Update Tool Provider
+      description: |-
+        Update Tool Provider configuration (complete replacement).
+
+        Performs a complete replacement of the provider configuration.
+        All fields in the request body will replace existing values.
+
+        Args:
+            provider_id: UUID of the provider to update
+            provider_update: New provider configuration
+            service: Tool provider service
+
+        Returns:
+            Updated ToolProvider instance
+
+        Raises:
+            HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
       operationId: update_tool_provider
       parameters:
         - name: provider_id
@@ -397,9 +520,26 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     patch:
-      summary: Partially update Tool Provider configuration
-      description: Partially update configuration of existing Tool Provider
+      summary: Patch Tool Provider
+      description: |-
+        Patch Tool Provider.
+
+        Performs a partial update of the provider configuration.
+        Only provided fields are updated, configuration objects are replaced.
+
+        Args:
+            provider_id: UUID of the provider to patch
+            provider_patch: Partial update data
+            service: Tool provider service
+
+        Returns:
+            Updated ToolProvider instance
+
+        Raises:
+            HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
       operationId: patch_tool_provider
       parameters:
         - name: provider_id
@@ -440,9 +580,22 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
     delete:
-      summary: Remove Tool Provider
-      description: Remove Tool Provider and all associated tools
+      summary: Delete Tool Provider
+      description: |-
+        Remove Tool Provider and all associated tools.
+
+        Performs a soft delete of the provider and cascades to associated tools.
+        The provider will no longer be accessible but remains in the database.
+
+        Args:
+            provider_id: UUID of the provider to delete
+            service: Tool provider service
+
+        Raises:
+            HTTPException: 404 if provider not found, 403 for auth
       operationId: delete_tool_provider
       parameters:
         - name: provider_id
@@ -467,10 +620,26 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  /tool_providers/{provider_id}/validate:
+      security:
+        - bearerAuth: []
+  /tool_manager/tool_providers/{provider_id}/validate:
     post:
-      summary: Validate Tool Provider connection
-      description: Test connection and validate Tool Provider compatibility
+      summary: Validate Tool Provider
+      description: |-
+        Validate Tool Provider connection and capabilities.
+
+        Tests the connection to the tool provider and validates compatibility.
+        Updates the provider status based on validation results.
+
+        Args:
+            provider_id: UUID of the provider to validate
+            service: Tool provider service
+
+        Returns:
+            Validation result with status and capability details (always 200)
+
+        Raises:
+            HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
       operationId: validate_tool_provider
       parameters:
         - name: provider_id
@@ -499,10 +668,26 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  /tool_providers/{provider_id}/refresh_tools:
+      security:
+        - bearerAuth: []
+  /tool_manager/tool_providers/{provider_id}/refresh_tools:
     post:
-      summary: Refresh tools from Tool Provider
-      description: Connect to Tool Provider and refresh available tools
+      summary: Refresh Tool Provider
+      description: |-
+        Refresh tools from Tool Provider.
+
+        Connects to the tool provider and refreshes the list of available tools.
+        Creates new tools, updates existing ones, and disables missing tools.
+
+        Args:
+            provider_id: UUID of the provider to refresh
+            service: Tool provider service
+
+        Returns:
+            Refresh statistics including counts and timestamp
+
+        Raises:
+            HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
       operationId: refresh_tool_provider
       parameters:
         - name: provider_id
@@ -537,12 +722,26 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
-  /tool_providers/test:
+      security:
+        - bearerAuth: []
+  /tool_manager/tool_providers/test:
     post:
-      summary: Test Tool Provider definition
-      description: |
-        Test a Tool Provider definition without saving it to the database.
-        Validates the configuration and tests connectivity using the appropriate adapter.
+      summary: Test Tool Provider
+      description: |-
+        Test Tool Provider definition without saving to database.
+
+        Validates the provider configuration and tests connectivity using the appropriate adapter.
+        This endpoint allows testing provider definitions before registering them.
+
+        Args:
+            provider_create: Provider configuration to test
+            service: Tool provider service
+
+        Returns:
+            ToolProviderValidationResult with test results (always 200)
+
+        Raises:
+            HTTPException: 403 for auth, 500 for unexpected errors
       operationId: test_tool_provider
       requestBody:
         required: true
@@ -564,161 +763,463 @@ paths:
               schema:
                 $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
-    ToolWithParameters:
-      allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
-        - type: object
-          properties:
-            provider_id:
-              type: string
-              format: uuid
-              description: UUID of the associated tool provider
-            namespaced_name:
-              type: string
-              maxLength: 200
-              description: Unique namespaced name for the tool
-            enabled:
-              type: boolean
-              default: true
-              description: Whether the tool is enabled
-            status:
-              type: string
-              enum: [available, missing, error]
-              default: available
-              description: Current status of the tool
-            last_executed_at:
-              type: [string, "null"]
-              format: date-time
-              description: Timestamp of last execution
-            last_refreshed_at:
-              type: [string, "null"]
-              format: date-time
-              description: Timestamp of last refresh from provider
-            refresh_error:
-              type: [string, "null"]
-              description: Error message from last refresh attempt
-            parameters:
-              type: array
-              items:
-                $ref: '#/components/schemas/ToolParameter'
-              description: Tool parameters
-          required:
-            - provider_id
-            - namespaced_name
-            - enabled
-            - status
-            - parameters
-
-    ToolParameter:
+    ToolListResponse:
       type: object
+      title: ToolListResponse
+      description: Paginated list response for tools.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      required:
+        - resources
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for next page of results
+          title: Next
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for previous page of results
+          title: Prev
+        resources:
+          type: array
+          items: {}
+          description: Array of resources in current page
+          title: Resources
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: 'null'
+          description: Total count of resources (only when include_total=true)
+          title: Total
+
+    ProviderStatus:
+      type: string
+      title: ProviderStatus
+      description: Status of a tool provider.
+      enum:
+        - available
+        - error
+        - validating
+
+    ToolStatus:
+      type: string
+      title: ToolStatus
+      description: Status of a tool.
+      enum:
+        - available
+        - missing
+        - error
+
+    ToolParameterType:
+      type: string
+      title: ToolParameterType
+      description: Parameter types for tools.
+      enum:
+        - string
+        - number
+        - boolean
+        - object
+        - array
+
+    ToolProviderListResponse:
+      type: object
+      title: ToolProviderListResponse
+      description: Paginated list response for tool providers.
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolProviderWithConfiguration'
+          description: Array of resources in current page
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          description: Total count of resources (only when include_total=true)
+      required:
+        - resources
+
+    ToolWithParameters:
+      type: object
+      title: ToolWithParameters
+      additionalProperties: false
+      description: Schema for Tool response with ToolParameter details.
+      required:
+        - created_by
+        - name
+        - provider_id
+        - namespaced_name
+        - parameters
       properties:
         id:
           type: string
           format: uuid
+          title: Id
+          description: Unique identifier for the resource
         name:
           type: string
-          maxLength: 100
-        type:
-          type: string
-          enum: [string, number, boolean, object, array]
+          minLength: 1
+          maxLength: 255
+          title: Name
+          description: Human-readable name for the resource
         description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Detailed description of the resource
+        created_at:
           type: string
-        required:
+          format: date-time
+          title: Created At
+          description: Timestamp when resource was created
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: Timestamp when resource was last updated
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+          description: User who created the resource
+        updated_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Updated By
+          description: User who last updated the resource
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Deleted At
+          description: Timestamp when resource was soft deleted
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Deleted By
+          description: User who performed the soft delete
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+        provider_id:
+          type: string
+          format: uuid
+          title: Provider Id
+          description: UUID of the associated tool provider
+        namespaced_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          title: Namespaced Name
+          description: Unique namespaced name for the tool
+        enabled:
           type: boolean
-        default_value:
-          type: object
-        example_value:
-          type: object
+          default: true
+          title: Enabled
+          description: Whether the tool is enabled
+        status:
+          $ref: '#/components/schemas/ToolStatus'
+          default: available
+          description: Current status of the tool
+        last_executed_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Executed At
+          description: Timestamp of last execution
+        last_refreshed_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Refreshed At
+          description: Timestamp of last refresh from provider
+        refresh_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Refresh Error
+          description: Error message from last refresh attempt
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolParameter'
+          title: Parameters
+          description: Tool parameters
+
+    ToolParameter:
+      type: object
+      title: ToolParameter
+      additionalProperties: false
+      description: |-
+        Tool parameter definition stored in database.
+
+        Represents a parameter that a tool accepts, with its type, validation rules,
+        and example values.
+
+        Inherits from BaseResource:
+            id: UUID primary key
+            created_at: Creation timestamp
+            updated_at: Last update timestamp
+            labels: Optional key-value metadata
       required:
-        - id
+        - tool_id
         - name
         - type
         - description
         - required
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique identifier for the resource
+        tool_id:
+          type: string
+          format: uuid
+          title: Tool Id
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          title: Name
+          description: Parameter name
+        type:
+          $ref: '#/components/schemas/ToolParameterType'
+          description: Parameter type
+        description:
+          type: string
+          title: Description
+          description: Parameter description
+        required:
+          type: boolean
+          title: Required
+          description: Whether this parameter is required
+        default_value:
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+          title: Default Value
+          description: Default value for the parameter
+        example_value:
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+          title: Example Value
+          description: Example value for the parameter
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Timestamp when resource was created
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: Timestamp when resource was last updated
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
 
     ToolUpdate:
       type: object
+      title: ToolUpdate
+      additionalProperties: false
+      description: Model for updating tool configuration.
       properties:
         enabled:
-          type: boolean
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Enabled
+          description: Whether the tool is enabled
         status:
-          type: string
-          enum: [available, missing, error]
+          anyOf:
+            - $ref: '#/components/schemas/ToolStatus'
+            - type: 'null'
           description: Current status of the tool
         refresh_error:
-          type: [string, "null"]
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Refresh Error
           description: Error message from last refresh attempt
 
     ToolBulkUpdate:
       type: object
+      title: ToolBulkUpdate
+      additionalProperties: false
+      description: |-
+        Request model for bulk updating tool status.
+
+        Attributes:
+            tool_ids: List of tool UUIDs to update (max 50)
+            enabled: Enable or disable the Tool.
       properties:
         tool_ids:
           type: array
+          title: Tool Ids
           items:
             type: string
             format: uuid
           maxItems: 50
-          minItems: 1
           description: List of tool UUIDs to update (max 50)
         enabled:
           type: boolean
-          description: Enable/disable the tools
+          title: Enabled
+          description: Enable/disable the Tool
       required:
         - tool_ids
         - enabled
 
-    ToolBulkUpdateResponse:
+    ToolProviderWithConfiguration:
       type: object
+      title: ToolProviderWithConfiguration
+      additionalProperties: false
+      description: Schema for ToolProvider response with ProviderConfiguration details.
+      required:
+        - created_by
+        - name
+        - configuration
       properties:
-        updated_count:
-          type: integer
-          description: Number of tools successfully updated
-        skipped_count:
-          type: integer
-          description: Number of tools skipped (already in target state)
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Unique identifier for the resource
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+          description: Human-readable provider name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Detailed description of the resource
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: Timestamp when resource was created
         updated_at:
           type: string
           format: date-time
-          description: Timestamp when bulk update completed
-      required:
-        - updated_count
-        - skipped_count
-        - updated_at
-
-    ToolProviderWithConfiguration:
-      allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
-        - type: object
-          properties:
-            configuration:
-              description: Provider-specific configuration
-              discriminator:
-                propertyName: provider_type
-              oneOf:
-                - $ref: '#/components/schemas/MCPConfiguration'
-            enabled:
-              type: boolean
-              default: true
-            status:
-              type: string
-              enum: [available, error, validating]
-              default: validating
-            last_validated_at:
-              type: [string, "null"]
+          title: Updated At
+          description: Timestamp when resource was last updated
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+          description: User who created the resource
+        updated_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Updated By
+          description: User who last updated the resource
+        deleted_at:
+          anyOf:
+            - type: string
               format: date-time
-            validation_error:
-              type: [string, "null"]
-          required:
-            - configuration
+            - type: 'null'
+          title: Deleted At
+          description: Timestamp when resource was soft deleted
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Deleted By
+          description: User who performed the soft delete
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+        enabled:
+          type: boolean
+          default: true
+          title: Enabled
+          description: Enable/disable the provider
+        status:
+          $ref: '#/components/schemas/ProviderStatus'
+          default: validating
+          description: Current status of the provider
+        last_validated_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Validated At
+          description: Timestamp of last validation
+        validation_error:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Validation Error
+          description: Error message from last validation attempt
+        configuration:
+          $ref: '#/components/schemas/MCPConfiguration'
+          description: ToolProvider configuration
 
     ToolProviderCreate:
       type: object
+      title: ToolProviderCreate
+      description: |-
+        ToolProviderCreate model for creating new tool providers.
+
+        Contains only the fields needed to create a new tool provider.
+        This model is used for API requests when creating new tool providers.
+
+        Attributes:
+            name: Human-readable name (required, 1-255 chars)
+            description: Optional detailed description (max 2000 chars)
+            configuration: Provider configuration (required)
       properties:
         name:
           type: string
@@ -727,14 +1228,19 @@ components:
           title: Name
           description: Human-readable name for the provider
         description:
-          type: [string, "null"]
-          maxLength: 2000
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
           title: Description
           description: Detailed description of the provider
         configuration:
-          description: Provider-specific configuration
+          title: Configuration
+          description: Provider configuration
           discriminator:
             propertyName: provider_type
+            mapping:
+              mcp: '#/components/schemas/MCPConfiguration'
           oneOf:
             - $ref: '#/components/schemas/MCPConfiguration'
       required:
@@ -743,64 +1249,119 @@ components:
 
     ToolProviderPatch:
       type: object
+      title: ToolProviderPatch
+      additionalProperties: false
+      description: |-
+        ToolProviderPatch model for partially updating tool providers.
+
+        All fields are optional to support.
+        This model is used for API PATCH requests when updating existing tool providers.
+
+        Attributes:
+            name: Optional human-readable name (1-255 chars)
+            description: Optional detailed description (max 2000 chars)
+            configuration: Optional provider-specific configuration
+            enabled: Optional enable/disable flag
+            status: Optional provider status
+            validation_error: Optional error message from validation attempts
       properties:
         name:
-          type: string
-          minLength: 1
-          maxLength: 255
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: 'null'
+          title: Name
           description: Human-readable name for the provider
         description:
-          type: [string, "null"]
-          maxLength: 2000
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
           description: Detailed description of the provider
         configuration:
+          anyOf:
+            - discriminator:
+                propertyName: provider_type
+                mapping:
+                  mcp: '#/components/schemas/MCPConfiguration'
+              oneOf:
+                - $ref: '#/components/schemas/MCPConfiguration'
+            - type: 'null'
+          title: Configuration
           description: Provider-specific configuration
-          discriminator:
-            propertyName: provider_type
-          oneOf:
-            - $ref: '#/components/schemas/MCPConfiguration'
         enabled:
-          type: [boolean, "null"]
+          anyOf:
+            - type: boolean
+            - type: 'null'
+          title: Enabled
           description: Enable/disable the provider
         status:
-          type: [string, "null"]
-          enum: [available, error, validating]
+          anyOf:
+            - $ref: '#/components/schemas/ProviderStatus'
+            - type: 'null'
           description: Current status of the provider
         validation_error:
-          type: [string, "null"]
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Validation Error
           description: Error message from last validation attempt
-      description: |
-        Schema for partially updating a Tool Provider.
-        All fields are optional - only include fields you want to update.
-        If updating the configuration a provider_type must still be provided.
 
     MCPConfiguration:
-      allOf:
-        - type: object
-          properties:
-            provider_type:
-              const: mcp
-            base_url:
-              type: string
-              format: uri
-            api_key:
-              type: [string, "null"]
-          required:
-            - provider_type
-            - base_url
+      type: object
+      title: MCPConfiguration
+      description: Configuration for MCP (Model Context Protocol) providers.
+      additionalProperties: false
+      required:
+        - base_url
+      properties:
+        provider_type:
+          type: string
+          const: mcp
+          default: mcp
+          title: Provider Type
+        base_url:
+          type: string
+          title: Base Url
+          description: Base URL for the MCP provider
+          format: uri
+        api_key:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Api Key
+          description: API key for authentication (optional)
 
     ToolProviderValidationResult:
       type: object
+      title: ToolProviderValidationResult
+      additionalProperties: false
+      description: |-
+        Result of validating a connection to a tool provider.
+
+        Attributes:
+            valid: Whether the connection validation was successful
+            provider_type: The type of provider that was validated
+            validated_at: Timestamp when validation was performed
+            error: Optional error message if validation failed
       properties:
         valid:
           type: boolean
+          title: Valid
         provider_type:
           type: string
+          title: Provider Type
         validated_at:
           type: string
           format: date-time
+          title: Validated At
         error:
-          type: [string, "null"]
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error
       required:
         - valid
         - provider_type
@@ -808,16 +1369,30 @@ components:
 
     ToolProviderRefreshResult:
       type: object
+      title: ToolProviderRefreshResult
+      additionalProperties: false
+      description: |-
+        Result of refreshing tools from a tool provider.
+
+        Attributes:
+            refreshed_count: Number of new tools discovered and added
+            updated_count: Number of existing tools that were updated
+            disabled_count: Number of tools that were disabled (not found in provider)
+            refreshed_at: Timestamp when refresh operation was performed
       properties:
         refreshed_count:
           type: integer
+          title: Refreshed Count
         updated_count:
           type: integer
+          title: Updated Count
         disabled_count:
           type: integer
+          title: Disabled Count
         refreshed_at:
           type: string
           format: date-time
+          title: Refreshed At
       required:
         - refreshed_count
         - updated_count

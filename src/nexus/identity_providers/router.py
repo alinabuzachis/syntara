@@ -54,7 +54,12 @@ class OIDCTestRequest(IdentityProviderCreate):
     """Request body for testing an OIDC connection."""
 
 
-@router.post("/test", dependencies=[Depends(_idp_test)])
+@router.post(
+    "/test",
+    dependencies=[Depends(_idp_test)],
+    operation_id="test_identity_provider",
+    response_description="Test results",
+)
 async def test_identity_provider(
     provider_create: OIDCTestRequest,
     current_user: Annotated[User, Depends(get_current_user)],  # noqa: ARG001
@@ -68,7 +73,12 @@ async def test_identity_provider(
 # ============================================================================
 
 
-@router.get("/", dependencies=[Depends(_idp_read)])
+@router.get(
+    "/",
+    dependencies=[Depends(_idp_read)],
+    operation_id="list_identity_providers",
+    response_description="List of identity providers",
+)
 async def list_identity_providers(
     request: Request,
     service: Annotated[IdentityProviderService, Depends(get_identity_provider_service)],
@@ -84,7 +94,13 @@ async def list_identity_providers(
     )
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED, dependencies=[Depends(_idp_create)])
+@router.post(
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_idp_create)],
+    operation_id="create_identity_provider",
+    response_description="Identity provider created",
+)
 async def create_identity_provider(
     provider_create: IdentityProviderCreate,
     service: Annotated[IdentityProviderService, Depends(get_identity_provider_service)],
@@ -93,7 +109,12 @@ async def create_identity_provider(
     return await service.create_provider(provider_create)
 
 
-@router.get("/{provider_id}", dependencies=[Depends(_idp_read)])
+@router.get(
+    "/{provider_id}",
+    dependencies=[Depends(_idp_read)],
+    operation_id="get_identity_provider",
+    response_description="Identity provider details",
+)
 async def get_identity_provider(
     provider_id: UUID,
     service: Annotated[IdentityProviderService, Depends(get_identity_provider_service)],
@@ -102,7 +123,7 @@ async def get_identity_provider(
     return await service.get_provider(provider_id)
 
 
-@router.patch("/{provider_id}", dependencies=[Depends(_idp_update)])
+@router.patch("/{provider_id}", dependencies=[Depends(_idp_update)], operation_id="patch_identity_provider")
 async def patch_identity_provider(
     provider_id: UUID,
     provider_patch: IdentityProviderPatch,
@@ -112,7 +133,13 @@ async def patch_identity_provider(
     return await service.patch_provider(provider_id, provider_patch)
 
 
-@router.delete("/{provider_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(_idp_delete)])
+@router.delete(
+    "/{provider_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(_idp_delete)],
+    operation_id="delete_identity_provider",
+    response_description="Identity provider deleted",
+)
 async def delete_identity_provider(
     provider_id: UUID,
     service: Annotated[IdentityProviderService, Depends(get_identity_provider_service)],

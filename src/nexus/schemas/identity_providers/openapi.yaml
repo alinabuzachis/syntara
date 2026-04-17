@@ -1,12 +1,12 @@
 ---
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Identity Provider Management API
   description: API for registering and managing external Identity Providers
   version: 1.0.0
 
 servers:
-  - url: /api/v1/identity_providers
+  - url: /api/v1
     description: API server (relative path)
 
 x-shared-contracts:
@@ -14,10 +14,10 @@ x-shared-contracts:
     namespace: shared
 
 paths:
-  /:
+  /identity_providers/:
     get:
-      summary: List identity providers
-      description: Retrieve list of identity providers with filtering and pagination
+      summary: List Identity Providers
+      description: List identity providers with filtering, sorting, and pagination.
       operationId: list_identity_providers
       parameters:
         - name: enabled
@@ -46,9 +46,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IdentityProviderListResponse'
+      security:
+        - bearerAuth: []
     post:
-      summary: Create identity provider
-      description: Register a new identity provider
+      summary: Create Identity Provider
+      description: Create a new identity provider.
       operationId: create_identity_provider
       requestBody:
         required: true
@@ -70,10 +72,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
-  /{provider_id}:
+      security:
+        - bearerAuth: []
+  /identity_providers/{provider_id}:
     get:
-      summary: Get identity provider
-      description: Retrieve identity provider details by ID
+      summary: Get Identity Provider
+      description: Get identity provider details by ID.
       operationId: get_identity_provider
       parameters:
         - name: provider_id
@@ -91,9 +95,11 @@ paths:
                 $ref: '#/components/schemas/IdentityProviderResponse'
         '404':
           description: Identity provider not found
+      security:
+        - bearerAuth: []
     patch:
-      summary: Update identity provider
-      description: Partially update an identity provider
+      summary: Patch Identity Provider
+      description: Patch an identity provider.
       operationId: patch_identity_provider
       parameters:
         - name: provider_id
@@ -123,9 +129,11 @@ paths:
             application/problem+json:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+      security:
+        - bearerAuth: []
     delete:
-      summary: Delete identity provider
-      description: Soft delete an identity provider
+      summary: Delete Identity Provider
+      description: Soft delete an identity provider.
       operationId: delete_identity_provider
       parameters:
         - name: provider_id
@@ -140,17 +148,19 @@ paths:
         '404':
           description: Identity provider not found
 
-  /test:
+      security:
+        - bearerAuth: []
+  /identity_providers/test:
     post:
-      summary: Test identity provider connection
-      description: Test OIDC connection without saving the provider
+      summary: Test Identity Provider
+      description: Test identity provider connection without saving. Requires authentication.
       operationId: test_identity_provider
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/IdentityProviderCreate'
+              $ref: '#/components/schemas/OIDCTestRequest'
       responses:
         '200':
           description: Test result
@@ -159,12 +169,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/OIDCTestResult'
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     OIDCConfiguration:
       type: object
+      title: OIDCConfiguration
+      description: Configuration for OIDC (OpenID Connect) providers.
+      additionalProperties: false
       required:
-        - provider_type
         - issuer_url
         - client_id
         - client_secret
@@ -172,159 +186,338 @@ components:
       properties:
         provider_type:
           type: string
-          enum: [oidc]
+          const: oidc
+          default: oidc
+          title: Provider Type
         auto_discovery:
           type: boolean
           default: true
+          title: Auto Discovery
+          description: Use OIDC auto-discovery via .well-known endpoint
         issuer_url:
           type: string
+          title: Issuer Url
+          description: OIDC issuer URL (e.g. https://accounts.google.com)
         client_id:
           type: string
+          title: Client Id
+          description: OAuth 2.0 client ID
         client_secret:
           type: string
+          title: Client Secret
+          description: OAuth 2.0 client secret
         redirect_uri:
           type: string
+          title: Redirect Uri
+          description: OAuth 2.0 redirect URI
         scopes:
           type: string
-          default: "openid profile email"
+          default: openid profile email
+          title: Scopes
+          description: Space-separated list of OAuth 2.0 scopes
         authorization_endpoint:
-          type: string
-          nullable: true
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Authorization Endpoint
+          description: Authorization endpoint URL
         token_endpoint:
-          type: string
-          nullable: true
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Token Endpoint
+          description: Token endpoint URL
         jwks_uri:
-          type: string
-          nullable: true
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Jwks Uri
+          description: JWKS URI for token verification
         userinfo_endpoint:
-          type: string
-          nullable: true
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Userinfo Endpoint
+          description: Userinfo endpoint URL (optional)
 
     OIDCConfigurationResponse:
       type: object
-      properties:
-        provider_type:
-          type: string
-          enum: [oidc]
-        auto_discovery:
-          type: boolean
-          default: true
-        issuer_url:
-          type: string
-        client_id:
-          type: string
-        redirect_uri:
-          type: string
-        scopes:
-          type: string
-          default: "openid profile email"
-        authorization_endpoint:
-          type: string
-          nullable: true
-        token_endpoint:
-          type: string
-          nullable: true
-        jwks_uri:
-          type: string
-          nullable: true
-        userinfo_endpoint:
-          type: string
-          nullable: true
-
-    OIDCConfigurationPatch:
-      type: object
+      title: OIDCConfigurationResponse
+      description: Response schema for OIDC configuration (excludes client_secret).
+      additionalProperties: false
       required:
-        - provider_type
         - issuer_url
         - client_id
         - redirect_uri
       properties:
         provider_type:
           type: string
-          enum: [oidc]
+          const: oidc
+          default: oidc
+          title: Provider Type
         auto_discovery:
           type: boolean
           default: true
+          title: Auto Discovery
+          description: Use OIDC auto-discovery via .well-known endpoint
         issuer_url:
           type: string
+          title: Issuer Url
+          description: OIDC issuer URL (e.g. https://accounts.google.com)
         client_id:
           type: string
-        client_secret:
-          type: string
-          nullable: true
+          title: Client Id
+          description: OAuth 2.0 client ID
         redirect_uri:
           type: string
+          title: Redirect Uri
+          description: OAuth 2.0 redirect URI
         scopes:
           type: string
-          default: "openid profile email"
+          default: openid profile email
+          title: Scopes
+          description: Space-separated list of OAuth 2.0 scopes
         authorization_endpoint:
-          type: string
-          nullable: true
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Authorization Endpoint
+          description: Authorization endpoint URL
         token_endpoint:
-          type: string
-          nullable: true
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Token Endpoint
+          description: Token endpoint URL
         jwks_uri:
-          type: string
-          nullable: true
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Jwks Uri
+          description: JWKS URI for token verification
         userinfo_endpoint:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Userinfo Endpoint
+          description: Userinfo endpoint URL (optional)
+
+    OIDCConfigurationPatch:
+      type: object
+      title: OIDCConfigurationPatch
+      description: "Patch schema for OIDC configuration (client_secret optional — preserves existing if omitted)."
+      additionalProperties: false
+      required:
+        - issuer_url
+        - client_id
+        - redirect_uri
+      properties:
+        provider_type:
           type: string
-          nullable: true
+          const: oidc
+          default: oidc
+          title: Provider Type
+        auto_discovery:
+          type: boolean
+          default: true
+          title: Auto Discovery
+          description: Use OIDC auto-discovery via .well-known endpoint
+        issuer_url:
+          type: string
+          title: Issuer Url
+          description: OIDC issuer URL (e.g. https://accounts.google.com)
+        client_id:
+          type: string
+          title: Client Id
+          description: OAuth 2.0 client ID
+        client_secret:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Client Secret
+          description: OAuth 2.0 client secret (omit to keep existing)
+        redirect_uri:
+          type: string
+          title: Redirect Uri
+          description: OAuth 2.0 redirect URI
+        scopes:
+          type: string
+          default: openid profile email
+          title: Scopes
+          description: Space-separated list of OAuth 2.0 scopes
+        authorization_endpoint:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Authorization Endpoint
+          description: Authorization endpoint URL
+        token_endpoint:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Token Endpoint
+          description: Token endpoint URL
+        jwks_uri:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Jwks Uri
+          description: JWKS URI for token verification
+        userinfo_endpoint:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Userinfo Endpoint
+          description: Userinfo endpoint URL (optional)
 
     IdentityProviderCreate:
       type: object
+      title: IdentityProviderCreate
+      description: Schema for creating a new identity provider.
       required:
         - name
         - configuration
       properties:
         name:
           type: string
+          title: Name
+          description: Human-readable name for the provider
           minLength: 1
           maxLength: 255
         description:
-          type: string
-          maxLength: 2000
-        enabled:
-          type: boolean
-          default: true
-          description: Whether the provider is enabled after creation
+          title: Description
+          description: Detailed description of the provider
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
         configuration:
-          $ref: '#/components/schemas/OIDCConfiguration'
+          title: Configuration
+          description: Provider configuration
+          discriminator:
+            propertyName: provider_type
+            mapping:
+              oidc: '#/components/schemas/OIDCConfiguration'
+          oneOf:
+            - $ref: '#/components/schemas/OIDCConfiguration'
 
     IdentityProviderPatch:
       type: object
+      title: IdentityProviderPatch
+      description: Schema for partially updating an identity provider.
+      additionalProperties: false
       properties:
         name:
-          type: string
-          minLength: 1
-          maxLength: 255
+          title: Name
+          description: Human-readable name for the provider
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: 'null'
         description:
-          type: string
-          maxLength: 2000
+          title: Description
+          description: Detailed description of the provider
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
         configuration:
-          $ref: '#/components/schemas/OIDCConfigurationPatch'
+          title: Configuration
+          description: "Provider-specific configuration (client_secret optional — preserves existing if omitted)"
+          anyOf:
+            - discriminator:
+                propertyName: provider_type
+                mapping:
+                  oidc: '#/components/schemas/OIDCConfigurationPatch'
+              oneOf:
+                - $ref: '#/components/schemas/OIDCConfigurationPatch'
+            - type: 'null'
         enabled:
-          type: boolean
+          title: Enabled
+          description: Enable/disable the provider
+          anyOf:
+            - type: boolean
+            - type: 'null'
 
     IdentityProviderResponse:
       type: object
+      title: IdentityProviderResponse
+      description: Schema for IdentityProvider response with configuration details (excludes secrets).
+      additionalProperties: false
+      required:
+        - created_by
+        - name
+        - configuration
       properties:
         id:
           type: string
+          title: Id
           format: uuid
+          description: Unique identifier for the resource
         name:
           type: string
+          title: Name
+          description: Human-readable provider name
+          minLength: 1
+          maxLength: 255
         description:
-          type: string
+          title: Description
+          description: Detailed description of the resource
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
         enabled:
           type: boolean
+          title: Enabled
+          description: Enable/disable the identity provider
+          default: true
         configuration:
           $ref: '#/components/schemas/OIDCConfigurationResponse'
+          description: Identity provider configuration
         created_at:
           type: string
+          title: Created At
           format: date-time
+          description: Timestamp when resource was created
         updated_at:
           type: string
+          title: Updated At
           format: date-time
+          description: Timestamp when resource was last updated
+        created_by:
+          type: string
+          title: Created By
+          format: uuid
+          description: User who created the resource
+        updated_by:
+          title: Updated By
+          description: User who last updated the resource
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        deleted_at:
+          title: Deleted At
+          description: Timestamp when resource was soft deleted
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        deleted_by:
+          title: Deleted By
+          description: User who performed the soft delete
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        labels:
+          type: object
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
 
     IdentityProviderListResponse:
       type: object
@@ -343,15 +536,55 @@ components:
           type: integer
           nullable: true
 
+    OIDCTestRequest:
+      type: object
+      title: OIDCTestRequest
+      description: Request body for testing an OIDC connection.
+      required:
+        - name
+        - configuration
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+          description: Human-readable name for the provider
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: "null"
+          title: Description
+          description: Detailed description of the provider
+        configuration:
+          title: Configuration
+          description: Provider configuration
+          discriminator:
+            propertyName: provider_type
+            mapping:
+              oidc: '#/components/schemas/OIDCConfiguration'
+          oneOf:
+            - $ref: '#/components/schemas/OIDCConfiguration'
+
     OIDCTestResult:
       type: object
+      title: OIDCTestResult
+      description: Result of an OIDC connection test.
+      required:
+        - success
+        - message
       properties:
         success:
           type: boolean
+          title: Success
         message:
           type: string
+          title: Message
         metadata:
-          type: object
-          nullable: true
-          additionalProperties:
-            type: string
+          anyOf:
+            - type: object
+              additionalProperties:
+                type: string
+            - type: "null"
+          title: Metadata

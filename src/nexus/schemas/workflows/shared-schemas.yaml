@@ -5,47 +5,148 @@
 
 components:
   schemas:
-    Workflow:
-      allOf:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/NamedResource
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/SoftDeletableResource
-        - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource
-        - type: object
-          title: Workflow
-          description: A complete automation process with versioned definitions, combining named resource, soft delete, and user ownership capabilities
-          properties:
-            current_version:
-              type: integer
-              description: Current active version number
-            is_enabled:
-              type: boolean
-              description: Whether workflow is enabled and available for execution
+    WorkflowRead:
+      type: object
+      title: WorkflowRead
+      description: |-
+        Schema for workflow response (GET /workflows/{id}).
 
-    WorkflowWithVersion:
-      allOf:
-        - $ref: "#/components/schemas/Workflow"
-        - type: object
-          title: Workflow With Version
-          description: Workflow combined with a specific version's details including workflow definition (stored as JSON), schema version, and change history
-          properties:
-            version:
-              type: object
-              description: Specific version details
-              properties:
-                version:
-                  type: integer
-                schema_version:
-                  type: string
-                workflow_definition:
-                  $ref: '#/components/schemas/WorkflowDefinition'
-                created_by:
-                  type: string
-                  format: uuid
-                created_at:
-                  type: string
-                  format: date-time
-                change_description:
-                  type: [string, "null"]
+        Includes all fields from the database table model.
+        Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
+      required:
+        - name
+        - id
+        - current_version
+        - is_enabled
+        - created_by
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Workflow name
+          title: Name
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          description: Workflow description
+          title: Description
+        labels:
+          type: object
+          additionalProperties: true
+          description: Workflow labels
+          title: Labels
+        current_version:
+          type: integer
+          title: Current Version
+        is_enabled:
+          type: boolean
+          title: Is Enabled
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+        project_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Project Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Deleted At
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Deleted By
+
+
+    WorkflowVersionRead:
+      type: object
+      title: WorkflowVersionRead
+      description: |-
+        Schema for workflow version response (GET /workflows/{id}/versions/{version}).
+
+        WorkflowVersion entities are read-only and managed automatically by the system.
+        Note: deleted_at and deleted_by are None since soft-deleted versions are excluded from queries.
+      required:
+        - id
+        - workflow_id
+        - version
+        - schema_version
+        - workflow_definition
+        - created_by
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        workflow_id:
+          type: string
+          format: uuid
+          title: Workflow Id
+        version:
+          type: integer
+          title: Version
+        schema_version:
+          type: string
+          title: Schema Version
+        workflow_definition:
+          type: object
+          additionalProperties: true
+          title: Workflow Definition
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        change_description:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Change Description
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Deleted At
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          title: Deleted By
 
     ActivityData:
       type: object
@@ -193,83 +294,16 @@ components:
     ExecutionStatus:
       type: string
       title: ExecutionStatus
-      description: Current state of a workflow execution lifecycle
+      description: Current state of a workflow execution lifecycle.
       enum: [pending, running, paused, completed, failed, cancelled]
 
     ActivityStatus:
       type: string
-      title: Activity Status
-      description: Current state of an individual activity execution
+      title: ActivityStatus
+      description: Activity execution status enumeration.
       enum: [pending, running, completed, failed, retrying, skipped, cancelled]
 
     # NOTE: ApprovalStatus is defined in ../approvals/openapi.yaml
-
-    ActivityType:
-      type: object
-      title: Activity Type
-      description: Definition of an available activity executor type with its configuration schema
-      required:
-        - type
-        - name
-        - description
-        - config_schema
-      properties:
-        type:
-          type: string
-          description: Unique identifier for the executor type
-          example: agentic
-          enum: [agentic, connector, script, api, approval]
-        name:
-          type: string
-          description: Human-readable name of the executor type
-          example: Agentic Tool Execution
-        description:
-          type: string
-          description: Detailed description of what this executor type does
-          example: Execute tasks using external agentic tool servers (MCP) with AI model integration
-        config_schema:
-          type: object
-          description: JSON Schema defining the valid configuration structure for this executor type
-          example:
-            type: object
-            required: [agent, tools, model]
-            properties:
-              agent:
-                type: string
-                description: MCP server URI
-                pattern: ^mcp://.+
-              tools:
-                type: array
-                description: List of tool names to invoke
-                items:
-                  type: string
-              model:
-                type: string
-                description: AI model to use
-                enum: [claude-3-opus, claude-3-sonnet, gpt-4, gpt-4-turbo]
-        examples:
-          type: array
-          description: Example configurations for this executor type
-          items:
-            type: object
-            properties:
-              name:
-                type: string
-                description: Name of the example
-              description:
-                type: string
-                description: What this example demonstrates
-              config:
-                type: object
-                description: Example configuration object
-          example:
-            - name: Sentiment Analysis
-              description: Analyze text sentiment using MCP tool
-              config:
-                agent: mcp://sentiment-server
-                tools: [analyze_sentiment]
-                model: claude-3-opus
-                prompt: Analyze the sentiment of the following text
 
     WorkflowDefinition:
       description: >
@@ -278,58 +312,100 @@ components:
         Accepts any valid JSON object.
 
     # Request/Response schemas
-    CreateWorkflowRequest:
+    WorkflowCreate:
       type: object
-      title: Create Workflow Request
-      description: Request payload for creating a new workflow from workflow definition
+      title: WorkflowCreate
+      description: |-
+        Schema for creating a new workflow (POST /workflows).
+
+        Excludes auto-generated fields: id, created_at, updated_at, created_by (set by backend).
       required:
         - name
         - workflow_definition
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 255
+          description: Workflow name
+          title: Name
         description:
-          type: string
-          maxLength: 2000
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          description: Workflow description
+          title: Description
+        labels:
+          type: object
+          additionalProperties: true
+          description: Workflow labels
+          title: Labels
         workflow_definition:
-          $ref: '#/components/schemas/WorkflowDefinition'
+          description: Workflow definition object
+          title: Workflow Definition
         is_enabled:
           type: boolean
           default: true
-          description: Enable workflow for execution (defaults to true if not specified)
+          description: Enable workflow for execution
+          title: Is Enabled
+        project_id:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: Project to assign workflow to
+          title: Project Id
 
-    PatchWorkflowRequest:
+    WorkflowUpdate:
       type: object
-      title: Patch Workflow Request
-      description: |
-        Request payload for updating workflow fields. Behavior depends on which fields are provided:
-        - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-        - With workflow_definition: Validates workflow definition, compares with current version, and creates new WorkflowVersion only if definition differs (change detection)
+      title: WorkflowUpdate
+      description: |-
+        Schema for updating workflow (PATCH /workflows/{id}).
 
-        Note: WorkflowVersion entities are read-only and managed automatically by the system.
-        API accepts JSON objects for workflow_definition field.
+        All fields are optional for partial updates.
+        Supports metadata updates and workflow definition updates (creates new version).
       properties:
         name:
-          type: string
-          description: Update workflow name (metadata only, no version created)
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: "null"
+          title: Name
+          description: Update workflow name
         description:
-          type: string
-          maxLength: 2000
-          description: Update workflow description (metadata only, no version created)
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: "null"
+          title: Description
+          description: Update workflow description
         is_enabled:
-          type: boolean
-          description: Enable or disable workflow for execution (metadata only, no version created)
+          anyOf:
+            - type: boolean
+            - type: "null"
+          title: Is Enabled
+          description: Enable/disable workflow
         labels:
-          type: object
-          additionalProperties:
-            type: string
-          description: Update workflow labels (metadata only, no version created)
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+          title: Labels
+          description: Update workflow labels
         workflow_definition:
-          $ref: '#/components/schemas/WorkflowDefinition'
-          description: New workflow definition - creates new version only if definition differs from current version (change detection)
+          anyOf:
+            - {}
+            - type: "null"
+          title: Workflow Definition
+          description: New workflow definition (auto-creates version)
         change_description:
-          type: string
-          description: Description of changes (used when creating new version via workflow_definition)
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Change Description
+          description: Description of changes for version history
 
     CreateExecutionRequest:
       type: object

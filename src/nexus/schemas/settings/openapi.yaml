@@ -24,10 +24,9 @@ tags:
 paths:
   /settings:
     get:
-      summary: List runtime settings
-      description: |
-        Retrieve a paginated list of runtime settings with optional filtering
-        by category and group. Uses cursor-based pagination.
+      summary: List Settings
+      description: |-
+        List all runtime settings with pagination, filtering, and sorting.
       operationId: list_settings
       tags:
         - Settings
@@ -72,12 +71,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     patch:
-      summary: Bulk update settings
-      description: |
-        Update multiple settings in a single request. Each update includes
-        the setting key, new value, and expected version for optimistic locking.
-        If any update fails, the entire batch is rolled back.
+      summary: Bulk Update Settings
+      description: |-
+        Update multiple settings in a single request.
       operationId: bulk_update_settings
       tags:
         - Settings
@@ -115,12 +114,13 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
   /settings/categories:
     get:
-      summary: List setting categories
-      description: |
-        Retrieve all setting categories with their group names.
-        Categories are derived from the settings catalog.
+      summary: List Categories
+      description: |-
+        List all setting categories with their group names.
       operationId: list_categories
       tags:
         - Settings
@@ -132,11 +132,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/CategoriesListResponse"
 
+      security:
+        - bearerAuth: []
   /settings/{key}:
     get:
-      summary: Get a single setting
-      description: |
-        Retrieve a single runtime setting by its dot-namespaced key.
+      summary: Get Setting
+      description: |-
+        Get a single runtime setting by its dot-namespaced key.
       operationId: get_setting
       tags:
         - Settings
@@ -161,11 +163,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     patch:
-      summary: Update a setting value
-      description: |
-        Update a runtime setting's value. Requires the current `expected_version`
-        for optimistic locking.
+      summary: Update Setting
+      description: |-
+        Update a runtime setting value with optimistic locking.
       operationId: update_setting
       tags:
         - Settings
@@ -208,11 +211,14 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     SettingValueType:
       type: string
-      description: Expected value type for a runtime setting
+      title: SettingValueType
+      description: Expected value type for a runtime setting, used for UI rendering and validation.
       enum:
         - string
         - integer
@@ -222,15 +228,22 @@ components:
 
     RuntimeSettingRead:
       type: object
-      description: A single runtime setting with its current and default values.
+      title: RuntimeSettingRead
+      description: Read schema for a single runtime setting.
       required:
         - id
         - key
         - name
+        - description
         - category
+        - group
+        - value
+        - default_value
         - effective_value
         - value_type
         - requires_restart
+        - cache_ttl_seconds
+        - validation_schema
         - version
         - created_at
         - updated_at
@@ -238,127 +251,185 @@ components:
         id:
           type: string
           format: uuid
+          title: Id
         key:
           type: string
-          description: Dot-namespaced setting key
+          title: Key
         name:
           type: string
-          description: Human-readable display name
+          title: Name
         description:
-          type: string
-          nullable: true
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         category:
           type: string
-          description: Category slug for UI tab grouping
+          title: Category
         group:
-          type: string
-          nullable: true
-          description: Group name for UI section headings within a category
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Group
         value:
-          description: User-set override value (null if using default)
-          nullable: true
+          title: Value
         default_value:
-          description: Factory default value
-          nullable: true
+          title: Default Value
         effective_value:
-          description: Resolved value (value if set, otherwise default_value)
+          title: Effective Value
         value_type:
           $ref: "#/components/schemas/SettingValueType"
         requires_restart:
           type: boolean
+          title: Requires Restart
         cache_ttl_seconds:
-          type: integer
-          nullable: true
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Cache Ttl Seconds
         validation_schema:
-          type: object
-          nullable: true
-          description: |
-            Validation constraints. Possible keys:
-            - `min` (integer/float): Minimum value
-            - `max` (integer/float): Maximum value
-            - `allowed_values` (string): List of allowed values
-            - `pattern` (string): Regex pattern
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: "null"
+          title: Validation Schema
         version:
           type: integer
-          description: Optimistic lock version
+          title: Version
         created_at:
           type: string
           format: date-time
+          title: Created At
         updated_at:
           type: string
           format: date-time
+          title: Updated At
 
     SettingUpdate:
       type: object
+      title: SettingUpdate
+      description: Request body for PATCH /settings/{key}.
       required:
         - value
       properties:
         value:
-          description: New value (native type matching value_type). Cannot be null.
+          title: Value
         expected_version:
-          type: integer
-          nullable: true
-          description: Current version for optimistic locking. When omitted, the update applies unconditionally.
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Expected Version
 
     SettingBulkUpdateItem:
       type: object
+      title: SettingBulkUpdateItem
+      description: A single setting update within a bulk request.
       required:
         - key
         - value
       properties:
         key:
           type: string
-          description: Dot-namespaced setting key
+          title: Key
         value:
-          description: New value. Cannot be null.
+          title: Value
         expected_version:
-          type: integer
-          nullable: true
-          description: Current version for optimistic locking. When omitted, the update applies unconditionally.
+          anyOf:
+            - type: integer
+            - type: "null"
+          title: Expected Version
 
     SettingBulkUpdateRequest:
       type: object
+      title: SettingBulkUpdateRequest
+      description: Request body for PATCH /settings (bulk update).
       required:
         - updates
       properties:
         updates:
           type: array
           maxItems: 500
+          title: Updates
           items:
             $ref: "#/components/schemas/SettingBulkUpdateItem"
 
     SettingCategoryRead:
       type: object
+      title: SettingCategoryRead
+      description: Read schema for a setting category.
       required:
         - slug
         - name
-        - display_order
+        - description
         - group_names
       properties:
         slug:
           type: string
-          description: Category identifier
+          title: Slug
         name:
           type: string
-          description: Human-readable display name
+          title: Name
         description:
-          type: string
-          nullable: true
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         display_order:
           type: integer
-          description: Sort position for UI rendering (lower = first)
+          title: Display Order
+          default: 0
         group_names:
           type: array
           items:
             type: string
-          description: Ordered list of group names within this category
+          title: Group Names
+
+    SettingsListResponse:
+      type: object
+      title: SettingsListResponse
+      description: Paginated list response for runtime settings.
+      required:
+        - resources
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Prev
+          description: Cursor for previous page of results
+        resources:
+          type: array
+          items: {}
+          title: Resources
+          description: Array of resources in current page
+        total:
+          anyOf:
+            - type: integer
+              minimum: 0.0
+            - type: "null"
+          title: Total
+          description: Total count of resources (only when include_total=true)
 
     CategoriesListResponse:
       type: object
+      title: CategoriesListResponse
+      description: Response schema for listing setting categories.
       required:
         - results
       properties:
         results:
           type: array
+          title: Results
           items:
             $ref: "#/components/schemas/SettingCategoryRead"

@@ -27,7 +27,7 @@ from nexus.credentials.models import (
 from nexus.credentials.models.credential import Credential, CredentialWorkflowRef
 from nexus.credentials.services.credential_service import CredentialService
 
-router = APIRouter(tags=["credentials"])
+router = APIRouter()
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -50,7 +50,13 @@ def get_credential_service(
 # ============================================================================
 
 
-@router.post("/credentials", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/credentials",
+    status_code=status.HTTP_201_CREATED,
+    tags=["Credentials"],
+    operation_id="create_credential",
+    response_description="Credential created successfully",
+)
 async def create_credential(
     data: CredentialCreate,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -59,7 +65,12 @@ async def create_credential(
     return await service.create_credential(data)
 
 
-@router.get("/credentials")
+@router.get(
+    "/credentials",
+    tags=["Credentials"],
+    operation_id="list_credentials",
+    response_description="Paginated list of Credentials (metadata only, no secret values)",
+)
 async def list_credentials(
     service: Annotated[CredentialService, Depends(get_credential_service)],
     params: Annotated[CredentialListParams, Query()],
@@ -76,7 +87,12 @@ async def list_credentials(
     )
 
 
-@router.get("/credentials/{credential_id}")
+@router.get(
+    "/credentials/{credential_id}",
+    tags=["Credentials"],
+    operation_id="get_credential",
+    response_description="Credential with secret fields masked",
+)
 async def get_credential(
     credential_id: UUID,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -85,7 +101,12 @@ async def get_credential(
     return await service.get_credential(credential_id)
 
 
-@router.patch("/credentials/{credential_id}")
+@router.patch(
+    "/credentials/{credential_id}",
+    tags=["Credentials"],
+    operation_id="update_credential",
+    response_description="Credential updated",
+)
 async def update_credential(
     credential_id: UUID,
     data: CredentialPatch,
@@ -95,7 +116,13 @@ async def update_credential(
     return await service.update_credential(credential_id, data)
 
 
-@router.delete("/credentials/{credential_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/credentials/{credential_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["Credentials"],
+    operation_id="delete_credential",
+    response_description="Credential deleted",
+)
 async def delete_credential(
     credential_id: UUID,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -104,7 +131,12 @@ async def delete_credential(
     await service.delete_credential(credential_id)
 
 
-@router.get("/credentials/{credential_id}/workflows")
+@router.get(
+    "/credentials/{credential_id}/workflows",
+    tags=["Credentials"],
+    operation_id="get_credential_workflows",
+    response_description="List of workflows referencing this credential",
+)
 async def get_credential_workflows(
     credential_id: UUID,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -121,7 +153,12 @@ async def get_credential_workflows(
 # ============================================================================
 
 
-@router.get("/credential_types")
+@router.get(
+    "/credential_types",
+    tags=["Credential Types"],
+    operation_id="list_credential_types",
+    response_description="Paginated list of Credential types",
+)
 async def list_credential_types(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: Annotated[User, Depends(get_current_user)],
@@ -162,7 +199,12 @@ async def list_credential_types(
     return CredentialTypeListResponse(resources=resources)
 
 
-@router.get("/credential_types/{credential_type_id}")
+@router.get(
+    "/credential_types/{credential_type_id}",
+    tags=["Credential Types"],
+    operation_id="get_credential_type",
+    response_description="Credential type detail",
+)
 async def get_credential_type(
     credential_type_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],

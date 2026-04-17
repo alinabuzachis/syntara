@@ -17,7 +17,7 @@ info:
     - Auth providers listing (public, for login page)
 
 servers:
-  - url: /api/v1/auth
+  - url: /api/v1
     description: API server (relative path)
 
 tags:
@@ -26,7 +26,7 @@ tags:
 
 paths:
   # ── Authentication ──────────────────────────────────────────────────
-  /login:
+  /auth/login:
     post:
       summary: Login with username and password
       description: |
@@ -57,7 +57,7 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
-  /refresh:
+  /auth/refresh:
     post:
       summary: Refresh access token
       description: |
@@ -84,14 +84,17 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
-  /logout:
+  /auth/logout:
     post:
       summary: Terminate session
-      description: |
+      description: |-
         Terminate the current session by revoking the refresh token.
 
-        The refresh token is read from the `ao_refresh_token` HttpOnly cookie
-        and revoked in the session store. The cookie is cleared in the response.
+            The refresh token is read from the ``ao_refresh_token`` HttpOnly cookie
+            and revoked in the session store.  The cookie is cleared in the response.
+            The associated access token remains valid until it expires (up to 15
+            minutes) since access tokens are stateless JWTs validated without a
+            server round-trip.
       operationId: logout
       tags:
         - Authentication
@@ -113,7 +116,7 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
-  /me:
+  /auth/me:
     get:
       summary: Get current user
       description: |
@@ -136,7 +139,9 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
-  /providers:
+      security:
+        - bearerAuth: []
+  /auth/providers:
     get:
       summary: List enabled identity providers
       description: |
@@ -154,43 +159,125 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthProvidersResponse'
 
+  /auth/oidc/authorize:
+    get:
+      summary: Initiate OIDC login
+      description: |
+        Initiates the OIDC authorization code flow. Redirects the user's browser
+        to the identity provider's authorization endpoint.
+
+        This is a public endpoint (no authentication required). On any error it
+        redirects to the frontend login page with an `auth_error` query parameter
+        instead of returning a JSON error response.
+      operationId: oidc_authorize
+      tags:
+        - Authentication
+      parameters:
+        - name: provider_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the identity provider to use
+        - name: redirect_to
+          in: query
+          required: false
+          schema:
+            type: string
+          description: URL to redirect to after successful login
+      responses:
+        '302':
+          description: Redirect to identity provider or frontend on error
+
+  /auth/oidc/callback:
+    get:
+      summary: OIDC callback
+      description: |
+        Handles the OIDC callback after the user authenticates at the identity provider.
+        Exchanges the authorization code for tokens, validates the ID token,
+        creates or maps a local user, and establishes a session.
+      operationId: oidc_callback
+      tags:
+        - Authentication
+      parameters:
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: OIDC state parameter for CSRF protection
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Authorization code from identity provider
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Error code from identity provider
+        - name: error_description
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Human-readable error description from identity provider
+      responses:
+        '302':
+          description: Redirect to frontend after successful login
+        '401':
+          description: Authentication failed
+
 components:
   schemas:
     # ── Authentication schemas ──────────────────────────────────────
     LoginRequest:
       type: object
+      title: LoginRequest
+      description: Login request with username and password.
       required:
         - username
         - password
       properties:
         username:
           type: string
+          title: Username
           description: Username
         password:
           type: string
-          format: password
+          title: Password
           description: Password
+          format: password
 
     AccessTokenResponse:
       type: object
+      title: AccessTokenResponse
+      description: Access token response (refresh token is sent via HttpOnly cookie).
       required:
         - access_token
-        - token_type
         - expires_in
       properties:
         access_token:
           type: string
+          title: Access Token
           description: JWT access token
         token_type:
           type: string
+          title: Token Type
           default: Bearer
           description: Token type
         expires_in:
           type: integer
+          title: Expires In
           description: Access token lifetime in seconds
 
     UserInfo:
       type: object
+      title: UserInfo
+      description: Current user information derived from access token claims.
       required:
         - id
         - username
@@ -199,21 +286,26 @@ components:
         id:
           type: string
           description: User UUID
+          title: Id
         username:
           type: string
           description: Username
+          title: Username
         email:
           type: string
           description: User email
+          title: Email
         groups:
           type: array
           items:
             type: string
-          default: []
           description: Group memberships
+          title: Groups
 
     AuthProviderInfo:
       type: object
+      title: AuthProviderInfo
+      description: Public identity provider info for the login page.
       required:
         - id
         - name
@@ -221,20 +313,25 @@ components:
       properties:
         id:
           type: string
+          title: Id
           description: Provider UUID
         name:
           type: string
+          title: Name
           description: Provider display name
         provider_type:
           type: string
+          title: Provider Type
           description: "Provider type (e.g. oidc)"
 
     AuthProvidersResponse:
       type: object
+      title: AuthProvidersResponse
+      description: Response for the public providers listing endpoint.
       properties:
         providers:
           type: array
+          title: Providers
           items:
             $ref: '#/components/schemas/AuthProviderInfo'
-          default: []
           description: Enabled identity providers

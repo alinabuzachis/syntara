@@ -44,6 +44,19 @@ _SKIP_FILES = {
     "workflow-websocket-api.yaml",
 }
 
+# Shared schemas that are abstract base types not exposed directly by the API.
+# These are excluded from the bundled output: they won't appear as named
+# components, and any external $ref to them will be inlined at usage sites.
+_EXCLUDED_FROM_BUNDLE_OUTPUT: frozenset[str] = frozenset(
+    {
+        "BaseResource",
+        "NamedResource",
+        "SoftDeletableResource",
+        "UserOwnedResource",
+        "Resource",
+    }
+)
+
 # ---------------------------------------------------------------------------
 # $ref resolution
 # ---------------------------------------------------------------------------
@@ -181,6 +194,8 @@ def _resolve_refs(
     if isinstance(node, dict):
         if "$ref" in node and isinstance(node["$ref"], str):
             ref = node["$ref"]
+            # Collect sibling properties (OpenAPI 3.1.0 allows keywords alongside $ref)
+            siblings = {k: v for k, v in node.items() if k != "$ref"}
             file_part, fragment = ref.split("#", 1) if "#" in ref else (ref, "")
             if file_part:
                 resolved = _resolve_external_ref(file_part, fragment, ref, base_path, visited, shared_refs)
@@ -188,18 +203,14 @@ def _resolve_refs(
                 resolved = _resolve_same_file_ref(
                     fragment, ref, base_path, visited, root_doc, shared_refs, current_file
                 )
-            # OpenAPI 3.1 (JSON Schema 2020-12) allows keywords alongside $ref.
-            # These "sibling keywords" add constraints/metadata to the referenced schema
-            # without modifying it. When the $ref resolves to a named component (stays
-            # as a $ref in output), preserve the siblings so the bundled spec stays
-            # semantically equivalent.
-            siblings = {k: v for k, v in node.items() if k != "$ref"}
-            if siblings and isinstance(resolved, dict) and "$ref" in resolved and len(resolved) == 1:
-                resolved_siblings = {
-                    k: _resolve_refs(v, base_path, visited, root_doc, shared_refs, current_file)
-                    for k, v in siblings.items()
-                }
-                return {**resolved, **resolved_siblings}
+            # If the ref was preserved (not inlined) and there are sibling
+            # properties, keep them alongside the $ref.  This is valid in
+            # OpenAPI 3.1.0 (JSON Schema) where $ref can coexist with other
+            # keywords like description and default.
+            if siblings and isinstance(resolved, dict) and "$ref" in resolved:
+                merged_node = dict(resolved)
+                merged_node.update(siblings)
+                return merged_node
             return resolved
         return {k: _resolve_refs(v, base_path, visited, root_doc, shared_refs, current_file) for k, v in node.items()}
 
@@ -314,6 +325,10 @@ def _load_shared_refs(merged_components: dict[str, Any]) -> dict[str, str]:
         if "schemas" not in merged_components:
             merged_components["schemas"] = {}
         for name, definition in schemas.items():
+            if name in _EXCLUDED_FROM_BUNDLE_OUTPUT:
+                # Abstract base schemas: don't register as named components or in
+                # shared_refs so that any $ref to them is inlined at usage sites.
+                continue
             merged_components["schemas"][name] = definition
             fragment = f"/components/schemas/{name}"
             shared_refs[f"{base_file}#{fragment}"] = f"#/components/schemas/{name}"
@@ -374,7 +389,9 @@ def _merge_sub_spec(
                 fragment = f"/components/{section}/{name}"
                 local_shared_refs[f"{resolved_spec_path}#{fragment}"] = f"#/components/{section}/{name}"
 
-    resolved = _resolve_refs(spec_data, spec_path.parent, shared_refs=local_shared_refs, current_file=spec_path)
+    resolved = _resolve_refs(
+        spec_data, spec_path.parent, shared_refs=local_shared_refs, current_file=resolved_spec_path
+    )
 
     for path_key, path_item in resolved.get("paths", {}).items():
         if path_key in merged_paths:
@@ -384,6 +401,58 @@ def _merge_sub_spec(
     components = _strip_self_ref_exports(resolved.get("components", {}))
     _deep_merge_components(merged_components, components, spec_path)
     _collect_tags(resolved.get("tags", []), merged_tags, seen_tag_names)
+
+
+def _find_schema_refs_in_text(text: str) -> set[str]:
+    """Extract all ``#/components/schemas/X`` reference names from JSON text."""
+    return {m.group(1) for m in re.finditer(r'"#/components/schemas/([^"]+)"', text)}
+
+
+def _compute_reachable_schemas(
+    seed_schemas: set[str],
+    all_schemas: dict[str, Any],
+) -> set[str]:
+    """Compute the transitive closure of schema references starting from *seed_schemas*."""
+    import json as _json
+
+    visited: set[str] = set()
+    queue = list(seed_schemas)
+    while queue:
+        name = queue.pop()
+        if name in visited:
+            continue
+        visited.add(name)
+        if name in all_schemas:
+            schema_text = _json.dumps(all_schemas[name])
+            queue.extend(r for r in _find_schema_refs_in_text(schema_text) if r not in visited)
+    return visited
+
+
+def _prune_unreferenced_shared_schemas(
+    merged: dict[str, Any],
+    shared_schema_names: set[str],
+) -> None:
+    """Remove shared base schemas not referenced by any path or non-shared schema.
+
+    After merging, shared schemas (from shared-resources.openapi.yaml) may exist
+    in the bundled output even though no sub-spec path or schema references them.
+    This happens because ``_load_shared_refs`` pre-loads all shared schemas.
+    """
+    if not shared_schema_names:
+        return
+    schemas = merged.get("components", {}).get("schemas", {})
+    if not schemas:
+        return
+
+    import json as _json
+
+    paths_text = _json.dumps(merged.get("paths", {}))
+    used_schemas = _find_schema_refs_in_text(paths_text)
+    reachable = _compute_reachable_schemas(used_schemas, schemas)
+
+    for name in list(shared_schema_names):
+        if name not in reachable and name in schemas:
+            del schemas[name]
 
 
 def _build_merged_spec(sub_specs: list[Path]) -> dict[str, Any]:
@@ -399,6 +468,9 @@ def _build_merged_spec(sub_specs: list[Path]) -> dict[str, Any]:
     # bundled output and are referenced (not inlined) wherever used.
     shared_refs = _load_shared_refs(merged_components)
 
+    # Track which schema names came from shared-resources
+    shared_schema_names = set(merged_components.get("schemas", {}).keys())
+
     for spec_path in sub_specs:
         _merge_sub_spec(spec_path, merged_paths, merged_components, merged_tags, seen_tag_names, shared_refs)
 
@@ -412,6 +484,9 @@ def _build_merged_spec(sub_specs: list[Path]) -> dict[str, Any]:
     merged["paths"] = merged_paths
     if merged_components:
         merged["components"] = merged_components
+
+    # Remove shared schemas that are no longer referenced by any path or sub-spec schema
+    _prune_unreferenced_shared_schemas(merged, shared_schema_names)
 
     return merged
 
@@ -512,8 +587,10 @@ def main() -> None:
         sort_keys=False,
         width=120,
     )
-    # Strip trailing whitespace from each line (yaml.dump can leave it)
-    output_yaml = re.sub(r"\s+$", "", output_yaml, flags=re.MULTILINE)
+    # Strip trailing spaces/tabs from each line (yaml.dump can leave them).
+    # Use [ \t] instead of \s to avoid stripping blank lines (which are
+    # significant in YAML literal block scalars for preserving \n\n).
+    output_yaml = re.sub(r"[ \t]+$", "", output_yaml, flags=re.MULTILINE)
 
     full_output = GENERATED_HEADER + output_yaml
 

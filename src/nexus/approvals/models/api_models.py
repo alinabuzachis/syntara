@@ -51,10 +51,9 @@ class ApprovalDecisionStatus(str, Enum):
 
 
 class BatchApprovalDecisionStatus(str, Enum):
-    """Status values for batch approval decisions.
+    """Status values that can be submitted in batch approval decisions.
 
-    This is a subset of ApprovalRequestStatus representing only the
-    values that can be submitted in batch decision requests.
+    This is a subset of ApprovalRequestStatus containing only system-actionable values.
     """
 
     APPROVED = "approved"

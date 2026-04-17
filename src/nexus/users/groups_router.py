@@ -64,49 +64,32 @@ def get_group_service(
 # ============================================================================
 
 
-@router.post("", response_model=GroupRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(_group_create)])
+@router.post(
+    "",
+    response_model=GroupRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_group_create)],
+    operation_id="create_group",
+    response_description="Group created",
+)
 async def create_group(
     request: GroupCreate,
     service: Annotated[GroupsService, Depends(get_group_service)],
 ) -> Group:
-    """Create a new group.
-
-    Args:
-        request: Group creation request
-        service: Group service
-
-    Returns:
-        Created group
-
-    Raises:
-        HTTPException: 409 if group name already exists
-
-    """
+    """Create a new group for organizing users."""
     return await service.create_group(
         name=request.name,
         description=request.description,
     )
 
 
-@router.get("", dependencies=[Depends(_group_read)])
+@router.get("", dependencies=[Depends(_group_read)], operation_id="list_groups", response_description="List of groups")
 async def list_groups(
     request: Request,
     service: Annotated[GroupsService, Depends(get_group_service)],
     params: Annotated[GroupListParams, Query()],
 ) -> GroupListResponse:
-    """List groups with filtering, sorting, and pagination.
-
-    Uses cursor-based pagination for scalability and consistency.
-
-    Args:
-        request: FastAPI request object containing query parameters
-        service: Group service
-        params: Query parameters for pagination and filtering
-
-    Returns:
-        GroupListResponse with groups, pagination metadata, and optional total
-
-    """
+    """Retrieve list of groups with filtering and pagination."""
     return await service.list_groups_cursor(
         limit=params.limit,
         cursor=params.cursor,
@@ -116,51 +99,31 @@ async def list_groups(
     )
 
 
-@router.get("/{group_id}", dependencies=[Depends(_group_read)])
+@router.get(
+    "/{group_id}", dependencies=[Depends(_group_read)], operation_id="get_group", response_description="Group details"
+)
 async def get_group(
     group_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
 ) -> GroupRead:
-    """Get a group by ID.
-
-    Args:
-        group_id: Group UUID
-        service: Group service
-
-    Returns:
-        Group data
-
-    Raises:
-        HTTPException: 404 if group not found or deleted
-
-    """
+    """Retrieve a group by its UUID."""
     group = await service.get_group_by_id(group_id)
     count = await service.get_member_count(group)
     return service.enrich_group_read(group, count)
 
 
-@router.patch("/{group_id}", dependencies=[Depends(_group_update)])
+@router.patch(
+    "/{group_id}",
+    dependencies=[Depends(_group_update)],
+    operation_id="update_group",
+    response_description="Updated group",
+)
 async def update_group(
     group_id: UUID,
     request: GroupUpdate,
     service: Annotated[GroupsService, Depends(get_group_service)],
 ) -> GroupRead:
-    """Update a group.
-
-    Supports partial updates - only provided fields are updated.
-
-    Args:
-        group_id: Group UUID
-        request: Update request with optional fields
-        service: Group service
-
-    Returns:
-        Updated group
-
-    Raises:
-        HTTPException: 404 if group not found, 409 for name conflict
-
-    """
+    """Update a group partially; only provided fields are changed."""
     group = await service.update_group(
         group_id=group_id,
         name=request.name,
@@ -170,21 +133,18 @@ async def update_group(
     return service.enrich_group_read(group, count)
 
 
-@router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(_group_delete)])
+@router.delete(
+    "/{group_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(_group_delete)],
+    operation_id="delete_group",
+    response_description="Group deleted",
+)
 async def delete_group(
     group_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
 ) -> None:
-    """Soft delete a group.
-
-    Args:
-        group_id: Group UUID
-        service: Group service
-
-    Raises:
-        HTTPException: 404 if group not found
-
-    """
+    """Soft delete a group."""
     await service.delete_group(group_id)
 
 
@@ -207,28 +167,20 @@ def _ensure_local_user(user: User) -> None:
         raise UserNotLocalError(user.id)
 
 
-@router.post("/{group_id}/members", status_code=status.HTTP_201_CREATED, dependencies=[Depends(_group_member_manage)])
+@router.post(
+    "/{group_id}/members",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_group_member_manage)],
+    operation_id="add_member",
+    response_description="Member added",
+)
 async def add_member(
     group_id: UUID,
     request: GroupMemberAdd,
     service: Annotated[GroupsService, Depends(get_group_service)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> GroupMemberAddResponse:
-    """Add a user to a group.
-
-    Args:
-        group_id: Group UUID
-        request: Membership request with user_id
-        service: Group service
-        db: Database session
-
-    Returns:
-        Confirmation message
-
-    Raises:
-        HTTPException: 404 if group/user not found, 403 if non-local user, 409 if already a member
-
-    """
+    """Add a local user to a group."""
     user = await get_user(db, request.user_id)
     _ensure_local_user(user)
     await service.add_member(group_id, request.user_id)
@@ -241,6 +193,8 @@ async def add_member(
     "/{group_id}/members/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_group_member_manage)],
+    operation_id="remove_member",
+    response_description="Member removed",
 )
 async def remove_member(
     group_id: UUID,
@@ -248,18 +202,7 @@ async def remove_member(
     service: Annotated[GroupsService, Depends(get_group_service)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    """Remove a user from a group.
-
-    Args:
-        group_id: Group UUID
-        user_id: User UUID
-        service: Group service
-        db: Database session
-
-    Raises:
-        HTTPException: 404 if group not found or user is not a member, 403 if non-local user
-
-    """
+    """Remove a user from a group."""
     user = await get_user(db, user_id)
     _ensure_local_user(user)
     await service.remove_member(group_id, user_id)
@@ -267,26 +210,18 @@ async def remove_member(
         await store.increment_token_version(user_id)
 
 
-@router.get("/{group_id}/members", dependencies=[Depends(_group_read)])
+@router.get(
+    "/{group_id}/members",
+    dependencies=[Depends(_group_read)],
+    operation_id="list_members",
+    response_description="List of group members",
+)
 async def list_members(
     group_id: UUID,
     service: Annotated[GroupsService, Depends(get_group_service)],
     params: Annotated[BaseListParams, Query()],
 ) -> UserListResponse:
-    """List members of a group.
-
-    Args:
-        group_id: Group UUID
-        service: Group service
-        params: Query parameters for pagination
-
-    Returns:
-        UserListResponse with group members
-
-    Raises:
-        HTTPException: 404 if group not found
-
-    """
+    """List members of a group with pagination."""
     return await service.list_members(
         group_id,
         limit=params.limit,

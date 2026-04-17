@@ -18,7 +18,7 @@ This skill detects drift between the OpenAPI spec and the implementation, then g
 
 ## Steps
 
-1. **Run the drift check** and capture output:
+1. **Run the drift check** and capture output. DO NOT summarize the output:
 
    ```bash
    make api-spec-drift VERBOSITY=-vv 2>&1 | tee /tmp/api-spec-drift-output-$$.txt
@@ -26,16 +26,9 @@ This skill detects drift between the OpenAPI spec and the implementation, then g
 
    Use `$$` (the shell PID) so parallel sessions don't overwrite each other's files.
 
-2. **Read and parse the output** from `/tmp/api-spec-drift-output-$$.txt`.
+2. **Ask the user which issue to fix first.** Link the file created in the previous step. DO NOT summarize it. Then wait for their answer before proceeding.
 
-3. **Summarise all detected drift issues** to the user as a numbered list. Each item should include:
-   - The affected endpoint / schema name
-   - The type of discrepancy (missing field, wrong type, extra field, wrong status code, etc.)
-   - Whether the live FastAPI spec has something the bundled spec lacks, or vice versa
-
-4. **Ask the user which issue to fix first.** Wait for their answer before proceeding.
-
-5. **For each issue the user selects:**
+3. **For each issue the user selects:**
 
    a. Read both the relevant sub-spec file and the corresponding implementation (router, model, service) to understand the root cause. Establish which side is wrong:
       - **Implementation is wrong**: the FastAPI code doesn't match the spec → fix the source code (router, model, or service).
@@ -52,7 +45,7 @@ This skill detects drift between the OpenAPI spec and the implementation, then g
 
    d. Confirm the issue is resolved, then ask the user which remaining issue to tackle next.
 
-6. **Repeat** until the user is satisfied or no drift remains.
+4. **Repeat** until the user is satisfied or no drift remains. Compact context whenever a new issue is worked on.
 
 ## Reminders
 

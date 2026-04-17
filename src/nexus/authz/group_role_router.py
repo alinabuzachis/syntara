@@ -15,7 +15,7 @@ from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 
-router = NexusRouter(prefix="/group-role-assignments", tags=["group-role-assignments"])
+router = NexusRouter(prefix="/group-role-assignments", tags=["Group Role Assignments"])
 
 
 class GroupRoleAssignmentCreate(SQLModel):
@@ -26,7 +26,7 @@ class GroupRoleAssignmentCreate(SQLModel):
 
 
 class GroupRoleAssignmentRead(SQLModel):
-    """Response body for a group→role assignment."""
+    """Response body for a group-to-role assignment."""
 
     id: str
     group_id: str
@@ -48,6 +48,8 @@ def get_group_role_service(
     "",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("group-role", "assign", roles=["admin"]))],
+    operation_id="assign_group_role",
+    response_description="Role assigned to group",
 )
 async def assign_group_role(
     body: GroupRoleAssignmentCreate,
@@ -73,7 +75,12 @@ async def assign_group_role(
     )
 
 
-@router.get("", dependencies=[NO_PERMISSION])
+@router.get(
+    "",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_group_role_assignments",
+    response_description="List of group-role assignments",
+)
 async def list_group_role_assignments(
     service: Annotated[GroupRoleService, Depends(get_group_role_service)],
 ) -> list[GroupRoleAssignmentRead]:
@@ -86,6 +93,8 @@ async def list_group_role_assignments(
     "/{assignment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(PermissionChecker("group-role", "revoke", roles=["admin"]))],
+    operation_id="revoke_group_role_assignment",
+    response_description="Assignment removed",
 )
 async def revoke_group_role_assignment(
     assignment_id: UUID,

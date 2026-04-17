@@ -83,4 +83,5 @@ class CredentialTypeRead(SQLModel):
     updated_at: datetime
 
 
-CredentialTypeListResponse = ResourcesResponse[CredentialTypeRead]
+class CredentialTypeListResponse(ResourcesResponse[CredentialTypeRead]):
+    """Paginated list response for credential types."""

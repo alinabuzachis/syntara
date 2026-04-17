@@ -20,10 +20,9 @@ tags:
 paths:
   /roles:
     post:
-      summary: Create a custom role
-      description: |
-        Create a new custom role with one or more policy references.
-        Requires: role:create permission (admin role).
+      summary: Create Role
+      description: |-
+        Create a custom role. Requires: role:create permission.
       operationId: create_role
       tags:
         - Roles
@@ -47,8 +46,10 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     get:
-      summary: List roles
+      summary: List Roles
       description: List roles with filtering and pagination.
       operationId: list_roles
       tags:
@@ -90,9 +91,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/RoleListResponse"
 
+      security:
+        - bearerAuth: []
   /roles/{role_id}:
     get:
-      summary: Get a role by ID
+      summary: Get Role
       operationId: get_role
       tags:
         - Roles
@@ -103,7 +106,6 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Role UUID
       responses:
         "200":
           description: Role details
@@ -118,11 +120,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     patch:
-      summary: Update a role
-      description: |
-        Update a role. Builtin roles cannot be modified.
-        Requires: role:update permission (admin role).
+      summary: Update Role
+      description: |-
+        Patch a role. Builtin roles cannot be modified. Requires: role:update permission.
       operationId: update_role
       tags:
         - Roles
@@ -133,7 +136,6 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Role UUID
       requestBody:
         required: true
         content:
@@ -154,11 +156,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     put:
-      summary: Update a role (full replacement)
-      description: |
-        Update a role. Builtin roles cannot be modified.
-        Requires: role:update permission (admin role).
+      summary: Replace Role
+      description: |-
+        Replace a role. Builtin roles cannot be modified. Requires: role:update permission.
       operationId: replace_role
       tags:
         - Roles
@@ -169,7 +172,6 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Role UUID
       requestBody:
         required: true
         content:
@@ -190,11 +192,12 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     delete:
-      summary: Delete a role
-      description: |
-        Delete a role. Builtin roles cannot be deleted.
-        Requires: role:delete permission (admin role).
+      summary: Delete Role
+      description: |-
+        Delete a role. Builtin roles cannot be deleted. Requires: role:delete permission.
       operationId: delete_role
       tags:
         - Roles
@@ -205,7 +208,6 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Role UUID
       responses:
         "204":
           description: Role deleted
@@ -216,12 +218,14 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     RoleCreate:
       type: object
-      title: Role Create
-      description: Request body for creating a role
+      title: RoleCreate
+      description: Request body for creating a role.
       required:
         - name
         - policies
@@ -230,55 +234,67 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-          description: Unique role name
+          title: Name
         description:
-          type: [string, "null"]
-          description: Role description
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         policies:
           type: array
           minItems: 1
           items:
             type: string
-          description: List of policy names to attach to this role
+          title: Policies
         labels:
           type: object
           default: {}
           additionalProperties:
             type: string
-          description: Key-value labels
+          title: Labels
         project_id:
-          type: [string, "null"]
-          format: uuid
-          description: Project scope (null for system-level)
+          anyOf:
+            - type: string
+              format: uuid
+            - type: "null"
+          title: Project Id
 
     RoleUpdate:
       type: object
-      title: Role Update
-      description: Request body for updating a role (partial)
+      title: RoleUpdate
+      description: Request body for updating a role (partial).
       properties:
         name:
-          type: [string, "null"]
-          minLength: 1
-          maxLength: 255
-          description: Update role name
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 255
+            - type: "null"
+          title: Name
         description:
-          type: [string, "null"]
-          description: Update description
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         policies:
-          type: [array, "null"]
-          items:
-            type: string
-          description: Update attached policies
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: "null"
+          title: Policies
         labels:
-          type: [object, "null"]
-          additionalProperties:
-            type: string
-          description: Update labels
+          anyOf:
+            - type: object
+              additionalProperties:
+                type: string
+            - type: "null"
+          title: Labels
 
     RoleRead:
       type: object
-      title: Role Read
-      description: Response body for a role
+      title: RoleRead
+      description: Response body for a role.
       required:
         - id
         - name
@@ -286,40 +302,48 @@ components:
         id:
           type: string
           format: uuid
-          description: Role UUID
+          title: Id
         name:
           type: string
-          description: Role name
+          title: Name
         description:
-          type: [string, "null"]
-          description: Role description
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
         policies:
           type: array
           default: []
           items:
             type: string
-          description: Attached policy names
+          title: Policies
         is_builtin:
           type: boolean
           default: false
-          description: Whether this is a builtin role
+          title: Is Builtin
         project_id:
-          type: [string, "null"]
-          format: uuid
-          description: Project scope (null for system-level)
+          anyOf:
+            - type: string
+              format: uuid
+            - type: "null"
+          title: Project Id
         labels:
           type: object
           default: {}
           additionalProperties: true
-          description: Key-value labels
+          title: Labels
         created_at:
-          type: [string, "null"]
-          format: date-time
-          description: Creation timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          title: Created At
         updated_at:
-          type: [string, "null"]
-          format: date-time
-          description: Last update timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          title: Updated At
 
     RoleListResponse:
       allOf:

@@ -117,6 +117,8 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
     description="Accept async agent invocation request and return invocation ID immediately. "
     "Supports both application/json and multipart/form-data with optional file uploads.",
     dependencies=[NO_PERMISSION],
+    operation_id="create_invocation",
+    response_description="Invocation accepted",
 )
 async def create_invocation(
     request: Request,
@@ -212,6 +214,8 @@ async def create_invocation(
     summary="List Invocations",
     description="List invocations with cursor-based pagination and filtering",
     dependencies=[NO_PERMISSION],
+    operation_id="list_invocations",
+    response_description="List of invocations",
 )
 async def list_invocations(
     request: Request,
@@ -263,6 +267,8 @@ async def list_invocations(
     "NOTE: This endpoint is for testing and debugging. "
     "Production systems should use WebSockets for real-time results.",
     dependencies=[NO_PERMISSION],
+    operation_id="get_invocation",
+    response_description="Invocation details",
 )
 async def get_invocation(
     invocation_id: Annotated[
@@ -322,6 +328,8 @@ async def get_invocation(
     summary="Cancel Invocation",
     description="Cancel a running or pending invocation. Only the invocation owner can cancel it.",
     dependencies=[NO_PERMISSION],
+    operation_id="cancel_invocation",
+    response_description="Cancellation result",
 )
 async def cancel_invocation(
     invocation_id: Annotated[

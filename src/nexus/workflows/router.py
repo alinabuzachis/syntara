@@ -30,7 +30,7 @@ from nexus.workflows.models.workflow_version import (
 from nexus.workflows.services import WorkflowService
 from nexus.workflows.utils.serialization import deserialize_workflow_version
 
-router = NexusRouter(prefix="/workflows", tags=["workflows", "workflow-versions"])
+router = NexusRouter(prefix="/workflows", tags=["workflows"])
 
 _wf_perm_read = PermissionChecker(
     "workflow",
@@ -75,14 +75,6 @@ def get_workflow_service(
 
     FastAPI will call this function automatically, injecting all dependencies.
     This centralizes WorkflowService creation across all endpoints.
-
-    Args:
-        db: Database session
-        current_user: Current authenticated user
-
-    Returns:
-        WorkflowService configured with database session and user
-
     """
     return WorkflowService(db, current_user)
 
@@ -97,24 +89,14 @@ def get_workflow_service(
     response_model=WorkflowRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_wf_perm_create)],
+    operation_id="create_workflow",
+    response_description="Workflow created",
 )
 async def create_workflow(
     request: WorkflowCreate,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
 ) -> Workflow:
-    """Create a new workflow with initial version.
-
-    Args:
-        request: Workflow creation request
-        service: Workflow service
-
-    Returns:
-        Created workflow
-
-    Raises:
-        HTTPException: 400 if validation fails or name already exists
-
-    """
+    """Create a new workflow with initial version."""
     workflow, _ = await service.create_workflow(
         name=request.name,
         description=request.description,
@@ -126,7 +108,7 @@ async def create_workflow(
     return workflow
 
 
-@router.get("")
+@router.get("", operation_id="list_workflows", response_description="List of workflows")
 async def list_workflows(
     request: Request,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
@@ -141,16 +123,6 @@ async def list_workflows(
     - labels: Filter by labels using bracket notation (labels[environment]=production)
 
     Uses cursor-based pagination for scalability and consistency.
-
-    Args:
-        request: FastAPI request object containing query parameters
-        service: Workflow service
-        params: Query parameters for pagination and filtering
-        allowed_projects: Resolved project access for the current user
-
-    Returns:
-        WorkflowListResponse with workflows, pagination metadata, and optional total
-
     """
     return await service.list_workflows_cursor(
         limit=params.limit,
@@ -165,24 +137,14 @@ async def list_workflows(
 @router.get(
     "/{workflow_id}",
     dependencies=[Depends(_wf_perm_read)],
+    operation_id="get_workflow",
+    response_description="Workflow details",
 )
 async def get_workflow(
     workflow_id: UUID,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
 ) -> WorkflowReadWithVersion:
-    """Get a workflow by ID including its current active version.
-
-    Args:
-        workflow_id: Workflow UUID
-        service: Workflow service
-
-    Returns:
-        Workflow with current version data
-
-    Raises:
-        HTTPException: 404 if workflow not found or deleted
-
-    """
+    """Get a workflow by ID including its current active version."""
     workflow, current_version = await service.get_workflow_with_version(workflow_id)
 
     # Return workflow with version data - deserialize workflow_definition from JSON
@@ -207,6 +169,8 @@ async def get_workflow(
 @router.patch(
     "/{workflow_id}",
     dependencies=[Depends(_wf_perm_update)],
+    operation_id="update_workflow",
+    response_description="Updated workflow",
 )
 async def update_workflow(
     workflow_id: UUID,
@@ -219,18 +183,6 @@ async def update_workflow(
     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
     - With workflow_definition: Validates definition, compares with current version, creates new WorkflowVersion
       only if definition differs (change detection optimization)
-
-    Args:
-        workflow_id: Workflow UUID
-        request: Update request
-        service: Workflow service
-
-    Returns:
-        Updated workflow with current version data
-
-    Raises:
-        HTTPException: 404 if workflow not found, 400 for validation errors
-
     """
     workflow, current_version = await service.update_workflow(
         workflow_id=workflow_id,
@@ -265,21 +217,14 @@ async def update_workflow(
     "/{workflow_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_wf_perm_delete)],
+    operation_id="delete_workflow",
+    response_description="Workflow deleted",
 )
 async def delete_workflow(
     workflow_id: UUID,
     service: Annotated[WorkflowService, Depends(get_workflow_service)],
 ) -> None:
-    """Soft delete a workflow.
-
-    Args:
-        workflow_id: Workflow UUID
-        service: Workflow service
-
-    Raises:
-        HTTPException: 404 if workflow not found
-
-    """
+    """Soft delete a workflow."""
     await service.delete_workflow(workflow_id)
 
 
@@ -295,24 +240,14 @@ async def delete_workflow(
 @router.get(
     "/{workflow_id}/versions",
     dependencies=[Depends(_wf_perm_read)],
+    operation_id="list_workflow_versions",
+    response_description="Workflow version history",
 )
 async def list_workflow_versions(
     workflow_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> WorkflowVersionListResponse:
-    """List all versions for a workflow.
-
-    Args:
-        workflow_id: Workflow UUID
-        db: Database session
-
-    Returns:
-        List of versions ordered by version DESC
-
-    Raises:
-        HTTPException: 404 if workflow not found
-
-    """
+    """List all versions for a workflow."""
     # Verify workflow exists
     workflow_result = await db.exec(
         select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]
@@ -346,26 +281,15 @@ async def list_workflow_versions(
 @router.get(
     "/{workflow_id}/versions/{version}",
     dependencies=[Depends(_wf_perm_read)],
+    operation_id="get_workflow_version",
+    response_description="Workflow version details",
 )
 async def get_workflow_version(
     workflow_id: UUID,
     version: int,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> WorkflowVersionRead:
-    """Get a specific workflow version.
-
-    Args:
-        workflow_id: Workflow UUID
-        version: Version number
-        db: Database session
-
-    Returns:
-        Workflow version
-
-    Raises:
-        HTTPException: 404 if workflow or version not found
-
-    """
+    """Get a specific workflow version."""
     # Verify workflow exists
     workflow_result = await db.exec(
         select(Workflow).filter(Workflow.id == workflow_id, Workflow.deleted_at.is_(None))  # type: ignore[arg-type,union-attr]

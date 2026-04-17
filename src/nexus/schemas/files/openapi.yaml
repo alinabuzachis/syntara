@@ -39,18 +39,9 @@ servers:
 paths:
   /files:
     post:
-      summary: Upload Files
-      description: |
-        Upload files independently of invocations for later use in agent execution.
-
-        Returns file_ids that can be stored in workflow configuration and passed to invocations
-        via context_data.file_ids. Files are validated, stored, and queued for document conversion.
-
-        **Supported Formats:** PDF, DOC, DOCX, TXT, MD
-        **Max File Size:** 10 MB per file (configurable via file_upload_max_size_mb)
-        **Max File Count:** 10 files per request (configurable via file_upload_max_files)
-
-        **Security Note:** Internal file paths are never exposed in API responses.
+      summary: Upload Files (Design Time)
+      description: |-
+        Upload files independently of invocations for later use in agent execution. Returns file_ids that can be stored in workflow configuration and passed to invocations. Files are validated, stored, and queued for document conversion.
 
       operationId: upload_files
       tags:
@@ -177,12 +168,14 @@ paths:
                     retryable: true
                     instance: /api/v1/files
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     FileUploadResponse:
       type: object
       title: FileUploadResponse
-      description: Response from POST /files endpoint
+      description: Response model for POST /api/v1/files endpoint.
       required:
         - file_ids
         - files
@@ -206,7 +199,12 @@ components:
     FileUploadInfo:
       type: object
       title: FileUploadInfo
-      description: Metadata for an uploaded file (excludes internal file_path for security)
+      description: |-
+        Response model for individual file upload information.
+
+        Security Note:
+            file_path is intentionally excluded from this model to prevent
+            exposing internal filesystem paths in API responses.
       required:
         - file_id
         - filename
@@ -236,45 +234,14 @@ components:
           description: Detected MIME type of the file
           example: application/pdf
         status:
-          $ref: '#/components/schemas/FileProcessingStatus'
+          $ref: '#/components/schemas/FileStatus'
 
-    FileProcessingStatus:
+    FileStatus:
       type: string
       enum: [pending_conversion, converting, converted, conversion_failed]
-      title: File Processing Status
+      title: FileStatus
       description: Current status of file processing/conversion
       example: pending_conversion
-
-    FileMetadata:
-      type: object
-      title: File Metadata
-      description: Internal file metadata including storage path (used in context_data)
-      required:
-        - id
-        - filename
-        - size_bytes
-        - mime_type
-        - file_path
-        - status
-      properties:
-        id:
-          type: string
-          format: uuid
-          description: Unique file identifier (UUID)
-        filename:
-          type: string
-          description: Original filename
-        size_bytes:
-          type: integer
-          description: File size in bytes
-        mime_type:
-          type: string
-          description: MIME type (e.g., application/pdf)
-        file_path:
-          type: string
-          description: Path to file in storage directory
-        status:
-          $ref: '#/components/schemas/FileProcessingStatus'
 
   securitySchemes:
     bearerAuth:

@@ -20,10 +20,9 @@ tags:
 paths:
   /user-role-assignments:
     post:
-      summary: Assign a role to a user
-      description: |
-        Assign a role directly to a user at the system level.
-        Requires: admin permission.
+      summary: Assign User Role
+      description: |-
+        Assign a role directly to a user (system-level). Requires: admin permission.
       operationId: assign_user_role
       tags:
         - User Role Assignments
@@ -53,9 +52,11 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
     get:
-      summary: List all user-role assignments
-      description: List all system-level user-to-role assignments.
+      summary: List User Role Assignments
+      description: List all system-level user→role assignments.
       operationId: list_user_role_assignments
       tags:
         - User Role Assignments
@@ -69,12 +70,13 @@ paths:
                 items:
                   $ref: "#/components/schemas/UserRoleAssignmentRead"
 
+      security:
+        - bearerAuth: []
   /user-role-assignments/{assignment_id}:
     delete:
-      summary: Remove a user-role assignment
-      description: |
-        Remove a user-to-role assignment.
-        Requires: admin permission.
+      summary: Revoke User Role Assignment
+      description: |-
+        Remove a user→role assignment. Requires: admin permission.
       operationId: revoke_user_role_assignment
       tags:
         - User Role Assignments
@@ -85,7 +87,6 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Assignment UUID
       responses:
         "204":
           description: Assignment removed
@@ -96,12 +97,14 @@ paths:
               schema:
                 $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
 
+      security:
+        - bearerAuth: []
 components:
   schemas:
     UserRoleAssignmentCreate:
       type: object
-      title: User Role Assignment Create
-      description: Request body for assigning a role to a user
+      title: UserRoleAssignmentCreate
+      description: Request body for assigning a role to a user.
       required:
         - user_id
         - role_id
@@ -109,16 +112,16 @@ components:
         user_id:
           type: string
           format: uuid
-          description: User UUID
+          title: User Id
         role_id:
           type: string
           format: uuid
-          description: Role UUID
+          title: Role Id
 
     UserRoleAssignmentRead:
       type: object
-      title: User Role Assignment Read
-      description: Response body for a user-to-role assignment
+      title: UserRoleAssignmentRead
+      description: "Response body for a user→role assignment."
       required:
         - id
         - user_id
@@ -128,23 +131,25 @@ components:
       properties:
         id:
           type: string
-          description: Assignment ID
+          title: Id
         user_id:
           type: string
-          description: User UUID
+          title: User Id
         username:
           type: string
-          description: Username
+          title: Username
         role_id:
           type: string
-          description: Role UUID
+          title: Role Id
         role_name:
           type: string
-          description: Role name
+          title: Role Name
         created_at:
-          type: [string, "null"]
-          format: date-time
-          description: Creation timestamp
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Created At
 
   securitySchemes:
     bearerAuth:
