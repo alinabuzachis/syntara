@@ -5,7 +5,7 @@ metadata:
     build.appstudio.openshift.io/repo: https://github.com/syntara-orchestration/syntara-ui?rev={{revision}}
     build.appstudio.redhat.com/commit_sha: '{{revision}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
-    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+    pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch.startsWith("refs/tags/")
   creationTimestamp: null
@@ -18,7 +18,7 @@ metadata:
 spec:
   params:
   - name: git-url
-    value: '{{source_url}}'
+    value: '{{repo_url}}'
   - name: revision
     value: '{{revision}}'
   - name: output-image
