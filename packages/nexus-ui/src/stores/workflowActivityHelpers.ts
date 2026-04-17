@@ -144,7 +144,7 @@ export function reorderActivities(activities: Activity[], edges: EdgeConnection[
   // Process nodes in topological order
   while (queue.length > 0) {
     // Sort queue to ensure deterministic ordering when there are multiple valid orders
-    queue.sort()
+    queue.sort((a, b) => a.localeCompare(b, 'en'))
     const current = queue.shift()!
     sortedIds.push(current)
 

@@ -236,7 +236,7 @@ export function useButtonEdgeMaintenance({
   const realNodeIds = useMemo(() => {
     return filterRealNodes(nodes)
       .map((node) => `${node.id}:${node.type ?? ''}`)
-      .sort()
+      .sort((a, b) => a.localeCompare(b, 'en'))
       .join(',')
   }, [nodes])
 
@@ -249,7 +249,7 @@ export function useButtonEdgeMaintenance({
         const targetHandle = edge.targetHandle ?? ''
         return `${edge.source}::${sourceHandle}::${edge.target}::${targetHandle}`
       })
-      .sort()
+      .sort((a, b) => a.localeCompare(b, 'en'))
       .join('|')
   }, [edges])
 
@@ -258,7 +258,7 @@ export function useButtonEdgeMaintenance({
     const buttonEdges = filterButtonEdges(edges)
     return buttonEdges
       .map((edge) => edge.id)
-      .sort()
+      .sort((a, b) => a.localeCompare(b, 'en'))
       .join('|')
   }, [edges])
 
