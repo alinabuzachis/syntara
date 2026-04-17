@@ -118,7 +118,7 @@ jobs:
         run: make secrets-generate
 
       - name: Start services with podman-compose
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           # Start core services (exclude nexus-ui which is private)
           uvx podman-compose -p nexus-ci up --build -d database temporal nexus temporal-worker mcp-server opa
