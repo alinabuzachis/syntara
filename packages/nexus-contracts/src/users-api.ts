@@ -252,8 +252,8 @@ export interface components {
        */
       updated_at: string
     }
-    UserListResponse: components['schemas']['ResourcesResponse'] & {
-      resources?: components['schemas']['UserRead'][]
+    UserListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources: components['schemas']['UserRead'][]
     }
     UserGroupsSet: {
       /**
@@ -315,8 +315,8 @@ export interface components {
        */
       member_count?: number
     }
-    GroupListResponse: components['schemas']['ResourcesResponse'] & {
-      resources?: components['schemas']['GroupRead'][]
+    GroupListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources: components['schemas']['GroupRead'][]
     }
     GroupMemberAdd: {
       /**
@@ -355,127 +355,6 @@ export interface components {
        * @example 150
        */
       total?: number | null
-    }
-    /**
-     * Base Resource
-     * @description Foundational schema for all API resources with system-managed metadata
-     */
-    BaseResource: {
-      /**
-       * Resource ID
-       * Format: uuid
-       * @description Unique identifier for the resource
-       * @example 550e8400-e29b-41d4-a716-446655440000
-       */
-      readonly id: string
-      /**
-       * Created At
-       * Format: date-time
-       * @description Timestamp when resource was created
-       * @example 2025-10-09T12:00:00Z
-       */
-      readonly created_at: string
-      /**
-       * Updated At
-       * Format: date-time
-       * @description Timestamp when resource was last updated
-       * @example 2025-10-09T12:30:00Z
-       */
-      readonly updated_at: string
-      /**
-       * Labels
-       * @description Key-value pairs for resource labeling and filtering
-       * @default {}
-       * @example {
-       *       "environment": "production",
-       *       "region": "us-east-1",
-       *       "team": "platform"
-       *     }
-       */
-      labels?: {
-        [key: string]: string
-      }
-    }
-    NamedResource: components['schemas']['BaseResource'] & {
-      /**
-       * Name
-       * @description Human-readable name for the resource
-       * @example Authentication Service
-       */
-      name: string
-      /**
-       * Description
-       * @description Detailed description of the resource
-       * @example Handles user authentication and authorization workflows
-       */
-      description?: string | null
-    }
-    SoftDeletableResource: components['schemas']['BaseResource'] & {
-      /**
-       * Deleted At
-       * Format: date-time
-       * @description Timestamp when resource was soft deleted
-       * @example 2025-10-09T14:00:00Z
-       */
-      readonly deleted_at?: string | null
-      /**
-       * Deleted By
-       * Format: uuid
-       * @description User who performed the soft delete
-       * @example 660e8400-e29b-41d4-a716-446655440000
-       */
-      readonly deleted_by?: string | null
-    }
-    UserOwnedResource: components['schemas']['BaseResource'] & {
-      /**
-       * Created By
-       * Format: uuid
-       * @description User who created the resource
-       * @example 770e8400-e29b-41d4-a716-446655440000
-       */
-      readonly created_by: string
-      /**
-       * Updated By
-       * Format: uuid
-       * @description User who last updated the resource
-       * @example 880e8400-e29b-41d4-a716-446655440000
-       */
-      readonly updated_by?: string | null
-    }
-    /**
-     * Resource
-     * @description Composite entity combining all base resource capabilities:
-     *     - System metadata (from BaseResource): id, timestamps, labels
-     *     - Naming (from NamedResource): name, description
-     *     - Soft deletion (from SoftDeletableResource): deletedAt, deletedBy
-     *     - Ownership (from UserOwnedResource): created_by, updated_by
-     *
-     *     This is the recommended base schema for most API resources.
-     * @example {
-     *       "id": "550e8400-e29b-41d4-a716-446655440000",
-     *       "created_at": "2025-10-09T12:00:00Z",
-     *       "updated_at": "2025-10-09T12:30:00Z",
-     *       "labels": {
-     *         "environment": "production",
-     *         "region": "us-east-1"
-     *       },
-     *       "name": "Authentication Service",
-     *       "description": "Handles user authentication and authorization",
-     *       "deleted_at": null,
-     *       "deleted_by": null,
-     *       "created_by": "770e8400-e29b-41d4-a716-446655440000",
-     *       "updated_by": "880e8400-e29b-41d4-a716-446655440000"
-     *     }
-     */
-    Resource: components['schemas']['NamedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['UserOwnedResource']
-    ResourcesResponse: components['schemas']['ResourcesResponseBase'] & {
-      /**
-       * Resources
-       * @description Array of resources in current page
-       */
-      resources: components['schemas']['Resource'][]
     }
     /**
      * RFC 9457 Problem Details

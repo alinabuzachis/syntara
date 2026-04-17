@@ -485,7 +485,7 @@ export interface components {
       error?: string | null
     }
     /**
-     * Invocation Cancel Request
+     * InvocationCancelRequest
      * @description Request body for cancelling an invocation
      */
     InvocationCancelRequest: {
@@ -498,7 +498,7 @@ export interface components {
       reason?: string
     }
     /**
-     * Invocation Cancel Response
+     * InvocationCancelResponse
      * @description Response after attempting to cancel an invocation
      */
     InvocationCancelResponse: {
@@ -681,69 +681,6 @@ export interface components {
   }
   parameters: {
     /**
-     * @description Filter invocations by status.
-     *     - Exact match: `status=running`
-     * @example running
-     */
-    statusFilterParam: components['schemas']['InvocationStatus']
-    /**
-     * @description Filter invocations by creator UUID.
-     *     - Exact match: `created_by=550e8400-e29b-41d4-a716-446655440000`
-     *     - Explicit equals: `created_by[eq]=550e8400-e29b-41d4-a716-446655440000`
-     * @example 550e8400-e29b-41d4-a716-446655440000
-     */
-    createdByFilterParam: string & {
-      /**
-       * Equals
-       * Format: uuid
-       * @description Exact match of creator UUID. ?created_by[eq]=<uuid>
-       */
-      eq?: string
-    }
-    /**
-     * @description Filter invocations by session ID.
-     *     - Exact match: `session_id=session-001`
-     *     - Contains: `session_id[contains]=session`
-     *     - Starts with: `session_id[starts_with]=session-`
-     * @example session-001
-     */
-    sessionIdFilterParam: string & {
-      /**
-       * Equals
-       * @description Exact match of session ID (case-sensitive). ?session_id[eq]=<session_id>
-       */
-      eq?: string
-      /**
-       * Contains
-       * @description Substring match within session ID. ?session_id[contains]=<substring>
-       */
-      contains?: string
-      /**
-       * Starts With
-       * @description Prefix match at start of session ID. ?session_id[starts_with]=<prefix>
-       */
-      starts_with?: string
-    }
-    /**
-     * @description Filter invocations by prompt text.
-     *     - Contains (default): `prompt=deploy`
-     *     - Contains (explicit): `prompt[contains]=deploy`
-     *     - Starts with: `prompt[starts_with]=Create a workflow`
-     * @example deploy
-     */
-    promptFilterParam: string & {
-      /**
-       * Contains
-       * @description Substring match within prompt text (case-insensitive). ?prompt[contains]=<text>
-       */
-      contains?: string
-      /**
-       * Starts With
-       * @description Prefix match at start of prompt. ?prompt[starts_with]=<prefix>
-       */
-      starts_with?: string
-    }
-    /**
      * @description Opaque cursor for pagination (from previous response)
      * @example eyJpZCI6InV1aWQifQ
      */
@@ -869,35 +806,14 @@ export interface operations {
          * @example -created_at
          */
         sort?: components['parameters']['sortParam']
-        /**
-         * @description Filter invocations by status.
-         *     - Exact match: `status=running`
-         * @example running
-         */
-        status?: components['parameters']['statusFilterParam']
-        /**
-         * @description Filter invocations by prompt text.
-         *     - Contains (default): `prompt=deploy`
-         *     - Contains (explicit): `prompt[contains]=deploy`
-         *     - Starts with: `prompt[starts_with]=Create a workflow`
-         * @example deploy
-         */
-        prompt?: components['parameters']['promptFilterParam']
-        /**
-         * @description Filter invocations by creator UUID.
-         *     - Exact match: `created_by=550e8400-e29b-41d4-a716-446655440000`
-         *     - Explicit equals: `created_by[eq]=550e8400-e29b-41d4-a716-446655440000`
-         * @example 550e8400-e29b-41d4-a716-446655440000
-         */
-        created_by?: components['parameters']['createdByFilterParam']
-        /**
-         * @description Filter invocations by session ID.
-         *     - Exact match: `session_id=session-001`
-         *     - Contains: `session_id[contains]=session`
-         *     - Starts with: `session_id[starts_with]=session-`
-         * @example session-001
-         */
-        session_id?: components['parameters']['sessionIdFilterParam']
+        /** @description Filter invocations by status (running, paused, cancelled, completed, failed) */
+        status?: components['schemas']['InvocationStatus']
+        /** @description Filter by prompt text (substring match) */
+        prompt?: string
+        /** @description Filter by creator UUID */
+        created_by?: string
+        /** @description Filter by session ID */
+        session_id?: string
         /**
          * @description Filter resources by label key-value pairs.
          *     - Single label: `labels[environment]=production`

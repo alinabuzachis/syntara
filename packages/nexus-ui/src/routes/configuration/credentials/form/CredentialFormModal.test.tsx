@@ -326,7 +326,7 @@ describe('CredentialFormModal', () => {
     await user.click(screen.getByRole('button', { name: 'Create credential' }))
 
     await waitFor(() => expect(mockMutate).toHaveBeenCalled())
-     
+
     const callArgs = mockMutate.mock.calls[0][0] as { body: Record<string, unknown> }
     expect(callArgs.body).not.toHaveProperty('project_id')
   })

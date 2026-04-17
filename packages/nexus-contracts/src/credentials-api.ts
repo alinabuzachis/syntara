@@ -173,11 +173,6 @@ export interface components {
        * @default true
        */
       enabled: boolean
-      /**
-       * @description Number of workflows referencing this credential
-       * @default 0
-       */
-      workflow_count?: number
     }
     /**
      * Credential Patch
@@ -234,22 +229,6 @@ export interface components {
       id: string
       /** @description Workflow name */
       name: string
-      /** @description Workflow description */
-      description?: string | null
-      /** @description Username or UUID of the workflow creator */
-      created_by?: string | null
-      /**
-       * @description Names of nodes using this credential
-       * @default []
-       */
-      node_names?: string[]
-      /**
-       * Format: date-time
-       * @description Timestamp of the most recent execution
-       */
-      last_execution_at?: string | null
-      /** @description Status of the most recent execution */
-      last_execution_status?: string | null
     }
     /**
      * Paginated Response Base
@@ -363,28 +342,7 @@ export interface components {
     }
     /**
      * Resource
-     * @description Composite entity combining all base resource capabilities:
-     *     - System metadata (from BaseResource): id, timestamps, labels
-     *     - Naming (from NamedResource): name, description
-     *     - Soft deletion (from SoftDeletableResource): deletedAt, deletedBy
-     *     - Ownership (from UserOwnedResource): created_by, updated_by
-     *
-     *     This is the recommended base schema for most API resources.
-     * @example {
-     *       "id": "550e8400-e29b-41d4-a716-446655440000",
-     *       "created_at": "2025-10-09T12:00:00Z",
-     *       "updated_at": "2025-10-09T12:30:00Z",
-     *       "labels": {
-     *         "environment": "production",
-     *         "region": "us-east-1"
-     *       },
-     *       "name": "Authentication Service",
-     *       "description": "Handles user authentication and authorization",
-     *       "deleted_at": null,
-     *       "deleted_by": null,
-     *       "created_by": "770e8400-e29b-41d4-a716-446655440000",
-     *       "updated_by": "880e8400-e29b-41d4-a716-446655440000"
-     *     }
+     * @description Composite resource combining named, soft-deletable, and user-owned capabilities
      */
     Resource: components['schemas']['NamedResource'] &
       components['schemas']['SoftDeletableResource'] &

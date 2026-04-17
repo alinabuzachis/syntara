@@ -14,7 +14,6 @@ import {
 import { PlusIcon } from '@patternfly/react-icons'
 import React, { useCallback, useMemo, useState } from 'react'
 
-
 import { credentialsClient } from '../client'
 import type { Credential, CredentialType } from '../routes/configuration/credentials/credentialConstants'
 import { CredentialFormModal } from '../routes/configuration/credentials/form/CredentialFormModal'

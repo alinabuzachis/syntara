@@ -126,7 +126,6 @@ function ActionParametersContent(props: {
                       language={editorLanguage}
                       height="200px"
                       ariaLabel="Script code editor"
-                      isDarkTheme
                     />
                   </div>
                 )}

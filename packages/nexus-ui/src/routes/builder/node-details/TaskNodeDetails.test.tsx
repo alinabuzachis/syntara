@@ -136,9 +136,8 @@ vi.mock('../node-forms/AAPNodeForm', () => ({
         onClick={() =>
           onSubmit({
             name: 'Updated AAP Task',
-            jobTemplateId: '456',
+            jobTemplateId: 456,
             inventory: '789',
-            credentials: '10,20',
             extraVars: '{"key": "value"}',
             limit: 'servers',
             tags: 'install',

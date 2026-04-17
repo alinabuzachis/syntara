@@ -189,40 +189,42 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    ToolWithParameters: components['schemas']['Resource'] & {
-      /**
-       * Format: uuid
-       * @description UUID of the associated tool provider
-       */
-      provider_id: string
-      /** @description Unique namespaced name for the tool */
-      namespaced_name: string
-      /**
-       * @description Whether the tool is enabled
-       * @default true
-       */
-      enabled: boolean
-      /**
-       * @description Current status of the tool
-       * @default available
-       * @enum {string}
-       */
-      status: 'available' | 'missing' | 'error'
-      /**
-       * Format: date-time
-       * @description Timestamp of last execution
-       */
-      last_executed_at?: string | null
-      /**
-       * Format: date-time
-       * @description Timestamp of last refresh from provider
-       */
-      last_refreshed_at?: string | null
-      /** @description Error message from last refresh attempt */
-      refresh_error?: string | null
-      /** @description Tool parameters */
-      parameters: components['schemas']['ToolParameter'][]
-    }
+    ToolWithParameters: components['schemas']['NamedResource'] &
+      components['schemas']['SoftDeletableResource'] &
+      components['schemas']['UserOwnedResource'] & {
+        /**
+         * Format: uuid
+         * @description UUID of the associated tool provider
+         */
+        provider_id: string
+        /** @description Unique namespaced name for the tool */
+        namespaced_name: string
+        /**
+         * @description Whether the tool is enabled
+         * @default true
+         */
+        enabled: boolean
+        /**
+         * @description Current status of the tool
+         * @default available
+         * @enum {string}
+         */
+        status: 'available' | 'missing' | 'error'
+        /**
+         * Format: date-time
+         * @description Timestamp of last execution
+         */
+        last_executed_at?: string | null
+        /**
+         * Format: date-time
+         * @description Timestamp of last refresh from provider
+         */
+        last_refreshed_at?: string | null
+        /** @description Error message from last refresh attempt */
+        refresh_error?: string | null
+        /** @description Tool parameters */
+        parameters: components['schemas']['ToolParameter'][]
+      }
     ToolParameter: {
       /** Format: uuid */
       id: string
@@ -261,20 +263,22 @@ export interface components {
        */
       updated_at: string
     }
-    ToolProviderWithConfiguration: components['schemas']['Resource'] & {
-      /** @description Provider-specific configuration */
-      configuration: components['schemas']['MCPConfiguration']
-      /** @default true */
-      enabled?: boolean
-      /**
-       * @default validating
-       * @enum {string}
-       */
-      status?: 'available' | 'error' | 'validating'
-      /** Format: date-time */
-      last_validated_at?: string | null
-      validation_error?: string | null
-    }
+    ToolProviderWithConfiguration: components['schemas']['NamedResource'] &
+      components['schemas']['SoftDeletableResource'] &
+      components['schemas']['UserOwnedResource'] & {
+        /** @description Provider-specific configuration */
+        configuration: components['schemas']['MCPConfiguration']
+        /** @default true */
+        enabled?: boolean
+        /**
+         * @default validating
+         * @enum {string}
+         */
+        status?: 'available' | 'error' | 'validating'
+        /** Format: date-time */
+        last_validated_at?: string | null
+        validation_error?: string | null
+      }
     ToolProviderCreate: {
       /**
        * Name
@@ -448,34 +452,6 @@ export interface components {
        */
       readonly updated_by?: string | null
     }
-    /**
-     * Resource
-     * @description Composite entity combining all base resource capabilities:
-     *     - System metadata (from BaseResource): id, timestamps, labels
-     *     - Naming (from NamedResource): name, description
-     *     - Soft deletion (from SoftDeletableResource): deletedAt, deletedBy
-     *     - Ownership (from UserOwnedResource): created_by, updated_by
-     *
-     *     This is the recommended base schema for most API resources.
-     * @example {
-     *       "id": "550e8400-e29b-41d4-a716-446655440000",
-     *       "created_at": "2025-10-09T12:00:00Z",
-     *       "updated_at": "2025-10-09T12:30:00Z",
-     *       "labels": {
-     *         "environment": "production",
-     *         "region": "us-east-1"
-     *       },
-     *       "name": "Authentication Service",
-     *       "description": "Handles user authentication and authorization",
-     *       "deleted_at": null,
-     *       "deleted_by": null,
-     *       "created_by": "770e8400-e29b-41d4-a716-446655440000",
-     *       "updated_by": "880e8400-e29b-41d4-a716-446655440000"
-     *     }
-     */
-    Resource: components['schemas']['NamedResource'] &
-      components['schemas']['SoftDeletableResource'] &
-      components['schemas']['UserOwnedResource']
     /**
      * RFC 9457 Problem Details
      * @description RFC 9457 Problem Details format for error responses.

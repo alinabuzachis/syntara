@@ -5,6 +5,15 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ExpandableCodeEditor } from './ExpandableCodeEditor'
 
+// Mock theme hook
+vi.mock('../theme/useColorScheme', () => ({
+  useColorScheme: vi.fn(() => ({
+    colorScheme: 'dark',
+    setColorScheme: vi.fn(),
+    toggleColorScheme: vi.fn(),
+  })),
+}))
+
 // Mock Monaco editor since it doesn't work well in test environment
 vi.mock('@patternfly/react-code-editor', () => ({
   CodeEditor: ({

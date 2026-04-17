@@ -3,7 +3,7 @@ import { RegistryNodeId } from '../../../../constants'
 import { createAAPJobTemplateActivity, useWorkflowStore } from '../../../../stores/useWorkflowStore'
 import { AAPNodeForm } from '../../node-forms/AAPNodeForm'
 import type { AAPFormData } from '../../node-forms/AAPNodeForm'
-import { buildAAPConfig, parsePositiveInt } from '../../utils/aapHelpers'
+import { buildAAPConfig, validateJobTemplateId } from '../../utils/aapHelpers'
 import { buildNamedActivity } from '../../utils/nodeCreationHelpers'
 import { getDefaultNodeBaseName } from '../../utils/nodeNaming'
 import { NodeRegistry } from '../NodeRegistry'
@@ -23,11 +23,8 @@ export default function registerAAPNode() {
     formComponent: AAPNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {
-        // Parse jobTemplateId (required)
-        const jobTemplateId = parsePositiveInt(data.jobTemplateId)
-        if (!jobTemplateId) {
-          throw new Error('Job Template ID must be a valid positive integer')
-        }
+        // Validate jobTemplateId (required, set by dropdown selection)
+        const jobTemplateId = validateJobTemplateId(data.jobTemplateId)
 
         const config = buildAAPConfig(data)
         const baseName = getDefaultNodeBaseName({ nodeTypeId: RegistryNodeId.AAP, label: 'AAP Job Execution' })

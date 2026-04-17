@@ -26,7 +26,7 @@ import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import { buildFilterParams } from '../../../utils/filterUtils'
 
-import type { Credential, CredentialType } from './credentialConstants'
+import type { Credential, CredentialExtended, CredentialType } from './credentialConstants'
 import { CredentialEmptyState } from './CredentialEmptyState'
 import { createFilterChangeHandler, getCredentialNameFilterDefinition } from './credentialFilters'
 import { DeleteCredentialDialog } from './DeleteCredentialDialog'
@@ -66,7 +66,8 @@ export default function Credentials() {
 
   // Fetch credentials
   const query = credentialsClient.useQuery('get', '/credentials', { params: { query: queryParams } })
-  const credentials = query.data?.resources ?? []
+  // Cast to extended type - backend returns workflow_count but contract doesn't declare it
+  const credentials = (query.data?.resources ?? []) as CredentialExtended[]
   const hasActiveFilters = filters.length > 0
 
   useCursorReset(credentials.length, hasActiveFilters, cursor, query.isFetching, setCursor)

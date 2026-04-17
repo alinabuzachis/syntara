@@ -5,6 +5,7 @@ import type { KeyboardEvent } from 'react'
 import { forwardRef, useImperativeHandle, useState } from 'react'
 
 import { useMonacoBlur } from '../hooks/useMonacoBlur'
+import { useColorScheme } from '../theme/useColorScheme'
 
 /** Supported code languages for syntax highlighting */
 export type CodeLanguage = 'python' | 'bash' | 'json' | 'plaintext'
@@ -56,7 +57,10 @@ export interface ExpandableCodeEditorProps {
   ariaLabel?: string
   /** Whether to show line numbers (default: true) */
   isLineNumbersVisible?: boolean
-  /** Whether to use dark theme */
+  /**
+   * Override the editor theme (defaults to app's color scheme).
+   * Useful for testing or forcing a specific theme regardless of app setting.
+   */
   isDarkTheme?: boolean
   /** Called when the editor loses focus (e.g. for blur-based validation). Receives current editor value. */
   onBlur?: (value: string) => void
@@ -80,11 +84,16 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
       isReadOnly = false,
       ariaLabel = 'Code editor',
       isLineNumbersVisible = true,
-      isDarkTheme = false,
+      isDarkTheme,
       onBlur,
     },
     ref
   ) {
+    const { colorScheme } = useColorScheme()
+
+    // Use prop if provided (for testing), otherwise use app theme
+    const effectiveTheme = isDarkTheme ?? colorScheme === 'dark'
+
     const [isModalOpen, setIsModalOpen] = useState(false)
     const monacoLanguage = languageMap[language]
     const { getValue, focus, handleEditorDidMount, setValue } = useMonacoBlur(code, onBlur)
@@ -120,7 +129,7 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
             height={height}
             isReadOnly={isReadOnly}
             isLineNumbersVisible={isLineNumbersVisible}
-            isDarkTheme={isDarkTheme}
+            isDarkTheme={effectiveTheme}
             customControls={expandControl}
             aria-label={ariaLabel}
             options={{ ariaLabel }}
@@ -149,7 +158,7 @@ export const ExpandableCodeEditor = forwardRef<ExpandableCodeEditorHandle, Expan
                 height={modalHeight}
                 isReadOnly={isReadOnly}
                 isLineNumbersVisible={isLineNumbersVisible}
-                isDarkTheme={isDarkTheme}
+                isDarkTheme={effectiveTheme}
                 aria-label={`${ariaLabel} expanded`}
                 options={{ ariaLabel: `${ariaLabel} expanded` }}
               />

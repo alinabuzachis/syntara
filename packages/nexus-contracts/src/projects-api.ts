@@ -453,8 +453,6 @@ export interface components {
   }
   responses: never
   parameters: {
-    /** @description Project UUID */
-    projectIdParam: string
     /**
      * @description Number of resources to return per page
      * @example 20
@@ -543,7 +541,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -575,7 +573,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -611,7 +609,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -641,7 +639,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -695,7 +693,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -749,7 +747,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -781,7 +779,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -804,7 +802,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -849,7 +847,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
         /** @description Assignment UUID */
         assignment_id: string
       }
@@ -881,7 +879,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -904,7 +902,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
       }
       cookie?: never
     }
@@ -949,7 +947,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: components['parameters']['projectIdParam']
+        project_id: string
         /** @description Assignment UUID */
         assignment_id: string
       }

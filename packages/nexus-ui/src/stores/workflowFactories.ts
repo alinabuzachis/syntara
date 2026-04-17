@@ -208,38 +208,79 @@ export function createAgenticActivity(options: CreateAgenticActivityOptions): Ac
 }
 
 /**
+ * AAP Job Template config — matches the backend AAPJobTemplateExecutorConfig fields.
+ */
+export interface AAPJobTemplateConfig {
+  credentialId?: string // Nexus credential for AAP authentication
+  organization?: string
+  jobTemplateName?: string
+  inventory?: number
+  inventoryName?: string
+  extraVars?: Record<string, unknown>
+  limit?: string
+  tags?: string
+  skipTags?: string
+  verbosity?: number
+  credentials?: number[] // AAP Controller credentials (prompt-on-launch override)
+  jobType?: string
+  forks?: number
+  timeout?: number
+  jobSlicing?: number
+  diffMode?: boolean
+  executionEnvironment?: string
+  instanceGroups?: string
+  labels?: string
+}
+
+/** Mapping from AAPJobTemplateConfig key → API config key, with a predicate type. */
+const aapConfigMapping: [keyof AAPJobTemplateConfig, string, 'truthy' | 'defined'][] = [
+  ['credentialId', 'credentialId', 'truthy'],
+  ['organization', 'organization', 'truthy'],
+  ['jobTemplateName', 'job_template_name', 'truthy'],
+  ['inventory', 'inventory_id', 'defined'],
+  ['inventoryName', 'inventory_name', 'truthy'],
+  ['extraVars', 'extra_vars', 'truthy'],
+  ['limit', 'limit', 'truthy'],
+  ['tags', 'tags', 'truthy'],
+  ['skipTags', 'skip_tags', 'truthy'],
+  ['verbosity', 'verbosity', 'defined'],
+  ['credentials', 'credentials', 'defined'],
+  ['jobType', 'job_type', 'truthy'],
+  ['forks', 'forks', 'defined'],
+  ['timeout', 'timeout', 'defined'],
+  ['jobSlicing', 'job_slice_count', 'defined'],
+  ['diffMode', 'diff_mode', 'defined'],
+  ['executionEnvironment', 'execution_environment', 'truthy'],
+  ['instanceGroups', 'instance_groups', 'truthy'],
+  ['labels', 'labels', 'truthy'],
+]
+
+/**
  * Create an AAP Job Template node (v2).
  */
 export function createAAPJobTemplateActivity(
   id: string,
   name: string,
   jobTemplateId: number,
-  config?: {
-    inventory?: number
-    credentials?: number[]
-    extraVars?: Record<string, unknown>
-    limit?: string
-    tags?: string
-    skipTags?: string
-    verbosity?: number
-    credentialId?: string
-  }
+  config?: AAPJobTemplateConfig
 ): Activity {
+  const activityConfig: Record<string, unknown> = { job_template_id: jobTemplateId }
+
+  if (config) {
+    for (const [srcKey, destKey, predicate] of aapConfigMapping) {
+      const value = config[srcKey]
+      const include = predicate === 'defined' ? value !== undefined : Boolean(value)
+      if (include) {
+        activityConfig[destKey] = value
+      }
+    }
+  }
+
   return {
     id,
     type: ActivityTypeEnum.AAP_JOB_TEMPLATE,
     name,
-    config: {
-      job_template_id: jobTemplateId,
-      ...(config?.inventory !== undefined && { inventory_id: config.inventory }),
-      ...(config?.credentials && { credentials: config.credentials }),
-      ...(config?.extraVars && { extra_vars: config.extraVars }),
-      ...(config?.limit && { limit: config.limit }),
-      ...(config?.tags && { tags: config.tags }),
-      ...(config?.skipTags && { skip_tags: config.skipTags }),
-      ...(config?.verbosity !== undefined && { verbosity: config.verbosity }),
-      ...(config?.credentialId && { credentialId: config.credentialId }),
-    },
+    config: activityConfig,
   }
 }
 

@@ -30,7 +30,7 @@ import { UserTimestamp } from '../../../components/UserTimestamp'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 
-import { ENCRYPTED_SENTINEL } from './credentialConstants'
+import { ENCRYPTED_SENTINEL, type CredentialExtended } from './credentialConstants'
 import { CredentialWorkflowsTab } from './CredentialWorkflowsTab'
 import { DeleteCredentialDialog } from './DeleteCredentialDialog'
 import { DisableCredentialDialog } from './DisableCredentialDialog'
@@ -59,7 +59,8 @@ export default function CredentialDetail() {
     { params: { path: { credential_id: credentialId ?? '' } } },
     { enabled: !!credentialId }
   )
-  const credential = credQuery.data
+  // Cast to extended type - backend returns workflow_count but contract doesn't declare it
+  const credential = credQuery.data as CredentialExtended | undefined
 
   // Fetch credential type
   const typeQuery = credentialsClient.useQuery(

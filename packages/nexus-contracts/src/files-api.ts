@@ -38,7 +38,7 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
-     * File Upload Response
+     * FileUploadResponse
      * @description Response from POST /files endpoint
      */
     FileUploadResponse: {
@@ -57,7 +57,7 @@ export interface components {
       files: components['schemas']['FileUploadInfo'][]
     }
     /**
-     * File Upload Info
+     * FileUploadInfo
      * @description Metadata for an uploaded file (excludes internal file_path for security)
      */
     FileUploadInfo: {

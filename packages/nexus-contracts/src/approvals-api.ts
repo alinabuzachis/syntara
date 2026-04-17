@@ -149,7 +149,7 @@ export interface components {
      */
     ApprovalStatus: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
     /**
-     * Activity Summary
+     * ActivitySummary
      * @description Summary of a workflow activity for display in approval context.
      *     Provides enough information for UI rendering without exposing
      *     full activity configuration details.
@@ -172,7 +172,7 @@ export interface components {
       type: string
     }
     /**
-     * Approval Create Request
+     * ApprovalCreateRequest
      * @description Request payload for creating an approval request.
      *     This is an internal schema used by the Workflows component.
      */
@@ -203,7 +203,7 @@ export interface components {
       workflow_context: components['schemas']['WorkflowContext']
     }
     /**
-     * Workflow Context
+     * WorkflowContext
      * @description Essential context for approvers to make a decision.
      *     Contains workflow identification, inputs, and the output from the immediately preceding activity.
      *     For current workflow state (especially in parallel workflows), approvers should
@@ -242,7 +242,7 @@ export interface components {
       previous_step?: components['schemas']['PreviousStepContext']
     }
     /**
-     * Previous Step Context
+     * PreviousStepContext
      * @description The activity that immediately preceded this approval node, including its output.
      *     Null if the approval node is the first activity in the workflow.
      */
@@ -268,14 +268,14 @@ export interface components {
       } | null
     }
     /**
-     * Approval Decision Status
+     * ApprovalDecisionStatus
      * @description Status values that can be submitted in approval decisions.
      *     This is a subset of ApprovalRequestStatus containing only user-actionable values.
      * @enum {string}
      */
     ApprovalDecisionStatus: 'approved' | 'rejected'
     /**
-     * Approval Decision Request
+     * ApprovalDecisionRequest
      * @description Request payload for submitting an approval decision.
      *
      *     Status values:
@@ -290,15 +290,15 @@ export interface components {
       notes?: string | null
     }
     /**
-     * Batch Approval Decision Status
+     * BatchApprovalDecisionStatus
      * @description Status values that can be submitted in batch approval decisions.
      *     This is a subset of ApprovalRequestStatus containing only system-actionable values.
      * @enum {string}
      */
     BatchApprovalDecisionStatus: 'approved' | 'rejected' | 'expired' | 'cancelled'
     /**
-     * Batch Approval Decision
-     * @description Single decision within a batch approval request
+     * BatchApprovalDecision
+     * @description Single decision within a batch approval request.
      */
     BatchApprovalDecision: {
       /**
@@ -311,15 +311,15 @@ export interface components {
       notes?: string | null
     }
     /**
-     * Batch Approval Request
-     * @description Request payload for submitting multiple approval decisions at once
+     * BatchApprovalRequest
+     * @description Request payload for submitting multiple approval decisions at once.
      */
     BatchApprovalRequest: {
       /** @description List of approval decisions to submit */
       decisions: components['schemas']['BatchApprovalDecision'][]
     }
     /**
-     * Batch Approval Result
+     * BatchApprovalResult
      * @description Confirmation for a single approval within a batch response.
      */
     BatchApprovalResult: {
@@ -345,7 +345,7 @@ export interface components {
       error?: string | null
     }
     /**
-     * Batch Approval Response
+     * BatchApprovalResponse
      * @description Response for batch approval submission
      */
     BatchApprovalResponse: {
@@ -357,7 +357,7 @@ export interface components {
       total_failed: number
     }
     /**
-     * User Reference
+     * UserReference
      * @description Minimal user identification for embedding in other resources
      */
     UserReference: {

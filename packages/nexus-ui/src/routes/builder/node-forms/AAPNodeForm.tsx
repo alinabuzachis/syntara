@@ -1,25 +1,30 @@
 import {
+  Alert,
+  Button,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
   Stack,
   StackItem,
-  TextInput,
+  Title,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Controller, FormProvider, useForm, useFormContext } from 'react-hook-form'
+import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
 import { CredentialSelector } from '../../../components/CredentialSelector'
 import { credentialHelpText } from '../../../components/credentialSelectorHelpText'
-import { ExpandableCodeEditor, type ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
+import type { ExpandableCodeEditorHandle } from '../../../components/ExpandableCodeEditor'
+import { useAAPBrowser } from '../../../hooks/useAAPBrowser'
+import { getErrorMessage, isRetryableError } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
+import { isValidAAPTemplateURL } from '../../../utils/urlValidation'
 
 import { aapFormSchema, type AAPFormData } from './aapFormSchema'
+import { PromptOnLaunchFields } from './AAPPromptOnLaunchFields'
+import { AAPTypeaheadSelect } from './AAPTypeaheadSelect'
 import { ActivityNameField } from './shared/ActivityNameField'
 import { zodResolver } from './shared/formSchemaUtils'
 import { NodeFormContainer } from './shared/NodeFormContainer'
@@ -36,41 +41,74 @@ interface AAPNodeFormProps {
   projectId?: string
 }
 
-function AAPFormFields({
-  submitButtonText,
-  onHeaderContentChange,
-  extraVarsEditorRef,
-  validationErrors,
-  projectId,
-}: {
-  submitButtonText?: string
-  onHeaderContentChange?: (content: ReactNode | null) => void
-  extraVarsEditorRef?: React.RefObject<ExpandableCodeEditorHandle | null>
-  validationErrors?: { jobTemplateId?: { message?: string }; extraVars?: { message?: string } }
-  projectId?: string
-}) {
+// ── Sub-components ──────────────────────────────────────────────────────
+
+interface AAPResourcePickersProps {
+  readonly browser: ReturnType<typeof useAAPBrowser>
+  readonly projectId?: string
+}
+
+function AAPResourcePickers({ browser, projectId }: AAPResourcePickersProps) {
   const {
-    register,
     control,
-    formState: { errors: contextErrors },
+    setValue,
+    reset,
+    getValues,
+    formState: { errors },
   } = useFormContext<AAPFormData>()
-  const errors = validationErrors ?? contextErrors
-  const extraVarsMessage = errors.extraVars?.message
 
-  const nameField = useMemo(
-    () => <ActivityNameField register={register} fieldId="aap-name" ariaLabel="Name" />,
-    [register]
-  )
+  const {
+    organizations,
+    jobTemplates,
+    selectOrganization,
+    selectJobTemplate,
+    searchOrganizations,
+    searchJobTemplates,
+    loadingOrgs,
+    loadingTemplates,
+    error: browserError,
+    retryAll,
+  } = browser
 
-  useEffect(() => {
-    onHeaderContentChange?.(nameField)
-    return () => {
-      onHeaderContentChange?.(null)
+  const orgOptions = organizations.map((org) => ({ value: org.name, label: org.name }))
+  const templateOptions = jobTemplates.map((t) => ({
+    value: t.name,
+    label: t.name,
+    description: t.description ?? undefined,
+  }))
+
+  /**
+   * Clear all prompt-on-launch field overrides.
+   * Called when organization or template changes to reset user-provided values.
+   * Uses reset() to batch updates and avoid unnecessary re-renders.
+   */
+  const clearPromptOverrides = () => {
+    const clearedOverrides = {
+      inventory: '',
+      inventoryId: undefined,
+      extraVars: '',
+      limit: '',
+      tags: '',
+      skipTags: '',
+      verbosity: '',
+      credentials: [],
+      jobType: '',
+      forks: undefined,
+      timeout: undefined,
+      jobSlicing: undefined,
+      diffMode: false,
+      executionEnvironment: '',
+      executionEnvironmentId: undefined,
+      instanceGroup: '',
+      instanceGroupId: undefined,
+      labels: '',
     }
-  }, [nameField, onHeaderContentChange])
+    reset({ ...getValues(), ...clearedOverrides }, { keepDirty: false })
+  }
 
-  const parametersContent = (
-    <Stack hasGutter>
+  return (
+    <>
+      {/* Authentication credential selector - first field to match origin/main */}
       <StackItem>
         <Controller
           control={control}
@@ -92,140 +130,184 @@ function AAPFormFields({
           )}
         />
       </StackItem>
+
+      {/* Organization */}
       <StackItem>
-        <FormGroup label="Job template ID" isRequired fieldId="aap-jobTemplateId">
-          <TextInput
-            {...register('jobTemplateId')}
-            id="aap-jobTemplateId"
-            type="number"
-            placeholder="123"
-            validated={errors.jobTemplateId ? 'error' : 'default'}
+        <FormGroup label="Organization" isRequired fieldId="aap-organization">
+          <Controller
+            control={control}
+            name="organization"
+            render={({ field }) => (
+              <AAPTypeaheadSelect
+                id="aap-organization"
+                ariaLabel="Organization"
+                options={orgOptions}
+                selected={field.value ?? ''}
+                onChange={(value) => {
+                  field.onChange(value)
+                  selectOrganization(value)
+                  // Clear downstream selections and all prompt-on-launch overrides
+                  setValue('jobTemplateName', '')
+                  setValue('jobTemplateId', undefined)
+                  clearPromptOverrides()
+                }}
+                onSearchChange={searchOrganizations}
+                placeholder="Select an organization"
+                isLoading={loadingOrgs}
+                hasError={!!errors.organization}
+              />
+            )}
           />
           <FormHelperText>
             <HelperText>
-              {errors.jobTemplateId ? (
+              {errors.organization ? (
                 <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                  {errors.jobTemplateId.message}
+                  {errors.organization.message}
                 </HelperTextItem>
               ) : (
-                <HelperTextItem>AAP job template ID to launch</HelperTextItem>
+                <HelperTextItem>AAP organization to browse resources from</HelperTextItem>
               )}
             </HelperText>
           </FormHelperText>
         </FormGroup>
       </StackItem>
+
+      {/* Job Template */}
       <StackItem>
-        <FormGroup label="Inventory ID" fieldId="aap-inventory">
-          <TextInput {...register('inventory')} id="aap-inventory" type="number" placeholder="456" />
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem>Override default inventory</HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Credentials" fieldId="aap-credentials">
-          <TextInput {...register('credentials')} id="aap-credentials" placeholder="1,2,3" type="text" />
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem>Comma-separated credential IDs</HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Extra variables (JSON)" fieldId="aap-extraVars">
+        <FormGroup label="Job template" isRequired fieldId="aap-jobTemplate">
           <Controller
             control={control}
-            name="extraVars"
+            name="jobTemplateName"
             render={({ field }) => (
-              <div className={extraVarsMessage ? 'pf-v6-c-form-control pf-m-error' : undefined}>
-                <ExpandableCodeEditor
-                  ref={extraVarsEditorRef ?? undefined}
-                  code={field.value ?? ''}
-                  onCodeChange={field.onChange}
-                  onBlur={field.onBlur}
-                  language="json"
-                  height="150px"
-                  modalTitle="Edit extra variables"
-                  ariaLabel="Extra variables JSON editor"
-                  isDarkTheme
-                />
-              </div>
+              <AAPTypeaheadSelect
+                id="aap-jobTemplate"
+                ariaLabel="Job template"
+                options={templateOptions}
+                selected={field.value ?? ''}
+                onChange={(value) => {
+                  field.onChange(value)
+                  const selected = jobTemplates.find((t) => t.name === value)
+                  setValue('jobTemplateId', selected?.id)
+                  selectJobTemplate(selected?.id)
+                  // Clear all prompt-on-launch overrides when template changes
+                  clearPromptOverrides()
+                }}
+                onSearchChange={searchJobTemplates}
+                placeholder="Select a job template"
+                isLoading={loadingTemplates}
+                hasError={!!errors.jobTemplateName}
+              />
             )}
           />
           <FormHelperText>
             <HelperText>
-              {extraVarsMessage ? (
+              {errors.jobTemplateName ? (
                 <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                  {extraVarsMessage}
+                  {errors.jobTemplateName.message}
                 </HelperTextItem>
               ) : (
-                <HelperTextItem>Extra variables to pass to the job (JSON object)</HelperTextItem>
+                <HelperTextItem>AAP job template to launch</HelperTextItem>
               )}
             </HelperText>
           </FormHelperText>
+          {browser.templateDetail?.url && isValidAAPTemplateURL(browser.templateDetail.url) && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  <a href={browser.templateDetail.url} target="_blank" rel="noopener noreferrer">
+                    View job template in AAP
+                  </a>
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
         </FormGroup>
       </StackItem>
+
+      {browserError && (
+        <StackItem>
+          <Alert
+            variant="danger"
+            title="Failed to load AAP resources"
+            isInline
+            actionLinks={
+              isRetryableError(browserError) ? (
+                <Button variant="link" onClick={retryAll}>
+                  Retry
+                </Button>
+              ) : undefined
+            }
+          >
+            {getErrorMessage(browserError)}
+          </Alert>
+        </StackItem>
+      )}
+    </>
+  )
+}
+
+// ── Main form ────────────────────────────────────────────────────────────
+
+function AAPFormFields({
+  submitButtonText,
+  onHeaderContentChange,
+  extraVarsEditorRef,
+  initialData,
+  selectedCredentialId,
+  projectId,
+}: {
+  submitButtonText?: string
+  onHeaderContentChange?: (content: ReactNode | null) => void
+  extraVarsEditorRef: React.RefObject<ExpandableCodeEditorHandle | null>
+  initialData?: Partial<AAPFormData>
+  selectedCredentialId: string | undefined
+  projectId?: string
+}) {
+  const { register } = useFormContext<AAPFormData>()
+
+  const browser = useAAPBrowser(selectedCredentialId, {
+    organization: initialData?.organization,
+    jobTemplateId: initialData?.jobTemplateId,
+  })
+
+  const nameField = useMemo(
+    () => <ActivityNameField register={register} fieldId="aap-name" ariaLabel="Name" />,
+    [register]
+  )
+
+  useEffect(() => {
+    onHeaderContentChange?.(nameField)
+    return () => {
+      onHeaderContentChange?.(null)
+    }
+  }, [nameField, onHeaderContentChange])
+
+  const parametersContent = (
+    <Stack hasGutter>
       <StackItem>
-        <FormGroup label="Limit" fieldId="aap-limit">
-          <TextInput {...register('limit')} id="aap-limit" placeholder="webservers:dbservers" type="text" />
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem>Limit job execution to specific hosts</HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        </FormGroup>
+        <Title headingLevel="h3">AAP Controller</Title>
       </StackItem>
+
+      <AAPResourcePickers browser={browser} projectId={projectId} />
+
       <StackItem>
-        <FormGroup label="Tags" fieldId="aap-tags">
-          <TextInput {...register('tags')} id="aap-tags" placeholder="install,configure" type="text" />
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem>Ansible tags to run (comma-separated)</HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Skip tags" fieldId="aap-skipTags">
-          <TextInput {...register('skipTags')} id="aap-skipTags" placeholder="testing,debug" type="text" />
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem>Ansible tags to skip (comma-separated)</HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        </FormGroup>
-      </StackItem>
-      <StackItem>
-        <FormGroup label="Verbosity" fieldId="aap-verbosity">
-          <Controller
-            control={control}
-            name="verbosity"
-            render={({ field }) => (
-              <FormSelect
-                id="aap-verbosity"
-                value={field.value ?? ''}
-                onChange={(_event, value) => field.onChange(value)}
-                aria-label="Verbosity"
-              >
-                <FormSelectOption value="" label="Default (0)" />
-                <FormSelectOption value="0" label="0 - Normal" />
-                <FormSelectOption value="1" label="1 - Verbose" />
-                <FormSelectOption value="2" label="2 - More Verbose" />
-                <FormSelectOption value="3" label="3 - Debug" />
-                <FormSelectOption value="4" label="4 - Connection Debug" />
-                <FormSelectOption value="5" label="5 - WinRM Debug" />
-              </FormSelect>
-            )}
-          />
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem>Job verbosity level (0-5)</HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        </FormGroup>
+        <PromptOnLaunchFields
+          extraVarsEditorRef={extraVarsEditorRef}
+          templateDetail={browser.templateDetail}
+          isLoadingDetail={browser.loadingTemplateDetail}
+          inventories={browser.inventories}
+          loadingInventories={browser.loadingInventories}
+          executionEnvironments={browser.executionEnvironments}
+          loadingExecutionEnvironments={browser.loadingExecutionEnvironments}
+          credentials={browser.credentials}
+          loadingCredentials={browser.loadingCredentials}
+          instanceGroups={browser.instanceGroups}
+          loadingInstanceGroups={browser.loadingInstanceGroups}
+          onSearchInventories={browser.searchInventories}
+          onSearchExecutionEnvironments={browser.searchExecutionEnvironments}
+          onSearchCredentials={browser.searchCredentials}
+          onSearchInstanceGroups={browser.searchInstanceGroups}
+        />
       </StackItem>
     </Stack>
   )
@@ -239,14 +321,18 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
 
   const defaultValues: AAPFormData = {
     name: '',
-    jobTemplateId: '',
+    credentialId: undefined,
+    organization: '',
+    jobTemplateName: '',
+    jobTemplateId: undefined,
     inventory: '',
-    credentials: '',
     extraVars: '',
     limit: '',
     tags: '',
     skipTags: '',
     verbosity: '',
+    jobType: '',
+    diffMode: false,
     ...props.initialData,
   }
 
@@ -257,9 +343,11 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
     reValidateMode: 'onChange',
   })
 
-  const {
-    formState: { errors },
-  } = methods
+  // Watch credentialId using useWatch for proper reactivity
+  const selectedCredentialId = useWatch({
+    control: methods.control,
+    name: 'credentialId',
+  })
 
   const handleSubmit = (data: AAPFormData) => {
     props.onSubmit(data)
@@ -277,7 +365,8 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
           return methods.handleSubmit(handleSubmit)()
         }
         const errs = methods.formState.errors
-        if (errs.jobTemplateId) methods.setFocus('jobTemplateId')
+        if (errs.organization) methods.setFocus('organization')
+        else if (errs.jobTemplateName) methods.setFocus('jobTemplateName')
         else if (errs.extraVars) extraVarsEditorRef.current?.focus()
       })
     )
@@ -290,7 +379,8 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
           submitButtonText={props.submitButtonText}
           onHeaderContentChange={props.onHeaderContentChange}
           extraVarsEditorRef={extraVarsEditorRef}
-          validationErrors={errors}
+          initialData={props.initialData}
+          selectedCredentialId={selectedCredentialId}
           projectId={props.projectId}
         />
       </NodeFormContainer>

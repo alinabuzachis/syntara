@@ -1,0 +1,83 @@
+/**
+ * Mock AAP Controller data for development.
+ */
+
+export const organizations = [
+  { id: 1, name: 'Default' },
+  { id: 2, name: 'Engineering' },
+  { id: 3, name: 'Operations' },
+]
+
+export const jobTemplates = [
+  { id: 10, name: 'Deploy App', description: 'Deploy the application', organization: 'Default' },
+  { id: 11, name: 'Backup DB', description: 'Backup the database', organization: 'Default' },
+  { id: 12, name: 'Run Tests', description: 'Run integration tests', organization: 'Engineering' },
+  { id: 13, name: 'Provision VMs', description: 'Provision virtual machines', organization: 'Operations' },
+  { id: 14, name: 'Update Packages', description: 'Update system packages', organization: 'Operations' },
+]
+
+/** Prompt-on-launch flags for each job template (keyed by template id). */
+export const jobTemplateDetails: Record<number, Record<string, unknown>> = {
+  10: {
+    ask_variables_on_launch: true,
+    ask_limit_on_launch: true,
+    ask_tags_on_launch: true,
+    ask_verbosity_on_launch: true,
+    ask_diff_mode_on_launch: true,
+    survey_enabled: false,
+  },
+  11: {
+    ask_variables_on_launch: true,
+    survey_enabled: false,
+  },
+  12: {
+    ask_variables_on_launch: true,
+    ask_tags_on_launch: true,
+    ask_skip_tags_on_launch: true,
+    ask_verbosity_on_launch: true,
+    survey_enabled: false,
+  },
+  13: {
+    ask_inventory_on_launch: true,
+    ask_credential_on_launch: true,
+    ask_variables_on_launch: true,
+    ask_limit_on_launch: true,
+    ask_forks_on_launch: true,
+    ask_job_slice_count_on_launch: true,
+    ask_timeout_on_launch: true,
+    survey_enabled: false,
+  },
+  14: {
+    ask_limit_on_launch: true,
+    ask_verbosity_on_launch: true,
+    survey_enabled: false,
+  },
+}
+
+export const executionEnvironments = [
+  { id: 1, name: 'Default EE', description: 'Default execution environment' },
+  { id: 2, name: 'Custom EE', description: 'Custom EE with extra collections' },
+  { id: 3, name: 'Minimal EE', description: 'Minimal execution environment' },
+]
+
+export const aapCredentials = [
+  { id: 1, name: 'SSH Machine Credential' },
+  { id: 2, name: 'AWS Access Keys' },
+  { id: 3, name: 'Ansible Vault Password' },
+  { id: 4, name: 'GitHub Token' },
+  { id: 5, name: 'Azure Service Principal' },
+  { id: 6, name: 'GCP Service Account' },
+]
+
+export const instanceGroups = [
+  { id: 1, name: 'default' },
+  { id: 2, name: 'controlplane' },
+  { id: 3, name: 'execution' },
+]
+
+export const inventories = [
+  { id: 1, name: 'Demo Inventory', description: 'Demo hosts', organization: 'Default' },
+  { id: 2, name: 'Production', description: 'Production hosts', organization: 'Default' },
+  { id: 3, name: 'Staging', description: 'Staging hosts', organization: 'Engineering' },
+  { id: 4, name: 'Dev Servers', description: 'Development servers', organization: 'Operations' },
+]

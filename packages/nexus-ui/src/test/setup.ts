@@ -29,9 +29,9 @@ beforeAll(() => {
       if (isActWarning) {
         const renderedArgs = args.map((arg) => String(arg))
         const warningHeader = renderedArgs.slice(0, 2).join(' ')
-        const isInternalPFWarning =
+        const isPF6InternalWarning =
           message.includes('was not wrapped in act') && /\b(Popper|Tabs)\b/.test(warningHeader)
-        if (!isInternalPFWarning) {
+        if (!isPF6InternalWarning) {
           actWarnings.push(renderedArgs.join(' '))
         }
         return

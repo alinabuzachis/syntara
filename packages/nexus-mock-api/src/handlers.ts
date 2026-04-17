@@ -37,6 +37,15 @@ import {
   getGroupName,
   getRoleName,
 } from './resources/access'
+import {
+  organizations,
+  jobTemplates,
+  jobTemplateDetails,
+  inventories,
+  executionEnvironments,
+  aapCredentials,
+  instanceGroups,
+} from './resources/aap'
 
 // Define response types based on API contract
 type ToolsResponse = ToolManagerAPI.paths['/tools']['get']['responses']['200']['content']['application/json']
@@ -157,6 +166,28 @@ function redactCredential(credential: (typeof credentials)[number]) {
     }
   }
   return { ...credential, inputs: redactedInputs }
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Validates credential_id query parameter format.
+ * Returns error response if invalid UUID, null if valid or not provided.
+ */
+function validateCredentialId(url: URL): ReturnType<typeof HttpResponse.json> | null {
+  const credentialId = url.searchParams.get('credential_id')
+  if (credentialId && !UUID_REGEX.test(credentialId)) {
+    return HttpResponse.json(
+      {
+        type: 'https://api.nexus.com/errors/validation-error',
+        title: 'Validation Error',
+        detail: 'credential_id must be a valid UUID',
+        code: 'VALIDATION_ERROR',
+      },
+      { status: 422 }
+    )
+  }
+  return null
 }
 
 export const handlers = [
@@ -2251,5 +2282,123 @@ export const handlers = [
 
   http.get('/api/v1/groups', () => {
     return HttpResponse.json(mockGroups)
+  }),
+
+  // ── AAP proxy endpoints ──────────────────────────────────────────────
+  http.get('*/aap/organizations', ({ request }) => {
+    const url = new URL(request.url)
+    const validationError = validateCredentialId(url)
+    if (validationError) return validationError
+
+    const search = url.searchParams.get('search')?.toLowerCase()
+
+    const filtered = search ? organizations.filter((o) => o.name.toLowerCase().includes(search)) : organizations
+    return HttpResponse.json({ count: filtered.length, results: filtered })
+  }),
+
+  http.get('*/aap/job-templates/:id', ({ params, request }) => {
+    const url = new URL(request.url)
+    const validationError = validateCredentialId(url)
+    if (validationError) return validationError
+
+    const id = Number(params.id)
+    const template = jobTemplates.find((t) => t.id === id)
+    if (!template) {
+      return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    }
+    const flags = jobTemplateDetails[id] ?? {}
+    return HttpResponse.json({
+      id: template.id,
+      name: template.name,
+      description: template.description,
+      url: `https://aap.example.com/execution/templates/job-template/${id}/details`,
+      ask_job_type_on_launch: false,
+      ask_inventory_on_launch: false,
+      ask_credential_on_launch: false,
+      ask_variables_on_launch: false,
+      ask_limit_on_launch: false,
+      ask_tags_on_launch: false,
+      ask_skip_tags_on_launch: false,
+      ask_verbosity_on_launch: false,
+      ask_diff_mode_on_launch: false,
+      ask_forks_on_launch: false,
+      ask_job_slice_count_on_launch: false,
+      ask_execution_environment_on_launch: false,
+      ask_instance_groups_on_launch: false,
+      ask_labels_on_launch: false,
+      ask_timeout_on_launch: false,
+      survey_enabled: false,
+      ...flags,
+    })
+  }),
+
+  http.get('*/aap/job-templates', ({ request }) => {
+    const url = new URL(request.url)
+    const credentialId = url.searchParams.get('credential_id')
+    const org = url.searchParams.get('organization')
+    const search = url.searchParams.get('search')?.toLowerCase()
+
+    const validationError = validateCredentialId(url)
+    if (validationError) return validationError
+
+    let filtered = org ? jobTemplates.filter((t) => t.organization === org) : jobTemplates
+    if (search) {
+      filtered = filtered.filter((t) => t.name.toLowerCase().includes(search))
+    }
+    return HttpResponse.json({ count: filtered.length, results: filtered })
+  }),
+
+  http.get('*/aap/inventories', ({ request }) => {
+    const url = new URL(request.url)
+    const credentialId = url.searchParams.get('credential_id')
+    const org = url.searchParams.get('organization')
+    const search = url.searchParams.get('search')?.toLowerCase()
+
+    const validationError = validateCredentialId(url)
+    if (validationError) return validationError
+
+    let filtered = org ? inventories.filter((i) => i.organization === org) : inventories
+    if (search) {
+      filtered = filtered.filter((i) => i.name.toLowerCase().includes(search))
+    }
+    return HttpResponse.json({ count: filtered.length, results: filtered })
+  }),
+
+  http.get('*/aap/execution-environments', ({ request }) => {
+    const url = new URL(request.url)
+    const credentialId = url.searchParams.get('credential_id')
+    const search = url.searchParams.get('search')?.toLowerCase()
+
+    const validationError = validateCredentialId(url)
+    if (validationError) return validationError
+
+    const filtered = search
+      ? executionEnvironments.filter((ee) => ee.name.toLowerCase().includes(search))
+      : executionEnvironments
+    return HttpResponse.json({ count: filtered.length, results: filtered })
+  }),
+
+  http.get('*/aap/credentials', ({ request }) => {
+    const url = new URL(request.url)
+    const credentialId = url.searchParams.get('credential_id')
+    const search = url.searchParams.get('search')?.toLowerCase()
+
+    const validationError = validateCredentialId(url)
+    if (validationError) return validationError
+
+    const filtered = search ? aapCredentials.filter((c) => c.name.toLowerCase().includes(search)) : aapCredentials
+    return HttpResponse.json({ count: filtered.length, results: filtered })
+  }),
+
+  http.get('*/aap/instance-groups', ({ request }) => {
+    const url = new URL(request.url)
+    const credentialId = url.searchParams.get('credential_id')
+    const search = url.searchParams.get('search')?.toLowerCase()
+
+    const validationError = validateCredentialId(url)
+    if (validationError) return validationError
+
+    const filtered = search ? instanceGroups.filter((ig) => ig.name.toLowerCase().includes(search)) : instanceGroups
+    return HttpResponse.json({ count: filtered.length, results: filtered })
   }),
 ]

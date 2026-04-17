@@ -1,4 +1,5 @@
 import type {
+  AAPAPI,
   ApprovalsAPI,
   AuthAPI,
   CredentialsAPI,
@@ -124,3 +125,7 @@ export const usersClient = createClient(usersFetchClient)
 const credentialsFetchClient = createFetchClient<CredentialsAPI.paths>({ baseUrl: '/api/v1/' })
 credentialsFetchClient.use(authMiddleware)
 export const credentialsClient = createClient(credentialsFetchClient)
+
+const aapFetchClient = createFetchClient<AAPAPI.paths>({ baseUrl: '/api/v1/' })
+aapFetchClient.use(authMiddleware)
+export const aapClient = createClient(aapFetchClient)

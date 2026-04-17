@@ -11,6 +11,8 @@ import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { StatusLabel } from '../../builder/ExecutionStatus'
 
+import type { CredentialWorkflowRefExtended } from './credentialConstants'
+
 type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
 
 interface CredentialWorkflowsTabProps {
@@ -28,7 +30,8 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
   const query = credentialsClient.useQuery('get', '/credentials/{credential_id}/workflows', {
     params: { path: { credential_id: credentialId } },
   })
-  const workflows = query.data ?? []
+  // Cast to extended type - backend returns more fields than the contract declares
+  const workflows = (query.data ?? []) as CredentialWorkflowRefExtended[]
 
   const queryState = useQueryState(query, {
     title: 'Failed to load workflows',
@@ -104,7 +107,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
                 <Td dataLabel="Created By">{workflow.created_by ?? DASH}</Td>
                 <Td dataLabel="Nodes Using Credential">
                   {workflow.node_names && workflow.node_names.length > 0
-                    ? workflow.node_names.map((nodeName) => (
+                    ? workflow.node_names.map((nodeName: string) => (
                         <Label key={nodeName} variant="outline" isCompact style={labelMarginStyle}>
                           {nodeName}
                         </Label>

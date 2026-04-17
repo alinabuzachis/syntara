@@ -270,7 +270,7 @@ export interface components {
       deleted_by?: string | null
     }
     /**
-     * Workflow Version List Response
+     * WorkflowVersionListResponse
      * @description List of workflow versions ordered by version number descending
      */
     WorkflowVersionListResponse: {
@@ -453,6 +453,25 @@ export interface components {
            * @default 0
            */
           verbosity?: number
+          /** @description Timeout for job execution in seconds */
+          timeout?: number
+          /**
+           * @description Job type override: 'run' or 'check' (dry run)
+           * @enum {string}
+           */
+          job_type?: 'run' | 'check'
+          /** @description Number of parallel forks for job execution */
+          forks?: number
+          /** @description Number of job slices */
+          job_slicing?: number
+          /** @description Enable diff mode for playbook runs */
+          diff_mode?: boolean
+          /** @description Execution environment override (deferred — requires ID resolution) */
+          execution_environment?: string
+          /** @description Instance groups override (deferred — requires ID resolution) */
+          instance_groups?: string
+          /** @description Labels (deferred — requires ID resolution) */
+          labels?: string
         } & unknown)
       | unknown
       | unknown

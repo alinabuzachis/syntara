@@ -424,21 +424,29 @@ describe('workflowFactories', () => {
       it('creates an AAP activity with full config', () => {
         const activity = createAAPJobTemplateActivity('aap-1', 'Run Playbook', 123, {
           inventory: 456,
-          credentials: [789],
           extraVars: { env: 'prod' },
           limit: 'web-servers',
           tags: 'deploy',
           skipTags: 'test',
           verbosity: 2,
+          jobType: 'run',
+          forks: 10,
+          timeout: 3600,
+          jobSlicing: 2,
+          diffMode: true,
         })
 
         expect(activity.config.inventory_id).toBe(456)
-        expect(activity.config.credentials).toEqual([789])
         expect(activity.config.extra_vars).toEqual({ env: 'prod' })
         expect(activity.config.limit).toBe('web-servers')
         expect(activity.config.tags).toBe('deploy')
         expect(activity.config.skip_tags).toBe('test')
         expect(activity.config.verbosity).toBe(2)
+        expect(activity.config.job_type).toBe('run')
+        expect(activity.config.forks).toBe(10)
+        expect(activity.config.timeout).toBe(3600)
+        expect(activity.config.job_slice_count).toBe(2)
+        expect(activity.config.diff_mode).toBe(true)
       })
     })
 
