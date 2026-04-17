@@ -726,7 +726,7 @@ async def _auto_create_user(
     provider_name: str,
 ) -> User:
     """Auto-create a local user from OIDC claims."""
-    preferred_username = user_claims.get("preferred_username") or email.split("@")[0]
+    preferred_username = user_claims.get("preferred_username") or email.split("@", maxsplit=1)[0]
     full_name = user_claims.get("name") or preferred_username
 
     username = preferred_username.lower()

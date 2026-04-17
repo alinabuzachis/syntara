@@ -223,6 +223,23 @@ def _get_aap_auth_from_credentials(
     return {}, None, host_override
 
 
+# Mapping of config attribute → AAP launch body key.
+# Only truthy values are included to skip None, empty lists, empty dicts, and 0/False.
+# Exception: verbosity=0 is meaningful (NORMAL level), so we check is not None for it.
+_LAUNCH_BODY_FIELDS: list[tuple[str, str]] = [
+    ("credentials", "credentials"),
+    ("extra_vars", "extra_vars"),
+    ("limit", "limit"),
+    ("tags", "job_tags"),  # AAP expects "job_tags" not "tags"
+    ("skip_tags", "skip_tags"),
+    ("verbosity", "verbosity"),
+    ("job_type", "job_type"),
+    ("forks", "forks"),
+    ("job_slicing", "job_slice_count"),  # AAP expects "job_slice_count"
+    ("diff_mode", "diff_mode"),
+]
+
+
 def _build_launch_body(config: AAPJobTemplateExecutorConfig, inventory_id: int | None) -> dict[str, Any]:
     """Build request body for job launch.
 
@@ -235,22 +252,17 @@ def _build_launch_body(config: AAPJobTemplateExecutorConfig, inventory_id: int |
 
     """
     body: dict[str, Any] = {}
-    # Use the single resolved inventory_id
     if inventory_id is not None:
         body["inventory"] = inventory_id
-    if config.credentials:
-        body["credentials"] = config.credentials
-    if config.extra_vars:
-        # Config already has resolved values from _resolve_config_templates
-        body["extra_vars"] = config.extra_vars  # AAP expects snake_case
-    if config.limit:
-        body["limit"] = config.limit
-    if config.tags:
-        body["job_tags"] = config.tags  # AAP expects "job_tags" not "tags"
-    if config.skip_tags:
-        body["skip_tags"] = config.skip_tags  # AAP expects snake_case
-    if config.verbosity:
-        body["verbosity"] = config.verbosity
+    for config_attr, api_key in _LAUNCH_BODY_FIELDS:
+        value = getattr(config, config_attr)
+        # For verbosity, 0 is valid (NORMAL level), so check is not None
+        # For all other fields, use truthiness to skip None, [], {}, "", 0, False
+        if config_attr == "verbosity":
+            if value is not None:
+                body[api_key] = value
+        elif value:  # Truthy check: skips None, [], {}, "", 0, False
+            body[api_key] = value
     return body
 
 

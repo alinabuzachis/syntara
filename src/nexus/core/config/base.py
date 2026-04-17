@@ -982,6 +982,15 @@ class WorkflowEngineSettings(BaseSettings):
         description="AAP Controller base URL (e.g., https://aap.example.com)",
     )
 
+    aap_public_url: str | None = Field(
+        default=None,
+        description=(
+            "Public-facing AAP Controller URL for browser links (e.g., https://aap.example.com). "
+            "Defaults to aap_base_url. Set this when aap_base_url is an internal/cluster URL "
+            "that should not be exposed to end users."
+        ),
+    )
+
     aap_username: str | None = Field(
         default=None,
         description="AAP username for basic authentication (optional if using token)",
@@ -1000,6 +1009,12 @@ class WorkflowEngineSettings(BaseSettings):
     aap_timeout_seconds: int = Field(
         default=3600,
         description="Default timeout for AAP job template activities in seconds (1 hour)",
+        ge=1,
+    )
+
+    aap_proxy_timeout_seconds: int = Field(
+        default=30,
+        description="Timeout for AAP proxy (BFF) requests in seconds — list/detail API calls, not job execution",
         ge=1,
     )
 

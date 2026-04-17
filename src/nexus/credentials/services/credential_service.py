@@ -273,7 +273,7 @@ class CredentialService(BaseService):
 
         logger.info("Credential created", credential_id=str(credential.id), name=credential.name)
 
-        decrypted_inputs = data.inputs if data.inputs else {}
+        decrypted_inputs = data.inputs or {}
         read = self._build_masked_response(credential, credential_type, decrypted_inputs)
         await self._resolve_user_fields([read])
         return read

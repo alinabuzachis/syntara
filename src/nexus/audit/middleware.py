@@ -321,7 +321,7 @@ class AuditMiddleware:
                 method=method,
                 path=path,
                 status_code=status_code,
-                query_params=query_params if query_params else None,
+                query_params=query_params or None,
                 user_role=user_context.get("user_role"),
             )
 

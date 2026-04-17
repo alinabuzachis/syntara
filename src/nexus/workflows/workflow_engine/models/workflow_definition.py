@@ -6,7 +6,7 @@ These are used by V2 workflow activities for config validation.
 
 import re
 import uuid
-from enum import Enum
+from enum import Enum, IntEnum
 from http import HTTPMethod
 from typing import Any
 from urllib.parse import urlparse
@@ -229,6 +229,24 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
         return v
 
 
+class AAPVerbosity(IntEnum):
+    """AAP job verbosity levels (0-5)."""
+
+    NORMAL = 0
+    VERBOSE = 1
+    MORE_VERBOSE = 2
+    DEBUG = 3
+    CONNECTION_DEBUG = 4
+    WINRM_DEBUG = 5
+
+
+class AAPJobType(str, Enum):
+    """AAP job type values."""
+
+    RUN = "run"
+    CHECK = "check"
+
+
 class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     """Configuration for AAP Job Template executor."""
 
@@ -278,10 +296,8 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
         description="Ansible tags to skip (comma-separated)",
         alias="skipTags",
     )
-    verbosity: int = Field(
-        default=0,
-        ge=0,
-        le=5,
+    verbosity: AAPVerbosity = Field(
+        default=AAPVerbosity.NORMAL,
         description="Job verbosity level (0-5)",
     )
     timeout: int = Field(
@@ -298,6 +314,47 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
         default=None,
         description="AAP organization name (used with job_template_name or inventory_name)",
         alias="organizationName",
+    )
+    # UI-only fields — stored in config, sent in launch body only when
+    # the AAP job template has "prompt on launch" enabled for the field.
+    job_type: AAPJobType | None = Field(
+        default=None,
+        description="Job type override: 'run' or 'check' (dry run)",
+        alias="job_type",
+    )
+    forks: int | None = Field(
+        default=None,
+        ge=0,
+        description="Number of parallel forks for job execution",
+    )
+    job_slicing: int | None = Field(
+        default=None,
+        ge=1,
+        description="Number of job slices",
+        alias="job_slicing",
+    )
+    diff_mode: bool | None = Field(
+        default=None,
+        description="Enable diff mode for playbook runs",
+        alias="diff_mode",
+    )
+    # The following fields are stored in the config for future prompt-on-launch
+    # support but are NOT yet forwarded in _build_launch_body because the AAP
+    # launch API requires these as nested resource references (IDs/objects),
+    # not simple scalar values.
+    execution_environment: str | None = Field(
+        default=None,
+        description="Execution environment override (deferred — requires ID resolution)",
+        alias="execution_environment",
+    )
+    instance_groups: str | None = Field(
+        default=None,
+        description="Instance groups override (deferred — requires ID resolution)",
+        alias="instance_groups",
+    )
+    labels: str | None = Field(
+        default=None,
+        description="Labels (deferred — requires ID resolution)",
     )
 
     def _validate_id_or_name_reference(

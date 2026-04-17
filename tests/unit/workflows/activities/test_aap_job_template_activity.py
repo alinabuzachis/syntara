@@ -1250,3 +1250,113 @@ class TestAAPInventoryNameBasedReference:
 
             # Verify no inventory lookup was performed (only 2 GET calls: status + output)
             assert mock_get.call_count == 2
+
+
+class TestBuildLaunchBody:
+    """Unit tests for _build_launch_body helper function."""
+
+    def test_includes_inventory_when_provided(self) -> None:
+        """Should include inventory ID in body when provided."""
+        from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
+        from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+
+        config = AAPJobTemplateExecutorConfig(jobTemplateId=1)
+        body = _build_launch_body(config, inventory_id=42)
+
+        assert body["inventory"] == 42
+
+    def test_skips_inventory_when_none(self) -> None:
+        """Should not include inventory in body when None."""
+        from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
+        from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+
+        config = AAPJobTemplateExecutorConfig(jobTemplateId=1)
+        body = _build_launch_body(config, inventory_id=None)
+
+        assert "inventory" not in body
+
+    def test_includes_verbosity_zero(self) -> None:
+        """Should include verbosity=0 (NORMAL level) in body."""
+        from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
+        from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+        from nexus.workflows.workflow_engine.models.workflow_definition import AAPVerbosity
+
+        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, verbosity=AAPVerbosity.NORMAL)
+        body = _build_launch_body(config, inventory_id=None)
+
+        assert body["verbosity"] == AAPVerbosity.NORMAL
+
+    def test_skips_empty_credentials_list(self) -> None:
+        """Should not include credentials when empty list."""
+        from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
+        from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+
+        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, credentials=[])
+        body = _build_launch_body(config, inventory_id=None)
+
+        assert "credentials" not in body
+
+    def test_includes_non_empty_credentials_list(self) -> None:
+        """Should include credentials when non-empty list."""
+        from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
+        from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+
+        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, credentials=[1, 2, 3])
+        body = _build_launch_body(config, inventory_id=None)
+
+        assert body["credentials"] == [1, 2, 3]
+
+    def test_skips_empty_extra_vars_dict(self) -> None:
+        """Should not include extra_vars when empty dict."""
+        from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
+        from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+
+        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, extraVars={})
+        body = _build_launch_body(config, inventory_id=None)
+
+        assert "extra_vars" not in body
+
+    def test_includes_non_empty_extra_vars_dict(self) -> None:
+        """Should include extra_vars when non-empty dict."""
+        from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
+        from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+
+        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, extraVars={"key": "value"})
+        body = _build_launch_body(config, inventory_id=None)
+
+        assert body["extra_vars"] == {"key": "value"}
+
+    def test_includes_all_fields_when_provided(self) -> None:
+        """Should include all fields when provided with truthy values."""
+        from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
+        from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+        from nexus.workflows.workflow_engine.models.workflow_definition import AAPJobType, AAPVerbosity
+
+        config = AAPJobTemplateExecutorConfig(
+            jobTemplateId=1,
+            credentials=[1],
+            extraVars={"foo": "bar"},
+            limit="host1",
+            tags="deploy",
+            skipTags="skip",
+            verbosity=AAPVerbosity.VERBOSE,
+            job_type=AAPJobType.RUN,
+            forks=10,
+            job_slicing=2,
+            diff_mode=True,
+        )
+        body = _build_launch_body(config, inventory_id=99)
+
+        assert body == {
+            "inventory": 99,
+            "credentials": [1],
+            "extra_vars": {"foo": "bar"},
+            "limit": "host1",
+            "job_tags": "deploy",  # Mapped from "tags"
+            "skip_tags": "skip",
+            "verbosity": AAPVerbosity.VERBOSE,
+            "job_type": AAPJobType.RUN,
+            "forks": 10,
+            "job_slice_count": 2,  # Mapped from "job_slicing"
+            "diff_mode": True,
+        }

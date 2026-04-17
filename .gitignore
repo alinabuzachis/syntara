@@ -233,6 +233,3 @@ loop.sh
 # Secrets (JWT keys, credentials, etc.)
 .secrets/
 .playwright-mcp/
-
-# DAST scan results
-dast/results/

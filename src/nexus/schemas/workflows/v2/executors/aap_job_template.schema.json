@@ -63,6 +63,42 @@
         "minimum": 0,
         "maximum": 5,
         "default": 0
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Timeout for job execution in seconds",
+        "minimum": 1
+      },
+      "job_type": {
+        "type": "string",
+        "description": "Job type override: 'run' or 'check' (dry run)",
+        "enum": ["run", "check"]
+      },
+      "forks": {
+        "type": "integer",
+        "description": "Number of parallel forks for job execution",
+        "minimum": 0
+      },
+      "job_slicing": {
+        "type": "integer",
+        "description": "Number of job slices",
+        "minimum": 1
+      },
+      "diff_mode": {
+        "type": "boolean",
+        "description": "Enable diff mode for playbook runs"
+      },
+      "execution_environment": {
+        "type": "string",
+        "description": "Execution environment override (deferred — requires ID resolution)"
+      },
+      "instance_groups": {
+        "type": "string",
+        "description": "Instance groups override (deferred — requires ID resolution)"
+      },
+      "labels": {
+        "type": "string",
+        "description": "Labels (deferred — requires ID resolution)"
       }
     },
     "anyOf": [

@@ -439,7 +439,7 @@ class TestAAPJobTemplateConfig:
     def test_verbosity_range(self) -> None:
         """Verbosity must be 0-5."""
         with pytest.raises(ValidationError, match="verbosity"):
-            AAPJobTemplateExecutorConfig(jobTemplateId=1, verbosity=6)
+            AAPJobTemplateExecutorConfig(jobTemplateId=1, verbosity=6)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------

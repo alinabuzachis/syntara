@@ -116,6 +116,13 @@ services:
       - APP_SEGMENT_ENDPOINT=${APP_SEGMENT_ENDPOINT:-http://mock-segment:9999}
       - APP_ENTITLEMENT_ID=${APP_ENTITLEMENT_ID}
       - APP_COLLECTION_INTERVAL_SECONDS=${APP_COLLECTION_INTERVAL_SECONDS:-300}
+      # AAP Configuration (for AAP proxy endpoints)
+      - APP_AAP_BASE_URL=${APP_AAP_BASE_URL}
+      - APP_AAP_USERNAME=${APP_AAP_USERNAME}
+      - APP_AAP_PASSWORD=${APP_AAP_PASSWORD}
+      - APP_AAP_TOKEN=${APP_AAP_TOKEN}
+      - APP_AAP_VERIFY_SSL=${APP_AAP_VERIFY_SSL:-true}
+      - APP_AAP_PROXY_TIMEOUT_SECONDS=${APP_AAP_PROXY_TIMEOUT_SECONDS:-30}
       # JWT signing keys (mounted from .secrets/)
       - APP_JWT_PRIVATE_KEY_PATH=/run/secrets/jwt-primary.pem
       - APP_JWT_BACKUP_KEYS=[{"key_id":"nexus-backup","key_path":"/run/secrets/jwt-backup.pem"}]

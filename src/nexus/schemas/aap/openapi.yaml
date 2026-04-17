@@ -1,0 +1,1090 @@
+---
+openapi: 3.1.0
+info:
+  title: Nexus AAP Proxy API
+  version: 1.0.0
+  description: |
+    Backend-for-Frontend proxy that forwards requests to a configured
+    AAP (Ansible Automation Platform) Controller instance.
+
+    Enables the workflow-builder UI to browse AAP resources
+    (organizations, job templates, inventories) via cascading dropdowns
+    without direct AAP Controller access.
+
+    Authentication to the AAP Controller is resolved server-side from
+    environment variables (`APP_AAP_BASE_URL`, `APP_AAP_TOKEN`).
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: aap
+    description: Ansible Automation Platform resource proxy
+
+paths:
+  /aap/organizations:
+    get:
+      summary: List Organizations
+      description: List AAP organizations.
+      operationId: list_organizations_aap_organizations_get
+      tags:
+        - aap
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Search
+        - in: query
+          name: page_size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+            title: Page Size
+        - in: query
+          name: credential_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Credential ID
+          description: |
+            Optional Nexus credential ID for AAP Controller authentication.
+            If provided, the credential is decrypted and used instead of environment variables.
+            Credential must be of type "Ansible Automation Platform".
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AAPListResponse_AAPOrganization_"
+        "502":
+          description: AAP connection, authentication, or upstream error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                connection_error:
+                  summary: Connection timeout
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Connection Error"
+                    detail: "Failed to connect to AAP Controller"
+                    code: "AAP_CONNECTION_ERROR"
+                    retryable: true
+                auth_error:
+                  summary: Authentication failed
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Authentication Failed"
+                    detail: "AAP Controller authentication failed"
+                    code: "AAP_AUTHENTICATION_ERROR"
+                    retryable: false
+                upstream_error:
+                  summary: AAP upstream error
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Upstream Error"
+                    detail: "AAP Controller returned an error"
+                    code: "AAP_UPSTREAM_ERROR"
+                    retryable: true
+        "503":
+          description: AAP Controller not configured
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: "https://api.nexus.com/errors/service-unavailable"
+                title: "AAP Controller Not Configured"
+                detail: "AAP Controller connection is not configured"
+                code: "AAP_NOT_CONFIGURED"
+                retryable: false
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - bearerAuth: []
+
+  /aap/job-templates:
+    get:
+      summary: List Job Templates
+      description: List AAP job templates, optionally filtered by organization.
+      operationId: list_job_templates_aap_job_templates_get
+      tags:
+        - aap
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Search
+        - in: query
+          name: page_size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+            title: Page Size
+        - in: query
+          name: organization
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Organization
+        - in: query
+          name: credential_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Credential ID
+          description: |
+            Optional Nexus credential ID for AAP Controller authentication.
+            If provided, the credential is decrypted and used instead of environment variables.
+            Credential must be of type "Ansible Automation Platform".
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AAPListResponse_AAPJobTemplate_"
+        "502":
+          description: AAP connection, authentication, or upstream error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                connection_error:
+                  summary: Connection timeout
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Connection Error"
+                    detail: "Failed to connect to AAP Controller"
+                    code: "AAP_CONNECTION_ERROR"
+                    retryable: true
+                auth_error:
+                  summary: Authentication failed
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Authentication Failed"
+                    detail: "AAP Controller authentication failed"
+                    code: "AAP_AUTHENTICATION_ERROR"
+                    retryable: false
+                upstream_error:
+                  summary: AAP upstream error
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Upstream Error"
+                    detail: "AAP Controller returned an error"
+                    code: "AAP_UPSTREAM_ERROR"
+                    retryable: true
+        "503":
+          description: AAP Controller not configured
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: "https://api.nexus.com/errors/service-unavailable"
+                title: "AAP Controller Not Configured"
+                detail: "AAP Controller connection is not configured"
+                code: "AAP_NOT_CONFIGURED"
+                retryable: false
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - bearerAuth: []
+
+  /aap/job-templates/{job_template_id}:
+    get:
+      summary: Get Job Template Details
+      description: Get AAP job template details including prompt-on-launch capabilities.
+      operationId: get_job_template_aap_job_templates_get
+      tags:
+        - aap
+      parameters:
+        - in: path
+          name: job_template_id
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            title: Job Template Id
+        - in: query
+          name: credential_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Credential ID
+          description: |
+            Optional Nexus credential ID for AAP Controller authentication.
+            If provided, the credential is decrypted and used instead of environment variables.
+            Credential must be of type "Ansible Automation Platform".
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AAPJobTemplateDetail"
+        "404":
+          description: Job Template Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "502":
+          description: AAP connection, authentication, or upstream error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                connection_error:
+                  summary: Connection timeout
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Connection Error"
+                    detail: "Failed to connect to AAP Controller"
+                    code: "AAP_CONNECTION_ERROR"
+                    retryable: true
+                auth_error:
+                  summary: Authentication failed
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Authentication Failed"
+                    detail: "AAP Controller authentication failed"
+                    code: "AAP_AUTHENTICATION_ERROR"
+                    retryable: false
+                upstream_error:
+                  summary: AAP upstream error
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Upstream Error"
+                    detail: "AAP Controller returned an error"
+                    code: "AAP_UPSTREAM_ERROR"
+                    retryable: true
+        "503":
+          description: AAP Controller not configured
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: "https://api.nexus.com/errors/service-unavailable"
+                title: "AAP Controller Not Configured"
+                detail: "AAP Controller connection is not configured"
+                code: "AAP_NOT_CONFIGURED"
+                retryable: false
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - bearerAuth: []
+
+  /aap/inventories:
+    get:
+      summary: List Inventories
+      description: List AAP inventories, optionally filtered by organization.
+      operationId: list_inventories_aap_inventories_get
+      tags:
+        - aap
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Search
+        - in: query
+          name: page_size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+            title: Page Size
+        - in: query
+          name: organization
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Organization
+        - in: query
+          name: credential_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Credential ID
+          description: |
+            Optional Nexus credential ID for AAP Controller authentication.
+            If provided, the credential is decrypted and used instead of environment variables.
+            Credential must be of type "Ansible Automation Platform".
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AAPListResponse_AAPInventory_"
+        "502":
+          description: AAP connection, authentication, or upstream error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                connection_error:
+                  summary: Connection timeout
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Connection Error"
+                    detail: "Failed to connect to AAP Controller"
+                    code: "AAP_CONNECTION_ERROR"
+                    retryable: true
+                auth_error:
+                  summary: Authentication failed
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Authentication Failed"
+                    detail: "AAP Controller authentication failed"
+                    code: "AAP_AUTHENTICATION_ERROR"
+                    retryable: false
+                upstream_error:
+                  summary: AAP upstream error
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Upstream Error"
+                    detail: "AAP Controller returned an error"
+                    code: "AAP_UPSTREAM_ERROR"
+                    retryable: true
+        "503":
+          description: AAP Controller not configured
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: "https://api.nexus.com/errors/service-unavailable"
+                title: "AAP Controller Not Configured"
+                detail: "AAP Controller connection is not configured"
+                code: "AAP_NOT_CONFIGURED"
+                retryable: false
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - bearerAuth: []
+
+  /aap/execution-environments:
+    get:
+      summary: List Execution Environments
+      description: List AAP execution environments, optionally filtered by organization.
+      operationId: list_execution_environments_aap_execution_environments_get
+      tags:
+        - aap
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Search
+        - in: query
+          name: page_size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+            title: Page Size
+        - in: query
+          name: organization
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Organization
+        - in: query
+          name: credential_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Credential ID
+          description: |
+            Optional Nexus credential ID for AAP Controller authentication.
+            If provided, the credential is decrypted and used instead of environment variables.
+            Credential must be of type "Ansible Automation Platform".
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AAPListResponse_AAPExecutionEnvironment_"
+        "502":
+          description: AAP connection, authentication, or upstream error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                connection_error:
+                  summary: Connection timeout
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Connection Error"
+                    detail: "Failed to connect to AAP Controller"
+                    code: "AAP_CONNECTION_ERROR"
+                    retryable: true
+                auth_error:
+                  summary: Authentication failed
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Authentication Failed"
+                    detail: "AAP Controller authentication failed"
+                    code: "AAP_AUTHENTICATION_ERROR"
+                    retryable: false
+                upstream_error:
+                  summary: AAP upstream error
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Upstream Error"
+                    detail: "AAP Controller returned an error"
+                    code: "AAP_UPSTREAM_ERROR"
+                    retryable: true
+        "503":
+          description: AAP Controller not configured
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: "https://api.nexus.com/errors/service-unavailable"
+                title: "AAP Controller Not Configured"
+                detail: "AAP Controller connection is not configured"
+                code: "AAP_NOT_CONFIGURED"
+                retryable: false
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - bearerAuth: []
+
+  /aap/credentials:
+    get:
+      summary: List Credentials
+      description: List AAP credentials (not organization-scoped).
+      operationId: list_credentials_aap_credentials_get
+      tags:
+        - aap
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Search
+        - in: query
+          name: page_size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+            title: Page Size
+        - in: query
+          name: credential_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Credential ID
+          description: |
+            Optional Nexus credential ID for AAP Controller authentication.
+            If provided, the credential is decrypted and used instead of environment variables.
+            Credential must be of type "Ansible Automation Platform".
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AAPListResponse_AAPCredential_"
+        "502":
+          description: AAP connection, authentication, or upstream error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                connection_error:
+                  summary: Connection timeout
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Connection Error"
+                    detail: "Failed to connect to AAP Controller"
+                    code: "AAP_CONNECTION_ERROR"
+                    retryable: true
+                auth_error:
+                  summary: Authentication failed
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Authentication Failed"
+                    detail: "AAP Controller authentication failed"
+                    code: "AAP_AUTHENTICATION_ERROR"
+                    retryable: false
+                upstream_error:
+                  summary: AAP upstream error
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Upstream Error"
+                    detail: "AAP Controller returned an error"
+                    code: "AAP_UPSTREAM_ERROR"
+                    retryable: true
+        "503":
+          description: AAP Controller not configured
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: "https://api.nexus.com/errors/service-unavailable"
+                title: "AAP Controller Not Configured"
+                detail: "AAP Controller connection is not configured"
+                code: "AAP_NOT_CONFIGURED"
+                retryable: false
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - bearerAuth: []
+
+  /aap/instance-groups:
+    get:
+      summary: List Instance Groups
+      description: List AAP instance groups (not organization-scoped).
+      operationId: list_instance_groups_aap_instance_groups_get
+      tags:
+        - aap
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                maxLength: 200
+              - type: "null"
+            title: Search
+        - in: query
+          name: page_size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+            title: Page Size
+        - in: query
+          name: credential_id
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Credential ID
+          description: |
+            Optional Nexus credential ID for AAP Controller authentication.
+            If provided, the credential is decrypted and used instead of environment variables.
+            Credential must be of type "Ansible Automation Platform".
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AAPListResponse_AAPInstanceGroup_"
+        "502":
+          description: AAP connection, authentication, or upstream error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              examples:
+                connection_error:
+                  summary: Connection timeout
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Connection Error"
+                    detail: "Failed to connect to AAP Controller"
+                    code: "AAP_CONNECTION_ERROR"
+                    retryable: true
+                auth_error:
+                  summary: Authentication failed
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Authentication Failed"
+                    detail: "AAP Controller authentication failed"
+                    code: "AAP_AUTHENTICATION_ERROR"
+                    retryable: false
+                upstream_error:
+                  summary: AAP upstream error
+                  value:
+                    type: "https://api.nexus.com/errors/provider-error"
+                    title: "AAP Upstream Error"
+                    detail: "AAP Controller returned an error"
+                    code: "AAP_UPSTREAM_ERROR"
+                    retryable: true
+        "503":
+          description: AAP Controller not configured
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: "https://api.nexus.com/errors/service-unavailable"
+                title: "AAP Controller Not Configured"
+                detail: "AAP Controller connection is not configured"
+                code: "AAP_NOT_CONFIGURED"
+                retryable: false
+        "422":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - bearerAuth: []
+
+components:
+  schemas:
+    AAPOrganization:
+      type: object
+      title: AAPOrganization
+      description: AAP organization resource.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+
+    AAPJobTemplate:
+      type: object
+      title: AAPJobTemplate
+      description: AAP job template resource.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
+
+    AAPJobTemplateDetail:
+      type: object
+      title: AAPJobTemplateDetail
+      description: AAP job template with prompt-on-launch capabilities.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
+        url:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Url
+          description: Link to the job template in AAP Controller UI
+        ask_job_type_on_launch:
+          type: boolean
+          default: false
+        ask_inventory_on_launch:
+          type: boolean
+          default: false
+        ask_credential_on_launch:
+          type: boolean
+          default: false
+        ask_variables_on_launch:
+          type: boolean
+          default: false
+        ask_limit_on_launch:
+          type: boolean
+          default: false
+        ask_tags_on_launch:
+          type: boolean
+          default: false
+        ask_skip_tags_on_launch:
+          type: boolean
+          default: false
+        ask_verbosity_on_launch:
+          type: boolean
+          default: false
+        ask_diff_mode_on_launch:
+          type: boolean
+          default: false
+        ask_forks_on_launch:
+          type: boolean
+          default: false
+        ask_job_slice_count_on_launch:
+          type: boolean
+          default: false
+        ask_execution_environment_on_launch:
+          type: boolean
+          default: false
+        ask_instance_groups_on_launch:
+          type: boolean
+          default: false
+        ask_labels_on_launch:
+          type: boolean
+          default: false
+        ask_timeout_on_launch:
+          type: boolean
+          default: false
+        ask_scm_branch_on_launch:
+          type: boolean
+          default: false
+        survey_enabled:
+          type: boolean
+          default: false
+
+    AAPInventory:
+      type: object
+      title: AAPInventory
+      description: AAP inventory resource.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
+
+    AAPExecutionEnvironment:
+      type: object
+      title: AAPExecutionEnvironment
+      description: AAP execution environment resource.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+            - type: string
+            - type: "null"
+          title: Description
+
+    AAPCredential:
+      type: object
+      title: AAPCredential
+      description: AAP credential resource (description omitted to avoid leaking infrastructure details).
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+
+    AAPInstanceGroup:
+      type: object
+      title: AAPInstanceGroup
+      description: AAP instance group resource.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+
+    AAPListResponse_AAPOrganization_:
+      type: object
+      title: "AAPListResponse[AAPOrganization]"
+      required:
+        - count
+        - results
+      properties:
+        count:
+          type: integer
+          title: Count
+        results:
+          type: array
+          title: Results
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/AAPOrganization"
+
+    AAPListResponse_AAPJobTemplate_:
+      type: object
+      title: "AAPListResponse[AAPJobTemplate]"
+      required:
+        - count
+        - results
+      properties:
+        count:
+          type: integer
+          title: Count
+        results:
+          type: array
+          title: Results
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/AAPJobTemplate"
+
+    AAPListResponse_AAPInventory_:
+      type: object
+      title: "AAPListResponse[AAPInventory]"
+      required:
+        - count
+        - results
+      properties:
+        count:
+          type: integer
+          title: Count
+        results:
+          type: array
+          title: Results
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/AAPInventory"
+
+    AAPListResponse_AAPExecutionEnvironment_:
+      type: object
+      title: "AAPListResponse[AAPExecutionEnvironment]"
+      required:
+        - count
+        - results
+      properties:
+        count:
+          type: integer
+          title: Count
+        results:
+          type: array
+          title: Results
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/AAPExecutionEnvironment"
+
+    AAPListResponse_AAPCredential_:
+      type: object
+      title: "AAPListResponse[AAPCredential]"
+      required:
+        - count
+        - results
+      properties:
+        count:
+          type: integer
+          title: Count
+        results:
+          type: array
+          title: Results
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/AAPCredential"
+
+    AAPListResponse_AAPInstanceGroup_:
+      type: object
+      title: "AAPListResponse[AAPInstanceGroup]"
+      required:
+        - count
+        - results
+      properties:
+        count:
+          type: integer
+          title: Count
+        results:
+          type: array
+          title: Results
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/AAPInstanceGroup"
+
+    ProblemDetails:
+      type: object
+      title: ProblemDetails
+      description: RFC 9457 Problem Details for HTTP APIs
+      required:
+        - type
+        - title
+      properties:
+        type:
+          type: string
+          title: Type
+          description: URI reference identifying the problem type
+        title:
+          type: string
+          title: Title
+          description: Short, human-readable summary
+        detail:
+          type: string
+          title: Detail
+          description: Human-readable explanation specific to this occurrence
+        code:
+          type: string
+          title: Code
+          description: Application-specific error code
+        retryable:
+          type: boolean
+          title: Retryable
+          description: Whether the client should retry
+        instance:
+          type: string
+          title: Instance
+          description: URI reference identifying this specific occurrence
+
+    HTTPValidationError:
+      type: object
+      title: HTTPValidationError
+      properties:
+        detail:
+          type: array
+          title: Detail
+          items:
+            $ref: "#/components/schemas/ValidationError"
+
+    ValidationError:
+      type: object
+      title: ValidationError
+      required:
+        - loc
+        - msg
+        - type
+      properties:
+        loc:
+          type: array
+          title: Location
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token authentication

@@ -1,0 +1,213 @@
+"""Unit tests for AAP router endpoints."""
+
+from collections.abc import AsyncGenerator
+from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
+
+import pytest
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+
+from nexus.aap.models.responses import (
+    AAPCredential,
+    AAPExecutionEnvironment,
+    AAPInstanceGroup,
+    AAPInventory,
+    AAPJobTemplate,
+    AAPJobTemplateDetail,
+    AAPListResponse,
+    AAPOrganization,
+)
+from nexus.aap.router import router
+from nexus.aap.services.aap_proxy_service import AAPProxyService
+from nexus.core.models import User
+
+
+@pytest.fixture
+def mock_service() -> AsyncMock:
+    """Create a mock AAPProxyService."""
+    service = AsyncMock(spec=AAPProxyService)
+    service.close = AsyncMock()
+    return service
+
+
+@pytest.fixture
+def mock_user() -> User:
+    """Create a mock authenticated user."""
+    user = MagicMock(spec=User)
+    user.id = uuid4()
+    return user
+
+
+@pytest.fixture
+def app(mock_service: AsyncMock, mock_user: User) -> FastAPI:
+    """Create a test FastAPI app with AAP router and mocked dependencies."""
+    test_app = FastAPI()
+
+    # Override dependencies
+    async def mock_get_service() -> AsyncGenerator[AAPProxyService, None]:
+        yield mock_service
+
+    async def mock_get_user() -> User:
+        return mock_user
+
+    # Apply overrides before including router
+    from nexus.aap import router as aap_router
+    from nexus.auth import get_current_user
+
+    test_app.dependency_overrides[aap_router._get_aap_proxy_service] = mock_get_service
+    test_app.dependency_overrides[get_current_user] = mock_get_user
+
+    test_app.include_router(router, prefix="/api/v1")
+    return test_app
+
+
+class TestListOrganizations:
+    """Tests for GET /api/v1/aap/organizations."""
+
+    @pytest.mark.asyncio
+    async def test_returns_organizations(self, app: FastAPI, mock_service: AsyncMock) -> None:
+        """Should return list of organizations from service."""
+        mock_service.list_organizations.return_value = AAPListResponse(
+            count=2,
+            results=[
+                AAPOrganization(id=1, name="Org 1"),
+                AAPOrganization(id=2, name="Org 2"),
+            ],
+        )
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/aap/organizations")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 2
+        assert len(data["results"]) == 2
+        assert data["results"][0]["name"] == "Org 1"
+        mock_service.list_organizations.assert_called_once()
+
+
+class TestListJobTemplates:
+    """Tests for GET /api/v1/aap/job-templates."""
+
+    @pytest.mark.asyncio
+    async def test_returns_job_templates(self, app: FastAPI, mock_service: AsyncMock) -> None:
+        """Should return list of job templates from service."""
+        mock_service.list_job_templates.return_value = AAPListResponse(
+            count=1,
+            results=[AAPJobTemplate(id=1, name="Template 1", description="Test template")],
+        )
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/aap/job-templates")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert data["results"][0]["name"] == "Template 1"
+
+
+class TestGetJobTemplate:
+    """Tests for GET /api/v1/aap/job-templates/{job_template_id}."""
+
+    @pytest.mark.asyncio
+    async def test_returns_job_template_detail(self, app: FastAPI, mock_service: AsyncMock) -> None:
+        """Should return job template details from service."""
+        mock_service.get_job_template.return_value = AAPJobTemplateDetail(
+            id=1,
+            name="Template 1",
+            description="Test template",
+            ask_credential_on_launch=True,
+            ask_inventory_on_launch=False,
+            ask_variables_on_launch=True,
+            url="https://aap.example.com/templates/1",
+        )
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/aap/job-templates/1")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == 1
+        assert data["name"] == "Template 1"
+        assert data["ask_credential_on_launch"] is True
+
+
+class TestListInventories:
+    """Tests for GET /api/v1/aap/inventories."""
+
+    @pytest.mark.asyncio
+    async def test_returns_inventories(self, app: FastAPI, mock_service: AsyncMock) -> None:
+        """Should return list of inventories from service."""
+        mock_service.list_inventories.return_value = AAPListResponse(
+            count=1,
+            results=[AAPInventory(id=1, name="Inventory 1", description="Test inventory")],
+        )
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/aap/inventories")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert data["results"][0]["name"] == "Inventory 1"
+
+
+class TestListExecutionEnvironments:
+    """Tests for GET /api/v1/aap/execution-environments."""
+
+    @pytest.mark.asyncio
+    async def test_returns_execution_environments(self, app: FastAPI, mock_service: AsyncMock) -> None:
+        """Should return list of execution environments from service."""
+        mock_service.list_execution_environments.return_value = AAPListResponse(
+            count=1,
+            results=[AAPExecutionEnvironment(id=1, name="EE 1", description="Test EE")],
+        )
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/aap/execution-environments")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert data["results"][0]["name"] == "EE 1"
+
+
+class TestListCredentials:
+    """Tests for GET /api/v1/aap/credentials."""
+
+    @pytest.mark.asyncio
+    async def test_returns_credentials(self, app: FastAPI, mock_service: AsyncMock) -> None:
+        """Should return list of credentials from service."""
+        mock_service.list_credentials.return_value = AAPListResponse(
+            count=1,
+            results=[AAPCredential(id=1, name="Credential 1")],
+        )
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/aap/credentials")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert data["results"][0]["name"] == "Credential 1"
+
+
+class TestListInstanceGroups:
+    """Tests for GET /api/v1/aap/instance-groups."""
+
+    @pytest.mark.asyncio
+    async def test_returns_instance_groups(self, app: FastAPI, mock_service: AsyncMock) -> None:
+        """Should return list of instance groups from service."""
+        mock_service.list_instance_groups.return_value = AAPListResponse(
+            count=1,
+            results=[AAPInstanceGroup(id=1, name="Group 1")],
+        )
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/v1/aap/instance-groups")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+        assert data["results"][0]["name"] == "Group 1"
