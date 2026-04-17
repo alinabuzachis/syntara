@@ -395,7 +395,7 @@ secrets-clean: ## Remove generated secrets
 
 .PHONY: generate-token
 generate-token: _ensure-secrets ## Generate a JWT token for testing (ROLE=creator|approver|administrator|viewer KEY=primary|backup)
-	@podman-compose exec nexus -- sh -c 'uv run python tools/generate_jwt.py --json $(if $(ROLE),--role $(ROLE)) $(if $(KEY),--key $(KEY))' | jq -r .access_token
+	@$(COMPOSE_FINAL_CMD) exec nexus -- sh -c 'uv run python tools/generate_jwt.py --json $(if $(ROLE),--role $(ROLE)) $(if $(KEY),--key $(KEY))' | jq -r .access_token
 
 .PHONY: _ensure-secrets
 _ensure-secrets:
