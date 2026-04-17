@@ -60,7 +60,7 @@ export const credentialTypes: CredentialTypeRead[] = [
   },
   {
     id: 'ctype-aap',
-    name: 'AAP API Credentials',
+    name: 'Ansible Automation Platform',
     description: 'Authentication for Ansible Automation Platform Controller API',
     inputs: typeInputs(
       [
@@ -150,7 +150,7 @@ export const credentialTypes: CredentialTypeRead[] = [
   },
   {
     id: 'ctype-ssh',
-    name: 'SSH Key (Non-Protected)',
+    name: 'SSH Key',
     description: 'SSH private key authentication without passphrase',
     inputs: typeInputs(
       [
@@ -158,7 +158,7 @@ export const credentialTypes: CredentialTypeRead[] = [
         {
           id: 'ssh_private_key',
           type: 'string',
-          label: 'SSH Private Key',
+          label: 'Private key',
           secret: true,
           help_text: 'Paste private key contents (OpenSSH format, no passphrase)',
           multiline: true,

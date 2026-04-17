@@ -143,8 +143,8 @@ test.describe('Credential Enable/Disable State Management', () => {
       await expect(app.getByText('Credential disabled')).toBeVisible()
 
       // Navigate away and back
-      await app.goto(toAppUrl('/configuration/credential-types'))
-      await expect(app.getByRole('heading', { name: 'Credential Types', level: 1 })).toBeVisible()
+      await app.goto(toAppUrl('/automations'))
+      await expect(app.getByText('Automations', { exact: true }).first()).toBeVisible()
       await goToCredentialsList(app)
 
       // Filter to find our credential

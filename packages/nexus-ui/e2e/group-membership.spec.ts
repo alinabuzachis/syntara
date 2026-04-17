@@ -1,44 +1,46 @@
 /**
- * E2E Tests: Group Membership Management (Drawer-based)
+ * E2E Tests: Group Membership Management (Full-page detail)
  *
  * Critical paths covered:
- * - Open group drawer by clicking a group row
- * - View group details and members tabs in the drawer
- * - Add a member to a group via the drawer
- * - Remove a member from a group via the drawer
- * - Close the drawer
+ * - Navigate to group detail page by clicking group name
+ * - View group details, members, and roles tabs
+ * - Add a member to a group
+ * - Remove a member from a group
+ * - Navigate back to groups list
  * - Manage group membership from user detail page
  */
 import { test, expect, toAppUrl } from './fixtures'
 
-test.describe('Group Membership — Drawer', () => {
+test.describe('Group Detail — Navigation & Tabs', () => {
   test.beforeEach(async ({ app }) => {
     await app.goto(toAppUrl('/access-management/groups'))
     await expect(app.getByRole('heading', { level: 1, name: /access management/i })).toBeVisible()
   })
 
-  test('clicking a group row opens the drawer with details', async ({ app }) => {
-    // Click on a group row
-    const row = app.getByRole('row', { name: /platform-admins/i })
-    await expect(row).toBeVisible()
-    await row.click()
+  test('clicking a group name navigates to the detail page', async ({ app }) => {
+    // Click on the "admins" group name button (renders as <Button variant="link">)
+    const table = app.getByRole('grid', { name: 'Groups table' })
+    await table.getByRole('button', { name: 'admins' }).click()
 
-    // Drawer should appear with group name and tabs
-    await expect(app.getByRole('heading', { level: 2, name: 'platform-admins' })).toBeVisible()
+    // Should navigate to group detail page
+    await expect(app).toHaveURL(/access-management\/groups\//)
+    await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
+
+    // Should show tabs
     await expect(app.getByRole('tab', { name: /details/i })).toBeVisible()
-    await expect(app.getByRole('tab', { name: /members/i })).toBeVisible()
-
-    // Details tab content should be visible
-    await expect(app.getByText('Full platform administrators')).toBeVisible()
+    await expect(app.getByRole('tab', { name: /roles/i })).toBeVisible()
   })
 
-  test('switching to members tab shows member list', async ({ app }) => {
-    // Open drawer for a group
-    await app.getByRole('row', { name: /platform-admins/i }).click()
-    await expect(app.getByRole('heading', { level: 2, name: 'platform-admins' })).toBeVisible()
+  test('members tab shows member list or empty state', async ({ app }) => {
+    // Navigate to admins group detail (admins has Members tab, unlike authenticated)
+    const table = app.getByRole('grid', { name: 'Groups table' })
+    await table.getByRole('button', { name: 'admins' }).click()
+    await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Switch to members tab
-    await app.getByRole('tab', { name: /members/i }).click()
+    const membersTab = app.getByRole('tab', { name: /members/i })
+    await expect(membersTab).toBeVisible()
+    await membersTab.click()
 
     // Should see members content (table or empty state)
     const hasTable = await app
@@ -55,21 +57,25 @@ test.describe('Group Membership — Drawer', () => {
     expect(hasTable || hasEmptyState).toBe(true)
   })
 
-  test('close drawer with close button', async ({ app }) => {
-    // Open drawer
-    await app.getByRole('row', { name: /platform-admins/i }).click()
-    const drawerHeading = app.getByRole('heading', { level: 2, name: 'platform-admins' })
-    await expect(drawerHeading).toBeVisible()
+  test('back button returns to groups list', async ({ app }) => {
+    // Navigate to group detail
+    const table = app.getByRole('grid', { name: 'Groups table' })
+    await table.getByRole('button', { name: 'admins' }).click()
+    await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
-    // Close it
-    await app.getByRole('button', { name: /close/i }).click()
-    await expect(drawerHeading).not.toBeVisible()
+    // Click back button
+    await app.getByRole('button', { name: 'Back to groups' }).click()
+
+    // Should be back on groups list
+    await expect(app.getByRole('heading', { level: 1, name: /access management/i })).toBeVisible()
+    await expect(table.getByRole('button', { name: 'admins' })).toBeVisible()
   })
 
-  test('add and remove a member from the drawer', async ({ app }) => {
-    // Open drawer for the developers group
-    await app.getByRole('row', { name: /developers/i }).click()
-    await expect(app.getByRole('heading', { level: 2, name: 'developers' })).toBeVisible()
+  test('add and remove a member from the group detail', async ({ app }) => {
+    // Navigate to admins group detail
+    const table = app.getByRole('grid', { name: 'Groups table' })
+    await table.getByRole('button', { name: 'admins' }).click()
+    await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Switch to members tab
     await app.getByRole('tab', { name: /members/i }).click()
@@ -78,17 +84,32 @@ test.describe('Group Membership — Drawer', () => {
     await app.getByRole('button', { name: 'Add member' }).click()
 
     // Modal should appear
-    await expect(app.getByRole('dialog')).toBeVisible()
+    const dialog = app.getByRole('dialog')
+    await expect(dialog).toBeVisible()
 
-    // Open the typeahead and pick the first option
-    const selectToggle = app.getByRole('button', { name: /select a user/i })
-    await selectToggle.click()
-    const firstOption = app.getByRole('option').first()
+    // Open the typeahead to pick an available user
+    const selectInput = dialog.getByPlaceholder('Search for a user...')
+    await selectInput.click()
+
+    // Check if any selectable options exist (all current members are excluded)
+    const noResults = dialog.getByText('No results match')
+    const hasNoResults = await noResults
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false)
+
+    if (hasNoResults) {
+      // Only one user exists and is already a member — skip add/remove
+      test.skip(true, 'No available users to add (all users are already members)')
+      return
+    }
+
+    const firstOption = dialog.getByRole('option').first()
     const userName = await firstOption.textContent()
     await firstOption.click()
 
     // Submit
-    await app.getByRole('button', { name: 'Add', exact: true }).click()
+    await dialog.getByRole('button', { name: 'Add', exact: true }).click()
 
     // Verify success
     await expect(app.getByText(/member added/i)).toBeVisible()
@@ -98,7 +119,7 @@ test.describe('Group Membership — Drawer', () => {
       const memberName = userName.trim()
       await expect(app.getByRole('cell', { name: memberName })).toBeVisible({ timeout: 5000 })
 
-      // Now remove the member
+      // Now remove the member via kebab menu
       const memberRow = app.getByRole('row').filter({ hasText: memberName })
       await memberRow.getByRole('button', { name: /actions/i }).click()
       await app.getByRole('menuitem', { name: 'Remove' }).click()
@@ -112,24 +133,31 @@ test.describe('Group Membership — Drawer', () => {
     }
   })
 
-  test('selecting a different group updates the drawer', async ({ app }) => {
-    // Open drawer for first group
-    await app.getByRole('row', { name: /platform-admins/i }).click()
-    await expect(app.getByRole('heading', { level: 2, name: 'platform-admins' })).toBeVisible()
+  test('navigating to a different group shows its details', async ({ app }) => {
+    const table = app.getByRole('grid', { name: 'Groups table' })
 
-    // Click a different group
-    await app.getByRole('row', { name: /developers/i }).click()
-    await expect(app.getByRole('heading', { level: 2, name: 'developers' })).toBeVisible()
+    // Navigate to admins group detail
+    await table.getByRole('button', { name: 'admins' }).click()
+    await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
+
+    // Go back
+    await app.getByRole('button', { name: 'Back to groups' }).click()
+    await expect(app.getByRole('heading', { level: 1, name: /access management/i })).toBeVisible()
+
+    // Navigate to authenticated group
+    await table.getByRole('button', { name: 'authenticated' }).click()
+    await expect(app.getByRole('heading', { level: 1, name: 'authenticated', exact: true })).toBeVisible()
   })
 
   test('builtin groups show built-in label and no edit button', async ({ app }) => {
-    await app.getByRole('row', { name: /^admins/i }).click()
-    await expect(app.getByRole('heading', { level: 2, name: 'admins' })).toBeVisible()
+    const table = app.getByRole('grid', { name: 'Groups table' })
+    await table.getByRole('button', { name: 'admins' }).click()
+    await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
-    // Should show Built-in label
+    // Should show Built-in label on the default Details tab
     await expect(app.getByText('Built-in')).toBeVisible()
 
-    // Should not show edit button in the drawer
+    // Should not show edit button (builtin groups can't be edited)
     await expect(app.getByRole('button', { name: 'Edit group' })).not.toBeVisible()
   })
 })

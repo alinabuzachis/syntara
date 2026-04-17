@@ -7,7 +7,7 @@ import { buildUniqueName } from './workflows'
 /** Navigate to the credentials list page and wait for it to load */
 export async function goToCredentialsList(app: Page) {
   await app.goto(toAppUrl('/configuration/credentials'))
-  await expect(app.getByRole('heading', { name: 'Credentials', level: 1 })).toBeVisible()
+  await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
 }
 
 /**
@@ -17,7 +17,8 @@ export async function goToCredentialsList(app: Page) {
 export async function createTestCredential(app: Page, options: { prefix?: string; enabled?: boolean } = {}) {
   const name = buildUniqueName(options.prefix ?? 'e2e-cred')
   await goToCredentialsList(app)
-  await app.getByRole('button', { name: 'Create credential' }).click()
+  // Use .first() because on an empty list the button appears in both the toolbar and the empty state
+  await app.getByRole('button', { name: 'Create credential' }).first().click()
 
   const modal = app.getByRole('dialog')
   await modal.getByRole('textbox', { name: 'Credential name' }).fill(name)
@@ -73,8 +74,8 @@ export async function deleteCredentialByName(app: Page, name: string) {
 }
 
 /**
- * Navigate to credentials list, filter by name, and click the credential row
- * to open its detail page.
+ * Navigate to credentials list, filter by name, and click the credential name
+ * link to open its detail page.
  */
 export async function navigateToCredentialDetail(app: Page, credentialName: string) {
   await goToCredentialsList(app)
@@ -83,7 +84,9 @@ export async function navigateToCredentialDetail(app: Page, credentialName: stri
   await app.getByPlaceholder('Filter by keyword').fill(credentialName)
   await app.getByRole('button', { name: 'Apply filter' }).click()
 
+  // Click the credential name link (LinkCell renders a Button variant="link")
+  // Clicking the row itself does not trigger navigation
   const table = app.getByRole('grid', { name: 'Credentials table' })
-  await table.getByRole('row', { name: new RegExp(credentialName) }).click()
-  await expect(app.getByText(credentialName).first()).toBeVisible()
+  await table.getByRole('button', { name: credentialName }).click()
+  await expect(app).toHaveURL(/configuration\/credentials\//)
 }

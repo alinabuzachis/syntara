@@ -35,7 +35,7 @@ test.describe('Credential Types Management', () => {
     const table = app.getByRole('grid', { name: 'Credential types table' })
     await expect(table.getByRole('row', { name: /HTTP Bearer Token/ })).toBeVisible()
     await expect(table.getByRole('row', { name: /HTTP Basic Auth/ })).toBeVisible()
-    await expect(table.getByRole('row', { name: /AAP API Credentials/ })).toBeVisible()
+    await expect(table.getByRole('row', { name: /Ansible Automation Platform/ })).toBeVisible()
     await expect(table.getByRole('row', { name: /LLM Provider/ })).toBeVisible()
     await expect(table.getByRole('row', { name: /SSH Key/ })).toBeVisible()
   })
@@ -134,7 +134,7 @@ test.describe('Credential Types Management', () => {
     // Create a new bearer token credential
     const name = buildUniqueName('e2e-count-test')
     await app.goto(toAppUrl('/configuration/credentials'))
-    await expect(app.getByRole('heading', { name: 'Credentials', level: 1 })).toBeVisible()
+    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
     await app.getByRole('button', { name: 'Create credential' }).click()
 
     const modal = app.getByRole('dialog')

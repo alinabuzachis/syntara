@@ -1,10 +1,11 @@
 import { test, expect, toAppUrl } from './fixtures'
 import {
-  addNodePanel,
   buildUniqueName,
+  clickAddConnectedStep,
   closeNodeEditorPanel,
   createBasicWorkflow,
   fillCodeEditor,
+  selectProjectIfRequired,
 } from './helpers/workflows'
 
 test('user creates and saves a multi-node workflow', async ({ app }) => {
@@ -19,10 +20,7 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
   await app.getByRole('button', { name: /^Add step$/ }).click()
 
   // Act - Add connected action node
-  await expect(app.getByRole('button', { name: 'Add connected step' })).toBeVisible()
-  await app.getByRole('button', { name: 'Add connected step' }).click({ force: true })
-  const firstPanel = addNodePanel(app)
-  await expect(firstPanel).toHaveCount(1)
+  const firstPanel = await clickAddConnectedStep(app)
   await firstPanel.getByRole('button', { name: 'Action', exact: true }).click()
   await firstPanel.getByRole('button', { name: 'Script', exact: true }).click()
   await app.getByLabel('Name').fill('Send email')
@@ -31,17 +29,15 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
   await closeNodeEditorPanel(app)
 
   // Act - Add another connected action node
-  await expect(app.getByRole('button', { name: 'Add connected step' })).toBeVisible()
-  await app.getByRole('button', { name: 'Add connected step' }).click({ force: true })
-  const secondPanel = addNodePanel(app)
-  await expect(secondPanel).toHaveCount(1)
+  const secondPanel = await clickAddConnectedStep(app)
   await secondPanel.getByRole('button', { name: 'Action', exact: true }).click()
   await secondPanel.getByRole('button', { name: 'Script', exact: true }).click()
   await app.getByLabel('Name').fill('Follow-up action')
   await fillCodeEditor(app, { value: 'print("follow-up")' })
   await app.getByRole('button', { name: /^Add step$/ }).click()
 
-  // Act - Save workflow
+  // Act - Save workflow (select project first to avoid name reset)
+  await selectProjectIfRequired(app)
   await app.getByPlaceholder('Workflow name').fill(workflowName)
   await app.getByRole('button', { name: 'Save' }).click()
 

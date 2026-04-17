@@ -11,6 +11,23 @@ export const addNodePanel = (page: Page) =>
     name: /add step|select a step|select an action step|select a trigger step/i,
   })
 
+/**
+ * Click "Layout" to position nodes and reveal edge buttons,
+ * then click "Add connected step" and return the add-node panel.
+ */
+export async function clickAddConnectedStep(page: Page) {
+  const layoutButton = page.getByRole('button', { name: 'Layout' }).first()
+  if (await layoutButton.isVisible()) {
+    await layoutButton.click()
+  }
+  const addBtn = page.getByRole('button', { name: 'Add connected step' })
+  await expect(addBtn.first()).toBeVisible({ timeout: 10000 })
+  await addBtn.first().click({ force: true })
+  const panel = addNodePanel(page)
+  await expect(panel).toHaveCount(1)
+  return panel
+}
+
 export async function closeNodeEditorPanel(page: Page) {
   const closeButton = page.getByRole('button', { name: 'Close' })
   if ((await closeButton.count()) > 0) {
@@ -84,6 +101,19 @@ export async function fillCodeEditor(
   await expect(roleEditor).toHaveValue(value)
 }
 
+/**
+ * Select a project in the builder toolbar.
+ * Required for new workflows on the real backend (Save is disabled without a project).
+ * Falls back silently when the project selector is absent (e.g. mock API).
+ */
+export async function selectProjectIfRequired(page: Page, projectName = 'default') {
+  const toggle = page.getByRole('button', { name: /Select a project/i })
+  if ((await toggle.count()) > 0 && (await toggle.isVisible())) {
+    await toggle.click()
+    await page.getByRole('option', { name: projectName }).click()
+  }
+}
+
 export async function createBasicWorkflow(page: Page, workflowName: string, actionName: string) {
   // Arrange - Start from the new workflow builder
   await page.goto(toAppUrl('/automation-builder/new'))
@@ -95,10 +125,7 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
   await page.getByRole('button', { name: /^Add step$/ }).click()
 
   // Act - Add a connected action node
-  await expect(page.getByRole('button', { name: 'Add connected step' })).toBeVisible()
-  await page.getByRole('button', { name: 'Add connected step' }).click({ force: true })
-  const panel = addNodePanel(page)
-  await expect(panel).toHaveCount(1)
+  const panel = await clickAddConnectedStep(page)
   await panel.getByRole('button', { name: 'Action', exact: true }).click()
   await panel.getByRole('button', { name: 'Script', exact: true }).click()
   await page.getByLabel('Name').fill(actionName)
@@ -106,7 +133,8 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
 
-  // Act - Name and save workflow
+  // Act - Select project first (required on real backend), then name and save
+  await selectProjectIfRequired(page)
   await page.getByPlaceholder('Workflow name').fill(workflowName)
   await page.getByRole('button', { name: 'Save' }).click()
 

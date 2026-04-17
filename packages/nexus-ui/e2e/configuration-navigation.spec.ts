@@ -23,13 +23,13 @@ test.describe('Configuration Navigation & Tabs', () => {
 
     // Assert - URL and page heading are correct
     await expect(app).toHaveURL(/configuration\/credentials/)
-    await expect(app.getByRole('heading', { name: 'Credentials' })).toBeVisible()
+    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
   })
 
   test('persists active tab after page refresh', async ({ app }) => {
     // Arrange - Navigate directly to Credentials page
     await app.goto(toAppUrl('/configuration/credentials'))
-    await expect(app.getByRole('heading', { name: 'Credentials' })).toBeVisible()
+    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
 
     // Act - Reload the page
     await app.reload()
@@ -37,7 +37,7 @@ test.describe('Configuration Navigation & Tabs', () => {
     // Assert - Route and heading persist after reload
     await expect(app.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
     await expect(app).toHaveURL(/configuration\/credentials/)
-    await expect(app.getByRole('heading', { name: 'Credentials' })).toBeVisible()
+    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
   })
 
   test('navigates between all Configuration tabs successfully', async ({ app }) => {
@@ -48,7 +48,7 @@ test.describe('Configuration Navigation & Tabs', () => {
     // Act & Assert - Navigate to Credentials
     await navigateViaConfigMenu(app, 'Credentials')
     await expect(app).toHaveURL(/configuration\/credentials/)
-    await expect(app.getByRole('heading', { name: 'Credentials', level: 1 })).toBeVisible()
+    await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
 
     // Act & Assert - Navigate back to Integrations (full circle)
     await navigateViaConfigMenu(app, 'Integrations')

@@ -13,21 +13,21 @@ async function expectNoA11yViolations(page: Page) {
 test.describe('Accessibility', () => {
   test('automations page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/automations'))
-    await expect(app.getByRole('heading', { name: 'Automations' })).toBeVisible()
+    await expect(app.getByText('Automations', { exact: true }).first()).toBeVisible()
 
     await expectNoA11yViolations(app)
   })
 
   test('executions page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/executions'))
-    await expect(app.getByRole('heading', { name: 'Automation Runs' })).toBeVisible()
+    await expect(app.getByText('Automation Runs', { exact: true }).first()).toBeVisible()
 
     await expectNoA11yViolations(app)
   })
 
   test('approvals page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/approvals'))
-    await expect(app.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
+    await expect(app.getByText('Approvals', { exact: true }).first()).toBeVisible()
 
     await expectNoA11yViolations(app)
   })

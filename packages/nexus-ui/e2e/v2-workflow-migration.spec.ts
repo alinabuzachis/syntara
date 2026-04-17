@@ -33,7 +33,7 @@ import {
   addLoopNodeWithBody,
   addConvergeNode,
 } from './helpers/v2-nodes'
-import { buildUniqueName } from './helpers/workflows'
+import { buildUniqueName, selectProjectIfRequired } from './helpers/workflows'
 
 /** Inline v2 schema type (formerly in toV2Definition.ts stub, now replaced by generated contracts). */
 interface V2WorkflowDefinition {
@@ -102,8 +102,9 @@ test.describe('V2 Workflow Schema Migration', () => {
     await addManualTrigger(app)
     await addScriptNode(app, 'Validate input', 'print("validating")')
 
-    // Intercept the POST /workflows request
+    // Intercept the POST /workflows request (select project first to avoid name reset)
     const saveRequestPromise = app.waitForRequest((req) => req.url().includes('/workflows') && req.method() === 'POST')
+    await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
     const saveRequest = await saveRequestPromise
@@ -154,8 +155,8 @@ test.describe('V2 Workflow Schema Migration', () => {
     await addApprovalNodeWithBranch(app, 'Approve deployment')
     // After approval, the workflow ends (the WithBranch helper adds a script on approved branch)
 
-    // Wait for the workflow to settle after adding approval node
-    await app.waitForTimeout(2000)
+    // Wait for the approval node to be fully rendered before saving
+    await expect(app.getByText('Approve deployment')).toBeVisible({ timeout: 10_000 })
 
     // Intercept save
     const saveRequestPromise = app.waitForRequest((req) => req.url().includes('/workflows') && req.method() === 'POST')
@@ -346,27 +347,44 @@ test.describe('V2 Workflow Schema Migration', () => {
     const workflowName = buildUniqueName('v2-response-format')
     await app.goto(toAppUrl('/automation-builder/new'))
 
-    // Create and save a simple workflow
+    // Create and save a simple workflow (select project first to avoid name reset)
     await addManualTrigger(app)
     await addScriptNode(app, 'Test script', 'print("test")')
+    await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
     await expect(app).toHaveURL(/automation-builder\/.+/)
 
-    // Intercept the GET response when the page reloads
-    const getResponsePromise = app.waitForResponse(
-      (resp) =>
-        resp.url().includes('/workflows/') &&
-        !resp.url().includes('/versions') &&
-        resp.request().method() === 'GET' &&
-        resp.status() === 200
-    )
-    await app.reload()
-    const getResponse = await getResponsePromise
-    const body: unknown = await getResponse.json()
+    // Navigate to automations list, find the saved workflow, and reopen it.
+    // This is more reliable than page.reload() which can lose session context.
+    await app.goto(toAppUrl('/automations'))
+    await app.getByPlaceholder('Filter by name').fill(workflowName)
+    await app.getByRole('button', { name: 'Apply filter' }).click()
+
+    // Use route interception to capture the GET response when opening the workflow
+    let capturedBody: unknown = null
+    await app.route('**/workflows/*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue()
+        return
+      }
+      const response = await route.fetch()
+      capturedBody = await response.json()
+      await route.fulfill({ response })
+    })
+
+    // Click the workflow name to open it in the builder
+    await app.getByRole('button', { name: workflowName, exact: true }).click()
+
+    // Wait for the workflow to fully load in the builder
+    await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName, { timeout: 30000 })
+
+    // Clean up route handler
+    await app.unroute('**/workflows/*')
 
     // The API may nest definition under "version" or return it at top level
-    const def = getV2DefFromResponse(body)
+    expect(capturedBody).not.toBeNull()
+    const def = getV2DefFromResponse(capturedBody)
     expect(def).toBeDefined()
 
     // Verify the API returned v2 format (not silently down-converted to v1)
