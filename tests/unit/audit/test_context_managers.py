@@ -217,8 +217,9 @@ class TestAuditContext:
         assert emitted_event.actor_type == ActorType.SYSTEM
         # Should only have base fields (error_type, error_message with defaults)
         structured_dict = emitted_event.structured_data.model_dump()
-        expected_keys = {"error_type", "error_message"}
+        expected_keys = {"data_type", "error_type", "error_message"}
         assert set(structured_dict.keys()) == expected_keys
+        assert structured_dict["data_type"] == "context"
         assert structured_dict["error_type"] is None
         assert structured_dict["error_message"] is None
 

@@ -1,20 +1,11 @@
 """Audit event model and enums for tracking system activities."""
 
-from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, SQLModel
 
-from nexus.audit.models.schemas import (
-    AuditContextData,
-    BaseAuditData,
-    FunctionData,
-    RequestCompletedData,
-)
-
-# Type alias for all possible audit data types
-type AuditDataUnion = FunctionData | AuditContextData | RequestCompletedData | BaseAuditData
+from nexus.audit.models.structured_data import AuditDataUnion, BaseAuditData
 
 
 class EventCategory(StrEnum):
@@ -62,20 +53,12 @@ class AuditEvent(SQLModel):
     Currently not a database table - designed for eventual storage in Postgres.
     """
 
-    @staticmethod
-    def _utc_now() -> datetime:
-        """Generate UTC timestamp for field defaults."""
-        return datetime.now(UTC)
-
     # Core identification
     event_id: UUID = Field(default_factory=uuid4, description="Unique identifier for the audit event")
     event_category: EventCategory = Field(description="Category of the audit event")
     event_severity: EventSeverity = Field(default=EventSeverity.INFO, description="Severity level of the audit event")
     event_status: EventStatus | None = Field(default=None, description="Status of the audited operation")
     event_action: str = Field(description="Specific action that occurred")
-
-    # Temporal information
-    event_time: datetime = Field(default_factory=_utc_now, description="Timestamp when the event occurred")
 
     # Actor and source information
     actor_id: UUID | None = Field(default=None, description="User/system/service that performed action")

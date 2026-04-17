@@ -1,4 +1,1 @@
-"""Audit event services.
-
-Placeholder for future AuditEventService implementation.
-"""
+"""Audit event services."""

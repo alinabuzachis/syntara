@@ -1,16 +1,21 @@
 """Audit event emission utilities."""
 
+from __future__ import annotations
+
 from contextvars import ContextVar
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from nexus.audit.models import ActorType, AuditEvent
 from nexus.audit.sanitization import EventSanitizer, redact_by_partial_key, redact_email
 from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_limit
 
-audit_logger = structlog.stdlib.get_logger("nexus.audit")
+if TYPE_CHECKING:
+    from uuid import UUID
+
+    from nexus.audit.models import ActorType, AuditEvent
+
+logger = structlog.stdlib.get_logger(__name__)
 
 # Context variables for async-safe actor context management
 actor_id_context_var: ContextVar[UUID | None] = ContextVar("actor_id", default=None)
@@ -85,9 +90,14 @@ def emit_audit_event(event: AuditEvent) -> None:
 
 
 def _do_emit_audit_event(event: AuditEvent) -> None:
-    # Emit as structured log entry for downstream log aggregation
-    # This will be replaced with something to store the AuditEvent in Postgres etc.
+    # Emit as structured log entry for downstream log aggregation.
     # Alternative implementations could emit the AuditEvent to OTEL etc.
-
     event_dict = event.model_dump(mode="json")
-    audit_logger.info("audit_event", **event_dict)
+    logger.info("audit_event", **event_dict)
+
+    # Enqueue for database persistence via the audit event writer (non-blocking).
+    from nexus.audit.services.writer import get_audit_writer  # noqa: PLC0415
+
+    writer = get_audit_writer()
+    if writer is not None:
+        writer.enqueue(event)

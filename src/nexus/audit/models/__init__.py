@@ -2,14 +2,16 @@
 
 from nexus.audit.models.audit_event import (
     ActorType,
-    AuditDataUnion,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
 )
-from nexus.audit.models.schemas import (
+from nexus.audit.models.audit_event_record import AuditEventRecord
+from nexus.audit.models.structured_data import (
     AuditContextData,
+    AuditDataTypes,
+    AuditDataUnion,
     BaseAuditData,
     FunctionData,
     RequestCompletedData,
@@ -18,8 +20,10 @@ from nexus.audit.models.schemas import (
 __all__ = [
     "ActorType",
     "AuditContextData",
+    "AuditDataTypes",
     "AuditDataUnion",
     "AuditEvent",
+    "AuditEventRecord",
     "BaseAuditData",
     "EventCategory",
     "EventSeverity",

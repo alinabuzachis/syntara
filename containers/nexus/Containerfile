@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir uv
 WORKDIR /opt/app-root/src
 
 # Copy dependency files first (for layer caching)
-COPY pyproject.toml uv.lock LICENSE README.md alembic.ini requirements.txt ./
+COPY pyproject.toml uv.lock LICENSE README.md alembic.ini alembic_audit.ini requirements.txt ./
 
 # Install dependencies using uv (including dev dependencies)
 RUN if [ -n "${PIP_FIND_LINKS}" ]; then \

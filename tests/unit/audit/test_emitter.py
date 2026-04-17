@@ -19,6 +19,7 @@ from nexus.audit.emitter import (
 )
 from nexus.audit.models import ActorType, AuditContextData, AuditEvent, BaseAuditData, EventCategory, EventStatus
 from nexus.audit.sanitization import EventSanitizer
+from nexus.audit.services.writer import AuditEventWriter
 
 
 class TestEventCaptureContextMethods:
@@ -502,8 +503,8 @@ class TestEventCaptureEmitAuditEvent:
 class TestEventCaptureDoEmitAuditEvent:
     """Test EventCapture._do_emit_audit_event method."""
 
-    @patch("nexus.audit.emitter.audit_logger")
-    def test_do_emit_audit_event_logger_setup(self, mock_audit_logger: Mock) -> None:
+    @patch("nexus.audit.emitter.logger")
+    def test_do_emit_audit_event_logger_setup(self, mock_logger: Mock) -> None:
         """Test that _do_emit_audit_event uses the audit logger correctly."""
         # Create test event
         test_event = AuditEvent(
@@ -521,10 +522,10 @@ class TestEventCaptureDoEmitAuditEvent:
 
         # Verify info method was called with serialized event data
         expected_data = test_event.model_dump(mode="json")
-        mock_audit_logger.info.assert_called_once_with("audit_event", **expected_data)
+        mock_logger.info.assert_called_once_with("audit_event", **expected_data)
 
-    @patch("nexus.audit.emitter.audit_logger")
-    def test_do_emit_audit_event_with_all_fields(self, mock_audit_logger: Mock) -> None:
+    @patch("nexus.audit.emitter.logger")
+    def test_do_emit_audit_event_with_all_fields(self, mock_logger: Mock) -> None:
         """Test _do_emit_audit_event with all possible fields."""
         actor_id = uuid4()
         workflow_id = uuid4()
@@ -551,7 +552,7 @@ class TestEventCaptureDoEmitAuditEvent:
         _do_emit_audit_event(test_event)
 
         # Verify all fields were passed to logger
-        call_args = mock_audit_logger.info.call_args
+        call_args = mock_logger.info.call_args
         assert call_args[0][0] == "audit_event"
 
         kwargs = call_args[1]
@@ -567,8 +568,8 @@ class TestEventCaptureDoEmitAuditEvent:
         assert kwargs["structured_data"]["workflow_name"] == "test_workflow"
         assert kwargs["structured_data"]["input_params"] == {"param1": "value1"}
 
-    @patch("nexus.audit.emitter.audit_logger")
-    def test_do_emit_audit_event_minimal_fields(self, mock_audit_logger: Mock) -> None:
+    @patch("nexus.audit.emitter.logger")
+    def test_do_emit_audit_event_minimal_fields(self, mock_logger: Mock) -> None:
         """Test _do_emit_audit_event with minimal required fields."""
         test_event = AuditEvent(
             event_category=EventCategory.SYSTEM_OPERATION,
@@ -584,7 +585,7 @@ class TestEventCaptureDoEmitAuditEvent:
         _do_emit_audit_event(test_event)
 
         # Verify minimal fields were passed
-        kwargs = mock_audit_logger.info.call_args[1]
+        kwargs = mock_logger.info.call_args[1]
         assert kwargs["event_category"] == EventCategory.SYSTEM_OPERATION
         assert kwargs["event_action"] == "minimal_action"
         assert kwargs["event_status"] == EventStatus.SUCCESS
@@ -651,7 +652,6 @@ class TestEventCaptureIntegration:
 
             # Verify event_id was generated
             assert event_obj.event_id is not None
-            assert event_obj.event_time is not None
 
         ctx.run(test_in_context)
 
@@ -686,3 +686,42 @@ class TestEventCaptureIntegration:
             context_data = event_obj.structured_data
             assert isinstance(context_data, AuditContextData)
             assert context_data.index == i  # type: ignore[attr-defined]
+
+
+class TestWriterIntegration:
+    """Test audit event writer integration in _do_emit_audit_event."""
+
+    @patch("nexus.audit.emitter.logger")
+    def test_do_emit_calls_writer_enqueue(self, mock_logger: Mock) -> None:
+        """Test that _do_emit_audit_event calls writer.enqueue."""
+        event = AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test_write",
+            actor_type=ActorType.USER,
+            source_component="test",
+            event_message="Test",
+        )
+
+        mock_writer = Mock(spec=AuditEventWriter)
+        with patch("nexus.audit.services.writer.get_audit_writer", return_value=mock_writer):
+            _do_emit_audit_event(event)
+
+        mock_writer.enqueue.assert_called_once_with(event)
+        # Also verify structured logging still happens
+        mock_logger.info.assert_called_once()
+
+    @patch("nexus.audit.emitter.logger")
+    def test_do_emit_skips_persist_when_writer_not_initialized(self, mock_logger: Mock) -> None:
+        """Test that _do_emit_audit_event works when writer is not initialized."""
+        event = AuditEvent(
+            event_category=EventCategory.SYSTEM_OPERATION,
+            event_action="no_writer",
+            source_component="test",
+            event_message="No writer",
+        )
+
+        with patch("nexus.audit.services.writer.get_audit_writer", return_value=None):
+            _do_emit_audit_event(event)
+
+        # Structured logging should still work
+        mock_logger.info.assert_called_once()

@@ -10,8 +10,12 @@ services:
       POSTGRESQL_PASSWORD: ${APP_DB_PASSWORD:-admin}
       POSTGRESQL_DATABASE: ${APP_DB_NAME:-nexus_api}
       POSTGRESQL_ADMIN_PASSWORD: ${APP_DB_PASSWORD:-admin}
+      APP_AUDIT_DB_USER: ${APP_AUDIT_DB_USER:-nexus_audit}
+      APP_AUDIT_DB_PASSWORD: ${APP_AUDIT_DB_PASSWORD:-audit_pass}
+      APP_AUDIT_DB_NAME: ${APP_AUDIT_DB_NAME:-nexus_audit}
     volumes:
       - nexus_postgres_data:/var/lib/pgsql/data
+      - ./containers/database/create-audit-db.sh:/opt/app-root/src/postgresql-start/create-audit-db.sh:z
     healthcheck:
       test: [CMD-SHELL, 'pg_isready -U $${POSTGRESQL_USER:-admin} -d $${POSTGRESQL_DATABASE:-nexus_api}']
       interval: 5s
@@ -90,6 +94,7 @@ services:
       - -c
       - >-
         uv run alembic upgrade head &&
+        uv run alembic -c alembic_audit.ini upgrade head &&
         uv run tools/seed_settings.py &&
         uv run tools/create_system_user.py &&
         uv run tools/load_sample_workflows.py samples &&
@@ -102,6 +107,11 @@ services:
       - APP_DB_USER=${APP_DB_USER:-admin}
       - APP_DB_PASSWORD=${APP_DB_PASSWORD:-admin}
       - APP_DB_NAME=${APP_DB_NAME:-nexus_api}
+      - APP_AUDIT_DB_HOST=database
+      - APP_AUDIT_DB_PORT=5432
+      - APP_AUDIT_DB_USER=${APP_AUDIT_DB_USER:-nexus_audit}
+      - APP_AUDIT_DB_PASSWORD=${APP_AUDIT_DB_PASSWORD:-audit_pass}
+      - APP_AUDIT_DB_NAME=${APP_AUDIT_DB_NAME:-nexus_audit}
       - APP_TEMPORAL_ADDRESS=temporal:7233
       - APP_TEMPORAL_NAMESPACE=default
       - APP_CACHE_HOST=redis

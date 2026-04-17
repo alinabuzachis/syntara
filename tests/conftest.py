@@ -345,6 +345,17 @@ def _get_alembic_config(db_url: str) -> Config:
     return alembic_cfg
 
 
+def _get_audit_alembic_config(db_url: str) -> Config:
+    """Build an Alembic Config for audit migrations pointing at the test database."""
+    alembic_cfg = Config(str(PROJECT_ROOT / "alembic_audit.ini"))
+    alembic_cfg.set_main_option(
+        "script_location",
+        str(PROJECT_ROOT / "src" / "nexus" / "core" / "database" / "audit_migrations"),
+    )
+    alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+    return alembic_cfg
+
+
 def _safe_url(url: str | sqlalchemy.engine.URL) -> str:
     """Render URL with credentials redacted for logging."""
     return make_url(str(url)).render_as_string(hide_password=True)
@@ -355,6 +366,7 @@ async def _upgrade_database_schema(db_url: str) -> None:
     logger.debug("Applying Alembic migrations to test database %s", db_url)
     try:
         await asyncio.to_thread(command.upgrade, _get_alembic_config(db_url), "head")
+        await asyncio.to_thread(command.upgrade, _get_audit_alembic_config(db_url), "head")
         logger.debug("Successfully applied migrations to %s", db_url)
     except Exception:  # pragma: no cover - defensive logging
         logger.exception("Failed to apply migrations to %s", _safe_url(db_url))
@@ -545,6 +557,10 @@ async def session_app(worker_id: str, test_db_engine: AsyncEngine, test_cache: N
         patch("nexus.core.database.session.AsyncSessionLocal", test_session_factory),
         patch("nexus.api.main.engine", test_db_engine),
         patch("nexus.api.main.AsyncSessionLocal", test_session_factory),
+        patch("nexus.core.database.audit_session.audit_engine", test_db_engine),
+        patch("nexus.core.database.audit_session.AuditSessionLocal", test_session_factory),
+        patch("nexus.api.main.audit_engine", test_db_engine),
+        patch("nexus.api.main.AuditSessionLocal", test_session_factory),
         patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
     ):
         # Seed settings before app startup (normally done post-migration)
@@ -1007,6 +1023,10 @@ def sync_test_client(
             patch("nexus.core.database.session.AsyncSessionLocal", session_factory),
             patch("nexus.api.main.engine", test_db_engine),
             patch("nexus.api.main.AsyncSessionLocal", session_factory),
+            patch("nexus.core.database.audit_session.audit_engine", test_db_engine),
+            patch("nexus.core.database.audit_session.AuditSessionLocal", session_factory),
+            patch("nexus.api.main.audit_engine", test_db_engine),
+            patch("nexus.api.main.AuditSessionLocal", session_factory),
             patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
             TestClient(app) as client,
         ):

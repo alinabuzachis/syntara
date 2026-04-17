@@ -46,8 +46,12 @@ class TestDatabaseSettings:
     def test_database_url_computed_field(self) -> None:
         """Test that database_url is correctly computed from components."""
         settings = Settings()
-        expected_url = "postgresql+asyncpg://admin:admin@localhost:5432/nexus_api"
-        assert settings.database_url == expected_url
+        url = settings.database_url
+        assert url.drivername == "postgresql+asyncpg"
+        assert url.username == "admin"
+        assert url.host == "localhost"
+        assert url.port == 5432
+        assert url.database == "nexus_api"
 
     def test_database_url_with_custom_values(self) -> None:
         """Test database_url with custom configuration values."""
@@ -59,8 +63,12 @@ class TestDatabaseSettings:
 
         try:
             settings = Settings()
-            expected_url = "postgresql+asyncpg://testuser:testpass@dbserver:5433/testdb"
-            assert settings.database_url == expected_url
+            url = settings.database_url
+            assert url.drivername == "postgresql+asyncpg"
+            assert url.username == "testuser"
+            assert url.host == "dbserver"
+            assert url.port == 5433
+            assert url.database == "testdb"
         finally:
             os.environ.pop("APP_DB_USER", None)
             os.environ.pop("APP_DB_PASSWORD", None)
@@ -86,12 +94,16 @@ class TestDatabaseSettings:
 
     def test_database_url_override(self) -> None:
         """Test that APP_DATABASE_URL overrides component-based URL."""
-        # Full URL with sslmode param - should be used directly
         override_url = "postgresql+asyncpg://prod:s3cret@db.example.com:5432/proddb?sslmode=require"
         os.environ["APP_DATABASE_URL"] = override_url
         try:
             settings = Settings()
-            assert settings.database_url == override_url
+            url = settings.database_url
+            assert url.drivername == "postgresql+asyncpg"
+            assert url.username == "prod"
+            assert url.host == "db.example.com"
+            assert url.database == "proddb"
+            assert url.query == {"sslmode": "require"}
         finally:
             os.environ.pop("APP_DATABASE_URL", None)
 

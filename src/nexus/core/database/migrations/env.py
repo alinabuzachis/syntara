@@ -1,17 +1,24 @@
 """Alembic environment configuration for async migrations."""
 
+from __future__ import annotations
+
 import asyncio
-from collections.abc import Iterable
 from logging.config import fileConfig
+from typing import TYPE_CHECKING, Literal
 
 from alembic import context
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, MutableMapping
+
+    from alembic.autogenerate.api import AutogenContext
+    from alembic.operations.ops import MigrationScript
+    from alembic.runtime.migration import MigrationContext
+    from sqlalchemy.engine import Connection
+    from sqlalchemy.schema import SchemaItem
 from alembic.autogenerate import renderers
-from alembic.autogenerate.api import AutogenContext
 from alembic.operations import MigrateOperation
-from alembic.operations.ops import MigrationScript
-from alembic.runtime.migration import MigrationContext
 from sqlalchemy import pool
-from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
@@ -97,8 +104,46 @@ if config.config_file_name is not None:
 # Set target metadata from models
 target_metadata = SQLModel.metadata
 
+# Tables managed by a separate Alembic environment (audit_migrations/).
+# Exclude them from autogenerate so ``alembic check`` does not report them
+# as pending changes.
+_EXCLUDED_TABLES: frozenset[str] = frozenset({"audit_events"})
+
+
+def _include_name(
+    name: str | None,
+    type_: Literal["schema", "table", "column", "index", "unique_constraint", "foreign_key_constraint"],
+    _parent_names: MutableMapping[Literal["schema_name", "table_name", "schema_qualified_table_name"], str | None],
+) -> bool:
+    """Exclude tables managed by other Alembic environments (reflected side)."""
+    if type_ == "table":
+        return name not in _EXCLUDED_TABLES
+    return True
+
+
+def _include_object(
+    object: SchemaItem,  # noqa: A002, ARG001
+    name: str | None,
+    type_: Literal["schema", "table", "column", "index", "unique_constraint", "foreign_key_constraint"],
+    reflected: bool,  # noqa: FBT001, ARG001
+    compare_to: SchemaItem | None,  # noqa: ARG001
+) -> bool:
+    """Exclude tables managed by other Alembic environments (metadata side).
+
+    ``include_name`` only filters *reflected* (database) objects.  Tables that
+    exist only in the SQLModel metadata (e.g. ``audit_events`` before its
+    migration has been applied to this database) bypass ``include_name``
+    entirely.  ``include_object`` is called for *both* reflected and metadata
+    objects, so we use it to catch the metadata-only case.
+    """
+    return not (type_ == "table" and name in _EXCLUDED_TABLES)
+
+
 # Use the same database URL from centralized settings unless overridden.
-config.set_main_option("sqlalchemy.url", config.get_main_option("sqlalchemy.url") or get_settings().database_url)
+config.set_main_option(
+    "sqlalchemy.url",
+    config.get_main_option("sqlalchemy.url") or get_settings().database_url.render_as_string(hide_password=False),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +298,8 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         compare_server_default=True,
+        include_name=_include_name,
+        include_object=_include_object,
     )
 
     with context.begin_transaction():
@@ -268,6 +315,8 @@ def do_run_migrations(connection: Connection) -> None:
         include_schemas=True,
         compare_type=True,
         compare_server_default=True,
+        include_name=_include_name,
+        include_object=_include_object,
         process_revision_directives=_generate_policy_migration_hook,
     )
 

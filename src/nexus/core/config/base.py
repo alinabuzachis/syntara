@@ -20,11 +20,11 @@ import warnings
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Self
-from urllib.parse import quote_plus
 from uuid import UUID
 
 from pydantic import Field, HttpUrl, SecretStr, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL, make_url
 
 from nexus.core.constants import RetrieverServiceDefaults
 from nexus.core.exceptions import SafeValueError
@@ -296,20 +296,116 @@ class DatabaseSettings(BaseSettings):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def database_url(self) -> str:
+    def database_url(self) -> URL:
         """Get the database URL.
 
         If APP_DATABASE_URL env var is set, use it directly.
         Otherwise, compute from individual APP_DB_* components.
 
-        Note: Username and password are URL-encoded to handle special characters.
+        Returns a SQLAlchemy URL object which redacts credentials in
+        __repr__/__str__, preventing accidental exposure in logs.
         """
         override = os.environ.get("APP_DATABASE_URL")
         if override:
-            return override
-        user = quote_plus(self.db_user)
-        password = quote_plus(self.db_password.get_secret_value())
-        return f"postgresql+asyncpg://{user}:{password}@{self.db_host}:{self.db_port}/{self.db_name}"
+            return make_url(override)
+        return URL.create(
+            drivername="postgresql+asyncpg",
+            username=self.db_user,
+            password=self.db_password.get_secret_value(),
+            host=self.db_host,
+            port=self.db_port,
+            database=self.db_name,
+        )
+
+
+# =============================================================================
+# Audit Database Configuration
+# =============================================================================
+
+
+class AuditDatabaseSettings(BaseSettings):
+    """Audit database connection configuration settings.
+
+    Configures a separate PostgreSQL database for audit event persistence on the
+    same database instance as the main application database.  The audit database
+    uses a different database name (default ``nexus_audit``) and a dedicated
+    database user (default ``nexus_audit``) to ensure credential wiring is
+    validated.
+
+    You can either:
+    1. Set individual APP_AUDIT_DB_* variables (user, password, host, port, name)
+    2. Set APP_AUDIT_DATABASE_URL to override with a full connection string
+
+    Note: This class should not be instantiated directly. Use Settings via get_settings().
+    """
+
+    audit_db_user: str = Field(
+        default="admin",
+        description="Audit database username",
+    )
+
+    audit_db_password: SecretStr = Field(
+        default=SecretStr("admin"),
+        description="Audit database password",
+    )
+
+    audit_db_host: str = Field(
+        default="localhost",
+        description="Audit database host",
+    )
+
+    audit_db_port: int = Field(
+        default=5432,
+        description="Audit database port",
+        ge=1,
+        le=65535,
+    )
+
+    audit_db_name: str = Field(
+        default="nexus_audit",
+        description="Audit database name",
+    )
+
+    audit_db_pool_size: int = Field(
+        default=5,
+        description="Maximum number of persistent audit database connections in SQLAlchemy pool",
+        ge=1,
+    )
+
+    audit_db_max_overflow: int = Field(
+        default=10,
+        description="Maximum number of overflow connections beyond audit_db_pool_size",
+        ge=0,
+    )
+
+    audit_db_pool_timeout_seconds: float = Field(
+        default=30.0,
+        description="Seconds to wait for a free connection before pool checkout timeout",
+        gt=0,
+    )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def audit_database_url(self) -> URL:
+        """Get the audit database URL.
+
+        If APP_AUDIT_DATABASE_URL env var is set, use it directly.
+        Otherwise, compute from individual APP_AUDIT_DB_* components.
+
+        Returns a SQLAlchemy URL object which redacts credentials in
+        __repr__/__str__, preventing accidental exposure in logs.
+        """
+        override = os.environ.get("APP_AUDIT_DATABASE_URL")
+        if override:
+            return make_url(override)
+        return URL.create(
+            drivername="postgresql+asyncpg",
+            username=self.audit_db_user,
+            password=self.audit_db_password.get_secret_value(),
+            host=self.audit_db_host,
+            port=self.audit_db_port,
+            database=self.audit_db_name,
+        )
 
 
 # =============================================================================
@@ -1343,6 +1439,7 @@ class Settings(
     RouterDiscoverySettings,
     CacheSettings,
     DatabaseSettings,
+    AuditDatabaseSettings,
     ServerSettings,
     RetrieverServiceSettings,
     AdapterRetrySettings,

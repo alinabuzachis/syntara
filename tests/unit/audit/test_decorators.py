@@ -34,9 +34,6 @@ def _assert_audit_event_fields(
     assert event_obj.event_status == expected_status
     assert event_obj.event_action == expected_action
 
-    # Temporal information
-    assert event_obj.event_time is not None
-
     # Actor and source information
     assert event_obj.actor_id == expected_actor_id
     assert event_obj.actor_type == expected_actor_type

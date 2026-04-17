@@ -22,6 +22,7 @@ import nexus.auth.exceptions  # Side-effect import to trigger exception handler 
 import nexus.identity_providers.exceptions
 from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.audit.middleware import AuditMiddleware
+from nexus.audit.services.writer import init_audit_writer
 from nexus.auth.middleware import StaleTokenMiddleware
 from nexus.authz.exceptions import (  # noqa: F401
     BuiltinProtectionError,
@@ -33,6 +34,7 @@ from nexus.authz.exceptions import (  # noqa: F401
 from nexus.authz.opa_client import OPAClient
 from nexus.authz.seed import seed_groups_project_admin
 from nexus.core.config.base import get_settings
+from nexus.core.database.audit_session import AuditSessionLocal, audit_engine
 from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (
     generic_exception_handler,
@@ -158,10 +160,16 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     metrics_cleanup_worker = get_metrics_cleanup_worker()
     metrics_cleanup_worker.start()
 
+    # Initialize audit event database persistence
+    audit_writer = init_audit_writer(session_factory=AuditSessionLocal)
+    app.state.audit_writer = audit_writer
+    logger.info("Audit event writer initialized")
+
     periodic_collector.start()
     logger.info("Periodic analytics collector started")
 
     return {
+        "audit_writer": audit_writer,
         "opa_client": opa_client,
         "lifecycle_manager": lifecycle_manager,
         "periodic_collector": periodic_collector,
@@ -172,6 +180,10 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
 
 async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
     """Clean up application resources during shutdown."""
+    # Wait for in-flight audit writes to complete
+    await resources["audit_writer"].drain()
+    logger.info("Audit event writer drained")
+
     await resources["metrics_cleanup_worker"].stop()
     await resources["completion_poller"].stop()
 
@@ -184,6 +196,9 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
     logger.info("WebSocket connection health monitoring stopped")
 
     await resources["opa_client"].stop()
+
+    await audit_engine.dispose()
+    logger.info("Audit database engine disposed")
 
     await engine.dispose()
     logger.info("Database engine disposed")
