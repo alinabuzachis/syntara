@@ -3,12 +3,16 @@ import { useEffect, useMemo, useRef } from 'react'
 import { flushSync } from 'react-dom'
 
 import { FlowNodeType } from '../../../constants'
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { ButtonEdgePlaceholderNode, NodeType } from '../../automations/canvas/nodes/NodeType'
 import type { FlowPosition } from '../types'
-import { filterButtonEdges, filterRealNodes } from '../utils/filterHelpers'
+import { filterButtonEdges, filterRealNodes, isRealEdge } from '../utils/filterHelpers'
 import type { EdgeType } from '../utils/workflowToGraph'
 
-import { mergeNewPlaceholderNodes, processMultiHandleNode } from './buttonEdgeMaintenanceHelpers'
+import {
+  createButtonEdgePlaceholderNode,
+  mergeNewPlaceholderNodes,
+  processMultiHandleNode,
+} from './buttonEdgeMaintenanceHelpers'
 import { computeNextButtonEdges, updateNodesForButtonEdgeClasses } from './computeButtonEdgesUpdate'
 
 interface UseButtonEdgeMaintenanceOptions {
@@ -28,6 +32,182 @@ interface UseButtonEdgeMaintenanceOptions {
   setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>
   setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
   executionStatus: string | null
+}
+
+/**
+ * Outgoing real edges per source node (excludes button + pending edges).
+ * Only `edge.source` / `sourceHandle` matter here: incoming edges must not hide the need for a button edge.
+ */
+function buildConnectedHandlesMap(edges: EdgeType[]): Map<string, Set<string>> {
+  const connectedHandles = new Map<string, Set<string>>()
+  for (const edge of edges) {
+    if (!isRealEdge(edge)) {
+      continue
+    }
+    const handle = edge.sourceHandle ?? EdgeHandleEnum.SOURCE
+    let handleSet = connectedHandles.get(edge.source)
+    if (!handleSet) {
+      handleSet = new Set()
+      connectedHandles.set(edge.source, handleSet)
+    }
+    handleSet.add(handle)
+  }
+  return connectedHandles
+}
+
+interface RunButtonEdgeMaintenanceWorkArgs {
+  nodes: NodeType[]
+  edges: EdgeType[]
+  pendingEdge: { sourceNodeId: string; sourceHandle?: string; x: number; y: number } | null
+  setNodes: React.Dispatch<React.SetStateAction<NodeType[]>>
+  setEdges: React.Dispatch<React.SetStateAction<EdgeType[]>>
+  activeEdgeButtonNodeId: string | null
+  activeEdgeButtonHandle: string | null
+  onAddNodeFromEdge?: UseButtonEdgeMaintenanceOptions['onAddNodeFromEdge']
+}
+
+/**
+ * Deferred button-edge work (runs inside the effect timeout). Extracted to module scope so the
+ * effect callback stays shallow and nested-function depth stays within tooling limits.
+ *
+ * Order matters: placeholder nodes must exist in React Flow before button edges reference them
+ * (`flushSync` + `setNodes` first when needed), then `setEdges`, then node class updates.
+ */
+function runButtonEdgeMaintenanceWork({
+  nodes,
+  edges,
+  pendingEdge,
+  setNodes,
+  setEdges,
+  activeEdgeButtonNodeId,
+  activeEdgeButtonHandle,
+  onAddNodeFromEdge,
+}: RunButtonEdgeMaintenanceWorkArgs): void {
+  const realNodes = filterRealNodes(nodes)
+  if (realNodes.length === 0) {
+    return
+  }
+
+  const nodesNeedingButtonEdges: string[] = []
+  const placeholderNodesToAdd: ButtonEdgePlaceholderNode[] = []
+  const connectedHandles = buildConnectedHandlesMap(edges)
+
+  const conditionHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[] = []
+  const loopHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[] = []
+  const approvalHandlesNeedingButtonEdges: { nodeId: string; handleId: string }[] = []
+
+  const existingNodeIds = new Set(nodes.map((node) => node.id))
+
+  for (const node of realNodes) {
+    const isConditionNode = node.type === FlowNodeType.CONDITION
+    const isLoopNode = node.type === FlowNodeType.LOOP
+    const isApprovalNode = node.type === FlowNodeType.APPROVAL
+
+    if (isConditionNode) {
+      processMultiHandleNode({
+        node,
+        handles: [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE] as const,
+        handlePositions: {
+          [EdgeHandleEnum.TRUE]: { yOffset: -30 },
+          [EdgeHandleEnum.FALSE]: { yOffset: 30 },
+        },
+        connectedHandles,
+        pendingEdge,
+        nodes,
+        handlesNeedingButtonEdges: conditionHandlesNeedingButtonEdges,
+        placeholderNodesToAdd,
+      })
+      continue
+    }
+
+    if (isApprovalNode) {
+      processMultiHandleNode({
+        node,
+        handles: [EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED] as const,
+        handlePositions: {
+          [EdgeHandleEnum.APPROVED]: { yOffset: -30 },
+          [EdgeHandleEnum.REJECTED]: { yOffset: 30 },
+        },
+        connectedHandles,
+        pendingEdge,
+        nodes,
+        handlesNeedingButtonEdges: approvalHandlesNeedingButtonEdges,
+        placeholderNodesToAdd,
+      })
+      continue
+    }
+
+    if (isLoopNode) {
+      processMultiHandleNode({
+        node,
+        handles: [EdgeHandleEnum.DONE, EdgeHandleEnum.LOOP] as const,
+        handlePositions: {
+          [EdgeHandleEnum.DONE]: { yOffset: -30 },
+          [EdgeHandleEnum.LOOP]: { yOffset: 30 },
+        },
+        connectedHandles,
+        pendingEdge,
+        nodes,
+        handlesNeedingButtonEdges: loopHandlesNeedingButtonEdges,
+        placeholderNodesToAdd,
+      })
+      continue
+    }
+
+    const sourceHandleConnected = connectedHandles.get(node.id)?.has(EdgeHandleEnum.SOURCE) ?? false
+    const hasPendingEdge = pendingEdge?.sourceNodeId === node.id
+    const shouldHaveButtonEdge = !sourceHandleConnected && !hasPendingEdge
+
+    if (!shouldHaveButtonEdge) {
+      continue
+    }
+
+    nodesNeedingButtonEdges.push(node.id)
+
+    // A button edge can still exist in state after its placeholder was removed; (re)add the placeholder.
+    const placeholderId = `placeholder-${node.id}`
+    if (existingNodeIds.has(placeholderId)) {
+      continue
+    }
+
+    placeholderNodesToAdd.push(
+      createButtonEdgePlaceholderNode({
+        id: placeholderId,
+        position: { x: node.position.x + 200, y: node.position.y },
+      })
+    )
+  }
+
+  // Placeholders first: React Flow drops edges to missing targets. flushSync commits nodes before setEdges runs.
+  if (placeholderNodesToAdd.length > 0) {
+    flushSync(() => {
+      setNodes((currentNodes) => mergeNewPlaceholderNodes(placeholderNodesToAdd, currentNodes))
+    })
+  }
+
+  setEdges((currentEdges) =>
+    computeNextButtonEdges({
+      currentEdges,
+      conditionHandlesNeedingButtonEdges,
+      loopHandlesNeedingButtonEdges,
+      approvalHandlesNeedingButtonEdges,
+      nodesNeedingButtonEdges,
+      activeEdgeButtonNodeId,
+      activeEdgeButtonHandle,
+      onAddNodeFromEdge,
+    })
+  )
+
+  // After setEdges to avoid nested state-update ordering issues.
+  setNodes((currentNodes) =>
+    updateNodesForButtonEdgeClasses(currentNodes, {
+      nodesNeedingButtonEdges,
+      conditionHandlesNeedingButtonEdges,
+      loopHandlesNeedingButtonEdges,
+      approvalHandlesNeedingButtonEdges,
+      connectedHandles,
+    })
+  )
 }
 
 /**
@@ -60,13 +240,15 @@ export function useButtonEdgeMaintenance({
       .join(',')
   }, [nodes])
 
-  // Memoize real edges count to track edge changes for button edge maintenance
+  // Memoize real edges to track edge changes for button edge maintenance (handles affect connectedHandles).
   const realEdgesSignature = useMemo(() => {
-    const realEdges = edges.filter(
-      (edge) => edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')
-    )
+    const realEdges = edges.filter(isRealEdge)
     return realEdges
-      .map((edge) => `${edge.source}-${edge.target}`)
+      .map((edge) => {
+        const sourceHandle = edge.sourceHandle ?? EdgeHandleEnum.SOURCE
+        const targetHandle = edge.targetHandle ?? ''
+        return `${edge.source}::${sourceHandle}::${edge.target}::${targetHandle}`
+      })
       .sort()
       .join('|')
   }, [edges])
@@ -132,166 +314,16 @@ export function useButtonEdgeMaintenance({
 
     // Use a delay to ensure nodes are fully loaded and measured, and edges are synchronized
     const timeoutId = setTimeout(() => {
-      // CRITICAL FIX: Capture real nodes from current nodes state
-      // Filter out placeholders and pending targets
-      const realNodes = nodes.filter(
-        (node) => !node.id.startsWith('placeholder-') && !node.id.startsWith('pending-target-')
-      )
-
-      // If no real nodes, nothing to do
-      if (realNodes.length === 0) {
-        return
-      }
-
-      // CRITICAL FIX: We need to determine which placeholder nodes to add FIRST,
-      // then add them to the nodes state, THEN add the ButtonEdges.
-      // If we add ButtonEdges before placeholder nodes exist, React Flow removes the invalid edges!
-
-      // CRITICAL: Use a ref to store which nodes need ButtonEdges and placeholders
-      // This allows us to add placeholder nodes BEFORE calling setEdges
-      // Important for React Strict Mode where effects run twice
-      const nodesNeedingButtonEdgesRef = { current: [] as string[] }
-      const placeholderNodesToAddRef = { current: [] as NodeType[] }
-
-      // Step 1: Analyze edges to determine which nodes need ButtonEdges
-      // IMPORTANT: Only track OUTGOING edges (edge.source), NOT incoming edges (edge.target)
-      // A node should keep its ButtonEdge even if it receives incoming connections
-      // IMPORTANT: Exclude button edges AND pending edges (which are temporary)
-      const connectedHandles = new Map<string, Set<string>>()
-      edges.forEach((edge) => {
-        if (edge.type !== 'buttonEdge' && !edge.id.startsWith('button-') && !edge.id.startsWith('pending-')) {
-          const handle = edge.sourceHandle ?? EdgeHandleEnum.SOURCE
-          if (!connectedHandles.has(edge.source)) {
-            connectedHandles.set(edge.source, new Set())
-          }
-          connectedHandles.get(edge.source)!.add(handle)
-        }
+      runButtonEdgeMaintenanceWork({
+        nodes,
+        edges,
+        pendingEdge,
+        setNodes,
+        setEdges,
+        activeEdgeButtonNodeId,
+        activeEdgeButtonHandle,
+        onAddNodeFromEdge,
       })
-
-      // Track condition node handles that need button edges (nodeId-handleId format)
-      const conditionHandlesNeedingButtonEdgesRef = { current: [] as { nodeId: string; handleId: string }[] }
-      // Track loop node 'done' handles that need button edges
-      const loopHandlesNeedingButtonEdgesRef = { current: [] as { nodeId: string; handleId: string }[] }
-      // Track approval node handles that need button edges
-      const approvalHandlesNeedingButtonEdgesRef = { current: [] as { nodeId: string; handleId: string }[] }
-
-      // Step 2: Determine which nodes need ButtonEdges and which placeholders to add
-      realNodes.forEach((node) => {
-        const isConditionNode = node.type === FlowNodeType.CONDITION
-        const isLoopNode = node.type === FlowNodeType.LOOP
-        const isApprovalNode = node.type === FlowNodeType.APPROVAL
-
-        // Handle multi-handle nodes (condition, approval, loop) using the reusable helper
-        if (isConditionNode) {
-          processMultiHandleNode({
-            node,
-            handles: [EdgeHandleEnum.TRUE, EdgeHandleEnum.FALSE] as const,
-            handlePositions: {
-              [EdgeHandleEnum.TRUE]: { yOffset: -30 },
-              [EdgeHandleEnum.FALSE]: { yOffset: 30 },
-            },
-            connectedHandles,
-            pendingEdge,
-            nodes,
-            handlesNeedingButtonEdges: conditionHandlesNeedingButtonEdgesRef.current,
-            placeholderNodesToAdd: placeholderNodesToAddRef.current,
-          })
-          return
-        }
-
-        if (isApprovalNode) {
-          processMultiHandleNode({
-            node,
-            handles: [EdgeHandleEnum.APPROVED, EdgeHandleEnum.REJECTED] as const,
-            handlePositions: {
-              [EdgeHandleEnum.APPROVED]: { yOffset: -30 },
-              [EdgeHandleEnum.REJECTED]: { yOffset: 30 },
-            },
-            connectedHandles,
-            pendingEdge,
-            nodes,
-            handlesNeedingButtonEdges: approvalHandlesNeedingButtonEdgesRef.current,
-            placeholderNodesToAdd: placeholderNodesToAddRef.current,
-          })
-          return
-        }
-
-        if (isLoopNode) {
-          processMultiHandleNode({
-            node,
-            handles: [EdgeHandleEnum.DONE, EdgeHandleEnum.LOOP] as const,
-            handlePositions: {
-              [EdgeHandleEnum.DONE]: { yOffset: -30 },
-              [EdgeHandleEnum.LOOP]: { yOffset: 30 },
-            },
-            connectedHandles,
-            pendingEdge,
-            nodes,
-            handlesNeedingButtonEdges: loopHandlesNeedingButtonEdgesRef.current,
-            placeholderNodesToAdd: placeholderNodesToAddRef.current,
-          })
-          return
-        }
-
-        const sourceHandleConnected = connectedHandles.get(node.id)?.has(EdgeHandleEnum.SOURCE) ?? false
-        const hasPendingEdge = pendingEdge?.sourceNodeId === node.id
-        const shouldHaveButtonEdge = !sourceHandleConnected && !hasPendingEdge
-
-        if (shouldHaveButtonEdge) {
-          nodesNeedingButtonEdgesRef.current.push(node.id)
-
-          // CRITICAL FIX: Always check if placeholder exists, not just when ButtonEdge is missing
-          // A ButtonEdge might exist in state but its placeholder node might have been removed
-          const placeholderId = `placeholder-${node.id}`
-          const placeholderExists = nodes.some((n) => n.id === placeholderId)
-
-          if (!placeholderExists) {
-            placeholderNodesToAddRef.current.push({
-              id: placeholderId,
-              type: FlowNodeType.PLACEHOLDER,
-              position: { x: node.position.x + 200, y: node.position.y },
-              data: {},
-              draggable: false,
-              selectable: false,
-            } as unknown as NodeType)
-          }
-        }
-      })
-
-      // Step 3: Add placeholder nodes FIRST using flushSync to ensure synchronous update
-      // CRITICAL: flushSync forces React to process this state update immediately
-      // This ensures placeholder nodes are in React Flow's internal state BEFORE we add edges
-      if (placeholderNodesToAddRef.current.length > 0) {
-        const placeholders = placeholderNodesToAddRef.current
-        flushSync(() => {
-          setNodes((currentNodes) => mergeNewPlaceholderNodes(placeholders, currentNodes))
-        })
-      }
-
-      // Step 4: Now add/update ButtonEdges (placeholders are GUARANTEED to exist in React Flow's state)
-      setEdges((currentEdges) =>
-        computeNextButtonEdges({
-          currentEdges,
-          conditionHandlesNeedingButtonEdges: conditionHandlesNeedingButtonEdgesRef.current,
-          loopHandlesNeedingButtonEdges: loopHandlesNeedingButtonEdgesRef.current,
-          approvalHandlesNeedingButtonEdges: approvalHandlesNeedingButtonEdgesRef.current,
-          nodesNeedingButtonEdges: nodesNeedingButtonEdgesRef.current,
-          activeEdgeButtonNodeId,
-          activeEdgeButtonHandle,
-          onAddNodeFromEdge,
-        })
-      )
-
-      // Step 5: Update node classes and placeholder positions (AFTER setEdges to avoid nested state updates)
-      setNodes((currentNodes) =>
-        updateNodesForButtonEdgeClasses(currentNodes, {
-          nodesNeedingButtonEdges: nodesNeedingButtonEdgesRef.current,
-          conditionHandlesNeedingButtonEdges: conditionHandlesNeedingButtonEdgesRef.current,
-          loopHandlesNeedingButtonEdges: loopHandlesNeedingButtonEdgesRef.current,
-          approvalHandlesNeedingButtonEdges: approvalHandlesNeedingButtonEdgesRef.current,
-          connectedHandles,
-        })
-      )
     }, 50) // Small delay to let React Flow settle and edges sync from reactFlowInstance
 
     return () => clearTimeout(timeoutId)

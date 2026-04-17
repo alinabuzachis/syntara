@@ -1,4 +1,4 @@
-import { type NodeTypes } from '@xyflow/react'
+import { type Node, type NodeTypes } from '@xyflow/react'
 
 import { FlowNodeType } from '../../../../constants'
 
@@ -11,6 +11,9 @@ import { type TaskNode, TaskNodeComponent } from './TaskNode'
 import { type TaskReversedNode, TaskReversedNodeComponent } from './TaskReversedNode'
 import { type TriggerNode, TriggerNodeComponent } from './TriggerNode'
 
+/** Invisible React Flow node used only as a valid target for button edges (not a workflow step). */
+export type ButtonEdgePlaceholderNode = Node<Record<string, unknown>, typeof FlowNodeType.PLACEHOLDER>
+
 export type NodeType =
   | TriggerNode
   | TaskNode
@@ -20,6 +23,7 @@ export type NodeType =
   | ConvergeNode
   | LoopNode
   | GenericNode
+  | ButtonEdgePlaceholderNode
 
 export const nodeTypes: NodeTypes = {
   [FlowNodeType.TRIGGER]: TriggerNodeComponent,

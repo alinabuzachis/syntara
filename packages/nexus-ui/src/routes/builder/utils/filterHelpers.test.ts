@@ -97,6 +97,18 @@ describe('filterHelpers', () => {
       expect(result.map((e) => e.id)).toEqual(['edge-1', 'edge-2'])
     })
 
+    it('filters out edges with pending- prefix', () => {
+      const edges: EdgeType[] = [
+        { id: 'edge-1', source: 'node-1', target: 'node-2', type: 'default' },
+        { id: 'pending-drag', source: 'node-2', target: 'node-3', type: 'default' },
+      ] as EdgeType[]
+
+      const result = filterRealEdges(edges)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('edge-1')
+    })
+
     it('handles empty array', () => {
       const result = filterRealEdges([])
       expect(result).toEqual([])
@@ -263,6 +275,12 @@ describe('filterHelpers', () => {
 
     it('returns false for button- prefixed edge', () => {
       const edge = { id: 'button-node-1', source: 'node-1', target: 'placeholder', type: 'default' } as EdgeType
+
+      expect(isRealEdge(edge)).toBe(false)
+    })
+
+    it('returns false for pending- prefixed edge', () => {
+      const edge = { id: 'pending-1', source: 'node-1', target: 'node-2', type: 'default' } as EdgeType
 
       expect(isRealEdge(edge)).toBe(false)
     })

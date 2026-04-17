@@ -5,6 +5,7 @@ import type { NodeType } from '../../automations/canvas/nodes/NodeType'
 import {
   type ButtonEdgeFilterContext,
   type ProcessMultiHandleNodeOptions,
+  createButtonEdgePlaceholderNode,
   getKeptButtonEdge,
   mergeNewPlaceholderNodes,
   processMultiHandleNode,
@@ -118,17 +119,18 @@ describe('processMultiHandleNode', () => {
 describe('mergeNewPlaceholderNodes', () => {
   it('adds new placeholder nodes', () => {
     const current = [makeNode('a')]
-    const placeholders = [makeNode('b')]
+    const placeholders = [createButtonEdgePlaceholderNode({ id: 'placeholder-b', position: { x: 0, y: 0 } })]
 
     const result = mergeNewPlaceholderNodes(placeholders, current)
 
     expect(result).toHaveLength(2)
-    expect(result.map((n) => n.id)).toEqual(['a', 'b'])
+    expect(result.map((n) => n.id)).toEqual(['a', 'placeholder-b'])
   })
 
   it('skips placeholders that already exist', () => {
-    const current = [makeNode('a'), makeNode('b')]
-    const placeholders = [makeNode('b')]
+    const existing = createButtonEdgePlaceholderNode({ id: 'placeholder-b', position: { x: 1, y: 1 } })
+    const current: NodeType[] = [makeNode('a'), existing]
+    const placeholders = [createButtonEdgePlaceholderNode({ id: 'placeholder-b', position: { x: 0, y: 0 } })]
 
     const result = mergeNewPlaceholderNodes(placeholders, current)
 

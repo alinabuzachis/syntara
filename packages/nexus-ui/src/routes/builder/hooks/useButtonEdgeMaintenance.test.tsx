@@ -21,6 +21,8 @@ vi.mock('../utils/filterHelpers', () => ({
     nodes.filter((n) => !n.id.startsWith('placeholder-') && !n.id.startsWith('pending-')),
   filterButtonEdges: (edges: Array<{ type?: string; id?: string }>) =>
     edges.filter((e) => e.type === 'buttonEdge' || e.id?.startsWith('button-')),
+  isRealEdge: (edge: { type?: string; id?: string }) =>
+    edge.type !== 'buttonEdge' && !edge.id?.startsWith('button-') && !edge.id?.startsWith('pending-'),
 }))
 
 type SetNodesFn = React.Dispatch<React.SetStateAction<NodeType[]>>

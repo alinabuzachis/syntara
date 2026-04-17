@@ -15,17 +15,31 @@ export function filterRealNodes(nodes: NodeType[]): NodeType[] {
 }
 
 /**
- * Filters out ButtonEdge edges, returning only real workflow edges
+ * Checks if an edge is a button edge
+ */
+export function isButtonEdge(edge: EdgeType): boolean {
+  return edge.type === 'buttonEdge' || edge.id.startsWith('button-')
+}
+
+/**
+ * Checks if an edge is a real workflow edge (not a button edge or temporary pending edge).
+ */
+export function isRealEdge(edge: EdgeType): boolean {
+  return !isButtonEdge(edge) && !edge.id.startsWith('pending-')
+}
+
+/**
+ * Filters out button edges and temporary pending edges, returning only real workflow edges.
  */
 export function filterRealEdges(edges: EdgeType[]): EdgeType[] {
-  return edges.filter((edge) => edge.type !== 'buttonEdge' && !edge.id.startsWith('button-'))
+  return edges.filter(isRealEdge)
 }
 
 /**
  * Filters to get only ButtonEdge edges
  */
 export function filterButtonEdges(edges: EdgeType[]): EdgeType[] {
-  return edges.filter((edge) => edge.type === 'buttonEdge' || edge.id.startsWith('button-'))
+  return edges.filter(isButtonEdge)
 }
 
 /**
@@ -43,22 +57,8 @@ export function isPlaceholderNode(node: NodeType): boolean {
 }
 
 /**
- * Checks if an edge is a button edge
- */
-export function isButtonEdge(edge: EdgeType): boolean {
-  return edge.type === 'buttonEdge' || edge.id.startsWith('button-')
-}
-
-/**
  * Checks if a node is a real workflow node (not a placeholder)
  */
 export function isRealNode(node: NodeType): boolean {
   return !isPlaceholderNode(node)
-}
-
-/**
- * Checks if an edge is a real workflow edge (not a button edge)
- */
-export function isRealEdge(edge: EdgeType): boolean {
-  return !isButtonEdge(edge)
 }

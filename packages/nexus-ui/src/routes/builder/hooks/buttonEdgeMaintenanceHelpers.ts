@@ -1,11 +1,25 @@
 import { EdgeHandleEnum } from '@ansible/nexus-contracts'
 
 import { FlowNodeType } from '../../../constants'
-import type { NodeType } from '../../automations/canvas/nodes/NodeType'
+import type { ButtonEdgePlaceholderNode, NodeType } from '../../automations/canvas/nodes/NodeType'
 
 export interface HandlePositionConfig {
   yOffset: number
   xOffset?: number
+}
+
+export function createButtonEdgePlaceholderNode(params: {
+  id: string
+  position: { x: number; y: number }
+}): ButtonEdgePlaceholderNode {
+  return {
+    id: params.id,
+    type: FlowNodeType.PLACEHOLDER,
+    position: params.position,
+    data: {},
+    draggable: false,
+    selectable: false,
+  }
 }
 
 export interface ProcessMultiHandleNodeOptions {
@@ -16,7 +30,7 @@ export interface ProcessMultiHandleNodeOptions {
   pendingEdge: { sourceNodeId: string; sourceHandle?: string } | null
   nodes: NodeType[]
   handlesNeedingButtonEdges: { nodeId: string; handleId: string }[]
-  placeholderNodesToAdd: NodeType[]
+  placeholderNodesToAdd: ButtonEdgePlaceholderNode[]
 }
 
 export function processMultiHandleNode(options: ProcessMultiHandleNodeOptions) {
@@ -44,20 +58,21 @@ export function processMultiHandleNode(options: ProcessMultiHandleNodeOptions) {
         const positionConfig = handlePositions[handleId]
         const yOffset = positionConfig.yOffset
         const xOffset = positionConfig.xOffset ?? 200
-        placeholderNodesToAdd.push({
-          id: placeholderId,
-          type: FlowNodeType.PLACEHOLDER,
-          position: { x: node.position.x + xOffset, y: node.position.y + yOffset },
-          data: {},
-          draggable: false,
-          selectable: false,
-        } as unknown as NodeType)
+        placeholderNodesToAdd.push(
+          createButtonEdgePlaceholderNode({
+            id: placeholderId,
+            position: { x: node.position.x + xOffset, y: node.position.y + yOffset },
+          })
+        )
       }
     }
   })
 }
 
-export function mergeNewPlaceholderNodes(placeholders: NodeType[], currentNodes: NodeType[]): NodeType[] {
+export function mergeNewPlaceholderNodes(
+  placeholders: ButtonEdgePlaceholderNode[],
+  currentNodes: NodeType[]
+): NodeType[] {
   const existingIds = new Set(currentNodes.map((n) => n.id))
   const nodesToAdd = placeholders.filter((n) => !existingIds.has(n.id))
   return nodesToAdd.length > 0 ? [...currentNodes, ...nodesToAdd] : currentNodes
