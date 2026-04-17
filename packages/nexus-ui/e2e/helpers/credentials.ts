@@ -46,7 +46,13 @@ export async function createTestCredential(app: Page, options: { prefix?: string
  * Silently succeeds if the credential is not found (already deleted or never created).
  */
 export async function deleteCredentialByName(app: Page, name: string) {
-  await goToCredentialsList(app)
+  // Skip cleanup if the page is already closed (e.g., test timed out)
+  if (app.isClosed()) return
+  try {
+    await goToCredentialsList(app)
+  } catch {
+    return // Page closed or navigation failed during cleanup — skip silently
+  }
 
   // Filter to find the credential
   await app.getByPlaceholder('Filter by keyword').fill(name)
