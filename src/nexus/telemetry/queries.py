@@ -10,6 +10,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
+from nexus.credentials.models.credential import Credential
+from nexus.credentials.models.credential_type import CredentialType
 from nexus.telemetry.events.system_analytics import (
     CredentialCounts,
     ExecutionCounts,
@@ -70,12 +72,30 @@ async def query_execution_counts(session: AsyncSession) -> ExecutionCounts:
     )
 
 
-def query_credential_counts() -> CredentialCounts:
-    """Query current tool provider counts from database (excludes soft-deleted).
+async def query_credential_counts(session: AsyncSession) -> CredentialCounts:
+    """Query current credential counts from database (excludes soft-deleted).
 
-    TODO: Waiting on #ANSTRAT-1901 - will need session parameter when implemented.
+    Returns total count and per-type breakdown by credential type name.
     """
-    return CredentialCounts(total=0)
+    not_deleted = Credential.deleted_at.is_(None)  # type: ignore[union-attr]
+
+    result = await session.exec(
+        select(  # type: ignore[call-overload]
+            CredentialType.name,
+            func.count(Credential.id),  # type: ignore[arg-type]
+        )
+        .join(CredentialType, Credential.credential_type_id == CredentialType.id)
+        .where(not_deleted)
+        .group_by(CredentialType.name)
+    )
+    counts_by_type: dict[str, int] = {}
+    for type_name, count in result:
+        counts_by_type[type_name] = int(count)
+
+    return CredentialCounts(
+        total=sum(counts_by_type.values()),
+        type=counts_by_type,
+    )
 
 
 async def query_model_usage(session: AsyncSession) -> list[ModelUsage]:

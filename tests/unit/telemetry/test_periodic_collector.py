@@ -116,6 +116,7 @@ class TestCollectAndSendFunction:
             ) as mock_exec,
             patch(
                 "nexus.telemetry.periodic_collector.query_credential_counts",
+                new_callable=AsyncMock,
             ) as mock_creds,
             patch(
                 "nexus.telemetry.periodic_collector.get_enabled_feature_flags",
@@ -132,7 +133,7 @@ class TestCollectAndSendFunction:
             # Set up return values
             mock_wf.return_value = MagicMock(total=10, enabled=8, disabled=2)
             mock_exec.return_value = MagicMock(total=100, completed=80, failed=10, running=5, pending=5)
-            mock_creds.return_value = MagicMock(total=5)
+            mock_creds.return_value = MagicMock(total=5, type={"Bearer": 3, "LLM Provider": 2})
             mock_flags.return_value = ["feature_a"]
             mock_model_usage.return_value = []
             mock_tool_counts.return_value = MagicMock(success_count=0, error_count=0, timeout_count=0, distinct_tools=0)

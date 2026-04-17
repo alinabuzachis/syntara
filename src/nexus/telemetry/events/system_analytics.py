@@ -35,9 +35,13 @@ class ExecutionCounts(SQLModel):
 
 
 class CredentialCounts(SQLModel):
-    """Aggregated tool provider counts from database."""
+    """Aggregated credential counts from database."""
 
-    total: int = Field(default=0, description="Total tool providers configured")
+    total: int = Field(default=0, description="Total credentials configured")
+    type: dict[str, int] = Field(
+        default_factory=dict,
+        description="Credential count per credential type name",
+    )
 
 
 class ModelUsage(SQLModel):

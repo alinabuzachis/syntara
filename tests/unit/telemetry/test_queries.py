@@ -136,13 +136,37 @@ class TestQueryModelUsage:
 
 
 class TestQueryCredentialCounts:
-    """Tests for query_credential_counts.
+    """Tests for query_credential_counts."""
 
-    TODO: Update when #ANSTRAT-1901 is implemented.
-    """
+    async def test_returns_counts_by_type(self, mock_session: AsyncMock):
+        mock_result = MagicMock()
+        mock_result.__iter__ = MagicMock(
+            return_value=iter(
+                [
+                    ("HTTP Bearer Token", 3),
+                    ("LLM Provider", 2),
+                    ("SSH Key", 1),
+                ]
+            )
+        )
+        mock_session.exec = AsyncMock(return_value=mock_result)
 
-    async def test_returns_zero_until_implemented(self):
-        result = query_credential_counts()
+        result = await query_credential_counts(mock_session)
 
         assert isinstance(result, CredentialCounts)
+        assert result.total == 6
+        assert result.type == {
+            "HTTP Bearer Token": 3,
+            "LLM Provider": 2,
+            "SSH Key": 1,
+        }
+
+    async def test_handles_no_credentials(self, mock_session: AsyncMock):
+        mock_result = MagicMock()
+        mock_result.__iter__ = MagicMock(return_value=iter([]))
+        mock_session.exec = AsyncMock(return_value=mock_result)
+
+        result = await query_credential_counts(mock_session)
+
         assert result.total == 0
+        assert result.type == {}

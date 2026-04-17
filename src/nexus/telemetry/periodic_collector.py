@@ -51,7 +51,7 @@ async def _collect_and_send(
     async with session_factory() as session:
         workflow_counts = await query_workflow_counts(session)
         execution_counts = await query_execution_counts(session)
-        credential_counts = query_credential_counts()
+        credential_counts = await query_credential_counts(session)
         model_usage_list = await query_model_usage(session)
         tool_counts = await query_tool_counts(session)
 

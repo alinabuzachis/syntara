@@ -18,9 +18,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
 from nexus.core.models import User
+from nexus.credentials.models.credential import Credential
+from nexus.credentials.models.credential_type import CredentialType
 from nexus.telemetry.client import TelemetryClientRegistry
 from nexus.telemetry.periodic_collector import _collect_and_send
 from nexus.telemetry.queries import (
+    query_credential_counts,
     query_execution_counts,
     query_model_usage,
     query_tool_counts,
@@ -228,8 +231,9 @@ class TestPeriodicAnalyticsFlow:
         assert props["executions"]["failed"] == 1
         assert props["executions"]["running"] == 1
 
-        # Credential counts are 0 until #ANSTRAT-1901 is implemented
+        # No credentials inserted in this test
         assert props["credentials"]["total"] == 0
+        assert props["credentials"]["type"] == {}
 
         assert props["config"]["feature_flags_enabled"] == []
 
@@ -308,6 +312,7 @@ class TestPeriodicAnalyticsFlow:
         assert props["workflows"]["enabled"] == 0
         assert props["executions"]["total"] == 0
         assert props["credentials"]["total"] == 0
+        assert props["credentials"]["type"] == {}
         assert props["tools"]["total_executions"] == 0
         assert props["tools"]["distinct_tools"] == 0
         assert props["model_usage"] == []
@@ -368,7 +373,6 @@ class TestPeriodicAnalyticsFlow:
 
         # Only active records should be counted
         assert props["workflows"]["total"] == 1
-        # Credential counts are 0 until #ANSTRAT-1901 is implemented
         assert props["credentials"]["total"] == 0
 
 
@@ -834,3 +838,79 @@ class TestQueryToolCountsRealDB:
 
         assert result.total_executions == 0
         assert result.distinct_tools == 0
+
+
+class TestQueryCredentialCountsRealDB:
+    """Integration tests for query_credential_counts against real PostgreSQL."""
+
+    async def _create_credential_type(
+        self,
+        session: AsyncSession,
+        name: str,
+        auth_type: str,
+    ) -> CredentialType:
+        """Create a credential type with the given auth_type in injectors."""
+        ct = CredentialType(
+            name=name,
+            description=f"Test {name}",
+            inputs={"fields": [], "required": []},
+            injectors={"extra_vars": {"auth_type": auth_type}, "env": {}, "file": {}},
+            managed=True,
+        )
+        session.add(ct)
+        await session.flush()
+        return ct
+
+    async def test_empty_database(self, test_db_session: AsyncSession):
+        result = await query_credential_counts(test_db_session)
+        assert result.total == 0
+        assert result.type == {}
+
+    async def test_counts_by_type(self, test_db_session: AsyncSession, test_user: User):
+        """Insert credentials with different types and verify grouped counts."""
+        bearer_type = await self._create_credential_type(test_db_session, "Bearer", "bearer")
+        api_key_type = await self._create_credential_type(test_db_session, "LLM Provider", "api_key")
+
+        for i in range(3):
+            test_db_session.add(
+                Credential(
+                    name=f"bearer-cred-{i}",
+                    credential_type_id=bearer_type.id,
+                    created_by=test_user.id,
+                )
+            )
+        for i in range(2):
+            test_db_session.add(
+                Credential(
+                    name=f"api-key-cred-{i}",
+                    credential_type_id=api_key_type.id,
+                    created_by=test_user.id,
+                )
+            )
+        await test_db_session.commit()
+
+        result = await query_credential_counts(test_db_session)
+
+        assert result.total == 5
+        assert result.type == {"Bearer": 3, "LLM Provider": 2}
+
+    async def test_excludes_soft_deleted_credentials(self, test_db_session: AsyncSession, test_user: User):
+        """Soft-deleted credentials must not be counted."""
+        ct = await self._create_credential_type(test_db_session, "Bearer", "bearer")
+
+        test_db_session.add(Credential(name="active-cred", credential_type_id=ct.id, created_by=test_user.id))
+        test_db_session.add(
+            Credential(
+                name="deleted-cred",
+                credential_type_id=ct.id,
+                created_by=test_user.id,
+                deleted_at=datetime.now(UTC),
+                deleted_by=test_user.id,
+            )
+        )
+        await test_db_session.commit()
+
+        result = await query_credential_counts(test_db_session)
+
+        assert result.total == 1
+        assert result.type == {"Bearer": 1}
