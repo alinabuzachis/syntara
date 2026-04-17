@@ -6,6 +6,11 @@ on:
     workflows: ["CI"]
     types: [requested]
 
+permissions:
+  statuses: write
+  contents: read
+  actions: read
+
 concurrency:
   group: e2e-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
@@ -110,6 +115,7 @@ jobs:
         env:
           APP_BASE_URL: http://localhost:8000
           APP_WORKER_BASE_URL: http://myaap-ao-api:8000
+          APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
       - name: Cleanup
         if: always()

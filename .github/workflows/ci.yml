@@ -119,6 +119,8 @@ jobs:
 
       - name: Start services with podman-compose
         timeout-minutes: 10
+        env:
+          APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           # Start core services (exclude nexus-ui which is private)
           uvx podman-compose -p nexus-ci up --build -d database temporal nexus temporal-worker mcp-server opa
@@ -143,6 +145,7 @@ jobs:
         run: make test-e2e
         env:
           APP_BASE_URL: http://localhost:8000
+          APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
       - name: Show service logs on failure
         if: failure()
