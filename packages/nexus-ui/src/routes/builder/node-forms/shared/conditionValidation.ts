@@ -2,6 +2,22 @@ import { ALL_OPERATORS } from '../../../../utils/expressions/defaults'
 import { parseExpression } from '../../../../utils/expressions/parser'
 import { hasValidationErrors } from '../../../../utils/expressions/validation'
 
+const UNARY_WORD_OPERATORS = new Set(['exists', 'isEmpty'])
+
+/**
+ * True when `exists` / `isEmpty` appears with both a left-hand token and a
+ * trailing token (invalid unary-with-value). Implemented without nested
+ * quantifier regexes to avoid ReDoS (Sonar S5852).
+ */
+function hasUnaryOperatorWithDisallowedValue(content: string): boolean {
+  const tokens = content.split(/\s+/).filter((t) => t.length > 0)
+  for (let i = 0; i < tokens.length; i++) {
+    if (!UNARY_WORD_OPERATORS.has(tokens[i])) continue
+    if (i > 0 && i < tokens.length - 1) return true
+  }
+  return false
+}
+
 /**
  * Shared validation rules for conditional expression fields.
  *
@@ -49,9 +65,7 @@ export const conditionValidationRules = {
       }
 
       // Check for invalid unary operator usage (unary operator followed by extra tokens)
-      // Unary operators: exists, isEmpty
-      const unaryOperatorWithValuePattern = /\S+\s+(exists|isEmpty)\s+\S+/
-      if (unaryOperatorWithValuePattern.test(content)) {
+      if (hasUnaryOperatorWithDisallowedValue(content)) {
         return 'Operators "exists" and "isEmpty" do not take a value. Remove the value after the operator.'
       }
 
