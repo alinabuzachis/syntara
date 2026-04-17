@@ -137,7 +137,7 @@ main() {
         info "DB encryption key already exists, skipping (use --force to regenerate)"
     else
         info "Generating DB encryption key (Fernet)..."
-        python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode(), end='')" > "$SECRETS_DIR/db-encryption-key"
+        uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode(), end='')" > "$SECRETS_DIR/db-encryption-key"
         chmod 600 "$SECRETS_DIR/db-encryption-key"
         info "  Encryption key: $SECRETS_DIR/db-encryption-key"
     fi

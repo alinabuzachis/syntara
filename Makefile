@@ -381,11 +381,11 @@ build-images: ## Build container images for nexus and temporal-worker
 # ========================================================
 .PHONY: secrets-generate
 secrets-generate: ## Generate JWT signing keys for development
-	@uv run ./tools/generate_secrets.sh
+	@./tools/generate_secrets.sh
 
 .PHONY: secrets-generate-force
 secrets-generate-force: ## Regenerate JWT signing keys (overwrites existing)
-	@uv run ./tools/generate_secrets.sh --force
+	@./tools/generate_secrets.sh --force
 
 .PHONY: secrets-clean
 secrets-clean: ## Remove generated secrets
@@ -401,7 +401,7 @@ generate-token: _ensure-secrets ## Generate a JWT token for testing (ROLE=creato
 _ensure-secrets:
 	@if [ ! -f .secrets/jwt-primary.pem ] || [ ! -f .secrets/jwt-backup.pem ] || [ ! -f .secrets/admin-password ] || [ ! -f .secrets/db-encryption-key ]; then \
 		echo "🔐 Generating secrets..."; \
-		uv run ./tools/generate_secrets.sh; \
+		./tools/generate_secrets.sh; \
 	fi
 
 .PHONY: run-all
