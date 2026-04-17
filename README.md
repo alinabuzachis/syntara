@@ -396,7 +396,7 @@ APP_TEMPORAL_NAMESPACE=default
 APP_TASK_QUEUE=nexus-workflow-queue
 
 # Logging
-APP_LOG_LEVEL=INFO
+APP_FALLBACK_LOG_LEVEL=INFO
 ```
 
 ### LLM and Agent Configuration

@@ -13,8 +13,11 @@ from structlog.typing import (
 )
 
 from nexus.core.config.base import get_settings
+from nexus.settings.watch import watch_setting
 
 settings = get_settings()
+
+_UVICORN_LOGGER_NAMES = ("uvicorn", "uvicorn.error", "uvicorn.access")
 
 
 class NexusLogRecordRenderer(JSONRenderer):
@@ -93,6 +96,97 @@ def build_nexus_json_formatter() -> Formatter:
     )
 
 
+def build_uvicorn_logging_config(log_level: str) -> dict[str, Any]:
+    """Build uvicorn logging configuration dict.
+
+    Args:
+        log_level: The log level string (e.g. "INFO", "DEBUG").
+
+    """
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "nexus": {
+                "()": "nexus.core.logging.logging.build_nexus_formatter",
+            },
+        },
+        "handlers": {
+            "nexus": {
+                "formatter": "nexus",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "loggers": {
+            name: {"handlers": ["nexus"], "level": log_level, "propagate": False} for name in _UVICORN_LOGGER_NAMES
+        },
+        "root": {
+            "handlers": ["nexus"],
+            "level": log_level,
+        },
+    }
+
+
+def _set_log_level(level: str) -> None:
+    """Set the log level on all relevant loggers."""
+    root = logging.getLogger()
+    root.setLevel(level)
+    for name in _UVICORN_LOGGER_NAMES:
+        logging.getLogger(name).setLevel(level)
+
+
+async def apply_runtime_log_level() -> None:
+    """Apply the runtime log level setting to all loggers.
+
+    Called after the database is available.  Falls back to the static
+    config log_level if the runtime setting cannot be read.
+
+    This function intentionally bridges ``core.logging`` and
+    ``settings.cache`` -- it reads a runtime setting and applies it to
+    loggers.  The inline import keeps the compile-time dependency graph
+    clean while co-locating the logic with the logger manipulation it
+    performs.
+    """
+    from nexus.settings.cache.settings_cache import get_runtime_settings  # noqa: PLC0415
+
+    log = logging.getLogger(__name__)
+    fallback_level = settings.fallback_log_level
+    try:
+        cache = get_runtime_settings()
+        level = await cache.get_str(
+            "logging.log_level",
+            default=fallback_level,
+        )
+        level = level.upper()
+    except Exception:  # noqa: BLE001
+        log.warning(
+            "Could not read runtime log_level setting, using fallback: %s",
+            fallback_level,
+            exc_info=True,
+        )
+        level = fallback_level
+
+    if level != fallback_level:
+        log.info(
+            "Overriding fallback log level %s with runtime setting: %s",
+            fallback_level,
+            level,
+        )
+    else:
+        log.info("Log level set to %s", level)
+
+    _set_log_level(level)
+
+
+@watch_setting("logging.log_level")
+def _on_log_level_changed(_key: str, new_value: Any) -> None:  # noqa: ANN401
+    """Apply a changed log level value from the database."""
+    level = str(new_value).upper()
+    logging.getLogger(__name__).info("Runtime log level changed to %s", level)
+    _set_log_level(level)
+
+
 def configure_structlog() -> None:
     """Configure structlog and stdlib logging for structured logs."""
     handler = logging.StreamHandler()
@@ -101,7 +195,7 @@ def configure_structlog() -> None:
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
-    root_logger.setLevel(settings.log_level)
+    root_logger.setLevel(settings.fallback_log_level)
 
     structlog.configure(
         processors=[

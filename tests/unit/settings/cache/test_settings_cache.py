@@ -23,9 +23,9 @@ from nexus.settings.models.runtime_setting import RuntimeSetting, SettingCategor
 
 
 def _make_setting(
-    key: str = "ai_llm.model_name",
+    key: str = "logging.log_level",
     value: object = None,
-    default_value: object = "anthropic/claude-3.5-sonnet",
+    default_value: object = "INFO",
 ) -> RuntimeSetting:
     """Build an unsaved RuntimeSetting for use in mock returns."""
     return RuntimeSetting(
@@ -59,7 +59,7 @@ def cache(mock_session_factory: MagicMock) -> SettingsCache:
 @pytest.mark.asyncio
 async def test_get_returns_default_value_when_value_is_none(cache: SettingsCache) -> None:
     """get() returns default_value when value is None."""
-    setting = _make_setting(value=None, default_value="anthropic/claude-3.5-sonnet")
+    setting = _make_setting(value=None, default_value="INFO")
 
     mock_store = AsyncMock()
     mock_store.get = AsyncMock(return_value=setting)
@@ -68,15 +68,15 @@ async def test_get_returns_default_value_when_value_is_none(cache: SettingsCache
         "nexus.settings.cache.settings_cache.SettingsStore",
         return_value=mock_store,
     ):
-        result = await cache.get("ai_llm.model_name")
+        result = await cache.get("logging.log_level")
 
-    assert result == "anthropic/claude-3.5-sonnet"
+    assert result == "INFO"
 
 
 @pytest.mark.asyncio
 async def test_get_returns_value_when_set(cache: SettingsCache) -> None:
     """get() returns value when it is set (not None)."""
-    setting = _make_setting(value="openai/gpt-4o", default_value="anthropic/claude-3.5-sonnet")
+    setting = _make_setting(value="WARNING", default_value="INFO")
 
     mock_store = AsyncMock()
     mock_store.get = AsyncMock(return_value=setting)
@@ -85,14 +85,14 @@ async def test_get_returns_value_when_set(cache: SettingsCache) -> None:
         "nexus.settings.cache.settings_cache.SettingsStore",
         return_value=mock_store,
     ):
-        result = await cache.get("ai_llm.model_name")
+        result = await cache.get("logging.log_level")
 
-    assert result == "openai/gpt-4o"
+    assert result == "WARNING"
 
 
 @pytest.mark.asyncio
 async def test_get_returns_none_for_unknown_key(cache: SettingsCache) -> None:
-    """get() returns None when the key is not in the DB."""
+    """get() returns None immediately for keys not in the catalog, without hitting the DB."""
     mock_store = AsyncMock()
     mock_store.get = AsyncMock(return_value=None)
 
@@ -103,6 +103,16 @@ async def test_get_returns_none_for_unknown_key(cache: SettingsCache) -> None:
         result = await cache.get("does.not.exist")
 
     assert result is None
+    mock_store.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unknown_key_not_cached(cache: SettingsCache) -> None:
+    """Unknown keys are not stored in L1, keeping the cache bounded."""
+    with patch("nexus.settings.cache.settings_cache.SettingsStore"):
+        await cache.get("attacker.injected.key")
+
+    assert "attacker.injected.key" not in cache._cache
 
 
 # ---------------------------------------------------------------------------
@@ -110,9 +120,10 @@ async def test_get_returns_none_for_unknown_key(cache: SettingsCache) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_invalidate_noop_does_not_raise(cache: SettingsCache) -> None:
+@pytest.mark.asyncio
+async def test_invalidate_noop_does_not_raise(cache: SettingsCache) -> None:
     """invalidate() on any key does not raise."""
-    cache.invalidate("any.key")
+    await cache.invalidate("any.key")
 
 
 # ---------------------------------------------------------------------------

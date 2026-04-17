@@ -4,6 +4,7 @@ import os
 import warnings
 
 import pytest
+from pydantic import ValidationError
 
 from nexus.core.config.base import Settings
 
@@ -224,7 +225,7 @@ class TestLoggingSettings:
         from nexus.core.config.base import get_settings
 
         # Clear env vars to test pure defaults
-        monkeypatch.delenv("APP_LOG_LEVEL", raising=False)
+        monkeypatch.delenv("APP_FALLBACK_LOG_LEVEL", raising=False)
         monkeypatch.delenv("APP_NAME", raising=False)
         monkeypatch.delenv("APP_LOG_OUTPUT_FORMAT", raising=False)
         get_settings.cache_clear()
@@ -232,30 +233,29 @@ class TestLoggingSettings:
         try:
             # _env_file=None skips .env file loading (pydantic-settings feature)
             settings = Settings(_env_file=None)  # type: ignore[call-arg]
-            assert settings.log_level == "INFO"
+            assert settings.fallback_log_level == "INFO"
         finally:
             get_settings.cache_clear()
 
-    def test_log_level_from_env(self) -> None:
-        """Test log level can be configured via environment."""
-        os.environ["APP_LOG_LEVEL"] = "DEBUG"
+    def test_fallback_log_level_from_env(self) -> None:
+        """Test fallback log level can be configured via environment."""
+        os.environ["APP_FALLBACK_LOG_LEVEL"] = "DEBUG"
 
         try:
             settings = Settings()
-            assert settings.log_level == "DEBUG"
+            assert settings.fallback_log_level == "DEBUG"
         finally:
-            os.environ.pop("APP_LOG_LEVEL", None)
+            os.environ.pop("APP_FALLBACK_LOG_LEVEL", None)
 
-    def test_log_level_case_preserved(self) -> None:
-        """Test that log level case is preserved as configured."""
-        os.environ["APP_LOG_LEVEL"] = "warning"
+    def test_fallback_log_level_rejects_invalid(self) -> None:
+        """Test that invalid log levels are rejected at config time."""
+        os.environ["APP_FALLBACK_LOG_LEVEL"] = "TRACE"
 
         try:
-            settings = Settings()
-            # Case is preserved, caller can use .upper() if needed
-            assert settings.log_level == "warning"
+            with pytest.raises(ValidationError):
+                Settings()
         finally:
-            os.environ.pop("APP_LOG_LEVEL", None)
+            os.environ.pop("APP_FALLBACK_LOG_LEVEL", None)
 
 
 # =============================================================================

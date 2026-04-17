@@ -9,12 +9,21 @@ Redis is NOT the primary data store. PostgreSQL is the source of truth for persi
 - Event streaming via Redis Streams
 - Temporary cache data with TTL-based expiration
 - WebSocket event delivery coordination
+- Settings L2 cache (shared across processes)
+- Pub/Sub change notifications for runtime settings
+
+## Client Architecture
+
+### Singleton Client per Domain
+
+Each domain has a single Redis client with one connection pool. Direct redis-py usage is discouraged.
+
+- **`StreamClient`** — event streaming via Redis Streams (used by execution/invocation services)
+- **`SettingsRedisClient`** — L2 key-value cache and Pub/Sub change notifications for runtime settings, combined in a single client to avoid multiple connection pools
+
+All clients inherit from `BaseRedisClient` (`src/nexus/core/cache/base.py`), which provides shared connection lifecycle, automatic configuration from `CacheSettings`, and `redis_error_handler` for consistent error handling. See `src/nexus/core/cache/` for existing clients and reusable mixins.
 
 ## Connection Management
-
-### Singleton Client Pattern
-
-Use the `StreamClient` abstraction in `src/nexus/core/cache/stream.py` for all Redis operations. Direct redis-py usage is discouraged.
 
 ### Async Context Manager (Recommended)
 
@@ -238,7 +247,7 @@ except RedisConnectionError:
     # Retry or fail gracefully
 ```
 
-StreamClient wraps network errors as `RedisConnectionError`.
+`BaseRedisClient` and its subclasses wrap network errors as `RedisConnectionError`.
 
 ### Stream Not Found
 
@@ -392,7 +401,8 @@ Implementation uses `redis-py` async client. No backend-specific features are us
 
 | File | Purpose |
 |---|---|
-| `src/nexus/core/cache/stream.py` | `StreamClient` abstraction |
+| `src/nexus/core/cache/` | `BaseRedisClient`, mixins, and composed clients |
+| `src/nexus/core/cache/stream.py` | `StreamClient` for event streaming |
 | `src/nexus/core/config/base.py` | `CacheSettings` configuration |
 | `tests/conftest.py` | Redis testcontainer fixtures |
 

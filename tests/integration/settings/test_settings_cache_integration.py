@@ -7,17 +7,20 @@ that unit tests cover only with mocks.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 
 from nexus.settings.cache.settings_cache import SettingsCache
+from nexus.settings.catalog import SETTINGS_CATALOG, SettingDefinition
 from nexus.settings.exceptions import SettingTypeError
 from nexus.settings.models.runtime_setting import RuntimeSetting, SettingCategory, SettingValueType
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
     from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -25,6 +28,27 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+@contextmanager
+def _catalog_with_key(
+    key: str,
+    value_type: SettingValueType = SettingValueType.STRING,
+) -> Generator[None, None, None]:
+    """Temporarily register a test key in SETTINGS_CATALOG.
+
+    Required so that SettingsCache.get() does not reject the key as unknown
+    before it reaches the DB.  The catalog is restored after the context exits.
+    """
+    entry = SettingDefinition(
+        key=key,
+        name=f"Test {key}",
+        category=SettingCategory.SYSTEM,
+        value_type=value_type,
+        default_value=None,
+    )
+    with patch("nexus.settings.catalog.SETTINGS_CATALOG", [*SETTINGS_CATALOG, entry]):
+        yield
 
 
 async def _seed_setting(
@@ -70,7 +94,8 @@ async def test_get_returns_default_value_when_value_is_none(
     )
     cache = SettingsCache(session_factory=test_session_factory)
 
-    result = await cache.get("test.cache.default_only")
+    with _catalog_with_key("test.cache.default_only"):
+        result = await cache.get("test.cache.default_only")
 
     assert result == "the-default"
 
@@ -89,7 +114,8 @@ async def test_get_returns_value_when_set(
     )
     cache = SettingsCache(session_factory=test_session_factory)
 
-    result = await cache.get("test.cache.with_value")
+    with _catalog_with_key("test.cache.with_value"):
+        result = await cache.get("test.cache.with_value")
 
     assert result == "operator-override"
 
@@ -144,7 +170,8 @@ async def test_get_int_with_real_db(
     )
     cache = SettingsCache(session_factory=test_session_factory)
 
-    result = await cache.get_int("test.cache.max_tokens")
+    with _catalog_with_key("test.cache.max_tokens", SettingValueType.INTEGER):
+        result = await cache.get_int("test.cache.max_tokens")
 
     assert result == 4096
     assert isinstance(result, int)
@@ -165,7 +192,8 @@ async def test_get_float_with_real_db(
     )
     cache = SettingsCache(session_factory=test_session_factory)
 
-    result = await cache.get_float("test.cache.temperature")
+    with _catalog_with_key("test.cache.temperature", SettingValueType.FLOAT):
+        result = await cache.get_float("test.cache.temperature")
 
     assert result == 0.9
     assert isinstance(result, float)
@@ -185,7 +213,8 @@ async def test_get_str_with_real_db(
     )
     cache = SettingsCache(session_factory=test_session_factory)
 
-    result = await cache.get_str("test.cache.model_name")
+    with _catalog_with_key("test.cache.model_name"):
+        result = await cache.get_str("test.cache.model_name")
 
     assert result == "claude-3.5-sonnet"
 
@@ -204,7 +233,8 @@ async def test_get_bool_with_real_db(
     )
     cache = SettingsCache(session_factory=test_session_factory)
 
-    result = await cache.get_bool("test.cache.feature_flag")
+    with _catalog_with_key("test.cache.feature_flag", SettingValueType.BOOLEAN):
+        result = await cache.get_bool("test.cache.feature_flag")
 
     assert result is True
 

@@ -202,10 +202,10 @@ Examples:
 
     # Set logging level
     if args.verbose:
-        os.environ["APP_LOG_LEVEL"] = "DEBUG"
+        os.environ["APP_FALLBACK_LOG_LEVEL"] = "DEBUG"
         get_settings.cache_clear()
 
-    # Configure logging (will read APP_LOG_LEVEL if set)
+    # Configure logging (will read APP_FALLBACK_LOG_LEVEL if set)
     configure_structlog()
 
     # Get logger after configuration

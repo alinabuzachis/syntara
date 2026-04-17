@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from nexus.core.config.base import LogLevel
 from nexus.settings.models.runtime_setting import SettingCategory, SettingValueType
 
 
@@ -103,6 +104,17 @@ class MetricsGroup(StrEnum):
 
 
 SETTINGS_CATALOG: list[SettingDefinition] = [
+    # Application settings
+    SettingDefinition(
+        key="logging.log_level",
+        name="System Log Level",
+        category=SettingCategory.SYSTEM,
+        value_type=SettingValueType.STRING,
+        default_value="INFO",
+        description="System logging level. Changes are applied dynamically.",
+        requires_restart=False,
+        validation_schema={"allowed_values": [level.value for level in LogLevel]},
+    ),
     # Metrics — Observability
     SettingDefinition(
         key="metrics.perf_test_mode",

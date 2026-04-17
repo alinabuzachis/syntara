@@ -37,25 +37,22 @@ Usage:
 import asyncio
 import json
 from collections.abc import AsyncGenerator, Callable
-from types import TracebackType
 from typing import Any
 
-import redis.asyncio as redis
 import structlog
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import ResponseError
 
-from nexus.core.config.base import get_settings
+from nexus.core.cache.base import BaseRedisClient
 from nexus.core.exceptions import SafeValueError
 
 logger = structlog.stdlib.get_logger(__name__)
 
 # Error message constants
-_CLIENT_NOT_CONNECTED_ERROR = "Client not connected"
 _STREAM_ID_EMPTY_ERROR = "stream_id cannot be empty"
 
 
-class StreamClient:
+class StreamClient(BaseRedisClient):
     """Generic Cache Stream client for publishing and reading arbitrary event data.
 
     This client provides a simple, flexible interface for working with cache Streams
@@ -64,79 +61,9 @@ class StreamClient:
     reading capabilities.
 
     Recommended usage is as an async context manager for automatic resource cleanup.
-
-    Attributes:
-        _client: Cache async client instance
-        _settings: Application settings for cache configuration
-
     """
 
-    def __init__(self) -> None:
-        """Initialize stream client with configuration from settings."""
-        self._client: redis.Redis | None = None
-        self._settings = get_settings()
-
-    async def __aenter__(self) -> "StreamClient":
-        """Async context manager entry - establishes connection."""
-        self.connect()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Async context manager exit - closes connection."""
-        await self.disconnect()
-
-    def connect(self) -> None:
-        """Establish connection to cache with connection pooling.
-
-        Creates a cache client with configured host, port, database, password,
-        and connection pool size. Connection is lazy - actual network I/O happens
-        on first operation (e.g., xadd, xread).
-
-        Raises:
-            RedisConnectionError: If client initialization fails
-
-        """
-        if self._client is None:
-            try:
-                self._client = redis.Redis(
-                    host=self._settings.cache_host,
-                    port=self._settings.cache_port,
-                    db=self._settings.cache_db,
-                    password=(
-                        self._settings.cache_password.get_secret_value() if self._settings.cache_password else None
-                    ),
-                    decode_responses=True,
-                    max_connections=self._settings.cache_connection_pool_size,
-                )
-                logger.info("Connected to cache stream client")
-            except RedisConnectionError:
-                logger.exception("Failed to connect to cache")
-                raise
-            except OSError as e:
-                logger.exception("Network error connecting to cache")
-                msg = f"Network error: {e}"
-                raise RedisConnectionError(msg) from e
-
-    async def disconnect(self) -> None:
-        """Close cache connection and cleanup resources.
-
-        Properly closes the client connection and releases pool resources.
-        Safe to call multiple times.
-        """
-        if self._client:
-            try:
-                await self._client.aclose()
-                self._client = None
-                logger.info("Disconnected from cache stream client")
-            except (RedisConnectionError, OSError) as e:
-                logger.warning("Error during cache disconnect", error=str(e))
-                # Don't raise on disconnect errors - already cleaning up
-                self._client = None
+    _client_name = "stream"
 
     async def publish(self, stream_id: str, data: dict[str, Any]) -> str:
         """Publish arbitrary event data to a cache stream.
@@ -172,8 +99,7 @@ class StreamClient:
             msg = _STREAM_ID_EMPTY_ERROR
             raise SafeValueError(msg)
 
-        if not self._client:
-            self.connect()
+        client = self._ensure_connected()
 
         try:
             # Serialize the entire data dict to JSON for storage
@@ -181,14 +107,11 @@ class StreamClient:
 
             # XADD to stream - store in 'data' field
             # Using '*' for auto-generated ID
-            if self._client is None:
-                msg = _CLIENT_NOT_CONNECTED_ERROR
-                raise RedisConnectionError(msg)  # noqa: TRY301
-            event_id = await self._client.xadd(stream_id, {"data": json_data})
+            event_id = await client.xadd(stream_id, {"data": json_data})
 
             # Set TTL on stream key for automatic cleanup
             # Each publish resets the TTL, so streams expire after inactivity period
-            await self._client.expire(stream_id, self._settings.cache_stream_ttl_seconds)
+            await client.expire(stream_id, self._settings.cache_stream_ttl_seconds)
 
             logger.debug(
                 "Published event to stream",
@@ -252,9 +175,7 @@ class StreamClient:
             ResponseError: If stream operation fails (other than non-existence)
 
         """
-        if self._client is None:
-            msg = _CLIENT_NOT_CONNECTED_ERROR
-            raise RedisConnectionError(msg)
+        client = self._ensure_connected()
 
         # Honor explicit start_id first
         if start_id is not None:
@@ -269,7 +190,7 @@ class StreamClient:
                 # Fetch count+1 events to determine proper starting position
                 # XREAD returns events AFTER the given ID, so we need to account for this
                 # by fetching one extra event
-                events = await self._client.xrevrange(stream_id, count=replay + 1)
+                events = await client.xrevrange(stream_id, count=replay + 1)
 
                 if not events:
                     # Stream is empty, start from beginning
@@ -366,14 +287,12 @@ class StreamClient:
             OSError: If network error occurs
 
         """
-        if self._client is None:
-            msg = _CLIENT_NOT_CONNECTED_ERROR
-            raise RedisConnectionError(msg)
+        client = self._ensure_connected()
 
         try:
             while True:
                 # Read batch of events from stream
-                result = await self._client.xread({stream_id: current_id}, count=count, block=block_ms)
+                result = await client.xread({stream_id: current_id}, count=count, block=block_ms)
 
                 # If no events returned, continue waiting
                 if not result:
@@ -482,8 +401,7 @@ class StreamClient:
         self._validate_events_params(stream_id, start_id, replay)
 
         # Ensure connection
-        if not self._client:
-            self.connect()
+        self._ensure_connected()
 
         # Determine starting position
         current_id = await self._determine_start_position(stream_id, start_id, replay)
@@ -525,19 +443,14 @@ class StreamClient:
             msg = _STREAM_ID_EMPTY_ERROR
             raise SafeValueError(msg)
 
-        if not self._client:
-            self.connect()
+        client = self._ensure_connected()
 
         try:
-            if self._client is None:
-                msg = _CLIENT_NOT_CONNECTED_ERROR
-                raise RedisConnectionError(msg)  # noqa: TRY301
-
-            info = await self._client.xinfo_stream(stream_id)
+            stream_info = await client.xinfo_stream(stream_id)
             return {
-                "length": info["length"],
-                "last_event_id": info["last-generated-id"],
-                "first_event_id": info["first-entry"][0] if info["first-entry"] else None,
+                "length": stream_info["length"],
+                "last_event_id": stream_info["last-generated-id"],
+                "first_event_id": stream_info["first-entry"][0] if stream_info["first-entry"] else None,
                 "exists": True,
             }
         except ResponseError as e:
@@ -592,15 +505,10 @@ class StreamClient:
             msg = _STREAM_ID_EMPTY_ERROR
             raise SafeValueError(msg)
 
-        if not self._client:
-            self.connect()
+        client = self._ensure_connected()
 
         try:
-            if self._client is None:
-                msg = _CLIENT_NOT_CONNECTED_ERROR
-                raise RedisConnectionError(msg)  # noqa: TRY301
-
-            deleted_count: int = await self._client.delete(stream_id)
+            deleted_count: int = await client.delete(stream_id)
             logger.debug("Deleted stream", stream_id=stream_id, deleted=deleted_count > 0)
             return deleted_count > 0
 

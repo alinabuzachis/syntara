@@ -40,10 +40,15 @@ logger = structlog.stdlib.get_logger(__name__)
 _MAX_SETTING_VALUE_BYTES = 65536
 
 
-def _invalidate_cache(key: str) -> None:
-    """Invalidate a cached setting. Safe to call when cache is not initialized."""
+async def _invalidate_and_publish(key: str) -> None:
+    """Invalidate a cached setting and publish the change via Pub/Sub.
+
+    Safe to call when the cache is not initialised — errors are suppressed.
+    """
     with contextlib.suppress(RuntimeError):
-        get_runtime_settings().invalidate(key)
+        cache = get_runtime_settings()
+        await cache.invalidate(key)
+        await cache.publish_change(key)
 
 
 def setting_to_read(setting: RuntimeSetting) -> RuntimeSettingRead:
@@ -192,7 +197,7 @@ class SettingsService(BaseService):
         try:
             result = await self._apply_update(key=key, value=value, expected_version=expected_version)
             await self.session.commit()
-            _invalidate_cache(key)
+            await _invalidate_and_publish(key)
         except Exception:
             await self.session.rollback()
             raise
@@ -227,7 +232,7 @@ class SettingsService(BaseService):
                 results.append(result)
             await self.session.commit()
             for item in updates:
-                _invalidate_cache(item.key)
+                await _invalidate_and_publish(item.key)
         except Exception:
             await self.session.rollback()
             raise

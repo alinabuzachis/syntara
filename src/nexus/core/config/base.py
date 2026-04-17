@@ -17,9 +17,10 @@ Usage:
 import os
 import tempfile
 import warnings
+from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Self
+from typing import Self
 from uuid import UUID
 
 from pydantic import Field, HttpUrl, SecretStr, computed_field, field_validator, model_validator
@@ -857,49 +858,32 @@ class AdapterRetrySettings(BaseSettings):
 # =============================================================================
 
 
+class LogLevel(StrEnum):
+    """Standard Python logging levels."""
+
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
+
+
 class LoggingSettings(BaseSettings):
     """Logging configuration settings.
 
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
-    log_level: str = Field(
-        default="INFO",
-        description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    fallback_log_level: LogLevel = Field(
+        default=LogLevel.INFO,
+        description="Fallback logging level used before runtime settings are available. "
+        "Once the database is ready, the runtime setting logging.log_level takes precedence.",
     )
+
     log_output_format: str = Field(
         default="json",
         description="Log output format (json, text)",
     )
-
-    @property
-    def uvicorn_logging_config(self) -> dict[str, Any]:
-        """Get uvicorn logging configuration with dynamic log level."""
-        return {
-            "version": 1,
-            "disable_existing_loggers": False,
-            "formatters": {
-                "nexus": {
-                    "()": "nexus.core.logging.logging.build_nexus_formatter",
-                },
-            },
-            "handlers": {
-                "nexus": {
-                    "formatter": "nexus",
-                    "class": "logging.StreamHandler",
-                    "stream": "ext://sys.stdout",
-                },
-            },
-            "loggers": {
-                "uvicorn": {"handlers": ["nexus"], "level": self.log_level, "propagate": False},
-                "uvicorn.error": {"handlers": ["nexus"], "level": self.log_level, "propagate": False},
-                "uvicorn.access": {"handlers": ["nexus"], "level": self.log_level, "propagate": False},
-            },
-            "root": {
-                "handlers": ["nexus"],
-                "level": self.log_level,
-            },
-        }
 
 
 # =============================================================================

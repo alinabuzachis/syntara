@@ -81,6 +81,49 @@ def nexus_api(nexus_client: AuthenticatedClient) -> NexusApiRegistry:
 
 
 @pytest.fixture(scope="session")
+def viewer_client(nexus_base_url: str, nexus_client: AuthenticatedClient) -> AuthenticatedClient:
+    """Return an authenticated client for a non-admin (viewer) user.
+
+    Creates the user via the admin client on first use.  The user has no
+    role assignments, so all permission-gated endpoints should deny access.
+    """
+    admin_http = nexus_client.get_httpx_client()
+    username = "e2e-viewer"
+    password = "ViewerPass1234!"  # noqa: S105
+
+    # Create the viewer user (ignore 409 if it already exists from a previous run)
+    resp = admin_http.post(
+        "/api/v1/users",
+        json={
+            "username": username,
+            "email": "e2e-viewer@example.com",
+            "full_name": "E2E Viewer",
+            "password": password,
+        },
+    )
+    if resp.status_code not in (200, 201, 409):
+        pytest.fail(f"Failed to create viewer user: {resp.status_code} {resp.text}")
+
+    # Login as the viewer to get a token
+    login_resp = httpx.post(
+        f"{nexus_base_url}/api/v1/auth/login",
+        json={"username": username, "password": password},
+        verify=False,  # noqa: S501
+        timeout=10,
+    )
+    login_resp.raise_for_status()
+    token: str = login_resp.json()["access_token"]
+
+    return AuthenticatedClient(base_url=nexus_base_url, token=token, verify_ssl=False)
+
+
+@pytest.fixture(scope="session")
+def viewer_api(viewer_client: AuthenticatedClient) -> NexusApiRegistry:
+    """Return a NexusApiRegistry bound to the non-admin viewer client."""
+    return NexusApiRegistry(viewer_client)
+
+
+@pytest.fixture(scope="session")
 def worker_base_url() -> str:
     """Return the URL the Temporal worker uses to reach the Nexus API.
 

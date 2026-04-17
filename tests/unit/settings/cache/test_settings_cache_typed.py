@@ -142,6 +142,43 @@ async def test_get_str_none_with_default() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Read-time validation against catalog constraints
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_str_rejects_invalid_allowed_value() -> None:
+    """get_str returns catalog default when DB value violates allowed_values."""
+    cache = FakeSettingsCache({"context_manager.compression_mode": "invalid_mode"})
+    result = await cache.get_str("context_manager.compression_mode")
+    assert result == "extractive"  # catalog default
+
+
+@pytest.mark.asyncio
+async def test_get_int_rejects_below_min() -> None:
+    """get_int returns catalog default when DB value is below min constraint."""
+    cache = FakeSettingsCache({"context_manager.max_total_tokens": -1})
+    result = await cache.get_int("context_manager.max_total_tokens")
+    assert result == 4000  # catalog default
+
+
+@pytest.mark.asyncio
+async def test_get_float_rejects_above_max() -> None:
+    """get_float returns catalog default when DB value exceeds max constraint."""
+    cache = FakeSettingsCache({"context_manager.required_grounding_score": 2.5})
+    result = await cache.get_float("context_manager.required_grounding_score")
+    assert result == 0.7  # catalog default
+
+
+@pytest.mark.asyncio
+async def test_get_str_passes_valid_allowed_value() -> None:
+    """get_str returns the DB value when it satisfies allowed_values."""
+    cache = FakeSettingsCache({"context_manager.compression_mode": "abstractive"})
+    result = await cache.get_str("context_manager.compression_mode")
+    assert result == "abstractive"
+
+
+# ---------------------------------------------------------------------------
 # get_bool
 # ---------------------------------------------------------------------------
 

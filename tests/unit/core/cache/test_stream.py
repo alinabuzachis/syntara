@@ -20,7 +20,7 @@ async def test_events_stops_on_terminal_event() -> None:
 
     Note: The terminal event IS yielded before stopping.
     """
-    with patch("nexus.core.cache.stream.redis.Redis") as mock_redis:
+    with patch("nexus.core.cache.base.redis.Redis") as mock_redis:
         mock_response = [
             [
                 "test:stream",
@@ -56,7 +56,7 @@ async def test_events_stops_on_terminal_event() -> None:
 
 async def test_events_handles_malformed_json() -> None:
     """Test that malformed JSON events are skipped with warning."""
-    with patch("nexus.core.cache.stream.redis.Redis") as mock_redis:
+    with patch("nexus.core.cache.base.redis.Redis") as mock_redis:
         mock_response = [
             [
                 "test:stream",
@@ -91,7 +91,7 @@ async def test_events_handles_malformed_json() -> None:
 
 async def test_info_existing_stream() -> None:
     """Test getting stream info for existing stream."""
-    with patch("nexus.core.cache.stream.redis.Redis") as mock_redis:
+    with patch("nexus.core.cache.base.redis.Redis") as mock_redis:
         mock_info = {
             "length": 42,
             "first-entry": ["1234567890-0", {"data": "..."}],

@@ -240,7 +240,7 @@ curl -k https://your-aap.example.com/api/v2/job_templates/42/ \
 In Nexus, set log level to DEBUG to see detailed AAP activity logs:
 
 ```bash
-APP_LOG_LEVEL=DEBUG
+APP_FALLBACK_LOG_LEVEL=DEBUG
 ```
 
 ## Advanced Usage

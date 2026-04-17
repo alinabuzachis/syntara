@@ -15,7 +15,9 @@ Key design points:
 - **No migration needed for new settings** -- add a `SettingDefinition` to the catalog and run the post-migration seeder
 - **JSONB storage** -- values are stored as native Python types, not strings
 - **Optimistic locking** -- concurrent writes are safe; version conflicts are detected
-- **Per-key TTL cache (planned)** -- a Redis-backed cache with per-key TTL is planned; reads currently go directly to the database
+- **Two-tier caching** -- L1 in-process dict (zero-latency) plus optional L2 Redis cache (shared across processes), with TTL-based expiry and stale-value fallback
+- **Change notification** -- Redis Pub/Sub for near-real-time propagation, with polling fallback when Redis is unavailable
+- **Change watchers** -- register a callback with `@watch_setting` to react when a setting value changes at runtime
 
 ## Reading Settings
 
@@ -33,7 +35,12 @@ class MyService:
         max_tokens = await self.settings.get_int("context_manager.max_total_tokens")
 ```
 
-The cache resolves the effective value: user-set `value` if present, otherwise `default_value`.
+The cache resolves the effective value: user-set `value` if present, otherwise `default_value`. Values are cached with a TTL (default 60 seconds) at two tiers:
+
+1. **L1 (in-process dict)** -- zero-latency, per-process
+2. **L2 (Redis)** -- shared across processes, optional
+
+On a read, L1 is checked first. On L1 miss, L2 is checked. On L2 miss, the database is queried and the result is stored in both L1 and L2. Settings with `requires_restart=True` are cached for the lifetime of the process. If the database is temporarily unreachable, stale L1 cached values are returned rather than raising an error.
 
 ### Typed getter methods
 
@@ -57,7 +64,7 @@ timeout = await self.settings.get_int("context_manager.request_timeout_seconds",
 priority_order = await self.settings.get("context_manager.priority_order")
 ```
 
-> **Important**: Always access settings through `get_runtime_settings()`. A Redis-backed cache will be added in a future iteration, and using `SettingsCache` ensures your code benefits from that upgrade automatically.
+> **Important**: Always access settings through `get_runtime_settings()`. Using `SettingsCache` ensures your code benefits from two-tier caching and change notification automatically.
 
 ## Defining a New Setting
 
@@ -68,15 +75,15 @@ from nexus.settings.catalog import SettingDefinition
 from nexus.settings.models.runtime_setting import SettingCategory, SettingValueType
 
 SettingDefinition(
-    key="application.max_retries",             # dot-namespaced key
+    key="system.max_retries",                  # dot-namespaced key
     name="Max retries",                        # human-readable name
-    category=SettingCategory.APPLICATION,      # UI tab grouping
+    category=SettingCategory.SYSTEM,           # UI tab grouping
     value_type=SettingValueType.INTEGER,       # string | integer | float | boolean | json
     default_value=3,                           # native Python type, not a string
     description="Maximum retry attempts for my feature.",
     group="Reliability",                       # UI section heading within the tab
     requires_restart=False,                    # True if change needs app restart
-    cache_ttl_seconds=None,                    # None = use default (caching not yet active)
+    cache_ttl_seconds=None,                    # None = use default (60s)
     validation_schema={"min": 0, "max": 10},  # optional constraints
 )
 ```
@@ -190,6 +197,50 @@ All errors follow [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Det
 | `409` | `SETTING_VERSION_CONFLICT` | Optimistic lock version mismatch |
 | `422` | `SETTING_VALIDATION_ERROR` | Value fails type or constraint checks |
 
+## Change Notification
+
+When a setting is updated via the REST API, the change is propagated to all processes through two complementary mechanisms:
+
+1. **Redis Pub/Sub** (near-real-time) -- the `SettingsService` publishes a message on the `nexus:settings:changes` channel after each successful update. A subscriber task in `SettingsCache` receives the message and updates the L1 cache and fires any registered `@watch_setting` callbacks.
+2. **Polling** (fallback) -- a `PeriodicWorker` polls the database for watched keys at the cache TTL interval. This always runs alongside Pub/Sub and serves as the sole notification mechanism when Redis is unavailable.
+
+### Graceful degradation
+
+Redis is optional. If Redis is unavailable at startup, the cache operates with L1 + DB only and polling-based change detection. If Redis becomes available later, the cache lazily acquires a connection and starts Pub/Sub. If Redis goes down after initial connection, the cache falls back to polling and automatically reconnects when Redis recovers.
+
+## Watching for Changes
+
+Most settings are read on demand via `get_runtime_settings()` and don't need any special handling when they change -- the next read will pick up the new value after the cache TTL expires.
+
+Some settings, however, require an immediate action when their value changes. For example, changing the log level needs to reconfigure the Python logging subsystem. For these cases, use the `@watch_setting` decorator to register a change handler:
+
+```python
+from nexus.settings.watch import watch_setting
+
+@watch_setting("logging.log_level")
+def _on_log_level_changed(_key: str, new_value: Any) -> None:
+    level = str(new_value).upper()
+    _set_log_level(level)
+```
+
+The application lifecycle handles the rest -- no additional wiring is needed. The decorated function will be called with `(key, new_value)` whenever a change is detected via Pub/Sub or the polling fallback.
+
+### When to use a watcher
+
+- The setting controls something that must be actively reconfigured (log levels, connection pool sizes, feature flags that gate background workers)
+- A simple "read the latest value next time" is not sufficient
+
+### When you don't need a watcher
+
+- The setting is read on each request or operation (e.g. token limits, thresholds). The TTL-based cache already ensures reads pick up changes within the polling interval.
+
+### Requirements
+
+- Only settings with `requires_restart=False` can be watched. Attempting to watch a `requires_restart=True` setting raises `ValueError`.
+- The module containing the decorated function must be imported during normal application startup (i.e. part of the regular import chain).
+- Handlers can be sync or async. Async handlers are awaited.
+- **Handlers must return quickly.** Callbacks run sequentially -- a slow or blocking handler will delay change detection for all other watched settings. Keep handlers limited to fast, in-process operations (e.g. reconfiguring a logger, updating a module-level variable). Do not make network requests or database calls from a watcher callback.
+
 ## Migrating from `nexus.core.config`
 
 To move a setting from `NexusSettings` (Pydantic/env-var config) to runtime settings:
@@ -228,17 +279,33 @@ SETTINGS_CATALOG (Python)
     Seeder (post-migration)  ──upsert──>  runtime_settings (PostgreSQL)
                                                   ^
                                                   |
-                                    SettingsService (BaseService)
-                                          ^             ^
-                                         /               \
-                              SettingsStore           REST API
-                           (internal reads)        (/api/v1/settings)
-                                  ^
-                                  |
-                           SettingsCache
-                                  ^
-                                  |
-                       Application code reads
+                                    ┌─────────────┴─────────────┐
+                                    |                           |
+                          SettingsStore              SettingsService (BaseService)
+                       (read-only data access)              |
+                                    ^                       |── invalidate + publish_change
+                                    |                       |
+                          SettingsCache              REST API
+                          (L1 + L2 cache)         (/api/v1/settings)
+                                |
+                    ┌───────────┼───────────┐
+                    |           |           |
+               L1 (dict)   L2 (Redis)   Redis Pub/Sub
+              per-process    shared     nexus:settings:changes
+                    |                      |
+                    |              ┌───────┴───────┐
+                    |              |               |
+                    |        Pub/Sub listener  Polling worker
+                    |              |           (DB fallback)
+                    |              └───────┬───────┘
+                    |                      |
+                    |                      v
+                    |              @watch_setting callbacks
+                    |
+          get_runtime_settings() singleton
+                    ^
+                    |
+          Application code reads
 ```
 
 ## Adding a New Category

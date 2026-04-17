@@ -212,6 +212,33 @@ class FakeSettingsCache:
             raise SettingTypeError(key, type_name, "bool")
         if not isinstance(value, expected_types):
             raise SettingTypeError(key, type_name, type(value).__name__)
+        return self._validate_against_catalog(key, value, default)
+
+    def _validate_against_catalog(
+        self,
+        key: str,
+        value: Any,  # noqa: ANN401
+        default: Any,  # noqa: ANN401
+    ) -> Any:  # noqa: ANN401
+        """Mirror SettingsCache._validate_against_catalog for test parity."""
+        from nexus.settings.catalog import SETTINGS_CATALOG
+        from nexus.settings.exceptions import SettingValidationError
+        from nexus.settings.validators import validate_setting_value
+
+        defn = next((d for d in SETTINGS_CATALOG if d.key == key), None)
+        if defn is None or defn.validation_schema is None:
+            return value
+
+        try:
+            validate_setting_value(
+                key=key,
+                value=value,
+                value_type=defn.value_type,
+                validation_schema=defn.validation_schema,
+            )
+        except SettingValidationError:
+            return defn.default_value if defn.default_value is not None else default
+
         return value
 
     async def get_int(self, key: str, *, default: int | None = None) -> int:
@@ -231,8 +258,21 @@ class FakeSettingsCache:
         """Return the setting value as a ``bool``."""
         return await self._get_typed(key, bool, "bool", default=default)  # type: ignore[no-any-return]
 
-    def invalidate(self, key: str) -> None:
-        """No-op, matching SettingsCache interface."""
+    async def invalidate(self, key: str) -> None:
+        """Evict key from store."""
+        self._store.pop(key, None)
+
+    async def publish_change(self, key: str) -> None:
+        """No-op in tests."""
+
+    def on_change(self, key: str, callback: Any) -> None:  # noqa: ANN401
+        """Register a callback (no-op in tests — no polling)."""
+
+    def start_watching(self, interval_seconds: float = 60.0) -> None:
+        """No-op in tests."""
+
+    async def stop_watching(self) -> None:
+        """No-op in tests."""
 
 
 @pytest.fixture

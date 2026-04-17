@@ -11,7 +11,7 @@ Environment Variables:
     APP_TEMPORAL_ADDRESS: Temporal server address (default: localhost:7233)
     APP_TEMPORAL_NAMESPACE: Temporal namespace (default: default)
     APP_TASK_QUEUE: Task queue name (default: nexus-workflow-queue)
-    APP_LOG_LEVEL: Logging level (default: INFO)
+    APP_FALLBACK_LOG_LEVEL: Logging level before runtime settings load (default: INFO)
 
 """
 
@@ -23,12 +23,15 @@ import sys
 import structlog
 
 from nexus.core.config.base import get_settings
+from nexus.core.database.session import AsyncSessionLocal
+from nexus.core.logging.logging import apply_runtime_log_level
+from nexus.settings.cache.settings_cache import SettingsCache, get_runtime_settings, set_runtime_settings
 from nexus.workflows.workflow_engine.services.temporal_worker import start_worker, stop_worker
 
 # Configure logging using centralized settings
 _settings = get_settings()
 logging.basicConfig(
-    level=_settings.log_level.upper(),
+    level=_settings.fallback_log_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     stream=sys.stdout,
 )
@@ -62,6 +65,13 @@ async def main() -> None:
     loop.add_signal_handler(signal.SIGINT, lambda: signal_handler(signal.SIGINT))
     loop.add_signal_handler(signal.SIGTERM, lambda: signal_handler(signal.SIGTERM))
 
+    # Apply runtime log level from database (overrides fallback if set)
+    set_runtime_settings(SettingsCache(session_factory=AsyncSessionLocal))
+    await apply_runtime_log_level()
+
+    # Start polling for setting changes (applies @watch_setting registrations)
+    get_runtime_settings().start_watching()
+
     try:
         # Start the worker
         logger.info("Starting Temporal worker...")
@@ -76,6 +86,9 @@ async def main() -> None:
         sys.exit(1)
 
     finally:
+        # Stop settings watcher
+        await get_runtime_settings().stop_watching()
+
         # Cleanup
         if worker_service:
             logger.info("Stopping Temporal worker...")

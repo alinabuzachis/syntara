@@ -46,6 +46,7 @@ from nexus.core.error_handlers import (
     http_exception_handler as core_http_exception_handler,
 )
 from nexus.core.exception_registry import register_exceptions
+from nexus.core.logging.logging import apply_runtime_log_level, build_uvicorn_logging_config
 from nexus.core.router_discovery import _get_lock_file_path, discover_and_register_routers
 from nexus.core.websocket.manager import get_connection_lifecycle_manager
 from nexus.core.websocket.router import build_websocket_router
@@ -86,9 +87,17 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     """
     settings = get_settings()
 
-    # Initialise the process-wide settings cache (lazy, no background worker).
+    # Initialize the process-wide settings cache
     # Settings catalog must be seeded first: uv run python tools/seed_settings.py
-    set_runtime_settings(SettingsCache(session_factory=AsyncSessionLocal))
+    runtime_settings = SettingsCache(session_factory=AsyncSessionLocal)
+    set_runtime_settings(runtime_settings)
+
+    # Apply runtime log level (overrides the startup static config if a
+    # runtime override has been set by an operator).
+    await apply_runtime_log_level()
+
+    # Watch for runtime log level changes and start polling
+    runtime_settings.start_watching()
 
     # Warn if using the insecure default credential encryption key
     _default_encryption_key = "0" * 64
@@ -175,6 +184,7 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         "periodic_collector": periodic_collector,
         "completion_poller": completion_poller,
         "metrics_cleanup_worker": metrics_cleanup_worker,
+        "runtime_settings": runtime_settings,
     }
 
 
@@ -194,6 +204,9 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
 
     resources["lifecycle_manager"].stop_monitoring()
     logger.info("WebSocket connection health monitoring stopped")
+
+    # Stop settings watcher (also disconnects Redis) before disposing DB connections
+    await resources["runtime_settings"].stop_watching()
 
     await resources["opa_client"].stop()
 
@@ -397,14 +410,19 @@ def main() -> None:
     For development, you can also use:
         uvicorn nexus.api.main:app --reload
     """
+    # Initially configure using the 'fallback_log_level' from static settings.
+    # This is necessary so that we can send log messages before the database
+    # is available. Once the app starts and database-backed runtime settings are
+    # the logger will be reconfigured to use the runtime logging.log_level setting.
     settings = get_settings()
+    fallback_log_level = settings.fallback_log_level
     uvicorn.run(
         "nexus.api.main:app",
         host=settings.server_host,
         port=settings.server_port,
         reload=settings.server_reload,
-        log_config=settings.uvicorn_logging_config,
-        log_level=settings.log_level.lower(),
+        log_config=build_uvicorn_logging_config(fallback_log_level),
+        log_level=fallback_log_level.lower(),
     )
 
 

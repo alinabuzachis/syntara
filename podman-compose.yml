@@ -120,7 +120,7 @@ services:
       - APP_OPENROUTER_MODEL=${APP_OPENROUTER_MODEL:-anthropic/claude-sonnet-4}
       - APP_OPENROUTER_BASE_URL=${APP_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       - APP_ENV_FILE_PATH=${APP_ENV_FILE_PATH:-.env}
-      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
+      - APP_FALLBACK_LOG_LEVEL=${APP_FALLBACK_LOG_LEVEL:-INFO}
       - APP_LOG_OUTPUT_FORMAT=${APP_LOG_OUTPUT_FORMAT:-text}
       - APP_SEGMENT_WRITE_KEY=${APP_SEGMENT_WRITE_KEY}
       - APP_SEGMENT_ENDPOINT=${APP_SEGMENT_ENDPOINT:-http://mock-segment:9999}
@@ -183,7 +183,7 @@ services:
       - APP_TEMPORAL_NAMESPACE=default
       - APP_TASK_QUEUE=nexus-workflow-queue
       - APP_ENV_FILE_PATH=${APP_ENV_FILE_PATH:-.env}
-      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
+      - APP_FALLBACK_LOG_LEVEL=${APP_FALLBACK_LOG_LEVEL:-INFO}
       # Cache Configuration (for activity streaming)
       - APP_CACHE_HOST=redis
       - APP_CACHE_PASSWORD=${APP_CACHE_PASSWORD:-cache}
@@ -253,7 +253,7 @@ services:
     ports:
       - ${MCP_PORT:-8765}:8765
     environment:
-      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
+      - APP_FALLBACK_LOG_LEVEL=${APP_FALLBACK_LOG_LEVEL:-INFO}
       - MCP_HOST=0.0.0.0
       - MCP_PORT=8765
     healthcheck:
