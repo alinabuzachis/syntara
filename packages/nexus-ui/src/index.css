@@ -47,7 +47,11 @@
     radial-gradient(ellipse 100% 60% at 50% 0%, var(--nexus-deep-space-light-wash-top) 0%, transparent 51%),
     radial-gradient(ellipse 100% 60% at 50% 100%, var(--nexus-deep-space-light-wash-bottom) 0%, transparent 51%);
   /* #F5F7FC ≈ primary background tinted with blue-30 */
-  --nexus-deep-space-light-base: color-mix(in srgb, var(--pf-t--global--background--color--primary--default) 88%, var(--pf-t--color--blue--30));
+  --nexus-deep-space-light-base: color-mix(
+    in srgb,
+    var(--pf-t--global--background--color--primary--default) 88%,
+    var(--pf-t--color--blue--30)
+  );
 }
 
 /* Shell chrome: Compass, login, and body share the same layered background tokens. */

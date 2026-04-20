@@ -99,6 +99,7 @@ Check whether the changes follow:
 | Hardcoded `px` for spacing/colors                    | #15 — use PF6 design tokens `var(--pf-t--global--*)`      |
 | `void` used as operator in `.ts`/`.tsx`              | #16 — use `detachPromise(...)`, not unary `void`          |
 | Native `<button>`, `<p>`, `<h1>`-`<h6>`, `<a>`, etc. | #16 — use PF6 components (see mapping table below)        |
+| New route in `AppRoute.tsx` without registry entry   | #17 — add to `e2e/visual-regression/page-registry.ts`     |
 
 **Also check these review-specific items:**
 

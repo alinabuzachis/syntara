@@ -89,7 +89,7 @@ These files are the single source of truth for project coding standards. They ex
 
 - [ ] UI changes include screenshots or screen recordings
 - [ ] New API endpoints have mock handlers in `packages/nexus-mock-api/src/handlers.ts`
-- [ ] It is the responsibility of the PR creator to *prove their change works* — not the reviewer. See [Your job is to deliver code you have proven to work](https://simonwillison.net/2025/Dec/18/code-proven-to-work/).
+- [ ] It is the responsibility of the PR creator to _prove their change works_ — not the reviewer. See [Your job is to deliver code you have proven to work](https://simonwillison.net/2025/Dec/18/code-proven-to-work/).
 
 ## Implementation Workflow
 

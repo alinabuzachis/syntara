@@ -21,6 +21,11 @@ What this PR intentionally does NOT include.
 - [ ] Existing tests pass
 - [ ] Tests added if behavior changed
 
+## Visual Regression
+
+- [ ] Reviewed the visual regression comment on this PR (if present)
+- [ ] If screenshots changed: changes are intentional and baselines updated (comment `/update-screenshots` on this PR to regenerate)
+
 ## Stack Context
 
 Depends on:

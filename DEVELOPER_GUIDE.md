@@ -234,6 +234,7 @@ npm run vitest -- path/to/specific/test.test.ts
 - All new/modified code must meet **80% coverage** (lines, statements, functions, branches)
 - Use `*.test.tsx` for jsdom unit tests, `*.spec.ts` under `packages/nexus-ui/e2e/` for Playwright E2E tests
 - **E2E tests** run against mock API by default, real backend supported — See [packages/nexus-ui/TESTING.md](packages/nexus-ui/TESTING.md) for setup
+- **Visual regression** — every route is screenshotted and compared against baselines in CI. New routes must be added to the page registry. See [packages/nexus-ui/VISUAL_REGRESSION.md](packages/nexus-ui/VISUAL_REGRESSION.md)
 
 ## Performance Optimization
 

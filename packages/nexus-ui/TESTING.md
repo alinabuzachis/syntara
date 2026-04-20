@@ -206,6 +206,28 @@ For more examples and guidance, see:
 - [Testing Guidelines in CLAUDE.md](../../CLAUDE.md#testing-guidelines)
 - [Comprehensive Playwright E2E Skill](../../.claude/skills/playwright_e2e.md)
 
+## Visual Regression Testing
+
+Full-page screenshots for every route, compared against committed baselines. See [`VISUAL_REGRESSION.md`](VISUAL_REGRESSION.md) for the complete guide.
+
+```bash
+# Compare screenshots against baselines
+npx playwright test e2e/visual-regression/page-screenshots
+
+# Update baselines after intentional UI changes
+npx playwright test e2e/visual-regression/page-screenshots --update-snapshots
+
+# Check all routes have baselines
+node scripts/check-visual-baselines.js
+```
+
+Key points:
+
+- **Page registry** (`e2e/visual-regression/page-registry.ts`) lists every route to screenshot
+- **Linux-only baselines** — CI (Ubuntu) is the source of truth; macOS snapshots are gitignored
+- **New routes** must be added to the page registry with a baseline, or the enforcement script will fail
+- **Frozen clock** — `Date.now()` is fixed for deterministic timestamps across runs
+
 ## Troubleshooting
 
 ### Coverage check fails for unmodified file
