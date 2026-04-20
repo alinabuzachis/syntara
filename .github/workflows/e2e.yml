@@ -13,6 +13,7 @@ concurrency:
 jobs:
   test-e2e:
     runs-on: aap-dev
+    if: github.event.workflow_run.event != 'merge_group'
     steps:
       - name: Report pending status
         uses: actions/github-script@v7
