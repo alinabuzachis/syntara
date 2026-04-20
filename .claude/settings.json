@@ -1,0 +1,33 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/format-on-save.sh",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit-checks.sh",
+            "timeout": 120000
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-pr-checks.sh",
+            "timeout": 300000
+          }
+        ]
+      }
+    ]
+  }
+}
