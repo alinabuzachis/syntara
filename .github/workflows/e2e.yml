@@ -5,6 +5,7 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [requested]
+  workflow_dispatch:
 
 concurrency:
   group: e2e-${{ github.event.workflow_run.head_branch }}
