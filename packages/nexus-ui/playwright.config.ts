@@ -10,7 +10,8 @@ const useWebServer = !process.env.NEXUS_E2E_SKIP_WEB_SERVER
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  timeout: 60_000,
+  workers: process.env.CI ? 1 : undefined,
+  timeout: 30_000,
   expect: {
     timeout: 10_000,
   },

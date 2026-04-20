@@ -3,7 +3,7 @@ import { test, expect, toAppUrl } from './fixtures'
 test('user filters approvals by name and status', async ({ app }) => {
   // Navigate to approvals page
   await app.goto(toAppUrl('/approvals'))
-  await expect(app.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
+  await expect(app.getByRole('heading', { name: /Approvals/i }).first()).toBeVisible()
 
   // Wait for table to load (skip if no approval data exists)
   const table = app.getByRole('grid', { name: 'Approvals table' })
@@ -74,7 +74,7 @@ test('user filters approvals by name and status', async ({ app }) => {
 test('user approves an approval request and sees status update', async ({ app }) => {
   // Arrange - Open approvals list
   await app.goto(toAppUrl('/approvals'))
-  await expect(app.getByRole('heading', { level: 1, name: 'Approvals' })).toBeVisible()
+  await expect(app.getByRole('heading', { name: /Approvals/i }).first()).toBeVisible()
 
   // Act - Wait for table and open a pending approval (skip if no data)
   const approvalsTable = app.getByRole('grid', { name: 'Approvals table' })

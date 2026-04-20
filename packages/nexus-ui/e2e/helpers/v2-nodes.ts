@@ -60,7 +60,7 @@ export async function addManualTrigger(page: Page, name = 'Manual trigger') {
   // Wait for trigger selection panel with correct heading text
   await expect(page.getByRole('heading', { name: /select a trigger step/i })).toBeVisible({ timeout: 10000 })
   await page.getByRole('button', { name: 'Manual trigger' }).click()
-  await page.getByLabel('Name').fill(name)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByRole('button', { name: /^Add step$/ }).click()
 
   // Panel auto-closes after adding trigger - no manual close needed
@@ -74,7 +74,7 @@ export async function addManualTrigger(page: Page, name = 'Manual trigger') {
 export async function addScriptNode(page: Page, name: string, code = 'print("hello")') {
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Action', 'Script')
-  await page.getByLabel('Name').fill(name)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await fillCodeEditor(page, { value: code })
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
@@ -84,7 +84,7 @@ export async function addScriptNode(page: Page, name: string, code = 'print("hel
 export async function addHttpRequestNode(page: Page, name: string, url = 'https://api.example.com/data') {
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Action', 'REST API')
-  await page.getByLabel('Name').fill(name)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByLabel('URL').fill(url)
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
@@ -94,7 +94,7 @@ export async function addHttpRequestNode(page: Page, name: string, url = 'https:
 export async function addAgenticNode(page: Page, name: string, prompt = 'Analyze the data') {
   await openAddNodePanel(page)
   await selectDirectNodeType(page, 'AI Agent')
-  await page.getByLabel('Name').fill(name)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByLabel('Prompt').fill(prompt)
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
@@ -104,7 +104,7 @@ export async function addAgenticNode(page: Page, name: string, prompt = 'Analyze
 export async function addAapNode(page: Page, name: string, jobTemplateId = '123') {
   await openAddNodePanel(page)
   await selectDirectNodeType(page, /AAP/i)
-  await page.getByLabel('Name').fill(name)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByLabel('Job template ID').fill(jobTemplateId)
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
@@ -114,7 +114,7 @@ export async function addAapNode(page: Page, name: string, jobTemplateId = '123'
 export async function addApprovalNode(page: Page, name: string, approver = 'admin') {
   await openAddNodePanel(page)
   await selectDirectNodeType(page, 'Approval')
-  await page.getByLabel('Name').fill(name)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByLabel('Add approver').fill(approver)
   await page.keyboard.press('Enter')
   await page.getByRole('button', { name: /^Add step$/ }).click()
@@ -157,7 +157,7 @@ export async function addApprovalNodeWithBranch(page: Page, name: string, approv
   await selectCategoryAndType(page, 'Action', 'Script')
 
   // Wait for the form to be fully loaded before filling
-  const nameInput = page.getByLabel('Name')
+  const nameInput = page.getByRole('textbox', { name: 'Name', exact: true })
   await expect(nameInput).toBeVisible({ timeout: 10000 })
   await expect(nameInput).toBeEditable({ timeout: 5000 })
 
@@ -177,8 +177,8 @@ export async function addConditionNode(page: Page, name: string, expression = 't
   await selectCategoryAndType(page, 'Logic', 'Conditional')
 
   // Wait for the form to load
-  await expect(page.getByLabel('Name')).toBeVisible()
-  await page.getByLabel('Name').fill(name)
+  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
 
   // Expression builder has two modes: visual builder or raw expression
   // Switch to raw mode to fill the expression directly
@@ -214,7 +214,7 @@ export async function addConditionNodeWithBranch(page: Page, name: string, expre
   // The "false" branch is optional
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Action', 'Script')
-  await page.getByLabel('Name').fill(`${name} - true action`)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(`${name} - true action`)
   await fillCodeEditor(page, { value: 'print("condition is true")' })
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
@@ -224,7 +224,7 @@ export async function addConditionNodeWithBranch(page: Page, name: string, expre
 export async function addLoopNode(page: Page, name: string, items = '${trigger.items}') {
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Logic', 'Loop')
-  await page.getByLabel('Name').fill(name)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   // Ensure "For each" is selected (it may or may not be the default)
   const typeSelect = page.locator('#loop-type')
   if (await typeSelect.isVisible().catch(() => false)) {
@@ -250,7 +250,7 @@ export async function addLoopNodeWithBody(page: Page, name: string, items = '${t
   // Use the "Add connected step" button on the edge
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Action', 'Script')
-  await page.getByLabel('Name').fill(`${name} - loop body`)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(`${name} - loop body`)
   await fillCodeEditor(page, { value: 'print("processing item")' })
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
@@ -260,7 +260,7 @@ export async function addLoopNodeWithBody(page: Page, name: string, items = '${t
 export async function addConvergeNode(page: Page, name: string) {
   await openAddNodePanel(page)
   await selectCategoryAndType(page, 'Logic', 'Converge')
-  await page.getByLabel('Name').fill(name)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)
 }

@@ -12,7 +12,10 @@ import { addNodePanel } from '../helpers/workflows'
 // Allow 0.01 (1%) pixel diff to tolerate sub-pixel text rendering / anti-aliasing noise
 const screenshotOptions = { maxDiffPixelRatio: 0.01 } as const
 
-test.describe('Visual regression — PF6 token migration', () => {
+// Baselines are OS-specific (darwin snapshots); skip in CI where runner OS differs
+test.describe('Visual regression — PF6 token migration', { tag: '@local-only' }, () => {
+  test.skip(!!process.env.CI, 'Visual regression baselines are OS-specific; run locally only')
+
   test('sidebar navigation (AppDockedNav)', async ({ app }) => {
     await app.goto(toAppUrl('/automations'))
     const nav = app.getByRole('navigation', { name: 'Main navigation' })
@@ -34,7 +37,7 @@ test.describe('Visual regression — PF6 token migration', () => {
 
     // Add a manual trigger so a TriggerNode renders on the canvas
     await app.getByRole('button', { name: 'Manual trigger' }).click()
-    await app.getByLabel('Name').fill('Visual test trigger')
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Visual test trigger')
     await app.getByRole('button', { name: /^Add step$/ }).click()
 
     // Screenshot the canvas area with the trigger node
@@ -49,7 +52,7 @@ test.describe('Visual regression — PF6 token migration', () => {
 
     // Add manual trigger first
     await app.getByRole('button', { name: 'Manual trigger' }).click()
-    await app.getByLabel('Name').fill('Trigger')
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Trigger')
     await app.getByRole('button', { name: /^Add step$/ }).click()
 
     // Add a condition node to show ExpressionGroup
@@ -64,7 +67,7 @@ test.describe('Visual regression — PF6 token migration', () => {
     await app.getByRole('button', { name: 'Conditional', exact: true }).click()
 
     // Wait for the condition form to render
-    await expect(app.getByLabel('Name')).toBeVisible()
+    await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
     await expect(app).toHaveScreenshot('condition-expression-group.png', screenshotOptions)
   })
 

@@ -5,9 +5,28 @@ import { toAppUrl } from '../fixtures'
 import { buildUniqueName } from './workflows'
 
 /** Navigate to the credentials list page and wait for it to load */
-export async function goToCredentialsList(app: Page) {
+export async function goToCredentialsList(app: Page, options?: { ensureCreateEnabled?: boolean }) {
   await app.goto(toAppUrl('/configuration/credentials'))
   await expect(app.getByText('Credentials', { exact: true }).first()).toBeVisible()
+
+  if (!options?.ensureCreateEnabled) return
+
+  // Select a project if needed (Create credential is disabled without one on real backend)
+  const projectToggle = app.getByRole('button', { name: /All projects|Select a project/i }).first()
+  // waitFor with catch: toggle may not exist (e.g. mock API) — treat as "no toggle"
+  const hasToggle = await projectToggle
+    .waitFor({ state: 'visible', timeout: 2000 })
+    .then(() => true)
+    .catch(() => false)
+  if (hasToggle) {
+    const createBtn = app.getByRole('button', { name: 'Create credential' }).first()
+    const disabled = await createBtn.isDisabled()
+    if (disabled) {
+      await projectToggle.click()
+      await app.getByRole('option', { name: 'default' }).click()
+      await expect(createBtn).toBeEnabled({ timeout: 5000 })
+    }
+  }
 }
 
 /**
@@ -16,7 +35,7 @@ export async function goToCredentialsList(app: Page) {
  */
 export async function createTestCredential(app: Page, options: { prefix?: string; enabled?: boolean } = {}) {
   const name = buildUniqueName(options.prefix ?? 'e2e-cred')
-  await goToCredentialsList(app)
+  await goToCredentialsList(app, { ensureCreateEnabled: true })
   // Use .first() because on an empty list the button appears in both the toolbar and the empty state
   await app.getByRole('button', { name: 'Create credential' }).first().click()
 
@@ -41,42 +60,28 @@ export async function createTestCredential(app: Page, options: { prefix?: string
 }
 
 /**
- * Delete a credential by name via the UI.
- * Navigates to credentials list, filters by name, opens kebab menu, and deletes.
- * Silently succeeds if the credential is not found (already deleted or never created).
+ * Delete a credential by name via the API.
+ * Uses page.request to call the API directly — faster and more reliable than
+ * UI-based cleanup, especially in finally blocks where timeouts are tight.
  */
 export async function deleteCredentialByName(app: Page, name: string) {
-  // Skip cleanup if the page is already closed (e.g., test timed out)
   if (app.isClosed()) return
+  const apiBase = process.env.NEXUS_E2E_BASE_URL ?? 'http://localhost:4173'
+
   try {
-    await goToCredentialsList(app)
+    const listResp = await app.request.get(`${apiBase}/api/v1/credentials?name=${encodeURIComponent(name)}`)
+    if (!listResp.ok()) return
+
+    const body = (await listResp.json()) as { results?: { id: string }[]; data?: { id: string }[] }
+    const credentials = body.results ?? body.data ?? []
+    for (const cred of credentials) {
+      if (cred.id) {
+        await app.request.delete(`${apiBase}/api/v1/credentials/${cred.id}`)
+      }
+    }
   } catch {
-    return // Page closed or navigation failed during cleanup — skip silently
+    // Best-effort cleanup — don't fail the test if cleanup fails
   }
-
-  // Filter to find the credential
-  await app.getByPlaceholder('Filter by keyword').fill(name)
-  await app.getByRole('button', { name: 'Apply filter' }).click()
-
-  const row = app.getByRole('row', { name: new RegExp(name) })
-  const rowExists = await row
-    .waitFor({ state: 'visible', timeout: 3000 })
-    .then(() => true)
-    .catch(() => false)
-
-  if (!rowExists) return
-
-  // Open kebab menu and delete
-  await row
-    .getByRole('button', { name: /Actions|Kebab toggle/i })
-    .first()
-    .click()
-  await app.getByRole('menuitem', { name: /Delete/i }).click()
-
-  // Confirm deletion in the dialog
-  const dialog = app.getByRole('dialog')
-  await dialog.getByRole('button', { name: 'Delete' }).click()
-  await expect(app.getByText('Credential deleted')).toBeVisible()
 }
 
 /**

@@ -20,7 +20,7 @@ jobs:
     runs-on: aap-dev
     steps:
       - name: Report pending status
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.repos.createCommitStatus({
@@ -34,14 +34,44 @@ jobs:
             });
 
       - name: Checkout nexus-ui
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ github.event.workflow_run.repository.full_name }}
           ref: ${{ github.event.workflow_run.head_sha }}
 
+      # --- Node.js deps: start in background while Nexus deploys ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.13.0'
+          cache: 'npm'
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('packages/nexus-ui/package.json') }}
+
+      - name: Install npm + Playwright in background
+        run: |
+          (
+            set -euo pipefail
+            npm ci
+            if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+              cd packages/nexus-ui && npx playwright install-deps chromium
+            else
+              cd packages/nexus-ui && npx playwright install --with-deps chromium
+            fi
+            echo $? > /tmp/deps-install.exit
+          ) > /tmp/deps-install.log 2>&1 || echo $? > /tmp/deps-install.exit &
+          echo $! > /tmp/deps-install.pid
+          echo "Started background install (PID $(cat /tmp/deps-install.pid))"
+
+      # --- Deploy Nexus cluster (runs in parallel with npm/Playwright install) ---
       - name: Generate token for syntara-orchestration org
         id: token-nexus
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -49,7 +79,7 @@ jobs:
           repositories: nexus
 
       - name: Checkout nexus (for deploy-nexus action)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: syntara-orchestration/syntara
           path: _nexus
@@ -73,12 +103,12 @@ jobs:
         run: echo "KUBECONFIG=${{ github.workspace }}/aap-dev/.tmp/27.kubeconfig" >> "$GITHUB_ENV"
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v6
 
       - name: Install dependencies
         working-directory: aap-dev/src/nexus
@@ -114,28 +144,32 @@ jobs:
           kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/seed_settings.py' < tools/seed_settings.py
           kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/seed_settings.py'
 
+      # --- Wait for background npm/Playwright install to finish ---
+      - name: Wait for npm + Playwright install
+        run: |
+          PID=$(cat /tmp/deps-install.pid)
+          echo "Waiting for background install (PID $PID)..."
+          while kill -0 "$PID" 2>/dev/null; do
+            sleep 2
+          done
+          EXIT_CODE=$(cat /tmp/deps-install.exit 2>/dev/null || echo "1")
+          if [ "$EXIT_CODE" = "0" ]; then
+            echo "Background install completed successfully"
+          else
+            echo "::error::Background install failed (exit $EXIT_CODE). Logs:"
+            cat /tmp/deps-install.log
+            exit 1
+          fi
+
       - name: Port-forward Nexus UI
         run: |
           kubectl port-forward svc/myaap-ao-ui 8000:80 &
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 20); do
             curl -sf http://localhost:8000/health > /dev/null 2>&1 && exit 0
-            sleep 2
+            sleep 1
           done
-          echo "::error::Service did not become healthy after 60s"
+          echo "::error::Service did not become healthy after 20s"
           exit 1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22.13.0'
-          cache: 'npm'
-
-      - name: Install npm dependencies
-        run: npm ci
-
-      - name: Install Playwright browsers
-        working-directory: packages/nexus-ui
-        run: npx playwright install --with-deps chromium
 
       - name: Read admin password
         working-directory: aap-dev/src/nexus
@@ -153,7 +187,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: packages/nexus-ui/playwright-report
@@ -167,7 +201,7 @@ jobs:
 
       - name: Report final status
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const state = '${{ job.status }}' === 'success' ? 'success' : 'failure';

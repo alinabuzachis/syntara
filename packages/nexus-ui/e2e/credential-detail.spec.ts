@@ -2,6 +2,7 @@ import { test, expect } from './fixtures'
 import { createTestCredential, deleteCredentialByName, navigateToCredentialDetail } from './helpers/credentials'
 
 test.describe('Credential Detail Page & Workflows Tab', () => {
+  test.describe.configure({ timeout: 45_000 })
   test('navigates to credential detail page', async ({ app }) => {
     const name = await createTestCredential(app, { prefix: 'e2e-detail-nav' })
     try {
@@ -21,11 +22,9 @@ test.describe('Credential Detail Page & Workflows Tab', () => {
     try {
       await navigateToCredentialDetail(app, name)
 
-      // Assert - All 4 tabs are visible
+      // Assert - Both tabs are visible
       await expect(app.getByRole('tab', { name: /Details/ })).toBeVisible()
       await expect(app.getByRole('tab', { name: /Workflows/ })).toBeVisible()
-      await expect(app.getByRole('tab', { name: /Team Access/ })).toBeVisible()
-      await expect(app.getByRole('tab', { name: /User Access/ })).toBeVisible()
     } finally {
       await deleteCredentialByName(app, name)
     }

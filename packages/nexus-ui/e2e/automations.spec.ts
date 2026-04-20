@@ -1,7 +1,7 @@
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName, createBasicWorkflow } from './helpers/workflows'
 
-test('user searches, views, and deletes an automation', async ({ app }) => {
+test('user searches, views, and deletes an automation', { timeout: 60_000 }, async ({ app }) => {
   // Arrange - Create a workflow to manage
   const workflowName = buildUniqueName('e2e-automation')
   const otherWorkflowName = buildUniqueName('e2e-automation-control')

@@ -13,7 +13,7 @@
     "test:coverage:merge": "node scripts/merge-coverage.js",
     "test:coverage:report": "nyc report --temp-dir .nyc_output --report-dir coverage --reporter html --reporter lcov --reporter json --reporter json-summary --reporter text",
     "test:coverage:check": "node scripts/check-pr-coverage.js",
-    "e2e": "playwright test",
+    "e2e": "playwright test --reporter=line",
     "e2e:ui": "playwright test --ui",
     "vitest": "vitest run",
     "tsc": "tsc --noEmit -p tsconfig.app.json",

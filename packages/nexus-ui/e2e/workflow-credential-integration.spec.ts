@@ -16,20 +16,18 @@ async function navigateToApiActionForm(app: Page) {
 
   // Add manual trigger
   await app.getByRole('button', { name: 'Manual trigger' }).click()
-  await app.getByLabel('Name').fill('Manual trigger')
+  await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
   await app.getByRole('button', { name: /^Add step$/ }).click()
 
   // Add connected API action node — set up credential response listener
   // BEFORE clicking REST API (which triggers the credential fetch)
-  const credentialsLoaded = app.waitForResponse(
-    (resp) => resp.url().includes('/credentials') && resp.status() === 200
-  )
+  const credentialsLoaded = app.waitForResponse((resp) => resp.url().includes('/credentials') && resp.status() === 200)
   const panel = await clickAddConnectedStep(app)
   await panel.getByRole('button', { name: 'Action', exact: true }).click()
   await panel.getByRole('button', { name: 'REST API', exact: true }).click()
 
   // Wait for the form and credential data to fully load
-  await expect(app.getByLabel('Name')).toBeVisible()
+  await expect(app.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
   await credentialsLoaded
   const credToggle = app.getByRole('button', { name: 'Authentication credential', exact: true })
   await expect(credToggle).toBeEnabled({ timeout: 5000 })
@@ -56,11 +54,10 @@ test.describe('Credential Selector', () => {
   })
 
   test('select existing credential from selector', async ({ app }) => {
-    // Arrange - Create a credential to select
     const credName = buildUniqueName('e2e-select-cred')
 
     try {
-      await goToCredentialsList(app)
+      await goToCredentialsList(app, { ensureCreateEnabled: true })
       await app.getByRole('button', { name: 'Create credential' }).first().click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(credName)
@@ -93,11 +90,10 @@ test.describe('Credential Selector', () => {
   })
 
   test('credential selector filters by compatible type', async ({ app }) => {
-    // Arrange - Create an incompatible credential (LLM type) that should NOT appear
     const incompatibleName = buildUniqueName('e2e-llm-incompat')
 
     try {
-      await goToCredentialsList(app)
+      await goToCredentialsList(app, { ensureCreateEnabled: true })
       await app.getByRole('button', { name: 'Create credential' }).click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(incompatibleName)
@@ -123,7 +119,7 @@ test.describe('Credential Selector', () => {
     const credName = buildUniqueName('e2e-clear-cred')
 
     try {
-      await goToCredentialsList(app)
+      await goToCredentialsList(app, { ensureCreateEnabled: true })
       await app.getByRole('button', { name: 'Create credential' }).first().click()
       const createModal = app.getByRole('dialog')
       await createModal.getByRole('textbox', { name: 'Credential name' }).fill(credName)

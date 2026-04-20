@@ -17,9 +17,9 @@ export const addNodePanel = (page: Page) =>
  */
 export async function clickAddConnectedStep(page: Page) {
   const layoutButton = page.getByRole('button', { name: 'Layout' }).first()
-  if (await layoutButton.isVisible()) {
-    await layoutButton.click()
-  }
+  await expect(layoutButton).toBeVisible({ timeout: 10000 })
+  await layoutButton.click()
+
   const addBtn = page.getByRole('button', { name: 'Add connected step' })
   await expect(addBtn.first()).toBeVisible({ timeout: 10000 })
   await addBtn.first().click({ force: true })
@@ -121,14 +121,14 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
 
   // Act - Add manual trigger
   await page.getByRole('button', { name: 'Manual trigger' }).click()
-  await page.getByLabel('Name').fill('Manual trigger')
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
   await page.getByRole('button', { name: /^Add step$/ }).click()
 
   // Act - Add a connected action node
   const panel = await clickAddConnectedStep(page)
   await panel.getByRole('button', { name: 'Action', exact: true }).click()
   await panel.getByRole('button', { name: 'Script', exact: true }).click()
-  await page.getByLabel('Name').fill(actionName)
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill(actionName)
   await fillCodeEditor(page, { value: 'print("hello")' })
   await page.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(page)

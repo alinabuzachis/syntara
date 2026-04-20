@@ -16,14 +16,14 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
 
   // Act - Add manual trigger
   await app.getByRole('button', { name: 'Manual trigger' }).click()
-  await app.getByLabel('Name').fill('Manual trigger')
+  await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
   await app.getByRole('button', { name: /^Add step$/ }).click()
 
   // Act - Add connected action node
   const firstPanel = await clickAddConnectedStep(app)
   await firstPanel.getByRole('button', { name: 'Action', exact: true }).click()
   await firstPanel.getByRole('button', { name: 'Script', exact: true }).click()
-  await app.getByLabel('Name').fill('Send email')
+  await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Send email')
   await fillCodeEditor(app, { value: 'print("hello from Playwright")' })
   await app.getByRole('button', { name: /^Add step$/ }).click()
   await closeNodeEditorPanel(app)
@@ -32,7 +32,7 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
   const secondPanel = await clickAddConnectedStep(app)
   await secondPanel.getByRole('button', { name: 'Action', exact: true }).click()
   await secondPanel.getByRole('button', { name: 'Script', exact: true }).click()
-  await app.getByLabel('Name').fill('Follow-up action')
+  await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Follow-up action')
   await fillCodeEditor(app, { value: 'print("follow-up")' })
   await app.getByRole('button', { name: /^Add step$/ }).click()
 

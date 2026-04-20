@@ -5,7 +5,7 @@ import { deleteCredentialByName, goToCredentialsList } from './helpers/credentia
 import { buildUniqueName } from './helpers/workflows'
 
 async function openCreateModal(app: Page) {
-  await goToCredentialsList(app)
+  await goToCredentialsList(app, { ensureCreateEnabled: true })
   // Use .first() because on an empty list the button appears in both the toolbar and the empty state
   await app.getByRole('button', { name: 'Create credential' }).first().click()
   const modal = app.getByRole('dialog')
