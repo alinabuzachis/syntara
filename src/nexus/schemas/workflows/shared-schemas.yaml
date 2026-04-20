@@ -246,47 +246,98 @@ components:
       allOf:
         - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/BaseResource
         - type: object
-          title: Activity Execution
-          description: Individual activity execution within a workflow with runtime state, retry tracking, and activity definition snapshot
+          title: ActivityExecution
+          description: |-
+            Database model for activity executions.
+
+            Persists activity execution state to enable querying after Temporal's retention
+            period expires. Data is synced from Temporal events and cached in database.
+
+            This model serves both as the database table and the API response schema.
+            Activities are read-only from the API - they're created/updated by syncing from Temporal.
+
+            Inherits from BaseResource:
+                id: UUID primary key
+                created_at: Creation timestamp
+                updated_at: Last update timestamp
+                labels: Optional key-value metadata
+          additionalProperties: false
+          required:
+            - execution_id
+            - activity_name
+            - temporal_activity_id
+            - status
           properties:
             execution_id:
               type: string
               format: uuid
               description: Parent execution ID
+              title: Execution Id
             activity_name:
               type: string
               description: Activity ID from workflow definition
+              minLength: 1
+              maxLength: 255
+              title: Activity Name
             activity_definition:
-              type: object
-              description: Snapshot of the activity configuration from workflow definition at execution time, including executor, config, retry policy, timeout, approval settings
+              anyOf:
+                - additionalProperties: true
+                  type: object
+                - type: 'null'
+              description: Snapshot of activity configuration from workflow definition
+              title: Activity Definition
             temporal_activity_id:
               type: string
               description: Temporal activity execution ID
+              minLength: 1
+              maxLength: 255
+              title: Temporal Activity Id
             status:
               $ref: "#/components/schemas/ActivityStatus"
+              description: Current activity status
             started_at:
-              type: [string, "null"]
-              format: date-time
-              description: When activity transitioned from pending to running status (null if still pending)
+              anyOf:
+                - format: date-time
+                  type: string
+                - type: 'null'
+              description: When activity started execution
+              title: Started At
             completed_at:
-              type: [string, "null"]
-              format: date-time
-              description: When activity reached terminal state (completed, failed)
+              anyOf:
+                - format: date-time
+                  type: string
+                - type: 'null'
+              description: When activity completed/failed
+              title: Completed At
             input_data:
               type: object
+              additionalProperties: true
               description: Runtime input parameters
+              title: Input Data
             output_data:
-              type: [object, "null"]
-              description: Activity results
+              anyOf:
+                - additionalProperties: true
+                  type: object
+                - type: 'null'
+              description: Activity results (if completed)
+              title: Output Data
             error_details:
-              type: [string, "null"]
+              anyOf:
+                - type: string
+                - type: 'null'
               description: Error information if failed
+              title: Error Details
             retry_count:
               type: integer
               description: Number of retry attempts
+              default: 0
+              title: Retry Count
             iteration:
-              type: [integer, "null"]
+              anyOf:
+                - type: integer
+                - type: 'null'
               description: Iteration number if activity is within a loop (0-indexed)
+              title: Iteration
 
     # NOTE: Approval schemas are defined in ../approvals/openapi.yaml
     # Do not duplicate here - use $ref to the approvals API when needed

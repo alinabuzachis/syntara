@@ -441,100 +441,40 @@ components:
             - type: 'null'
 
     IdentityProviderResponse:
-      type: object
       title: IdentityProviderResponse
       description: Schema for IdentityProvider response with configuration details (excludes secrets).
       additionalProperties: false
-      required:
-        - created_by
-        - name
-        - configuration
-      properties:
-        id:
-          type: string
-          title: Id
-          format: uuid
-          description: Unique identifier for the resource
-        name:
-          type: string
-          title: Name
-          description: Human-readable provider name
-          minLength: 1
-          maxLength: 255
-        description:
-          title: Description
-          description: Detailed description of the resource
-          anyOf:
-            - type: string
-              maxLength: 2000
-            - type: 'null'
-        enabled:
-          type: boolean
-          title: Enabled
-          description: Enable/disable the identity provider
-          default: true
-        configuration:
-          $ref: '#/components/schemas/OIDCConfigurationResponse'
-          description: Identity provider configuration
-        created_at:
-          type: string
-          title: Created At
-          format: date-time
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          title: Updated At
-          format: date-time
-          description: Timestamp when resource was last updated
-        created_by:
-          type: string
-          title: Created By
-          format: uuid
-          description: User who created the resource
-        updated_by:
-          title: Updated By
-          description: User who last updated the resource
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-        deleted_at:
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-        deleted_by:
-          title: Deleted By
-          description: User who performed the soft delete
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-        labels:
-          type: object
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
-          additionalProperties:
-            type: string
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/Resource"
+        - type: object
+          title: IdentityProviderResponse
+          required:
+            - configuration
+          properties:
+            name:
+              description: Human-readable provider name
+            enabled:
+              type: boolean
+              title: Enabled
+              description: Enable/disable the identity provider
+              default: true
+            configuration:
+              $ref: '#/components/schemas/OIDCConfigurationResponse'
+              description: Identity provider configuration
 
     IdentityProviderListResponse:
-      type: object
-      properties:
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/IdentityProviderResponse'
-        next:
-          type: string
-          nullable: true
-        prev:
-          type: string
-          nullable: true
-        total:
-          type: integer
-          nullable: true
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/IdentityProviderResponse'
+      title: IdentityProviderListResponse
+      description: Paginated list response for identity providers.
 
     OIDCTestRequest:
       type: object

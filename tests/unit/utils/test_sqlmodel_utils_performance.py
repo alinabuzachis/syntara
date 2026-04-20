@@ -13,7 +13,7 @@ from uuid import uuid4
 from nexus.core.models.base import NamedResource
 from nexus.core.utils import matches, parse_filters, parse_label_filter
 from nexus.core.utils.cursor import SortDirection, create_cursor_data, decode_cursor, encode_cursor
-from nexus.core.utils.pagination import generate_response
+from nexus.core.utils.pagination import PaginationResult, generate_response
 from nexus.core.utils.sorting import parse_sort
 
 if TYPE_CHECKING:
@@ -151,7 +151,7 @@ class TestPaginationHelperPerformance:
         start_time = time.perf_counter()
 
         # Run response generation 100 times to get average
-        response = {}
+        response: PaginationResult
         for _ in range(100):
             response = generate_response(
                 items=resources,
@@ -176,7 +176,7 @@ class TestPaginationHelperPerformance:
         start_time = time.perf_counter()
 
         # Run response generation 50 times to get average
-        response = {}
+        response: PaginationResult
         for _ in range(50):
             response = generate_response(
                 items=resources,

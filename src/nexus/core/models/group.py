@@ -6,12 +6,10 @@ and API request/response schemas following SQLModel Pattern 1.
 Groups are included in JWT tokens as the ``groups`` claim.
 """
 
-from datetime import datetime
 from enum import StrEnum
 from typing import ClassVar
 from uuid import UUID
 
-from pydantic import ConfigDict
 from sqlalchemy import Column, ForeignKey, String, Table
 from sqlmodel import Field, Index, SQLModel, text
 
@@ -155,21 +153,16 @@ class GroupUpdate(SQLModel):
     )
 
 
-class GroupRead(SQLModel):
+class GroupRead(BaseResource):
     """Schema for group response (GET /groups/{id}).
 
     Includes all fields from the database table model.
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
-
-    id: UUID
     name: str
     description: str | None = None
     is_builtin: bool = False
     created_by: UUID | None = None
-    created_at: datetime
-    updated_at: datetime
     source: str = GroupSource.LOCAL
     member_count: int = 0
 

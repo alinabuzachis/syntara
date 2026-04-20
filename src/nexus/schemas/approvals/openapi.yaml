@@ -261,66 +261,95 @@ paths:
 components:
   schemas:
     ApprovalRequestRead:
+      additionalProperties: false
       allOf:
         - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/BaseResource"
         - type: object
           title: ApprovalRequestRead
-          description: |
-            Human-in-the-loop decision point that pauses a workflow branch
-            pending approver response.
+          description: |-
+            ApprovalRequest API response model with UserReference for decided_by.
+
+
+              Extends BaseApprovalRequest with the API-specific decided_by field
+
+              that contains a UserReference object for API responses.
           required:
+            - name
             - execution_id
             - approval_node_id
-            - name
-            - status
             - next_step_approved
-            - workflow_context
           properties:
             project_id:
-              type: [string, "null"]
-              format: uuid
+              anyOf:
+                - format: uuid
+                  type: string
+                - type: "null"
               description: Project this approval belongs to (denormalized from execution)
+              title: Project Id
             execution_id:
               type: string
               format: uuid
-              description: Parent workflow execution ID
+              description: Parent execution ID
+              title: Execution Id
             approval_node_id:
               type: string
+              maxLength: 255
+              minLength: 1
               description: Activity ID from workflow definition
+              title: Approval Node Id
             name:
               type: string
               maxLength: 255
-              description: Display name for the approval request
+              minLength: 1
+              description: Human-readable name for the approval request
+              title: Name
             status:
               $ref: "#/components/schemas/ApprovalRequestStatus"
+              default: pending
+              description: Current approval status
             timeout_at:
-              type: [string, "null"]
-              format: date-time
-              description: When this request expires (null = no timeout)
-            next_step_approved:
-              description: First activity that executes if approved
-              allOf:
-                - $ref: "#/components/schemas/ActivitySummary"
-            next_step_rejected:
-              description: First activity that executes if rejected (null if path ends workflow)
-              oneOf:
-                - $ref: "#/components/schemas/ActivitySummary"
+              anyOf:
+                - format: date-time
+                  type: string
                 - type: "null"
+              description: When this request expires
+              title: Timeout At
+            next_step_approved:
+              additionalProperties: true
+              description: First activity that executes if approved
+              title: Next Step Approved
+              type: object
+            next_step_rejected:
+              anyOf:
+                - additionalProperties: true
+                  type: object
+                - type: "null"
+              description: First activity that executes if rejected
+              title: Next Step Rejected
             workflow_context:
-              $ref: "#/components/schemas/WorkflowContext"
+              additionalProperties: true
+              description: Workflow inputs and previous step output
+              title: Workflow Context
+              type: object
             decided_by:
-              description: User who made the decision (captures name at decision time)
-              oneOf:
+              anyOf:
                 - $ref: "#/components/schemas/UserReference"
                 - type: "null"
+              description: User who made the decision
             decided_at:
-              type: [string, "null"]
-              format: date-time
+              anyOf:
+                - format: date-time
+                  type: string
+                - type: "null"
               description: When decision was made
+              title: Decided At
             decision_notes:
-              type: [string, "null"]
-              maxLength: 2000
-              description: Notes provided with the decision
+              anyOf:
+                - maxLength: 2000
+                  type: string
+                - type: "null"
+              description: Notes provided with decision
+              title: Decision Notes
 
     ApprovalRequestStatus:
       type: string

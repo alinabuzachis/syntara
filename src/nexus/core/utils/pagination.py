@@ -9,6 +9,7 @@ Cursor Format:
 """
 
 from collections.abc import Sequence
+from typing import TypedDict
 
 from nexus.core.models.base import BaseResource
 from nexus.core.utils.cursor import (
@@ -19,6 +20,15 @@ from nexus.core.utils.cursor import (
 )
 
 
+class PaginationResult(TypedDict):
+    """Typed return value of a Paginated response."""
+
+    trimmed_items: list[BaseResource]
+    next: str | None
+    prev: str | None
+    total: int | None
+
+
 def generate_response(
     items: Sequence[BaseResource],
     limit: int,
@@ -27,7 +37,7 @@ def generate_response(
     include_total: bool = False,
     total_count: int | None = None,
     is_first_page: bool = False,
-) -> dict[str, list[BaseResource] | str | int | None]:
+) -> PaginationResult:
     """Generate paginated response with next/prev cursor tokens using N+1 pattern.
 
     This implementation uses the industry-standard "Fetch N+1" pattern where the caller
@@ -73,7 +83,7 @@ def generate_response(
         >>> # }
 
     """
-    response: dict[str, list[BaseResource] | str | int | None] = {}
+    response: PaginationResult = {"trimmed_items": [], "next": None, "prev": None, "total": None}
 
     # Detect if this was backward pagination by checking cursor direction
     is_backward_pagination = False

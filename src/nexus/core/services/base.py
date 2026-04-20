@@ -740,11 +740,7 @@ class BaseService:
         )
 
         # Extract trimmed items from pagination response
-        trimmed_items = pagination_metadata["trimmed_items"]
-        if not isinstance(trimmed_items, list):
-            trimmed_resources: list[TModel] = []
-        else:
-            trimmed_resources = trimmed_items  # type: ignore[assignment]
+        trimmed_resources: list[TModel] = pagination_metadata["trimmed_items"]  # type: ignore[assignment]
 
         # Call post-query callback with TRIMMED database objects
         # Use parameter callback if provided, otherwise use mixin method

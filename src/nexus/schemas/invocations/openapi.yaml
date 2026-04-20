@@ -487,7 +487,6 @@ components:
         - failed
 
     Invocation:
-      type: object
       title: Invocation
       additionalProperties: false
       description: |-
@@ -512,106 +511,76 @@ components:
             result: Workflow result data
             error_message: Error message if invocation failed
             checkpoint_data: Checkpoint data for pause/resume
-      required:
-        - created_by
-        - prompt
-        - session_id
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-          description: Unique identifier for the resource
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
-          description: Timestamp when resource was last updated
-        created_by:
-          type: string
-          format: uuid
-          title: Created By
-          description: User who created the resource
-        updated_by:
-          title: Updated By
-          description: User who last updated the resource
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-        labels:
-          type: object
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
-          additionalProperties:
-            type: string
-        prompt:
-          type: string
-          minLength: 1
-          maxLength: 10000
-          title: Prompt
-          description: Natural language user request
-        session_id:
-          type: string
-          minLength: 1
-          maxLength: 255
-          title: Session Id
-          description: Session identifier for multi-tenant isolation
-        status:
-          $ref: '#/components/schemas/InvocationStatus'
-          default: created
-          description: Current invocation status
-        model_name:
-          title: Model Name
-          description: LLM model name used for the invocation
-          anyOf:
-            - type: string
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource"
+        - type: object
+          title: Invocation
+          required:
+            - prompt
+            - session_id
+          properties:
+            prompt:
+              type: string
+              minLength: 1
+              maxLength: 10000
+              title: Prompt
+              description: Natural language user request
+            session_id:
+              type: string
+              minLength: 1
               maxLength: 255
-            - type: 'null'
-        started_at:
-          title: Started At
-          description: Timestamp when workflow execution started
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-        completed_at:
-          title: Completed At
-          description: Timestamp when workflow completed
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-        context_data:
-          type: object
-          title: Context Data
-          description: Additional context for the request, including file_ids array if files uploaded
-          additionalProperties: true
-        result:
-          title: Result
-          description: Workflow result data
-          anyOf:
-            - type: object
+              title: Session Id
+              description: Session identifier for multi-tenant isolation
+            status:
+              $ref: '#/components/schemas/InvocationStatus'
+              default: created
+              description: Current invocation status
+            model_name:
+              title: Model Name
+              description: LLM model name used for the invocation
+              anyOf:
+                - type: string
+                  maxLength: 255
+                - type: 'null'
+            started_at:
+              title: Started At
+              description: Timestamp when workflow execution started
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            completed_at:
+              title: Completed At
+              description: Timestamp when workflow completed
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            context_data:
+              type: object
+              title: Context Data
+              description: Additional context for the request, including file_ids array if files uploaded
               additionalProperties: true
-            - type: 'null'
-        error_message:
-          title: Error Message
-          description: Error message if invocation failed
-          anyOf:
-            - type: string
-            - type: 'null'
-        checkpoint_data:
-          title: Checkpoint Data
-          description: Checkpoint data for pause/resume
-          anyOf:
-            - type: object
-              additionalProperties: true
-            - type: 'null'
+            result:
+              title: Result
+              description: Workflow result data
+              anyOf:
+                - type: object
+                  additionalProperties: true
+                - type: 'null'
+            error_message:
+              title: Error Message
+              description: Error message if invocation failed
+              anyOf:
+                - type: string
+                - type: 'null'
+            checkpoint_data:
+              title: Checkpoint Data
+              description: Checkpoint data for pause/resume
+              anyOf:
+                - type: object
+                  additionalProperties: true
+                - type: 'null'
 
     InvocationRequest:
       type: object
@@ -669,18 +638,16 @@ components:
       allOf:
         - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
         - type: object
-          title: Invocation List Response
-          description: Paginated response containing invocations
           required:
             - resources
           properties:
             resources:
               type: array
-              title: Invocations
-              description: Array of invocations in current page
               items:
                 $ref: '#/components/schemas/Invocation'
               maxItems: 100
+      title: InvocationListResponse
+      description: Paginated list response for invocations.
 
     InvocationCreateRequest:
       type: object

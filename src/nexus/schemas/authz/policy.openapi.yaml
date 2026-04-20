@@ -389,6 +389,8 @@ components:
                 $ref: "#/components/schemas/PolicyRead"
           required:
             - resources
+      title: PolicyListResponse
+      description: Paginated list response for policies.
 
   securitySchemes:
     bearerAuth:

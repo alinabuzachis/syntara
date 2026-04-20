@@ -682,6 +682,8 @@ components:
               items:
                 $ref: '#/components/schemas/UserRead'
               maxItems: 100
+      title: UserListResponse
+      description: Paginated list response for users.
 
     UserGroupsSet:
       type: object
@@ -748,56 +750,45 @@ components:
           title: Description
 
     GroupRead:
-      type: object
       title: GroupRead
+      additionalProperties: false
       description: |-
         Schema for group response (GET /groups/{id}).
 
         Includes all fields from the database table model.
-      required:
-        - id
-        - name
-        - created_at
-        - updated_at
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-        name:
-          type: string
-          title: Name
-        description:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Description
-        is_builtin:
-          type: boolean
-          default: false
-          title: Is Builtin
-        created_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Created By
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
-        source:
-          type: string
-          default: local
-          title: Source
-        member_count:
-          type: integer
-          default: 0
-          title: Member Count
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/BaseResource"
+        - type: object
+          title: GroupRead
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              title: Name
+            description:
+              anyOf:
+                - type: string
+                - type: 'null'
+              title: Description
+            is_builtin:
+              type: boolean
+              default: false
+              title: Is Builtin
+            created_by:
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: 'null'
+              title: Created By
+            source:
+              type: string
+              default: local
+              title: Source
+            member_count:
+              type: integer
+              default: 0
+              title: Member Count
 
     GroupListResponse:
       allOf:
@@ -811,6 +802,8 @@ components:
               items:
                 $ref: '#/components/schemas/GroupRead'
               maxItems: 100
+      title: GroupListResponse
+      description: Paginated list response for groups.
 
     GroupMemberAdd:
       type: object

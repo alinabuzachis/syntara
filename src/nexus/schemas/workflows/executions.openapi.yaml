@@ -353,41 +353,25 @@ components:
       type: object
 
     ExecutionListResponse:
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/ExecutionRead'
+              title: Resources
+              description: Array of resources in current page
+      title: ExecutionListResponse
       description: Paginated list response for executions.
       examples:
         - next: eyJpZCI6InV1aWQifQ
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for next page of results
-          title: Next
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for previous page of results
-          title: Prev
-        resources:
-          description: Array of resources in current page
-          items: {}
-          title: Resources
-          type: array
-        total:
-          anyOf:
-            - minimum: 0.0
-              type: integer
-            - type: 'null'
-          description: Total count of resources (only when include_total=true)
-          title: Total
-      required:
-        - resources
-      title: ExecutionListResponse
-      type: object
 
     ActivityData:
       description: Activity data for execution response.

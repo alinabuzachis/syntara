@@ -193,36 +193,82 @@ components:
         - timeout
 
     ToolExecutionListResponse:
-      type: object
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolExecution'
       title: ToolExecutionListResponse
       description: Paginated list response for tool executions.
-      properties:
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ToolExecution'
-          description: Array of resources in current page
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - type: integer
-              minimum: 0
-            - type: 'null'
-          description: Total count of resources (only when include_total=true)
+
+    ToolMetricsToolSummary:
+      type: object
+      title: ToolMetricsToolSummary
+      additionalProperties: false
+      description: Per-tool aggregated metrics summary for the metrics/tools endpoint.
       required:
-        - resources
+        - namespaced_name
+        - total_executions
+        - success_count
+        - error_count
+        - timeout_count
+        - success_rate
+        - avg_duration_ms
+      properties:
+        namespaced_name:
+          type: string
+          title: Namespaced Name
+          description: Tool identifier (e.g., 'provider::tool')
+        total_executions:
+          type: integer
+          title: Total Executions
+          description: Total execution count
+        success_count:
+          type: integer
+          title: Success Count
+          description: Successful executions
+        error_count:
+          type: integer
+          title: Error Count
+          description: Error executions
+        timeout_count:
+          type: integer
+          title: Timeout Count
+          description: Timeout executions
+        success_rate:
+          type: number
+          title: Success Rate
+          description: Success rate (0.0 to 1.0)
+        avg_duration_ms:
+          type: number
+          title: Avg Duration Ms
+          description: Average execution duration in milliseconds
+        last_execution_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Execution At
+          description: Timestamp of most recent execution
 
     ToolMetricsToolSummaryListResponse:
-      type: object
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolMetricsToolSummary'
+              description: Array of resources in current page
+              title: Resources
       title: ToolMetricsToolSummaryListResponse
       description: Paginated list response for tool metrics summaries.
       examples:
@@ -230,94 +276,95 @@ components:
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for next page of results
-          title: Next
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for previous page of results
-          title: Prev
-        resources:
-          type: array
-          items: {}
-          description: Array of resources in current page
-          title: Resources
-        total:
-          anyOf:
-            - type: integer
-              minimum: 0.0
-            - type: 'null'
-          description: Total count of resources (only when include_total=true)
-          title: Total
 
     ToolExecution:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        tool_id:
-          type: string
-          format: uuid
-        provider_id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        execution_start:
-          type: string
-          format: date-time
-        execution_end:
-          type: [string, "null"]
-          format: date-time
-        duration_ms:
-          type: [integer, "null"]
-        status:
-          $ref: '#/components/schemas/ToolExecutionStatus'
-        input_parameters:
-          type: object
-          description: Tool input parameters as JSON
-        output_data:
-          type: [object, "null"]
-          description: Tool output data as JSON
-        error_message:
-          type: [string, "null"]
-        error_code:
-          type: [string, "null"]
-        created_at:
-          type: string
-          format: date-time
-        created_by:
-          type: string
-          format: uuid
-        updated_at:
-          type: [string, "null"]
-          format: date-time
-        updated_by:
-          type: [string, "null"]
-          format: uuid
-        deleted_at:
-          type: [string, "null"]
-          format: date-time
-        deleted_by:
-          type: [string, "null"]
-          format: uuid
-      required:
-        - id
-        - tool_id
-        - provider_id
-        - user_id
-        - execution_start
-        - status
-        - input_parameters
-        - created_at
-        - created_by
+      allOf:
+        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/UserOwnedResource'
+        - type: object
+          required:
+            - tool_id
+            - provider_id
+            - user_id
+            - execution_start
+            - status
+            - input_parameters
+          properties:
+            tool_id:
+              type: string
+              format: uuid
+              title: Tool Id
+              description: Foreign key to Tool
+            provider_id:
+              type: string
+              format: uuid
+              title: Provider Id
+              description: Foreign key to Tool Provider
+            user_id:
+              type: string
+              format: uuid
+              title: User Id
+              description: Identifier of executing user/agent
+            execution_start:
+              type: string
+              format: date-time
+              title: Execution Start
+              description: Execution start timestamp
+            execution_end:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+              title: Execution End
+              description: Execution completion timestamp
+            duration_ms:
+              anyOf:
+                - type: integer
+                  minimum: 0
+                - type: 'null'
+              title: Duration Ms
+              description: Execution duration in milliseconds
+            status:
+              $ref: '#/components/schemas/ToolExecutionStatus'
+              description: Execution status
+            input_parameters:
+              type: object
+              additionalProperties: true
+              title: Input Parameters
+              description: Tool input parameters
+            output_data:
+              anyOf:
+                - type: object
+                  additionalProperties: true
+                - type: 'null'
+              title: Output Data
+              description: Tool output data
+            error_message:
+              anyOf:
+                - type: string
+                - type: 'null'
+              title: Error Message
+              description: Error description for failed executions
+            error_code:
+              anyOf:
+                - type: string
+                  maxLength: 100
+                - type: 'null'
+              title: Error Code
+              description: Structured error code
+      additionalProperties: false
+      title: ToolExecution
+      description: |-
+        Tool execution records stored in database.
+
+        Records individual Tool executions for performance monitoring and analysis.
+        This model matches the ToolExecution schema from the metrics contract.
+
+        Inherits from UserOwnedResource:
+            id: UUID primary key
+            created_at: Creation timestamp
+            updated_at: Last update timestamp
+            created_by: UUID of user who created the resource
+            updated_by: Optional UUID of user who last updated the resource
+            deleted_at: Optional timestamp when resource was soft deleted
+            deleted_by: Optional UUID of user who performed the soft delete
+            labels: Optional key-value metadata

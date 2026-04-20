@@ -5,7 +5,7 @@ with user-provided identification fields (name and description).
 """
 
 from abc import ABC
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from sqlalchemy import String
 from sqlmodel import Field
@@ -55,6 +55,12 @@ class NamedResource(BaseResource, ABC):
         sa_type=String(FieldLimits.DESCRIPTION_MAX_LENGTH),  # type: ignore[call-overload]
         description="Detailed description of the resource",
     )
+
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
+        **BaseResource.FIELD_SCHEMA_EXTRAS,
+        "name": {"example": "Authentication Service"},
+        "description": {"example": "Handles user authentication and authorization workflows"},
+    }
 
     # Named resource fields extend base fields
     __filterable_fields__: ClassVar[list[str]] = [

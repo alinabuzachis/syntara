@@ -5,14 +5,11 @@ Defines the schema (what fields a Credential has) and consumption model
 Managed types are preseeded and cannot be deleted by users.
 """
 
-from datetime import datetime
 from typing import Any, ClassVar
-from uuid import UUID
 
-from pydantic import ConfigDict
 from sqlalchemy import String, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
@@ -67,20 +64,15 @@ class CredentialType(BaseResource, table=True):
     ]
 
 
-class CredentialTypeRead(SQLModel):
+class CredentialTypeRead(BaseResource):
     """Read schema for credential type API responses."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
-
-    id: UUID
     name: str
     description: str | None = None
     inputs: dict[str, Any] = Field(default_factory=dict)
     injectors: dict[str, Any] = Field(default_factory=dict)
     managed: bool = False
     credential_count: int = Field(default=0, description="Number of non-deleted credentials using this type")
-    created_at: datetime
-    updated_at: datetime
 
 
 class CredentialTypeListResponse(ResourcesResponse[CredentialTypeRead]):

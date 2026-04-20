@@ -31,10 +31,6 @@ components:
       type: object
       title: Base Resource
       description: Foundational schema for all API resources with system-managed metadata
-      required:
-        - id
-        - created_at
-        - updated_at
       properties:
         id:
           type: string
@@ -86,8 +82,10 @@ components:
               description: Human-readable name for the resource
               example: Authentication Service
             description:
-              type: [string, "null"]
-              maxLength: 2000
+              anyOf:
+                - type: string
+                  maxLength: 2000
+                - type: 'null'
               title: Description
               description: Detailed description of the resource
               example: Handles user authentication and authorization workflows
@@ -100,15 +98,19 @@ components:
           description: Extension of BaseResource supporting soft deletion tracking
           properties:
             deleted_at:
-              type: [string, "null"]
-              format: date-time
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
               readOnly: true
               title: Deleted At
               description: Timestamp when resource was soft deleted
               example: '2025-10-09T14:00:00Z'
             deleted_by:
-              type: [string, "null"]
-              format: uuid
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: 'null'
               readOnly: true
               title: Deleted By
               description: User who performed the soft delete
@@ -131,8 +133,10 @@ components:
               description: User who created the resource
               example: 770e8400-e29b-41d4-a716-446655440000
             updated_by:
-              type: [string, "null"]
-              format: uuid
+              anyOf:
+                - type: string
+                  format: uuid
+                - type: 'null'
               readOnly: true
               title: Updated By
               description: User who last updated the resource
@@ -140,9 +144,9 @@ components:
 
     Resource:
       allOf:
-        - $ref: '#/components/schemas/NamedResource'
-        - $ref: '#/components/schemas/SoftDeletableResource'
         - $ref: '#/components/schemas/UserOwnedResource'
+        - $ref: '#/components/schemas/SoftDeletableResource'
+        - $ref: '#/components/schemas/NamedResource'
       title: Resource
       description: Composite resource combining named, soft-deletable, and user-owned capabilities
 
@@ -200,23 +204,36 @@ components:
       type: object
       title: Paginated Response Base
       description: Pagination metadata structure for list responses
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
       properties:
         next:
-          type: [string, "null"]
-          title: Next Page Cursor
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
           description: Cursor for next page of results
-          example: eyJpZCI6InV1aWQifQ
         prev:
-          type: [string, "null"]
-          title: Previous Page Cursor
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
           description: Cursor for previous page of results
-          example: eyJpZCI6InV1aWQifQ
         total:
-          type: [integer, "null"]
-          minimum: 0
-          title: Total Count
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
           description: Total count of resources (only when include_total=true)
-          example: 150
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
 
   parameters:
     limitParam:

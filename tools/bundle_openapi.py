@@ -54,6 +54,7 @@ _EXCLUDED_FROM_BUNDLE_OUTPUT: frozenset[str] = frozenset(
         "SoftDeletableResource",
         "UserOwnedResource",
         "Resource",
+        "ResourcesResponseBase",
     }
 )
 
@@ -111,13 +112,30 @@ def _resolve_external_ref(
     if visit_key in visited:
         raise _circular_ref_error(ref, base_path)
     target_data = _load_yaml(target_file)
+
+    # Register the external file's own component schemas so that same-file
+    # $refs within it (e.g. #/components/schemas/ActivityStatus inside
+    # shared-schemas.yaml) are preserved as named component refs instead of
+    # being inlined at every usage site.
+    # Excluded schemas are intentionally omitted so that refs to them within
+    # inlined schemas are themselves inlined (not kept as dangling local refs).
+    extended_shared_refs = dict(shared_refs)
+    for section, items in target_data.get("components", {}).items():
+        if isinstance(items, dict):
+            for name in items:
+                if section == "schemas" and name in _EXCLUDED_FROM_BUNDLE_OUTPUT:
+                    continue
+                key = f"{target_file}#/components/{section}/{name}"
+                if key not in extended_shared_refs:
+                    extended_shared_refs[key] = f"#/components/{section}/{name}"
+
     resolved = _resolve_json_pointer(target_data, fragment) if fragment else target_data
     return _resolve_refs(
         resolved,
         target_file.parent,
         visited | {visit_key},
         root_doc=target_data,
-        shared_refs=shared_refs,
+        shared_refs=extended_shared_refs,
         current_file=target_file,
     )
 
@@ -428,6 +446,92 @@ def _compute_reachable_schemas(
     return visited
 
 
+def _deep_merge_property(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Merge two property schemas: override wins for scalar keys, dicts are merged recursively."""
+    result = dict(base)
+    for k, v in override.items():
+        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+            result[k] = _deep_merge_property(result[k], v)
+        else:
+            result[k] = v
+    return result
+
+
+def _merge_plain_allof(schema: dict[str, Any]) -> dict[str, Any]:  # noqa: C901, PLR0912
+    """Merge an allOf whose every item is a plain object into a single flat schema.
+
+    Skips schemas where any allOf item contains a $ref or combining keyword
+    (allOf/anyOf/oneOf/not), since those require proper JSON Schema resolution.
+    Properties are deep-merged so domain-specific sub-keys (e.g. items) layer
+    on top of base schema sub-keys (e.g. maxItems, title) for the same property.
+    The outer schema's keys always take precedence over values from allOf items.
+    Non-special scalar keys (e.g. title, description, additionalProperties) are
+    collected from allOf items with later items overriding earlier ones, then
+    applied to the result if not already set by the outer schema.
+    """
+    all_of = schema.get("allOf")
+    if not isinstance(all_of, list) or not all_of:
+        return schema
+
+    _complex_kw = {"$ref", "allOf", "anyOf", "oneOf", "not"}
+    for item in all_of:
+        if not isinstance(item, dict) or any(k in item for k in _complex_kw):
+            return schema
+
+    merged_props: dict[str, Any] = {}
+    merged_required: list[str] = []
+    item_type: str | None = None
+    item_examples: list[Any] | None = None
+    item_scalars: dict[str, Any] = {}
+
+    _special_merge_keys = {"properties", "required", "type", "examples"}
+
+    for item in all_of:
+        for prop_name, prop_schema in item.get("properties", {}).items():
+            if (
+                prop_name in merged_props
+                and isinstance(merged_props[prop_name], dict)
+                and isinstance(prop_schema, dict)
+            ):
+                merged_props[prop_name] = _deep_merge_property(merged_props[prop_name], prop_schema)
+            else:
+                merged_props[prop_name] = prop_schema
+        merged_required.extend(item.get("required", []))
+        if item_type is None and "type" in item:
+            item_type = item["type"]
+        if item_examples is None and "examples" in item:
+            item_examples = item["examples"]
+        item_scalars.update({k: v for k, v in item.items() if k not in _special_merge_keys})
+
+    result = {k: v for k, v in schema.items() if k != "allOf"}
+    if merged_props:
+        existing = result.get("properties", {})
+        result["properties"] = {**merged_props, **existing}
+    if merged_required:
+        existing_set = set(result.get("required", []))
+        extra = [r for r in merged_required if r not in existing_set]
+        if extra:
+            result["required"] = list(result.get("required", [])) + extra
+    if item_type is not None and "type" not in result:
+        result["type"] = item_type
+    if item_examples is not None and "examples" not in result:
+        result["examples"] = item_examples
+    for k, v in item_scalars.items():
+        if k not in result:
+            result[k] = v
+    return result
+
+
+def _flatten_plain_allof(node: Any) -> Any:
+    """Recursively apply _merge_plain_allof to every dict node in the document."""
+    if isinstance(node, dict):
+        node = {k: _flatten_plain_allof(v) for k, v in node.items()}
+        return _merge_plain_allof(node)
+    if isinstance(node, list):
+        return [_flatten_plain_allof(item) for item in node]
+    return node
+
+
 def _prune_unreferenced_shared_schemas(
     merged: dict[str, Any],
     shared_schema_names: set[str],
@@ -488,7 +592,8 @@ def _build_merged_spec(sub_specs: list[Path]) -> dict[str, Any]:
     # Remove shared schemas that are no longer referenced by any path or sub-spec schema
     _prune_unreferenced_shared_schemas(merged, shared_schema_names)
 
-    return merged
+    # Merge allOf of plain objects into flat schemas
+    return _flatten_plain_allof(merged)
 
 
 # ---------------------------------------------------------------------------

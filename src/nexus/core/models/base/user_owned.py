@@ -5,7 +5,7 @@ with user ownership and modification tracking.
 """
 
 from abc import ABC
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
 from sqlmodel import Field
@@ -80,6 +80,12 @@ class UserOwnedResource(BaseResource, ABC):
 
         """
         return self.updated_by == user_id
+
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
+        **BaseResource.FIELD_SCHEMA_EXTRAS,
+        "created_by": {"readOnly": True, "example": "770e8400-e29b-41d4-a716-446655440000"},
+        "updated_by": {"readOnly": True, "example": "880e8400-e29b-41d4-a716-446655440000"},
+    }
 
     # User ownership fields extend base fields
     __filterable_fields__: ClassVar[list[str]] = [

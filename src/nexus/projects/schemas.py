@@ -6,6 +6,8 @@ from uuid import UUID
 
 from sqlmodel import SQLModel
 
+from nexus.core.models.base import BaseResource
+
 
 class ProjectCreate(SQLModel):
     """Request body for creating a project."""
@@ -23,16 +25,12 @@ class ProjectUpdate(SQLModel):
     labels: dict[str, Any] | None = None
 
 
-class ProjectRead(SQLModel):
+class ProjectRead(BaseResource):
     """Response body for a project."""
 
-    id: UUID
     name: str
     description: str | None = None
-    labels: dict[str, Any] = {}
     is_default: bool = False
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
 
 
 class ProjectRoleAssignmentCreate(SQLModel):

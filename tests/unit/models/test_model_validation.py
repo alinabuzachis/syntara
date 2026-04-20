@@ -56,15 +56,12 @@ class TestPaginationValidation:
         assert response.resources[0]["name"] == "Resource 1"
 
     def test_resources_response_many_items(self) -> None:
-        """Test ResourcesResponse with many items."""
-        # Note: max_items validation may not be working as expected in current SQLModel version
-        # This test verifies the model can handle large lists without crashing
+        """Test ResourcesResponse rejects lists exceeding max page size."""
         resources = [{"id": str(uuid4())} for _ in range(101)]
 
-        response = ResourcesResponse[dict[str, str]](
-            resources=resources,
-            next=None,
-            prev=None,
-        )
-
-        assert len(response.resources) == 101
+        with pytest.raises(ValidationError, match="too_long"):
+            ResourcesResponse[dict[str, str]](
+                resources=resources,
+                next=None,
+                prev=None,
+            )

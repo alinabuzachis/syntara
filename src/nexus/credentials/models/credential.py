@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import Any, ClassVar
 from uuid import UUID
 
-from pydantic import ConfigDict
 from sqlalchemy import Index
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -72,23 +71,27 @@ class CredentialCreate(SQLModel):
     labels: dict[str, str] = Field(default_factory=dict, description="Key-value labels")
 
 
-class CredentialRead(SQLModel):
+class CredentialRead(Resource):
     """Schema for credential API responses. Secret fields masked as $encrypted$."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)  # type: ignore[assignment]
+    # Override ownership fields: accept username strings or UUIDs (resolved by service layer).
+    # Preserves type/format/readOnly/example metadata expected by the spec via FIELD_SCHEMA_EXTRAS.
+    created_by: str | UUID | None = Field(description="Username or UUID of the credential creator")  # type: ignore[assignment]
+    updated_by: str | UUID | None = Field(default=None, description="Username or UUID of the last modifier")  # type: ignore[assignment]
 
-    id: UUID
-    name: str
-    description: str | None = None
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
+        **Resource.FIELD_SCHEMA_EXTRAS,
+        "created_by": {
+            **Resource.FIELD_SCHEMA_EXTRAS["created_by"],
+            "type": "string",
+            "format": "uuid",
+        },
+    }
+
     credential_type_id: UUID
     inputs: dict[str, Any] = Field(default_factory=dict)
     enabled: bool = True
-    labels: dict[str, str] = Field(default_factory=dict)
     workflow_count: int = Field(default=0, description="Number of workflows referencing this credential")
-    created_by: str | UUID | None = Field(default=None, description="Username or UUID of the credential creator")
-    updated_by: str | UUID | None = Field(default=None, description="Username or UUID of the last modifier")
-    created_at: datetime
-    updated_at: datetime
 
 
 class CredentialPatch(SQLModel):

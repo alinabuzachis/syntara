@@ -796,54 +796,71 @@ components:
         ask_job_type_on_launch:
           type: boolean
           default: false
+          title: Ask Job Type On Launch
         ask_inventory_on_launch:
           type: boolean
           default: false
+          title: Ask Inventory On Launch
         ask_credential_on_launch:
           type: boolean
           default: false
+          title: Ask Credential On Launch
         ask_variables_on_launch:
           type: boolean
           default: false
+          title: Ask Variables On Launch
         ask_limit_on_launch:
           type: boolean
           default: false
+          title: Ask Limit On Launch
         ask_tags_on_launch:
           type: boolean
           default: false
+          title: Ask Tags On Launch
         ask_skip_tags_on_launch:
           type: boolean
           default: false
+          title: Ask Skip Tags On Launch
         ask_verbosity_on_launch:
           type: boolean
           default: false
+          title: Ask Verbosity On Launch
         ask_diff_mode_on_launch:
           type: boolean
           default: false
+          title: Ask Diff Mode On Launch
         ask_forks_on_launch:
           type: boolean
           default: false
+          title: Ask Forks On Launch
         ask_job_slice_count_on_launch:
           type: boolean
           default: false
+          title: Ask Job Slice Count On Launch
         ask_execution_environment_on_launch:
           type: boolean
           default: false
+          title: Ask Execution Environment On Launch
         ask_instance_groups_on_launch:
           type: boolean
           default: false
+          title: Ask Instance Groups On Launch
         ask_labels_on_launch:
           type: boolean
           default: false
+          title: Ask Labels On Launch
         ask_timeout_on_launch:
           type: boolean
           default: false
+          title: Ask Timeout On Launch
         ask_scm_branch_on_launch:
           type: boolean
           default: false
+          title: Ask Scm Branch On Launch
         survey_enabled:
           type: boolean
           default: false
+          title: Survey Enabled
 
     AAPInventory:
       type: object
@@ -888,7 +905,11 @@ components:
     AAPCredential:
       type: object
       title: AAPCredential
-      description: AAP credential resource (description omitted to avoid leaking infrastructure details).
+      description: |-
+        AAP credential resource.
+
+        Only ``id`` and ``name`` are exposed — descriptions are omitted to avoid
+        leaking infrastructure details (e.g. "prod-aws-root-key") to all users.
       required:
         - id
         - name
@@ -928,7 +949,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: "#/components/schemas/AAPOrganization"
 
@@ -945,7 +965,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: "#/components/schemas/AAPJobTemplate"
 
@@ -962,7 +981,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: "#/components/schemas/AAPInventory"
 
@@ -979,7 +997,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: "#/components/schemas/AAPExecutionEnvironment"
 
@@ -996,7 +1013,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: "#/components/schemas/AAPCredential"
 
@@ -1013,7 +1029,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: "#/components/schemas/AAPInstanceGroup"
 

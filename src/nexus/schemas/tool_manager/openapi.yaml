@@ -768,7 +768,18 @@ paths:
 components:
   schemas:
     ToolListResponse:
-      type: object
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolWithParameters'
+              description: Array of resources in current page
+              title: Resources
       title: ToolListResponse
       description: Paginated list response for tools.
       examples:
@@ -776,33 +787,6 @@ components:
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for next page of results
-          title: Next
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for previous page of results
-          title: Prev
-        resources:
-          type: array
-          items: {}
-          description: Array of resources in current page
-          title: Resources
-        total:
-          anyOf:
-            - type: integer
-              minimum: 0.0
-            - type: 'null'
-          description: Total count of resources (only when include_total=true)
-          title: Total
 
     ProviderStatus:
       type: string
@@ -834,231 +818,137 @@ components:
         - array
 
     ToolProviderListResponse:
-      type: object
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
+        - type: object
+          required:
+            - resources
+          properties:
+            resources:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolProviderWithConfiguration'
       title: ToolProviderListResponse
       description: Paginated list response for tool providers.
-      properties:
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ToolProviderWithConfiguration'
-          description: Array of resources in current page
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for next page of results
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for previous page of results
-        total:
-          anyOf:
-            - type: integer
-              minimum: 0
-            - type: 'null'
-          description: Total count of resources (only when include_total=true)
-      required:
-        - resources
 
     ToolWithParameters:
-      type: object
-      title: ToolWithParameters
-      additionalProperties: false
-      description: Schema for Tool response with ToolParameter details.
-      required:
-        - created_by
-        - name
-        - provider_id
-        - namespaced_name
-        - parameters
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-          description: Unique identifier for the resource
-        name:
-          type: string
-          minLength: 1
-          maxLength: 255
-          title: Name
-          description: Human-readable name for the resource
-        description:
-          anyOf:
-            - type: string
-              maxLength: 2000
-            - type: 'null'
-          title: Description
-          description: Detailed description of the resource
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
-          description: Timestamp when resource was last updated
-        created_by:
-          type: string
-          format: uuid
-          title: Created By
-          description: User who created the resource
-        updated_by:
-          anyOf:
-            - type: string
+      allOf:
+        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/Resource'
+        - type: object
+          title: ToolWithParameters
+          additionalProperties: false
+          description: Schema for Tool response with ToolParameter details.
+          required:
+            - provider_id
+            - namespaced_name
+            - parameters
+          properties:
+            provider_id:
+              type: string
               format: uuid
-            - type: 'null'
-          title: Updated By
-          description: User who last updated the resource
-        deleted_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-        deleted_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Deleted By
-          description: User who performed the soft delete
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
-        provider_id:
-          type: string
-          format: uuid
-          title: Provider Id
-          description: UUID of the associated tool provider
-        namespaced_name:
-          type: string
-          minLength: 1
-          maxLength: 200
-          title: Namespaced Name
-          description: Unique namespaced name for the tool
-        enabled:
-          type: boolean
-          default: true
-          title: Enabled
-          description: Whether the tool is enabled
-        status:
-          $ref: '#/components/schemas/ToolStatus'
-          default: available
-          description: Current status of the tool
-        last_executed_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Last Executed At
-          description: Timestamp of last execution
-        last_refreshed_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Last Refreshed At
-          description: Timestamp of last refresh from provider
-        refresh_error:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Refresh Error
-          description: Error message from last refresh attempt
-        parameters:
-          type: array
-          items:
-            $ref: '#/components/schemas/ToolParameter'
-          title: Parameters
-          description: Tool parameters
+              title: Provider Id
+              description: UUID of the associated tool provider
+            namespaced_name:
+              type: string
+              minLength: 1
+              maxLength: 200
+              title: Namespaced Name
+              description: Unique namespaced name for the tool
+            enabled:
+              type: boolean
+              default: true
+              title: Enabled
+              description: Whether the tool is enabled
+            status:
+              $ref: '#/components/schemas/ToolStatus'
+              default: available
+              description: Current status of the tool
+            last_executed_at:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+              title: Last Executed At
+              description: Timestamp of last execution
+            last_refreshed_at:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+              title: Last Refreshed At
+              description: Timestamp of last refresh from provider
+            refresh_error:
+              anyOf:
+                - type: string
+                - type: 'null'
+              title: Refresh Error
+              description: Error message from last refresh attempt
+            parameters:
+              type: array
+              items:
+                $ref: '#/components/schemas/ToolParameter'
+              title: Parameters
+              description: Tool parameters
 
     ToolParameter:
-      type: object
-      title: ToolParameter
-      additionalProperties: false
-      description: |-
-        Tool parameter definition stored in database.
+      allOf:
+        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/BaseResource'
+        - type: object
+          title: ToolParameter
+          additionalProperties: false
+          description: |-
+            Tool parameter definition stored in database.
 
-        Represents a parameter that a tool accepts, with its type, validation rules,
-        and example values.
+            Represents a parameter that a tool accepts, with its type, validation rules,
+            and example values.
 
-        Inherits from BaseResource:
-            id: UUID primary key
-            created_at: Creation timestamp
-            updated_at: Last update timestamp
-            labels: Optional key-value metadata
-      required:
-        - tool_id
-        - name
-        - type
-        - description
-        - required
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-          description: Unique identifier for the resource
-        tool_id:
-          type: string
-          format: uuid
-          title: Tool Id
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-          title: Name
-          description: Parameter name
-        type:
-          $ref: '#/components/schemas/ToolParameterType'
-          description: Parameter type
-        description:
-          type: string
-          title: Description
-          description: Parameter description
-        required:
-          type: boolean
-          title: Required
-          description: Whether this parameter is required
-        default_value:
-          anyOf:
-            - type: object
-              additionalProperties: true
-            - type: 'null'
-          title: Default Value
-          description: Default value for the parameter
-        example_value:
-          anyOf:
-            - type: object
-              additionalProperties: true
-            - type: 'null'
-          title: Example Value
-          description: Example value for the parameter
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
-          description: Timestamp when resource was last updated
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
+            Inherits from BaseResource:
+                id: UUID primary key
+                created_at: Creation timestamp
+                updated_at: Last update timestamp
+                labels: Optional key-value metadata
+          required:
+            - tool_id
+            - name
+            - type
+            - description
+            - required
+          properties:
+            tool_id:
+              type: string
+              format: uuid
+              title: Tool Id
+            name:
+              type: string
+              minLength: 1
+              maxLength: 100
+              title: Name
+              description: Parameter name
+            type:
+              $ref: '#/components/schemas/ToolParameterType'
+              description: Parameter type
+            description:
+              type: string
+              title: Description
+              description: Parameter description
+            required:
+              type: boolean
+              title: Required
+              description: Whether this parameter is required
+            default_value:
+              anyOf:
+                - type: object
+                  additionalProperties: true
+                - type: 'null'
+              title: Default Value
+              description: Default value for the parameter
+            example_value:
+              anyOf:
+                - type: object
+                  additionalProperties: true
+                - type: 'null'
+              title: Example Value
+              description: Example value for the parameter
 
     ToolUpdate:
       type: object
@@ -1112,100 +1002,42 @@ components:
         - enabled
 
     ToolProviderWithConfiguration:
-      type: object
-      title: ToolProviderWithConfiguration
-      additionalProperties: false
-      description: Schema for ToolProvider response with ProviderConfiguration details.
-      required:
-        - created_by
-        - name
-        - configuration
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-          description: Unique identifier for the resource
-        name:
-          type: string
-          minLength: 1
-          maxLength: 255
-          title: Name
-          description: Human-readable provider name
-        description:
-          anyOf:
-            - type: string
-              maxLength: 2000
-            - type: 'null'
-          title: Description
-          description: Detailed description of the resource
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
-          description: Timestamp when resource was last updated
-        created_by:
-          type: string
-          format: uuid
-          title: Created By
-          description: User who created the resource
-        updated_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Updated By
-          description: User who last updated the resource
-        deleted_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-        deleted_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Deleted By
-          description: User who performed the soft delete
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
-        enabled:
-          type: boolean
-          default: true
-          title: Enabled
-          description: Enable/disable the provider
-        status:
-          $ref: '#/components/schemas/ProviderStatus'
-          default: validating
-          description: Current status of the provider
-        last_validated_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Last Validated At
-          description: Timestamp of last validation
-        validation_error:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Validation Error
-          description: Error message from last validation attempt
-        configuration:
-          $ref: '#/components/schemas/MCPConfiguration'
-          description: ToolProvider configuration
+      allOf:
+        - $ref: '../base/shared-resources.openapi.yaml#/components/schemas/Resource'
+        - type: object
+          title: ToolProviderWithConfiguration
+          additionalProperties: false
+          description: Schema for ToolProvider response with ProviderConfiguration details.
+          required:
+            - configuration
+          properties:
+            name:
+              description: Human-readable provider name
+            enabled:
+              type: boolean
+              default: true
+              title: Enabled
+              description: Enable/disable the provider
+            status:
+              $ref: '#/components/schemas/ProviderStatus'
+              default: validating
+              description: Current status of the provider
+            last_validated_at:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+              title: Last Validated At
+              description: Timestamp of last validation
+            validation_error:
+              anyOf:
+                - type: string
+                - type: 'null'
+              title: Validation Error
+              description: Error message from last validation attempt
+            configuration:
+              $ref: '#/components/schemas/MCPConfiguration'
+              description: ToolProvider configuration
 
     ToolProviderCreate:
       type: object

@@ -356,6 +356,8 @@ components:
                 $ref: "#/components/schemas/RoleRead"
           required:
             - resources
+      title: RoleListResponse
+      description: Paginated list response for roles.
 
   securitySchemes:
     bearerAuth:

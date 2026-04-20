@@ -1,17 +1,18 @@
-"""Pagination response SQLModel definitions.
+"""Pagination response model definitions.
 
-This module contains SQLModel classes for cursor-based pagination responses.
+This module contains Pydantic classes for cursor-based pagination responses.
 """
 
-from typing import ClassVar
+from typing import ClassVar, Generic, TypeVar
 
-from pydantic import ConfigDict
-from sqlmodel import Field, SQLModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from nexus.core.constants import FieldLimits
 
+T = TypeVar("T")
 
-class ResourcesResponseBase(SQLModel):
+
+class ResourcesResponseBase(BaseModel):
     """Base pagination metadata SQLModel for list responses.
 
     This model provides the common pagination metadata fields used in
@@ -39,10 +40,10 @@ class ResourcesResponseBase(SQLModel):
                 {"next": "eyJpZCI6Im5leHQifQ", "prev": "eyJpZCI6InByZXYifQ", "total": None},
             ]
         },
-    )  # type: ignore[assignment]
+    )
 
 
-class ResourcesResponse[T](ResourcesResponseBase):
+class ResourcesResponse(ResourcesResponseBase, Generic[T]):  # noqa: UP046
     """Complete paginated response SQLModel with resource array.
 
     This generic model extends ResourcesResponseBase to include the actual
@@ -62,7 +63,7 @@ class ResourcesResponse[T](ResourcesResponseBase):
     """
 
     resources: list[T] = Field(
-        description="Array of resources in current page", max_items=FieldLimits.MAX_ITEMS_PER_PAGE
+        description="Array of resources in current page", max_length=FieldLimits.MAX_ITEMS_PER_PAGE
     )
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)

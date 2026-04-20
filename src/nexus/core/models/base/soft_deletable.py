@@ -6,7 +6,7 @@ with soft deletion tracking capabilities.
 
 from abc import ABC
 from datetime import UTC, datetime
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
 from sqlmodel import DateTime, Field
@@ -86,6 +86,12 @@ class SoftDeletableResource(BaseResource, ABC):
         """Restore a soft deleted resource to active state."""
         self.deleted_at = None
         self.deleted_by = None
+
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
+        **BaseResource.FIELD_SCHEMA_EXTRAS,
+        "deleted_at": {"readOnly": True, "example": "2025-10-09T14:00:00Z"},
+        "deleted_by": {"readOnly": True, "example": "660e8400-e29b-41d4-a716-446655440000"},
+    }
 
     # Soft deletion fields extend base fields
     __filterable_fields__: ClassVar[list[str]] = [

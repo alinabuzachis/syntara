@@ -583,46 +583,28 @@ components:
           title: Labels
 
     ProjectRead:
-      type: object
       title: ProjectRead
       description: Response body for a project.
-      required:
-        - id
-        - name
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-        name:
-          type: string
-          title: Name
-        description:
-          anyOf:
-            - type: string
-            - type: "null"
-          title: Description
-        labels:
-          type: object
-          default: {}
-          additionalProperties: true
-          title: Labels
-        is_default:
-          type: boolean
-          default: false
-          title: Is Default
-        created_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: "null"
-          title: Created At
-        updated_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: "null"
-          title: Updated At
+      additionalProperties: false
+      allOf:
+        - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/BaseResource"
+        - type: object
+          title: ProjectRead
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              title: Name
+            description:
+              anyOf:
+                - type: string
+                - type: "null"
+              title: Description
+            is_default:
+              type: boolean
+              default: false
+              title: Is Default
 
     ProjectRoleAssignmentCreate:
       type: object
@@ -738,45 +720,6 @@ components:
             - type: "null"
           title: Created At
 
-    # Re-used response schemas from other domains (minimal definitions
-    # for the bundled spec to avoid cross-domain $ref issues)
-    WorkflowListResponse:
-      type: object
-      title: WorkflowListResponse
-      description: Paginated list response for workflows.
-      required:
-        - resources
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
-      properties:
-        next:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for next page of results
-          title: Next
-        prev:
-          anyOf:
-            - type: string
-            - type: 'null'
-          description: Cursor for previous page of results
-          title: Prev
-        resources:
-          type: array
-          items: {}
-          description: Array of resources in current page
-          title: Resources
-        total:
-          anyOf:
-            - type: integer
-              minimum: 0.0
-            - type: 'null'
-          description: Total count of resources (only when include_total=true)
-          title: Total
-
     ApprovalListResponse:
       allOf:
         - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
@@ -785,10 +728,11 @@ components:
             resources:
               type: array
               items:
-                type: object
-                description: Approval request resource (see approvals domain spec for full schema)
+                $ref: '#/components/schemas/ApprovalRequestRead'
           required:
             - resources
+      title: ApprovalListResponse
+      description: Paginated list response for approval requests.
 
   securitySchemes:
     bearerAuth:

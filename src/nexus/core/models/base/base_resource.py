@@ -6,10 +6,12 @@ system-managed metadata fields (id, timestamps, labels) for all API resources.
 
 from abc import ABC
 from datetime import UTC, datetime
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, GetJsonSchemaHandler, field_validator
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema as PydanticCoreSchema
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import DateTime, Field, SQLModel
@@ -48,7 +50,11 @@ class BaseResource(SQLModel, ABC):
 
     # Primary key with UUID
     id: UUID = Field(
-        default_factory=uuid4, primary_key=True, description="Unique identifier for the resource", index=True
+        default_factory=uuid4,
+        primary_key=True,
+        description="Unique identifier for the resource",
+        title="Resource ID",
+        index=True,
     )
 
     # Automatic timestamps
@@ -118,3 +124,25 @@ class BaseResource(SQLModel, ABC):
         "created_at",
         "updated_at",
     ]
+
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
+        "id": {"readOnly": True, "example": "550e8400-e29b-41d4-a716-446655440000"},
+        "created_at": {"readOnly": True, "example": "2025-10-09T12:00:00Z"},
+        "updated_at": {"readOnly": True, "example": "2025-10-09T12:30:00Z"},
+        "labels": {"default": {}, "example": {"environment": "production", "region": "us-east-1", "team": "platform"}},
+    }
+
+    # Needed to populate OpenAPI metadata
+    # Inlining properties in Field properties directly breaks SQLModel
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: PydanticCoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        """Inject field-level OpenAPI metadata (readOnly, examples) into the JSON schema."""
+        json_schema = handler(core_schema)
+        json_schema = handler.resolve_ref_schema(json_schema)
+        props = json_schema.get("properties", {})
+        for field, extras in cls.FIELD_SCHEMA_EXTRAS.items():
+            if field in props:
+                props[field].update(extras)
+        return json_schema

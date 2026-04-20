@@ -1,6 +1,6 @@
 """Response models for AAP proxy endpoints."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AAPOrganization(BaseModel):
@@ -24,7 +24,7 @@ class AAPJobTemplateDetail(BaseModel):
     id: int
     name: str
     description: str | None = None
-    url: str | None = None
+    url: str | None = Field(None, description="Link to the job template in AAP Controller UI")
     # Prompt-on-launch flags
     ask_job_type_on_launch: bool = False
     ask_inventory_on_launch: bool = False

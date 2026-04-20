@@ -5,7 +5,7 @@ capabilities through multiple inheritance.
 """
 
 from abc import ABC
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from nexus.core.models.base.named import NamedResource
 from nexus.core.models.base.soft_deletable import SoftDeletableResource
@@ -50,6 +50,12 @@ class Resource(NamedResource, SoftDeletableResource, UserOwnedResource, ABC):
     """
 
     # No additional fields - inherits everything from parent classes
+
+    FIELD_SCHEMA_EXTRAS: ClassVar[dict[str, dict[str, Any]]] = {
+        **NamedResource.FIELD_SCHEMA_EXTRAS,
+        **SoftDeletableResource.FIELD_SCHEMA_EXTRAS,
+        **UserOwnedResource.FIELD_SCHEMA_EXTRAS,
+    }
 
     # Combine filterable fields from all parent classes (deduplicated)
     __filterable_fields__: ClassVar[list[str]] = list(

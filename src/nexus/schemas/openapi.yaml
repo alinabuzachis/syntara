@@ -1880,39 +1880,37 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
-                description: Exact match of the name (case-insensitive). ?name=<name>
-              - type: object
-                properties:
-                  contains:
-                    title: Contains
-                    description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
-                    type: string
-                  starts_with:
-                    title: Starts With
-                    description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
-                    type: string
-                  eq:
-                    title: Equals
-                    description: Exact match of the name (case-insensitive). ?name[eq]=<name>
-                    type: string
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison (lexicographical). ?name[gt]=<name>
-                    type: string
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-                    type: string
-                  lt:
-                    title: Less Than
-                    description: Less than comparison (lexicographical). ?name[lt]=<name>
-                    type: string
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
-                    type: string
+            properties:
+              contains:
+                title: Contains
+                description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
+                type: string
+              starts_with:
+                title: Starts With
+                description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
+                type: string
+              eq:
+                title: Equals
+                description: Exact match of the name (case-insensitive). ?name[eq]=<name>
+                type: string
+              gt:
+                title: Greater Than
+                description: Greater than comparison (lexicographical). ?name[gt]=<name>
+                type: string
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+                type: string
+              lt:
+                title: Less Than
+                description: Less than comparison (lexicographical). ?name[lt]=<name>
+                type: string
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
+                type: string
+            type: string
+            description: Exact match of the name (case-insensitive). ?name=<name>
           description: |
             Filter resources by name.
             - Exact match: `name=value`
@@ -1924,74 +1922,70 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of creation timestamp. ?created_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?created_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?created_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?created_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?created_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of creation timestamp. ?created_at=<timestamp>
         - name: updated_at
           in: query
           required: false
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of last update timestamp. ?updated_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?updated_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?updated_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?updated_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?updated_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of last update timestamp. ?updated_at=<timestamp>
         - name: labels
           in: query
           required: false
@@ -2028,17 +2022,43 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ResourcesResponseBase'
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/CredentialRead'
-                        maxItems: 100
-                    required:
-                      - resources
+                properties:
+                  next:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Next
+                    description: Cursor for next page of results
+                  prev:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Prev
+                    description: Cursor for previous page of results
+                  total:
+                    anyOf:
+                      - minimum: 0.0
+                        type: integer
+                      - type: 'null'
+                    title: Total
+                    description: Total count of resources (only when include_total=true)
+                  resources:
+                    type: array
+                    title: Resources
+                    description: Array of resources in current page
+                    maxItems: 100
+                    items:
+                      $ref: '#/components/schemas/CredentialRead'
+                required:
+                  - resources
+                type: object
+                examples:
+                  - next: eyJpZCI6InV1aWQifQ
+                    total: 150
+                  - next: eyJpZCI6Im5leHQifQ
+                    prev: eyJpZCI6InByZXYifQ
+                title: Paginated Response Base
+                description: Pagination metadata structure for list responses
       security:
         - bearerAuth: []
     post:
@@ -2269,17 +2289,43 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ResourcesResponseBase'
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/CredentialTypeRead'
-                        maxItems: 100
-                    required:
-                      - resources
+                properties:
+                  next:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Next
+                    description: Cursor for next page of results
+                  prev:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Prev
+                    description: Cursor for previous page of results
+                  total:
+                    anyOf:
+                      - minimum: 0.0
+                        type: integer
+                      - type: 'null'
+                    title: Total
+                    description: Total count of resources (only when include_total=true)
+                  resources:
+                    type: array
+                    title: Resources
+                    description: Array of resources in current page
+                    maxItems: 100
+                    items:
+                      $ref: '#/components/schemas/CredentialTypeRead'
+                required:
+                  - resources
+                type: object
+                examples:
+                  - next: eyJpZCI6InV1aWQifQ
+                    total: 150
+                  - next: eyJpZCI6Im5leHQifQ
+                    prev: eyJpZCI6InByZXYifQ
+                title: Paginated Response Base
+                description: Pagination metadata structure for list responses
       security:
         - bearerAuth: []
   /credential_types/{credential_type_id}:
@@ -2639,39 +2685,37 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
-                description: Exact match of the name (case-insensitive). ?name=<name>
-              - type: object
-                properties:
-                  contains:
-                    title: Contains
-                    description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
-                    type: string
-                  starts_with:
-                    title: Starts With
-                    description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
-                    type: string
-                  eq:
-                    title: Equals
-                    description: Exact match of the name (case-insensitive). ?name[eq]=<name>
-                    type: string
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison (lexicographical). ?name[gt]=<name>
-                    type: string
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-                    type: string
-                  lt:
-                    title: Less Than
-                    description: Less than comparison (lexicographical). ?name[lt]=<name>
-                    type: string
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
-                    type: string
+            properties:
+              contains:
+                title: Contains
+                description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
+                type: string
+              starts_with:
+                title: Starts With
+                description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
+                type: string
+              eq:
+                title: Equals
+                description: Exact match of the name (case-insensitive). ?name[eq]=<name>
+                type: string
+              gt:
+                title: Greater Than
+                description: Greater than comparison (lexicographical). ?name[gt]=<name>
+                type: string
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+                type: string
+              lt:
+                title: Less Than
+                description: Less than comparison (lexicographical). ?name[lt]=<name>
+                type: string
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
+                type: string
+            type: string
+            description: Exact match of the name (case-insensitive). ?name=<name>
           description: |
             Filter resources by name.
             - Exact match: `name=value`
@@ -2683,74 +2727,70 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of creation timestamp. ?created_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?created_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?created_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?created_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?created_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of creation timestamp. ?created_at=<timestamp>
         - name: updated_at
           in: query
           required: false
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of last update timestamp. ?updated_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?updated_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?updated_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?updated_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?updated_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of last update timestamp. ?updated_at=<timestamp>
         - name: labels
           in: query
           required: false
@@ -3101,74 +3141,70 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of creation timestamp. ?created_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?created_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?created_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?created_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?created_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of creation timestamp. ?created_at=<timestamp>
         - name: updated_at
           in: query
           required: false
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of last update timestamp. ?updated_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?updated_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?updated_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?updated_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?updated_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of last update timestamp. ?updated_at=<timestamp>
         - name: include_total
           in: query
           required: false
@@ -4074,17 +4110,43 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ResourcesResponseBase'
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/RuntimeSettingRead'
-                        maxItems: 100
-                    required:
-                      - resources
+                properties:
+                  next:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Next
+                    description: Cursor for next page of results
+                  prev:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Prev
+                    description: Cursor for previous page of results
+                  total:
+                    anyOf:
+                      - minimum: 0.0
+                        type: integer
+                      - type: 'null'
+                    title: Total
+                    description: Total count of resources (only when include_total=true)
+                  resources:
+                    type: array
+                    title: Resources
+                    description: Array of resources in current page
+                    maxItems: 100
+                    items:
+                      $ref: '#/components/schemas/RuntimeSettingRead'
+                required:
+                  - resources
+                type: object
+                examples:
+                  - next: eyJpZCI6InV1aWQifQ
+                    total: 150
+                  - next: eyJpZCI6Im5leHQifQ
+                    prev: eyJpZCI6InByZXYifQ
+                title: Paginated Response Base
+                description: Pagination metadata structure for list responses
         '403':
           description: Insufficient permissions
           content:
@@ -4421,14 +4483,12 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
-                description: Exact match of the status. ?status=<status>
-              - type: object
-                properties:
-                  eq:
-                    type: string
-                    description: Exact match of the status. ?status[eq]=<status>
+            properties:
+              eq:
+                type: string
+                description: Exact match of the status. ?status[eq]=<status>
+            type: string
+            description: Exact match of the status. ?status=<status>
           description: |
             Filter tools by status.
             - Exact match: `status=available`
@@ -4491,39 +4551,37 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
-                description: Exact match of the name (case-insensitive). ?name=<name>
-              - type: object
-                properties:
-                  contains:
-                    title: Contains
-                    description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
-                    type: string
-                  starts_with:
-                    title: Starts With
-                    description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
-                    type: string
-                  eq:
-                    title: Equals
-                    description: Exact match of the name (case-insensitive). ?name[eq]=<name>
-                    type: string
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison (lexicographical). ?name[gt]=<name>
-                    type: string
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-                    type: string
-                  lt:
-                    title: Less Than
-                    description: Less than comparison (lexicographical). ?name[lt]=<name>
-                    type: string
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
-                    type: string
+            properties:
+              contains:
+                title: Contains
+                description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
+                type: string
+              starts_with:
+                title: Starts With
+                description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
+                type: string
+              eq:
+                title: Equals
+                description: Exact match of the name (case-insensitive). ?name[eq]=<name>
+                type: string
+              gt:
+                title: Greater Than
+                description: Greater than comparison (lexicographical). ?name[gt]=<name>
+                type: string
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+                type: string
+              lt:
+                title: Less Than
+                description: Less than comparison (lexicographical). ?name[lt]=<name>
+                type: string
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
+                type: string
+            type: string
+            description: Exact match of the name (case-insensitive). ?name=<name>
           description: |
             Filter resources by name.
             - Exact match: `name=value`
@@ -4535,74 +4593,70 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of creation timestamp. ?created_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?created_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?created_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?created_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?created_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of creation timestamp. ?created_at=<timestamp>
         - name: updated_at
           in: query
           required: false
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of last update timestamp. ?updated_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?updated_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?updated_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?updated_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?updated_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of last update timestamp. ?updated_at=<timestamp>
         - name: labels
           in: query
           required: false
@@ -4813,14 +4867,12 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
-                description: Exact match of the status. ?status=<status>
-              - type: object
-                properties:
-                  eq:
-                    type: string
-                    description: Exact match of the status. ?status[eq]=<status>
+            properties:
+              eq:
+                type: string
+                description: Exact match of the status. ?status[eq]=<status>
+            type: string
+            description: Exact match of the status. ?status=<status>
           description: |
             Filter providers by status.
             - Exact match: `status=available`
@@ -4830,14 +4882,12 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
-                description: Exact match of the provider type. ?provider_type=<type>
-              - type: object
-                properties:
-                  eq:
-                    type: string
-                    description: Exact match of the provider type. ?provider_type[eq]=<type>
+            properties:
+              eq:
+                type: string
+                description: Exact match of the provider type. ?provider_type[eq]=<type>
+            type: string
+            description: Exact match of the provider type. ?provider_type=<type>
           description: |
             Filter providers by provider type.
             - Exact match: `provider_type=mcp`
@@ -4884,39 +4934,37 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
-                description: Exact match of the name (case-insensitive). ?name=<name>
-              - type: object
-                properties:
-                  contains:
-                    title: Contains
-                    description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
-                    type: string
-                  starts_with:
-                    title: Starts With
-                    description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
-                    type: string
-                  eq:
-                    title: Equals
-                    description: Exact match of the name (case-insensitive). ?name[eq]=<name>
-                    type: string
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison (lexicographical). ?name[gt]=<name>
-                    type: string
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-                    type: string
-                  lt:
-                    title: Less Than
-                    description: Less than comparison (lexicographical). ?name[lt]=<name>
-                    type: string
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
-                    type: string
+            properties:
+              contains:
+                title: Contains
+                description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
+                type: string
+              starts_with:
+                title: Starts With
+                description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
+                type: string
+              eq:
+                title: Equals
+                description: Exact match of the name (case-insensitive). ?name[eq]=<name>
+                type: string
+              gt:
+                title: Greater Than
+                description: Greater than comparison (lexicographical). ?name[gt]=<name>
+                type: string
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+                type: string
+              lt:
+                title: Less Than
+                description: Less than comparison (lexicographical). ?name[lt]=<name>
+                type: string
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
+                type: string
+            type: string
+            description: Exact match of the name (case-insensitive). ?name=<name>
           description: |
             Filter resources by name.
             - Exact match: `name=value`
@@ -4928,74 +4976,70 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of creation timestamp. ?created_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?created_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?created_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?created_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?created_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of creation timestamp. ?created_at=<timestamp>
         - name: updated_at
           in: query
           required: false
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of last update timestamp. ?updated_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?updated_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?updated_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?updated_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?updated_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of last update timestamp. ?updated_at=<timestamp>
         - name: labels
           in: query
           required: false
@@ -5019,17 +5063,43 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ResourcesResponseBase'
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/ToolProviderWithConfiguration'
-                        maxItems: 100
-                    required:
-                      - resources
+                properties:
+                  next:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Next
+                    description: Cursor for next page of results
+                  prev:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                    title: Prev
+                    description: Cursor for previous page of results
+                  total:
+                    anyOf:
+                      - minimum: 0.0
+                        type: integer
+                      - type: 'null'
+                    title: Total
+                    description: Total count of resources (only when include_total=true)
+                  resources:
+                    type: array
+                    title: Resources
+                    description: Array of resources in current page
+                    maxItems: 100
+                    items:
+                      $ref: '#/components/schemas/ToolProviderWithConfiguration'
+                required:
+                  - resources
+                type: object
+                examples:
+                  - next: eyJpZCI6InV1aWQifQ
+                    total: 150
+                  - next: eyJpZCI6Im5leHQifQ
+                    prev: eyJpZCI6InByZXYifQ
+                title: Paginated Response Base
+                description: Pagination metadata structure for list responses
         '403':
           description: Admin access required
           content:
@@ -6281,39 +6351,37 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
-                description: Exact match of the name (case-insensitive). ?name=<name>
-              - type: object
-                properties:
-                  contains:
-                    title: Contains
-                    description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
-                    type: string
-                  starts_with:
-                    title: Starts With
-                    description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
-                    type: string
-                  eq:
-                    title: Equals
-                    description: Exact match of the name (case-insensitive). ?name[eq]=<name>
-                    type: string
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison (lexicographical). ?name[gt]=<name>
-                    type: string
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-                    type: string
-                  lt:
-                    title: Less Than
-                    description: Less than comparison (lexicographical). ?name[lt]=<name>
-                    type: string
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
-                    type: string
+            properties:
+              contains:
+                title: Contains
+                description: Substring to match within the name (case-insensitive). ?name[contains]=<substring>
+                type: string
+              starts_with:
+                title: Starts With
+                description: Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
+                type: string
+              eq:
+                title: Equals
+                description: Exact match of the name (case-insensitive). ?name[eq]=<name>
+                type: string
+              gt:
+                title: Greater Than
+                description: Greater than comparison (lexicographical). ?name[gt]=<name>
+                type: string
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison (lexicographical). ?name[gte]=<name>
+                type: string
+              lt:
+                title: Less Than
+                description: Less than comparison (lexicographical). ?name[lt]=<name>
+                type: string
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison (lexicographical). ?name[lte]=<name>
+                type: string
+            type: string
+            description: Exact match of the name (case-insensitive). ?name=<name>
           description: |
             Filter resources by name.
             - Exact match: `name=value`
@@ -6325,74 +6393,70 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of creation timestamp. ?created_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?created_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?created_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?created_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?created_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of creation timestamp. ?created_at=<timestamp>
         - name: updated_at
           in: query
           required: false
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of last update timestamp. ?updated_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?updated_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?updated_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?updated_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?updated_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?updated_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?updated_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of last update timestamp. ?updated_at=<timestamp>
         - name: labels
           in: query
           required: false
@@ -6651,37 +6715,35 @@ paths:
           style: deepObject
           explode: true
           schema:
-            allOf:
-              - type: string
+            properties:
+              eq:
+                title: Equals
+                description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
+                type: string
                 format: date-time
-                description: Exact match of creation timestamp. ?created_at=<timestamp>
-              - type: object
-                properties:
-                  eq:
-                    title: Equals
-                    description: Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-                    type: string
-                    format: date-time
-                  gt:
-                    title: Greater Than
-                    description: Greater than comparison. ?created_at[gt]=<timestamp>
-                    type: string
-                    format: date-time
-                  gte:
-                    title: Greater Than Or Equal
-                    description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
-                    type: string
-                    format: date-time
-                  lt:
-                    title: Less Than
-                    description: Less than comparison. ?created_at[lt]=<timestamp>
-                    type: string
-                    format: date-time
-                  lte:
-                    title: Less Than Or Equal
-                    description: Less than or equal comparison. ?created_at[lte]=<timestamp>
-                    type: string
-                    format: date-time
+              gt:
+                title: Greater Than
+                description: Greater than comparison. ?created_at[gt]=<timestamp>
+                type: string
+                format: date-time
+              gte:
+                title: Greater Than Or Equal
+                description: Greater than or equal comparison. ?created_at[gte]=<timestamp>
+                type: string
+                format: date-time
+              lt:
+                title: Less Than
+                description: Less than comparison. ?created_at[lt]=<timestamp>
+                type: string
+                format: date-time
+              lte:
+                title: Less Than Or Equal
+                description: Less than or equal comparison. ?created_at[lte]=<timestamp>
+                type: string
+                format: date-time
+            type: string
+            format: date-time
+            description: Exact match of creation timestamp. ?created_at=<timestamp>
       responses:
         '200':
           description: List of workflow versions
@@ -6786,33 +6848,6 @@ components:
           title: Problem Instance
           description: URI reference identifying the specific occurrence
           example: /api/v1/workflows
-    ResourcesResponseBase:
-      type: object
-      title: Paginated Response Base
-      description: Pagination metadata structure for list responses
-      properties:
-        next:
-          type:
-            - string
-            - 'null'
-          title: Next Page Cursor
-          description: Cursor for next page of results
-          example: eyJpZCI6InV1aWQifQ
-        prev:
-          type:
-            - string
-            - 'null'
-          title: Previous Page Cursor
-          description: Cursor for previous page of results
-          example: eyJpZCI6InV1aWQifQ
-        total:
-          type:
-            - integer
-            - 'null'
-          minimum: 0
-          title: Total Count
-          description: Total count of resources (only when include_total=true)
-          example: 150
     AAPOrganization:
       type: object
       title: AAPOrganization
@@ -6874,54 +6909,71 @@ components:
         ask_job_type_on_launch:
           type: boolean
           default: false
+          title: Ask Job Type On Launch
         ask_inventory_on_launch:
           type: boolean
           default: false
+          title: Ask Inventory On Launch
         ask_credential_on_launch:
           type: boolean
           default: false
+          title: Ask Credential On Launch
         ask_variables_on_launch:
           type: boolean
           default: false
+          title: Ask Variables On Launch
         ask_limit_on_launch:
           type: boolean
           default: false
+          title: Ask Limit On Launch
         ask_tags_on_launch:
           type: boolean
           default: false
+          title: Ask Tags On Launch
         ask_skip_tags_on_launch:
           type: boolean
           default: false
+          title: Ask Skip Tags On Launch
         ask_verbosity_on_launch:
           type: boolean
           default: false
+          title: Ask Verbosity On Launch
         ask_diff_mode_on_launch:
           type: boolean
           default: false
+          title: Ask Diff Mode On Launch
         ask_forks_on_launch:
           type: boolean
           default: false
+          title: Ask Forks On Launch
         ask_job_slice_count_on_launch:
           type: boolean
           default: false
+          title: Ask Job Slice Count On Launch
         ask_execution_environment_on_launch:
           type: boolean
           default: false
+          title: Ask Execution Environment On Launch
         ask_instance_groups_on_launch:
           type: boolean
           default: false
+          title: Ask Instance Groups On Launch
         ask_labels_on_launch:
           type: boolean
           default: false
+          title: Ask Labels On Launch
         ask_timeout_on_launch:
           type: boolean
           default: false
+          title: Ask Timeout On Launch
         ask_scm_branch_on_launch:
           type: boolean
           default: false
+          title: Ask Scm Branch On Launch
         survey_enabled:
           type: boolean
           default: false
+          title: Survey Enabled
     AAPInventory:
       type: object
       title: AAPInventory
@@ -6963,7 +7015,11 @@ components:
     AAPCredential:
       type: object
       title: AAPCredential
-      description: AAP credential resource (description omitted to avoid leaking infrastructure details).
+      description: |-
+        AAP credential resource.
+
+        Only ``id`` and ``name`` are exposed — descriptions are omitted to avoid
+        leaking infrastructure details (e.g. "prod-aws-root-key") to all users.
       required:
         - id
         - name
@@ -7001,7 +7057,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: '#/components/schemas/AAPOrganization'
     AAPListResponse_AAPJobTemplate_:
@@ -7017,7 +7072,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: '#/components/schemas/AAPJobTemplate'
     AAPListResponse_AAPInventory_:
@@ -7033,7 +7087,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: '#/components/schemas/AAPInventory'
     AAPListResponse_AAPExecutionEnvironment_:
@@ -7049,7 +7102,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: '#/components/schemas/AAPExecutionEnvironment'
     AAPListResponse_AAPCredential_:
@@ -7065,7 +7117,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: '#/components/schemas/AAPCredential'
     AAPListResponse_AAPInstanceGroup_:
@@ -7081,7 +7132,6 @@ components:
         results:
           type: array
           title: Results
-          maxItems: 200
           items:
             $ref: '#/components/schemas/AAPInstanceGroup'
     ProblemDetails:
@@ -7147,113 +7197,125 @@ components:
           type: string
           title: Error Type
     ApprovalRequestRead:
-      allOf:
-        - type: object
-          title: Base Resource
-          description: Foundational schema for all API resources with system-managed metadata
-          required:
-            - id
-            - created_at
-            - updated_at
-          properties:
-            id:
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+        project_id:
+          anyOf:
+            - format: uuid
               type: string
-              format: uuid
-              readOnly: true
-              title: Resource ID
-              description: Unique identifier for the resource
-              example: 550e8400-e29b-41d4-a716-446655440000
-            created_at:
+            - type: 'null'
+          description: Project this approval belongs to (denormalized from execution)
+          title: Project Id
+        execution_id:
+          type: string
+          format: uuid
+          description: Parent execution ID
+          title: Execution Id
+        approval_node_id:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: Activity ID from workflow definition
+          title: Approval Node Id
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          description: Human-readable name for the approval request
+          title: Name
+        status:
+          $ref: '#/components/schemas/ApprovalRequestStatus'
+          default: pending
+          description: Current approval status
+        timeout_at:
+          anyOf:
+            - format: date-time
               type: string
-              format: date-time
-              readOnly: true
-              title: Created At
-              description: Timestamp when resource was created
-              example: '2025-10-09T12:00:00Z'
-            updated_at:
-              type: string
-              format: date-time
-              readOnly: true
-              title: Updated At
-              description: Timestamp when resource was last updated
-              example: '2025-10-09T12:30:00Z'
-            labels:
+            - type: 'null'
+          description: When this request expires
+          title: Timeout At
+        next_step_approved:
+          additionalProperties: true
+          description: First activity that executes if approved
+          title: Next Step Approved
+          type: object
+        next_step_rejected:
+          anyOf:
+            - additionalProperties: true
               type: object
-              default: {}
-              title: Labels
-              description: Key-value pairs for resource labeling and filtering
-              additionalProperties:
-                type: string
-              example:
-                environment: production
-                region: us-east-1
-                team: platform
-        - type: object
-          title: ApprovalRequestRead
-          description: |
-            Human-in-the-loop decision point that pauses a workflow branch
-            pending approver response.
-          required:
-            - execution_id
-            - approval_node_id
-            - name
-            - status
-            - next_step_approved
-            - workflow_context
-          properties:
-            project_id:
-              type:
-                - string
-                - 'null'
-              format: uuid
-              description: Project this approval belongs to (denormalized from execution)
-            execution_id:
+            - type: 'null'
+          description: First activity that executes if rejected
+          title: Next Step Rejected
+        workflow_context:
+          additionalProperties: true
+          description: Workflow inputs and previous step output
+          title: Workflow Context
+          type: object
+        decided_by:
+          anyOf:
+            - $ref: '#/components/schemas/UserReference'
+            - type: 'null'
+          description: User who made the decision
+        decided_at:
+          anyOf:
+            - format: date-time
               type: string
-              format: uuid
-              description: Parent workflow execution ID
-            approval_node_id:
+            - type: 'null'
+          description: When decision was made
+          title: Decided At
+        decision_notes:
+          anyOf:
+            - maxLength: 2000
               type: string
-              description: Activity ID from workflow definition
-            name:
-              type: string
-              maxLength: 255
-              description: Display name for the approval request
-            status:
-              $ref: '#/components/schemas/ApprovalRequestStatus'
-            timeout_at:
-              type:
-                - string
-                - 'null'
-              format: date-time
-              description: When this request expires (null = no timeout)
-            next_step_approved:
-              description: First activity that executes if approved
-              allOf:
-                - $ref: '#/components/schemas/ActivitySummary'
-            next_step_rejected:
-              description: First activity that executes if rejected (null if path ends workflow)
-              oneOf:
-                - $ref: '#/components/schemas/ActivitySummary'
-                - type: 'null'
-            workflow_context:
-              $ref: '#/components/schemas/WorkflowContext'
-            decided_by:
-              description: User who made the decision (captures name at decision time)
-              oneOf:
-                - $ref: '#/components/schemas/UserReference'
-                - type: 'null'
-            decided_at:
-              type:
-                - string
-                - 'null'
-              format: date-time
-              description: When decision was made
-            decision_notes:
-              type:
-                - string
-                - 'null'
-              maxLength: 2000
-              description: Notes provided with the decision
+            - type: 'null'
+          description: Notes provided with decision
+          title: Decision Notes
+      required:
+        - name
+        - execution_id
+        - approval_node_id
+        - next_step_approved
+      type: object
+      title: ApprovalRequestRead
+      description: |-
+        ApprovalRequest API response model with UserReference for decided_by.
+
+
+          Extends BaseApprovalRequest with the API-specific decided_by field
+
+          that contains a UserReference object for API responses.
     ApprovalRequestStatus:
       type: string
       title: ApprovalRequestStatus
@@ -8074,16 +8136,43 @@ components:
             - type: 'null'
           title: Updated At
     PolicyListResponse:
-      allOf:
-        - $ref: '#/components/schemas/ResourcesResponseBase'
-        - type: object
-          properties:
-            resources:
-              type: array
-              items:
-                $ref: '#/components/schemas/PolicyRead'
-          required:
-            - resources
+      title: PolicyListResponse
+      description: Paginated list response for policies.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/PolicyRead'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     RoleCreate:
       type: object
       title: RoleCreate
@@ -8205,16 +8294,43 @@ components:
             - type: 'null'
           title: Updated At
     RoleListResponse:
-      allOf:
-        - $ref: '#/components/schemas/ResourcesResponseBase'
-        - type: object
-          properties:
-            resources:
-              type: array
-              items:
-                $ref: '#/components/schemas/RoleRead'
-          required:
-            - resources
+      title: RoleListResponse
+      description: Paginated list response for roles.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/RoleRead'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     UserRoleAssignmentCreate:
       type: object
       title: UserRoleAssignmentCreate
@@ -8264,11 +8380,8 @@ components:
             - type: 'null'
           title: Created At
     CredentialListResponse:
-      type: object
       title: CredentialListResponse
       description: Paginated list response for credentials.
-      required:
-        - resources
       properties:
         next:
           anyOf:
@@ -8282,24 +8395,31 @@ components:
             - type: 'null'
           title: Prev
           description: Cursor for previous page of results
-        resources:
-          type: array
-          items: {}
-          title: Resources
-          description: Array of resources in current page
         total:
           anyOf:
-            - type: integer
-              minimum: 0.0
+            - minimum: 0.0
+              type: integer
             - type: 'null'
           title: Total
           description: Total count of resources (only when include_total=true)
-    CredentialTypeListResponse:
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CredentialRead'
+      required:
+        - resources
       type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+    CredentialTypeListResponse:
       title: CredentialTypeListResponse
       description: Paginated list response for credential types.
-      required:
-        - resources
       properties:
         next:
           anyOf:
@@ -8313,18 +8433,28 @@ components:
             - type: 'null'
           title: Prev
           description: Cursor for previous page of results
-        resources:
-          type: array
-          items: {}
-          title: Resources
-          description: Array of resources in current page
         total:
           anyOf:
-            - type: integer
-              minimum: 0.0
+            - minimum: 0.0
+              type: integer
             - type: 'null'
           title: Total
           description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/CredentialTypeRead'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     CredentialCreate:
       description: Schema for creating a new credential.
       properties:
@@ -8399,94 +8529,167 @@ components:
       type: object
     CredentialRead:
       description: Schema for credential API responses. Secret fields masked as $encrypted$.
+      additionalProperties: false
       properties:
-        created_at:
-          format: date-time
-          title: Created At
+        id:
           type: string
+          format: uuid
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
         created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Created By
+          description: Username or UUID of the credential creator
+          example: 770e8400-e29b-41d4-a716-446655440000
           anyOf:
             - type: string
-            - format: uuid
-              type: string
+            - type: string
+              format: uuid
             - type: 'null'
-          description: Username or UUID of the credential creator
-          title: Created By
+        updated_by:
+          anyOf:
+            - type: string
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Updated By
+          description: Username or UUID of the last modifier
+          example: 880e8400-e29b-41d4-a716-446655440000
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          readOnly: true
+          title: Deleted At
+          description: Timestamp when resource was soft deleted
+          example: '2025-10-09T14:00:00Z'
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Deleted By
+          description: User who performed the soft delete
+          example: 660e8400-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          title: Name
+          description: Human-readable name for the resource
+          example: Authentication Service
+        description:
+          anyOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+          title: Description
+          description: Detailed description of the resource
+          example: Handles user authentication and authorization workflows
         credential_type_id:
           format: uuid
           title: Credential Type Id
           type: string
-        description:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Description
         enabled:
           default: true
           title: Enabled
           type: boolean
-        id:
-          format: uuid
-          title: Id
-          type: string
         inputs:
           additionalProperties: true
           title: Inputs
           type: object
-        labels:
-          additionalProperties:
-            type: string
-          title: Labels
-          type: object
-        name:
-          title: Name
-          type: string
-        updated_at:
-          format: date-time
-          title: Updated At
-          type: string
-        updated_by:
-          anyOf:
-            - type: string
-            - format: uuid
-              type: string
-            - type: 'null'
-          description: Username or UUID of the last modifier
-          title: Updated By
         workflow_count:
           default: 0
           description: Number of workflows referencing this credential
           title: Workflow Count
           type: integer
       required:
-        - id
+        - created_by
         - name
         - credential_type_id
-        - created_at
-        - updated_at
-      title: CredentialRead
       type: object
+      title: CredentialRead
     CredentialTypeRead:
       description: Read schema for credential type API responses.
+      additionalProperties: false
       properties:
-        created_at:
-          format: date-time
-          title: Created At
+        id:
           type: string
-        credential_count:
-          default: 0
-          description: Number of non-deleted credentials using this type
-          title: Credential Count
-          type: integer
+          format: uuid
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+        name:
+          title: Name
+          type: string
         description:
           anyOf:
             - type: string
             - type: 'null'
           title: Description
-        id:
-          format: uuid
-          title: Id
-          type: string
+        credential_count:
+          default: 0
+          description: Number of non-deleted credentials using this type
+          title: Credential Count
+          type: integer
         injectors:
           additionalProperties: true
           title: Injectors
@@ -8499,20 +8702,10 @@ components:
           default: false
           title: Managed
           type: boolean
-        name:
-          title: Name
-          type: string
-        updated_at:
-          format: date-time
-          title: Updated At
-          type: string
       required:
-        - id
         - name
-        - created_at
-        - updated_at
-      title: CredentialTypeRead
       type: object
+      title: CredentialTypeRead
     CredentialWorkflowRef:
       description: Reference to a workflow that uses a credential.
       properties:
@@ -9010,33 +9203,91 @@ components:
             - type: boolean
             - type: 'null'
     IdentityProviderResponse:
-      type: object
       title: IdentityProviderResponse
       description: Schema for IdentityProvider response with configuration details (excludes secrets).
       additionalProperties: false
-      required:
-        - created_by
-        - name
-        - configuration
       properties:
         id:
           type: string
-          title: Id
           format: uuid
+          readOnly: true
+          title: Resource ID
           description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Created By
+          description: User who created the resource
+          example: 770e8400-e29b-41d4-a716-446655440000
+        updated_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Updated By
+          description: User who last updated the resource
+          example: 880e8400-e29b-41d4-a716-446655440000
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          readOnly: true
+          title: Deleted At
+          description: Timestamp when resource was soft deleted
+          example: '2025-10-09T14:00:00Z'
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Deleted By
+          description: User who performed the soft delete
+          example: 660e8400-e29b-41d4-a716-446655440000
         name:
           type: string
-          title: Name
-          description: Human-readable provider name
           minLength: 1
           maxLength: 255
+          title: Name
+          description: Human-readable provider name
+          example: Authentication Service
         description:
-          title: Description
-          description: Detailed description of the resource
           anyOf:
             - type: string
               maxLength: 2000
             - type: 'null'
+          title: Description
+          description: Detailed description of the resource
+          example: Handles user authentication and authorization workflows
         enabled:
           type: boolean
           title: Enabled
@@ -9045,64 +9296,49 @@ components:
         configuration:
           $ref: '#/components/schemas/OIDCConfigurationResponse'
           description: Identity provider configuration
-        created_at:
-          type: string
-          title: Created At
-          format: date-time
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          title: Updated At
-          format: date-time
-          description: Timestamp when resource was last updated
-        created_by:
-          type: string
-          title: Created By
-          format: uuid
-          description: User who created the resource
-        updated_by:
-          title: Updated By
-          description: User who last updated the resource
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-        deleted_at:
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-        deleted_by:
-          title: Deleted By
-          description: User who performed the soft delete
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-        labels:
-          type: object
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
-          additionalProperties:
-            type: string
-    IdentityProviderListResponse:
+      required:
+        - created_by
+        - name
+        - configuration
       type: object
+    IdentityProviderListResponse:
+      title: IdentityProviderListResponse
+      description: Paginated list response for identity providers.
       properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
         resources:
           type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
           items:
             $ref: '#/components/schemas/IdentityProviderResponse'
-        next:
-          type: string
-          nullable: true
-        prev:
-          type: string
-          nullable: true
-        total:
-          type: integer
-          nullable: true
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     OIDCTestRequest:
       type: object
       title: OIDCTestRequest
@@ -9166,7 +9402,6 @@ components:
         - completed
         - failed
     Invocation:
-      type: object
       title: Invocation
       additionalProperties: false
       description: |-
@@ -9191,44 +9426,55 @@ components:
             result: Workflow result data
             error_message: Error message if invocation failed
             checkpoint_data: Checkpoint data for pause/resume
-      required:
-        - created_by
-        - prompt
-        - session_id
       properties:
         id:
           type: string
           format: uuid
-          title: Id
+          readOnly: true
+          title: Resource ID
           description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
         created_at:
           type: string
           format: date-time
+          readOnly: true
           title: Created At
           description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
         updated_at:
           type: string
           format: date-time
+          readOnly: true
           title: Updated At
           description: Timestamp when resource was last updated
-        created_by:
-          type: string
-          format: uuid
-          title: Created By
-          description: User who created the resource
-        updated_by:
-          title: Updated By
-          description: User who last updated the resource
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
+          example: '2025-10-09T12:30:00Z'
         labels:
           type: object
+          default: {}
           title: Labels
           description: Key-value pairs for resource labeling and filtering
           additionalProperties:
             type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Created By
+          description: User who created the resource
+          example: 770e8400-e29b-41d4-a716-446655440000
+        updated_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Updated By
+          description: User who last updated the resource
+          example: 880e8400-e29b-41d4-a716-446655440000
         prompt:
           type: string
           minLength: 1
@@ -9291,6 +9537,11 @@ components:
             - type: object
               additionalProperties: true
             - type: 'null'
+      required:
+        - created_by
+        - prompt
+        - session_id
+      type: object
     InvocationRequest:
       type: object
       title: Invocation Request
@@ -9342,21 +9593,43 @@ components:
               description: Optional file attachments (PDF, DOC, DOCX, TXT, MD). Max 10MB per file by default (configurable via file_upload_max_size_mb). Max 10 files per invocation by default (configurable via file_upload_max_files).
               maxItems: 10
     InvocationListResponse:
-      allOf:
-        - $ref: '#/components/schemas/ResourcesResponseBase'
-        - type: object
-          title: Invocation List Response
-          description: Paginated response containing invocations
-          required:
-            - resources
-          properties:
-            resources:
-              type: array
-              title: Invocations
-              description: Array of invocations in current page
-              items:
-                $ref: '#/components/schemas/Invocation'
-              maxItems: 100
+      title: InvocationListResponse
+      description: Paginated list response for invocations.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Invocation'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     InvocationCreateRequest:
       type: object
       title: InvocationCreateRequest
@@ -9464,17 +9737,42 @@ components:
             - type: 'null'
           title: Labels
     ProjectRead:
-      type: object
       title: ProjectRead
       description: Response body for a project.
-      required:
-        - id
-        - name
+      additionalProperties: false
       properties:
         id:
           type: string
           format: uuid
-          title: Id
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
         name:
           type: string
           title: Name
@@ -9483,27 +9781,13 @@ components:
             - type: string
             - type: 'null'
           title: Description
-        labels:
-          type: object
-          default: {}
-          additionalProperties: true
-          title: Labels
         is_default:
           type: boolean
           default: false
           title: Is Default
-        created_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Created At
-        updated_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Updated At
+      required:
+        - name
+      type: object
     ProjectRoleAssignmentCreate:
       type: object
       title: ProjectRoleAssignmentCreate
@@ -9614,54 +9898,44 @@ components:
               format: date-time
             - type: 'null'
           title: Created At
-    WorkflowListResponse:
-      type: object
-      title: WorkflowListResponse
-      description: Paginated list response for workflows.
-      required:
-        - resources
-      examples:
-        - next: eyJpZCI6InV1aWQifQ
-          total: 150
-        - next: eyJpZCI6Im5leHQifQ
-          prev: eyJpZCI6InByZXYifQ
+    ApprovalListResponse:
+      title: ApprovalListResponse
+      description: Paginated list response for approval requests.
       properties:
         next:
           anyOf:
             - type: string
             - type: 'null'
-          description: Cursor for next page of results
           title: Next
+          description: Cursor for next page of results
         prev:
           anyOf:
             - type: string
             - type: 'null'
-          description: Cursor for previous page of results
           title: Prev
-        resources:
-          type: array
-          items: {}
-          description: Array of resources in current page
-          title: Resources
+          description: Cursor for previous page of results
         total:
           anyOf:
-            - type: integer
-              minimum: 0.0
+            - minimum: 0.0
+              type: integer
             - type: 'null'
-          description: Total count of resources (only when include_total=true)
           title: Total
-    ApprovalListResponse:
-      allOf:
-        - $ref: '#/components/schemas/ResourcesResponseBase'
-        - type: object
-          properties:
-            resources:
-              type: array
-              items:
-                type: object
-                description: Approval request resource (see approvals domain spec for full schema)
-          required:
-            - resources
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ApprovalRequestRead'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     SettingValueType:
       type: string
       title: SettingValueType
@@ -9673,31 +9947,42 @@ components:
         - boolean
         - json
     RuntimeSettingRead:
-      type: object
       title: RuntimeSettingRead
       description: Read schema for a single runtime setting.
-      required:
-        - id
-        - key
-        - name
-        - description
-        - category
-        - group
-        - value
-        - default_value
-        - effective_value
-        - value_type
-        - requires_restart
-        - cache_ttl_seconds
-        - validation_schema
-        - version
-        - created_at
-        - updated_at
+      additionalProperties: false
       properties:
         id:
           type: string
           format: uuid
-          title: Id
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
         key:
           type: string
           title: Key
@@ -9742,14 +10027,21 @@ components:
         version:
           type: integer
           title: Version
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
+      required:
+        - key
+        - name
+        - description
+        - category
+        - group
+        - value
+        - default_value
+        - effective_value
+        - value_type
+        - requires_restart
+        - cache_ttl_seconds
+        - validation_schema
+        - version
+      type: object
     SettingUpdate:
       type: object
       title: SettingUpdate
@@ -9826,11 +10118,8 @@ components:
             type: string
           title: Group Names
     SettingsListResponse:
-      type: object
       title: SettingsListResponse
       description: Paginated list response for runtime settings.
-      required:
-        - resources
       examples:
         - next: eyJpZCI6InV1aWQifQ
           total: 150
@@ -9849,18 +10138,23 @@ components:
             - type: 'null'
           title: Prev
           description: Cursor for previous page of results
-        resources:
-          type: array
-          items: {}
-          title: Resources
-          description: Array of resources in current page
         total:
           anyOf:
-            - type: integer
-              minimum: 0.0
+            - minimum: 0.0
+              type: integer
             - type: 'null'
           title: Total
           description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/RuntimeSettingRead'
+      required:
+        - resources
+      type: object
     CategoriesListResponse:
       type: object
       title: CategoriesListResponse
@@ -9883,35 +10177,93 @@ components:
         - error
         - timeout
     ToolExecutionListResponse:
-      type: object
       title: ToolExecutionListResponse
       description: Paginated list response for tool executions.
       properties:
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ToolExecution'
-          description: Array of resources in current page
         next:
           anyOf:
             - type: string
             - type: 'null'
+          title: Next
           description: Cursor for next page of results
         prev:
           anyOf:
             - type: string
             - type: 'null'
+          title: Prev
           description: Cursor for previous page of results
         total:
           anyOf:
-            - type: integer
-              minimum: 0
+            - minimum: 0.0
+              type: integer
             - type: 'null'
+          title: Total
           description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ToolExecution'
       required:
         - resources
-    ToolMetricsToolSummaryListResponse:
       type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+    ToolMetricsToolSummary:
+      type: object
+      title: ToolMetricsToolSummary
+      additionalProperties: false
+      description: Per-tool aggregated metrics summary for the metrics/tools endpoint.
+      required:
+        - namespaced_name
+        - total_executions
+        - success_count
+        - error_count
+        - timeout_count
+        - success_rate
+        - avg_duration_ms
+      properties:
+        namespaced_name:
+          type: string
+          title: Namespaced Name
+          description: Tool identifier (e.g., 'provider::tool')
+        total_executions:
+          type: integer
+          title: Total Executions
+          description: Total execution count
+        success_count:
+          type: integer
+          title: Success Count
+          description: Successful executions
+        error_count:
+          type: integer
+          title: Error Count
+          description: Error executions
+        timeout_count:
+          type: integer
+          title: Timeout Count
+          description: Timeout executions
+        success_rate:
+          type: number
+          title: Success Rate
+          description: Success rate (0.0 to 1.0)
+        avg_duration_ms:
+          type: number
+          title: Avg Duration Ms
+          description: Average execution duration in milliseconds
+        last_execution_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Last Execution At
+          description: Timestamp of most recent execution
+    ToolMetricsToolSummaryListResponse:
       title: ToolMetricsToolSummaryListResponse
       description: Paginated list response for tool metrics summaries.
       examples:
@@ -9919,116 +10271,175 @@ components:
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
       properties:
         next:
           anyOf:
             - type: string
             - type: 'null'
-          description: Cursor for next page of results
           title: Next
+          description: Cursor for next page of results
         prev:
           anyOf:
             - type: string
             - type: 'null'
-          description: Cursor for previous page of results
           title: Prev
-        resources:
-          type: array
-          items: {}
-          description: Array of resources in current page
-          title: Resources
+          description: Cursor for previous page of results
         total:
           anyOf:
-            - type: integer
-              minimum: 0.0
+            - minimum: 0.0
+              type: integer
             - type: 'null'
-          description: Total count of resources (only when include_total=true)
           title: Total
-    ToolExecution:
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ToolMetricsToolSummary'
+      required:
+        - resources
       type: object
+    ToolExecution:
+      additionalProperties: false
+      title: ToolExecution
+      description: |-
+        Tool execution records stored in database.
+
+        Records individual Tool executions for performance monitoring and analysis.
+        This model matches the ToolExecution schema from the metrics contract.
+
+        Inherits from UserOwnedResource:
+            id: UUID primary key
+            created_at: Creation timestamp
+            updated_at: Last update timestamp
+            created_by: UUID of user who created the resource
+            updated_by: Optional UUID of user who last updated the resource
+            deleted_at: Optional timestamp when resource was soft deleted
+            deleted_by: Optional UUID of user who performed the soft delete
+            labels: Optional key-value metadata
       properties:
         id:
           type: string
           format: uuid
-        tool_id:
-          type: string
-          format: uuid
-        provider_id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        execution_start:
-          type: string
-          format: date-time
-        execution_end:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        duration_ms:
-          type:
-            - integer
-            - 'null'
-        status:
-          $ref: '#/components/schemas/ToolExecutionStatus'
-        input_parameters:
-          type: object
-          description: Tool input parameters as JSON
-        output_data:
-          type:
-            - object
-            - 'null'
-          description: Tool output data as JSON
-        error_message:
-          type:
-            - string
-            - 'null'
-        error_code:
-          type:
-            - string
-            - 'null'
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
         created_at:
           type: string
           format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
         created_by:
           type: string
           format: uuid
-        updated_at:
-          type:
-            - string
-            - 'null'
-          format: date-time
+          readOnly: true
+          title: Created By
+          description: User who created the resource
+          example: 770e8400-e29b-41d4-a716-446655440000
         updated_by:
-          type:
-            - string
-            - 'null'
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Updated By
+          description: User who last updated the resource
+          example: 880e8400-e29b-41d4-a716-446655440000
+        tool_id:
+          type: string
           format: uuid
-        deleted_at:
-          type:
-            - string
-            - 'null'
+          title: Tool Id
+          description: Foreign key to Tool
+        provider_id:
+          type: string
+          format: uuid
+          title: Provider Id
+          description: Foreign key to Tool Provider
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+          description: Identifier of executing user/agent
+        execution_start:
+          type: string
           format: date-time
-        deleted_by:
-          type:
-            - string
-            - 'null'
-          format: uuid
+          title: Execution Start
+          description: Execution start timestamp
+        execution_end:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          title: Execution End
+          description: Execution completion timestamp
+        duration_ms:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          title: Duration Ms
+          description: Execution duration in milliseconds
+        status:
+          $ref: '#/components/schemas/ToolExecutionStatus'
+          description: Execution status
+        input_parameters:
+          type: object
+          additionalProperties: true
+          title: Input Parameters
+          description: Tool input parameters
+        output_data:
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+          title: Output Data
+          description: Tool output data
+        error_message:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Error Message
+          description: Error description for failed executions
+        error_code:
+          anyOf:
+            - type: string
+              maxLength: 100
+            - type: 'null'
+          title: Error Code
+          description: Structured error code
       required:
-        - id
+        - created_by
         - tool_id
         - provider_id
         - user_id
         - execution_start
         - status
         - input_parameters
-        - created_at
-        - created_by
-    ToolListResponse:
       type: object
+    ToolListResponse:
       title: ToolListResponse
       description: Paginated list response for tools.
       examples:
@@ -10036,33 +10447,36 @@ components:
           total: 150
         - next: eyJpZCI6Im5leHQifQ
           prev: eyJpZCI6InByZXYifQ
-      required:
-        - resources
       properties:
         next:
           anyOf:
             - type: string
             - type: 'null'
-          description: Cursor for next page of results
           title: Next
+          description: Cursor for next page of results
         prev:
           anyOf:
             - type: string
             - type: 'null'
-          description: Cursor for previous page of results
           title: Prev
-        resources:
-          type: array
-          items: {}
-          description: Array of resources in current page
-          title: Resources
+          description: Cursor for previous page of results
         total:
           anyOf:
-            - type: integer
-              minimum: 0.0
+            - minimum: 0.0
+              type: integer
             - type: 'null'
-          description: Total count of resources (only when include_total=true)
           title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ToolWithParameters'
+      required:
+        - resources
+      type: object
     ProviderStatus:
       type: string
       title: ProviderStatus
@@ -10090,56 +10504,118 @@ components:
         - object
         - array
     ToolProviderListResponse:
-      type: object
       title: ToolProviderListResponse
       description: Paginated list response for tool providers.
       properties:
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ToolProviderWithConfiguration'
-          description: Array of resources in current page
         next:
           anyOf:
             - type: string
             - type: 'null'
+          title: Next
           description: Cursor for next page of results
         prev:
           anyOf:
             - type: string
             - type: 'null'
+          title: Prev
           description: Cursor for previous page of results
         total:
           anyOf:
-            - type: integer
-              minimum: 0
+            - minimum: 0.0
+              type: integer
             - type: 'null'
+          title: Total
           description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ToolProviderWithConfiguration'
       required:
         - resources
-    ToolWithParameters:
       type: object
-      title: ToolWithParameters
-      additionalProperties: false
-      description: Schema for Tool response with ToolParameter details.
-      required:
-        - created_by
-        - name
-        - provider_id
-        - namespaced_name
-        - parameters
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+    ToolWithParameters:
       properties:
         id:
           type: string
           format: uuid
-          title: Id
+          readOnly: true
+          title: Resource ID
           description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Created By
+          description: User who created the resource
+          example: 770e8400-e29b-41d4-a716-446655440000
+        updated_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Updated By
+          description: User who last updated the resource
+          example: 880e8400-e29b-41d4-a716-446655440000
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          readOnly: true
+          title: Deleted At
+          description: Timestamp when resource was soft deleted
+          example: '2025-10-09T14:00:00Z'
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Deleted By
+          description: User who performed the soft delete
+          example: 660e8400-e29b-41d4-a716-446655440000
         name:
           type: string
           minLength: 1
           maxLength: 255
           title: Name
           description: Human-readable name for the resource
+          example: Authentication Service
         description:
           anyOf:
             - type: string
@@ -10147,48 +10623,7 @@ components:
             - type: 'null'
           title: Description
           description: Detailed description of the resource
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
-          description: Timestamp when resource was last updated
-        created_by:
-          type: string
-          format: uuid
-          title: Created By
-          description: User who created the resource
-        updated_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Updated By
-          description: User who last updated the resource
-        deleted_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-        deleted_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Deleted By
-          description: User who performed the soft delete
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
+          example: Handles user authentication and authorization workflows
         provider_id:
           type: string
           format: uuid
@@ -10235,33 +10670,50 @@ components:
             $ref: '#/components/schemas/ToolParameter'
           title: Parameters
           description: Tool parameters
-    ToolParameter:
-      type: object
-      title: ToolParameter
-      additionalProperties: false
-      description: |-
-        Tool parameter definition stored in database.
-
-        Represents a parameter that a tool accepts, with its type, validation rules,
-        and example values.
-
-        Inherits from BaseResource:
-            id: UUID primary key
-            created_at: Creation timestamp
-            updated_at: Last update timestamp
-            labels: Optional key-value metadata
       required:
-        - tool_id
+        - created_by
         - name
-        - type
-        - description
-        - required
+        - provider_id
+        - namespaced_name
+        - parameters
+      type: object
+      title: ToolWithParameters
+      description: Schema for Tool response with ToolParameter details.
+      additionalProperties: false
+    ToolParameter:
       properties:
         id:
           type: string
           format: uuid
-          title: Id
+          readOnly: true
+          title: Resource ID
           description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
         tool_id:
           type: string
           format: uuid
@@ -10297,22 +10749,26 @@ components:
             - type: 'null'
           title: Example Value
           description: Example value for the parameter
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
-          description: Timestamp when resource was last updated
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
+      required:
+        - tool_id
+        - name
+        - type
+        - description
+        - required
+      type: object
+      title: ToolParameter
+      description: |-
+        Tool parameter definition stored in database.
+
+        Represents a parameter that a tool accepts, with its type, validation rules,
+        and example values.
+
+        Inherits from BaseResource:
+            id: UUID primary key
+            created_at: Creation timestamp
+            updated_at: Last update timestamp
+            labels: Optional key-value metadata
+      additionalProperties: false
     ToolUpdate:
       type: object
       title: ToolUpdate
@@ -10363,26 +10819,80 @@ components:
         - tool_ids
         - enabled
     ToolProviderWithConfiguration:
-      type: object
-      title: ToolProviderWithConfiguration
-      additionalProperties: false
-      description: Schema for ToolProvider response with ProviderConfiguration details.
-      required:
-        - created_by
-        - name
-        - configuration
       properties:
         id:
           type: string
           format: uuid
-          title: Id
+          readOnly: true
+          title: Resource ID
           description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Created By
+          description: User who created the resource
+          example: 770e8400-e29b-41d4-a716-446655440000
+        updated_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Updated By
+          description: User who last updated the resource
+          example: 880e8400-e29b-41d4-a716-446655440000
+        deleted_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          readOnly: true
+          title: Deleted At
+          description: Timestamp when resource was soft deleted
+          example: '2025-10-09T14:00:00Z'
+        deleted_by:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          readOnly: true
+          title: Deleted By
+          description: User who performed the soft delete
+          example: 660e8400-e29b-41d4-a716-446655440000
         name:
           type: string
           minLength: 1
           maxLength: 255
           title: Name
           description: Human-readable provider name
+          example: Authentication Service
         description:
           anyOf:
             - type: string
@@ -10390,48 +10900,7 @@ components:
             - type: 'null'
           title: Description
           description: Detailed description of the resource
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-          description: Timestamp when resource was created
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
-          description: Timestamp when resource was last updated
-        created_by:
-          type: string
-          format: uuid
-          title: Created By
-          description: User who created the resource
-        updated_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Updated By
-          description: User who last updated the resource
-        deleted_at:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
-          title: Deleted At
-          description: Timestamp when resource was soft deleted
-        deleted_by:
-          anyOf:
-            - type: string
-              format: uuid
-            - type: 'null'
-          title: Deleted By
-          description: User who performed the soft delete
-        labels:
-          type: object
-          additionalProperties:
-            type: string
-          title: Labels
-          description: Key-value pairs for resource labeling and filtering
+          example: Handles user authentication and authorization workflows
         enabled:
           type: boolean
           default: true
@@ -10457,6 +10926,14 @@ components:
         configuration:
           $ref: '#/components/schemas/MCPConfiguration'
           description: ToolProvider configuration
+      required:
+        - created_by
+        - name
+        - configuration
+      type: object
+      title: ToolProviderWithConfiguration
+      description: Schema for ToolProvider response with ProviderConfiguration details.
+      additionalProperties: false
     ToolProviderCreate:
       type: object
       title: ToolProviderCreate
@@ -10772,17 +11249,43 @@ components:
           format: date-time
           title: Updated At
     UserListResponse:
-      allOf:
-        - $ref: '#/components/schemas/ResourcesResponseBase'
-        - type: object
-          required:
-            - resources
-          properties:
-            resources:
-              type: array
-              items:
-                $ref: '#/components/schemas/UserRead'
-              maxItems: 100
+      title: UserListResponse
+      description: Paginated list response for users.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/UserRead'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     UserGroupsSet:
       type: object
       title: UserGroupsSet
@@ -10843,22 +11346,45 @@ components:
           description: Update group description
           title: Description
     GroupRead:
-      type: object
       title: GroupRead
+      additionalProperties: false
       description: |-
         Schema for group response (GET /groups/{id}).
 
         Includes all fields from the database table model.
-      required:
-        - id
-        - name
-        - created_at
-        - updated_at
       properties:
         id:
           type: string
           format: uuid
-          title: Id
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
         name:
           type: string
           title: Name
@@ -10877,14 +11403,6 @@ components:
               format: uuid
             - type: 'null'
           title: Created By
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
         source:
           type: string
           default: local
@@ -10893,18 +11411,47 @@ components:
           type: integer
           default: 0
           title: Member Count
+      required:
+        - name
+      type: object
     GroupListResponse:
-      allOf:
-        - $ref: '#/components/schemas/ResourcesResponseBase'
-        - type: object
-          required:
-            - resources
-          properties:
-            resources:
-              type: array
-              items:
-                $ref: '#/components/schemas/GroupRead'
-              maxItems: 100
+      title: GroupListResponse
+      description: Paginated list response for groups.
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/GroupRead'
+      required:
+        - resources
+      type: object
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
     GroupMemberAdd:
       type: object
       title: GroupMemberAdd
@@ -11062,6 +11609,7 @@ components:
       title: ExecutionRead
       type: object
     ExecutionListResponse:
+      title: ExecutionListResponse
       description: Paginated list response for executions.
       examples:
         - next: eyJpZCI6InV1aWQifQ
@@ -11073,29 +11621,30 @@ components:
           anyOf:
             - type: string
             - type: 'null'
-          description: Cursor for next page of results
           title: Next
+          description: Cursor for next page of results
         prev:
           anyOf:
             - type: string
             - type: 'null'
-          description: Cursor for previous page of results
           title: Prev
-        resources:
-          description: Array of resources in current page
-          items: {}
-          title: Resources
-          type: array
+          description: Cursor for previous page of results
         total:
           anyOf:
             - minimum: 0.0
               type: integer
             - type: 'null'
-          description: Total count of resources (only when include_total=true)
           title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ExecutionRead'
       required:
         - resources
-      title: ExecutionListResponse
       type: object
     ActivityData:
       description: Activity data for execution response.
@@ -11180,109 +11729,131 @@ components:
         - skipped
         - cancelled
     ActivityExecution:
-      allOf:
-        - type: object
-          title: Base Resource
-          description: Foundational schema for all API resources with system-managed metadata
-          required:
-            - id
-            - created_at
-            - updated_at
-          properties:
-            id:
-              type: string
-              format: uuid
-              readOnly: true
-              title: Resource ID
-              description: Unique identifier for the resource
-              example: 550e8400-e29b-41d4-a716-446655440000
-            created_at:
-              type: string
-              format: date-time
-              readOnly: true
-              title: Created At
-              description: Timestamp when resource was created
-              example: '2025-10-09T12:00:00Z'
-            updated_at:
-              type: string
-              format: date-time
-              readOnly: true
-              title: Updated At
-              description: Timestamp when resource was last updated
-              example: '2025-10-09T12:30:00Z'
-            labels:
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          title: Resource ID
+          description: Unique identifier for the resource
+          example: 550e8400-e29b-41d4-a716-446655440000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Created At
+          description: Timestamp when resource was created
+          example: '2025-10-09T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Updated At
+          description: Timestamp when resource was last updated
+          example: '2025-10-09T12:30:00Z'
+        labels:
+          type: object
+          default: {}
+          title: Labels
+          description: Key-value pairs for resource labeling and filtering
+          additionalProperties:
+            type: string
+          example:
+            environment: production
+            region: us-east-1
+            team: platform
+        execution_id:
+          type: string
+          format: uuid
+          description: Parent execution ID
+          title: Execution Id
+        activity_name:
+          type: string
+          description: Activity ID from workflow definition
+          minLength: 1
+          maxLength: 255
+          title: Activity Name
+        activity_definition:
+          anyOf:
+            - additionalProperties: true
               type: object
-              default: {}
-              title: Labels
-              description: Key-value pairs for resource labeling and filtering
-              additionalProperties:
-                type: string
-              example:
-                environment: production
-                region: us-east-1
-                team: platform
-        - type: object
-          title: Activity Execution
-          description: Individual activity execution within a workflow with runtime state, retry tracking, and activity definition snapshot
-          properties:
-            execution_id:
+            - type: 'null'
+          description: Snapshot of activity configuration from workflow definition
+          title: Activity Definition
+        temporal_activity_id:
+          type: string
+          description: Temporal activity execution ID
+          minLength: 1
+          maxLength: 255
+          title: Temporal Activity Id
+        status:
+          $ref: '#/components/schemas/ActivityStatus'
+          description: Current activity status
+        started_at:
+          anyOf:
+            - format: date-time
               type: string
-              format: uuid
-              description: Parent execution ID
-            activity_name:
+            - type: 'null'
+          description: When activity started execution
+          title: Started At
+        completed_at:
+          anyOf:
+            - format: date-time
               type: string
-              description: Activity ID from workflow definition
-            activity_definition:
+            - type: 'null'
+          description: When activity completed/failed
+          title: Completed At
+        input_data:
+          type: object
+          additionalProperties: true
+          description: Runtime input parameters
+          title: Input Data
+        output_data:
+          anyOf:
+            - additionalProperties: true
               type: object
-              description: Snapshot of the activity configuration from workflow definition at execution time, including executor, config, retry policy, timeout, approval settings
-            temporal_activity_id:
-              type: string
-              description: Temporal activity execution ID
-            status:
-              type: string
-              title: ActivityStatus
-              description: Activity execution status enumeration.
-              enum:
-                - pending
-                - running
-                - completed
-                - failed
-                - retrying
-                - skipped
-                - cancelled
-            started_at:
-              type:
-                - string
-                - 'null'
-              format: date-time
-              description: When activity transitioned from pending to running status (null if still pending)
-            completed_at:
-              type:
-                - string
-                - 'null'
-              format: date-time
-              description: When activity reached terminal state (completed, failed)
-            input_data:
-              type: object
-              description: Runtime input parameters
-            output_data:
-              type:
-                - object
-                - 'null'
-              description: Activity results
-            error_details:
-              type:
-                - string
-                - 'null'
-              description: Error information if failed
-            retry_count:
-              type: integer
-              description: Number of retry attempts
-            iteration:
-              type:
-                - integer
-                - 'null'
-              description: Iteration number if activity is within a loop (0-indexed)
+            - type: 'null'
+          description: Activity results (if completed)
+          title: Output Data
+        error_details:
+          anyOf:
+            - type: string
+            - type: 'null'
+          description: Error information if failed
+          title: Error Details
+        retry_count:
+          type: integer
+          description: Number of retry attempts
+          default: 0
+          title: Retry Count
+        iteration:
+          anyOf:
+            - type: integer
+            - type: 'null'
+          description: Iteration number if activity is within a loop (0-indexed)
+          title: Iteration
+      required:
+        - execution_id
+        - activity_name
+        - temporal_activity_id
+        - status
+      type: object
+      title: ActivityExecution
+      description: |-
+        Database model for activity executions.
+
+        Persists activity execution state to enable querying after Temporal's retention
+        period expires. Data is synced from Temporal events and cached in database.
+
+        This model serves both as the database table and the API response schema.
+        Activities are read-only from the API - they're created/updated by syncing from Temporal.
+
+        Inherits from BaseResource:
+            id: UUID primary key
+            created_at: Creation timestamp
+            updated_at: Last update timestamp
+            labels: Optional key-value metadata
+      additionalProperties: false
     SignalResponse:
       type: object
       title: Signal Response
@@ -11536,6 +12107,44 @@ components:
               format: uuid
             - type: 'null'
           title: Deleted By
+    WorkflowListResponse:
+      title: WorkflowListResponse
+      description: Paginated list response for workflows.
+      examples:
+        - next: eyJpZCI6InV1aWQifQ
+          total: 150
+        - next: eyJpZCI6Im5leHQifQ
+          prev: eyJpZCI6InByZXYifQ
+      properties:
+        next:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Next
+          description: Cursor for next page of results
+        prev:
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Prev
+          description: Cursor for previous page of results
+        total:
+          anyOf:
+            - minimum: 0.0
+              type: integer
+            - type: 'null'
+          title: Total
+          description: Total count of resources (only when include_total=true)
+        resources:
+          type: array
+          title: Resources
+          description: Array of resources in current page
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/WorkflowRead'
+      required:
+        - resources
+      type: object
     WorkflowVersionListResponse:
       type: object
       title: WorkflowVersionListResponse

@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime  # noqa: TC003 - used at runtime by SQLModel
 from typing import Any
-from uuid import UUID  # noqa: TC003 - used at runtime by SQLModel
 
 from sqlmodel import Field, SQLModel
 
+from nexus.core.models.base import BaseResource
 from nexus.core.models.pagination import ResourcesResponse
 from nexus.settings.models.runtime_setting import SettingValueType  # noqa: TC001 - used at runtime by SQLModel
 
 
-class RuntimeSettingRead(SQLModel):
+class RuntimeSettingRead(BaseResource):
     """Read schema for a single runtime setting."""
 
-    id: UUID
     key: str
     name: str
     description: str | None
@@ -29,8 +27,6 @@ class RuntimeSettingRead(SQLModel):
     cache_ttl_seconds: int | None
     validation_schema: dict[str, Any] | None
     version: int
-    created_at: datetime
-    updated_at: datetime
 
 
 class SettingsListResponse(ResourcesResponse[RuntimeSettingRead]):
