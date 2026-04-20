@@ -193,9 +193,7 @@ export function AssignmentsTab() {
               <Tbody>
                 {sortedRows.map((row) => (
                   <Tr key={`${row.sourceEndpoint}-${row.id}`}>
-                    <Td dataLabel="Principal">
-                      <strong>{row.principalName}</strong>
-                    </Td>
+                    <Td dataLabel="Principal">{row.principalName}</Td>
                     <Td dataLabel="Type">
                       <Label color={row.principalType === 'user' ? 'blue' : 'teal'} isCompact>
                         {row.principalType === 'user' ? 'User' : 'Group'}
