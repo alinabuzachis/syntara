@@ -1,5 +1,5 @@
 import { test, expect, toAppUrl } from './fixtures'
-import { buildUniqueName, createBasicWorkflow } from './helpers/workflows'
+import { buildUniqueName, createBasicWorkflow, deleteWorkflow } from './helpers/workflows'
 
 test('user searches, views, and deletes an automation', { timeout: 60_000 }, async ({ app }) => {
   // Arrange - Create a workflow to manage
@@ -42,18 +42,7 @@ test('user searches, views, and deletes an automation', { timeout: 60_000 }, asy
     await expect(app.getByRole('row', { name: new RegExp(workflowName) })).toHaveCount(0)
   } finally {
     for (const name of [otherWorkflowName, workflowName]) {
-      await app.goto(toAppUrl('/automations'))
-      await app.getByPlaceholder('Filter by name').fill(name)
-      await app.getByRole('button', { name: 'Apply filter' }).click()
-      const row = app.getByRole('row', { name: new RegExp(name) })
-      if ((await row.count()) > 0) {
-        await row
-          .getByRole('button', { name: /Actions|Kebab toggle/i })
-          .first()
-          .click({ force: true })
-        await app.getByRole('menuitem', { name: 'Delete automation' }).click()
-        await app.getByRole('button', { name: 'Delete' }).click()
-      }
+      await deleteWorkflow(app, name)
     }
   }
 })

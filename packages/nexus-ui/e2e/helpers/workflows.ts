@@ -114,6 +114,35 @@ export async function selectProjectIfRequired(page: Page, projectName = 'default
   }
 }
 
+/** Delete a workflow from the automations list by its unique name. */
+export async function deleteWorkflow(page: Page, workflowName: string) {
+  await page.goto(toAppUrl('/automations'))
+  await page.getByPlaceholder('Filter by name').fill(workflowName)
+  await page.getByRole('button', { name: 'Apply filter' }).click()
+  const row = page.getByRole('row', { name: new RegExp(workflowName) })
+  const isVisible = await expect(row.first())
+    .toBeVisible()
+    .then(() => true)
+    .catch(() => false)
+  if (isVisible) {
+    await row
+      .getByRole('button', { name: /Actions|Kebab toggle/i })
+      .first()
+      .click({ force: true })
+    await page.getByRole('menuitem', { name: 'Delete automation' }).click()
+    await page.getByRole('button', { name: 'Delete' }).click()
+  }
+}
+
+/** Open a saved workflow in the builder by filtering the automations list. */
+export async function openWorkflowInBuilder(page: Page, workflowName: string) {
+  await page.goto(toAppUrl('/automations'))
+  await page.getByPlaceholder('Filter by name').fill(workflowName)
+  await page.getByRole('button', { name: 'Apply filter' }).click()
+  await page.getByRole('button', { name: workflowName, exact: true }).click()
+  await expect(page.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
+}
+
 export async function createBasicWorkflow(page: Page, workflowName: string, actionName: string) {
   // Arrange - Start from the new workflow builder
   await page.goto(toAppUrl('/automation-builder/new'))

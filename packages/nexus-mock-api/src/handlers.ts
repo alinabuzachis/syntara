@@ -499,6 +499,14 @@ export const handlers = [
     }
 
     workflows.splice(workflowIndex, 1)
+
+    // Cascade: remove executions associated with the deleted workflow
+    for (let i = executions.length - 1; i >= 0; i--) {
+      if (executions[i].workflow_id === workflowId) {
+        executions.splice(i, 1)
+      }
+    }
+
     return new HttpResponse(null, { status: 204 })
   }),
 
@@ -528,6 +536,23 @@ export const handlers = [
 
     const body = paginate(enriched, cursor, limit, includeTotal)
     return HttpResponse.json(body)
+  }),
+
+  http.post('/api/v1/executions', async ({ request }) => {
+    const body = (await request.json()) as ExecutionsAPI.components['schemas']['CreateExecutionRequest']
+    const execution = {
+      id: uuidv4(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      workflow_id: body.workflow_id,
+      status: 'completed' as const,
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      started_by: 'user-1',
+      input_data: body.input_data ?? {},
+    }
+    executions.push(execution)
+    return HttpResponse.json(execution, { status: 201 })
   }),
 
   http.get('/api/v1/executions/:executionId', (request) => {
