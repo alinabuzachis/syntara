@@ -153,10 +153,6 @@ table.pf-v6-c-table.pf-m-sticky-header > .pf-v6-c-table__thead {
   width: max-content;
 }
 
-.pf-v6-c-nav.pf-m-docked .pf-v6-c-menu__list-item {
-  min-height: 44px;
-}
-
 .pf-v6-c-nav.pf-m-docked .pf-v6-c-menu__item {
   color: var(--pf-t--global--text--color--regular);
   white-space: nowrap;

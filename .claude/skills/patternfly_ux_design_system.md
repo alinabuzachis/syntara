@@ -567,11 +567,58 @@ PatternFly handles the internal accessibility of its elements (e.g., a dropdown 
 
 ---
 
-## 16. Getting Started for Developers
+## 16. Styling Rules
+
+### No Global, Unscoped CSS
+
+**Never write global CSS rules** that target element types, PatternFly class names, or broad selectors from a shared stylesheet. Global styles bleed across component boundaries, override PatternFly's design tokens silently, and break theming and upgrade-compatibility.
+
+```css
+/* ❌ BAD: global rules that affect all matching elements */
+.pf-v6-c-menu__item {
+  min-height: 0;
+}
+
+p {
+  margin-bottom: 8px;
+}
+```
+
+```css
+/* ✅ GOOD: scoped to a CSS Module, applied via className */
+/* MyComponent.module.css */
+.menuItem {
+  min-height: 0;
+}
+```
+
+```tsx
+/* ✅ GOOD: apply the scoped class in the component */
+import styles from './MyComponent.module.css'
+;<MenuItem className={styles.menuItem} />
+```
+
+### Styling Priority Order
+
+Follow this hierarchy when applying styles — always start from the top:
+
+1. **PatternFly props and variants** — use built-in component props (`variant`, `isCompact`, `hasNoPadding`, etc.) before writing any CSS.
+2. **PF6 design tokens** — use `var(--pf-t--global--*)` custom properties for spacing, color, and sizing. Never use hardcoded `px` values for these concerns.
+3. **CSS Modules** (`.module.css`) — for component-specific overrides that cannot be expressed via tokens or props. Styles must be scoped to the module; never use `:global()` selectors inside a module.
+4. **Inline `style` prop** — acceptable only for dynamic values (e.g., a width computed at runtime) that cannot be expressed as a token or class.
+
+### When a Global Style Seems Necessary
+
+If you believe a global style is the only option, follow the PatternFly gaps process (see "AO Design System" → "PatternFly gaps" above): check PatternFly docs and tokens first, raise with UX, then engage PatternFly upstream. Approved temporary exceptions must be documented with a `patternfly-override` Jira label.
+
+---
+
+## 17. Getting Started for Developers
 
 - Point to the AO UI repository for implementation references
 - Utilize the UI/UX skills defined in this document and the Cursor rules
 - Follow the accessibility guidelines in section 15
+- Follow the styling rules in section 16
 
 ---
 

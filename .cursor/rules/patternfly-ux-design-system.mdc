@@ -269,3 +269,30 @@ Achieving full WCAG 2.1 AA and Section 508 compliance requires careful implement
 - Automated: accessibility tools in unit tests and CI/CD
 - Manual: keyboard-only testing with Tab, Shift+Tab, Enter, Space, Arrow keys
 - Screen reader: verify actual user experience with assistive technology
+
+## Styling Rules
+
+### No Global, Unscoped CSS
+
+NEVER write global CSS rules that target element types, PatternFly class names, or broad selectors. Global styles bleed across component boundaries, silently override design tokens, and break theming and upgrade-compatibility.
+
+```css
+/* ❌ BAD */
+.pf-v6-c-menu__item { min-height: 0; }
+p { margin-bottom: 8px; }
+
+/* ✅ GOOD — scoped CSS Module */
+/* MyComponent.module.css */
+.menuItem { min-height: 0; }
+```
+
+### Styling Priority Order
+
+1. **PatternFly props/variants** — use built-in props (`variant`, `isCompact`, `hasNoPadding`, etc.) first
+2. **PF6 design tokens** — use `var(--pf-t--global--*)` for spacing, color, sizing; never hardcoded `px`
+3. **CSS Modules** (`.module.css`) — scoped overrides only; never use `:global()` inside a module
+4. **Inline `style` prop** — only for dynamic values computed at runtime
+
+### Exceptions
+
+If a global style seems necessary, follow the PatternFly gaps process: check PF docs/tokens → raise with UX → engage PatternFly upstream. Approved exceptions must be documented with a `patternfly-override` Jira label.
