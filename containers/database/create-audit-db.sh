@@ -26,3 +26,6 @@ if ! psql -U postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '${AUDIT_D
 else
     echo "Audit database '${AUDIT_DB}' already exists."
 fi
+
+# Ensure the audit user can create tables in the public schema.
+psql -U postgres -d "${AUDIT_DB}" -c "GRANT ALL ON SCHEMA public TO \"${AUDIT_USER}\""

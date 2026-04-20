@@ -341,12 +341,12 @@ class AuditDatabaseSettings(BaseSettings):
     """
 
     audit_db_user: str = Field(
-        default="admin",
+        default="nexus_audit",
         description="Audit database username",
     )
 
     audit_db_password: SecretStr = Field(
-        default=SecretStr("admin"),
+        default=SecretStr("audit_pass"),
         description="Audit database password",
     )
 
