@@ -370,27 +370,27 @@ These thresholds are based on industry standards (Code Complete, SonarQube, Biom
 
 Additional code quality rules (enforced as `error` — CI will block violations):
 
-| Rule                                             | What it enforces                                               |
-| ------------------------------------------------ | -------------------------------------------------------------- |
-| `eqeqeq`                                         | Use `===`/`!==` instead of `==`/`!=` (null comparisons exempt) |
-| `no-void`                                        | Disallow the unary `void` operator (readability / Sonar S3735) |
-| `no-restricted-exports`                          | Prefer named exports over `export default` for refactorability |
-| `@typescript-eslint/prefer-optional-chain`       | Use `a?.b?.c` instead of `a && a.b && a.b.c`                   |
-| `@typescript-eslint/prefer-nullish-coalescing`   | Use `??` instead of `\|\|` to avoid bugs with `0`/`''`         |
-| `@typescript-eslint/require-array-sort-compare`  | Require a compare function for `Array.sort()`                  |
-| `@typescript-eslint/switch-exhaustiveness-check` | Ensure all union/enum cases are handled in switch statements   |
-| `@typescript-eslint/prefer-includes`             | Use `.includes()` instead of `.indexOf() !== -1`               |
-| `react-hooks/exhaustive-deps`                    | Require all dependencies in React hook dependency arrays       |
-| `react/jsx-no-useless-fragment`                  | Remove unnecessary `<>{child}</>` wrappers                     |
-| `react/no-array-index-key`                       | Avoid using array index as React `key` prop                    |
-| `react/self-closing-comp`                        | Use `<Icon />` instead of `<Icon></Icon>`                      |
-| `unicorn/no-nested-ternary`                      | Prevent unreadable nested ternary expressions                  |
-| `unicorn/consistent-template-literal-escape`     | Consistent `\${` escaping in template literals                 |
-| `unicorn/no-useless-iterator-to-array`           | Flag unnecessary `.toArray()` on iterators                     |
-| `unicorn/prefer-simple-condition-first`          | Put simple conditions before complex ones in `&&` chains       |
-| `unicorn/switch-case-break-position`             | Consistent `break` placement inside switch cases               |
-| `import-x/no-cycle`                              | Detect circular dependencies (max depth: 2)                    |
-| `import-x/no-self-import`                        | Catch accidental self-imports                                  |
+| Rule                                             | What it enforces                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------- |
+| `eqeqeq`                                         | Use `===`/`!==` instead of `==`/`!=` (null comparisons exempt)            |
+| `no-void`                                        | Disallow the unary `void` operator (readability / Sonar S3735)            |
+| `no-restricted-exports`                          | Prefer named exports over `export default` for refactorability            |
+| `@typescript-eslint/prefer-optional-chain`       | Use `a?.b?.c` instead of `a && a.b && a.b.c`                              |
+| `@typescript-eslint/prefer-nullish-coalescing`   | Use `??` instead of `\|\|` to avoid bugs with `0`/`''`                    |
+| `@typescript-eslint/require-array-sort-compare`  | Require a compare function for `Array.sort()`                             |
+| `@typescript-eslint/switch-exhaustiveness-check` | Ensure all union/enum cases are handled in switch statements              |
+| `@typescript-eslint/prefer-includes`             | Use `.includes()` instead of `.indexOf() !== -1`                          |
+| `react-hooks/exhaustive-deps`                    | Require all dependencies in React hook dependency arrays                  |
+| `react/jsx-no-useless-fragment`                  | Remove unnecessary `<>{child}</>` wrappers                                |
+| `react/no-array-index-key`                       | Avoid using array index as React `key` prop                               |
+| `react/self-closing-comp`                        | Use `<Icon />` instead of `<Icon></Icon>`                                 |
+| `sonarjs/no-nested-conditional`                  | Prevent nested ternaries (Sonar typescript:S3358; aligns with SonarCloud) |
+| `unicorn/consistent-template-literal-escape`     | Consistent `\${` escaping in template literals                            |
+| `unicorn/no-useless-iterator-to-array`           | Flag unnecessary `.toArray()` on iterators                                |
+| `unicorn/prefer-simple-condition-first`          | Put simple conditions before complex ones in `&&` chains                  |
+| `unicorn/switch-case-break-position`             | Consistent `break` placement inside switch cases                          |
+| `import-x/no-cycle`                              | Detect circular dependencies (max depth: 2)                               |
+| `import-x/no-self-import`                        | Catch accidental self-imports                                             |
 
 Type-safe linting rules (enforced as `error` — CI will block violations):
 

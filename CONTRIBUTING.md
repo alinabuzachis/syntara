@@ -223,7 +223,7 @@ We also enforce modern TypeScript, React, and import hygiene rules as CI-blockin
 - **`switch-exhaustiveness-check`** — Handle all enum/union cases
 - **`prefer-includes`** — Use `.includes()` instead of `.indexOf() !== -1`
 - **`jsx-no-useless-fragment`** / **`self-closing-comp`** — Cleaner JSX
-- **`no-nested-ternary`** — Prevent unreadable nested ternaries
+- **`sonarjs/no-nested-conditional`** — Prevent nested ternaries (Sonar S3358; aligns with SonarCloud)
 - **`no-cycle`** / **`no-self-import`** — Catch circular dependencies
 
 Blank lines and comments are excluded from line counts. Test files (`*.test.*`, `*.spec.*`) are exempt from size limits and complexity.

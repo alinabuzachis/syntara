@@ -23,10 +23,15 @@ export function SwitchCell(props: {
     setIsChecked(checked)
   }, [checked])
 
+  let label: string | undefined
+  if (showLabels) {
+    label = isChecked ? enabledLabel : disabledLabel
+  }
+
   return (
     <Switch
       isChecked={isChecked}
-      label={showLabels ? (isChecked ? enabledLabel : disabledLabel) : undefined}
+      label={label}
       onChange={(_event, newChecked) => {
         // Update local state for visual toggle
         setIsChecked(newChecked)

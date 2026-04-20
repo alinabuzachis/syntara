@@ -13,18 +13,13 @@ export const SOURCE_EDGE_OFFSET = 5
  */
 function adjustCoordinate(coordinate: number, position: Position, offset: number, isHorizontal: boolean): number {
   if (isHorizontal) {
-    return position === Position.Right
-      ? coordinate - offset
-      : position === Position.Left
-        ? coordinate + offset
-        : coordinate
-  } else {
-    return position === Position.Bottom
-      ? coordinate - offset
-      : position === Position.Top
-        ? coordinate + offset
-        : coordinate
+    if (position === Position.Right) return coordinate - offset
+    if (position === Position.Left) return coordinate + offset
+    return coordinate
   }
+  if (position === Position.Bottom) return coordinate - offset
+  if (position === Position.Top) return coordinate + offset
+  return coordinate
 }
 
 /**

@@ -14,7 +14,12 @@ export function computeUploadStatusProps(files: UploadedFile[]): {
   const hasErrors = files.some((f) => f.status === 'error')
   const allSuccess = files.length > 0 && files.every((f) => f.status === 'success')
   const statusToggleText = files.length > 0 ? `${successCount}/${files.length} files uploaded` : undefined
-  const statusToggleIcon = hasErrors ? 'danger' : allSuccess ? 'success' : 'inProgress'
+  let statusToggleIcon: 'danger' | 'success' | 'inProgress' = 'inProgress'
+  if (hasErrors) {
+    statusToggleIcon = 'danger'
+  } else if (allSuccess) {
+    statusToggleIcon = 'success'
+  }
   return { statusToggleText, statusToggleIcon }
 }
 

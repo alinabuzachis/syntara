@@ -17,7 +17,7 @@ import {
   TitleSizes,
 } from '@patternfly/react-core'
 import { RhUiHistoryIcon, RhUiCloseIcon } from '@patternfly/react-icons'
-import { useMemo } from 'react'
+import { useMemo, type CSSProperties, type ReactNode } from 'react'
 
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { FilterBar } from '../../components/filters/FilterBar'
@@ -106,6 +106,63 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
 
   const groups = useMemo(() => groupExecutionsByDate(executions), [executions])
 
+  const simpleListStyle = {
+    paddingBottom: 'var(--pf-t--global--spacer--lg)',
+    '--pf-v6-c-simple-list__item-link--PaddingBlockStart': 'var(--pf-t--global--spacer--md)',
+    '--pf-v6-c-simple-list__item-link--PaddingBlockEnd': 'var(--pf-t--global--spacer--md)',
+    '--pf-v6-c-simple-list__item-link--PaddingInlineStart': 'var(--pf-t--global--spacer--xl)',
+    '--pf-v6-c-simple-list__item-link--PaddingInlineEnd': 'var(--pf-t--global--spacer--lg)',
+  } as CSSProperties
+
+  let executionListBody: ReactNode
+  if (executions.length === 0 && filters.length > 0) {
+    executionListBody = <EmptyStateFilter clearAllFilters={onFilterChange ? () => onFilterChange([]) : undefined} />
+  } else if (executions.length === 0) {
+    executionListBody = (
+      <Content
+        component={ContentVariants.p}
+        style={{
+          padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
+        }}
+      >
+        No execution history available
+      </Content>
+    )
+  } else {
+    executionListBody = (
+      <SimpleList isControlled={false} aria-label="Run history list" style={simpleListStyle}>
+        {groups.map(({ label, items }) => (
+          <SimpleListGroup
+            key={label}
+            title={
+              <Content
+                component={ContentVariants.small}
+                style={{
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--pf-t--global--text--color--subtle)',
+                  margin: 0,
+                }}
+              >
+                {label}
+              </Content>
+            }
+          >
+            {items.flatMap((execution) => [
+              <ExecutionHistoryRow
+                key={execution.id}
+                execution={execution}
+                onSelect={() => onExecutionSelect(execution.id)}
+                isSelected={selectedExecutionId === execution.id}
+              />,
+              <Divider key={`${execution.id}-divider`} component="li" />,
+            ])}
+          </SimpleListGroup>
+        ))}
+      </SimpleList>
+    )
+  }
+
   return (
     <CompassPanel
       hasNoPadding
@@ -165,61 +222,7 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
         )}
 
         <StackItem isFilled style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          {executions.length === 0 && filters.length > 0 ? (
-            <EmptyStateFilter clearAllFilters={onFilterChange ? () => onFilterChange([]) : undefined} />
-          ) : executions.length === 0 ? (
-            <Content
-              component={ContentVariants.p}
-              style={{
-                padding: 'var(--pf-t--global--spacer--md) var(--pf-t--global--spacer--lg)',
-              }}
-            >
-              No execution history available
-            </Content>
-          ) : (
-            <SimpleList
-              isControlled={false}
-              aria-label="Run history list"
-              style={
-                {
-                  paddingBottom: 'var(--pf-t--global--spacer--lg)',
-                  '--pf-v6-c-simple-list__item-link--PaddingBlockStart': 'var(--pf-t--global--spacer--md)',
-                  '--pf-v6-c-simple-list__item-link--PaddingBlockEnd': 'var(--pf-t--global--spacer--md)',
-                  '--pf-v6-c-simple-list__item-link--PaddingInlineStart': 'var(--pf-t--global--spacer--xl)',
-                  '--pf-v6-c-simple-list__item-link--PaddingInlineEnd': 'var(--pf-t--global--spacer--lg)',
-                } as React.CSSProperties
-              }
-            >
-              {groups.map(({ label, items }) => (
-                <SimpleListGroup
-                  key={label}
-                  title={
-                    <Content
-                      component={ContentVariants.small}
-                      style={{
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        color: 'var(--pf-t--global--text--color--subtle)',
-                        margin: 0,
-                      }}
-                    >
-                      {label}
-                    </Content>
-                  }
-                >
-                  {items.flatMap((execution) => [
-                    <ExecutionHistoryRow
-                      key={execution.id}
-                      execution={execution}
-                      onSelect={() => onExecutionSelect(execution.id)}
-                      isSelected={selectedExecutionId === execution.id}
-                    />,
-                    <Divider key={`${execution.id}-divider`} component="li" />,
-                  ])}
-                </SimpleListGroup>
-              ))}
-            </SimpleList>
-          )}
+          {executionListBody}
         </StackItem>
       </Stack>
     </CompassPanel>

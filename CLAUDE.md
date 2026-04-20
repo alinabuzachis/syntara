@@ -29,6 +29,7 @@ Treat accessibility as part of every UI change, not an optional follow-up:
 - **Leave files no worse than you found them**: If you touch a file, avoid increasing its warning count. When practical, reduce nearby warnings as part of the change.
 - **Refactor instead of suppressing**: Prefer clearer control flow, smaller functions, extracted helpers, and stronger types over disabling rules.
 - **Validate before finishing**: After substantive edits, run the relevant lint/type-check commands for the affected package and fix any issues introduced by the change.
+- **No nested ternary operators**: ESLint enforces `sonarjs/no-nested-conditional` (Sonar typescript:S3358), aligned with SonarCloud. Prefer `if`/`else`, early returns, or precomputed values instead of `a ? b : c ? d : e`. The full list of enforced readability rules is in [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md).
 - **No `void` operator**: Do not use JavaScript's unary `void` (for example `void promise()` or `void someFn()`). It is easy to misread, is flagged by Sonar (S3735), and is forbidden by ESLint `no-void`. For promises you intentionally do not await, use `detachPromise(...)` from `packages/nexus-ui/src/utils/detachPromise.ts` (wraps with `Promise.resolve` so mocks that return `undefined` are safe) or `await` / `return` the promise when the caller should handle errors. This is separate from TypeScript's `void` return type (e.g. `function cleanup(): void`).
 
 ### Common PR Mistakes — Quick Checklist
@@ -51,6 +52,7 @@ Treat accessibility as part of every UI change, not an optional follow-up:
 14. **Never compare display strings in logic** — compare API values or enum constants, not translatable labels
 15. **Use PF6 design tokens** — never hardcoded `px` for spacing/colors; use `var(--pf-t--global--*)`
 16. **No unary `void` operator** — use `detachPromise(...)` for intentionally unawaited promises; `void` is forbidden by ESLint `no-void`
+17. **No nested ternary operators** — use `if`/`else` or intermediate variables; ESLint `sonarjs/no-nested-conditional` (Sonar S3358)
 
 ### Feature Preservation Rules
 

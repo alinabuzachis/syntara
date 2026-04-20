@@ -139,7 +139,7 @@ export function ExpressionBuilderCore(props: ExpressionBuilderCoreProps) {
   // Initialize state by parsing the value (lazy init avoids re-parsing on every render)
   const [state, dispatch] = useReducer(builderReducer, value, (initialValue): BuilderState => {
     const initialExpression = parseExpression(initialValue)
-    const initialMode: EditorMode = initialExpression.root ? 'visual' : initialValue ? 'raw' : 'visual'
+    const initialMode: EditorMode = !initialExpression.root && initialValue ? 'raw' : 'visual'
 
     return {
       expression: initialExpression.root ? initialExpression : { root: createDefaultGroup() },

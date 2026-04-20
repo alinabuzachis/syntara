@@ -127,10 +127,15 @@ export function useExecutionWebSocket(
   // Determine replay parameter
   // - First connection: replay from beginning (if enabled)
   // - Reconnection: replay from last event ID
-  const replayParam = useMemo(
-    () => (isReconnecting && lastEventId ? lastEventId : replayFromBeginning ? '0' : undefined),
-    [isReconnecting, lastEventId, replayFromBeginning]
-  )
+  const replayParam = useMemo(() => {
+    if (isReconnecting && lastEventId) {
+      return lastEventId
+    }
+    if (replayFromBeginning) {
+      return '0'
+    }
+    return undefined
+  }, [isReconnecting, lastEventId, replayFromBeginning])
 
   // Build channel configuration with replay support
   const channel = useMemo(() => {

@@ -1,6 +1,6 @@
 import { Button, CompassPanel, Flex, FlexItem, Icon, Stack, StackItem, Title, TitleSizes } from '@patternfly/react-core'
 import { RhUiCloseIcon, RhUiArrowLeftIcon, RhUiAddSquareIcon } from '@patternfly/react-icons'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 
 import { NodeTypeOptionsList } from './NodeTypeOptionsList'
 import { NodeRegistry } from './registry/NodeRegistry'
@@ -20,6 +20,23 @@ export function AddNodePanelHeader({
   onBack,
   onClose,
 }: AddNodePanelHeaderProps) {
+  let leadingControl: ReactNode = null
+  if (isShowingSubtypeList && !hasNoWorkflowNodes) {
+    leadingControl = (
+      <Button variant="plain" onClick={onBack} aria-label="Back">
+        <Icon>
+          <RhUiArrowLeftIcon />
+        </Icon>
+      </Button>
+    )
+  } else if (!isShowingSubtypeList) {
+    leadingControl = (
+      <Icon>
+        <RhUiAddSquareIcon />
+      </Icon>
+    )
+  }
+
   return (
     <StackItem>
       <Flex
@@ -29,19 +46,7 @@ export function AddNodePanelHeader({
       >
         <FlexItem>
           <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-            <FlexItem>
-              {isShowingSubtypeList && !hasNoWorkflowNodes ? (
-                <Button variant="plain" onClick={onBack} aria-label="Back">
-                  <Icon>
-                    <RhUiArrowLeftIcon />
-                  </Icon>
-                </Button>
-              ) : !isShowingSubtypeList ? (
-                <Icon>
-                  <RhUiAddSquareIcon />
-                </Icon>
-              ) : null}
-            </FlexItem>
+            <FlexItem>{leadingControl}</FlexItem>
             <FlexItem>
               <Title headingLevel="h2" size={TitleSizes.lg}>
                 {panelTitle}

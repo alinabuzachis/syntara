@@ -15,7 +15,7 @@ import {
 import { RhUiBackwardsIcon, RhUiKeyIcon } from '@patternfly/react-icons'
 import { ActionsColumn } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useLocation, useParams } from 'wouter'
 
 import { AppPage } from '../../../app/AppPage'
@@ -78,6 +78,24 @@ export default function CredentialDetail() {
     const inputs = credType.inputs as Record<string, unknown>
     return (inputs?.fields as FieldDefinition[]) ?? []
   }, [credType])
+
+  const credentialTypeDetail: ReactNode = useMemo(() => {
+    if (credType) {
+      return (
+        <Label variant="outline" isCompact icon={<RhUiKeyIcon />}>
+          {credType.name}
+        </Label>
+      )
+    }
+    if (typeLoadError) {
+      return (
+        <Label variant="outline" isCompact color="red">
+          Failed to load type
+        </Label>
+      )
+    }
+    return '\u2014'
+  }, [credType, typeLoadError])
 
   // Mutations
   const { mutate: patchCredential, isPending: isPatchPending } = credentialsClient.useMutation(
@@ -242,19 +260,7 @@ export default function CredentialDetail() {
                   <DescriptionList isHorizontal>
                     <Detail label="Name">{credential.name}</Detail>
                     <Detail label="Description">{credential.description ?? '\u2014'}</Detail>
-                    <Detail label="Type">
-                      {credType ? (
-                        <Label variant="outline" isCompact icon={<RhUiKeyIcon />}>
-                          {credType.name}
-                        </Label>
-                      ) : typeLoadError ? (
-                        <Label variant="outline" isCompact color="red">
-                          Failed to load type
-                        </Label>
-                      ) : (
-                        '\u2014'
-                      )}
-                    </Detail>
+                    <Detail label="Type">{credentialTypeDetail}</Detail>
                     <Detail label="Workflows">
                       {credential.workflow_count != null && credential.workflow_count > 0
                         ? credential.workflow_count

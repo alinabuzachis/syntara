@@ -259,6 +259,23 @@ function SelectFilterInput({
 
   if (!selectedField.options && !selectedField.asyncOptions) return null
 
+  const toggleLabel = activeOption
+    ? activeOption.label
+    : (selectedField.placeholder ?? `Filter by ${selectedField.label.toLowerCase()}`)
+
+  let selectListBody: React.ReactNode
+  if (isLoadingOptions) {
+    selectListBody = <SelectOption isDisabled>Loading...</SelectOption>
+  } else if (filteredOptions.length > 0) {
+    selectListBody = filteredOptions.map((option) => (
+      <SelectOption key={option.value} value={option.value}>
+        {option.label}
+      </SelectOption>
+    ))
+  } else {
+    selectListBody = <SelectOption isDisabled>No results found</SelectOption>
+  }
+
   return (
     <ToolbarItem>
       <Select
@@ -270,9 +287,7 @@ function SelectFilterInput({
         popperProps={popperProps}
         toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
           <MenuToggle ref={toggleRef} onClick={() => handleOpenChange(!isOpen)}>
-            {activeOption
-              ? activeOption.label
-              : (selectedField.placeholder ?? `Filter by ${selectedField.label.toLowerCase()}`)}
+            {toggleLabel}
           </MenuToggle>
         )}
       >
@@ -283,19 +298,7 @@ function SelectFilterInput({
           placeholder="Search..."
           style={{ padding: 'var(--pf-t--global--spacer--sm)' }}
         />
-        <SelectList>
-          {isLoadingOptions ? (
-            <SelectOption isDisabled>Loading...</SelectOption>
-          ) : filteredOptions.length > 0 ? (
-            filteredOptions.map((option) => (
-              <SelectOption key={option.value} value={option.value}>
-                {option.label}
-              </SelectOption>
-            ))
-          ) : (
-            <SelectOption isDisabled>No results found</SelectOption>
-          )}
-        </SelectList>
+        <SelectList>{selectListBody}</SelectList>
       </Select>
     </ToolbarItem>
   )

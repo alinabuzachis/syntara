@@ -83,7 +83,6 @@ export default tseslint.config(
       'react/jsx-no-useless-fragment': ['error', { allowExpressions: true }],
       'react/self-closing-comp': 'error',
       'unicorn/prefer-number-properties': 'error',
-      'unicorn/no-nested-ternary': 'error',
       'unicorn/consistent-template-literal-escape': 'error',
       'unicorn/no-useless-iterator-to-array': 'error',
       'unicorn/prefer-simple-condition-first': 'error',
@@ -111,6 +110,8 @@ export default tseslint.config(
       complexity: ['error', 20],
       // Aligns with Sonar typescript:S3776 (cognitive complexity). Prefer extraction over suppressions.
       'sonarjs/cognitive-complexity': ['error', 15],
+      // Aligns with Sonar typescript:S3358 (nested ternary). Matches SonarCloud carve-outs (e.g. separate JSX `{}` blocks).
+      'sonarjs/no-nested-conditional': 'error',
       'max-depth': ['error', 4],
       'max-params': ['error', 5],
       // Limit nested functions/callbacks (e.g. hooks → timeout → setState updater). Complements max-depth

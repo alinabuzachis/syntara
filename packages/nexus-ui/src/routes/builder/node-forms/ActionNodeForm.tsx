@@ -263,7 +263,8 @@ function ActionFormFields({
   const errors = validationErrors ?? contextErrors
   const executor = useWatch({ control, name: 'executor' })
   const language = useWatch({ control, name: 'language' })
-  const editorLanguage = language === 'bash' ? 'bash' : language === 'python' ? 'python' : 'plaintext'
+  const editorLanguage: 'bash' | 'python' | 'plaintext' =
+    language === 'bash' || language === 'python' ? language : 'plaintext'
 
   useEffect(() => {
     if (errors.code && scriptEditorRef?.current) scriptEditorRef.current.focus()
