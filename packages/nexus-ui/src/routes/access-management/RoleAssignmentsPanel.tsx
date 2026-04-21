@@ -22,7 +22,8 @@ import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
-import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
+import { useFilterState } from '../../hooks/useFilterState'
+import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { accessClient } from '../access/accessClient'
@@ -152,13 +153,13 @@ function RoleAssignmentsTable({
 export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<RoleAssignmentsPanelProps>) {
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [rowToUnassign, setRowToUnassign] = useState<RoleAssignmentRow | null>(null)
-  const [filters, setFilters] = useState<FilterConfig[]>([])
+  const { filters, setAllFilters, clearAllFilters } = useFilterState()
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(20)
   const { showAlert } = useAlerts()
 
-  const handleFilterChange = (newFilters: FilterConfig[]) => {
-    setFilters(newFilters)
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setAllFilters(newFilters)
     setPage(1)
   }
 
@@ -300,7 +301,10 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 showClearAll={true}
-                clearAllFilters={() => handleFilterChange([])}
+                clearAllFilters={() => {
+                  clearAllFilters()
+                  setPage(1)
+                }}
               />
             </FlexItem>
             <FlexItem>
@@ -313,7 +317,12 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
 
         {filteredRows.length === 0 ? (
           <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
+            <EmptyStateFilter
+              clearAllFilters={() => {
+                clearAllFilters()
+                setPage(1)
+              }}
+            />
           </StackItem>
         ) : (
           <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>

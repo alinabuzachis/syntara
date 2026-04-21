@@ -22,9 +22,12 @@ const mockGetSortParams = vi.fn().mockReturnValue({
 const mockRefetchAll = vi.fn()
 const mockHandleDelete = vi.fn()
 
+const mockClearAllFilters = vi.fn()
+
 const defaultHookReturn = {
   filters: [],
   handleFilterChange: mockHandleFilterChange,
+  clearAllFilters: mockClearAllFilters,
   getSortParams: mockGetSortParams,
   projects: [
     {
@@ -295,7 +298,7 @@ describe('AssignmentsTab', () => {
       const clearButtons = screen.getAllByRole('button', { name: /Clear all filters/i })
       await user.click(clearButtons[clearButtons.length - 1])
 
-      expect(mockHandleFilterChange).toHaveBeenCalledWith([])
+      expect(mockClearAllFilters).toHaveBeenCalled()
     })
   })
 

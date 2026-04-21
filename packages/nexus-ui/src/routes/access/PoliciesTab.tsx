@@ -1,50 +1,19 @@
 import { Label, Stack, StackItem } from '@patternfly/react-core'
 import { RhUiLockIcon } from '@patternfly/react-icons'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import type { ThProps } from '@patternfly/react-table'
-import { useCallback, useMemo, useState } from 'react'
+import { useState } from 'react'
 
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { useQueryState } from '../../components/states/useQueryState'
-import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
-import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
-import { buildFilterParams } from '../../utils/filterUtils'
 
 import { accessClient } from './accessClient'
+import { builtinFilterDefinitions } from './builtinFilterDefinitions'
 import { PaginationFooter } from './PaginationFooter'
 import { PolicyDetailSidebar } from './PolicyDetailSidebar'
 import type { PolicyRead } from './types'
-
-const filterFieldDefinitions: FilterFieldDefinition[] = [
-  {
-    key: 'name',
-    label: 'Name',
-    type: FilterTypeEnum.TEXT,
-    operators: [FilterOperatorEnum.CONTAINS],
-    defaultOperator: FilterOperatorEnum.CONTAINS,
-    placeholder: 'Filter by name',
-  },
-  {
-    key: 'description',
-    label: 'Description',
-    type: FilterTypeEnum.TEXT,
-    operators: [FilterOperatorEnum.CONTAINS],
-    defaultOperator: FilterOperatorEnum.CONTAINS,
-    placeholder: 'Filter by description',
-  },
-  {
-    key: 'type',
-    label: 'Type',
-    type: FilterTypeEnum.SELECT,
-    options: [
-      { value: 'builtin', label: 'Built-in' },
-      { value: 'custom', label: 'Custom' },
-    ],
-    placeholder: 'Filter by type',
-  },
-]
+import { useBuiltinListState } from './useBuiltinListState'
 
 // Column index → API sort field
 const sortFieldByColumn: Record<number, string> = {
@@ -54,68 +23,19 @@ const sortFieldByColumn: Record<number, string> = {
 
 export function PoliciesTab() {
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null)
-  const [filters, setFilters] = useState<FilterConfig[]>([])
-  const [cursor, setCursor] = useState<string | null>(null)
-  const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null])
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(20)
-  const [activeSortIndex, setActiveSortIndex] = useState<number | undefined>(undefined)
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  const hasActiveFilters = filters.length > 0
-
-  const handleFilterChange = (newFilters: FilterConfig[]) => {
-    setFilters(newFilters)
-    setCursor(null)
-    setCursorHistory([null])
-    setPage(1)
-  }
-
-  const handlePerPageChange = (newPerPage: number) => {
-    setPerPage(newPerPage)
-    setCursor(null)
-    setCursorHistory([null])
-    setPage(1)
-  }
-
-  const getSortParams = useCallback(
-    (columnIndex: number): ThProps['sort'] => ({
-      sortBy: {
-        index: activeSortIndex,
-        direction: sortDirection,
-        defaultDirection: 'asc',
-      },
-      onSort: (_event, index, direction) => {
-        setActiveSortIndex(index)
-        setSortDirection(direction as 'asc' | 'desc')
-        setCursor(null)
-        setCursorHistory([null])
-        setPage(1)
-      },
-      columnIndex,
-    }),
-    [activeSortIndex, sortDirection]
-  )
-
-  const sortField = activeSortIndex === undefined ? undefined : sortFieldByColumn[activeSortIndex]
-  const sortPrefix = sortDirection === 'desc' ? '-' : ''
-  const sortParam = sortField ? `${sortPrefix}${sortField}` : undefined
-
-  // Build query params from filters, transforming type → is_builtin
-  const queryParams = useMemo(() => {
-    const params: Record<string, unknown> = { limit: perPage, include_total: true }
-    const filterParams = buildFilterParams(
-      filters.map((f) => {
-        if (f.key === 'type') {
-          return { key: 'is_builtin', value: f.value === 'builtin' }
-        }
-        return f
-      })
-    )
-    Object.assign(params, filterParams)
-    if (cursor) params.cursor = cursor
-    if (sortParam) params.sort = sortParam
-    return params
-  }, [filters, cursor, perPage, sortParam])
+  const {
+    filters,
+    hasActiveFilters,
+    handleFilterChange,
+    clearAllFilters,
+    getSortParams,
+    queryParams,
+    page,
+    perPage,
+    handlePerPageChange,
+    goToPrevPage,
+    goToNextPage,
+  } = useBuiltinListState(sortFieldByColumn)
 
   const policiesQuery = accessClient.useQuery('get', '/policies', {
     params: { query: queryParams },
@@ -145,17 +65,17 @@ export function PoliciesTab() {
         <Stack style={{ height: '100%' }}>
           <StackItem>
             <FilterBar
-              fieldDefinitions={filterFieldDefinitions}
+              fieldDefinitions={builtinFilterDefinitions}
               filters={filters}
               onFilterChange={handleFilterChange}
               showClearAll={true}
-              clearAllFilters={() => handleFilterChange([])}
+              clearAllFilters={clearAllFilters}
             />
           </StackItem>
 
           {policies.length === 0 ? (
             <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
+              <EmptyStateFilter clearAllFilters={clearAllFilters} />
             </StackItem>
           ) : (
             <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
@@ -206,18 +126,8 @@ export function PoliciesTab() {
             perPage={perPage}
             total={policiesQuery.data?.total}
             hasNext={!!policiesQuery.data?.next}
-            onPrev={() => {
-              const prevCursor = cursorHistory[cursorHistory.length - 2] ?? null
-              setCursor(prevCursor)
-              setCursorHistory((prev) => prev.slice(0, -1))
-              setPage(page - 1)
-            }}
-            onNext={() => {
-              const nextCursor = policiesQuery.data?.next ?? null
-              setCursorHistory((prev) => [...prev, nextCursor])
-              setCursor(nextCursor)
-              setPage(page + 1)
-            }}
+            onPrev={goToPrevPage}
+            onNext={() => goToNextPage(policiesQuery.data?.next ?? null)}
             onPerPageChange={handlePerPageChange}
           />
         </Stack>

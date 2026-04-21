@@ -16,7 +16,6 @@ import {
   Title,
 } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon } from '@patternfly/react-icons'
-import { useState } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -24,6 +23,7 @@ import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { useDetailTab } from '../../../hooks/useDetailTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { accessClient } from '../../access/accessClient'
 import type { ProjectRead } from '../../access/types'
@@ -82,7 +82,8 @@ function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
 
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>()
-  const [activeTab, setActiveTab] = useState(0)
+  const basePath = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId ?? '')
+  const [activeTab, goToTab] = useDetailTab<'details'>(basePath)
 
   const projectQuery = accessClient.useQuery(
     'get',
@@ -150,12 +151,14 @@ export function ProjectDetail() {
     <AppPage>
       <AppPageHeader title={headerTitle} />
       <StackItem>
-        <Tabs activeKey={activeTab} onSelect={(_event, key) => setActiveTab(Number(key))}>
-          <Tab eventKey={0} title={<TabTitleText>Details</TabTitleText>} />
+        <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as 'details')}>
+          <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
         </Tabs>
       </StackItem>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-        <CompassPanel isFullHeight>{activeTab === 0 && <ProjectDetailsTab project={projectData} />}</CompassPanel>
+        <CompassPanel isFullHeight>
+          {activeTab === 'details' && <ProjectDetailsTab project={projectData} />}
+        </CompassPanel>
       </StackItem>
     </AppPage>
   )

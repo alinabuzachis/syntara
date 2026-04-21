@@ -26,6 +26,14 @@ vi.mock('wouter/use-browser-location', () => ({
   navigate: vi.fn(),
 }))
 
+vi.mock('wouter', async () => {
+  const React = await import('react')
+  return {
+    useLocation: () => ['/access-management/projects', vi.fn()],
+    useSearchParams: () => React.useState(new URLSearchParams()),
+  }
+})
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })

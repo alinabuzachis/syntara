@@ -29,6 +29,14 @@ vi.mock('../../components/details/CodeBlock', () => ({
   CodeBlock: ({ jsonObject }: { jsonObject: unknown }) => <pre>{JSON.stringify(jsonObject)}</pre>,
 }))
 
+vi.mock('wouter', async () => {
+  const React = await import('react')
+  return {
+    useLocation: () => ['/access-management/policies', vi.fn()],
+    useSearchParams: () => React.useState(new URLSearchParams()),
+  }
+})
+
 const samplePolicies: PolicyRead[] = [
   {
     id: 'p1',

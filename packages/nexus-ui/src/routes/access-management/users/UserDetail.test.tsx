@@ -34,12 +34,17 @@ vi.mock('../../access/accessClient', () => ({
 
 const VALID_USER_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
+let mockLocationValue = `/access-management/users/${VALID_USER_ID}`
+const mockSetLocation = vi.fn()
 const mockUseParams = vi.fn(() => ({ userId: VALID_USER_ID }))
-vi.mock('wouter', () => ({
-  useLocation: () => [`/access-management/users/${VALID_USER_ID}`, vi.fn()],
-  useParams: () => mockUseParams(),
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
-}))
+vi.mock('wouter', async () => {
+  const React = await import('react')
+  return {
+    useLocation: () => [mockLocationValue, mockSetLocation],
+    useParams: () => mockUseParams(),
+    useSearchParams: () => React.useState(new URLSearchParams()),
+  }
+})
 
 const mockNavigate = vi.fn()
 vi.mock('wouter/use-browser-location', () => ({
@@ -118,6 +123,8 @@ describe('UserDetail', () => {
   beforeEach(() => {
     queryClient.clear()
     mockNavigate.mockClear()
+    mockSetLocation.mockClear()
+    mockLocationValue = `/access-management/users/${VALID_USER_ID}`
     mockUseParams.mockReturnValue({ userId: VALID_USER_ID })
     mockSuccessQueries()
   })
@@ -446,15 +453,20 @@ describe('UserDetail', () => {
       expect(screen.getByText('jdoe')).toBeInTheDocument()
     })
 
-    it('switches to Groups tab and renders UserGroupsPanel', async () => {
+    it('navigates to groups URL when Groups tab is clicked', async () => {
       const user = userEvent.setup()
       render(<UserDetail />, { wrapper })
 
       await user.click(screen.getByRole('tab', { name: /Groups/i }))
 
-      // After switching, the Details description list terms should no longer render
+      expect(mockSetLocation).toHaveBeenCalledWith(`/access-management/users/${VALID_USER_ID}/groups`)
+    })
+
+    it('renders Groups tab content when URL is /groups', () => {
+      mockLocationValue = `/access-management/users/${VALID_USER_ID}/groups`
+      render(<UserDetail />, { wrapper })
+
       expect(screen.queryByText('Username')).not.toBeInTheDocument()
-      // Groups panel should be rendered (it shows the group name from mock data)
       expect(screen.getByText('developers')).toBeInTheDocument()
     })
 

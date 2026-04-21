@@ -25,6 +25,7 @@ import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { useDetailTab } from '../../../hooks/useDetailTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { accessClient } from '../../access/accessClient'
 import { GroupFormModal } from '../GroupFormModal'
@@ -67,17 +68,17 @@ function GroupTabBar({
   isAuthenticated,
   memberCount,
 }: Readonly<{
-  activeTab: number
+  activeTab: string
   onSelect: (_event: React.MouseEvent | React.KeyboardEvent, key: string | number) => void
   isAuthenticated: boolean
   memberCount: number
 }>) {
   return (
     <Tabs activeKey={activeTab} onSelect={onSelect}>
-      <Tab eventKey={0} title={<TabTitleText>Details</TabTitleText>} />
+      <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
       {!isAuthenticated && (
         <Tab
-          eventKey={1}
+          eventKey="members"
           title={
             <TabTitleText>
               Members <Badge isRead>{memberCount}</Badge>
@@ -85,7 +86,7 @@ function GroupTabBar({
           }
         />
       )}
-      <Tab eventKey={2} title={<TabTitleText>Roles</TabTitleText>} />
+      <Tab eventKey="roles" title={<TabTitleText>Roles</TabTitleText>} />
     </Tabs>
   )
 }
@@ -99,24 +100,26 @@ function GroupTabContent({
 }: Readonly<{
   group: Group
   groupId: string
-  activeTab: number
+  activeTab: string
   isAuthenticated: boolean
   onMembersChange: () => void
 }>) {
   return (
     <>
-      {activeTab === 0 && <GroupDetailsTab group={group} />}
-      {activeTab === 1 && !isAuthenticated && (
+      {activeTab === 'details' && <GroupDetailsTab group={group} />}
+      {activeTab === 'members' && !isAuthenticated && (
         <GroupMembersPanel groupId={groupId} onMembershipChange={onMembersChange} />
       )}
-      {activeTab === 2 && <RoleAssignmentsPanel principalType="group" principalId={groupId} />}
+      {activeTab === 'roles' && <RoleAssignmentsPanel principalType="group" principalId={groupId} />}
     </>
   )
 }
 
 export function GroupDetail() {
   const { groupId } = useParams<{ groupId: string }>()
-  const [activeTab, setActiveTab] = useState(0)
+  const basePath = AppRoute.AccessManagement.GroupDetail.replace(':groupId', groupId ?? '')
+  type GroupTab = 'details' | 'members' | 'roles'
+  const [activeTab, goToTab] = useDetailTab<GroupTab>(basePath)
   const [editModalOpen, setEditModalOpen] = useState(false)
 
   const groupQuery = accessClient.useQuery(
@@ -206,7 +209,7 @@ export function GroupDetail() {
       <StackItem>
         <GroupTabBar
           activeTab={activeTab}
-          onSelect={(_event, key) => setActiveTab(Number(key))}
+          onSelect={(_event, key) => goToTab(key as GroupTab)}
           isAuthenticated={isAuthenticated}
           memberCount={memberCount}
         />

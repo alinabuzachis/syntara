@@ -1,3 +1,4 @@
+import { SortByDirection } from '@patternfly/react-table'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -23,6 +24,14 @@ vi.mock('./accessClient', () => ({
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
+
+vi.mock('wouter', async () => {
+  const React = await import('react')
+  return {
+    useLocation: () => ['/access-management/assignments', vi.fn()],
+    useSearchParams: () => React.useState(new URLSearchParams()),
+  }
+})
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -485,9 +494,9 @@ describe('useAssignmentsData', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      const sortParams = result.current.getSortParams(0)
+      const sortParams = result.current.getSortParams(0)!
       act(() => {
-        sortParams.onSort({} as React.MouseEvent, 0, 'asc')
+        sortParams.onSort!({} as React.MouseEvent, 0, SortByDirection.asc, {} as never)
       })
 
       const names = result.current.sortedRows.map((r) => r.principalName)
@@ -498,9 +507,9 @@ describe('useAssignmentsData', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      const sortParams = result.current.getSortParams(0)
+      const sortParams = result.current.getSortParams(0)!
       act(() => {
-        sortParams.onSort({} as React.MouseEvent, 0, 'desc')
+        sortParams.onSort!({} as React.MouseEvent, 0, SortByDirection.desc, {} as never)
       })
 
       const names = result.current.sortedRows.map((r) => r.principalName)
@@ -511,9 +520,9 @@ describe('useAssignmentsData', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      const sortParams = result.current.getSortParams(1)
+      const sortParams = result.current.getSortParams(1)!
       act(() => {
-        sortParams.onSort({} as React.MouseEvent, 1, 'asc')
+        sortParams.onSort!({} as React.MouseEvent, 1, SortByDirection.asc, {} as never)
       })
 
       const types = result.current.sortedRows.map((r) => r.principalType)
@@ -525,9 +534,9 @@ describe('useAssignmentsData', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      const sortParams = result.current.getSortParams(2)
+      const sortParams = result.current.getSortParams(2)!
       act(() => {
-        sortParams.onSort({} as React.MouseEvent, 2, 'asc')
+        sortParams.onSort!({} as React.MouseEvent, 2, SortByDirection.asc, {} as never)
       })
 
       const roles = result.current.sortedRows.map((r) => r.assignmentName)
@@ -538,9 +547,9 @@ describe('useAssignmentsData', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      const sortParams = result.current.getSortParams(3)
+      const sortParams = result.current.getSortParams(3)!
       act(() => {
-        sortParams.onSort({} as React.MouseEvent, 3, 'asc')
+        sortParams.onSort!({} as React.MouseEvent, 3, SortByDirection.asc, {} as never)
       })
 
       const scopes = result.current.sortedRows.map((r) => r.scopeName)
@@ -551,7 +560,7 @@ describe('useAssignmentsData', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      const params = result.current.getSortParams(2)
+      const params = result.current.getSortParams(2)!
       expect(params.columnIndex).toBe(2)
       expect(params.sortBy.defaultDirection).toBe('asc')
     })

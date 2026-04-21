@@ -26,10 +26,13 @@ vi.mock('../../access/accessClient', () => ({
   },
 }))
 
-vi.mock('wouter', () => ({
-  useLocation: () => ['/access-management/users/user-123', vi.fn()],
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
-}))
+vi.mock('wouter', async () => {
+  const React = await import('react')
+  return {
+    useLocation: () => ['/access-management/users/user-123/groups', vi.fn()],
+    useSearchParams: () => React.useState(new URLSearchParams()),
+  }
+})
 
 const queryClient = new QueryClient({
   defaultOptions: {

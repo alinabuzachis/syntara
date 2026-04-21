@@ -71,6 +71,14 @@ vi.mock('./useCanQueryAuthz', () => ({
   useCanQueryAuthz: () => mockCanQueryAuthz(),
 }))
 
+vi.mock('wouter', async () => {
+  const React = await import('react')
+  return {
+    useLocation: () => React.useState('/access-management/can-i'),
+    useSearchParams: () => React.useState(new URLSearchParams()),
+  }
+})
+
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

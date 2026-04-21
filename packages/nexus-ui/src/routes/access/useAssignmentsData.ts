@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { useAlerts } from '../../components/alerts'
+import { useFilterState } from '../../hooks/useFilterState'
+import { useSortState } from '../../hooks/useSortState'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 
@@ -102,63 +104,46 @@ function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): Permissio
   })
 }
 
+const assignmentsSortFieldByColumn: Record<number, string> = {
+  0: 'principal_name',
+  1: 'principal_type',
+  2: 'assignment_name',
+  3: 'scope_name',
+}
+
+const assignmentsSortFieldToRow: Record<string, keyof PermissionRow> = {
+  principal_name: 'principalName',
+  principal_type: 'principalType',
+  assignment_name: 'assignmentName',
+  scope_name: 'scopeName',
+}
+
 function sortRows(
   rows: PermissionRow[],
   activeSortIndex: number | undefined,
   sortDirection: 'asc' | 'desc'
 ): PermissionRow[] {
   if (activeSortIndex === undefined) return rows
+  const sortField = assignmentsSortFieldByColumn[activeSortIndex]
+  const rowKey = sortField ? assignmentsSortFieldToRow[sortField] : undefined
+  if (!rowKey) return rows
+
   return [...rows].sort((a, b) => {
-    let aVal = ''
-    let bVal = ''
-    switch (activeSortIndex) {
-      case 0:
-        aVal = a.principalName ?? ''
-        bVal = b.principalName ?? ''
-        break
-      case 1:
-        aVal = a.principalType
-        bVal = b.principalType
-        break
-      case 2:
-        aVal = a.assignmentName ?? ''
-        bVal = b.assignmentName ?? ''
-        break
-      case 3:
-        aVal = a.scopeName ?? ''
-        bVal = b.scopeName ?? ''
-        break
-    }
+    const aVal = String(a[rowKey] ?? '')
+    const bVal = String(b[rowKey] ?? '')
     const cmp = aVal.localeCompare(bVal)
     return sortDirection === 'asc' ? cmp : -cmp
   })
 }
 
 export function useAssignmentsData() {
-  const [filters, setFilters] = useState<FilterConfig[]>([])
-  const [activeSortIndex, setActiveSortIndex] = useState<number | undefined>(undefined)
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const { filters, setAllFilters, clearAllFilters } = useFilterState()
+  const { activeSortIndex, sortDirection, getSortParams } = useSortState(assignmentsSortFieldByColumn)
   const { showSuccess, showError } = useAlerts()
 
-  const handleFilterChange = (newFilters: FilterConfig[]) => {
-    setFilters(newFilters)
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setAllFilters(newFilters)
   }
-
-  const getSortParams = useCallback(
-    (columnIndex: number) => ({
-      sortBy: {
-        index: activeSortIndex,
-        direction: sortDirection,
-        defaultDirection: 'asc' as const,
-      },
-      onSort: (_event: React.MouseEvent, index: number, direction: string) => {
-        setActiveSortIndex(index)
-        setSortDirection(direction as 'asc' | 'desc')
-      },
-      columnIndex,
-    }),
-    [activeSortIndex, sortDirection]
-  )
 
   // Fetch projects
   const projectsQuery = accessClient.useQuery('get', '/projects')
@@ -252,6 +237,7 @@ export function useAssignmentsData() {
   return {
     filters,
     handleFilterChange,
+    clearAllFilters,
     getSortParams,
     projects,
     effectiveProjectId,

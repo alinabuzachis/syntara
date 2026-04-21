@@ -70,6 +70,7 @@ export function AssignmentsTab() {
   const {
     filters,
     handleFilterChange,
+    clearAllFilters,
     getSortParams,
     projects,
     effectiveProjectId,
@@ -155,7 +156,7 @@ export function AssignmentsTab() {
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 showClearAll={true}
-                clearAllFilters={() => handleFilterChange([])}
+                clearAllFilters={clearAllFilters}
               />
             </FlexItem>
             <FlexItem>
@@ -168,7 +169,7 @@ export function AssignmentsTab() {
 
         {sortedRows.length === 0 ? (
           <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
+            <EmptyStateFilter clearAllFilters={clearAllFilters} />
           </StackItem>
         ) : (
           <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>

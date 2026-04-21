@@ -12,7 +12,7 @@ import {
 import { PlusIcon, RhUiEditFillIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction, ThProps } from '@patternfly/react-table'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -22,7 +22,9 @@ import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters/FilterBar'
 import { IconLabel } from '../../components/IconLabel'
 import { useQueryState } from '../../components/states/useQueryState'
-import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
+import { useFilterState } from '../../hooks/useFilterState'
+import { useSortState } from '../../hooks/useSortState'
+import type { FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { formatDateTime } from '../../utils/dateUtils'
@@ -144,20 +146,25 @@ function DeleteProjectDialog({
   )
 }
 
+const projectSortFieldByColumn: Record<number, string> = {
+  0: 'name',
+  2: 'created_at',
+  3: 'updated_at',
+}
+
 export function ProjectsTab() {
-  const [filters, setFilters] = useState<FilterConfig[]>([])
+  const { filters, setAllFilters, clearAllFilters } = useFilterState()
+  const { activeSortIndex, sortDirection, getSortParams } = useSortState(projectSortFieldByColumn)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(20)
-  const [activeSortIndex, setActiveSortIndex] = useState<number | undefined>(undefined)
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [projectToDelete, setProjectToDelete] = useState<ProjectRead | null>(null)
   const [projectToEdit, setProjectToEdit] = useState<ProjectRead | null>(null)
   const [formModalOpen, setFormModalOpen] = useState(false)
   const { showAlert } = useAlerts()
   const hasActiveFilters = filters.length > 0
 
-  const handleFilterChange = (newFilters: FilterConfig[]) => {
-    setFilters(newFilters)
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setAllFilters(newFilters)
     setPage(1)
   }
 
@@ -166,25 +173,6 @@ export function ProjectsTab() {
     setPage(1)
   }
 
-  const getSortParams = useCallback(
-    (columnIndex: number): ThProps['sort'] => ({
-      sortBy: {
-        index: activeSortIndex,
-        direction: sortDirection,
-        defaultDirection: 'asc',
-      },
-      onSort: (_event, index, direction) => {
-        setActiveSortIndex(index)
-        setSortDirection(direction as 'asc' | 'desc')
-        setPage(1)
-      },
-      columnIndex,
-    }),
-    [activeSortIndex, sortDirection]
-  )
-
-  // The projects endpoint returns a flat array (not paginated), so we handle
-  // client-side filtering and pagination for now.
   const query = accessClient.useQuery('get', '/projects')
   const allProjects = query.data ?? []
 
@@ -197,16 +185,10 @@ export function ProjectsTab() {
     })
   )
 
-  // Client-side sorting — only string fields are sortable
-  const sortFieldByColumn: Record<number, 'name' | 'created_at' | 'updated_at'> = {
-    0: 'name',
-    2: 'created_at',
-    3: 'updated_at',
-  }
-
+  // Client-side sorting
   const sortedProjects = [...filteredProjects].sort((a, b) => {
     if (activeSortIndex === undefined) return 0
-    const field = sortFieldByColumn[activeSortIndex]
+    const field = projectSortFieldByColumn[activeSortIndex] as 'name' | 'created_at' | 'updated_at' | undefined
     if (!field) return 0
     const aVal = a[field] ?? ''
     const bVal = b[field] ?? ''
@@ -288,7 +270,10 @@ export function ProjectsTab() {
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 showClearAll={true}
-                clearAllFilters={() => handleFilterChange([])}
+                clearAllFilters={() => {
+                  clearAllFilters()
+                  setPage(1)
+                }}
               />
             </FlexItem>
             <FlexItem>
@@ -300,7 +285,12 @@ export function ProjectsTab() {
         </StackItem>
         {paginatedProjects.length === 0 ? (
           <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <EmptyStateFilter clearAllFilters={() => handleFilterChange([])} />
+            <EmptyStateFilter
+              clearAllFilters={() => {
+                clearAllFilters()
+                setPage(1)
+              }}
+            />
           </StackItem>
         ) : (
           <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>

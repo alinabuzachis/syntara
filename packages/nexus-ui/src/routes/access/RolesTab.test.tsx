@@ -26,6 +26,14 @@ vi.mock('../../components/states/useQueryState', () => ({
   useQueryState: vi.fn(),
 }))
 
+vi.mock('wouter', async () => {
+  const React = await import('react')
+  return {
+    useLocation: () => ['/access-management/roles', vi.fn()],
+    useSearchParams: () => React.useState(new URLSearchParams()),
+  }
+})
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })

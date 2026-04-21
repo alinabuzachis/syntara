@@ -16,7 +16,6 @@ import {
   Title,
 } from '@patternfly/react-core'
 import { RhUiArrowLeftIcon, RhUiEditIcon } from '@patternfly/react-icons'
-import { useState } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -24,6 +23,7 @@ import { AppPage } from '../../../app/AppPage'
 import { AppPageHeader } from '../../../app/AppPageHeader'
 import { AppRoute } from '../../../app/AppRoute'
 import { useQueryState } from '../../../components/states/useQueryState'
+import { useDetailTab } from '../../../hooks/useDetailTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
@@ -79,7 +79,9 @@ function getGroupCount(data: { total?: number | null; resources?: { name: string
 
 export function UserDetail() {
   const { userId } = useParams<{ userId: string }>()
-  const [activeTab, setActiveTab] = useState(0)
+  const basePath = AppRoute.AccessManagement.UserDetail.replace(':userId', userId ?? '')
+  type UserTab = 'details' | 'groups' | 'roles'
+  const [activeTab, goToTab] = useDetailTab<UserTab>(basePath)
   const isValidId = !!userId && isValidUUID(userId)
 
   const userQuery = accessClient.useQuery(
@@ -163,24 +165,24 @@ export function UserDetail() {
         </Button>
       </AppPageHeader>
       <StackItem>
-        <Tabs activeKey={activeTab} onSelect={(_event, key) => setActiveTab(Number(key))}>
-          <Tab eventKey={0} title={<TabTitleText>Details</TabTitleText>} />
+        <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as UserTab)}>
+          <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
           <Tab
-            eventKey={1}
+            eventKey="groups"
             title={
               <TabTitleText>
                 Groups <Badge isRead>{groupCount}</Badge>
               </TabTitleText>
             }
           />
-          <Tab eventKey={2} title={<TabTitleText>Roles</TabTitleText>} />
+          <Tab eventKey="roles" title={<TabTitleText>Roles</TabTitleText>} />
         </Tabs>
       </StackItem>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <CompassPanel isFullHeight>
-          {activeTab === 0 && <UserDetailsTab user={userData} />}
-          {activeTab === 1 && <UserGroupsPanel userId={userId ?? ''} />}
-          {activeTab === 2 && <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />}
+          {activeTab === 'details' && <UserDetailsTab user={userData} />}
+          {activeTab === 'groups' && <UserGroupsPanel userId={userId ?? ''} />}
+          {activeTab === 'roles' && <RoleAssignmentsPanel principalType="user" principalId={userId ?? ''} />}
         </CompassPanel>
       </StackItem>
     </AppPage>

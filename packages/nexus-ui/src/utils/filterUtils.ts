@@ -208,7 +208,11 @@ export function parseFiltersFromUrl(searchParams: URLSearchParams): FilterConfig
  * // → null (invalid operator)
  * ```
  */
+const RESERVED_URL_PARAMS = new Set(['sort', 'page', 'perPage', 'cursor'])
+
 function parseFilterParam(key: string, value: string): FilterConfig | null {
+  if (RESERVED_URL_PARAMS.has(key)) return null
+
   // Match pattern: key[operator] or just key
   const match = key.match(/^(.+?)\[(.+)\]$/)
 

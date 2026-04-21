@@ -110,6 +110,12 @@ export const navigationItems: INavigationItem[] = [
             hidden: true,
           },
           {
+            label: 'Project Detail Tab',
+            path: AppRoute.AccessManagement.ProjectDetailTab,
+            element: <ProjectDetail />,
+            hidden: true,
+          },
+          {
             label: 'Assignments',
             path: AppRoute.AccessManagement.Assignments,
             element: <AccessManagement />,
@@ -120,8 +126,20 @@ export const navigationItems: INavigationItem[] = [
             element: <AccessManagement />,
           },
           {
+            label: 'Can I Mode',
+            path: AppRoute.AccessManagement.CanIMode,
+            element: <AccessManagement />,
+            hidden: true,
+          },
+          {
             label: 'Group Detail',
             path: AppRoute.AccessManagement.GroupDetail,
+            element: <GroupDetail />,
+            hidden: true,
+          },
+          {
+            label: 'Group Detail Tab',
+            path: AppRoute.AccessManagement.GroupDetailTab,
             element: <GroupDetail />,
             hidden: true,
           },
@@ -141,6 +159,12 @@ export const navigationItems: INavigationItem[] = [
             label: 'Edit User',
             path: AppRoute.AccessManagement.EditUser,
             element: <EditUser />,
+            hidden: true,
+          },
+          {
+            label: 'User Detail Tab',
+            path: AppRoute.AccessManagement.UserDetailTab,
+            element: <UserDetail />,
             hidden: true,
           },
         ],

@@ -1,5 +1,7 @@
 import { Stack, StackItem, Tab, Tabs, TabTitleText } from '@patternfly/react-core'
-import { useState } from 'react'
+
+import { AppRoute } from '../../app/AppRoute'
+import { useDetailTab } from '../../hooks/useDetailTab'
 
 import { CheckAccessView } from './CheckAccessView'
 import { MyPermissionsView } from './MyPermissionsView'
@@ -7,10 +9,9 @@ import { useAllPolicies } from './useAllPolicies'
 import { useCanQueryAuthz } from './useCanQueryAuthz'
 import { WhoCanView } from './WhoCanView'
 
-type CanIMode = 'check' | 'who-can' | 'my-permissions'
-
 export function CanITab() {
-  const [mode, setMode] = useState<CanIMode>('check')
+  type CanIMode = 'check' | 'who-can' | 'my-permissions'
+  const [mode, goToMode] = useDetailTab<CanIMode>(AppRoute.AccessManagement.CanI, 'check')
 
   const { policies } = useAllPolicies()
   const canQueryAuthz = useCanQueryAuthz()
@@ -20,7 +21,7 @@ export function CanITab() {
       <StackItem>
         <Tabs
           activeKey={mode}
-          onSelect={(_event, key) => setMode(key as CanIMode)}
+          onSelect={(_event, key) => goToMode(key as CanIMode)}
           aria-label="Access check modes"
           variant="secondary"
         >
