@@ -30,6 +30,12 @@ export interface PageEntry {
   setup?: (page: Page) => Promise<void>
 }
 
+async function applyNameFilter(page: Page, value: string) {
+  const nameFilter = page.getByRole('textbox', { name: 'Name filter' })
+  await nameFilter.fill(value)
+  await nameFilter.press('Enter')
+}
+
 // ---------------------------------------------------------------------------
 // Mock API IDs for parameterized routes
 // ---------------------------------------------------------------------------
@@ -67,8 +73,7 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
-      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
+      await applyNameFilter(page, 'zzz-no-match-zzz')
       await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
     },
   },
@@ -146,8 +151,7 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
-      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
+      await applyNameFilter(page, 'zzz-no-match-zzz')
       await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
     },
   },
@@ -502,8 +506,7 @@ export const pages: PageEntry[] = [
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
-      await page.getByRole('textbox', { name: /filter/i }).fill('zzz-no-match-zzz')
-      await page.getByRole('textbox', { name: /filter/i }).press('Enter')
+      await applyNameFilter(page, 'zzz-no-match-zzz')
       await expect(page.getByText(/No results found|Adjust your filters/i)).toBeVisible()
     },
   },
@@ -517,7 +520,7 @@ export const pages: PageEntry[] = [
     },
     setup: async (page) => {
       // "Create credential" is disabled when "All projects" is selected — pick a project first
-      await page.getByRole('button', { name: 'All projects' }).click()
+      await page.getByRole('textbox', { name: 'Type to filter' }).click()
       await page.getByRole('option', { name: 'default' }).click()
       await page.getByRole('button', { name: /create credential/i }).click()
       await expect(page.getByRole('dialog')).toBeVisible()
