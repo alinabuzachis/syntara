@@ -80,6 +80,8 @@ export default tseslint.config(
       'no-restricted-exports': ['error', { restrictDefaultExports: { direct: true } }],
       'no-only-tests/no-only-tests': 'error',
       'react/no-array-index-key': 'error',
+      // Avoid new object/array identities as Context.Provider value (needless consumer rerenders; Sonar).
+      'react/jsx-no-constructed-context-values': 'error',
       'react/jsx-no-useless-fragment': ['error', { allowExpressions: true }],
       'react/self-closing-comp': 'error',
       'unicorn/prefer-number-properties': 'error',

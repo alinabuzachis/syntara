@@ -1,5 +1,5 @@
 import { Alert, AlertActionCloseButton, AlertGroup } from '@patternfly/react-core'
-import { useId, useState, useCallback, useRef, type ReactNode } from 'react'
+import { useId, useState, useCallback, useRef, useMemo, type ReactNode } from 'react'
 
 import { AlertContext, type AlertConfig, type AlertVariant } from './AlertContext'
 
@@ -92,18 +92,21 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     setAlerts([])
   }, [])
 
+  const contextValue = useMemo(
+    () => ({
+      showAlert,
+      showSuccess,
+      showError,
+      showWarning,
+      showInfo,
+      dismissAlert,
+      clearAllAlerts,
+    }),
+    [showAlert, showSuccess, showError, showWarning, showInfo, dismissAlert, clearAllAlerts]
+  )
+
   return (
-    <AlertContext.Provider
-      value={{
-        showAlert,
-        showSuccess,
-        showError,
-        showWarning,
-        showInfo,
-        dismissAlert,
-        clearAllAlerts,
-      }}
-    >
+    <AlertContext.Provider value={contextValue}>
       {children}
       <AlertGroup isToast isLiveRegion hasAnimations>
         {alerts.map((alert) => (

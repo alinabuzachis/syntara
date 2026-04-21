@@ -222,9 +222,14 @@ export function BuilderContent(props: BuilderContentProps) {
   /* Re-renders when React Flow node count changes (execution-view sequencing); see useBuilderWindowEffects */
   useBuilderWindowEffects(nodesInitialized, reactFlowInstance)
 
+  const nodeExpandedAllContextValue = useMemo(
+    () => ({ expandAllEvent, collapseAllEvent }),
+    [expandAllEvent, collapseAllEvent]
+  )
+
   return (
     <NodeActionsContext.Provider value={nodeActionsValue}>
-      <NodeExpandedAllContext.Provider value={{ expandAllEvent, collapseAllEvent }}>
+      <NodeExpandedAllContext.Provider value={nodeExpandedAllContextValue}>
         <AppPage>
           <Stack hasGutter>
             <StackItem>

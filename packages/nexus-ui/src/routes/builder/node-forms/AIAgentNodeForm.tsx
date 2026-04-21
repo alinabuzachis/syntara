@@ -258,8 +258,10 @@ export function AIAgentNodeForm(props: Readonly<AIAgentNodeFormProps>) {
     reValidateMode: 'onChange',
   })
 
+  const fileContextValue = useMemo(() => ({ completedFiles, setCompletedFiles }), [completedFiles, setCompletedFiles])
+
   return (
-    <FileContext.Provider value={{ completedFiles, setCompletedFiles }}>
+    <FileContext.Provider value={fileContextValue}>
       <FormProvider {...methods}>
         <NodeFormContainer formId="ai-agent-node-form" onSubmit={methods.handleSubmit(handleSubmit)}>
           <AIAgentFormFields

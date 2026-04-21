@@ -805,3 +805,22 @@ const {
   getFooterProps,
 } = useCursorPagination({ limit: 20, extraParams, defaultFilters, transformFilters })
 ```
+
+---
+
+## 15. Stable React context provider values (Sonar)
+
+Do not pass a **fresh object or array literal** as `value` to `React.createContext().Provider` when that value is assembled from stable callbacks or data. A new identity every render forces unnecessary work in `useContext` consumers.
+
+Prefer `useMemo` (with an accurate dependency list) or split stable callbacks from changing data so the context contract stays intentional.
+
+`packages/nexus-ui/eslint.config.js` enables **`react/jsx-no-constructed-context-values`** for the whole UI package so inline object/array `value`s on context providers fail CI the same way as other React lint rules.
+
+```typescript
+// ❌ BAD — new object every render
+<MyContext.Provider value={{ foo, bar }}>
+
+// ✅ GOOD — stable reference when deps are stable
+const value = useMemo(() => ({ foo, bar }), [foo, bar])
+<MyContext.Provider value={value}>
+```
