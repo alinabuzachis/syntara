@@ -120,6 +120,57 @@ From the existing tests, note:
 
 ---
 
+## Phase 0.5 — Use MCP Tools to Explore the App
+
+**Before writing test code, use the available MCP servers to see the real application.**
+
+This project ships with two MCP servers configured in `.mcp.json` that give you direct browser access. Use them to ground your tests in reality — discover real locators, verify page structure, and confirm user flows before writing a single line of test code.
+
+### Available MCP Tools
+
+| MCP Server         | What it does                                                                                          |
+| ------------------ | ----------------------------------------------------------------------------------------------------- |
+| **Playwright MCP** | Navigate pages, take accessibility snapshots, click elements, fill forms — a real browser you control  |
+| **Chrome DevTools** | Inspect DOM structure, monitor network requests, read console output, evaluate JavaScript in the page |
+
+### Workflow: Explore → Snapshot → Write
+
+1. **Start the dev server** if not already running (`npm run start:ui`)
+2. **Navigate to the page** you're writing tests for using `browser_navigate`
+3. **Take an accessibility snapshot** (`browser_snapshot`) — this returns the page's accessibility tree, showing every role, name, and label. Use this to pick the right `getByRole`, `getByLabel`, and `getByText` locators
+4. **Interact with the UI** — click buttons, fill forms, open menus using `browser_click` and `browser_type` to discover the exact flow a user follows
+5. **Verify locators** — if unsure about a locator, snapshot after each interaction to see how the accessibility tree changes
+6. **Write the test** using the real roles and names you observed, not guesses
+
+### Example: Discovering Locators via Snapshot
+
+Instead of guessing that a button is called "Save":
+
+```
+1. browser_navigate → http://localhost:5173/automations/new
+2. browser_snapshot → reveals: button[name="Save workflow"]
+3. Write test:  await app.getByRole('button', { name: 'Save workflow' }).click()
+```
+
+### When to Use Each MCP
+
+| Situation                              | Use                |
+| -------------------------------------- | ------------------ |
+| Discovering locators for a new page    | Playwright MCP     |
+| Verifying a multi-step user flow       | Playwright MCP     |
+| Checking network requests/responses    | Chrome DevTools    |
+| Debugging why a locator doesn't match  | Playwright MCP     |
+| Inspecting console errors on a page    | Chrome DevTools    |
+| Verifying CSS/layout before screenshot tests | Chrome DevTools |
+
+### Important Notes
+
+- **Snapshot over screenshot** — prefer `browser_snapshot` (accessibility tree) over `browser_take_screenshot` (image) for finding locators. The snapshot gives you exact roles and names
+- **Don't skip this step** — writing tests without seeing the real page leads to wrong locator names, missed elements, and flaky tests
+- **Use for debugging too** — when a test fails, navigate to the failing state with the MCP and snapshot to see what the page actually looks like
+
+---
+
 ## Phase 1 — Understand the Application
 
 **Do NOT start writing tests until you understand what you're testing.**

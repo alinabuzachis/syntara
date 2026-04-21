@@ -613,12 +613,60 @@ If you believe a global style is the only option, follow the PatternFly gaps pro
 
 ---
 
-## 17. Getting Started for Developers
+## 17. Use Chrome DevTools MCP to Verify Implementation
+
+This project ships with a Chrome DevTools MCP server configured in `.mcp.json`. Use it to inspect the live application while implementing or reviewing UI — verify that PatternFly components render correctly, design tokens are applied, and layouts match the spec.
+
+### Available Capabilities
+
+| Capability                  | What it helps verify                                                      |
+| --------------------------- | ------------------------------------------------------------------------- |
+| **DOM inspection**          | Correct PatternFly component structure, semantic HTML, landmark roles     |
+| **Computed styles**         | Design tokens (`var(--pf-t--global--*)`) applied instead of hardcoded px  |
+| **Layout inspection**       | Page structure matches Compass layout, spacing is consistent              |
+| **Network monitoring**      | API calls use typed clients, responses match expected contracts           |
+| **Console monitoring**      | No runtime errors, warnings, or accessibility violations in console      |
+| **JavaScript evaluation**   | Inspect component state, verify Zustand store, check React props         |
+
+### When to Use
+
+| Situation                                         | What to check                                                    |
+| ------------------------------------------------- | ---------------------------------------------------------------- |
+| Implementing a new page or component              | Verify PatternFly classes and tokens render correctly            |
+| Reviewing spacing or alignment issues             | Inspect computed styles for hardcoded px vs design tokens        |
+| Checking empty states, loading states, error states | Navigate to each state and verify correct component usage       |
+| Verifying accessibility                           | Inspect DOM for landmark roles, heading hierarchy, aria attrs    |
+| Debugging layout issues                           | Check flex/grid containers, overflow, and responsive breakpoints |
+| Validating modal/dialog behavior                  | Verify focus trap, button order, variant usage                   |
+
+### Workflow
+
+1. **Start the dev server** (`npm start`)
+2. **Navigate to the page** in the browser
+3. **Inspect the DOM** — verify PatternFly component structure (e.g., `pf-v6-c-table`, `pf-v6-c-empty-state`)
+4. **Check computed styles** — confirm spacing uses design tokens, not hardcoded values
+5. **Monitor console** — watch for React warnings, accessibility violations, or runtime errors
+6. **Fix issues** before submitting for review
+
+### Checklist for UI Verification
+
+- [ ] PatternFly components used (no custom equivalents)
+- [ ] Design tokens applied for spacing and colors (`var(--pf-t--global--*)`)
+- [ ] No hardcoded `px` for spacing or colors
+- [ ] Semantic HTML and ARIA attributes present
+- [ ] Heading hierarchy correct (h1 → h2 → h3, no skipping)
+- [ ] No console errors or warnings in the page
+- [ ] Empty, loading, and error states all render correctly
+
+---
+
+## 18. Getting Started for Developers
 
 - Point to the AO UI repository for implementation references
 - Utilize the UI/UX skills defined in this document and the Cursor rules
 - Follow the accessibility guidelines in section 15
 - Follow the styling rules in section 16
+- Use Chrome DevTools MCP (section 17) to verify your implementation against the live app
 
 ---
 
