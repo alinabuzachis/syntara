@@ -31,7 +31,7 @@ export interface PageEntry {
 }
 
 async function applyNameFilter(page: Page, value: string) {
-  const nameFilter = page.getByRole('textbox', { name: 'Name filter' })
+  const nameFilter = page.getByPlaceholder('Filter by name')
   await nameFilter.fill(value)
   await nameFilter.press('Enter')
 }
