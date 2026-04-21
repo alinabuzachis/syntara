@@ -29,14 +29,13 @@ import { useFilterState } from '../../hooks/useFilterState'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
-import { batchedAllSettled } from '../../utils/batchedSettled'
-import { accessClient, accessFetchClient } from '../access/accessClient'
+import { accessClient } from '../access/accessClient'
 import { PaginationFooter } from '../access/PaginationFooter'
-import type { ProjectGroupRoleAssignmentRead, ProjectRoleAssignmentRead } from '../access/types'
 import { useAllPolicies } from '../access/useAllPolicies'
 import { useAllRoles } from '../access/useAllRoles'
 
 import { AssignRoleModal } from './AssignRoleModal'
+import { fetchProjectRolesForPrincipal } from './projectRoleFallback'
 
 const filterFieldDefinitions: FilterFieldDefinition[] = [
   {
@@ -69,60 +68,6 @@ interface RoleAssignmentRow {
 interface RoleAssignmentsPanelProps {
   principalType: 'user' | 'group'
   principalId: string
-}
-
-/**
- * Fetches project-scoped role assignments for a principal across all accessible projects.
- * Used as a fallback when system-level queries return 403.
- */
-async function fetchProjectRolesForPrincipal(
-  principalType: 'user' | 'group',
-  principalId: string
-): Promise<RoleAssignmentRow[]> {
-  const { data: projects } = await accessFetchClient.GET('/projects')
-  if (!projects || projects.length === 0) return []
-
-  const allRows: RoleAssignmentRow[] = []
-
-  const fetchResults = await batchedAllSettled(projects, async (project) => {
-    if (principalType === 'user') {
-      const { data } = await accessFetchClient.GET('/projects/{project_id}/roles', {
-        params: { path: { project_id: project.id } },
-      })
-      const assignments = data ?? []
-      return { project, assignments, type: 'user' as const }
-    }
-    const { data } = await accessFetchClient.GET('/projects/{project_id}/group-roles', {
-      params: { path: { project_id: project.id } },
-    })
-    const assignments = data ?? []
-    return { project, assignments, type: 'group' as const }
-  })
-
-  for (const result of fetchResults) {
-    if (result.status !== 'fulfilled') continue
-    const { project, assignments, type } = result.value
-
-    const matching =
-      type === 'user'
-        ? (assignments as ProjectRoleAssignmentRead[]).filter((a) => a.user_id === principalId)
-        : (assignments as ProjectGroupRoleAssignmentRead[]).filter((a) => a.group_id === principalId)
-
-    for (const a of matching) {
-      allRows.push({
-        id: a.id,
-        roleName: a.role_name,
-        roleDescription: null,
-        policies: [],
-        scope: project.name,
-        scopeType: 'project',
-        createdAt: a.created_at ?? null,
-        projectId: project.id,
-      })
-    }
-  }
-
-  return allRows
 }
 
 function UnassignRoleDialog({
@@ -282,10 +227,14 @@ function useRoleAssignmentData(principalType: 'user' | 'group', principalId: str
     allPolicies,
   ])
 
-  const rows = useMemo(
-    () => [...systemRows, ...(projectFallbackQuery.data ?? [])],
-    [systemRows, projectFallbackQuery.data]
-  )
+  const rows = useMemo(() => {
+    const projectRows = (projectFallbackQuery.data ?? []).map((row) => ({
+      ...row,
+      roleDescription: null,
+      policies: [],
+    }))
+    return [...systemRows, ...projectRows]
+  }, [systemRows, projectFallbackQuery.data])
 
   const { mutate: deleteUserAssignment } = accessClient.useMutation('delete', '/user-role-assignments/{assignment_id}')
   const { mutate: deleteGroupAssignment } = accessClient.useMutation(

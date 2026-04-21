@@ -107,13 +107,15 @@ export function ProjectPermissionsTab({ projectId }: Readonly<{ projectId: strin
           buttonText="Assign role"
           addData={() => setAssignModalOpen(true)}
         />
-        <AssignProjectRoleModal
-          projectId={projectId}
-          isOpen={assignModalOpen}
-          onClose={() => setAssignModalOpen(false)}
-          onSuccess={handleAssignSuccess}
-          assignedRolesByUser={assignedRolesByUser}
-        />
+        {assignModalOpen && (
+          <AssignProjectRoleModal
+            projectId={projectId}
+            isOpen={assignModalOpen}
+            onClose={() => setAssignModalOpen(false)}
+            onSuccess={handleAssignSuccess}
+            assignedRolesByUser={assignedRolesByUser}
+          />
+        )}
       </>
     )
   }
@@ -157,13 +159,15 @@ export function ProjectPermissionsTab({ projectId }: Readonly<{ projectId: strin
           ))}
         </Tbody>
       </Table>
-      <AssignProjectRoleModal
-        projectId={projectId}
-        isOpen={assignModalOpen}
-        onClose={() => setAssignModalOpen(false)}
-        onSuccess={handleAssignSuccess}
-        assignedRolesByUser={assignedRolesByUser}
-      />
+      {assignModalOpen && (
+        <AssignProjectRoleModal
+          projectId={projectId}
+          isOpen={assignModalOpen}
+          onClose={() => setAssignModalOpen(false)}
+          onSuccess={handleAssignSuccess}
+          assignedRolesByUser={assignedRolesByUser}
+        />
+      )}
       <UnassignProjectRoleDialog
         assignment={assignmentToUnassign}
         isOpen={!!assignmentToUnassign}

@@ -21,6 +21,7 @@ import { accessClient } from './accessClient'
 import { assignRoleSchema } from './assignRoleSchema'
 import type { AssignRoleFormData } from './assignRoleSchema'
 import { TypeaheadSelect } from './TypeaheadSelect'
+import { useAllRoles } from './useAllRoles'
 import { useAllUsers } from './useAllUsers'
 
 const ASSIGNMENT_TYPE_OPTIONS = [
@@ -146,9 +147,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const projectsData = projectsQuery.data
 
   const { users } = useAllUsers()
-
-  const rolesQuery = accessClient.useQuery('get', '/roles', { params: { query: { limit: 100 } } })
-  const rolesData = rolesQuery.data
+  const { roles: allRoles } = useAllRoles()
 
   const {
     register,
@@ -194,7 +193,6 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const userOptions = useMemo(() => users.map((u) => ({ value: u.id, label: u.username })), [users])
 
   const roleOptions = useMemo(() => {
-    const allRoles = rolesData?.resources ?? []
     const filtered =
       isProjectScoped && selectedProjectId ? allRoles.filter((role) => role.project_id === selectedProjectId) : allRoles
     return filtered.map((role) => ({
@@ -204,7 +202,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
         ? { label: 'System', color: 'blue' as const }
         : { label: 'Project', color: 'green' as const },
     }))
-  }, [rolesData, isProjectScoped, selectedProjectId])
+  }, [allRoles, isProjectScoped, selectedProjectId])
 
   const { mutate: assignProjectRole, isPending: isPendingProjectRole } = accessClient.useMutation(
     'post',

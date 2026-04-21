@@ -1,6 +1,4 @@
-import { Button, Label } from '@patternfly/react-core'
-import type { MouseEvent } from 'react'
-import { navigate } from 'wouter/use-browser-location'
+import { Label } from '@patternfly/react-core'
 
 import { AppRoute } from '../../app/AppRoute'
 
@@ -27,18 +25,16 @@ export function ScopeLabel({ projectId, projectNameMap }: Readonly<ScopeLabelPro
       color="green"
       isCompact
       render={({ className, content, componentRef }) => (
-        <Button
-          variant="link"
-          isInline
+        <a
+          href={projectUrl}
           className={className}
-          ref={componentRef as React.Ref<HTMLButtonElement>}
-          onClick={(e: MouseEvent) => {
+          ref={componentRef as React.Ref<HTMLAnchorElement>}
+          onClick={(e) => {
             e.stopPropagation()
-            navigate(projectUrl)
           }}
         >
           {content}
-        </Button>
+        </a>
       )}
     >
       {projectNameMap.get(projectId) ?? projectId}

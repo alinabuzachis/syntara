@@ -34,6 +34,51 @@ vi.mock('./useAllUsers', () => ({
   }),
 }))
 
+vi.mock('./useAllRoles', () => ({
+  useAllRoles: vi.fn().mockReturnValue({
+    roles: [
+      {
+        id: 'r1',
+        name: 'Admin',
+        description: null,
+        policies: [],
+        is_builtin: true,
+        is_system_scoped: true,
+        project_id: null,
+        labels: {},
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: 'r2',
+        name: 'Viewer',
+        description: null,
+        policies: [],
+        is_builtin: true,
+        is_system_scoped: true,
+        project_id: null,
+        labels: {},
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: 'r3',
+        name: 'ProjectAdmin',
+        description: null,
+        policies: [],
+        is_builtin: true,
+        is_system_scoped: false,
+        project_id: 'p1',
+        labels: {},
+        created_at: null,
+        updated_at: null,
+      },
+    ],
+    isLoading: false,
+    error: null,
+  }),
+}))
+
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
@@ -71,47 +116,6 @@ const mockProjects = [
   },
 ]
 
-const mockRoles = {
-  resources: [
-    {
-      id: 'r1',
-      name: 'Admin',
-      description: null,
-      policies: [],
-      is_builtin: true,
-      is_system_scoped: true,
-      project_id: null,
-      labels: {},
-      created_at: null,
-      updated_at: null,
-    },
-    {
-      id: 'r2',
-      name: 'Viewer',
-      description: null,
-      policies: [],
-      is_builtin: true,
-      is_system_scoped: true,
-      project_id: null,
-      labels: {},
-      created_at: null,
-      updated_at: null,
-    },
-    {
-      id: 'r3',
-      name: 'ProjectAdmin',
-      description: null,
-      policies: [],
-      is_builtin: true,
-      is_system_scoped: false,
-      project_id: 'p1',
-      labels: {},
-      created_at: null,
-      updated_at: null,
-    },
-  ],
-}
-
 const mockMutationReturn = {
   mutate: vi.fn(),
   mutateAsync: vi.fn(),
@@ -136,16 +140,6 @@ function setupDefaultMocks() {
     if (path === '/projects') {
       return {
         data: mockProjects,
-        isPending: false,
-        isError: false,
-        error: null,
-        isFetching: false,
-        refetch: vi.fn(),
-      } as never
-    }
-    if (path === '/roles') {
-      return {
-        data: mockRoles,
         isPending: false,
         isError: false,
         error: null,
