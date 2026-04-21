@@ -824,3 +824,30 @@ Prefer `useMemo` (with an accurate dependency list) or split stable callbacks fr
 const value = useMemo(() => ({ foo, bar }), [foo, bar])
 <MyContext.Provider value={value}>
 ```
+
+---
+
+## 16. Module-scoped pure helpers (Sonar)
+
+Prefer **module scope** (or another stable outer scope) for helpers that are **pure**: they only use their parameters and do not close over React props, state, context, or hooks from the component body. Defining those helpers inside the component recreates the function every render and tends to re-trigger Sonar “move to outer scope” maintainability findings without adding behavior.
+
+There is **no ESLint rule** in this repo that matches that Sonar check narrowly; `unicorn/consistent-function-scoping` is broader and was not adopted globally. Use **SonarCloud / code review** to catch new cases until a dedicated lint strategy exists (for example a custom rule or a repo-wide Unicorn cleanup).
+
+```typescript
+// ❌ BAD — recreated each render; avoid when the helper is pure
+function MyForm() {
+  function formatLabel(id: string) {
+    return id.toUpperCase()
+  }
+  // ...
+}
+
+// ✅ GOOD — module scope (or a colocated `*.utils.ts` if large)
+function formatLabel(id: string) {
+  return id.toUpperCase()
+}
+
+function MyForm() {
+  // ...
+}
+```

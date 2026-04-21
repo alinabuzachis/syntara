@@ -49,6 +49,11 @@ export interface CredentialSelectorProps {
 const NO_CREDENTIAL_VALUE = '__none__'
 const CREATE_NEW_VALUE = '__create_new__'
 
+function credentialDescription(credential: { enabled: boolean; description?: string | null }) {
+  if (credential.enabled) return credential.description ?? undefined
+  return `${credential.description ?? ''} (disabled)`.trim()
+}
+
 function buildTypeGroups(credentials: Credential[], credentialTypes: CredentialType[]): TypeGroup[] {
   if (credentialTypes.length === 0) {
     return credentials.length > 0 ? [{ typeId: '__ungrouped__', typeName: '', credentials }] : []
@@ -169,11 +174,6 @@ export function CredentialSelector({
   const formGroupLabel = helpText ? <FormLabelWithHelp label={label} helpText={helpText} /> : label
 
   const hasGroups = credentialTypes.length > 0
-
-  function credentialDescription(credential: { enabled: boolean; description?: string | null }) {
-    if (credential.enabled) return credential.description ?? undefined
-    return `${credential.description ?? ''} (disabled)`.trim()
-  }
 
   const renderCredentialOption = (credential: (typeof credentials)[number]) => (
     <SelectOption
