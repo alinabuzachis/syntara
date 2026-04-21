@@ -65,6 +65,69 @@ async def test_get_user_group_ids_includes_explicit_groups(seeded_db: AsyncSessi
     assert custom_group.id in group_ids
 
 
+@pytest.mark.asyncio
+async def test_get_user_group_ids_excludes_soft_deleted_groups(seeded_db: AsyncSession, test_user: User) -> None:
+    """Soft-deleted groups must not appear in user's group IDs."""
+    group = Group(id=uuid4(), name="soon-deleted-grp", description="", labels={})
+    seeded_db.add(group)
+    await seeded_db.flush()
+    await seeded_db.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
+    await seeded_db.commit()
+
+    # Before soft-delete the group is present
+    group_ids = await _get_user_group_ids(seeded_db, test_user.id)
+    assert group.id in group_ids
+
+    # Soft-delete the group
+    group.soft_delete(user_id=test_user.id)
+    seeded_db.add(group)
+    await seeded_db.commit()
+
+    group_ids = await _get_user_group_ids(seeded_db, test_user.id)
+    assert group.id not in group_ids
+
+
+@pytest.mark.asyncio
+async def test_soft_deleted_group_policies_not_resolved(seeded_db: AsyncSession, test_user: User) -> None:
+    """Soft-deleted group's role assignments must not grant policies to the user."""
+    # Create policy, role, group, and wire them together
+    policy = Policy(
+        name="deleted-grp:test:any",
+        statements=[{"name": "deleted-grp:test:any", "effect": "allow", "actions": ["secret-action"], "scope": "any"}],
+        is_builtin=False,
+        labels={},
+    )
+    seeded_db.add(policy)
+    await seeded_db.flush()
+
+    role = Role(name="deleted-grp-role", is_builtin=False, labels={})
+    seeded_db.add(role)
+    await seeded_db.flush()
+
+    seeded_db.add(RolePolicyLink(role_id=role.id, policy_id=policy.id))
+
+    group = Group(id=uuid4(), name="will-be-deleted-grp", description="", labels={})
+    seeded_db.add(group)
+    await seeded_db.flush()
+
+    seeded_db.add(GroupRoleAssignment(group_id=group.id, role_id=role.id, labels={}))
+    await seeded_db.exec(insert(user_groups).values(user_id=test_user.id, group_id=group.id))
+    await seeded_db.commit()
+
+    # User should have the policy before soft-delete
+    policies = await resolve_effective_policies(seeded_db, test_user.id)
+    assert "deleted-grp:test:any" in {p["name"] for p in policies}
+
+    # Soft-delete the group
+    group.soft_delete(user_id=test_user.id)
+    seeded_db.add(group)
+    await seeded_db.commit()
+
+    # User should no longer have the policy
+    policies = await resolve_effective_policies(seeded_db, test_user.id)
+    assert "deleted-grp:test:any" not in {p["name"] for p in policies}
+
+
 # ============================================================================
 # _resolve_roles_to_policies
 # ============================================================================

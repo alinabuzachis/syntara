@@ -65,7 +65,14 @@ async def _resolve_roles_to_policies(
 
 async def _get_user_group_ids(db: AsyncSession, user_id: UUID) -> list[UUID]:
     """Return group IDs for a user, including the implicit 'authenticated' group."""
-    result = await db.exec(select(user_groups.c.group_id).where(user_groups.c.user_id == user_id))
+    result = await db.exec(
+        select(user_groups.c.group_id)
+        .join(Group, Group.id == user_groups.c.group_id)  # type: ignore[arg-type]
+        .where(
+            user_groups.c.user_id == user_id,
+            Group.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
     group_ids = list(result.all())
 
     auth_group_result = await db.exec(
