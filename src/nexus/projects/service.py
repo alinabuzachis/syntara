@@ -86,8 +86,10 @@ class ProjectService:
         )
         project = result.first()
         if not project:
+            from nexus.authz.exceptions import ProjectNotFoundError  # noqa: PLC0415
+
             msg = f"Project {project_id} not found"
-            raise SafeValueError(msg)
+            raise ProjectNotFoundError(msg)
         return project
 
     async def list_projects(

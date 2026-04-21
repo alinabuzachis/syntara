@@ -4,6 +4,13 @@ This module centralizes all magic numbers and limits used throughout the codebas
 to improve maintainability and consistency.
 """
 
+NAME_PATTERN = r"^[a-zA-Z0-9]([a-zA-Z0-9:_-]*[a-zA-Z0-9])?$"
+"""Name pattern for projects, policies, and roles.
+
+Must start and end with alphanumeric; middle may contain colons, hyphens,
+and underscores.  Single-character names are allowed.
+"""
+
 
 class FieldLimits:
     """Field length and validation limits."""

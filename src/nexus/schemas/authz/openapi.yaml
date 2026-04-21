@@ -98,6 +98,47 @@ paths:
 
       security:
         - bearerAuth: []
+
+  /authz/validate-name:
+    get:
+      summary: Validate Name
+      description: |
+        Validate a resource name against naming rules.
+        Returns whether the name is valid and, if not, why.
+        Intended for real-time UI validation.
+      operationId: validate_name
+      tags:
+        - Authorization
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Name to validate
+            title: Name
+          description: Name to validate
+        - name: resource_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - project
+              - policy
+              - role
+            default: project
+            description: Resource type
+            title: Resource Type
+          description: Resource type
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidateNameResponse"
+
 components:
   schemas:
     CanIRequest:
@@ -296,6 +337,25 @@ components:
           items:
             $ref: "#/components/schemas/PermissionEntry"
           title: Permissions
+
+    ValidateNameResponse:
+      type: object
+      title: ValidateNameResponse
+      description: Response body for the validate-name endpoint.
+      required:
+        - valid
+        - name
+      properties:
+        valid:
+          type: boolean
+          title: Valid
+        name:
+          type: string
+          title: Name
+        reason:
+          type: string
+          default: ""
+          title: Reason
 
   securitySchemes:
     bearerAuth:

@@ -1,13 +1,21 @@
 """Request/response schemas for the policies and roles API."""
 
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
+from pydantic import Field as PydanticField
+from pydantic import computed_field
 from sqlmodel import Field, SQLModel
 
+from nexus.core.constants import NAME_PATTERN
 from nexus.core.models.base import BaseListParams
 from nexus.core.models.pagination import ResourcesResponse
+
+NameField = Annotated[str, PydanticField(min_length=1, max_length=255, pattern=NAME_PATTERN)]
+OptionalNameField = Annotated[
+    str | None, PydanticField(default=None, min_length=1, max_length=255, pattern=NAME_PATTERN)
+]
 
 # ---------------------------------------------------------------------------
 # Policy schemas
@@ -26,7 +34,7 @@ class PolicyStatementSchema(SQLModel):
 class PolicyCreate(SQLModel):
     """Request body for creating a policy."""
 
-    name: str = Field(min_length=1, max_length=255)
+    name: NameField
     description: str | None = None
     statements: list[PolicyStatementSchema] = Field(min_length=1)
     labels: dict[str, str] = {}
@@ -36,7 +44,7 @@ class PolicyCreate(SQLModel):
 class PolicyUpdate(SQLModel):
     """Request body for updating a policy (partial)."""
 
-    name: str | None = Field(default=None, min_length=1, max_length=255)
+    name: OptionalNameField
     description: str | None = None
     statements: list[PolicyStatementSchema] | None = None
     labels: dict[str, str] | None = None
@@ -50,10 +58,17 @@ class PolicyRead(SQLModel):
     description: str | None = None
     statements: list[dict[str, Any]] = []
     is_builtin: bool = False
+    is_project_eligible: bool = False
     project_id: UUID | None = None
     labels: dict[str, Any] = {}
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_system_scoped(self) -> bool:
+        """True when the policy is not scoped to a specific project."""
+        return self.project_id is None
 
 
 class PolicyListResponse(ResourcesResponse[PolicyRead]):
@@ -66,6 +81,10 @@ class PolicyListParams(BaseListParams):
     name: str | None = Field(default=None, description="Filter by name")
     is_builtin: bool | None = Field(default=None, description="Filter by builtin status")
     project_id: UUID | None = Field(default=None, description="Filter by project scope")
+    project_eligible: bool | None = Field(
+        default=None,
+        description="When true, return only system-scoped policies eligible for project roles",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +95,7 @@ class PolicyListParams(BaseListParams):
 class RoleCreate(SQLModel):
     """Request body for creating a role."""
 
-    name: str = Field(min_length=1, max_length=255)
+    name: NameField
     description: str | None = None
     policies: list[str] = Field(min_length=1)
     labels: dict[str, str] = {}
@@ -86,7 +105,7 @@ class RoleCreate(SQLModel):
 class RoleUpdate(SQLModel):
     """Request body for updating a role (partial)."""
 
-    name: str | None = Field(default=None, min_length=1, max_length=255)
+    name: OptionalNameField
     description: str | None = None
     policies: list[str] | None = None
     labels: dict[str, str] | None = None
@@ -104,6 +123,12 @@ class RoleRead(SQLModel):
     labels: dict[str, Any] = {}
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_system_scoped(self) -> bool:
+        """True when the role is not scoped to a specific project."""
+        return self.project_id is None
 
 
 class RoleListResponse(ResourcesResponse[RoleRead]):

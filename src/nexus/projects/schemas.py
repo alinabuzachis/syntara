@@ -1,18 +1,25 @@
 """Request/response schemas for the projects API."""
 
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
+from pydantic import Field as PydanticField
 from sqlmodel import SQLModel
 
+from nexus.core.constants import NAME_PATTERN
 from nexus.core.models.base import BaseResource
+
+NameField = Annotated[str, PydanticField(min_length=1, max_length=255, pattern=NAME_PATTERN)]
+OptionalNameField = Annotated[
+    str | None, PydanticField(default=None, min_length=1, max_length=255, pattern=NAME_PATTERN)
+]
 
 
 class ProjectCreate(SQLModel):
     """Request body for creating a project."""
 
-    name: str
+    name: NameField
     description: str | None = None
     labels: dict[str, Any] = {}
 
@@ -20,7 +27,7 @@ class ProjectCreate(SQLModel):
 class ProjectUpdate(SQLModel):
     """Request body for updating a project."""
 
-    name: str | None = None
+    name: OptionalNameField
     description: str | None = None
     labels: dict[str, Any] | None = None
 

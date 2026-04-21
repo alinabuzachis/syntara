@@ -71,6 +71,11 @@ class RoleNotFoundError(NexusError):
     """Raised when a role is not found."""
 
 
+@fastapi_exception(handler=_not_found_handler)
+class ProjectNotFoundError(NexusError):
+    """Raised when a project is not found."""
+
+
 @fastapi_exception(handler=_builtin_protection_handler)
 class BuiltinProtectionError(NexusError):
     """Raised when attempting to modify or delete a builtin resource."""

@@ -15,6 +15,7 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.authz.engine import AllowedProjectsResult
+from nexus.authz.exceptions import ProjectNotFoundError
 from nexus.authz.seed import seed_authz_data
 from nexus.core.exceptions import SafeValueError
 from nexus.core.models import User
@@ -80,7 +81,7 @@ async def test_get_project(seeded_db: AsyncSession, test_user: User) -> None:
 async def test_get_project_not_found(seeded_db: AsyncSession, test_user: User) -> None:
     """Getting a non-existent project raises SafeValueError."""
     svc = ProjectService(seeded_db, test_user)
-    with pytest.raises(SafeValueError, match="not found"):
+    with pytest.raises(ProjectNotFoundError, match="not found"):
         await svc.get_project(uuid4())
 
 
@@ -90,7 +91,7 @@ async def test_get_deleted_project_not_found(seeded_db: AsyncSession, test_user:
     svc = ProjectService(seeded_db, test_user)
     project = await svc.create_project(name="deleted-project")
     await svc.delete_project(project.id)
-    with pytest.raises(SafeValueError, match="not found"):
+    with pytest.raises(ProjectNotFoundError, match="not found"):
         await svc.get_project(project.id)
 
 
@@ -211,7 +212,7 @@ async def test_assign_invalid_role_name(seeded_db: AsyncSession, test_user: User
 async def test_assign_role_project_not_found(seeded_db: AsyncSession, test_user: User) -> None:
     """Assigning a role to a non-existent project raises SafeValueError."""
     svc = ProjectService(seeded_db, test_user)
-    with pytest.raises(SafeValueError, match="not found"):
+    with pytest.raises(ProjectNotFoundError, match="not found"):
         await svc.assign_role(uuid4(), test_user.id, "project-user")
 
 

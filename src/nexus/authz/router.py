@@ -6,11 +6,12 @@ Provides three query patterns:
 - What can I? — List all permissions for the current user
 """
 
-from typing import Annotated, Any, ClassVar
+import re
+from typing import Annotated, Any, ClassVar, Literal
 from uuid import UUID
 
 import structlog
-from fastapi import Depends
+from fastapi import Depends, Query
 from pydantic import ConfigDict
 from sqlmodel import Field, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,6 +21,7 @@ from nexus.authz.dependencies import PermissionChecker, get_opa_client
 from nexus.authz.engine import AuthzRequest, authorize
 from nexus.authz.opa_client import OPAClient
 from nexus.authz.resolver import resolve_effective_policies
+from nexus.core.constants import NAME_PATTERN, FieldLimits
 from nexus.core.database.session import get_db
 from nexus.core.models.user import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
@@ -291,3 +293,48 @@ async def what_can_i(
     ]
 
     return WhatCanIResponse(permissions=permissions)
+
+
+# ============================================================================
+# Name validation
+# ============================================================================
+
+_NAME_RE = re.compile(NAME_PATTERN)
+
+
+class ValidateNameResponse(SQLModel):
+    """Response body for the validate-name endpoint."""
+
+    valid: bool
+    name: str
+    reason: str = ""
+
+
+@router.get("/validate-name", dependencies=[NO_PERMISSION])
+async def validate_name(
+    name: Annotated[str, Query(description="Name to validate")],
+    resource_type: Annotated[  # noqa: ARG001
+        Literal["project", "policy", "role"],
+        Query(description="Resource type"),
+    ] = "project",
+) -> ValidateNameResponse:
+    """Validate a resource name against naming rules.
+
+    Returns whether the name is valid and, if not, why.
+    Intended for real-time UI validation.
+    """
+    if not name:
+        return ValidateNameResponse(valid=False, name=name, reason="Name must not be empty")
+    if len(name) > FieldLimits.NAME_MAX_LENGTH:
+        return ValidateNameResponse(
+            valid=False, name=name, reason=f"Name must be {FieldLimits.NAME_MAX_LENGTH} characters or fewer"
+        )
+    if not _NAME_RE.match(name):
+        return ValidateNameResponse(
+            valid=False,
+            name=name,
+            reason="Name must start and end with a letter or digit, "
+            "and may contain letters, digits, colons, hyphens, and underscores",
+        )
+
+    return ValidateNameResponse(valid=True, name=name)
