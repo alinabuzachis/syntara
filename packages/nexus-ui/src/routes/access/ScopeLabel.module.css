@@ -1,0 +1,11 @@
+.labelLink {
+  color: inherit;
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.labelLink:hover,
+.labelLink:visited {
+  color: inherit;
+  text-decoration: none;
+}

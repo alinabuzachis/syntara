@@ -1,6 +1,9 @@
 import { Label } from '@patternfly/react-core'
+import type { Ref } from 'react'
 
 import { AppRoute } from '../../app/AppRoute'
+
+import styles from './ScopeLabel.module.css'
 
 interface ScopeLabelProps {
   /** Project UUID, or null/undefined for system scope */
@@ -25,16 +28,17 @@ export function ScopeLabel({ projectId, projectNameMap }: Readonly<ScopeLabelPro
       color="green"
       isCompact
       render={({ className, content, componentRef }) => (
-        <a
-          href={projectUrl}
-          className={className}
-          ref={componentRef as React.Ref<HTMLAnchorElement>}
-          onClick={(e) => {
-            e.stopPropagation()
-          }}
-        >
-          {content}
-        </a>
+        <span className={className} ref={componentRef as Ref<HTMLSpanElement>}>
+          <a
+            href={projectUrl}
+            className={styles.labelLink}
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+          >
+            {content}
+          </a>
+        </span>
       )}
     >
       {projectNameMap.get(projectId) ?? projectId}
