@@ -37,12 +37,14 @@ spec:
     value: '{"type": "npm", "path": "."}'
   pipelineRef:
     params:
-    - name: name
-      value: pde-docker-build-multi-platform-oci-ta
-    - name: bundle
-      value: quay.io/aap-ci/pde-docker-build-multi-platform-oci-ta-bundle@sha256:631fdc1cf69a3ed967b62dc05cd4df065bc5dd480135cfae8fec6bc37d5f3f0d
-    - name: kind
-      value: pipeline
+      - name: name
+        value: docker-build-multi-platform-oci-ta
+      - name: bundle
+        value: quay.io/aap-ci/tekton-catalog/pipeline/build/docker-build-multi-platform-oci-ta:0.2@sha256:19ec0336c22d45c3b0dbd9e1bb84b2c522c28b902dc7b026ef2e3be2ed46dabc
+      - name: kind
+        value: pipeline
+      - name: secret
+        value: quay-aap-ci-viewer
     resolver: bundles
   taskRunTemplate:
     serviceAccountName: build-pipeline-ansible-automation-orchestrator-ui-main
