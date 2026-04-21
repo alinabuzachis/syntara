@@ -1,6 +1,8 @@
 # V2 Workflow Schema Migration Guide
 
-## Migration Flow
+> **Status: COMPLETED.** The v2 migration is done. The UI now uses the v2 flat schema (`schema_version: '2.0.0'` with `triggers[]`, `nodes[]`, `edges[]`). The old nested format and `WorkflowTransform` class have been removed. This document is kept as historical reference.
+
+## Migration Flow (Historical)
 
 ```
 Step 1                     Step 2                      Step 3                      Step 4

@@ -69,9 +69,10 @@ Nice to have (but we'll explain the basics):
 1. **Routing**: Wouter + a `navigationItems` tree → `AppRouter` maps it into routes.
 2. **Backend data**: Typed OpenAPI clients (`openapi-react-query`) → TanStack Query cache.
 3. **Workflow builder**:
-   - API uses **nested** activities (conditions contain their branches)
-   - Builder edits a **flat** list + edges (easier to manipulate)
+   - API v2 uses **flat** nodes + edges (same as the builder's internal model)
+   - `processExistingWorkflow()` receives a `WorkflowWithVersion` object, extracts `workflow.version!.workflow_definition!` (the nested v2 payload containing nodes and edges), and loads them into the store
    - `BuilderFlow` renders React Flow nodes/edges from the store
+   - `buildWorkflowDefinition()` builds the v2 save payload
 
 ---
 
@@ -155,15 +156,14 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  A[Backend Workflow<br/>nested activities] --> B[BuilderContent]
-  B --> C[loadWorkflow<br/>WorkflowTransform.flatten]
-  C --> D[Zustand store<br/>flat activities + edges]
-  D --> E[BuilderFlow]
-  E --> F[React Flow nodes + edges]
+  A[Backend Workflow<br/>v2 flat: nodes + edges] --> B[processExistingWorkflow]
+  B --> C[Zustand store<br/>flat activities + edges]
+  C --> D[BuilderFlow]
+  D --> E[React Flow nodes + edges]
 
-  F -->|edit| D
-  D -->|save| G[buildNestedConditionStructure]
-  G --> H[API payload<br/>nested activities]
+  E -->|edit| C
+  C -->|save| F[buildWorkflowDefinition]
+  F --> G["API payload<br/>v2: triggers, nodes, edges"]
 ```
 
 ---
@@ -534,14 +534,17 @@ mutation.mutate({ body: workflowPayload })
 
 > This is the most complex part of the codebase. Take your time here.
 
-### The key insight: flat vs. nested
+### The key insight: v2 flat format
 
-| Format     | Where used  | Example                                                                     |
-| ---------- | ----------- | --------------------------------------------------------------------------- |
-| **Nested** | Backend API | `condition: { then: [task1, task2], else: [task3] }`                        |
-| **Flat**   | Builder UI  | `activities: [condition, task1, task2, task3]` + edges encode relationships |
+With the v2 API, both the backend and builder use the **same flat format**: `{ triggers: [], nodes: [], edges: [] }`. No nested↔flat transformation is needed.
 
-**Why flat?** Easier to add/remove/reorder steps in a visual editor (each step is a React Flow node under the hood).
+| Concept      | Description                                                      |
+| ------------ | ---------------------------------------------------------------- |
+| **Nodes**    | Flat array of all workflow activities (tasks, conditions, loops) |
+| **Edges**    | Explicit connections between nodes (with ports for branching)    |
+| **Triggers** | Workflow entry points (manual, scheduled, event-driven)          |
+
+The builder edits nodes + edges directly in the Zustand store. On save, `buildWorkflowDefinition()` produces the v2 API payload.
 
 ### Builder entry points
 
@@ -553,13 +556,13 @@ mutation.mutate({ body: workflowPayload })
 ### Load path: API → store → canvas
 
 ```
-1. Fetch workflow from API (nested format)
+1. Fetch workflow from API (v2 flat format: triggers, nodes, edges)
        ↓
-2. WorkflowTransform.flatten() extracts activities + generates edges
+2. processExistingWorkflow() maps API edges to React Flow edges
        ↓
-3. Store in Zustand (flat activities + edges)
+3. loadWorkflowWithEdges() atomically updates Zustand store
        ↓
-4. BuilderFlow converts to React Flow nodes + edges
+4. BuilderFlow converts store → React Flow nodes + edges
        ↓
 5. React Flow renders the canvas
 ```
@@ -573,7 +576,7 @@ mutation.mutate({ body: workflowPayload })
        ↓
 3. Validate the graph
        ↓
-4. buildNestedConditionStructure() converts back to nested
+4. buildWorkflowDefinition() builds v2 payload (triggers, nodes, edges)
        ↓
 5. Submit to API via mutation
 ```
@@ -590,9 +593,9 @@ mutation.mutate({ body: workflowPayload })
 | `automations/canvas/semanticZoomTypes.ts`           | Shared `SemanticZoomBranchSource` type for branch handles at semantic zoom                                               |
 | `automations/canvas/nodes/hooks/useSemanticZoom.ts` | LOD flag via typed `useStore` selector + `updateNodeInternals` when crossing the zoom threshold                          |
 | `automations/canvas/nodes/common/NodeComponent.tsx` | Shared canvas step shell; semantic zoom swaps to color blocks + tooltips (title + type)                                  |
-| `utils/workflowTransform.ts`                        | Flatten/nest transformations                                                                                             |
-| `utils/loadWorkflow.ts`                             | Load + flatten workflow                                                                                                  |
-| `utils/buildNestedStructure.ts`                     | Build nested structure for save                                                                                          |
+| `utils/processExistingWorkflow.ts`                  | Load API workflow → flat store format (maps v2 edges to React Flow edges)                                                |
+| `utils/workflowDefinitionBuilder.ts`                | Build v2 save payload (nodes, edges, triggers) with security validation                                                  |
+| `utils/buildNestedStructure.ts`                     | Legacy wrapper (identity function in v2 — returns activities as-is)                                                      |
 | `utils/validation/`                                 | Validation rules                                                                                                         |
 
 ### Builder internals (advanced): registry, edges, and graph semantics
@@ -705,115 +708,63 @@ NodeRegistry.search(query) // Search step types by label/keywords
 NodeRegistry.getByCategory(cat) // Get step types by category
 ```
 
-#### "Flat activities + edges" is the builder's canonical editing model
+#### "Flat nodes + edges" is the canonical model (v2)
 
-ALL workflows use a consistent flatten-on-load, nest-on-save pattern:
+With the v2 API, both the backend and builder share the same flat representation:
 
 ```mermaid
 flowchart TB
-  subgraph Nested["API Format (Nested)"]
+  subgraph API["V2 API Format (Flat)"]
     direction TB
-    N1[condition]
-    N2[then: task1, task2]
-    N3[else: task3]
-    N1 --> N2
-    N1 --> N3
-  end
-
-  subgraph Flat["Builder Format (Flat)"]
-    direction TB
-    F1["activities: [condition, task1, task2, task3]"]
-    F2["edges: [
-      condition→task1 (true),
+    A1["triggers: [manual_trigger]"]
+    A2["nodes: [condition, task1, task2, task3]"]
+    A3["edges: [
+      condition→task1 (from_port: when_true),
       task1→task2,
-      condition→task3 (false)
+      condition→task3 (from_port: when_false)
     ]"]
   end
 
-  Nested <-->|"flatten / nest"| Flat
+  subgraph Store["Builder Store (Flat)"]
+    direction TB
+    S1["activities: [condition, task1, task2, task3]"]
+    S2["edges: [
+      condition→task1 (sourceHandle: true),
+      task1→task2,
+      condition→task3 (sourceHandle: false)
+    ]"]
+  end
+
+  API <-->|"port ↔ handle mapping"| Store
 ```
 
-**API Format (Nested):**
+The only transformation between API and builder is **port name mapping** (e.g., `from_port: 'when_true'` ↔ `sourceHandle: 'true'`).
 
-- Activities can be nested within `sequence`, `loop`, `parallel`, or `condition` containers.
-- Workflow structure defines execution flow via nesting.
-
-**Builder Format (Flat):**
-
-- ALL activities stored in flat `activities` array during editing.
-- Edges define ALL flow relationships (stored separately).
-- Join nodes use auto-generated `parallel_for_${joinId}` containers.
-- Condition nodes have empty `then`/`else` arrays — edges encode branches.
-
-**Why this matters**: most "my workflow saved weird" bugs are really "the edge graph didn't encode what you thought it did."
-
-#### Transform pipeline (API ↔ builder)
+#### Load + save pipeline (v2)
 
 ```mermaid
 flowchart TB
   subgraph Load["Load Path (API → Builder)"]
     direction TB
-    L1[API Response<br/>nested workflow] --> L2[loadWorkflow.ts]
-    L2 --> L3["WorkflowTransform.flatten()<br/>extracts activities + generates edges"]
+    L1[API Response<br/>v2 flat workflow] --> L2[processExistingWorkflow.ts]
+    L2 --> L3["Map v2 ports to React Flow handles<br/>Enrich activities with metadata"]
     L3 --> L6[Zustand Store<br/>flat activities + edges]
   end
 
   subgraph Save["Save Path (Builder → API)"]
     direction TB
     S1[Zustand Store<br/>flat activities + edges] --> S2[Validation]
-    S2 --> S3[buildNestedConditionStructure]
-    S3 --> S4[Reconstruct then/else arrays]
-    S4 --> S5[API Payload<br/>nested workflow]
+    S2 --> S3[workflowDefinitionBuilder.ts]
+    S3 --> S4["Map handles to v2 ports<br/>Resolve trigger display IDs<br/>Sanitize inputs"]
+    S4 --> S5["API Payload<br/>{ schema_version: '2.0.0', triggers, nodes, edges }"]
   end
 
   Load -.->|"user edits"| Save
 ```
 
-- **Load (API → builder)**:
-  - `utils/loadWorkflow.ts` orchestrates loading. It's a **pure function** that takes `activities: Activity[]` and returns `{ activities, edges }`.
-  - `utils/workflowTransform.ts` `flatten()` handles all the work: extracting nested activities to a flat array and generating edges in a single pass.
-  - `BuilderContent` uses the result with `loadWorkflowWithEdges()` to atomically update the store.
-- **Save (builder → API)**:
-  - The builder validates the graph first (`utils/validation/`).
-  - `utils/buildNestedStructure.ts` is the thin wrapper that delegates to `WorkflowTransform.nest(...)`.
-  - The current save path reconstructs nested parallel, loop, approval, and condition structures from the flat graph before sending the payload to the API.
-
-**WorkflowTransform Utility:**
-
-Central class for bidirectional workflow conversion:
-
-- Located in `packages/nexus-ui/src/routes/builder/utils/workflowTransform.ts`
-- `WorkflowTransform.flatten(nested)` - Converts API format → Builder format
-  - Traverses nested structures (condition.then/else, parallel.branches)
-  - Extracts all activities into flat array
-  - Generates edge connections representing structure
-- `WorkflowTransform.nest(flat, edges)` - Converts Builder format → API format
-  - 4-step hierarchical process: parallel → loop → approval → condition
-  - Full bidirectional support for all container types
-- Handles special cases like parallel wrappers, loop handles, and partial convergence
-
-**Serialization workflow (Save → API):**
-
-1. `buildNestedConditionStructure(activities, edges)` delegates to `WorkflowTransform.nest(...)`
-2. `WorkflowTransform.nest(...)` reconstructs outer containers first (parallel → loop → approval → condition)
-3. Branch and loop relationships come from edges and handle metadata
-4. `parallel_for_*` wrappers are recreated only for the nested API payload
-5. Implementation lives in `packages/nexus-ui/src/routes/builder/utils/buildNestedStructure.ts` and `workflowTransform.ts`
-
-**Deserialization workflow (API → Edit):**
-
-The `WorkflowTransform.flatten()` method handles the deserialization process:
-
-1. Extracts edges from nested structure
-2. Creates edges from condition nodes to then/else activities
-3. Handles `parallel_for_*` wrappers (creates edges to branches, not wrapper)
-4. Flattens nested structure recursively
-5. Extracts all nested activities to top level
-6. Leaves condition nodes with empty then/else arrays
-
-Located in `packages/nexus-ui/src/routes/builder/utils/workflowTransform.ts`
-
-**Note:** the builder still uses a flat editing model internally, but the save path reconstructs nested loop, approval, condition, and parallel structures for the API payload.
+- **Load** (`processExistingWorkflow.ts`): Reads `workflowDef.nodes` and `workflowDef.edges` directly. Maps v2 port names (`when_true`, `iterate`) to React Flow handles (`true`, `loop`). Enriches activities with UI metadata.
+- **Save** (`workflowDefinitionBuilder.ts`): Validates all IDs (security), maps React Flow handles back to v2 ports, resolves trigger display IDs (`trigger-0`) to definition IDs, sanitizes names, and produces the v2 payload.
+- **Legacy wrapper** (`buildNestedStructure.ts`): The `buildNestedConditionStructure()` function is now an identity operation — it returns activities unchanged since v2 is already flat.
 
 #### Edge synchronization (keeping store + React Flow consistent)
 
@@ -909,7 +860,7 @@ flowchart TB
     A1 & A2 & A3 --> AJ
   end
 
-  Editing -->|"buildNestedConditionStructure()"| API
+  Editing -->|"buildWorkflowDefinition()"| API
 ```
 
 **During Editing:**
@@ -919,18 +870,15 @@ flowchart TB
 - **No parallel containers are created** — only the `branches` array is updated
 - Activities remain in the flat `activities` array
 
-**On Save (API transformation):**
+**On Save (v2):**
 
-- `buildNestedConditionStructure()` creates `parallel_for_${convergeId}` wrappers
-- These wrappers group parallel branches for the nested API format
-- Parallel containers exist **only in the API format**, not during editing
+- `buildWorkflowDefinition()` sends the flat nodes + edges directly
+- Converge nodes and their `branches` array are preserved as-is in the v2 payload
 
-**On Load:**
+**On Load (v2):**
 
-- `WorkflowTransform.flatten()` extracts activities from parallel wrappers
-- Activities are placed back in the flat array with edges to the converge node
-
-**Key distinction:** `syncConvergeNodeBranches()` maintains the `branches` array during editing, while parallel containers (`parallel_for_*`) are only created/consumed during API serialization.
+- `processExistingWorkflow()` reads flat nodes + edges from the API
+- Converge nodes are loaded directly with their `branches` array intact
 
 #### Condition nodes (branching) and source handles
 
@@ -952,62 +900,23 @@ flowchart TB
     C1 -->|"sourceHandle='false'"| T3
   end
 
-  subgraph Saved["On Save (Nested)"]
+  subgraph Saved["On Save (V2 Flat)"]
     direction TB
-    CS["Condition {
-      then: [Task1, Task2],
-      else: [Task3]
-    }"]
+    CS["nodes: [Condition, Task1, Task2, Task3]
+    edges: [
+      Condition→Task1 (from_port: when_true),
+      Task1→Task2,
+      Condition→Task3 (from_port: when_false)
+    ]"]
   end
 
-  Editing -->|"buildNestedConditionStructure"| Saved
+  Editing -->|"buildWorkflowDefinition"| Saved
 ```
 
-- Condition nodes remain **flat during editing**, nested only on save.
-- During editing: All activities in flat array, edges encode branch relationships.
+- Condition nodes stay flat in both editing and save — v2 API uses the same flat format.
 - Edges with `sourceHandle='true'` connect to true branch, `sourceHandle='false'` to false branch.
 - Two handles on node: "True" and "False" for branching connections.
-- Condition node structure: `{ type: 'condition', then: Activity[], else: Activity[], condition: string }`
-- On save, the builder walks downstream edges from those handles and constructs `then` and `else` arrays for the API payload.
-- This is why "wrong handle" connections often show up as "my steps landed in the wrong branch on save."
-
-#### Key implementation details
-
-- Don't follow sequential edges from activities inside parallel wrappers (prevents including join nodes in branches).
-- When activity is inside `parallel_for_*` wrapper, include wrapper in then/else arrays.
-
-**Example transformation flow:**
-
-```mermaid
-flowchart LR
-  subgraph Edit["During Edit (Flat)"]
-    direction TB
-    E1[Condition1]
-    E2[Task1]
-    E3[Condition2]
-    E4[Task3]
-    E1 -->|"true"| E2
-    E2 --> E3
-    E3 -->|"true"| E4
-  end
-
-  subgraph Save["On Save (Nested)"]
-    S1["Condition1 {
-      then: [
-        Task1,
-        Condition2 {
-          then: [Task3]
-        }
-      ]
-    }"]
-  end
-
-  Edit -->|"buildNestedConditionStructure"| Save
-```
-
-- Example flow: `Condition1 -> Task1 -> Condition2 -> Task3`
-  - During edit: All four nodes in flat activities array, edges define relationships
-  - On save: Task1, Condition2, and Task3 moved into Condition1's then array
+- On save, `buildWorkflowDefinition()` maps `sourceHandle: 'true'` → `from_port: 'when_true'`.
 
 #### Where to look when debugging "graph weirdness"
 

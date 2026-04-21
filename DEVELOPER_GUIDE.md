@@ -148,19 +148,30 @@ This will:
 
 ### Contract Files
 
-| File                      | Source Schema                                   | Description                                    |
-| ------------------------- | ----------------------------------------------- | ---------------------------------------------- |
-| `workflow-api.ts`         | `schemas/workflows/openapi.yaml`                | Workflow definitions and workflow CRUD types   |
-| `executions-api.ts`       | `schemas/workflows/executions_openapi.yaml`     | Execution list/detail/run endpoints            |
-| `activity-types-api.ts`   | `schemas/workflows/activity_types_openapi.yaml` | Activity type metadata                         |
-| `tool-manager.ts`         | `schemas/tool_manager/openapi.yaml`             | Unified tool and provider management types     |
-| `tool-manager-metrics.ts` | `schemas/tool_manager/metrics.yaml`             | Tool manager metrics endpoints                 |
-| `files-api.ts`            | `schemas/files/openapi.yaml`                    | File upload and management types               |
-| `approvals-api.ts`        | `schemas/approvals/openapi.yaml`                | Approval request and response types            |
-| `invocations-api.ts`      | `schemas/invocations/openapi.yaml`              | Invocation-related endpoints                   |
-| `metrics-api.ts`          | `schemas/metrics/openapi.yaml`                  | Metrics endpoints                              |
-| `tools.ts`                | Legacy (not auto-generated)                     | Legacy tool types (kept for compatibility)     |
-| `tool-providers.ts`       | Legacy (not auto-generated)                     | Legacy provider types (kept for compatibility) |
+| File                            | Source Schema                                   | Description                          |
+| ------------------------------- | ----------------------------------------------- | ------------------------------------ |
+| `workflow-api.ts`               | `schemas/workflows/openapi.yaml`                | Workflow definitions and CRUD        |
+| `executions-api.ts`             | `schemas/workflows/executions_openapi.yaml`     | Execution endpoints                  |
+| `activity-types-api.ts`         | `schemas/workflows/activity_types_openapi.yaml` | Activity type metadata               |
+| `tool-manager.ts`               | `schemas/tool_manager/openapi.yaml`             | Tool and provider management         |
+| `tool-manager-metrics.ts`       | `schemas/tool_manager/metrics.yaml`             | Tool manager metrics                 |
+| `files-api.ts`                  | `schemas/files/openapi.yaml`                    | File upload and management           |
+| `approvals-api.ts`              | `schemas/approvals/openapi.yaml`                | Approval requests                    |
+| `invocations-api.ts`            | `schemas/invocations/openapi.yaml`              | Invocations                          |
+| `metrics-api.ts`                | `schemas/metrics/openapi.yaml`                  | Metrics                              |
+| `settings-api.ts`               | `schemas/settings/openapi.yaml`                 | Runtime settings                     |
+| `auth-api.ts`                   | `schemas/auth/openapi.yaml`                     | Authentication                       |
+| `users-api.ts`                  | `schemas/users/openapi.yaml`                    | User management                      |
+| `credentials-api.ts`            | `schemas/credentials/openapi.yaml`              | Credential management                |
+| `identity-providers-api.ts`     | `schemas/identity_providers/openapi.yaml`       | SSO/OIDC providers                   |
+| `aap-api.ts`                    | `schemas/aap/openapi.yaml`                      | AAP integration                      |
+| `authz-api.ts`                  | `schemas/authz/openapi.yaml`                    | Authorization policies               |
+| `roles-api.ts`                  | `schemas/roles/openapi.yaml`                    | Role definitions                     |
+| `policies-api.ts`               | `schemas/policies/openapi.yaml`                 | Access policies                      |
+| `projects-api.ts`               | `schemas/projects/openapi.yaml`                 | Project management                   |
+| `group-role-assignments-api.ts` | `schemas/group_role_assignments/openapi.yaml`   | Group role assignments               |
+| `user-role-assignments-api.ts`  | `schemas/user_role_assignments/openapi.yaml`    | User role assignments                |
+| `interfaces.ts`                 | Manually maintained                             | Shared interfaces and enum constants |
 
 ## Development Workflow
 
@@ -313,6 +324,8 @@ See [docs/zustand-architecture.md](docs/zustand-architecture.md) — "Common Pit
 | **Server state**    | TanStack Query | All API data (fetching, caching, background updates) |
 | **Workflow state**  | Zustand        | The workflow currently being edited in the builder   |
 | **WebSocket state** | Zustand        | Real-time connection state and messages              |
+| **Auth state**      | Zustand        | Authentication tokens and session                    |
+| **Project state**   | Zustand        | Active project scoping                               |
 | **Local UI state**  | `useState`     | Component-local state (modals, forms, selections)    |
 
 See [docs/zustand-architecture.md](docs/zustand-architecture.md) for the complete Zustand guide and [docs/websocket-architecture.md](docs/websocket-architecture.md) for WebSocket patterns.

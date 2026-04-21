@@ -256,10 +256,14 @@ Predefined channel configurations:
 ```tsx
 import { WebSocketChannel } from '../lib/websocket'
 
+// Demo/example channels
 WebSocketChannel.Coffee // { id: 'coffee', path: '/ws/example/v1/coffee' }
 WebSocketChannel.Chat // { id: 'chat', path: '/ws/example/v1/chat' }
 WebSocketChannel.AgentEvents // { id: 'agent_events', path: '/ws/example/v1/agent_events' }
 WebSocketChannel.Tokens // { id: 'tokens', path: '/ws/example/v1/tokens' }
+
+// Production channels
+WebSocketChannel.ExecutionBase // { id: 'execution', path: '/ws/workflows/v1/executions' }
 ```
 
 ### Message Formats

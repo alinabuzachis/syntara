@@ -158,12 +158,15 @@ User clicks "Save"
 
 ```text
 packages/nexus-ui/src/stores/
-├── useWorkflowStore.ts          # Main workflow store + selectors + hooks
+├── useWorkflowStore.ts          # Main workflow store (with Zundo undo/redo)
+├── workflowStoreSelectors.ts    # Exported selectors
+├── workflowStoreTypes.ts        # Store type definitions
+├── workflowActivityHelpers.ts   # Activity manipulation helpers
 ├── workflowFactories.ts         # Entity factory functions
-# Note: WebSocket store is in lib/websocket/store.ts (separate infrastructure)
-├── useWorkflowStore.test.ts     # Core store tests
-├── useWorkflowStore.selectors.test.ts  # Selector/hook tests
-└── ... (other test files)
+├── useAuthStore.ts              # Authentication state (tokens, session, refresh)
+├── useProjectStore.ts           # Active project scoping
+# Note: WebSocket store is in lib/websocket/store.ts
+# Note: Execution store is in routes/automations/stores/useExecutionStore.ts
 ```
 
 ### State Shape
@@ -209,6 +212,8 @@ interface WorkflowStore {
   batchAddActivitiesAndEdges: (params: BatchAddParams) => void
 }
 ```
+
+**Undo/Redo Support:** The workflow store wraps Zustand with [Zundo](https://github.com/charkour/zundo) temporal middleware, providing `undo()` and `redo()` actions. The temporal store tracks activity and edge changes, enabling users to undo/redo edits on the builder canvas.
 
 ### Visual Overview
 
@@ -742,7 +747,7 @@ packages/nexus-ui/src/routes/automations/stores/useExecutionStore.ts
 
 **Key actions:** `setExecution`, `applyPatch`, `setComplete`, `setConnectionState`, `setActivityExecutions`, `reset`
 
-> 📚 **See [`docs/execution-visualizer-protocol.md`](./execution-visualizer-protocol.md) for the full execution WebSocket protocol.**
+> See [`docs/execution-visualizer-protocol.md`](./execution-visualizer-protocol.md) for the full execution WebSocket protocol.
 
 ### WebSocket Store (`useWebSocketStore`)
 
@@ -793,7 +798,30 @@ function ChatComponent() {
 }
 ```
 
-> 📚 **See [`docs/websocket-architecture.md`](./websocket-architecture.md) for comprehensive WebSocket documentation.**
+> See [`docs/websocket-architecture.md`](./websocket-architecture.md) for comprehensive WebSocket documentation.
+
+### Auth Store (`useAuthStore`)
+
+```text
+packages/nexus-ui/src/stores/useAuthStore.ts
+```
+
+| Purpose                     | Description                                        |
+| --------------------------- | -------------------------------------------------- |
+| Token management            | Access token storage, refresh, and expiry tracking |
+| Session lifecycle           | Login, logout, and session persistence             |
+| Auth middleware integration | Provides tokens to API client `authMiddleware`     |
+
+### Project Store (`useProjectStore`)
+
+```text
+packages/nexus-ui/src/stores/useProjectStore.ts
+```
+
+| Purpose         | Description                                |
+| --------------- | ------------------------------------------ |
+| Active project  | Tracks which project is currently selected |
+| Project scoping | Scopes API queries to the active project   |
 
 ---
 
