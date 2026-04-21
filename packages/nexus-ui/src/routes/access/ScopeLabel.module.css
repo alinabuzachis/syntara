@@ -1,11 +1,9 @@
-.labelLink {
+.labelButton,
+.labelButton:hover,
+.labelButton:focus,
+.labelButton:active {
   color: inherit;
-  display: inline-flex;
-  text-decoration: none;
-}
-
-.labelLink:hover,
-.labelLink:visited {
-  color: inherit;
+  min-height: auto;
+  padding: 0;
   text-decoration: none;
 }

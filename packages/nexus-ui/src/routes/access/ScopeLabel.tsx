@@ -1,5 +1,6 @@
-import { Label } from '@patternfly/react-core'
+import { Button, Label } from '@patternfly/react-core'
 import type { Ref } from 'react'
+import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
 
@@ -29,15 +30,17 @@ export function ScopeLabel({ projectId, projectNameMap }: Readonly<ScopeLabelPro
       isCompact
       render={({ className, content, componentRef }) => (
         <span className={className} ref={componentRef as Ref<HTMLSpanElement>}>
-          <a
-            href={projectUrl}
-            className={styles.labelLink}
+          <Button
+            variant="link"
+            isInline
+            className={styles.labelButton}
             onClick={(e) => {
               e.stopPropagation()
+              navigate(projectUrl)
             }}
           >
             {content}
-          </a>
+          </Button>
         </span>
       )}
     >

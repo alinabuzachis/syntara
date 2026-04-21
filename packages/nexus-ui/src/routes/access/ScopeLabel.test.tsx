@@ -1,9 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
+import { navigate } from 'wouter/use-browser-location'
 
 import { ScopeLabel } from './ScopeLabel'
+
+vi.mock('wouter/use-browser-location', () => ({
+  navigate: vi.fn(),
+}))
 
 const projectNameMap = new Map([
   ['proj-1', 'Alpha Project'],
@@ -42,17 +47,19 @@ describe('ScopeLabel', () => {
     const user = userEvent.setup()
     render(<ScopeLabel projectId="proj-1" projectNameMap={projectNameMap} />)
 
-    const link = screen.getByRole('link', { name: /alpha project/i })
-    expect(link).toBeInTheDocument()
+    const button = screen.getByRole('button', { name: /alpha project/i })
+    expect(button).toBeInTheDocument()
 
     await user.tab()
-    expect(link).toHaveFocus()
+    expect(button).toHaveFocus()
   })
 
-  it('renders a real link for project-scoped labels', () => {
+  it('navigates to the project detail page for project-scoped labels', async () => {
+    const user = userEvent.setup()
     render(<ScopeLabel projectId="proj-1" projectNameMap={projectNameMap} />)
 
-    const link = screen.getByRole('link', { name: /alpha project/i })
-    expect(link).toHaveAttribute('href', expect.stringContaining('proj-1'))
+    await user.click(screen.getByRole('button', { name: /alpha project/i }))
+
+    expect(navigate).toHaveBeenCalledWith(expect.stringContaining('proj-1'))
   })
 })
