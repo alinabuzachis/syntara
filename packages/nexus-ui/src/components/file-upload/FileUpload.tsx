@@ -84,8 +84,8 @@ export function FileUpload({
     setErrorMessage(null)
     if (droppedFiles.length === 0) return
 
-    const currentFileNames = uploadedFiles.map((f) => f.file.name)
-    const reUploadNames = droppedFiles.filter((file) => currentFileNames.includes(file.name)).map((f) => f.name)
+    const currentFileNames = new Set(uploadedFiles.map((f) => f.file.name))
+    const reUploadNames = new Set(droppedFiles.filter((file) => currentFileNames.has(file.name)).map((f) => f.name))
 
     const newFiles: UploadedFile[] = droppedFiles.map((file) => ({
       id: generateUUID(),
@@ -95,7 +95,7 @@ export function FileUpload({
     }))
 
     if (!isControlled) {
-      setInternalFiles((prev) => [...prev.filter((f) => !reUploadNames.includes(f.file.name)), ...newFiles])
+      setInternalFiles((prev) => [...prev.filter((f) => !reUploadNames.has(f.file.name)), ...newFiles])
     }
     onFilesSelected?.(droppedFiles)
   }

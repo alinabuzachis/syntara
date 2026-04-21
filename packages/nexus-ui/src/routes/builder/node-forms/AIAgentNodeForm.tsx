@@ -86,7 +86,7 @@ function AIAgentFormFields({
   ]
 
   const handleFilesSelected = async (files: File[]) => {
-    const reUploadNames = files.map((f) => f.name)
+    const reUploadNames = new Set(files.map((f) => f.name))
 
     // Create file entries with uploading status
     const newFiles: UploadedFile[] = files.map((file) => ({
@@ -97,7 +97,7 @@ function AIAgentFormFields({
     }))
 
     // Remove any existing files with same name from completed, add new files to uploading
-    setCompletedFiles((prev) => prev.filter((f) => !reUploadNames.includes(f.file.name)))
+    setCompletedFiles((prev) => prev.filter((f) => !reUploadNames.has(f.file.name)))
     setUploadingFiles(newFiles)
 
     try {

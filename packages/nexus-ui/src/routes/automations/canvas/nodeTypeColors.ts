@@ -71,24 +71,24 @@ function getTaskNodeColor(data: TaskActivity | undefined): string {
   return NODE_TYPE_COLORS.actionDefault
 }
 
-const ADD_PANEL_TRIGGER_IDS: readonly string[] = [
+const ADD_PANEL_TRIGGER_IDS: ReadonlySet<string> = new Set([
   RegistryNodeId.TRIGGER,
   RegistryNodeId.TRIGGER_MANUAL,
   RegistryNodeId.TRIGGER_SCHEDULED,
-]
+])
 
-const ADD_PANEL_LOGIC_IDS: readonly string[] = [
+const ADD_PANEL_LOGIC_IDS: ReadonlySet<string> = new Set([
   RegistryNodeId.LOGIC,
   RegistryNodeId.LOGIC_CONDITION,
   RegistryNodeId.LOGIC_CONVERGE,
   RegistryNodeId.LOGIC_LOOP,
-]
+])
 
-const ADD_PANEL_ACTION_IDS: readonly string[] = [
+const ADD_PANEL_ACTION_IDS: ReadonlySet<string> = new Set([
   RegistryNodeId.ACTION,
   RegistryNodeId.ACTION_SCRIPT,
   RegistryNodeId.ACTION_API,
-]
+])
 
 /**
  * Returns the accent color for a card in the Add step panel (registry node type or subtype id).
@@ -96,10 +96,10 @@ const ADD_PANEL_ACTION_IDS: readonly string[] = [
  */
 export function getAddNodePanelColor(registryNodeId: string): string | undefined {
   if (!registryNodeId) return undefined
-  if (ADD_PANEL_TRIGGER_IDS.includes(registryNodeId)) return undefined
-  if (ADD_PANEL_LOGIC_IDS.includes(registryNodeId)) return NODE_TYPE_COLORS.logic
+  if (ADD_PANEL_TRIGGER_IDS.has(registryNodeId)) return undefined
+  if (ADD_PANEL_LOGIC_IDS.has(registryNodeId)) return NODE_TYPE_COLORS.logic
   if (registryNodeId === RegistryNodeId.APPROVAL) return NODE_TYPE_COLORS.approval
-  if (ADD_PANEL_ACTION_IDS.includes(registryNodeId)) return NODE_TYPE_COLORS.actionScript
+  if (ADD_PANEL_ACTION_IDS.has(registryNodeId)) return NODE_TYPE_COLORS.actionScript
   if (registryNodeId === RegistryNodeId.AGENT) return NODE_TYPE_COLORS.actionAgentic
   if (registryNodeId === RegistryNodeId.AAP) return NODE_TYPE_COLORS.actionAap
   return undefined

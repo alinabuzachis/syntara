@@ -851,3 +851,25 @@ function MyForm() {
   // ...
 }
 ```
+
+---
+
+## 17. Prefer `Set` for membership-only checks (Sonar **typescript:S7776**)
+
+Sonar rule **typescript:S7776** (_Arrays used only for existence checks should be Sets_) applies when a collection is used **mainly or only** to answer “is this value present?”—for example repeated **`Array#includes()`** lookups.
+
+**Why it matters (per Sonar):** `includes()` is **O(n)** per call because it may scan the whole array. **`Set#has()`** is **O(1)** on average. For very small collections the difference is usually negligible; it matters more for **larger lists** and when checks run **often** (loops, drag/drop handlers, render-hot paths).
+
+**What to do:** If membership is the primary use case, keep or build a **`Set`**, use **`.has()`** (and **`.add()`** / **`.delete()`** when the allowed set changes). Do **not** replace arrays when you need **order**, **duplicates**, **indexing**, or **array-specific APIs**—those are valid reasons to stay on an array.
+
+**Official references:** Sonar rule **typescript:S7776** in the Sonar rules catalog; related discussion in ESLint **`unicorn/prefer-set-has`** ([rule doc](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/prefer-set-has.md)); [MDN `Set.prototype.has()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set/has), [MDN `Array.prototype.includes()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes).
+
+```typescript
+// ❌ Non-compliant (Sonar S7776) — array used only as a membership bag
+const allowedValues = [1, 2, 3, 4, 5]
+const isAllowed = (value: number) => allowedValues.includes(value)
+
+// ✅ Compliant — Set for existence
+const allowedValues = new Set([1, 2, 3, 4, 5])
+const isAllowed = (value: number) => allowedValues.has(value)
+```
