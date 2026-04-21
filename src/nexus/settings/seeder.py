@@ -2,8 +2,7 @@
 
 Upserts all entries from :data:`~nexus.settings.catalog.CATEGORY_CATALOG`
 and :data:`~nexus.settings.catalog.SETTINGS_CATALOG` into their respective
-tables. Run as a post-migration step via
-``uv run python tools/seed_settings.py`` after ``alembic upgrade head``.
+tables.
 
 Design:
     - Idempotent — safe to run repeatedly.
@@ -18,7 +17,7 @@ Design:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import structlog
@@ -28,6 +27,9 @@ from nexus.settings.catalog import CATEGORY_CATALOG, SETTINGS_CATALOG
 from nexus.settings.models.runtime_setting import RuntimeSetting
 from nexus.settings.models.setting_category import SettingCategoryModel
 from nexus.settings.validators import check_schema_compatibility, validate_setting_value
+
+if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -48,15 +50,15 @@ _UPSERT_UPDATE_FIELDS = (
 _CATEGORY_UPSERT_FIELDS = ("name", "description", "display_order", "updated_at")
 
 
-async def _seed_categories(session_factory: Any) -> None:  # noqa: ANN401
-    """Upsert all category catalog entries into ``setting_categories``.
+# ---------------------------------------------------------------------------
+# Core upsert helpers (session-based)
+# ---------------------------------------------------------------------------
 
-    Must run before :func:`seed_settings` because
-    ``runtime_settings.category`` has a foreign key to
-    ``setting_categories.slug``.
-    """
+
+async def _upsert_categories(session: AsyncSession) -> int:
+    """Upsert category catalog entries. Returns row count."""
     if not CATEGORY_CATALOG:
-        return
+        return 0
 
     now = datetime.now(UTC)
     rows: list[dict[str, object]] = [
@@ -78,32 +80,12 @@ async def _seed_categories(session_factory: Any) -> None:  # noqa: ANN401
         index_elements=["slug"],
         set_={col: stmt.excluded[col] for col in _CATEGORY_UPSERT_FIELDS},
     )
-
-    async with session_factory() as session:
-        await session.execute(stmt)
-        await session.commit()
-
-    logger.info("settings.categories.seeded", count=len(rows))
+    await session.execute(stmt)
+    return len(rows)
 
 
-async def seed_settings(session_factory: Any) -> None:  # noqa: ANN401
-    """Upsert categories and settings into their respective tables.
-
-    Seeds categories first (FK target), then settings. Both operations
-    are idempotent — safe to run repeatedly.
-
-    Args:
-        session_factory: Async session factory (``async_sessionmaker`` or
-            compatible callable returning an async context manager that
-            yields an :class:`~sqlmodel.ext.asyncio.session.AsyncSession`).
-
-    """
-    await _seed_categories(session_factory)
-
-    if not SETTINGS_CATALOG:
-        logger.info("settings.seeder.empty_catalog")
-        return
-
+def _validate_catalog() -> None:
+    """Validate SETTINGS_CATALOG entries against categories and schemas."""
     valid_category_slugs = {cat.slug for cat in CATEGORY_CATALOG}
     for defn in SETTINGS_CATALOG:
         cat_slug = defn.category.value if hasattr(defn.category, "value") else str(defn.category)
@@ -119,8 +101,15 @@ async def seed_settings(session_factory: Any) -> None:  # noqa: ANN401
             validation_schema=defn.validation_schema,
         )
 
-    now = datetime.now(UTC)
 
+async def _upsert_settings(session: AsyncSession) -> int:
+    """Upsert settings catalog entries. Returns row count."""
+    if not SETTINGS_CATALOG:
+        return 0
+
+    _validate_catalog()
+
+    now = datetime.now(UTC)
     rows = [
         {
             "id": uuid4(),
@@ -148,9 +137,45 @@ async def seed_settings(session_factory: Any) -> None:  # noqa: ANN401
         index_elements=["key"],
         set_={col: stmt.excluded[col] for col in _UPSERT_UPDATE_FIELDS},
     )
+    await session.execute(stmt)
+    return len(rows)
 
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+async def seed_settings_with_session(session: AsyncSession) -> None:
+    """Seed categories and settings using an externally-provided session.
+
+    Conforms to the unified ``SeederFunc(session)`` interface used by
+    :func:`nexus.core.seed.run_seeders`.
+    """
+    cat_count = await _upsert_categories(session)
+    if cat_count:
+        logger.info("settings.categories.seeded", count=cat_count)
+
+    settings_count = await _upsert_settings(session)
+    if settings_count:
+        logger.info("settings.seeder.complete", count=settings_count)
+    else:
+        logger.info("settings.seeder.empty_catalog")
+
+    await session.commit()
+
+
+async def seed_settings(session_factory: Any) -> None:  # noqa: ANN401
+    """Upsert categories and settings into their respective tables.
+
+    Seeds categories first (FK target), then settings. Both operations
+    are idempotent — safe to run repeatedly.
+
+    Args:
+        session_factory: Async session factory (``async_sessionmaker`` or
+            compatible callable returning an async context manager that
+            yields an :class:`~sqlmodel.ext.asyncio.session.AsyncSession`).
+
+    """
     async with session_factory() as session:
-        await session.execute(stmt)
-        await session.commit()
-
-    logger.info("settings.seeder.complete", count=len(rows))
+        await seed_settings_with_session(session)

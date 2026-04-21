@@ -605,10 +605,11 @@ async def session_app(worker_id: str, test_db_engine: AsyncEngine, test_cache: N
         patch("nexus.api.main.AuditSessionLocal", test_session_factory),
         patch("nexus.api.main.OPAClient", return_value=mock_opa_client),
     ):
-        # Seed settings before app startup (normally done post-migration)
-        from nexus.settings.seeder import seed_settings
+        # Seed all required data before app startup (normally done post-migration
+        # via ``python -m nexus.seed``).
+        from nexus.core.seed import run_seeders
 
-        await seed_settings(test_session_factory)
+        await run_seeders(test_session_factory)
 
         # Trigger app lifespan startup (which includes router discovery)
         # This happens once per worker session

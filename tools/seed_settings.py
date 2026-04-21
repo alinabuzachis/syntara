@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Seed runtime settings catalog into the database.
 
-Upserts all entries from SETTINGS_CATALOG into the runtime_settings table.
-Run after ``alembic upgrade head`` to populate new settings or update
-metadata for existing ones. User-set values and versions are preserved.
+.. deprecated::
+    Use ``uv run python -m nexus.seed --only settings`` instead.
+    This script is kept for backward compatibility.
 
 Usage:
     uv run python tools/seed_settings.py
@@ -11,6 +11,7 @@ Usage:
 
 import asyncio
 import sys
+import warnings
 from pathlib import Path
 
 import structlog
@@ -25,6 +26,11 @@ logger = structlog.stdlib.get_logger(__name__)
 
 async def main() -> None:
     """Run the settings seeder."""
+    warnings.warn(
+        "tools/seed_settings.py is deprecated. Use 'uv run python -m nexus.seed --only settings' instead.",
+        DeprecationWarning,
+        stacklevel=1,
+    )
     await seed_settings(AsyncSessionLocal)
 
 

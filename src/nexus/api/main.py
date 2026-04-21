@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError as PydanticValidationError
-from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import text
 from temporalio.service import RPCError
 
@@ -32,7 +32,6 @@ from nexus.authz.exceptions import (  # noqa: F401
     RoleNotFoundError,
 )
 from nexus.authz.opa_client import OPAClient
-from nexus.authz.seed import seed_groups_project_admin
 from nexus.core.config.base import get_settings
 from nexus.core.database.audit_session import AuditSessionLocal, audit_engine
 from nexus.core.database.session import AsyncSessionLocal, engine, get_db
@@ -73,13 +72,6 @@ from nexus.workflows.error_handlers import (
 logger = structlog.stdlib.get_logger(__name__)
 
 
-async def _seed_authz_data() -> None:
-    """Seed authz groups, default project, and admin user role assignments."""
-    async with AsyncSessionLocal() as session:
-        await seed_groups_project_admin(session)
-    logger.info("Authorization seed data initialized")
-
-
 async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     """Initialize application resources during startup.
 
@@ -117,16 +109,6 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     else:
         logger.warning("Router discovery disabled - no routers will be automatically registered")
 
-    # Preseed managed credential types (idempotent — safe on every startup)
-    try:
-        from nexus.credentials.lib.preseed import preseed_credential_types  # noqa: PLC0415
-
-        async for session in get_db():
-            await preseed_credential_types(session)
-            break
-    except (OperationalError, ProgrammingError):
-        logger.warning("Failed to preseed credential types (table may not exist yet)", exc_info=True)
-
     # Register WebSocket router manually (excluded from router discovery)
     # WebSocket routers use AsyncAPI specification instead of OpenAPI,
     # so they're excluded from the OpenAPI-based validation system and
@@ -144,13 +126,6 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         msg = f"OPA server not reachable at {settings.opa_url}"
         raise RuntimeError(msg)
     app.state.opa_client = opa_client
-
-    # Seed authz groups, default project, and admin user assignments.
-    # NOTE: This runs on every process start. Ideally seeding should be an
-    # install/upgrade step (e.g. a CLI command or post-migration hook) so it
-    # runs once rather than in every worker. Safe for now because the seed
-    # logic is idempotent, but should be moved out of lifespan long-term.
-    await _seed_authz_data()
 
     # Initialize telemetry (reads installation ID from database)
     await initialize_telemetry()

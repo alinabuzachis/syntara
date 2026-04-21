@@ -94,12 +94,11 @@ jobs:
           kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/set_admin_password.py' < tools/set_admin_password.py
           cat .secrets/admin-password | kubectl exec -i "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/set_admin_password.py'
 
-      - name: Seed settings
+      - name: Seed database
         working-directory: aap-dev/src/nexus
         run: |
           POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
-          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/seed_settings.py' < tools/seed_settings.py
-          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/seed_settings.py'
+          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python -m nexus.seed'
 
       - name: Create system user
         working-directory: aap-dev/src/nexus

@@ -160,10 +160,16 @@ endif
 
 # Development workflow
 # ========================================================
-.PHONY: db-seed-settings
-db-seed-settings: check-deps ## Seed runtime settings catalog into the database
-	@echo "🌱 Seeding runtime settings..."
-	@uv run tools/seed_settings.py
+.PHONY: db-seed
+db-seed: check-deps ## Run all required database seeders
+	@echo "🌱 Seeding database..."
+	@uv run python -m nexus.seed
+	@echo "✅ Seeding complete"
+
+.PHONY: db-seed-all
+db-seed-all: check-deps ## Run all database seeders including dev samples
+	@echo "🌱 Seeding database (including samples)..."
+	@uv run python -m nexus.seed --all
 	@echo "✅ Seeding complete"
 
 .PHONY: dev
@@ -171,7 +177,7 @@ dev: check-deps _ensure-secrets ## Run development server with auto-reload
 	@echo "🔄 Running database migrations..."
 	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run alembic upgrade head
 	@uv run alembic -c alembic_audit.ini upgrade head
-	@$(MAKE) db-seed-settings
+	@$(MAKE) db-seed
 	@echo "✅ Migrations and seeding complete"
 	@echo "🚀 Starting Nexus API server..."
 	@echo "📍 API URL: http://localhost:8000"
