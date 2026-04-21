@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -10,6 +11,18 @@ import { useAllRoles } from '../../access/useAllRoles'
 import { useAllUsers } from '../../access/useAllUsers'
 
 import { ProjectPermissionsTab } from './ProjectPermissionsTab'
+
+vi.mock('@patternfly/react-table', async () => {
+  const actual = await vi.importActual<typeof import('@patternfly/react-table')>('@patternfly/react-table')
+  return {
+    ...actual,
+    ActionsColumn: ({ items }: { items: Array<{ onClick?: () => void }> }) => (
+      <button type="button" onClick={() => items[0]?.onClick?.()}>
+        Open actions
+      </button>
+    ),
+  }
+})
 
 vi.mock('../../access/accessClient', () => ({
   accessClient: {
@@ -30,6 +43,19 @@ vi.mock('../../access/useAllUsers', () => ({
   useAllUsers: vi.fn(),
 }))
 
+vi.mock('./AssignProjectRoleModal', () => ({
+  AssignProjectRoleModal: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div>Assign project role modal</div> : null),
+}))
+
+vi.mock('./UnassignProjectRoleDialog', () => ({
+  UnassignProjectRoleDialog: ({ isOpen, onConfirm }: { isOpen: boolean; onConfirm: () => void }) =>
+    isOpen ? (
+      <button type="button" onClick={onConfirm}>
+        Confirm unassign
+      </button>
+    ) : null,
+}))
+
 const mockMutationReturn = {
   mutate: vi.fn(),
   isPending: false,
@@ -46,7 +72,7 @@ const mockMutationReturn = {
   variables: undefined,
   status: 'idle',
   isPaused: false,
-} as never
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -80,16 +106,18 @@ const mockAssignments = [
 ]
 
 describe('ProjectPermissionsTab', () => {
+  const mockRefetch = vi.fn().mockResolvedValue({})
+
   function setupMocks(assignments = mockAssignments) {
     vi.mocked(accessClient.useQuery).mockReturnValue({
       data: assignments,
       isPending: false,
       isError: false,
       error: null,
-      refetch: vi.fn().mockResolvedValue({}),
+      refetch: mockRefetch,
     } as never)
 
-    vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn)
+    vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn as never)
 
     vi.mocked(useAllRoles).mockReturnValue({
       roles: [] as never,
@@ -106,6 +134,7 @@ describe('ProjectPermissionsTab', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockRefetch.mockResolvedValue({})
     setupMocks()
   })
 
@@ -137,6 +166,59 @@ describe('ProjectPermissionsTab', () => {
 
     expect(screen.getByText('No permissions')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Assign role' })).toBeInTheDocument()
+  })
+
+  it('opens the assign modal from the empty state CTA', async () => {
+    const user = userEvent.setup()
+    setupMocks([])
+    render(<ProjectPermissionsTab projectId="proj-1" />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Assign role' }))
+
+    expect(screen.getByText('Assign project role modal')).toBeInTheDocument()
+  })
+
+  it('opens the assign modal from the toolbar when assignments exist', async () => {
+    const user = userEvent.setup()
+    render(<ProjectPermissionsTab projectId="proj-1" />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Assign role' }))
+
+    expect(screen.getByText('Assign project role modal')).toBeInTheDocument()
+  })
+
+  it('opens the unassign dialog and submits the delete mutation', async () => {
+    const user = userEvent.setup()
+    const mutate = vi.fn((_variables, options: { onSuccess?: () => void; onSettled?: () => void }) => {
+      options.onSuccess?.()
+      options.onSettled?.()
+    })
+    vi.mocked(accessClient.useMutation).mockReturnValue({
+      ...mockMutationReturn,
+      mutate,
+    } as never)
+
+    render(<ProjectPermissionsTab projectId="proj-1" />, { wrapper })
+
+    await user.click(screen.getAllByRole('button', { name: 'Open actions' })[0])
+    expect(screen.getByRole('button', { name: 'Confirm unassign' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Confirm unassign' }))
+
+    expect(mutate).toHaveBeenCalledWith(
+      {
+        params: {
+          path: { project_id: 'proj-1', assignment_id: 'a1' },
+        },
+      },
+      expect.anything()
+    )
+    const [, options] = mutate.mock.calls[0] ?? []
+    expect(options).toBeDefined()
+    expect(typeof options?.onSuccess).toBe('function')
+    expect(typeof options?.onError).toBe('function')
+    expect(typeof options?.onSettled).toBe('function')
+    expect(mockRefetch).toHaveBeenCalled()
   })
 
   it('renders error state when query fails', () => {

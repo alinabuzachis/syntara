@@ -16,7 +16,7 @@ import { PlusIcon, RhUiTrashIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import type { IAction } from '@patternfly/react-table'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 
 import { useAlerts } from '../../components/alerts'
 import { EmptyStateFilter } from '../../components/EmptyStateFilter'
@@ -377,7 +377,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
     )
   }
 
-  let tableContent: JSX.Element
+  let tableContent: ReactNode
   if (filteredRows.length === 0) {
     if (rows.length === 0) {
       tableContent = (
