@@ -76,13 +76,14 @@ class TestCreateCredential:
 
     @pytest.mark.asyncio
     async def test_create_returns_201_with_masked_inputs(
-        self, auth_client: AsyncClient, bearer_type: CredentialType
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
     ) -> None:
         resp = await auth_client.post(
             "/api/v1/credentials",
             json={
                 "name": "My Token",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "sk-secret-123"},
             },
         )
@@ -96,11 +97,12 @@ class TestCreateCredential:
 
     @pytest.mark.asyncio
     async def test_create_duplicate_name_returns_409(
-        self, auth_client: AsyncClient, bearer_type: CredentialType
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
     ) -> None:
         payload = {
             "name": "Duplicate Name",
             "credential_type_id": str(bearer_type.id),
+            "project_id": test_project_id,
             "inputs": {"token": "abc"},
         }
         resp1 = await auth_client.post("/api/v1/credentials", json=payload)
@@ -111,7 +113,7 @@ class TestCreateCredential:
 
     @pytest.mark.asyncio
     async def test_create_without_required_inputs_returns_422(
-        self, auth_client: AsyncClient, bearer_type: CredentialType
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
     ) -> None:
         resp = await auth_client.post(
             "/api/v1/credentials",
@@ -128,7 +130,7 @@ class TestGetCredential:
 
     @pytest.mark.asyncio
     async def test_get_masks_secret_decrypts_nonsecret(
-        self, auth_client: AsyncClient, basic_auth_type: CredentialType
+        self, auth_client: AsyncClient, basic_auth_type: CredentialType, test_project_id: str
     ) -> None:
         # Create
         create_resp = await auth_client.post(
@@ -136,6 +138,7 @@ class TestGetCredential:
             json={
                 "name": "Basic Auth Cred",
                 "credential_type_id": str(basic_auth_type.id),
+                "project_id": test_project_id,
                 "inputs": {"username": "admin", "password": "secret123"},
             },
         )
@@ -150,7 +153,7 @@ class TestGetCredential:
         assert body["inputs"]["password"] == "$encrypted$"  # noqa: S105  # secret: masked
 
     @pytest.mark.asyncio
-    async def test_get_not_found_returns_404(self, auth_client: AsyncClient) -> None:
+    async def test_get_not_found_returns_404(self, auth_client: AsyncClient, test_project_id: str) -> None:
         resp = await auth_client.get(f"/api/v1/credentials/{uuid4()}")
         assert resp.status_code == 404
 
@@ -159,7 +162,9 @@ class TestListCredentials:
     """GET /api/v1/credentials."""
 
     @pytest.mark.asyncio
-    async def test_list_returns_masked_metadata(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_list_returns_masked_metadata(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         # Create two credentials
         for i in range(2):
             await auth_client.post(
@@ -167,6 +172,7 @@ class TestListCredentials:
                 json={
                     "name": f"List Test {i} {uuid4().hex[:8]}",
                     "credential_type_id": str(bearer_type.id),
+                    "project_id": test_project_id,
                     "inputs": {"token": f"secret-{i}"},
                 },
             )
@@ -187,7 +193,7 @@ class TestUpdateCredential:
 
     @pytest.mark.asyncio
     async def test_update_preserves_encrypted_sentinel(
-        self, auth_client: AsyncClient, basic_auth_type: CredentialType
+        self, auth_client: AsyncClient, basic_auth_type: CredentialType, test_project_id: str
     ) -> None:
         # Create
         create_resp = await auth_client.post(
@@ -195,6 +201,7 @@ class TestUpdateCredential:
             json={
                 "name": "Update Test",
                 "credential_type_id": str(basic_auth_type.id),
+                "project_id": test_project_id,
                 "inputs": {"username": "old-user", "password": "old-pass"},
             },
         )
@@ -215,12 +222,15 @@ class TestUpdateCredential:
         assert get_resp.json()["inputs"]["username"] == "new-user"
 
     @pytest.mark.asyncio
-    async def test_update_name(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_update_name(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         create_resp = await auth_client.post(
             "/api/v1/credentials",
             json={
                 "name": "Old Name",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "abc"},
             },
         )
@@ -238,12 +248,15 @@ class TestDeleteCredential:
     """DELETE /api/v1/credentials/{id}."""
 
     @pytest.mark.asyncio
-    async def test_delete_returns_204(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_delete_returns_204(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         create_resp = await auth_client.post(
             "/api/v1/credentials",
             json={
                 "name": "To Delete",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "abc"},
             },
         )
@@ -261,13 +274,16 @@ class TestCredentialWorkflows:
     """GET /api/v1/credentials/{id}/workflows (T048)."""
 
     @pytest.mark.asyncio
-    async def test_workflows_returns_empty_list(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_workflows_returns_empty_list(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         """Credentials not referenced by any workflow return empty list."""
         create_resp = await auth_client.post(
             "/api/v1/credentials",
             json={
                 "name": f"Workflow Test {uuid4().hex[:8]}",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "abc"},
             },
         )
@@ -319,6 +335,7 @@ class TestCredentialTypeCount:
         self,
         auth_client: AsyncClient,
         bearer_type: CredentialType,
+        test_project_id: str,
     ) -> None:
         """Types with no credentials should show credential_count: 0."""
         resp = await auth_client.get("/api/v1/credential_types")
@@ -333,7 +350,9 @@ class TestCredentialTypeCount:
         assert len(zero_count_types) >= 1
 
     @pytest.mark.asyncio
-    async def test_credential_count_increments(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_credential_count_increments(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         """Creating credentials should increment the count for their type."""
         # Check initial count
         resp = await auth_client.get(f"/api/v1/credential_types/{bearer_type.id}")
@@ -346,6 +365,7 @@ class TestCredentialTypeCount:
                 json={
                     "name": f"Count Test {i} {uuid4().hex[:8]}",
                     "credential_type_id": str(bearer_type.id),
+                    "project_id": test_project_id,
                     "inputs": {"token": f"secret-{i}"},
                 },
             )
@@ -355,7 +375,9 @@ class TestCredentialTypeCount:
         assert resp.json()["credential_count"] == initial_count + 2
 
     @pytest.mark.asyncio
-    async def test_deleted_credentials_not_counted(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_deleted_credentials_not_counted(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         """Soft-deleted credentials should not be included in the count."""
         # Create and delete a credential
         create_resp = await auth_client.post(
@@ -363,6 +385,7 @@ class TestCredentialTypeCount:
             json={
                 "name": f"Delete Count Test {uuid4().hex[:8]}",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "to-delete"},
             },
         )
@@ -390,13 +413,15 @@ class TestPreseedIntegration:
             assert type_def["name"] in names
 
     @pytest.mark.asyncio
-    async def test_preseed_types_are_managed(self, auth_client: AsyncClient) -> None:
+    async def test_preseed_types_are_managed(self, auth_client: AsyncClient, test_project_id: str) -> None:
         resp = await auth_client.get("/api/v1/credential_types")
         managed_types = [r for r in resp.json()["resources"] if r["managed"]]
         assert len(managed_types) >= len(GA_CREDENTIAL_TYPES)
 
     @pytest.mark.asyncio
-    async def test_preseed_is_idempotent(self, test_db_session: AsyncSession, auth_client: AsyncClient) -> None:
+    async def test_preseed_is_idempotent(
+        self, test_db_session: AsyncSession, auth_client: AsyncClient, test_project_id: str
+    ) -> None:
         # Run preseed again
         await preseed_credential_types(test_db_session)
 
@@ -411,7 +436,9 @@ class TestEnabledFilter:
     """GET /api/v1/credentials?enabled=... (T038)."""
 
     @pytest.mark.asyncio
-    async def test_filter_enabled_true(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_filter_enabled_true(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         """Verify ?enabled=true returns only enabled credentials."""
         # Create enabled credential
         await auth_client.post(
@@ -419,6 +446,7 @@ class TestEnabledFilter:
             json={
                 "name": f"Enabled Cred {uuid4().hex[:8]}",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "abc"},
             },
         )
@@ -428,6 +456,7 @@ class TestEnabledFilter:
             json={
                 "name": f"Disabled Cred {uuid4().hex[:8]}",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "def"},
             },
         )
@@ -440,7 +469,9 @@ class TestEnabledFilter:
             assert resource["enabled"] is True
 
     @pytest.mark.asyncio
-    async def test_filter_enabled_false(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_filter_enabled_false(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         """Verify ?enabled=false returns only disabled credentials."""
         # Create and disable a credential
         create_resp = await auth_client.post(
@@ -448,6 +479,7 @@ class TestEnabledFilter:
             json={
                 "name": f"To Disable {uuid4().hex[:8]}",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "ghi"},
             },
         )
@@ -465,24 +497,30 @@ class TestInputValidation:
     """Verify input validation returns 422 with clear error messages (T028)."""
 
     @pytest.mark.asyncio
-    async def test_unknown_field_returns_422(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_unknown_field_returns_422(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         resp = await auth_client.post(
             "/api/v1/credentials",
             json={
                 "name": "Bad Fields",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "abc", "bogus_field": "value"},
             },
         )
         assert resp.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_missing_required_returns_422(self, auth_client: AsyncClient, bearer_type: CredentialType) -> None:
+    async def test_missing_required_returns_422(
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
+    ) -> None:
         resp = await auth_client.post(
             "/api/v1/credentials",
             json={
                 "name": "Missing Required",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {},
             },
         )
@@ -490,13 +528,14 @@ class TestInputValidation:
 
     @pytest.mark.asyncio
     async def test_encrypted_sentinel_on_create_returns_422(
-        self, auth_client: AsyncClient, bearer_type: CredentialType
+        self, auth_client: AsyncClient, bearer_type: CredentialType, test_project_id: str
     ) -> None:
         resp = await auth_client.post(
             "/api/v1/credentials",
             json={
                 "name": "Sentinel Input",
                 "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
                 "inputs": {"token": "$encrypted$"},
             },
         )

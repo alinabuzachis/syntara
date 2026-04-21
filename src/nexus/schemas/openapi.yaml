@@ -8978,9 +8978,15 @@ components:
           minLength: 1
           title: Name
           type: string
+        project_id:
+          description: Project to assign credential to
+          format: uuid
+          title: Project Id
+          type: string
       required:
         - name
         - credential_type_id
+        - project_id
       title: CredentialCreate
       type: object
     CredentialPatch:
@@ -9121,6 +9127,10 @@ components:
           additionalProperties: true
           title: Inputs
           type: object
+        project_id:
+          format: uuid
+          title: Project Id
+          type: string
         workflow_count:
           default: 0
           description: Number of workflows referencing this credential

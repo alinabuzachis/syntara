@@ -164,6 +164,7 @@ class TestCreateCredential:
             name="My Token",
             credential_type_id=bearer_type.id,
             inputs={"token": "sk-abc-123"},
+            project_id=uuid4(),
         )
         result = await service.create_credential(data)
 
@@ -196,6 +197,7 @@ class TestCreateCredential:
         data = CredentialCreate(
             name="Empty Cred",
             credential_type_id=optional_type.id,
+            project_id=uuid4(),
         )
         result = await service.create_credential(data)
 
@@ -223,6 +225,7 @@ class TestCreateCredential:
             name="Duplicate",
             credential_type_id=bearer_type.id,
             inputs={"token": "abc"},
+            project_id=uuid4(),
         )
         with pytest.raises(CredentialNameConflictError):
             await service.create_credential(data)
@@ -246,6 +249,7 @@ class TestGetCredential:
             credential_type_id=basic_auth_type.id,
             secret_id=secret_id,
             enabled=True,
+            project_id=uuid4(),
             created_by=mock_user.id,
         )
         credential.credential_type = basic_auth_type
@@ -301,6 +305,7 @@ class TestUpdateCredential:
             credential_type_id=basic_auth_type.id,
             secret_id=secret_id,
             enabled=True,
+            project_id=uuid4(),
             created_by=mock_user.id,
         )
 
@@ -342,6 +347,7 @@ class TestDeleteCredential:
             credential_type_id=uuid4(),
             secret_id=secret_id,
             enabled=True,
+            project_id=uuid4(),
             created_by=mock_user.id,
         )
 

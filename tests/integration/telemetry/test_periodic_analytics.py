@@ -17,6 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.models.invocation import Invocation
 from nexus.agent_orchestrator.token_manager.models import TokenUsageRecord
+from nexus.authz.models import Project
 from nexus.core.models import User
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
@@ -870,12 +871,16 @@ class TestQueryCredentialCountsRealDB:
         """Insert credentials with different types and verify grouped counts."""
         bearer_type = await self._create_credential_type(test_db_session, "Bearer", "bearer")
         api_key_type = await self._create_credential_type(test_db_session, "LLM Provider", "api_key")
+        project = Project(name=f"tel-test-{uuid4().hex[:8]}", description="Telemetry test")
+        test_db_session.add(project)
+        await test_db_session.flush()
 
         for i in range(3):
             test_db_session.add(
                 Credential(
                     name=f"bearer-cred-{i}",
                     credential_type_id=bearer_type.id,
+                    project_id=project.id,
                     created_by=test_user.id,
                 )
             )
@@ -884,6 +889,7 @@ class TestQueryCredentialCountsRealDB:
                 Credential(
                     name=f"api-key-cred-{i}",
                     credential_type_id=api_key_type.id,
+                    project_id=project.id,
                     created_by=test_user.id,
                 )
             )
@@ -897,12 +903,18 @@ class TestQueryCredentialCountsRealDB:
     async def test_excludes_soft_deleted_credentials(self, test_db_session: AsyncSession, test_user: User):
         """Soft-deleted credentials must not be counted."""
         ct = await self._create_credential_type(test_db_session, "Bearer", "bearer")
+        project = Project(name=f"tel-del-{uuid4().hex[:8]}", description="Telemetry delete test")
+        test_db_session.add(project)
+        await test_db_session.flush()
 
-        test_db_session.add(Credential(name="active-cred", credential_type_id=ct.id, created_by=test_user.id))
+        test_db_session.add(
+            Credential(name="active-cred", credential_type_id=ct.id, project_id=project.id, created_by=test_user.id)
+        )
         test_db_session.add(
             Credential(
                 name="deleted-cred",
                 credential_type_id=ct.id,
+                project_id=project.id,
                 created_by=test_user.id,
                 deleted_at=datetime.now(UTC),
                 deleted_by=test_user.id,

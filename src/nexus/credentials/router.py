@@ -4,14 +4,17 @@ from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import Depends, Query, Request, status
 from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
+from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.database.session import get_db
 from nexus.core.models import User
+from nexus.core.nexus_router import NexusRouter
 from nexus.core.services.secret_service import create_secret_service
 from nexus.credentials.exceptions import CredentialNotFoundError
 from nexus.credentials.models import (
@@ -27,9 +30,42 @@ from nexus.credentials.models import (
 from nexus.credentials.models.credential import Credential, CredentialWorkflowRef
 from nexus.credentials.services.credential_service import CredentialService
 
-router = APIRouter()
+router = NexusRouter(tags=["credentials"])
 
 logger = structlog.stdlib.get_logger(__name__)
+
+
+# ============================================================================
+# Permission Checkers
+# ============================================================================
+
+_cred_perm_read = PermissionChecker(
+    "credential",
+    "read",
+    roles=["admin", "auditor", "user", "project-admin", "project-user", "project-auditor"],
+    resource_model=Credential,
+    resource_id_param="credential_id",
+)
+_cred_perm_create = PermissionChecker(
+    "credential",
+    "create",
+    roles=["admin", "user", "project-admin", "project-user"],
+    body_project_field="project_id",
+)
+_cred_perm_update = PermissionChecker(
+    "credential",
+    "update",
+    roles=["admin", "user", "project-admin", "project-user"],
+    resource_model=Credential,
+    resource_id_param="credential_id",
+)
+_cred_perm_delete = PermissionChecker(
+    "credential",
+    "delete",
+    roles=["admin", "project-admin"],
+    resource_model=Credential,
+    resource_id_param="credential_id",
+)
 
 
 # ============================================================================
@@ -50,13 +86,7 @@ def get_credential_service(
 # ============================================================================
 
 
-@router.post(
-    "/credentials",
-    status_code=status.HTTP_201_CREATED,
-    tags=["Credentials"],
-    operation_id="create_credential",
-    response_description="Credential created successfully",
-)
+@router.post("/credentials", status_code=status.HTTP_201_CREATED, dependencies=[Depends(_cred_perm_create)])
 async def create_credential(
     data: CredentialCreate,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -65,34 +95,25 @@ async def create_credential(
     return await service.create_credential(data)
 
 
-@router.get(
-    "/credentials",
-    tags=["Credentials"],
-    operation_id="list_credentials",
-    response_description="Paginated list of Credentials (metadata only, no secret values)",
-)
+@router.get("/credentials")
 async def list_credentials(
+    request: Request,
     service: Annotated[CredentialService, Depends(get_credential_service)],
     params: Annotated[CredentialListParams, Query()],
+    allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("credential", "read"))],
 ) -> CredentialListResponse:
     """List Credentials with filtering and pagination. Metadata only, no secrets."""
     return await service.list_credentials(
         limit=params.limit,
         cursor=params.cursor,
         sort=params.sort,
-        query_params_items=params.model_dump(
-            exclude_none=True, exclude={"limit", "cursor", "sort", "include_total"}
-        ).items(),
+        query_params_items=request.query_params.items(),
         include_total=params.include_total,
+        allowed_projects=allowed_projects,
     )
 
 
-@router.get(
-    "/credentials/{credential_id}",
-    tags=["Credentials"],
-    operation_id="get_credential",
-    response_description="Credential with secret fields masked",
-)
+@router.get("/credentials/{credential_id}", dependencies=[Depends(_cred_perm_read)])
 async def get_credential(
     credential_id: UUID,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -101,12 +122,7 @@ async def get_credential(
     return await service.get_credential(credential_id)
 
 
-@router.patch(
-    "/credentials/{credential_id}",
-    tags=["Credentials"],
-    operation_id="update_credential",
-    response_description="Credential updated",
-)
+@router.patch("/credentials/{credential_id}", dependencies=[Depends(_cred_perm_update)])
 async def update_credential(
     credential_id: UUID,
     data: CredentialPatch,
@@ -119,9 +135,7 @@ async def update_credential(
 @router.delete(
     "/credentials/{credential_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    tags=["Credentials"],
-    operation_id="delete_credential",
-    response_description="Credential deleted",
+    dependencies=[Depends(_cred_perm_delete)],
 )
 async def delete_credential(
     credential_id: UUID,
@@ -131,12 +145,7 @@ async def delete_credential(
     await service.delete_credential(credential_id)
 
 
-@router.get(
-    "/credentials/{credential_id}/workflows",
-    tags=["Credentials"],
-    operation_id="get_credential_workflows",
-    response_description="List of workflows referencing this credential",
-)
+@router.get("/credentials/{credential_id}/workflows", dependencies=[Depends(_cred_perm_read)])
 async def get_credential_workflows(
     credential_id: UUID,
     service: Annotated[CredentialService, Depends(get_credential_service)],
@@ -149,16 +158,11 @@ async def get_credential_workflows(
 
 
 # ============================================================================
-# Credential Type Endpoints (read-only for GA)
+# Credential Type Endpoints (read-only for GA, auth-only, no RBAC needed)
 # ============================================================================
 
 
-@router.get(
-    "/credential_types",
-    tags=["Credential Types"],
-    operation_id="list_credential_types",
-    response_description="Paginated list of Credential types",
-)
+@router.get("/credential_types")
 async def list_credential_types(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: Annotated[User, Depends(get_current_user)],
@@ -199,12 +203,7 @@ async def list_credential_types(
     return CredentialTypeListResponse(resources=resources)
 
 
-@router.get(
-    "/credential_types/{credential_type_id}",
-    tags=["Credential Types"],
-    operation_id="get_credential_type",
-    response_description="Credential type detail",
-)
+@router.get("/credential_types/{credential_type_id}")
 async def get_credential_type(
     credential_type_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],

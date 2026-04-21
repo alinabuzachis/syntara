@@ -18,6 +18,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
+from nexus.authz.engine import AllowedProjectsResult
 from nexus.core.lib.encryption import ENCRYPTED_SENTINEL, EncryptionError
 from nexus.core.models import User
 from nexus.core.services import BaseService
@@ -264,6 +265,7 @@ class CredentialService(BaseService):
             credential_type_id=data.credential_type_id,
             secret_id=secret_id,
             labels=data.labels,
+            project_id=data.project_id,
             created_by=self.user.id,
             updated_by=self.user.id,
         )
@@ -300,6 +302,7 @@ class CredentialService(BaseService):
         query_params_items: Iterable[tuple[str, str]] | None = None,
         *,
         include_total: bool = False,
+        allowed_projects: AllowedProjectsResult | None = None,
     ) -> CredentialListResponse:
         """List credentials with metadata only (no decryption, no backend contact)."""
         response = await self.list_resources(
@@ -310,6 +313,7 @@ class CredentialService(BaseService):
             sort=sort,
             query_params_items=query_params_items,
             include_total=include_total,
+            allowed_projects=allowed_projects,
         )
 
         cred_ids = [r.id for r in response.resources]

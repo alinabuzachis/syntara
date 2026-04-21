@@ -46,6 +46,12 @@ class Credential(Resource, table=True):
         description="Whether this credential is active",
     )
 
+    project_id: UUID = Field(
+        foreign_key="projects.id",
+        description="Project namespace for resource isolation",
+        index=True,
+    )
+
     credential_type: CredentialType | None = Relationship()
 
     __table_args__ = (
@@ -58,6 +64,7 @@ class Credential(Resource, table=True):
         "credential_type_id",
         "secret_id",
         "enabled",
+        "project_id",
     ]
 
 
@@ -69,6 +76,7 @@ class CredentialCreate(SQLModel):
     credential_type_id: UUID = Field(description="ID of the credential type")
     inputs: dict[str, Any] = Field(default_factory=dict, description="Field values validated against type schema")
     labels: dict[str, str] = Field(default_factory=dict, description="Key-value labels")
+    project_id: UUID = Field(description="Project to assign credential to")
 
 
 class CredentialRead(Resource):
@@ -91,6 +99,7 @@ class CredentialRead(Resource):
     credential_type_id: UUID
     inputs: dict[str, Any] = Field(default_factory=dict)
     enabled: bool = True
+    project_id: UUID
     workflow_count: int = Field(default=0, description="Number of workflows referencing this credential")
 
 
