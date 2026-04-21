@@ -37,7 +37,7 @@ echo "🚀 Starting mock Segment, database, Temporal, and OPA..."
 APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
 APP_SEGMENT_ENDPOINT="http://mock-segment:${SEGMENT_SERVER_PORT}" \
 APP_COLLECTION_INTERVAL_SECONDS=10 \
-${COMPOSE_CMD} --profile telemetry-e2e up -d database temporal temporal-worker mock-segment opa \
+${COMPOSE_CMD} --profile telemetry-e2e up -d database temporal temporal-worker mock-segment opa mcp-server nexus \
     > /tmp/nexus-e2e-infra.log 2>&1
 
 echo "⏳ Waiting for mock Segment server..."

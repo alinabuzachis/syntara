@@ -7,6 +7,11 @@ on:
     types: [requested]
   workflow_dispatch:
 
+permissions:
+  statuses: write
+  contents: read
+  actions: read
+
 concurrency:
   group: e2e-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
@@ -29,18 +34,19 @@ jobs:
               description: 'E2E tests in progress...',
               target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             });
+        if: github.event_name == 'workflow_run'
 
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.event.workflow_run.repository.full_name }}
-          ref: ${{ github.event.workflow_run.head_sha }}
+          repository: ${{ github.event.workflow_run.repository.full_name || github.repository }}
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - name: Deploy Nexus
         uses: ./.github/actions/deploy-nexus
         with:
           deployment-mode: standalone
-          nexus-ref: ${{ github.event.workflow_run.head_sha }}
+          nexus-ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           rh-registry-token: ${{ secrets.RH_REGISTRY_TOKEN }}
@@ -95,16 +101,82 @@ jobs:
           kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/seed_settings.py' < tools/seed_settings.py
           kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/seed_settings.py'
 
-      - name: Port-forward Nexus API
+      - name: Create system user
+        working-directory: aap-dev/src/nexus
+        run: |
+          POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
+          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/create_system_user.py' < tools/create_system_user.py
+          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/create_system_user.py'
+
+      - name: Deploy test helpers in cluster
+        working-directory: aap-dev/src/nexus
+        run: |
+          # --- Mock Segment server (reuses the Nexus API image) ---
+          export AO_IMAGE=$(kubectl get deployment myaap-ao-api \
+            -o jsonpath='{.spec.template.spec.containers[?(@.name=="ao-api")].image}')
+          echo "Nexus image: ${AO_IMAGE}"
+
+          kubectl create configmap mock-segment-server \
+            --from-file=mock_segment_server.py=tests/e2e/telemetry/mock_segment_server.py
+
+          # --- MCP server (build inside Kind node so it's available to K8s) ---
+          export MCP_IMAGE="localhost/nexus-mcp:e2e"
+          KIND_NODE="27-control-plane"
+          podman build -t "${MCP_IMAGE}" -f containers/mcp/Containerfile .
+          podman save "${MCP_IMAGE}" | podman exec -i "${KIND_NODE}" ctr --namespace=k8s.io images import -
+
+          envsubst < tools/ci/e2e/mock-segment-pod.yaml | kubectl apply -f -
+          envsubst < tools/ci/e2e/mock-segment-svc.yaml | kubectl apply -f -
+          envsubst < tools/ci/e2e/mcp-server-pod.yaml | kubectl apply -f -
+          envsubst < tools/ci/e2e/mcp-server-svc.yaml | kubectl apply -f -
+
+          kubectl wait --for=condition=ready pod/mock-segment --timeout=60s
+          kubectl wait --for=condition=ready pod/mcp-server --timeout=60s
+
+      - name: Inject OpenRouter API key
+        run: |
+          kubectl set env deployment/myaap-ao-api \
+            APP_OPENROUTER_API_KEY="${APP_OPENROUTER_API_KEY}" \
+            APP_OPENROUTER_MODEL="${APP_OPENROUTER_MODEL}"
+          kubectl set env deployment/myaap-ao-worker \
+            APP_OPENROUTER_API_KEY="${APP_OPENROUTER_API_KEY}" \
+            APP_OPENROUTER_MODEL="${APP_OPENROUTER_MODEL}"
+        env:
+          APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          APP_OPENROUTER_MODEL: moonshotai/kimi-k2.6
+
+      - name: Configure Nexus to send telemetry to mock Segment
+        run: |
+          kubectl set env deployment/myaap-ao-api \
+            APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
+            APP_SEGMENT_ENDPOINT="http://mock-segment:9999" \
+            APP_COLLECTION_INTERVAL_SECONDS=10
+          kubectl set env deployment/myaap-ao-worker \
+            APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
+            APP_SEGMENT_ENDPOINT="http://mock-segment:9999" \
+            APP_COLLECTION_INTERVAL_SECONDS=10
+          kubectl rollout status deployment/myaap-ao-api --timeout=120s
+          kubectl rollout status deployment/myaap-ao-worker --timeout=120s
+
+      - name: Port-forward services
         run: |
           kubectl port-forward svc/myaap-ao-api 8000:8000 &
-          # Wait until the port-forward is accepting connections
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/health > /dev/null 2>&1 && exit 0
-            sleep 2
-          done
-          echo "::error::Service did not become healthy after 60s"
-          exit 1
+          kubectl port-forward svc/mock-segment 9999:9999 &
+          kubectl port-forward svc/mcp-server 8765:8765 &
+
+          wait_for() {
+            local url=$1 label=$2 timeout=$3
+            for i in $(seq 1 "$timeout"); do
+              curl -sf "$url" > /dev/null 2>&1 && return 0
+              sleep 1
+            done
+            echo "::error::${label} not reachable after ${timeout}s"
+            return 1
+          }
+
+          wait_for http://localhost:8000/health "Nexus API" 60
+          wait_for http://localhost:9999/health "Mock Segment" 30
+          wait_for http://localhost:8765/health "MCP server" 30
 
       - name: Run E2E tests
         working-directory: aap-dev/src/nexus
@@ -112,6 +184,15 @@ jobs:
         env:
           APP_BASE_URL: http://localhost:8000
           APP_WORKER_BASE_URL: http://myaap-ao-api:8000
+          APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          APP_OPENROUTER_MODEL: moonshotai/kimi-k2.6
+          SEGMENT_SERVER_URL: http://localhost:9999
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          echo "=== logs ==="
+          kubectl get pods -o name |grep 'myaap-ao-api\|myaap-ao-worker\|mock-segment\|mcp-server' | xargs -n1 kubectl logs
 
       - name: Cleanup
         if: always()
@@ -119,7 +200,7 @@ jobs:
         run: make clean
 
       - name: Report final status
-        if: always()
+        if: always() && github.event_name == 'workflow_run'
         uses: actions/github-script@v7
         with:
           script: |

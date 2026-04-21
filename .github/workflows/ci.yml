@@ -106,6 +106,12 @@ jobs:
   test-compose:
     runs-on: ubuntu-latest
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost
+          sudo apt-get clean
+          df -h /
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -124,10 +130,15 @@ jobs:
         run: make secrets-generate
 
       - name: Start services with podman-compose
-        timeout-minutes: 10
+        timeout-minutes: 15
+        env:
+          APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          APP_SEGMENT_WRITE_KEY: test-e2e-write-key
+          APP_SEGMENT_ENDPOINT: http://mock-segment:9999
+          APP_COLLECTION_INTERVAL_SECONDS: "10"
         run: |
-          # Start core services (exclude nexus-ui which is private)
-          uvx podman-compose -p nexus-ci up --build -d database temporal nexus temporal-worker mcp-server opa
+          # Start core services + mock-segment (exclude nexus-ui which is private)
+          uvx podman-compose -p nexus-ci --profile telemetry-e2e up --build -d database temporal nexus temporal-worker mcp-server opa mock-segment
 
       - name: Verify services are healthy
         timeout-minutes: 5
@@ -142,24 +153,33 @@ jobs:
             nexus-ci_temporal_1 \
             nexus-ci_nexus_1 \
             nexus-ci_mcp-server_1 \
-            nexus-ci_opa_1
+            nexus-ci_opa_1 \
+            nexus-ci_mock-segment_1
           echo "✅ All services are healthy"
+
+      - name: Create system user
+        run: |
+          # Re-run create_system_user after services are healthy so the
+          # admins group (seeded during API startup) already exists.
+          podman exec nexus-ci_nexus_1 uv run python tools/create_system_user.py
 
       - name: Run E2E tests
         run: make test-e2e
         env:
           APP_BASE_URL: http://localhost:8000
+          APP_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SEGMENT_SERVER_URL: http://localhost:9999
 
       - name: Show service logs on failure
         if: failure()
         run: |
           echo "=== Compose logs ==="
-          uvx podman-compose -p nexus-ci logs database temporal nexus temporal-worker mcp-server opa
+          uvx podman-compose -p nexus-ci --profile telemetry-e2e logs database temporal nexus temporal-worker mcp-server opa mock-segment
 
       - name: Cleanup
         if: always()
         run: |
-          uvx podman-compose -p nexus-ci down -v || true
+          uvx podman-compose -p nexus-ci --profile telemetry-e2e down -v || true
 
   combine:
     runs-on: ubuntu-latest

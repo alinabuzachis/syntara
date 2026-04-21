@@ -1,0 +1,30 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mock-segment
+  labels:
+    app: mock-segment
+spec:
+  containers:
+    - name: mock-segment
+      image: ${AO_IMAGE}
+      command: ["/opt/app-root/src/.venv/bin/python", "/scripts/mock_segment_server.py"]
+      env:
+        - name: SEGMENT_SERVER_HOST
+          value: "0.0.0.0"
+      ports:
+        - containerPort: 9999
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 9999
+        initialDelaySeconds: 3
+        periodSeconds: 2
+      volumeMounts:
+        - name: script
+          mountPath: /scripts
+  volumes:
+    - name: script
+      configMap:
+        name: mock-segment-server
