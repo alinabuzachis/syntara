@@ -14,39 +14,54 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
   await app.goto(toAppUrl('/automation-builder/new'))
   await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
-  // Act - Add manual trigger
-  await app.getByRole('button', { name: 'Manual trigger' }).click()
-  await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
-  await app.getByRole('button', { name: /^Add step$/ }).click()
+  try {
+    // Act - Add manual trigger
+    await app.getByRole('button', { name: 'Manual trigger' }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Manual trigger')
+    await app.getByRole('button', { name: /^Add step$/ }).click()
 
-  // Act - Add connected action node
-  const firstPanel = await clickAddConnectedStep(app)
-  await firstPanel.getByRole('button', { name: 'Action', exact: true }).click()
-  await firstPanel.getByRole('button', { name: 'Script', exact: true }).click()
-  await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Send email')
-  await fillCodeEditor(app, { value: 'print("hello from Playwright")' })
-  await app.getByRole('button', { name: /^Add step$/ }).click()
-  await closeNodeEditorPanel(app)
+    // Act - Add connected action node
+    const firstPanel = await clickAddConnectedStep(app)
+    await firstPanel.getByRole('button', { name: 'Action', exact: true }).click()
+    await firstPanel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Send email')
+    await fillCodeEditor(app, { value: 'print("hello from Playwright")' })
+    await app.getByRole('button', { name: /^Add step$/ }).click()
+    await closeNodeEditorPanel(app)
 
-  // Act - Add another connected action node
-  const secondPanel = await clickAddConnectedStep(app)
-  await secondPanel.getByRole('button', { name: 'Action', exact: true }).click()
-  await secondPanel.getByRole('button', { name: 'Script', exact: true }).click()
-  await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Follow-up action')
-  await fillCodeEditor(app, { value: 'print("follow-up")' })
-  await app.getByRole('button', { name: /^Add step$/ }).click()
+    // Act - Add another connected action node
+    const secondPanel = await clickAddConnectedStep(app)
+    await secondPanel.getByRole('button', { name: 'Action', exact: true }).click()
+    await secondPanel.getByRole('button', { name: 'Script', exact: true }).click()
+    await app.getByRole('textbox', { name: 'Name', exact: true }).fill('Follow-up action')
+    await fillCodeEditor(app, { value: 'print("follow-up")' })
+    await app.getByRole('button', { name: /^Add step$/ }).click()
 
-  // Act - Save workflow (select project first to avoid name reset)
-  await selectProjectIfRequired(app)
-  await app.getByPlaceholder('Workflow name').fill(workflowName)
-  await app.getByRole('button', { name: 'Save' }).click()
+    // Act - Save workflow (select project first to avoid name reset)
+    await selectProjectIfRequired(app)
+    await app.getByPlaceholder('Workflow name').fill(workflowName)
+    await app.getByRole('button', { name: 'Save' }).click()
 
-  // Assert - Workflow is persisted in automations list
-  await expect(app).toHaveURL(/automation-builder\/.+/)
-  await app.goto(toAppUrl('/automations'))
-  await app.getByPlaceholder('Filter by name').fill(workflowName)
-  await app.getByRole('button', { name: 'Apply filter' }).click()
-  await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
+    // Assert - Workflow is persisted in automations list
+    await expect(app).toHaveURL(/automation-builder\/.+/)
+    await app.goto(toAppUrl('/automations'))
+    await app.getByPlaceholder('Filter by name').fill(workflowName)
+    await app.getByRole('button', { name: 'Apply filter' }).click()
+    await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
+  } finally {
+    await app.goto(toAppUrl('/automations'))
+    await app.getByPlaceholder('Filter by name').fill(workflowName)
+    await app.getByRole('button', { name: 'Apply filter' }).click()
+    const row = app.getByRole('row', { name: new RegExp(workflowName) })
+    if ((await row.count()) > 0) {
+      await row
+        .getByRole('button', { name: /Actions|Kebab toggle/i })
+        .first()
+        .click({ force: true })
+      await app.getByRole('menuitem', { name: 'Delete automation' }).click()
+      await app.getByRole('button', { name: 'Delete' }).click()
+    }
+  }
 })
 
 test('user edits an existing workflow and changes persist', async ({ app }) => {
@@ -54,19 +69,37 @@ test('user edits an existing workflow and changes persist', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-edit')
   await createBasicWorkflow(app, workflowName, 'Initial task')
 
-  // Act - Open workflow from automations list
-  await app.goto(toAppUrl('/automations'))
-  await app.getByPlaceholder('Filter by name').fill(workflowName)
-  await app.getByRole('button', { name: 'Apply filter' }).click()
-  await app.getByRole('button', { name: workflowName, exact: true }).click()
-
   const updatedName = `${workflowName}-updated`
-  await app.getByPlaceholder('Workflow name').fill(updatedName)
-  await app.getByRole('button', { name: 'Save' }).click()
 
-  // Assert - Updated name persists
-  await app.goto(toAppUrl('/automations'))
-  await app.getByPlaceholder('Filter by name').fill(updatedName)
-  await app.getByRole('button', { name: 'Apply filter' }).click()
-  await expect(app.getByRole('button', { name: updatedName, exact: true })).toBeVisible()
+  try {
+    // Act - Open workflow from automations list
+    await app.goto(toAppUrl('/automations'))
+    await app.getByPlaceholder('Filter by name').fill(workflowName)
+    await app.getByRole('button', { name: 'Apply filter' }).click()
+    await app.getByRole('button', { name: workflowName, exact: true }).click()
+
+    await app.getByPlaceholder('Workflow name').fill(updatedName)
+    await app.getByRole('button', { name: 'Save' }).click()
+
+    // Assert - Updated name persists
+    await app.goto(toAppUrl('/automations'))
+    await app.getByPlaceholder('Filter by name').fill(updatedName)
+    await app.getByRole('button', { name: 'Apply filter' }).click()
+    await expect(app.getByRole('button', { name: updatedName, exact: true })).toBeVisible()
+  } finally {
+    for (const name of [updatedName, workflowName]) {
+      await app.goto(toAppUrl('/automations'))
+      await app.getByPlaceholder('Filter by name').fill(name)
+      await app.getByRole('button', { name: 'Apply filter' }).click()
+      const row = app.getByRole('row', { name: new RegExp(name) })
+      if ((await row.count()) > 0) {
+        await row
+          .getByRole('button', { name: /Actions|Kebab toggle/i })
+          .first()
+          .click({ force: true })
+        await app.getByRole('menuitem', { name: 'Delete automation' }).click()
+        await app.getByRole('button', { name: 'Delete' }).click()
+      }
+    }
+  }
 })

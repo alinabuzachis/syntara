@@ -158,14 +158,21 @@ test.describe('Settings', () => {
     await sysTab.click()
 
     const formGroup = app.locator('[id="metrics.perf_test_mode"]').locator('..')
-    const toggle = formGroup.locator('.pf-v6-c-switch__toggle')
+    const toggle = formGroup.getByRole('switch')
     const hasToggle = await toggle
       .waitFor({ state: 'visible', timeout: 5000 })
       .then(() => true)
       .catch(() => false)
     test.skip(!hasToggle, 'Performance test mode toggle not found')
 
-    await toggle.click()
+    // PF6 Switch renders a visual <span> overlay that intercepts pointer events
+    const wasChecked = await toggle.isChecked()
+    await toggle.click({ force: true })
+    if (wasChecked) {
+      await expect(toggle).not.toBeChecked()
+    } else {
+      await expect(toggle).toBeChecked()
+    }
 
     const saveBtn = app.getByRole('button', { name: 'Save changes' })
     await expect(saveBtn).toBeEnabled()

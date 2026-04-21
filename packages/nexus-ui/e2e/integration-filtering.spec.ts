@@ -32,7 +32,7 @@ test.describe('Integration Filtering', () => {
     await expect(nameChipGroup.getByText('copilot')).toBeVisible()
 
     // Verify URL contains filter
-    expect(app.url()).toContain('name%5Bcontains%5D=copilot')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=copilot/)
 
     // Verify filtered results exist (skip if filter matched nothing — no mock seed data)
     const dataRow = table
@@ -60,14 +60,14 @@ test.describe('Integration Filtering', () => {
     await expect(nameChipGroup.getByText('slack')).toBeVisible()
 
     // Verify URL
-    expect(app.url()).toContain('name%5Bcontains%5D=slack')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=slack/)
 
     // Act - Clear filter using chip close button
     await nameChipGroup.locator('.pf-v6-c-label', { hasText: 'slack' }).getByRole('button', { name: /close/i }).click()
 
     // Assert - Filter removed
     await expect(nameChipGroup).not.toBeVisible()
-    expect(app.url()).not.toContain('name%5Bcontains%5D')
+    await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
   })
 
   test('status filter: switch between status values', async ({ app }) => {
@@ -91,7 +91,7 @@ test.describe('Integration Filtering', () => {
     await expect(statusChipGroup.getByText('Available')).toBeVisible()
 
     // Verify URL
-    expect(app.url()).toContain('status=available')
+    await expect(app).toHaveURL(/status=available/)
 
     // Verify filtered results exist (skip if filter matched nothing)
     const dataRow = table
@@ -113,8 +113,8 @@ test.describe('Integration Filtering', () => {
     await expect(statusChipGroup.getByText('Available')).not.toBeVisible()
 
     // Verify URL updated
-    expect(app.url()).toContain('status=error')
-    expect(app.url()).not.toContain('status=available')
+    await expect(app).toHaveURL(/status=error/)
+    await expect(app).not.toHaveURL(/status=available/)
 
     // Act - Remove status filter
     await statusChipGroup
@@ -124,7 +124,7 @@ test.describe('Integration Filtering', () => {
 
     // Assert - Status filter removed
     await expect(statusChipGroup).not.toBeVisible()
-    expect(app.url()).not.toContain('status=')
+    await expect(app).not.toHaveURL(/status=/)
   })
 
   test('combined filters: name + status + integration type', async ({ app }) => {
@@ -139,7 +139,7 @@ test.describe('Integration Filtering', () => {
     // Assert - Name filter applied
     const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(nameChipGroup.getByText('integration')).toBeVisible()
-    expect(app.url()).toContain('name%5Bcontains%5D=integration')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=integration/)
 
     // Act - Switch to Status and add status filter
     const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
@@ -151,7 +151,7 @@ test.describe('Integration Filtering', () => {
     // Assert - Status filter applied
     const statusChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Status' })
     await expect(statusChipGroup.getByText('Error')).toBeVisible()
-    expect(app.url()).toContain('status=error')
+    await expect(app).toHaveURL(/status=error/)
 
     // Act - Switch to Integration type and add filter (re-query field selector)
     const fieldSelector2 = app.getByRole('button', { name: 'Status' }).first()
@@ -163,7 +163,7 @@ test.describe('Integration Filtering', () => {
     // Assert - Integration type filter applied
     const typeChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Integration type' })
     await expect(typeChipGroup.getByText('MCP Server')).toBeVisible()
-    expect(app.url()).toContain('provider_type=mcp')
+    await expect(app).toHaveURL(/provider_type=mcp/)
 
     // Assert - All three filters active
     await expect(nameChipGroup.getByText('integration')).toBeVisible()
@@ -171,18 +171,18 @@ test.describe('Integration Filtering', () => {
     await expect(typeChipGroup.getByText('MCP Server')).toBeVisible()
 
     // Verify URL contains all filters
-    expect(app.url()).toContain('name%5Bcontains%5D=integration')
-    expect(app.url()).toContain('status=error')
-    expect(app.url()).toContain('provider_type=mcp')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=integration/)
+    await expect(app).toHaveURL(/status=error/)
+    await expect(app).toHaveURL(/provider_type=mcp/)
 
     // Act - Clear all filters
     await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
 
     // Assert - All filters removed
     await expect(app.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
-    expect(app.url()).not.toContain('name%5Bcontains%5D')
-    expect(app.url()).not.toContain('status=')
-    expect(app.url()).not.toContain('provider_type=')
+    await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
+    await expect(app).not.toHaveURL(/status=/)
+    await expect(app).not.toHaveURL(/provider_type=/)
   })
 
   test('shareable URLs: filters restored from URL', async ({ app, context }) => {
@@ -209,8 +209,8 @@ test.describe('Integration Filtering', () => {
 
     // Capture URL with filters
     const urlWithFilters = app.url()
-    expect(urlWithFilters).toContain('name%5Bcontains%5D=bot')
-    expect(urlWithFilters).toContain('status=available')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=bot/)
+    await expect(app).toHaveURL(/status=available/)
 
     // Act - Open URL in new tab (simulate sharing URL)
     const newPage = await context.newPage()
@@ -237,17 +237,17 @@ test.describe('Integration Filtering', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
     const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(nameChipGroup.getByText('test')).toBeVisible()
-    expect(app.url()).toContain('name%5Bcontains%5D')
+    await expect(app).toHaveURL(/name%5Bcontains%5D/)
 
     // Act - Clear filters (use toolbar button, not pagination button)
     await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
 
     // Assert - URL no longer contains filter params
-    const cleanUrl = app.url()
-    expect(cleanUrl).not.toContain('name%5Bcontains%5D')
-    expect(cleanUrl).not.toContain('status=')
+    await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
+    await expect(app).not.toHaveURL(/status=/)
 
     // Act - Share clean URL in new tab
+    const cleanUrl = app.url()
     const newPage = await context.newPage()
     await newPage.goto(cleanUrl)
 
@@ -271,7 +271,7 @@ test.describe('Integration Filtering', () => {
 
     // Capture URL with filter
     const urlWithFilter = app.url()
-    expect(urlWithFilter).toContain('name%5Bcontains%5D=slack')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=slack/)
 
     // Act - Navigate to a different page
     await app.goto(toAppUrl('/'))
@@ -281,11 +281,11 @@ test.describe('Integration Filtering', () => {
 
     // Assert - Filter state restored from URL
     await expect(app.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible()
-    const restoredNameChipGroup = app.locator('#filter-toolbar .pf-v6-c-label-group').filter({ hasText: 'Name' })
+    const restoredNameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(restoredNameChipGroup.getByText('slack')).toBeVisible()
 
     // Verify URL still contains filter
-    expect(app.url()).toContain('name%5Bcontains%5D=slack')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=slack/)
   })
 
   test('individual filter chips can be removed', async ({ app }) => {
@@ -321,8 +321,8 @@ test.describe('Integration Filtering', () => {
     await expect(statusChipGroup.getByText('Available')).toBeVisible()
 
     // Assert - URL updated
-    expect(app.url()).not.toContain('name%5Bcontains%5D')
-    expect(app.url()).toContain('status=available')
+    await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
+    await expect(app).toHaveURL(/status=available/)
 
     // Act - Remove status filter chip
     await statusChipGroup
@@ -332,7 +332,7 @@ test.describe('Integration Filtering', () => {
 
     // Assert - All filters removed
     await expect(app.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
-    expect(app.url()).not.toContain('status=')
+    await expect(app).not.toHaveURL(/status=/)
   })
 
   test('empty state shows when filters return no results', async ({ app }) => {
@@ -393,12 +393,13 @@ test.describe('Integration Filtering', () => {
     // Act - Go back to page 1
     await prevButton.click()
 
-    // Assert - Back to first page with same count as before
+    // Assert - Back to first page
     // Cursor-based pagination may disable or remove the prev button entirely
     if ((await prevButton.count()) > 0) {
       await expect(prevButton).toBeDisabled()
     }
-    await expect(firstPageFooter).toHaveText(firstPageText!)
+    // Don't compare exact text — parallel tests may change total count between navigations
+    await expect(firstPageFooter).toBeVisible()
   })
 
   test('full user flow: add filters → view results → clear filters', async ({ app }) => {
@@ -421,7 +422,7 @@ test.describe('Integration Filtering', () => {
     await expect(nameChipGroup.getByText('integration')).toBeVisible()
 
     // Verify URL contains filter
-    expect(app.url()).toContain('name%5Bcontains%5D=integration')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=integration/)
 
     // Act - Add status filter (switch to Status field and select "Available")
     const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
@@ -437,8 +438,8 @@ test.describe('Integration Filtering', () => {
     await expect(statusChipGroup.getByText('Available')).toBeVisible()
 
     // Verify both filters in URL
-    expect(app.url()).toContain('name%5Bcontains%5D=integration')
-    expect(app.url()).toContain('status=available')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=integration/)
+    await expect(app).toHaveURL(/status=available/)
 
     // Act - Clear all filters (use first button in toolbar, not in empty state)
     await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
@@ -447,7 +448,7 @@ test.describe('Integration Filtering', () => {
     await expect(app.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
 
     // Verify URL no longer contains filters
-    expect(app.url()).not.toContain('name%5Bcontains%5D')
-    expect(app.url()).not.toContain('status=')
+    await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
+    await expect(app).not.toHaveURL(/status=/)
   })
 })

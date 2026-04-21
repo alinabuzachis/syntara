@@ -1,6 +1,6 @@
-import { expect, type Page } from '@playwright/test'
+import { type Page } from '@playwright/test'
 
-import { toAppUrl } from '../fixtures'
+import { expect, toAppUrl } from '../fixtures'
 
 import { buildUniqueName } from './workflows'
 
@@ -49,6 +49,8 @@ export async function createTestCredential(app: Page, options: { prefix?: string
   // If we need a disabled credential, disable it now
   if (options.enabled === false) {
     await goToCredentialsList(app)
+    await app.getByPlaceholder('Filter by keyword').fill(name)
+    await app.getByRole('button', { name: 'Apply filter' }).click()
     const row = app.getByRole('row', { name: new RegExp(name) })
     await row.getByRole('switch', { name: 'Enabled' }).click()
     const dialog = app.getByRole('dialog')

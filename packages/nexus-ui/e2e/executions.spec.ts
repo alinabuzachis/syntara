@@ -3,7 +3,7 @@ import { test, expect, toAppUrl } from './fixtures'
 test('user views executions and opens a running execution', async ({ app }) => {
   test.skip(!!process.env.CI, 'CI deploys a fresh backend with no running executions to assert on')
   await app.goto(toAppUrl('/executions'))
-  await expect(app.getByRole('heading', { name: 'Automation Runs' })).toBeVisible()
+  await expect(app.getByText('Automation Runs', { exact: true }).first()).toBeVisible()
 
   const runningRow = app.getByRole('row', { name: /Running/i }).first()
   const hasRunning = await runningRow

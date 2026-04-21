@@ -6,6 +6,11 @@ import {
   navigateToCredentialDetail,
 } from './helpers/credentials'
 
+async function filterCredentialByName(app: import('@playwright/test').Page, name: string) {
+  await app.getByPlaceholder('Filter by keyword').fill(name)
+  await app.getByRole('button', { name: 'Apply filter' }).click()
+}
+
 test.describe('Credential Enable/Disable State Management', () => {
   // Tests create and mutate credentials — run serially to avoid shared state conflicts
   test.describe.configure({ mode: 'serial' })
@@ -14,6 +19,7 @@ test.describe('Credential Enable/Disable State Management', () => {
     const name = await createTestCredential(app, { prefix: 'e2e-toggle-open' })
     try {
       await goToCredentialsList(app)
+      await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
       await row.getByRole('switch').click()
 
@@ -29,6 +35,7 @@ test.describe('Credential Enable/Disable State Management', () => {
     const name = await createTestCredential(app, { prefix: 'e2e-toggle-warn' })
     try {
       await goToCredentialsList(app)
+      await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
       await row.getByRole('switch').click()
 
@@ -46,6 +53,7 @@ test.describe('Credential Enable/Disable State Management', () => {
     const name = await createTestCredential(app, { prefix: 'e2e-toggle-confirm' })
     try {
       await goToCredentialsList(app)
+      await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
       await row.getByRole('switch').click()
 
@@ -62,6 +70,7 @@ test.describe('Credential Enable/Disable State Management', () => {
     const name = await createTestCredential(app, { prefix: 'e2e-toggle-cancel' })
     try {
       await goToCredentialsList(app)
+      await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
       await row.getByRole('switch').click()
 
@@ -81,6 +90,7 @@ test.describe('Credential Enable/Disable State Management', () => {
     const name = await createTestCredential(app, { prefix: 'e2e-toggle-reenable', enabled: false })
     try {
       await goToCredentialsList(app)
+      await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
 
       const toggle = row.getByRole('switch')
@@ -136,6 +146,7 @@ test.describe('Credential Enable/Disable State Management', () => {
     try {
       // Disable the credential
       await goToCredentialsList(app)
+      await filterCredentialByName(app, name)
       const row = app.getByRole('row', { name: new RegExp(name) })
       await row.getByRole('switch').click()
       const dialog = app.getByRole('dialog')
@@ -148,8 +159,7 @@ test.describe('Credential Enable/Disable State Management', () => {
       await goToCredentialsList(app)
 
       // Filter to find our credential
-      await app.getByPlaceholder('Filter by keyword').fill(name)
-      await app.getByRole('button', { name: 'Apply filter' }).click()
+      await filterCredentialByName(app, name)
 
       const updatedRow = app.getByRole('row', { name: new RegExp(name) })
       const updatedToggle = updatedRow.getByRole('switch')

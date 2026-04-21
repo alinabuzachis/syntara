@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 
-import { expect, type Page } from '@playwright/test'
+import { type Page } from '@playwright/test'
 
-import { toAppUrl } from '../fixtures'
+import { expect, toAppUrl } from '../fixtures'
 
 export const buildUniqueName = (prefix: string) => `${prefix}-${Date.now()}-${randomUUID()}`
 

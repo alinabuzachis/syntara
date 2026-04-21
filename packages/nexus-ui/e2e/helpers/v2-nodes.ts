@@ -10,7 +10,9 @@
  * fills the minimum required form fields, submits, and closes the editor.
  */
 
-import { expect, type Page } from '@playwright/test'
+import { type Page } from '@playwright/test'
+
+import { expect } from '../fixtures'
 
 import { addNodePanel, closeNodeEditorPanel, fillCodeEditor } from './workflows'
 
@@ -24,7 +26,6 @@ async function openAddNodePanel(page: Page) {
   const layoutButton = page.getByRole('button', { name: 'Layout' })
   if ((await layoutButton.count()) > 0) {
     await layoutButton.click()
-    await page.waitForTimeout(800) // Wait for layout animation to complete
   }
 
   // Click the "Add connected step" button that appears on edges
@@ -132,14 +133,13 @@ export async function addApprovalNodeWithBranch(page: Page, name: string, approv
   // Add a node on the "approved" branch to satisfy validation
   // The "rejected" branch is optional
 
-  // Wait for approval node to be fully rendered and button edges to be created
-  await page.waitForTimeout(1000)
+  // Wait for approval node to be fully rendered before interacting with its edges
+  await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
 
   // Click layout to position nodes and make button edges visible
   const layoutButton = page.getByRole('button', { name: 'Layout' })
   if ((await layoutButton.count()) > 0) {
     await layoutButton.click()
-    await page.waitForTimeout(1000)
   }
 
   // The approval node creates TWO button edges (to placeholders):
@@ -197,9 +197,6 @@ export async function addConditionNode(page: Page, name: string, expression = 't
   await addButton.click()
 
   await closeNodeEditorPanel(page)
-
-  // Give time for the condition node to be created and edges to be drawn
-  await page.waitForTimeout(1000)
 }
 
 /**

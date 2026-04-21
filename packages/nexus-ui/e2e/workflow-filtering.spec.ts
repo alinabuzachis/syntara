@@ -19,13 +19,13 @@ test.describe('Workflow Filtering', () => {
     await nameFilterInput.fill('workflow')
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
-    // Assert - Active filter chip displayed (LabelGroup shows category, Label shows value)
-    const nameChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'Name' })
+    // Assert - Active filter chip displayed
+    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(nameChipGroup).toBeVisible()
     await expect(nameChipGroup.getByText('workflow')).toBeVisible()
 
     // Verify URL contains filter
-    expect(app.url()).toContain('name%5Bcontains%5D=workflow')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
 
     // Act - Add state filter (select "Enabled")
     const fieldSelector = app.getByRole('button', { name: 'Name' }).first()
@@ -36,23 +36,23 @@ test.describe('Workflow Filtering', () => {
 
     // Assert - Both filter chips displayed
     await expect(nameChipGroup.getByText('workflow')).toBeVisible()
-    const stateChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'State' })
+    const stateChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'State' })
     await expect(stateChipGroup).toBeVisible()
     await expect(stateChipGroup.getByText('Enabled')).toBeVisible()
 
     // Verify both filters in URL
-    expect(app.url()).toContain('name%5Bcontains%5D=workflow')
-    expect(app.url()).toContain('is_enabled=true')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
+    await expect(app).toHaveURL(/is_enabled=true/)
 
     // Act - Clear all filters (use first button in toolbar, not in empty state)
     await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
 
     // Assert - All filter chips removed
-    await expect(app.locator('.pf-v6-c-label-group')).toHaveCount(0)
+    await expect(app.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
 
     // Verify URL no longer contains filters
-    expect(app.url()).not.toContain('name%5Bcontains%5D')
-    expect(app.url()).not.toContain('is_enabled')
+    await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
+    await expect(app).not.toHaveURL(/is_enabled/)
   })
 
   test('filter state persists across navigation (URL-based)', async ({ app }) => {
@@ -64,12 +64,12 @@ test.describe('Workflow Filtering', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     // Verify filter applied
-    const nameChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'Name' })
+    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(nameChipGroup.getByText('test')).toBeVisible()
 
     // Capture URL with filter
     const urlWithFilter = app.url()
-    expect(urlWithFilter).toContain('name%5Bcontains%5D=test')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=test/)
 
     // Act - Navigate to a different page using URL
     await app.goto(toAppUrl('/'))
@@ -79,11 +79,11 @@ test.describe('Workflow Filtering', () => {
 
     // Assert - Filter state restored from URL
     await expect(app.getByText('Automations', { exact: true }).first()).toBeVisible()
-    const restoredNameChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'Name' })
+    const restoredNameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(restoredNameChipGroup.getByText('test')).toBeVisible()
 
     // Verify URL still contains filter
-    expect(app.url()).toContain('name%5Bcontains%5D=test')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=test/)
   })
 
   test('shareable URLs: filters restored from URL', async ({ app, context }) => {
@@ -102,8 +102,8 @@ test.describe('Workflow Filtering', () => {
 
     // Capture URL with filters
     const urlWithFilters = app.url()
-    expect(urlWithFilters).toContain('name%5Bcontains%5D=automation')
-    expect(urlWithFilters).toContain('is_enabled=true')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=automation/)
+    await expect(app).toHaveURL(/is_enabled=true/)
 
     // Act - Open URL in new tab (simulate sharing URL)
     const newPage = await context.newPage()
@@ -111,9 +111,9 @@ test.describe('Workflow Filtering', () => {
 
     // Assert - Filters restored in new tab
     await expect(newPage.getByText('Automations', { exact: true }).first()).toBeVisible()
-    const newPageNameChipGroup = newPage.locator('.pf-v6-c-label-group').filter({ hasText: 'Name' })
+    const newPageNameChipGroup = newPage.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(newPageNameChipGroup.getByText('automation')).toBeVisible()
-    const newPageStateChipGroup = newPage.locator('.pf-v6-c-label-group').filter({ hasText: 'State' })
+    const newPageStateChipGroup = newPage.locator('#filter-toolbar').getByRole('list', { name: 'State' })
     await expect(newPageStateChipGroup.getByText('Enabled')).toBeVisible()
 
     // Cleanup
@@ -128,32 +128,29 @@ test.describe('Workflow Filtering', () => {
     // Apply filter
     await app.getByPlaceholder('Filter by name').fill('test')
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    expect(app.url()).toContain('name%5Bcontains%5D')
+    await expect(app).toHaveURL(/name%5Bcontains%5D/)
 
     // Act - Clear filters (use toolbar button, not the one in empty state)
     await app.locator('#filter-toolbar').getByRole('button', { name: 'Clear all filters' }).click()
 
     // Assert - URL no longer contains filter params
-    const cleanUrl = app.url()
-    expect(cleanUrl).not.toContain('name%5Bcontains%5D')
-    expect(cleanUrl).not.toContain('is_enabled')
+    await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
+    await expect(app).not.toHaveURL(/is_enabled/)
 
     // Act - Share clean URL in new tab
+    const cleanUrl = app.url()
     const newPage = await context.newPage()
     await newPage.goto(cleanUrl)
 
     // Assert - No filters in new tab
     await expect(newPage.getByText('Automations', { exact: true }).first()).toBeVisible()
-    await expect(newPage.locator('.pf-v6-c-label-group')).toHaveCount(0)
+    await expect(newPage.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
 
     // Cleanup
     await newPage.close()
   })
 
   test('pagination works with active filters', async ({ app }) => {
-    // Note: This test depends on mock API having enough workflows to paginate
-    // If mock API has < 20 workflows, pagination won't appear
-
     // Navigate to automations
     await app.goto(toAppUrl('/automations'))
     await expect(app.getByText('Automations', { exact: true }).first()).toBeVisible()
@@ -168,7 +165,7 @@ test.describe('Workflow Filtering', () => {
     // Apply a name filter
     await app.getByPlaceholder('Filter by name').fill('workflow')
     await app.getByRole('button', { name: 'Apply filter' }).click()
-    const nameChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'Name' })
+    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(nameChipGroup.getByText('workflow')).toBeVisible()
 
     // Verify filter applied and results shown (skip if no matches)
@@ -180,7 +177,7 @@ test.describe('Workflow Filtering', () => {
     test.skip(!hasFilteredResults, 'No workflows matching "workflow" filter; insufficient seed data')
 
     // Verify filter in URL
-    expect(app.url()).toContain('name%5Bcontains%5D=workflow')
+    await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
 
     // Check if next page button is still available with filter
     const hasNextWithFilter = (await nextButton.count()) > 0 && !(await nextButton.isDisabled())
@@ -190,9 +187,8 @@ test.describe('Workflow Filtering', () => {
       await nextButton.click()
 
       // Assert - Filter persists in URL with pagination cursor
-      const urlWithFilterAndCursor = app.url()
-      expect(urlWithFilterAndCursor).toContain('name%5Bcontains%5D=workflow')
-      expect(urlWithFilterAndCursor).toContain('cursor=')
+      await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
+      await expect(app).toHaveURL(/cursor=/)
 
       // Assert - Filter chip still visible
       await expect(nameChipGroup.getByText('workflow')).toBeVisible()
@@ -207,7 +203,7 @@ test.describe('Workflow Filtering', () => {
 
       // Assert - Back to first page with filter still active
       await expect(nameChipGroup.getByText('workflow')).toBeVisible()
-      expect(app.url()).toContain('name%5Bcontains%5D=workflow')
+      await expect(app).toHaveURL(/name%5Bcontains%5D=workflow/)
     }
   })
 
@@ -226,9 +222,9 @@ test.describe('Workflow Filtering', () => {
     await app.getByRole('option', { name: 'Enabled' }).click()
 
     // Verify both filters active
-    const nameChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'Name' })
+    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(nameChipGroup.getByText('test')).toBeVisible()
-    const stateChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'State' })
+    const stateChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'State' })
     await expect(stateChipGroup.getByText('Enabled')).toBeVisible()
 
     // Act - Remove name filter chip (find the label with the value and click its close button)
@@ -240,16 +236,16 @@ test.describe('Workflow Filtering', () => {
     await expect(stateChipGroup.getByText('Enabled')).toBeVisible()
 
     // Assert - URL updated
-    expect(app.url()).not.toContain('name%5Bcontains%5D')
-    expect(app.url()).toContain('is_enabled=')
+    await expect(app).not.toHaveURL(/name%5Bcontains%5D/)
+    await expect(app).toHaveURL(/is_enabled=/)
 
     // Act - Remove state filter chip
     const stateLabel = stateChipGroup.locator('.pf-v6-c-label').filter({ hasText: 'Enabled' })
     await stateLabel.getByRole('button', { name: /close/i }).click()
 
     // Assert - All filters removed
-    await expect(app.locator('.pf-v6-c-label-group')).toHaveCount(0)
-    expect(app.url()).not.toContain('is_enabled=')
+    await expect(app.locator('#filter-toolbar').getByRole('list')).toHaveCount(0)
+    await expect(app).not.toHaveURL(/is_enabled=/)
   })
 
   test('empty state shows when filters return no results', async ({ app }) => {
@@ -263,7 +259,7 @@ test.describe('Workflow Filtering', () => {
     await app.getByRole('button', { name: 'Apply filter' }).click()
 
     // Wait for the filter to be applied (chip appears)
-    const nameChipGroup = app.locator('.pf-v6-c-label-group').filter({ hasText: 'Name' })
+    const nameChipGroup = app.locator('#filter-toolbar').getByRole('list', { name: 'Name' })
     await expect(nameChipGroup).toBeVisible()
 
     // Check if table disappeared (empty state shown) or still has rows (mock data matches)

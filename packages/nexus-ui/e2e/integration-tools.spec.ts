@@ -181,13 +181,15 @@ test.describe('Integration Tools', () => {
         test.skip(true, 'No tools available for this integration; backend did not generate tools')
       }
 
-      const selectAllCheckbox = toolsTable.getByRole('checkbox').first()
       const toolNames = await toolsTable.locator('tbody dt').allTextContents()
       expect(toolNames.length).toBeGreaterThan(0)
 
-      // Deselect all first (in case they start checked)
-      if (await selectAllCheckbox.isChecked()) {
-        await selectAllCheckbox.click()
+      // Deselect all individually first (header checkbox state depends on row states)
+      for (const name of toolNames) {
+        const checkbox = toolsTable.getByRole('row').filter({ hasText: name }).getByRole('checkbox')
+        if (await checkbox.isChecked()) {
+          await checkbox.click()
+        }
       }
 
       // Verify all rows are unchecked
@@ -196,8 +198,11 @@ test.describe('Integration Tools', () => {
         await expect(checkbox).not.toBeChecked()
       }
 
-      // Select all
-      await selectAllCheckbox.click()
+      // Select all individually
+      for (const name of toolNames) {
+        const checkbox = toolsTable.getByRole('row').filter({ hasText: name }).getByRole('checkbox')
+        await checkbox.click()
+      }
 
       // Verify all rows are now checked
       for (const name of toolNames) {
@@ -205,8 +210,11 @@ test.describe('Integration Tools', () => {
         await expect(checkbox).toBeChecked()
       }
 
-      // Deselect all
-      await selectAllCheckbox.click()
+      // Deselect all individually again
+      for (const name of toolNames) {
+        const checkbox = toolsTable.getByRole('row').filter({ hasText: name }).getByRole('checkbox')
+        await checkbox.click()
+      }
 
       // Verify all rows are unchecked again
       for (const name of toolNames) {
@@ -238,15 +246,17 @@ test.describe('Integration Tools', () => {
         test.skip(true, 'No tools available for this integration; backend did not generate tools')
       }
 
-      // Deselect all tools first
-      const selectAllCheckbox = toolsTable.getByRole('checkbox').first()
-      if (await selectAllCheckbox.isChecked()) {
-        await selectAllCheckbox.click()
-      }
-
       // Read tool names so we can select by name
       const toolNames = await toolsTable.locator('tbody dt').allTextContents()
       expect(toolNames.length).toBeGreaterThan(0)
+
+      // Deselect all tools individually first
+      for (const name of toolNames) {
+        const checkbox = toolsTable.getByRole('row').filter({ hasText: name }).getByRole('checkbox')
+        if (await checkbox.isChecked()) {
+          await checkbox.click()
+        }
+      }
 
       // Enable only the first tool
       const firstToolRow = toolsTable.getByRole('row').filter({ hasText: toolNames[0] })

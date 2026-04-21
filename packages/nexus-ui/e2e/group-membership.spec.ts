@@ -20,7 +20,7 @@ test.describe('Group Detail — Navigation & Tabs', () => {
   test('clicking a group name navigates to the detail page', async ({ app }) => {
     // Click on the "admins" group name button (renders as <Button variant="link">)
     const table = app.getByRole('grid', { name: 'Groups table' })
-    await table.getByRole('button', { name: 'admins' }).click()
+    await table.getByRole('button', { name: 'admins', exact: true }).click()
 
     // Should navigate to group detail page
     await expect(app).toHaveURL(/access-management\/groups\//)
@@ -34,7 +34,7 @@ test.describe('Group Detail — Navigation & Tabs', () => {
   test('members tab shows member list or empty state', async ({ app }) => {
     // Navigate to admins group detail (admins has Members tab, unlike authenticated)
     const table = app.getByRole('grid', { name: 'Groups table' })
-    await table.getByRole('button', { name: 'admins' }).click()
+    await table.getByRole('button', { name: 'admins', exact: true }).click()
     await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Switch to members tab
@@ -60,7 +60,7 @@ test.describe('Group Detail — Navigation & Tabs', () => {
   test('back button returns to groups list', async ({ app }) => {
     // Navigate to group detail
     const table = app.getByRole('grid', { name: 'Groups table' })
-    await table.getByRole('button', { name: 'admins' }).click()
+    await table.getByRole('button', { name: 'admins', exact: true }).click()
     await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Click back button
@@ -68,14 +68,14 @@ test.describe('Group Detail — Navigation & Tabs', () => {
 
     // Should be back on groups list
     await expect(app.getByRole('heading', { level: 1, name: /access management/i })).toBeVisible()
-    await expect(table.getByRole('button', { name: 'admins' })).toBeVisible()
+    await expect(table.getByRole('button', { name: 'admins', exact: true })).toBeVisible()
   })
 
   test('add and remove a member from the group detail', async ({ app }) => {
     test.skip(!!process.env.CI, "Typeahead dropdown timing is unreliable in CI — options don't render within timeout")
     // Navigate to admins group detail
     const table = app.getByRole('grid', { name: 'Groups table' })
-    await table.getByRole('button', { name: 'admins' }).click()
+    await table.getByRole('button', { name: 'admins', exact: true }).click()
     await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Switch to members tab
@@ -135,7 +135,7 @@ test.describe('Group Detail — Navigation & Tabs', () => {
     const table = app.getByRole('grid', { name: 'Groups table' })
 
     // Navigate to admins group detail
-    await table.getByRole('button', { name: 'admins' }).click()
+    await table.getByRole('button', { name: 'admins', exact: true }).click()
     await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Go back
@@ -149,11 +149,11 @@ test.describe('Group Detail — Navigation & Tabs', () => {
 
   test('builtin groups show built-in label and no edit button', async ({ app }) => {
     const table = app.getByRole('grid', { name: 'Groups table' })
-    await table.getByRole('button', { name: 'admins' }).click()
+    await table.getByRole('button', { name: 'admins', exact: true }).click()
     await expect(app.getByRole('heading', { level: 1, name: 'admins', exact: true })).toBeVisible()
 
     // Should show Built-in label on the default Details tab
-    await expect(app.getByText('Built-in')).toBeVisible()
+    await expect(app.getByText('Built-in', { exact: true })).toBeVisible()
 
     // Should not show edit button (builtin groups can't be edited)
     await expect(app.getByRole('button', { name: 'Edit group' })).not.toBeVisible()
