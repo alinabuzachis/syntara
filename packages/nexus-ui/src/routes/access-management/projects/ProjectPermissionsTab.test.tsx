@@ -189,10 +189,12 @@ describe('ProjectPermissionsTab', () => {
 
   it('opens the unassign dialog and submits the delete mutation', async () => {
     const user = userEvent.setup()
-    const mutate = vi.fn((_variables, options: { onSuccess?: () => void; onSettled?: () => void }) => {
-      options.onSuccess?.()
-      options.onSettled?.()
-    })
+    const mutate = vi.fn(
+      (_variables, options: { onError?: () => void; onSuccess?: () => void; onSettled?: () => void }) => {
+        options.onSuccess?.()
+        options.onSettled?.()
+      }
+    )
     vi.mocked(accessClient.useMutation).mockReturnValue({
       ...mockMutationReturn,
       mutate,
