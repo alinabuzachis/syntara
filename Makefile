@@ -78,34 +78,13 @@ _check-dependency-binaries: _check-uv
 # Testing targets
 # ========================================================
 
-# run-with-testcontainers: detect Podman/Docker and run a command with testcontainers env.
-# $(1) = shell command to execute (may include leading env assignments)
-# $(2) = human-readable action label for log messages (e.g. "🧪 Running tests")
-define run-with-testcontainers
-@if command -v podman >/dev/null 2>&1 && [ -S "$(PODMAN_SOCK)" ]; then \
-	echo "$(2) with Podman..."; \
-	DOCKER_HOST="unix://$(PODMAN_SOCK)" TESTCONTAINERS_RYUK_DISABLED=true $(1); \
-elif command -v docker >/dev/null 2>&1; then \
-	echo "$(2) with Docker..."; \
-	TESTCONTAINERS_RYUK_DISABLED=true $(1); \
-elif command -v podman >/dev/null 2>&1; then \
-	echo "❌ Podman socket not found at $(PODMAN_SOCK)"; \
-	if [ "$$(uname -s)" = "Darwin" ]; then \
-		echo "   Start it with: podman machine start"; \
-	else \
-		echo "   Start it with: systemctl --user enable --now podman.socket"; \
-	fi; \
-	exit 1; \
-else \
-	echo "❌ No container runtime available. Install Podman or Docker."; \
-	exit 1; \
-fi
-endef
-
 # run-tests: run pytest with testcontainers (Podman or Docker).
 # Usage: $(call run-tests,<pytest-args>)
 define run-tests
-$(call run-with-testcontainers,POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem uv run pytest $(1),🧪 Running tests)
+@PODMAN_SOCK="$(PODMAN_SOCK)" POSTGRES_IMAGE="$(POSTGRES_IMAGE)" REDIS_IMAGE="$(REDIS_IMAGE)" \
+	APP_JWT_PRIVATE_KEY_PATH=.secrets/jwt-primary.pem \
+	./tools/scripts/run-with-testcontainers.sh --label "🧪 Running tests" -- \
+	uv run pytest $(1)
 endef
 
 E2E_IGNORE := --ignore=tests/e2e
@@ -153,63 +132,8 @@ SEGMENT_SERVER_PORT ?= 9999
 # then runs the pytest command passed as $(1).
 # Usage: $(call _e2e-run,<pytest-args>)
 define _e2e-run
-@$(MAKE) _deps-install-dev
-@{ \
-	echo "🚀 Starting mock Segment, database, Temporal, and OPA..."; \
-	APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
-	APP_SEGMENT_ENDPOINT=http://mock-segment:$(SEGMENT_SERVER_PORT) \
-	APP_COLLECTION_INTERVAL_SECONDS=10 \
-	$(COMPOSE_FINAL_CMD) --profile telemetry-e2e up -d database temporal temporal-worker mock-segment opa > /tmp/nexus-e2e-infra.log 2>&1; \
-	echo "⏳ Waiting for mock Segment server..."; \
-	TRIES=0; \
-	until curl -sf http://localhost:$(SEGMENT_SERVER_PORT)/health 2>/dev/null | grep -q '"status":"ok"'; do \
-		sleep 1; TRIES=$$((TRIES+1)); \
-		if [ $$TRIES -ge 30 ]; then \
-			echo "❌ Mock Segment server failed to start. Logs:"; \
-			$(COMPOSE_FINAL_CMD) --profile telemetry-e2e logs mock-segment 2>&1 | tail -10; \
-			$(COMPOSE_FINAL_CMD) --profile telemetry-e2e down > /dev/null 2>&1 || true; \
-			exit 1; \
-		fi; \
-	done; \
-	echo "✅ Mock Segment server ready"; \
-	echo "⏳ Waiting for Temporal to be ready..."; \
-	TRIES=0; \
-	until timeout 2 bash -c 'echo > /dev/tcp/localhost/$${APP_TEMPORAL_PORT:-7233}' 2>/dev/null; do \
-		sleep 2; TRIES=$$((TRIES+1)); \
-		if [ $$TRIES -ge 60 ]; then \
-			echo "⚠️  Temporal may not be ready — workflow execution tests may fail"; \
-			break; \
-		fi; \
-	done; \
-	echo "✅ Infrastructure ready"; \
-	APP_SEGMENT_WRITE_KEY=test-e2e-write-key \
-	APP_SEGMENT_ENDPOINT=http://localhost:$(SEGMENT_SERVER_PORT) \
-	APP_COLLECTION_INTERVAL_SECONDS=10 \
-	$(MAKE) dev > /tmp/nexus-e2e-dev.log 2>&1 & DEV_PID=$$!; \
-	echo "⏳ Waiting for API server to be ready..."; \
-	TRIES=0; \
-	until curl -sf http://localhost:8000/health 2>/dev/null | grep -q '"status":"healthy"'; do \
-		sleep 1; TRIES=$$((TRIES+1)); \
-		if [ $$TRIES -ge 60 ]; then \
-			echo "❌ API server failed to start after 60s. Last 20 lines:"; \
-			tail -20 /tmp/nexus-e2e-dev.log; \
-			kill $$DEV_PID 2>/dev/null || true; \
-			wait $$DEV_PID 2>/dev/null || true; \
-			$(COMPOSE_FINAL_CMD) --profile telemetry-e2e down > /dev/null 2>&1 || true; \
-			exit 1; \
-		fi; \
-	done; \
-	echo "✅ API server is ready"; \
-	SEGMENT_SERVER_URL=http://localhost:$(SEGMENT_SERVER_PORT) \
-	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} \
-	uv run pytest $(1); \
-	EXIT_CODE=$$?; \
-	echo "🧹 Stopping background services..."; \
-	kill $$DEV_PID 2>/dev/null || true; \
-	wait $$DEV_PID 2>/dev/null || true; \
-	$(COMPOSE_FINAL_CMD) --profile telemetry-e2e down > /dev/null 2>&1; \
-	exit $$EXIT_CODE; \
-}
+@COMPOSE_CMD="$(COMPOSE_FINAL_CMD)" SEGMENT_SERVER_PORT="$(SEGMENT_SERVER_PORT)" \
+	./tools/scripts/e2e-run.sh $(1)
 endef
 
 .PHONY: test-e2e
@@ -656,7 +580,9 @@ typecheck: ## Run type checking only with mypy
 
 .PHONY: check-migrations
 check-migrations: _ensure-secrets ## Validate migrations: conflicts, pending changes, and upgrade/downgrade (uses testcontainers)
-	$(call run-with-testcontainers,POSTGRES_IMAGE="$(POSTGRES_IMAGE)" APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run python tools/ci/check_migrations.py,🔍 Checking migrations)
+	@PODMAN_SOCK="$(PODMAN_SOCK)" POSTGRES_IMAGE="$(POSTGRES_IMAGE)" APP_ADMIN_PASSWORD_PATH=.secrets/admin-password \
+		./tools/scripts/run-with-testcontainers.sh --label "🔍 Checking migrations" -- \
+		uv run python tools/ci/check_migrations.py
 
 
 # Pre-commit targets
