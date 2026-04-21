@@ -55,6 +55,9 @@ COPY LICENSE /licenses/LICENSE
 # Copy application, venv, and uv from builder
 COPY --from=builder /opt/app-root/ /opt/app-root/
 
+RUN --mount=type=secret,id=nexus-segment-write-keys/SEGMENT_WRITE_KEY_DEV \
+    printf 'APP_SEGMENT_WRITE_KEY=%s\n' "$(cat /run/secrets/nexus-segment-write-keys/SEGMENT_WRITE_KEY_DEV)" > /opt/app-root/src/.env
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

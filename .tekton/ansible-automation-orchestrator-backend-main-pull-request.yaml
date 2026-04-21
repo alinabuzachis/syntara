@@ -44,6 +44,8 @@ spec:
       value: '[{"type": "pip", "path": ".", "allow_binary": true}, {"type": "rpm", "path": "."}]'
     - name: prefetch-mode
       value: permissive
+    - name: additional-secret
+      value: nexus-segment-write-keys
   pipelineRef:
     params:
       - name: name
