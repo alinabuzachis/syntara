@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import MutableMapping
 
     from sqlalchemy.engine import Connection
+    from sqlalchemy.schema import SchemaItem
 
 from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.core.config.base import get_settings
@@ -45,7 +46,28 @@ def _include_name(
     type_: Literal["schema", "table", "column", "index", "unique_constraint", "foreign_key_constraint"],
     _parent_names: MutableMapping[Literal["schema_name", "table_name", "schema_qualified_table_name"], str | None],
 ) -> bool:
-    """Allow only audit-domain tables through the autogenerate filter."""
+    """Allow only audit-domain tables through the autogenerate filter (reflected side)."""
+    if type_ == "table":
+        return name in _AUDIT_TABLES
+    return True
+
+
+def _include_object(
+    object: SchemaItem,  # noqa: A002, ARG001
+    name: str | None,
+    type_: Literal["schema", "table", "column", "index", "unique_constraint", "foreign_key_constraint"],
+    reflected: bool,  # noqa: FBT001, ARG001
+    compare_to: SchemaItem | None,  # noqa: ARG001
+) -> bool:
+    """Allow only audit-domain tables through the autogenerate filter (metadata side).
+
+    ``include_name`` only filters *reflected* (database) objects.  Tables that
+    exist only in the SQLModel metadata bypass ``include_name`` entirely.
+    ``include_object`` catches the metadata-only case — needed because
+    SQLModel.metadata is global, so when both envs run in the same process
+    (e.g. check_migrations.py) non-audit tables would otherwise appear as
+    pending changes.
+    """
     if type_ == "table":
         return name in _AUDIT_TABLES
     return True
@@ -70,6 +92,7 @@ def run_migrations_offline() -> None:
         compare_server_default=True,
         version_table="alembic_version_audit",
         include_name=_include_name,
+        include_object=_include_object,
     )
 
     with context.begin_transaction():
@@ -87,6 +110,7 @@ def do_run_migrations(connection: Connection) -> None:
         compare_server_default=True,
         version_table="alembic_version_audit",
         include_name=_include_name,
+        include_object=_include_object,
     )
 
     with context.begin_transaction():
