@@ -59,11 +59,18 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 const mockRoles = {
   resources: [
-    { id: 'r1', name: 'admin-role', description: 'Admin', project_id: null, policies: [] },
-    { id: 'r2', name: 'viewer-role', description: 'Viewer', project_id: null, policies: [] },
-    { id: 'r3', name: 'project-admin', description: 'Project Admin', project_id: null, policies: [] },
-    { id: 'r4', name: 'project-user', description: 'Project User', project_id: null, policies: [] },
-    { id: 'r5', name: 'project-auditor', description: 'Project Auditor', project_id: null, policies: [] },
+    { id: 'r1', name: 'admin-role', description: 'Admin', project_id: null, is_builtin: true, policies: [] },
+    { id: 'r2', name: 'viewer-role', description: 'Viewer', project_id: null, is_builtin: true, policies: [] },
+    { id: 'r3', name: 'project-admin', description: 'Project Admin', project_id: null, is_builtin: true, policies: [] },
+    { id: 'r4', name: 'project-user', description: 'Project User', project_id: null, is_builtin: true, policies: [] },
+    {
+      id: 'r5',
+      name: 'project-auditor',
+      description: 'Project Auditor',
+      project_id: null,
+      is_builtin: true,
+      policies: [],
+    },
   ],
 }
 

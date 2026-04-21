@@ -13,7 +13,7 @@ import {
 } from '@patternfly/react-core'
 import { useEffect, useMemo } from 'react'
 import type { Control, FieldValues, Path } from 'react-hook-form'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { useAlerts } from '../../../components/alerts'
@@ -100,7 +100,7 @@ export function AssignProjectRoleModal({
 }: Readonly<AssignProjectRoleModalProps>) {
   const { showSuccess, showError } = useAlerts()
 
-  const { control, handleSubmit, reset, watch, formState } = useForm<AssignProjectRoleFormData>({
+  const { control, handleSubmit, reset, resetField, formState } = useForm<AssignProjectRoleFormData>({
     resolver: zodResolver(assignProjectRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: { userId: '', roleName: '' },
   })
@@ -114,12 +114,16 @@ export function AssignProjectRoleModal({
   const { users, isLoading: usersLoading } = useAllUsers()
   const { roles: allRoles, isLoading: rolesLoading } = useAllRoles()
 
-  const selectedUserId = watch('userId')
+  const selectedUserId = useWatch({ control, name: 'userId' })
+
+  useEffect(() => {
+    resetField('roleName')
+  }, [selectedUserId, resetField])
 
   const userOptions = useMemo(() => users.map((u) => ({ value: u.id, label: u.username ?? u.id })), [users])
 
   const roleOptions = useMemo(() => {
-    const projectRoles = allRoles.filter((r) => r.project_id === null && r.name.startsWith('project-'))
+    const projectRoles = allRoles.filter((r) => r.project_id === null && r.is_builtin && r.name.startsWith('project-'))
     const assignedForUser = selectedUserId ? assignedRolesByUser.get(selectedUserId) : undefined
     return projectRoles
       .filter((r) => !assignedForUser?.has(r.name))

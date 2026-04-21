@@ -1,5 +1,5 @@
-import { Label } from '@patternfly/react-core'
-import type { KeyboardEvent, MouseEvent } from 'react'
+import { Button, Label } from '@patternfly/react-core'
+import type { MouseEvent } from 'react'
 import { navigate } from 'wouter/use-browser-location'
 
 import { AppRoute } from '../../app/AppRoute'
@@ -11,11 +11,6 @@ interface ScopeLabelProps {
   projectNameMap: Map<string, string>
 }
 
-/**
- * Renders a scope indicator label for policies and roles.
- * - System-scoped items show a blue "System" label
- * - Project-scoped items show a green label with the project name as a navigable link
- */
 export function ScopeLabel({ projectId, projectNameMap }: Readonly<ScopeLabelProps>) {
   if (!projectId) {
     return (
@@ -25,39 +20,25 @@ export function ScopeLabel({ projectId, projectNameMap }: Readonly<ScopeLabelPro
     )
   }
 
-  const handleNavigate = () => {
-    navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId))
-  }
-
-  const handleClick = (e: MouseEvent) => {
-    e.stopPropagation()
-    handleNavigate()
-  }
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      handleNavigate()
-    }
-  }
+  const projectUrl = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId)
 
   return (
     <Label
       color="green"
       isCompact
-      isClickable
       render={({ className, content, componentRef }) => (
-        <span
-          ref={componentRef as React.Ref<HTMLSpanElement>}
+        <Button
+          variant="link"
+          isInline
           className={className}
-          role="link"
-          tabIndex={0}
-          onClick={handleClick}
-          onKeyDown={handleKeyDown}
-          style={{ cursor: 'pointer' }}
+          ref={componentRef as React.Ref<HTMLButtonElement>}
+          onClick={(e: MouseEvent) => {
+            e.stopPropagation()
+            navigate(projectUrl)
+          }}
         >
           {content}
-        </span>
+        </Button>
       )}
     >
       {projectNameMap.get(projectId) ?? projectId}

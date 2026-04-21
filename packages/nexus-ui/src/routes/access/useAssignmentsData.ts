@@ -6,8 +6,10 @@ import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
+import { batchedAllSettled } from '../../utils/batchedSettled'
 
 import { accessClient, accessFetchClient } from './accessClient'
+import { SYSTEM_SCOPE_VALUE } from './scopeFilterUtils'
 import type { PermissionRow, ProjectRead } from './types'
 
 function buildPermissionRows(
@@ -82,9 +84,6 @@ function buildPermissionRows(
 
   return rows
 }
-
-/** Sentinel value used in scope filter to represent system-scoped items (no project) */
-const SYSTEM_SCOPE_VALUE = '__system__'
 
 function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): PermissionRow[] {
   if (filters.length === 0) return rows
@@ -162,12 +161,10 @@ interface ProjectGroupRoleEntry {
  * The API requires a project_id path param, so we fetch all projects in parallel.
  */
 async function fetchProjectRolesForProjects(projectIds: string[]): Promise<ProjectRoleEntry[]> {
-  const settled = await Promise.allSettled(
-    projectIds.map((projectId) =>
-      accessFetchClient.GET('/projects/{project_id}/roles', {
-        params: { path: { project_id: projectId } },
-      })
-    )
+  const settled = await batchedAllSettled(projectIds, (projectId) =>
+    accessFetchClient.GET('/projects/{project_id}/roles', {
+      params: { path: { project_id: projectId } },
+    })
   )
   const results: ProjectRoleEntry[] = []
   for (const result of settled) {
@@ -183,12 +180,10 @@ async function fetchProjectRolesForProjects(projectIds: string[]): Promise<Proje
  * The API requires a project_id path param, so we fetch all projects in parallel.
  */
 async function fetchProjectGroupRolesForProjects(projectIds: string[]): Promise<ProjectGroupRoleEntry[]> {
-  const settled = await Promise.allSettled(
-    projectIds.map((projectId) =>
-      accessFetchClient.GET('/projects/{project_id}/group-roles', {
-        params: { path: { project_id: projectId } },
-      })
-    )
+  const settled = await batchedAllSettled(projectIds, (projectId) =>
+    accessFetchClient.GET('/projects/{project_id}/group-roles', {
+      params: { path: { project_id: projectId } },
+    })
   )
   const results: ProjectGroupRoleEntry[] = []
   for (const result of settled) {

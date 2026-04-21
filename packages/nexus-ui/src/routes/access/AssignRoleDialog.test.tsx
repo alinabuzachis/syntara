@@ -576,10 +576,9 @@ describe('AssignRoleDialog', () => {
   })
 
   describe('Project ID Default', () => {
-    it('renders with default form values', () => {
+    it('renders without error', () => {
       render(<AssignRoleDialog {...defaultProps} />, { wrapper })
 
-      // Verify the component renders without error
       expect(screen.getByText('Add Assignment')).toBeInTheDocument()
     })
   })

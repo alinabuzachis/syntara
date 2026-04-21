@@ -2,7 +2,7 @@ import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterTypeEnum } from '../../types/filters'
 
 /** Sentinel value used in scope filter to represent system-scoped items (no project) */
-const SYSTEM_SCOPE_VALUE = '__system__'
+export const SYSTEM_SCOPE_VALUE = '__system__'
 
 /**
  * Builds scope filter field definitions with dynamic project options.

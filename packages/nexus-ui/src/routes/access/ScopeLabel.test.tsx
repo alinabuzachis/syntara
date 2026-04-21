@@ -46,11 +46,21 @@ describe('ScopeLabel', () => {
     const user = userEvent.setup()
     render(<ScopeLabel projectId="proj-1" projectNameMap={projectNameMap} />)
 
-    const link = screen.getByRole('link')
-    expect(link).toBeInTheDocument()
-    expect(link).toHaveAttribute('tabIndex', '0')
+    const button = screen.getByRole('button', { name: /alpha project/i })
+    expect(button).toBeInTheDocument()
 
     await user.tab()
-    expect(link).toHaveFocus()
+    expect(button).toHaveFocus()
+  })
+
+  it('navigates on click for project-scoped labels', async () => {
+    const { navigate } = await import('wouter/use-browser-location')
+    const user = userEvent.setup()
+    render(<ScopeLabel projectId="proj-1" projectNameMap={projectNameMap} />)
+
+    const button = screen.getByRole('button', { name: /alpha project/i })
+    await user.click(button)
+
+    expect(navigate).toHaveBeenCalledWith(expect.stringContaining('proj-1'))
   })
 })

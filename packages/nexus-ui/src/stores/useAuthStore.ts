@@ -102,7 +102,9 @@ function parseUsernameFromJwt(token: string): string | null {
   try {
     const payload = token.split('.')[1]
     if (!payload) return null
-    const decoded = JSON.parse(atob(payload)) as { preferred_username?: string }
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+    const decoded = JSON.parse(atob(padded)) as { preferred_username?: string }
     return decoded.preferred_username ?? null
   } catch {
     return null

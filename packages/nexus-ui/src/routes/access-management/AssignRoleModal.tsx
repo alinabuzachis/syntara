@@ -13,7 +13,7 @@ import {
   SelectOption,
 } from '@patternfly/react-core'
 import { type Ref, useEffect, useMemo, useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { useAlerts } from '../../components/alerts'
@@ -104,12 +104,12 @@ export function AssignRoleModal({
   const [isPending, setIsPending] = useState(false)
   const { showAlert } = useAlerts()
 
-  const { control, handleSubmit, watch, setValue, reset, formState } = useForm<AssignRoleFormData>({
+  const { control, handleSubmit, setValue, reset, formState } = useForm<AssignRoleFormData>({
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: { scope: 'system', projectId: '', roleIds: [] },
   })
 
-  const scope = watch('scope')
+  const scope = useWatch({ control, name: 'scope' })
 
   // Clear roles when scope changes (different role sets for system vs project)
   useEffect(() => {
@@ -132,9 +132,8 @@ export function AssignRoleModal({
         .filter((r) => r.project_id === null)
         .map((r) => ({ id: r.id, name: r.name, description: r.description ?? null }))
     }
-    // Project scope: show only project-scoped built-in roles (project-admin, project-user, project-auditor)
     return allRoles
-      .filter((r) => r.project_id === null && r.name.startsWith('project-'))
+      .filter((r) => r.project_id === null && r.is_builtin && r.name.startsWith('project-'))
       .map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
   }, [allRoles, scope])
 
@@ -194,7 +193,7 @@ export function AssignRoleModal({
     }
   })
 
-  const roleIds = watch('roleIds')
+  const roleIds = useWatch({ control, name: 'roleIds' })
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} variant="medium">

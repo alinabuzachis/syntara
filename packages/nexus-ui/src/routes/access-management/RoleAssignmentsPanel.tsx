@@ -23,12 +23,13 @@ import { EmptyStateFilter } from '../../components/EmptyStateFilter'
 import { EmptyStateNoData } from '../../components/EmptyStateNoData'
 import { FilterBar } from '../../components/filters'
 import { IconLabel } from '../../components/IconLabel'
-import { useFilterState } from '../../hooks/useFilterState'
 import { ErrorState } from '../../components/states/ErrorState'
 import { LoadingState } from '../../components/states/LoadingState'
+import { useFilterState } from '../../hooks/useFilterState'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { getErrorMessage, getErrorStatus } from '../../utils/apiErrors'
+import { batchedAllSettled } from '../../utils/batchedSettled'
 import { accessClient, accessFetchClient } from '../access/accessClient'
 import { PaginationFooter } from '../access/PaginationFooter'
 import type { ProjectGroupRoleAssignmentRead, ProjectRoleAssignmentRead } from '../access/types'
@@ -83,22 +84,20 @@ async function fetchProjectRolesForPrincipal(
 
   const allRows: RoleAssignmentRow[] = []
 
-  const fetchResults = await Promise.allSettled(
-    projects.map(async (project) => {
-      if (principalType === 'user') {
-        const { data } = await accessFetchClient.GET('/projects/{project_id}/roles', {
-          params: { path: { project_id: project.id } },
-        })
-        const assignments = data ?? []
-        return { project, assignments, type: 'user' as const }
-      }
-      const { data } = await accessFetchClient.GET('/projects/{project_id}/group-roles', {
+  const fetchResults = await batchedAllSettled(projects, async (project) => {
+    if (principalType === 'user') {
+      const { data } = await accessFetchClient.GET('/projects/{project_id}/roles', {
         params: { path: { project_id: project.id } },
       })
       const assignments = data ?? []
-      return { project, assignments, type: 'group' as const }
+      return { project, assignments, type: 'user' as const }
+    }
+    const { data } = await accessFetchClient.GET('/projects/{project_id}/group-roles', {
+      params: { path: { project_id: project.id } },
     })
-  )
+    const assignments = data ?? []
+    return { project, assignments, type: 'group' as const }
+  })
 
   for (const result of fetchResults) {
     if (result.status !== 'fulfilled') continue
@@ -429,6 +428,39 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
     )
   }
 
+  let tableContent: JSX.Element
+  if (filteredRows.length === 0) {
+    if (rows.length === 0) {
+      tableContent = (
+        <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <EmptyStateNoData
+            title="No role assignments"
+            description={`No project-scoped roles have been assigned to this ${principalType}.`}
+            buttonText="Assign role"
+            addData={() => setAssignModalOpen(true)}
+          />
+        </StackItem>
+      )
+    } else {
+      tableContent = (
+        <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <EmptyStateFilter
+            clearAllFilters={() => {
+              clearAllFilters()
+              setPage(1)
+            }}
+          />
+        </StackItem>
+      )
+    }
+  } else {
+    tableContent = (
+      <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
+        <RoleAssignmentsTable rows={paginatedRows} onUnassign={setRowToUnassign} />
+      </StackItem>
+    )
+  }
+
   return (
     <>
       <Stack style={{ height: '100%' }}>
@@ -468,31 +500,7 @@ export function RoleAssignmentsPanel({ principalType, principalId }: Readonly<Ro
           </Flex>
         </StackItem>
 
-        {filteredRows.length === 0 ? (
-          rows.length === 0 ? (
-            <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <EmptyStateNoData
-                title="No role assignments"
-                description={`No project-scoped roles have been assigned to this ${principalType}.`}
-                buttonText="Assign role"
-                addData={() => setAssignModalOpen(true)}
-              />
-            </StackItem>
-          ) : (
-            <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <EmptyStateFilter
-                clearAllFilters={() => {
-                  clearAllFilters()
-                  setPage(1)
-                }}
-              />
-            </StackItem>
-          )
-        ) : (
-          <StackItem isFilled style={{ minHeight: 0, overflow: 'auto' }}>
-            <RoleAssignmentsTable rows={paginatedRows} onUnassign={setRowToUnassign} />
-          </StackItem>
-        )}
+        {tableContent}
 
         <PaginationFooter
           page={page}

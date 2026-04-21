@@ -34,6 +34,7 @@ import { buildFilterDefsWithScope, transformFiltersForApi } from './scopeFilterU
 import { ScopeLabel } from './ScopeLabel'
 import type { RoleRead } from './types'
 import { useBuiltinListState } from './useBuiltinListState'
+import { useProjectNameMap } from './useProjectNameMap'
 
 const BASE_FILTER_FIELD_DEFS = [
   {
@@ -171,12 +172,8 @@ export function RolesTab() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const { showSuccess, showError } = useAlerts()
 
-  const projectsQuery = accessClient.useQuery('get', '/projects')
-  const projectNameMap = useMemo(() => {
-    const projects = projectsQuery.data
-    if (!Array.isArray(projects)) return new Map<string, string>()
-    return new Map(projects.map((p) => [p.id, p.name]))
-  }, [projectsQuery.data])
+  // Fetch projects to resolve project names in the scope column/filter.
+  const { projectNameMap } = useProjectNameMap()
 
   const filterFieldDefinitions = useMemo(
     () => buildFilterDefsWithScope([...BASE_FILTER_FIELD_DEFS], projectNameMap),
