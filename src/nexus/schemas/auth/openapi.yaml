@@ -37,6 +37,11 @@ paths:
       operationId: login
       tags:
         - Authentication
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       requestBody:
         required: true
         content:
@@ -70,6 +75,11 @@ paths:
       operationId: refresh_token
       tags:
         - Authentication
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       responses:
         '200':
           description: New access token issued
@@ -98,6 +108,11 @@ paths:
       operationId: logout
       tags:
         - Authentication
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       responses:
         '200':
           description: Successfully logged out
@@ -125,6 +140,11 @@ paths:
       operationId: get_current_user
       tags:
         - Authentication
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       responses:
         '200':
           description: Current user information
@@ -151,6 +171,11 @@ paths:
       operationId: list_auth_providers
       tags:
         - Authentication
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       responses:
         '200':
           description: List of enabled identity providers
@@ -170,6 +195,11 @@ paths:
         redirects to the frontend login page with an `auth_error` query parameter
         instead of returning a JSON error response.
       operationId: oidc_authorize
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Authentication
       parameters:
@@ -198,6 +228,11 @@ paths:
         Exchanges the authorization code for tokens, validates the ID token,
         creates or maps a local user, and establishes a session.
       operationId: oidc_callback
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Authentication
       parameters:

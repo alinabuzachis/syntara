@@ -22,6 +22,111 @@ from nexus.api.constants import API_V1_PATH_PREFIX
 from nexus.core.router_discovery import discover_and_register_routers
 
 
+def _get_dep_instance(dep: object) -> object | None:
+    """Extract the underlying dependency instance from a Depends or Dependant object."""
+    # route-level: Depends(instance) → dep.dependency is the instance
+    inner = getattr(dep, "dependency", None)
+    if inner is not None:
+        return inner
+    # param-level: Dependant wraps → dep.call is the instance
+    return getattr(dep, "call", None)
+
+
+def _iter_route_deps(route: object) -> list[object]:
+    """Collect dependency objects from a route (both route-level and param-level)."""
+    deps: list[object] = []
+    deps.extend(getattr(route, "dependencies", []) or [])
+    dependant = getattr(route, "dependant", None)
+    if dependant:
+        deps.extend(getattr(dependant, "dependencies", []) or [])
+    return deps
+
+
+def _collect_permission_registry(
+    app: FastAPI,
+) -> tuple[dict[tuple[str, str], list[str]], dict[tuple[str, str], str]]:
+    """Collect roles and scope by (resource, action) from all PermissionChecker deps."""
+    from fastapi.routing import APIRoute
+
+    from nexus.authz.dependencies import PermissionChecker
+
+    pc_roles: dict[tuple[str, str], list[str]] = {}
+    pc_scope: dict[tuple[str, str], str] = {}
+
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        for dep in _iter_route_deps(route):
+            inner = _get_dep_instance(dep)
+            if isinstance(inner, PermissionChecker) and (inner.resource_type, inner.action) not in pc_roles:
+                pc_roles[(inner.resource_type, inner.action)] = list(inner.roles)
+                is_project = bool(inner.project_param or inner.resource_model or inner.body_project_field)
+                pc_scope[(inner.resource_type, inner.action)] = "project" if is_project else "any"
+
+    return pc_roles, pc_scope
+
+
+def _extract_route_permission(
+    route: object,
+    pc_roles: dict[tuple[str, str], list[str]],
+    pc_scope: dict[tuple[str, str], str],
+) -> dict[str, object] | None:
+    """Extract x-app-permission dict from a route's dependencies, or None."""
+    from nexus.authz.dependencies import PermissionChecker, ProjectScopeFilter
+
+    for dep in _iter_route_deps(route):
+        inner = _get_dep_instance(dep)
+        if isinstance(inner, PermissionChecker):
+            key = (inner.resource_type, inner.action)
+            return {
+                "resource": inner.resource_type,
+                "action": inner.action,
+                "scope": pc_scope.get(key, "any"),
+                "default_roles": list(inner.roles),
+            }
+        if isinstance(inner, ProjectScopeFilter):
+            key = (inner.resource_type, inner.action)
+            return {
+                "resource": inner.resource_type,
+                "action": inner.action,
+                "scope": "project",
+                "default_roles": pc_roles.get(key, []),
+            }
+    return None
+
+
+def _inject_permission_metadata(app: FastAPI, spec: dict) -> None:
+    """Add x-app-permission to spec operations from PermissionChecker deps.
+
+    Walks the assembled FastAPI routes, extracts PermissionChecker and
+    ProjectScopeFilter instances, and injects x-app-permission into the
+    corresponding spec operations.  This makes the exported spec include
+    permission metadata derived from runtime code, enabling the drift
+    checker to catch mismatches between code and hand-written sub-specs.
+    """
+    from fastapi.routing import APIRoute
+
+    pc_roles, pc_scope = _collect_permission_registry(app)
+
+    paths = spec.get("paths", {})
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+
+        permission = _extract_route_permission(route, pc_roles, pc_scope)
+        if permission is None:
+            permission = {"resource": None, "action": None, "scope": None, "default_roles": []}
+
+        path = route.path
+        if path not in paths:
+            continue
+
+        for method in route.methods or []:
+            method_lower = method.lower()
+            if method_lower in paths[path]:
+                paths[path][method_lower]["x-app-permission"] = permission
+
+
 def build_spec_app() -> FastAPI:
     """Build a minimal FastAPI app with all routers for spec generation."""
     app = FastAPI(
@@ -61,6 +166,7 @@ def main() -> int:
 
     app = build_spec_app()
     spec = app.openapi()
+    _inject_permission_metadata(app, spec)
 
     if args.format == "yaml":
         content = yaml.dump(spec, default_flow_style=False, allow_unicode=True, sort_keys=False)

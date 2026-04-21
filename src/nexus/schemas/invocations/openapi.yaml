@@ -40,6 +40,11 @@ paths:
       operationId: create_invocation
       tags:
         - Invocation
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       requestBody:
         required: true
         content:
@@ -153,6 +158,11 @@ paths:
       operationId: list_invocations
       tags:
         - Invocation
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
@@ -254,6 +264,11 @@ paths:
       operationId: get_invocation
       tags:
         - Invocation
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: invocation_id
           in: path
@@ -372,6 +387,11 @@ paths:
       operationId: cancel_invocation
       tags:
         - Control
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: invocation_id
           in: path

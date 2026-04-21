@@ -61,6 +61,11 @@ paths:
       description: |
         Retrieve a list of workflows with filtering, sorting, and cursor-based pagination.
       operationId: list_workflows
+      x-app-permission:
+        resource: workflow
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: created_by
           in: query
@@ -107,6 +112,11 @@ paths:
         The workflow definition must conform to the v2 graph-based schema (schema_version: "2.0.0")
         with triggers, nodes, and edges. The definition is validated and stored as version 1.
       operationId: create_workflow
+      x-app-permission:
+        resource: workflow
+        action: create
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       requestBody:
         required: true
         content:
@@ -165,6 +175,11 @@ paths:
       summary: Get workflow
       description: Retrieve a specific workflow by ID including its current active version. Returns workflow metadata along with the version specified by current_version field.
       operationId: get_workflow
+      x-app-permission:
+        resource: workflow
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: path
@@ -192,6 +207,11 @@ paths:
         - Metadata only (name, description, is_enabled, labels): Updates without creating new version
         - With workflow_definition: Validates definition, compares with current version, and creates new version only if definition differs (change detection)
       operationId: update_workflow
+      x-app-permission:
+        resource: workflow
+        action: update
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       parameters:
         - name: workflow_id
           in: path
@@ -240,6 +260,11 @@ paths:
       summary: Delete workflow (soft delete)
       description: Soft delete a workflow by setting deleted_at and deleted_by fields. The workflow remains in the database for audit purposes but is excluded from normal queries.
       operationId: delete_workflow
+      x-app-permission:
+        resource: workflow
+        action: delete
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       parameters:
         - name: workflow_id
           in: path
@@ -271,6 +296,11 @@ paths:
         WorkflowVersion entities are read-only and managed automatically by the system.
         Versions are ordered by version number descending (newest first) by default.
       operationId: list_workflow_versions
+      x-app-permission:
+        resource: workflow
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: path
@@ -312,6 +342,11 @@ paths:
       summary: Get workflow version
       description: Retrieve a specific version of a workflow by version number. Returns the complete workflow definition for that version.
       operationId: get_workflow_version
+      x-app-permission:
+        resource: workflow
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: path

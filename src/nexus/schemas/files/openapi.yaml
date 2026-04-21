@@ -46,6 +46,11 @@ paths:
       operationId: upload_files
       tags:
         - Files
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       requestBody:
         required: true
         content:

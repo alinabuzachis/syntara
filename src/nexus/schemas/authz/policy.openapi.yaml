@@ -25,6 +25,11 @@ paths:
       description: |-
         Create a custom policy. Requires: policy:create permission.
       operationId: create_policy
+      x-app-permission:
+        resource: policy
+        action: create
+        scope: any
+        default_roles: [admin]
       tags:
         - Policies
       requestBody:
@@ -53,6 +58,11 @@ paths:
       summary: List Policies
       description: List policies with filtering and pagination.
       operationId: list_policies
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Policies
       parameters:
@@ -98,6 +108,11 @@ paths:
     get:
       summary: Get Policy
       operationId: get_policy
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Policies
       parameters:
@@ -128,6 +143,11 @@ paths:
       description: |-
         Patch a policy. Builtin policies cannot be modified. Requires: policy:update permission.
       operationId: update_policy
+      x-app-permission:
+        resource: policy
+        action: update
+        scope: any
+        default_roles: [admin]
       tags:
         - Policies
       parameters:
@@ -164,6 +184,11 @@ paths:
       description: |-
         Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.
       operationId: replace_policy
+      x-app-permission:
+        resource: policy
+        action: update
+        scope: any
+        default_roles: [admin]
       tags:
         - Policies
       parameters:
@@ -200,6 +225,11 @@ paths:
       description: |-
         Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.
       operationId: delete_policy
+      x-app-permission:
+        resource: policy
+        action: delete
+        scope: any
+        default_roles: [admin]
       tags:
         - Policies
       parameters:

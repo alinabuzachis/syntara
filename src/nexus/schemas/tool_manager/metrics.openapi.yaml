@@ -18,6 +18,11 @@ paths:
   /tool_manager/metrics/tools:
     get:
       operationId: get_tool_metrics
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       summary: Get Tool Metrics Summary
       description: |-
         Return aggregated per-tool metrics summary.
@@ -90,6 +95,11 @@ paths:
   /tool_manager/metrics/executions:
     get:
       operationId: get_tool_executions
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       summary: List Tool Executions
       description: |-
         Return paginated tool execution history.

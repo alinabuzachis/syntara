@@ -21,6 +21,11 @@ paths:
       summary: Get example data
       description: Returns example data for demonstration purposes
       operationId: get_example
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: limit
           in: query
@@ -51,6 +56,11 @@ paths:
       summary: Create example item
       description: Creates a new example item
       operationId: create_example
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       requestBody:
         required: true
         content:
@@ -76,6 +86,11 @@ paths:
       summary: Get example item by ID
       description: Returns a single example item by its ID
       operationId: get_example_by_id
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: item_id
           in: path
@@ -103,6 +118,11 @@ paths:
       summary: Update example item
       description: Updates an existing example item
       operationId: update_example
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: item_id
           in: path
@@ -136,6 +156,11 @@ paths:
       summary: Delete example item
       description: Deletes an example item
       operationId: delete_example
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: item_id
           in: path

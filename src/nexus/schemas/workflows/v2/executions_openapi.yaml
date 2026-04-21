@@ -38,6 +38,11 @@ paths:
       description: |
         Retrieve executions with filtering, sorting, and cursor-based pagination.
       operationId: list_executions
+      x-app-permission:
+        resource: execution
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: query
@@ -99,6 +104,11 @@ paths:
       summary: Create execution
       description: Start a new workflow execution
       operationId: create_execution
+      x-app-permission:
+        resource: execution
+        action: run
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       requestBody:
         required: true
         content:
@@ -153,6 +163,11 @@ paths:
         - Normal request: `GET /executions/{id}` - returns execution without optional fields
         - Visualization: `GET /executions/{id}?include=workflow_definition&include=activities` - for building graph and checking execution status
       operationId: get_execution
+      x-app-permission:
+        resource: execution
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: execution_id
           in: path
@@ -219,6 +234,11 @@ paths:
       description: |
         Retrieve activity executions for a workflow execution with cursor-based pagination.
       operationId: list_execution_activities
+      x-app-permission:
+        resource: execution
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: execution_id
           in: path
@@ -269,6 +289,11 @@ paths:
         The signal is durable - if the workflow is temporarily unavailable,
         the signal will be delivered when it becomes available again.
       operationId: signal_activity
+      x-app-permission:
+        resource: execution
+        action: run
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       tags:
         - Executions
       parameters:

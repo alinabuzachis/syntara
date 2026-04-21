@@ -24,6 +24,11 @@ paths:
       description: |-
         Assign a role directly to a user (system-level). Requires: admin permission.
       operationId: assign_user_role
+      x-app-permission:
+        resource: user-role
+        action: assign
+        scope: any
+        default_roles: [admin]
       tags:
         - User Role Assignments
       requestBody:
@@ -58,6 +63,11 @@ paths:
       summary: List User Role Assignments
       description: List all system-level user→role assignments.
       operationId: list_user_role_assignments
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - User Role Assignments
       responses:
@@ -78,6 +88,11 @@ paths:
       description: |-
         Remove a user→role assignment. Requires: admin permission.
       operationId: revoke_user_role_assignment
+      x-app-permission:
+        resource: user-role
+        action: revoke
+        scope: any
+        default_roles: [admin]
       tags:
         - User Role Assignments
       parameters:

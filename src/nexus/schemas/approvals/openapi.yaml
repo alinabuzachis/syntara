@@ -40,6 +40,11 @@ paths:
       operationId: list_approvals
       tags:
         - approvals
+      x-app-permission:
+        resource: approval
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - in: query
           name: limit
@@ -116,6 +121,11 @@ paths:
       operationId: create_approval
       tags:
         - approvals
+      x-app-permission:
+        resource: approval
+        action: create
+        scope: any
+        default_roles: [admin]
       requestBody:
         required: true
         content:
@@ -151,6 +161,11 @@ paths:
       operationId: get_approval
       tags:
         - approvals
+      x-app-permission:
+        resource: approval
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: approval_id
           in: path
@@ -190,6 +205,11 @@ paths:
       operationId: decide_approval
       tags:
         - approvals
+      x-app-permission:
+        resource: approval
+        action: decide
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       parameters:
         - name: approval_id
           in: path
@@ -236,6 +256,11 @@ paths:
       operationId: batch_decide_approvals
       tags:
         - approvals
+      x-app-permission:
+        resource: approval
+        action: decide
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       requestBody:
         required: true
         content:

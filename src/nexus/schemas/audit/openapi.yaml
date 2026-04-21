@@ -35,6 +35,11 @@ paths:
         - Investigate events within a date range
         - Filter by actor type (user, system, service)
       operationId: list_audit_events
+      x-app-permission:
+        resource: audit
+        action: read
+        scope: any
+        default_roles: [admin, auditor]
       tags:
         - Audit Events
       parameters:

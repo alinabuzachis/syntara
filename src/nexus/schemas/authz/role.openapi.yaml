@@ -24,6 +24,11 @@ paths:
       description: |-
         Create a custom role. Requires: role:create permission.
       operationId: create_role
+      x-app-permission:
+        resource: role
+        action: create
+        scope: any
+        default_roles: [admin]
       tags:
         - Roles
       requestBody:
@@ -52,6 +57,11 @@ paths:
       summary: List Roles
       description: List roles with filtering and pagination.
       operationId: list_roles
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Roles
       parameters:
@@ -97,6 +107,11 @@ paths:
     get:
       summary: Get Role
       operationId: get_role
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Roles
       parameters:
@@ -127,6 +142,11 @@ paths:
       description: |-
         Patch a role. Builtin roles cannot be modified. Requires: role:update permission.
       operationId: update_role
+      x-app-permission:
+        resource: role
+        action: update
+        scope: any
+        default_roles: [admin]
       tags:
         - Roles
       parameters:
@@ -163,6 +183,11 @@ paths:
       description: |-
         Replace a role. Builtin roles cannot be modified. Requires: role:update permission.
       operationId: replace_role
+      x-app-permission:
+        resource: role
+        action: update
+        scope: any
+        default_roles: [admin]
       tags:
         - Roles
       parameters:
@@ -199,6 +224,11 @@ paths:
       description: |-
         Delete a role. Builtin roles cannot be deleted. Requires: role:delete permission.
       operationId: delete_role
+      x-app-permission:
+        resource: role
+        action: delete
+        scope: any
+        default_roles: [admin]
       tags:
         - Roles
       parameters:

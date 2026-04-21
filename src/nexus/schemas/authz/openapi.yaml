@@ -25,6 +25,11 @@ paths:
       summary: Check if the current user can perform an action
       description: Evaluates the current user's effective policies against OPA to determine if a specific action is allowed on a resource.
       operationId: can_i
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Authorization
       requestBody:
@@ -48,6 +53,11 @@ paths:
       summary: List users who can perform an action
       description: Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging endpoint.
       operationId: who_can
+      x-app-permission:
+        resource: authz
+        action: query
+        scope: any
+        default_roles: [admin]
       tags:
         - Authorization
       requestBody:
@@ -71,6 +81,11 @@ paths:
       summary: List all permissions for the current user
       description: Resolves the current user's effective policies and returns them as a flat list of permission entries. No OPA call needed.
       operationId: what_can_i
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Authorization
       responses:

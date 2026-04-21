@@ -28,6 +28,11 @@ paths:
       summary: List Organizations
       description: List AAP organizations.
       operationId: list_organizations_aap_organizations_get
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - aap
       parameters:
@@ -126,6 +131,11 @@ paths:
       summary: List Job Templates
       description: List AAP job templates, optionally filtered by organization.
       operationId: list_job_templates_aap_job_templates_get
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - aap
       parameters:
@@ -233,6 +243,11 @@ paths:
       summary: Get Job Template Details
       description: Get AAP job template details including prompt-on-launch capabilities.
       operationId: get_job_template_aap_job_templates_get
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - aap
       parameters:
@@ -326,6 +341,11 @@ paths:
       summary: List Inventories
       description: List AAP inventories, optionally filtered by organization.
       operationId: list_inventories_aap_inventories_get
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - aap
       parameters:
@@ -433,6 +453,11 @@ paths:
       summary: List Execution Environments
       description: List AAP execution environments, optionally filtered by organization.
       operationId: list_execution_environments_aap_execution_environments_get
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - aap
       parameters:
@@ -540,6 +565,11 @@ paths:
       summary: List Credentials
       description: List AAP credentials (not organization-scoped).
       operationId: list_credentials_aap_credentials_get
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - aap
       parameters:
@@ -638,6 +668,11 @@ paths:
       summary: List Instance Groups
       description: List AAP instance groups (not organization-scoped).
       operationId: list_instance_groups_aap_instance_groups_get
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - aap
       parameters:

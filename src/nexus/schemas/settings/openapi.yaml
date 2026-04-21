@@ -28,6 +28,11 @@ paths:
       description: |-
         List all runtime settings with pagination, filtering, and sorting.
       operationId: list_settings
+      x-app-permission:
+        resource: setting
+        action: read
+        scope: any
+        default_roles: [admin]
       tags:
         - Settings
       parameters:
@@ -78,6 +83,11 @@ paths:
       description: |-
         Update multiple settings in a single request.
       operationId: bulk_update_settings
+      x-app-permission:
+        resource: setting
+        action: write
+        scope: any
+        default_roles: [admin]
       tags:
         - Settings
       requestBody:
@@ -122,6 +132,11 @@ paths:
       description: |-
         List all setting categories with their group names.
       operationId: list_categories
+      x-app-permission:
+        resource: setting
+        action: read
+        scope: any
+        default_roles: [admin]
       tags:
         - Settings
       responses:
@@ -140,6 +155,11 @@ paths:
       description: |-
         Get a single runtime setting by its dot-namespaced key.
       operationId: get_setting
+      x-app-permission:
+        resource: setting
+        action: read
+        scope: any
+        default_roles: [admin]
       tags:
         - Settings
       parameters:
@@ -170,6 +190,11 @@ paths:
       description: |-
         Update a runtime setting value with optimistic locking.
       operationId: update_setting
+      x-app-permission:
+        resource: setting
+        action: write
+        scope: any
+        default_roles: [admin]
       tags:
         - Settings
       parameters:

@@ -18,6 +18,11 @@ paths:
       summary: List executions
       description: Retrieve executions with filtering, sorting, and cursor-based pagination.
       operationId: list_executions
+      x-app-permission:
+        resource: execution
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags: [executions]
       parameters:
         - description: Maximum number of results per page
@@ -79,6 +84,11 @@ paths:
       summary: Create execution
       description: Start a new workflow execution.
       operationId: create_execution
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags: [executions]
       requestBody:
         content:
@@ -107,6 +117,11 @@ paths:
       summary: Get execution
       description: Retrieve details of a specific execution with optional includes.
       operationId: get_execution
+      x-app-permission:
+        resource: execution
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags: [executions]
       parameters:
         - in: path
@@ -147,6 +162,11 @@ paths:
       summary: List activity executions
       description: Retrieve activity executions for a workflow execution.
       operationId: list_execution_activities
+      x-app-permission:
+        resource: execution
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags: [executions]
       parameters:
         - in: path
@@ -180,6 +200,11 @@ paths:
       summary: Send signal to activity in workflow
       description: Send a signal to a specific activity within a running workflow execution.
       operationId: signal_activity
+      x-app-permission:
+        resource: execution
+        action: run
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       tags: [executions]
       parameters:
         - in: path

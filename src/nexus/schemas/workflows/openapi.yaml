@@ -50,6 +50,11 @@ paths:
         Uses cursor-based pagination for scalability and consistency.
       operationId: list_workflows
       tags: [workflows]
+      x-app-permission:
+        resource: workflow
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: created_by
           in: query
@@ -86,6 +91,11 @@ paths:
       description: Create a new workflow with initial version.
       operationId: create_workflow
       tags: [workflows]
+      x-app-permission:
+        resource: workflow
+        action: create
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       requestBody:
         required: true
         content:
@@ -147,6 +157,11 @@ paths:
       description: Get a workflow by ID including its current active version.
       operationId: get_workflow
       tags: [workflows]
+      x-app-permission:
+        resource: workflow
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: path
@@ -180,6 +195,11 @@ paths:
           only if definition differs (change detection optimization)
       operationId: update_workflow
       tags: [workflows]
+      x-app-permission:
+        resource: workflow
+        action: update
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       parameters:
         - name: workflow_id
           in: path
@@ -231,6 +251,11 @@ paths:
       description: Soft delete a workflow.
       operationId: delete_workflow
       tags: [workflows]
+      x-app-permission:
+        resource: workflow
+        action: delete
+        scope: project
+        default_roles: [admin, user, project-admin, project-user]
       parameters:
         - name: workflow_id
           in: path
@@ -263,6 +288,11 @@ paths:
         List all versions for a workflow.
       operationId: list_workflow_versions
       tags: [workflows]
+      x-app-permission:
+        resource: workflow
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: path
@@ -297,6 +327,11 @@ paths:
       description: Get a specific workflow version.
       operationId: get_workflow_version
       tags: [workflows]
+      x-app-permission:
+        resource: workflow
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
         - name: workflow_id
           in: path

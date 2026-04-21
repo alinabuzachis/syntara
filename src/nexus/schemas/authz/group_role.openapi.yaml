@@ -24,6 +24,11 @@ paths:
       description: |-
         Assign a role to a group (system-level). Requires: admin permission.
       operationId: assign_group_role
+      x-app-permission:
+        resource: group-role
+        action: assign
+        scope: any
+        default_roles: [admin]
       tags:
         - Group Role Assignments
       requestBody:
@@ -58,6 +63,11 @@ paths:
       summary: List Group Role Assignments
       description: List all system-level group→role assignments.
       operationId: list_group_role_assignments
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Group Role Assignments
       responses:
@@ -78,6 +88,11 @@ paths:
       description: |-
         Remove a group→role assignment. Requires: admin permission.
       operationId: revoke_group_role_assignment
+      x-app-permission:
+        resource: group-role
+        action: revoke
+        scope: any
+        default_roles: [admin]
       tags:
         - Group Role Assignments
       parameters:

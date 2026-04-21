@@ -40,6 +40,11 @@ paths:
         Create a new project. The creator is automatically assigned
         the project-admin role. Requires: project:create permission.
       operationId: create_project
+      x-app-permission:
+        resource: project
+        action: create
+        scope: any
+        default_roles: [admin, user, default]
       tags:
         - Projects
       requestBody:
@@ -69,6 +74,11 @@ paths:
       description: |-
         List projects the current user has read access to.
       operationId: list_projects
+      x-app-permission:
+        resource: project
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
         - Projects
       responses:
@@ -88,6 +98,11 @@ paths:
       summary: Get Project
       description: Get a project by ID.
       operationId: get_project
+      x-app-permission:
+        resource: project
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
         - Projects
       parameters:
@@ -119,6 +134,11 @@ paths:
       description: |-
         Patch a project. Requires: project:update permission scoped to this project.
       operationId: update_project
+      x-app-permission:
+        resource: project
+        action: update
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -156,6 +176,11 @@ paths:
       description: |-
         Replace a project. Requires: project:update permission scoped to this project.
       operationId: replace_project
+      x-app-permission:
+        resource: project
+        action: update
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -193,6 +218,11 @@ paths:
       description: |-
         Delete a project (soft-delete). Requires: project:delete permission scoped to this project.
       operationId: delete_project
+      x-app-permission:
+        resource: project
+        action: delete
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Projects
       parameters:
@@ -225,6 +255,11 @@ paths:
         Returns only workflows with project_id matching the given project.
         Requires: workflow:read permission scoped to this project.
       operationId: list_project_workflows
+      x-app-permission:
+        resource: workflow
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
         - Project Workflows
       parameters:
@@ -270,6 +305,11 @@ paths:
         Returns only approvals with project_id matching the given project.
         Requires: approval:read permission scoped to this project.
       operationId: list_project_approvals
+      x-app-permission:
+        resource: approval
+        action: read
+        scope: project
+        default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
         - Project Approvals
       parameters:
@@ -328,6 +368,11 @@ paths:
         Valid roles: project-admin, project-user, project-auditor.
         Requires: project-role:assign permission scoped to this project.
       operationId: assign_project_role
+      x-app-permission:
+        resource: project-role
+        action: assign
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Project Role Assignments
       parameters:
@@ -370,6 +415,11 @@ paths:
       summary: List Project Roles
       description: List all role assignments for a project.
       operationId: list_project_roles
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Project Role Assignments
       parameters:
@@ -398,6 +448,11 @@ paths:
       description: |-
         Remove a role assignment from a project. Requires: project-role:revoke permission.
       operationId: revoke_project_role
+      x-app-permission:
+        resource: project-role
+        action: revoke
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Project Role Assignments
       parameters:
@@ -438,6 +493,11 @@ paths:
         Valid roles: project-admin, project-user, project-auditor.
         Requires: project-role:assign permission scoped to this project.
       operationId: assign_project_group_role
+      x-app-permission:
+        resource: project-role
+        action: assign
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Project Group Role Assignments
       parameters:
@@ -480,6 +540,11 @@ paths:
       summary: List Project Group Roles
       description: List all group role assignments for a project.
       operationId: list_project_group_roles
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Project Group Role Assignments
       parameters:
@@ -508,6 +573,11 @@ paths:
       description: |-
         Remove a group role assignment from a project. Requires: project-role:revoke permission.
       operationId: revoke_project_group_role
+      x-app-permission:
+        resource: project-role
+        action: revoke
+        scope: project
+        default_roles: [admin, project-admin]
       tags:
         - Project Group Role Assignments
       parameters:

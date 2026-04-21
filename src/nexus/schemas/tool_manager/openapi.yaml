@@ -39,6 +39,11 @@ paths:
         Returns:
             ToolListResponse with tools, pagination metadata, and optional total
       operationId: get_tools
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: status
           in: query
@@ -127,6 +132,11 @@ paths:
         Raises:
             HTTPException: 404 if tool not found, 403 for auth, 400 for invalid UUID
       operationId: get_tool
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: tool_id
           in: path
@@ -175,6 +185,11 @@ paths:
         Raises:
             HTTPException: 400 for validation errors, 404 if not found, 403 for auth
       operationId: patch_tool
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: tool_id
           in: path
@@ -235,6 +250,11 @@ paths:
         Raises:
             HTTPException: 400 for validation errors, 403 for auth
       operationId: bulk_update_tools
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       requestBody:
         required: true
         content:
@@ -282,6 +302,11 @@ paths:
         Returns:
             ToolProviderListResponse with providers, pagination metadata, and optional total
       operationId: get_tool_providers
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: status
           in: query
@@ -380,6 +405,11 @@ paths:
         Raises:
             HTTPException: 400 for validation errors, 409 for name conflicts, 403 for auth
       operationId: register_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       requestBody:
         required: true
         content:
@@ -433,6 +463,11 @@ paths:
         Raises:
             HTTPException: 404 if provider not found, 403 for auth, 400 for invalid UUID
       operationId: get_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -481,6 +516,11 @@ paths:
         Raises:
             HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
       operationId: update_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -541,6 +581,11 @@ paths:
         Raises:
             HTTPException: 400 for validation errors, 404 if not found, 409 for conflicts, 403 for auth
       operationId: patch_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -597,6 +642,11 @@ paths:
         Raises:
             HTTPException: 404 if provider not found, 403 for auth
       operationId: delete_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -641,6 +691,11 @@ paths:
         Raises:
             HTTPException: 404 if not found, 403 for auth, 500 for unexpected errors
       operationId: validate_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -689,6 +744,11 @@ paths:
         Raises:
             HTTPException: 400 for refresh failure, 404 if not found, 403 for auth
       operationId: refresh_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       parameters:
         - name: provider_id
           in: path
@@ -743,6 +803,11 @@ paths:
         Raises:
             HTTPException: 403 for auth, 500 for unexpected errors
       operationId: test_tool_provider
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       requestBody:
         required: true
         content:

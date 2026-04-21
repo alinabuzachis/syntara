@@ -30,6 +30,11 @@ paths:
 
         Uses cursor-based pagination for scalability and consistency.
       operationId: list_users
+      x-app-permission:
+        resource: user
+        action: read
+        scope: any
+        default_roles: [admin, auditor, default]
       tags:
         - Users
       parameters:
@@ -56,6 +61,11 @@ paths:
       summary: Create User
       description: Create a new local user.
       operationId: create_user
+      x-app-permission:
+        resource: user
+        action: create
+        scope: any
+        default_roles: [admin]
       tags:
         - Users
       requestBody:
@@ -85,6 +95,11 @@ paths:
       summary: Get User
       description: Get a user by ID.
       operationId: get_user
+      x-app-permission:
+        resource: user
+        action: read
+        scope: any
+        default_roles: [admin, auditor, default]
       tags:
         - Users
       parameters:
@@ -118,6 +133,11 @@ paths:
 
         Supports partial updates - only provided fields are updated.
       operationId: update_user
+      x-app-permission:
+        resource: user
+        action: update
+        scope: any
+        default_roles: [admin]
       tags:
         - Users
       parameters:
@@ -166,6 +186,11 @@ paths:
       summary: Delete User
       description: Soft delete a user.
       operationId: delete_user
+      x-app-permission:
+        resource: user
+        action: delete
+        scope: any
+        default_roles: [admin]
       tags:
         - Users
       parameters:
@@ -193,6 +218,11 @@ paths:
       summary: List User Groups
       description: List groups that a user belongs to.
       operationId: list_user_groups
+      x-app-permission:
+        resource: user
+        action: read
+        scope: any
+        default_roles: [admin, auditor, default]
       tags:
         - Users
       parameters:
@@ -229,6 +259,11 @@ paths:
         Replace all current memberships with the provided list of group IDs.
         An empty list removes the user from all groups.
       operationId: set_user_groups
+      x-app-permission:
+        resource: user
+        action: update
+        scope: any
+        default_roles: [admin]
       tags:
         - Users
       parameters:
@@ -267,6 +302,11 @@ paths:
       summary: List Groups
       description: Retrieve list of groups with filtering and pagination.
       operationId: list_groups
+      x-app-permission:
+        resource: group
+        action: read
+        scope: any
+        default_roles: [admin, auditor, user, default]
       tags:
         - Groups
       parameters:
@@ -293,6 +333,11 @@ paths:
       summary: Create Group
       description: Create a new group for organizing users.
       operationId: create_group
+      x-app-permission:
+        resource: group
+        action: create
+        scope: any
+        default_roles: [admin]
       tags:
         - Groups
       requestBody:
@@ -322,6 +367,11 @@ paths:
       summary: Get Group
       description: Retrieve a group by its UUID.
       operationId: get_group
+      x-app-permission:
+        resource: group
+        action: read
+        scope: any
+        default_roles: [admin, auditor, user, default]
       tags:
         - Groups
       parameters:
@@ -352,6 +402,11 @@ paths:
       summary: Update Group
       description: Partially update a group. Only provided fields are updated.
       operationId: update_group
+      x-app-permission:
+        resource: group
+        action: update
+        scope: any
+        default_roles: [admin]
       tags:
         - Groups
       parameters:
@@ -394,6 +449,11 @@ paths:
       summary: Delete Group
       description: Soft delete a group.
       operationId: delete_group
+      x-app-permission:
+        resource: group
+        action: delete
+        scope: any
+        default_roles: [admin]
       tags:
         - Groups
       parameters:
@@ -421,6 +481,11 @@ paths:
       summary: List Members
       description: List members of a group with pagination.
       operationId: list_members
+      x-app-permission:
+        resource: group
+        action: read
+        scope: any
+        default_roles: [admin, auditor, user, default]
       tags:
         - Groups
       parameters:
@@ -453,6 +518,11 @@ paths:
       summary: Add Member
       description: Add a local user to a group.
       operationId: add_member
+      x-app-permission:
+        resource: group
+        action: manage-members
+        scope: any
+        default_roles: [admin]
       tags:
         - Groups
       parameters:
@@ -502,6 +572,11 @@ paths:
       summary: Remove Member
       description: Remove a user from a group.
       operationId: remove_member
+      x-app-permission:
+        resource: group
+        action: manage-members
+        scope: any
+        default_roles: [admin]
       tags:
         - Groups
       parameters:
