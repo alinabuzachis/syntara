@@ -380,6 +380,67 @@ class TestFilterParser:
             # Parser should preserve the original string case
             assert filters[0].value == expected_value
 
+    def test_parse_same_field_different_operators_produces_separate_filters(self) -> None:
+        """Parse ``field[gte]=X&field[lte]=Y`` as two Filter objects with distinct operators.
+
+        Range filtering (``created_at[gte]=...&created_at[lte]=...``) depends on
+        the parser emitting one Filter per operator so ``apply_filters`` can
+        AND them together (see TestLogicalANDFiltering in
+        test_filter_parser_sqlalchemy.py).
+        """
+        params = {
+            "created_at[gte]": "2025-01-02T00:00:00Z",
+            "created_at[lte]": "2025-01-04T00:00:00Z",
+        }
+        allowed_fields = ["created_at"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 2
+        assert {f.field for f in filters} == {"created_at"}
+        assert {f.operator for f in filters} == {FilterOperator.GTE, FilterOperator.LTE}
+
+        gte = next(f for f in filters if f.operator == FilterOperator.GTE)
+        lte = next(f for f in filters if f.operator == FilterOperator.LTE)
+        assert gte.value == "2025-01-02T00:00:00Z"
+        assert lte.value == "2025-01-04T00:00:00Z"
+
+    def test_parse_same_field_three_distinct_operators(self) -> None:
+        """Parse three distinct operators on the same field as three Filter objects."""
+        params = {
+            "priority[gt]": "1",
+            "priority[lt]": "10",
+            "priority[eq]": "5",
+        }
+        allowed_fields = ["priority"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 3
+        assert {f.operator for f in filters} == {
+            FilterOperator.GT,
+            FilterOperator.LT,
+            FilterOperator.EQ,
+        }
+        assert all(f.field == "priority" for f in filters)
+
+    def test_parse_same_field_same_operator_via_comma_separated(self) -> None:
+        """Comma-separated values within a single bracket operator produce one Filter per value.
+
+        Regression guard: the ``apply_filters`` grouping-by-(field, operator)
+        must continue to recognise these as OR candidates within the same
+        operator group.
+        """
+        params = {"status[eq]": "active,pending,draft"}
+        allowed_fields = ["status"]
+
+        filters = parse_filters(params, allowed_fields)
+
+        assert len(filters) == 3
+        assert all(f.field == "status" for f in filters)
+        assert all(f.operator == FilterOperator.EQ for f in filters)
+        assert {f.value for f in filters} == {"active", "pending", "draft"}
+
 
 class MockStatus(str, Enum):
     """Mock enum for unit testing."""

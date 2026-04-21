@@ -28,7 +28,8 @@ from nexus.audit.emitter import (
     request_id_context_var,
     workflow_id_context_var,
 )
-from nexus.audit.models import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus, RequestCompletedData
+from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.structured_data import RequestCompletedData
 
 logger = structlog.stdlib.get_logger(__name__)
 

@@ -4,7 +4,7 @@ import itertools
 
 import pytest
 
-from nexus.audit.models import EventSeverity
+from nexus.audit.models.audit_event import EventSeverity
 from nexus.audit.utils import escalate_severity
 
 

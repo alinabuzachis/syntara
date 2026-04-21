@@ -8,20 +8,21 @@ reuse ``id``, ``created_at``, and cursor-pagination support from ``BaseService``
 from typing import ClassVar
 from uuid import UUID
 
+from sqlalchemy import Index, text
 from sqlmodel import Field
 
-from nexus.audit.models.audit_event import AuditEvent
+from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.structured_data import AuditDataTypes, AuditDataUnion, BaseAuditData
 from nexus.core.models.base.base_resource import BaseResource
-from nexus.core.utils.sqlmodel import DiscriminatedJSONB
+from nexus.core.utils.sqlmodel import DiscriminatedJSONB, postgres_enum_column
 
 
 class AuditEventRecord(BaseResource, table=True):
     """Persisted audit event record.
 
     Maps ``AuditEvent`` (the in-memory envelope produced by the emitter) to a
-    database row.  Enums are stored as plain strings to avoid PostgreSQL ENUM
-    types and the migration overhead of ``ALTER TYPE`` when adding members.
+    database row. Enum fields use PostgreSQL ENUM types for type safety and
+    efficient storage, managed through Alembic migrations.
 
     The ``id`` field (inherited from ``BaseResource``) is set to the original
     ``AuditEvent.event_id`` via :meth:`from_event`, so the primary key in the
@@ -31,16 +32,47 @@ class AuditEventRecord(BaseResource, table=True):
     __tablename__ = "audit_events"
 
     # -- Core identification ---------------------------------------------------
-    event_category: str = Field(index=True, description="Category of the audit event")
-    event_severity: str = Field(
-        default="info", index=True, description="Severity level (info, warning, error, critical)"
+    event_category: EventCategory = Field(
+        sa_column=postgres_enum_column(
+            EventCategory,
+            "eventcategory",
+            index=True,
+        ),
+        description="Category of the audit event",
     )
-    event_status: str | None = Field(default=None, index=True, description="Status of the audited operation")
+    event_severity: EventSeverity = Field(
+        default=EventSeverity.INFO,
+        sa_column=postgres_enum_column(
+            EventSeverity,
+            "eventseverity",
+            index=True,
+            server_default=text("'info'::eventseverity"),
+        ),
+        description="Severity level (info, warning, error, critical)",
+    )
+    event_status: EventStatus | None = Field(
+        default=None,
+        sa_column=postgres_enum_column(
+            EventStatus,
+            "eventstatus",
+            nullable=True,
+            index=True,
+        ),
+        description="Status of the audited operation",
+    )
     event_action: str = Field(index=True, description="Specific action that occurred")
 
     # -- Actor and source ------------------------------------------------------
     actor_id: UUID | None = Field(default=None, index=True, description="User/system/service that performed action")
-    actor_type: str | None = Field(default=None, description="Type of actor (user, system, service)")
+    actor_type: ActorType | None = Field(
+        default=None,
+        sa_column=postgres_enum_column(
+            ActorType,
+            "actortype",
+            nullable=True,
+        ),
+        description="Type of actor (user, system, service)",
+    )
     source_component: str = Field(description="Component that generated the event")
 
     # -- Context tracking ------------------------------------------------------
@@ -57,6 +89,9 @@ class AuditEventRecord(BaseResource, table=True):
     )
 
     # -- BaseService integration -----------------------------------------------
+    # ``created_at`` (inherited from BaseResource) supports bracket-operator
+    # range filtering (``?created_at[gte]=...&created_at[lte]=...``) out of
+    # the box — no audit-specific range fields are needed.
     __filterable_fields__: ClassVar[list[str]] = [
         *BaseResource.__filterable_fields__,
         "event_category",
@@ -76,7 +111,25 @@ class AuditEventRecord(BaseResource, table=True):
         "event_category",
         "event_severity",
         "event_status",
+        "actor_type",
     ]
+
+    # Composite indexes for efficient filtering + sorting queries
+    # Common pattern: filter by field + sort by created_at DESC + cursor pagination
+    __table_args__ = (
+        # actor_id queries with date ordering (e.g., "show me user X's events")
+        Index("ix_audit_events_actor_id_created_at_id", "actor_id", "created_at", "id"),
+        # event_category queries with date ordering (e.g., "show me workflow events")
+        Index("ix_audit_events_event_category_created_at_id", "event_category", "created_at", "id"),
+        # workflow_id queries with date ordering (e.g., "show me workflow X's events")
+        Index("ix_audit_events_workflow_id_created_at_id", "workflow_id", "created_at", "id"),
+        # execution_id queries with date ordering (e.g., "show me execution X's events")
+        Index("ix_audit_events_execution_id_created_at_id", "execution_id", "created_at", "id"),
+        # activity_id queries with date ordering (e.g., "show me activity X's events")
+        Index("ix_audit_events_activity_id_created_at_id", "activity_id", "created_at", "id"),
+        # event_severity queries with date ordering (e.g., "show me errors/warnings")
+        Index("ix_audit_events_event_severity_created_at_id", "event_severity", "created_at", "id"),
+    )
 
     # ------------------------------------------------------------------ #
     # Factory

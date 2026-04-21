@@ -15,15 +15,14 @@ from nexus.audit.emitter import (
     execution_id_context_var,
     workflow_id_context_var,
 )
-from nexus.audit.models import (
+from nexus.audit.models.audit_event import (
     ActorType,
-    AuditContextData,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
-    FunctionData,
 )
+from nexus.audit.models.structured_data import AuditContextData, FunctionData
 
 
 class TestActorContext:

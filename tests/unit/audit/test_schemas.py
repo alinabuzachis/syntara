@@ -3,8 +3,10 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from nexus.audit.models import AuditContextData, BaseAuditData
-from nexus.audit.schemas import AuditEventListParams, AuditEventRead
+from nexus.audit.models.audit_event_record import AuditEventRecord
+from nexus.audit.models.schemas import AuditEventListParams, AuditEventRead
+from nexus.audit.models.structured_data import AuditContextData, BaseAuditData
+from nexus.core.models.base.query_params import BaseListParams
 
 
 class TestAuditEventRead:
@@ -126,3 +128,24 @@ class TestAuditEventListParams:
         assert hasattr(params, "limit")
         assert hasattr(params, "cursor")
         assert hasattr(params, "sort")
+
+    def test_all_filter_fields_exist_in_filterable_fields(self) -> None:
+        """Validate that all filter fields in AuditEventListParams exist in AuditEventRecord.__filterable_fields__.
+
+        This test prevents schema drift where a developer adds a filter to
+        AuditEventListParams but forgets to add it to __filterable_fields__,
+        which would cause the filter to be silently ignored at runtime.
+        """
+        # Get all field names from AuditEventListParams, excluding base params
+        base_fields = set(BaseListParams.model_fields.keys())
+        audit_filter_fields = set(AuditEventListParams.model_fields.keys()) - base_fields
+
+        # All audit-specific filter fields must be in __filterable_fields__
+        filterable_fields = set(AuditEventRecord.__filterable_fields__)
+
+        missing_fields = audit_filter_fields - filterable_fields
+        assert not missing_fields, (
+            f"Filter fields {missing_fields} declared in AuditEventListParams "
+            f"are not present in AuditEventRecord.__filterable_fields__. "
+            f"Add them to __filterable_fields__ or remove them from the list params."
+        )

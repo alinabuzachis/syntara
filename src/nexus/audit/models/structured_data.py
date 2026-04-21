@@ -27,8 +27,8 @@ class FunctionData(BaseAuditData):
 class AuditContextData(BaseAuditData):
     """Structured data for general audit context operations.
 
-    Accepts arbitrary extra fields via ``extra="allow"`` so callers may pass ad-hoc
-    context through ``**context_data`` in the context manager.
+    Accepts arbitrary extra fields so callers may pass ad-hoc context
+    through ``**context_data`` in the context manager.
     """
 
     data_type: Literal["context"] = Field(  # type: ignore[assignment]

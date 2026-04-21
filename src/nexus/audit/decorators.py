@@ -13,14 +13,14 @@ import structlog
 from nexus.audit.actor_extractor import ActorContext, extract_actor_context
 from nexus.audit.constants import UNKNOWN
 from nexus.audit.emitter import actor_id_context_var, actor_type_context_var, emit_audit_event
-from nexus.audit.models import (
+from nexus.audit.models.audit_event import (
     ActorType,
     AuditEvent,
     EventCategory,
     EventSeverity,
     EventStatus,
-    FunctionData,
 )
+from nexus.audit.models.structured_data import FunctionData
 from nexus.audit.utils import escalate_severity
 
 logger = structlog.stdlib.get_logger(__name__)

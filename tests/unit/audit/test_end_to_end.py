@@ -9,11 +9,11 @@ import pytest
 import pytest_asyncio
 
 import nexus.audit.services.writer as writer_module
-from nexus.audit import track_event
-from nexus.audit.models import (
-    EventCategory,
-    FunctionData,
-)
+from nexus.audit.decorators import track_event
+from nexus.audit.models.audit_event import EventCategory
+from nexus.audit.models.audit_event_record import AuditEventRecord
+from nexus.audit.models.schemas import AuditEventListResponse
+from nexus.audit.models.structured_data import FunctionData
 from nexus.audit.services.audit_event_service import AuditEventService
 from nexus.audit.services.writer import AuditEventWriter
 
@@ -186,7 +186,10 @@ async def test_track_event_end_to_end(
     await audit_writer.drain()
 
     service = AuditEventService(test_db_session, test_user)
-    response = await service.list_audit_events()
+    response = await service.list_resources(
+        model=AuditEventRecord,
+        response_type=AuditEventListResponse,
+    )
 
     assert len(response.resources) == 1
     read = response.resources[0]

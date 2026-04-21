@@ -43,6 +43,7 @@ from nexus.api.main import app
 from nexus.auth.dependencies import get_current_user
 from nexus.auth.services.token_service import TokenService
 from nexus.core.config.base import Settings, get_settings
+from nexus.core.database.audit_session import get_audit_db
 from nexus.core.database.session import get_db
 from nexus.core.logging.logging import configure_structlog
 from nexus.core.models import User
@@ -61,6 +62,7 @@ from nexus.workflows.workflow_engine.activities.script_activity import execute_s
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from tests.fixtures.mock_mcp_provider import MockMCPProvider
 from tests.helpers.approval import ApprovalsFactory
+from tests.helpers.audit import AuditEventsFactory
 from tests.helpers.tool_manager import ToolFactory
 from tests.helpers.workflow import ActivitiesFactory, ExecutionsFactory
 
@@ -723,6 +725,7 @@ async def base_client(test_db_session: AsyncSession, session_app: FastAPI) -> As
         yield test_db_session
 
     session_app.dependency_overrides[get_db] = override_get_db
+    session_app.dependency_overrides[get_audit_db] = override_get_db
 
     async with AsyncClient(
         transport=ASGITransport(app=session_app),
@@ -1041,7 +1044,9 @@ def sync_test_client(
         yield test_db_session
 
     previous_get_db = app.dependency_overrides.get(get_db)
+    previous_get_audit_db = app.dependency_overrides.get(get_audit_db)
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_audit_db] = override_get_db
 
     session_factory = async_sessionmaker(
         test_db_engine,
@@ -1076,6 +1081,11 @@ def sync_test_client(
             app.dependency_overrides[get_db] = previous_get_db
         else:
             app.dependency_overrides.pop(get_db, None)
+
+        if previous_get_audit_db is not None:
+            app.dependency_overrides[get_audit_db] = previous_get_audit_db
+        else:
+            app.dependency_overrides.pop(get_audit_db, None)
 
         if previous_streaming_service is not None:
             app.state.execution_streaming_service = previous_streaming_service
@@ -1505,6 +1515,33 @@ def fast_workflow_client_settings(
 
 
 # ============================================================================
+# Audit Event Fixtures
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def audit_events_factory(test_db_session: AsyncSession) -> AuditEventsFactory:
+    """Create a factory fixture for test audit event records.
+
+    Returns an AuditEventsFactory instance that can create AuditEventRecord rows
+    with sensible defaults and arbitrary per-record overrides.
+
+    Usage:
+        # Create a single event with specific fields
+        event = await audit_events_factory.create_event(event_category="security_event")
+
+        # Create N events with auto-incremented event_action values
+        events = await audit_events_factory.create_events(count=3)
+
+        # Create N events with shared overrides
+        events = await audit_events_factory.create_events(
+            count=5, event_category="user_action"
+        )
+    """
+    return AuditEventsFactory(test_db_session)
+
+
+# ============================================================================
 # Mock Fixtures
 # ============================================================================
 
@@ -1651,6 +1688,7 @@ async def jwt_client(
         yield test_db_session
 
     session_app.dependency_overrides[get_db] = override_get_db
+    session_app.dependency_overrides[get_audit_db] = override_get_db
 
     # Create client with Authorization header
     async with AsyncClient(

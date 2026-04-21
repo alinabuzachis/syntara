@@ -47,11 +47,7 @@ class ActorType(StrEnum):
 
 
 class AuditEvent(SQLModel):
-    """Audit event model for tracking system activities and user actions.
-
-    Uses SQLModel for consistency and future database persistence migration.
-    Currently not a database table - designed for eventual storage in Postgres.
-    """
+    """Audit event model for tracking system activities and user actions."""
 
     # Core identification
     event_id: UUID = Field(default_factory=uuid4, description="Unique identifier for the audit event")

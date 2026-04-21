@@ -2,15 +2,11 @@
 
 from uuid import uuid4
 
-from nexus.audit.models import (
-    ActorType,
+from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.audit_event_record import AuditEventRecord
+from nexus.audit.models.structured_data import (
     AuditContextData,
-    AuditEvent,
-    AuditEventRecord,
     BaseAuditData,
-    EventCategory,
-    EventSeverity,
-    EventStatus,
     FunctionData,
 )
 
@@ -260,5 +256,5 @@ class TestAuditEventRecordTableConfig:
 
     def test_sortable_fields(self) -> None:
         """Test that expected fields are sortable."""
-        expected = {"created_at", "updated_at", "event_category", "event_severity", "event_status"}
+        expected = {"created_at", "updated_at", "event_category", "event_severity", "event_status", "actor_type"}
         assert set(AuditEventRecord.__sortable_fields__) == expected

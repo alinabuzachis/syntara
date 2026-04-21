@@ -12,7 +12,7 @@ from nexus.audit.actor_extractor import (
     _try_fastapi_dependency_extraction,
     extract_actor_context,
 )
-from nexus.audit.models import ActorType
+from nexus.audit.models.audit_event import ActorType
 
 
 class TestActorExtractorFastApiDependencyExtraction:

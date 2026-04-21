@@ -13,13 +13,13 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from nexus.audit.models import AuditEventRecord
+from nexus.audit.models.audit_event_record import AuditEventRecord
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
     from sqlmodel.ext.asyncio.session import AsyncSession
 
-    from nexus.audit.models import AuditEvent
+    from nexus.audit.models.audit_event import AuditEvent
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -66,6 +66,10 @@ class AuditEventWriter:
             logger.exception(
                 "audit_event_write_failed",
                 event_id=str(event.event_id),
+                actor_id=str(event.actor_id) if event.actor_id else None,
+                event_category=event.event_category.value,
+                event_action=event.event_action,
+                source_component=event.source_component,
                 exc_type=type(exc).__name__,
             )
 

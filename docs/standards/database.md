@@ -43,6 +43,41 @@ async def list_resources(db: Annotated[AsyncSession, Depends(get_db)]):
 
 `src/nexus/core/utils/session_factory.py` provides `create_session_factory_from_request()` which respects FastAPI's `dependency_overrides`. This allows tests to substitute a test database session without modifying endpoint code.
 
+### Multi-Database Architecture
+
+Nexus uses **two separate PostgreSQL databases** with independent engines and session factories:
+
+1. **Main database** (`get_db()` in `src/nexus/core/database/session.py`)
+   - Application domain models: users, workflows, executions, tools, approvals, etc.
+   - Transactional: operations roll back together on error
+   - Schema managed via `src/nexus/core/database/migrations/`
+
+2. **Audit database** (`get_audit_db()` in `src/nexus/core/database/audit_session.py`)
+   - Audit event records only
+   - Fire-and-forget writes via `AuditEventWriter` (not transactionally bound to main DB)
+   - Schema managed via `src/nexus/core/database/audit_migrations/`
+
+**Key architectural decisions:**
+
+- **No cross-database transactions:** Audit writes are asynchronous and eventually consistent. If a main DB transaction rolls back, the audit event for that operation may still be persisted. This is by design — audit trails should capture attempts, not just successful commits.
+
+- **Separate migration trees:** Each database has its own Alembic migration history. Run migrations separately:
+  ```bash
+  # Main database
+  uv run alembic upgrade head
+
+  # Audit database  
+  uv run alembic -c src/nexus/core/database/audit_migrations/alembic.ini upgrade head
+  ```
+
+- **Independent connection pools:** Each database has its own engine with separate pool configuration. This isolates audit load from application query performance.
+
+**When to use which session:**
+
+- Use `get_db()` for all domain model operations (users, workflows, etc.)
+- Use `get_audit_db()` only in `AuditEventService` for read-only audit queries
+- Never mix sessions — a session from `get_db()` cannot query `AuditEventRecord`
+
 ## Migrations
 
 ### Alembic Workflow

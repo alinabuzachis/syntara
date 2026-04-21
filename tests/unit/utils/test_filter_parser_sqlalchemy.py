@@ -1003,3 +1003,161 @@ class TestLogicalORFiltering:
         usernames = {user.username for user in result}
         expected_usernames = {u.username for u in expected_users}
         assert usernames == expected_usernames
+
+
+@pytest.mark.asyncio
+class TestLogicalANDFiltering:
+    """Test AND semantics when multiple filters target the same field with different operators.
+
+    ``apply_filters`` groups filters by ``(field, operator)`` so comma-separated
+    values of the *same* operator OR together, while *different* operators on
+    the same field AND together — the composition required for range filters
+    like ``?created_at[gte]=X&created_at[lte]=Y``.
+    """
+
+    async def test_inclusive_range_on_same_field_uses_and_semantics(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """``created_at[gte]`` + ``created_at[lte]`` selects an inclusive window (AND, not OR).
+
+        Fixture times (see conftest.test_users): alice=Jan1 10:00, bob=Jan2 11:00,
+        charlie=Jan3 12:00, diana=Jan4 13:00, eve=Jan5 14:00. Boundaries are chosen
+        to cleanly include/exclude whole days.
+        """
+        params = {
+            "created_at[gte]": "2025-01-02T00:00:00",
+            "created_at[lte]": "2025-01-04T23:59:59",
+        }
+        filters = parse_filters(params, ["created_at"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        window = {"bob", "charlie", "diana"}  # Jan 2, 3, 4
+        assert {u.username for u in result} == window
+        # Users outside the window must be excluded — this is the behaviour
+        # that breaks if GTE+LTE on the same field were combined with OR.
+        assert "alice" not in {u.username for u in result}  # Jan 1, before window
+        assert "eve" not in {u.username for u in result}  # Jan 5, after window
+
+    async def test_exclusive_range_on_same_field_uses_and_semantics(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """``created_at[gt]`` + ``created_at[lt]`` selects an exclusive window."""
+        # Strict > Jan 2 end-of-day → excludes bob (Jan 2 11:00); strict < Jan 5 → excludes eve (Jan 5 14:00).
+        params = {
+            "created_at[gt]": "2025-01-02T23:59:59",
+            "created_at[lt]": "2025-01-05T00:00:00",
+        }
+        filters = parse_filters(params, ["created_at"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        assert {u.username for u in result} == {"charlie", "diana"}
+
+    async def test_half_open_range_on_same_field(self, test_users: list[User], test_db_session: AsyncSession) -> None:
+        """Mixing ``[gte]`` with ``[lt]`` yields a half-open window."""
+        params = {
+            "created_at[gte]": "2025-01-02T00:00:00",
+            "created_at[lt]": "2025-01-05T00:00:00",
+        }
+        filters = parse_filters(params, ["created_at"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        # [Jan 2, Jan 5) → Jan 2, 3, 4.
+        assert {u.username for u in result} == {"bob", "charlie", "diana"}
+
+    async def test_empty_range_returns_no_results(self, test_users: list[User], test_db_session: AsyncSession) -> None:
+        """Lower bound above the upper bound → no rows (confirms AND, not OR)."""
+        params = {
+            "created_at[gte]": "2025-01-04T00:00:00",
+            "created_at[lte]": "2025-01-02T00:00:00",
+        }
+        filters = parse_filters(params, ["created_at"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        # With the old OR-on-same-field behaviour this would return every row
+        # (>=Jan4 OR <=Jan2 covers everyone).  AND-on-different-operators
+        # correctly yields an empty set.
+        assert result == []
+
+    async def test_string_contains_and_starts_with_same_field_are_anded(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """``full_name[contains]`` + ``full_name[starts_with]`` must AND together."""
+        params = {
+            "full_name[starts_with]": "A",  # Matches "Alice Smith"
+            "full_name[contains]": "Smith",  # Also in "Alice Smith"
+        }
+        filters = parse_filters(params, ["full_name"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        # Only Alice Smith satisfies BOTH: starts with 'A' AND contains 'Smith'.
+        assert {u.username for u in result} == {"alice"}
+
+    async def test_range_filter_combines_with_other_field_filter(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """A same-field AND range composes (via AND) with filters on other fields."""
+        params = {
+            "created_at[gte]": "2025-01-02T00:00:00",
+            "created_at[lte]": "2025-01-05T00:00:00",
+            "is_active": "true",
+        }
+        filters = parse_filters(params, ["created_at", "is_active"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        # Window [Jan 2, Jan 5] → bob, charlie, diana, eve; only active ones → bob, diana.
+        assert {u.username for u in result} == {"bob", "diana"}
+
+    async def test_or_within_operator_group_preserved_alongside_and(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """Same-operator comma-split values OR together; different operators still AND.
+
+        Regression guard for the grouping fix: the (field, operator) pair is
+        the OR boundary, so two values of ``[gt]`` OR but ``[gt]`` and
+        ``[lt]`` AND.
+        """
+        params = {
+            # Two GT values → OR within operator group → effectively the lower of the two.
+            "created_at[gt]": "2025-01-01T23:59:59,2025-01-03T23:59:59",
+            # AND with a separate LT operator.
+            "created_at[lt]": "2025-01-05T00:00:00",
+        }
+        filters = parse_filters(params, ["created_at"])
+        # 2 GT + 1 LT = 3 Filter objects.
+        assert len(filters) == 3
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        # (created_at > Jan 1 23:59 OR > Jan 3 23:59) AND created_at < Jan 5
+        # → created_at > Jan 1 23:59 AND < Jan 5 → bob (Jan 2), charlie (Jan 3), diana (Jan 4).
+        assert {u.username for u in result} == {"bob", "charlie", "diana"}
+
+    async def test_three_operators_on_same_field_all_anded(
+        self, test_users: list[User], test_db_session: AsyncSession
+    ) -> None:
+        """Three distinct operators on the same field compose via AND."""
+        params = {
+            "created_at[gte]": "2025-01-02T00:00:00",
+            "created_at[lte]": "2025-01-04T23:59:59",
+            "created_at[gt]": "2025-01-02T23:59:59",  # Strict > Jan 2 end-of-day → excludes bob.
+        }
+        filters = parse_filters(params, ["created_at"])
+
+        query = apply_filters(select(User), filters, User)
+        result = (await test_db_session.exec(query)).all()
+
+        # GTE Jan 2 AND LTE Jan 4 23:59 AND GT Jan 2 23:59 → Jan 3 and Jan 4 only.
+        assert {u.username for u in result} == {"charlie", "diana"}

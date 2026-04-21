@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.audit.models import AuditEvent, BaseAuditData, EventCategory
+from nexus.audit.models.audit_event import AuditEvent, EventCategory
 from nexus.audit.models.audit_event_record import AuditEventRecord
+from nexus.audit.models.structured_data import BaseAuditData
 from nexus.audit.services.writer import AuditEventWriter
 
 # ------------------------------------------------------------------ #
@@ -156,6 +157,10 @@ class TestAuditEventWriterWrite:
             mock_logger.exception.assert_called_once_with(
                 "audit_event_write_failed",
                 event_id=str(event.event_id),
+                actor_id=None,
+                event_category="system_operation",
+                event_action="test_action",
+                source_component="test",
                 exc_type="Exception",
             )
 

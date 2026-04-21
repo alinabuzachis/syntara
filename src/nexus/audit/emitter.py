@@ -13,7 +13,7 @@ from nexus.audit.truncation import DEFAULT_MAX_PAYLOAD_BYTES, enforce_payload_li
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nexus.audit.models import ActorType, AuditEvent
+    from nexus.audit.models.audit_event import ActorType, AuditEvent
 
 logger = structlog.stdlib.get_logger(__name__)
 

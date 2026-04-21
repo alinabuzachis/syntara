@@ -19,7 +19,8 @@ import pytest
 
 from nexus.api.constants import EXCLUDED_PATHS
 from nexus.audit.middleware import AuditMiddleware
-from nexus.audit.models import AuditEvent, EventSeverity, EventStatus, RequestCompletedData
+from nexus.audit.models.audit_event import AuditEvent, EventSeverity, EventStatus
+from nexus.audit.models.structured_data import RequestCompletedData
 
 _EMIT_PATCH = "nexus.audit.emitter._do_emit_audit_event"
 

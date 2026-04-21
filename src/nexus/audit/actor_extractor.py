@@ -9,7 +9,7 @@ import structlog
 
 from nexus.audit.constants import UNKNOWN
 from nexus.audit.emitter import actor_id_context_var, actor_type_context_var
-from nexus.audit.models import ActorType
+from nexus.audit.models.audit_event import ActorType
 
 logger = structlog.stdlib.get_logger(__name__)
 

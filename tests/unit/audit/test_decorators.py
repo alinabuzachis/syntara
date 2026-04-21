@@ -8,7 +8,8 @@ import pytest
 
 from nexus.audit.actor_extractor import ActorContext
 from nexus.audit.decorators import track_event
-from nexus.audit.models import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus, FunctionData
+from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.structured_data import FunctionData
 
 
 def _assert_audit_event_fields(
@@ -26,7 +27,7 @@ def _assert_audit_event_fields(
     expected_execution_id: UUID | None = None,
 ) -> None:
     """Helper function to verify all AuditEvent fields are correctly populated."""
-    # Core identification
+    # Core identification (id and created_at inherited from BaseResource)
     assert event_obj.event_id is not None
     assert isinstance(event_obj.event_id, UUID)
     assert event_obj.event_category == expected_category

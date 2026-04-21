@@ -1,38 +1,16 @@
 """Unit tests for AuditEventService (read operations)."""
 
 import itertools
-from uuid import uuid4
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.audit.models import AuditContextData
 from nexus.audit.models.audit_event_record import AuditEventRecord
+from nexus.audit.models.schemas import AuditEventListResponse
+from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.services.audit_event_service import AuditEventService
 from nexus.core.models import User
-
-# ------------------------------------------------------------------ #
-# Helpers
-# ------------------------------------------------------------------ #
-
-
-async def _insert_record(session: AsyncSession, **overrides: object) -> AuditEventRecord:
-    """Insert an AuditEventRecord directly into the database."""
-    defaults: dict[str, object] = {
-        "id": uuid4(),
-        "event_category": "user_action",
-        "event_action": "test_action",
-        "actor_type": "system",
-        "source_component": "test_service",
-        "event_message": "Test event",
-        "structured_data": {"data_type": "base"},
-    }
-    defaults.update(overrides)
-    record = AuditEventRecord(**defaults)
-    session.add(record)
-    await session.flush()
-    return record
-
+from tests.helpers.audit import AuditEventsFactory
 
 # ------------------------------------------------------------------ #
 # Read operations (instance-level, DB-backed)
@@ -40,16 +18,23 @@ async def _insert_record(session: AsyncSession, **overrides: object) -> AuditEve
 
 
 class TestAuditEventServiceList:
-    """Test AuditEventService.list_audit_events."""
+    """Test audit-event listing via BaseService.list_resources."""
 
     @pytest.mark.asyncio
-    async def test_list_returns_events(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_list_returns_events(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+    ) -> None:
         """Test listing returns inserted audit events."""
-        for i in range(3):
-            await _insert_record(test_db_session, event_action=f"action_{i}")
+        await audit_events_factory.create_events(count=3)
 
         service = AuditEventService(test_db_session, test_user)
-        response = await service.list_audit_events()
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+        )
 
         assert len(response.resources) == 3
 
@@ -57,48 +42,81 @@ class TestAuditEventServiceList:
     async def test_list_empty_table(self, test_db_session: AsyncSession, test_user: User) -> None:
         """Test listing with no events returns empty list."""
         service = AuditEventService(test_db_session, test_user)
-        response = await service.list_audit_events()
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+        )
 
         assert len(response.resources) == 0
 
     @pytest.mark.asyncio
-    async def test_list_respects_limit(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_list_respects_limit(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+    ) -> None:
         """Test that limit parameter constrains results."""
-        for i in range(5):
-            await _insert_record(test_db_session, event_action=f"action_{i}")
+        await audit_events_factory.create_events(count=5)
 
         service = AuditEventService(test_db_session, test_user)
-        response = await service.list_audit_events(limit=2)
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=2,
+        )
 
         assert len(response.resources) == 2
 
     @pytest.mark.asyncio
-    async def test_list_with_include_total(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_list_with_include_total(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+    ) -> None:
         """Test that include_total returns total count."""
-        for i in range(4):
-            await _insert_record(test_db_session, event_action=f"action_{i}")
+        await audit_events_factory.create_events(count=4)
 
         service = AuditEventService(test_db_session, test_user)
-        response = await service.list_audit_events(limit=2, include_total=True)
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=2,
+            include_total=True,
+        )
 
         assert len(response.resources) == 2
         assert response.total == 4
 
     @pytest.mark.asyncio
-    async def test_list_cursor_pagination(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_list_cursor_pagination(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+    ) -> None:
         """Test cursor-based pagination returns next page."""
-        for i in range(5):
-            await _insert_record(test_db_session, event_action=f"action_{i}")
+        await audit_events_factory.create_events(count=5)
 
         service = AuditEventService(test_db_session, test_user)
 
         # First page
-        page1 = await service.list_audit_events(limit=3)
+        page1 = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=3,
+        )
         assert len(page1.resources) == 3
         assert page1.next is not None
 
         # Second page
-        page2 = await service.list_audit_events(limit=3, cursor=page1.next)
+        page2 = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            limit=3,
+            cursor=page1.next,
+        )
         assert len(page2.resources) == 2
 
         # No overlap
@@ -107,20 +125,27 @@ class TestAuditEventServiceList:
         assert page1_ids.isdisjoint(page2_ids)
 
     @pytest.mark.asyncio
-    async def test_list_default_sort_is_created_at_desc(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_list_default_sort_is_created_at_desc(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+    ) -> None:
         """Test that default sort order is -created_at (newest first)."""
         from datetime import UTC, datetime, timedelta
 
         base = datetime(2025, 1, 1, tzinfo=UTC)
         for i in range(3):
-            await _insert_record(
-                test_db_session,
+            await audit_events_factory.create_event(
                 event_action=f"action_{i}",
                 created_at=base + timedelta(hours=i),
             )
 
         service = AuditEventService(test_db_session, test_user)
-        response = await service.list_audit_events()
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+        )
 
         # Timestamps should be in descending order (newest first)
         timestamps = [r.created_at for r in response.resources]
@@ -128,7 +153,10 @@ class TestAuditEventServiceList:
 
     @pytest.mark.asyncio
     async def test_list_response_contains_audit_event_read_objects(
-        self, test_db_session: AsyncSession, test_user: User
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
     ) -> None:
         """Test that list response contains AuditEventRead schema objects."""
         stored_data = {
@@ -140,8 +168,7 @@ class TestAuditEventServiceList:
             "nested": {"key": "val", "deep": {"level": 3}},
             "nullable_field": None,
         }
-        await _insert_record(
-            test_db_session,
+        await audit_events_factory.create_event(
             event_category="security_event",
             event_action="login",
             source_component="auth_service",
@@ -150,7 +177,10 @@ class TestAuditEventServiceList:
         )
 
         service = AuditEventService(test_db_session, test_user)
-        response = await service.list_audit_events()
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+        )
 
         assert len(response.resources) == 1
         resource = response.resources[0]
@@ -175,16 +205,54 @@ class TestAuditEventServiceList:
         assert dumped["nullable_field"] is None
 
     @pytest.mark.asyncio
-    async def test_list_filter_by_event_category(self, test_db_session: AsyncSession, test_user: User) -> None:
+    async def test_list_filter_by_event_category(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+    ) -> None:
         """Test filtering events by category."""
-        await _insert_record(test_db_session, event_category="user_action")
-        await _insert_record(test_db_session, event_category="system_operation")
-        await _insert_record(test_db_session, event_category="user_action")
+        await audit_events_factory.create_event(event_category="user_action")
+        await audit_events_factory.create_event(event_category="system_operation")
+        await audit_events_factory.create_event(event_category="user_action")
 
         service = AuditEventService(test_db_session, test_user)
-        response = await service.list_audit_events(
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
             query_params_items=[("event_category", "user_action")],
         )
 
         assert len(response.resources) == 2
         assert all(r.event_category == "user_action" for r in response.resources)
+
+    @pytest.mark.asyncio
+    async def test_list_filter_by_created_at_range(
+        self,
+        test_db_session: AsyncSession,
+        test_user: User,
+        audit_events_factory: AuditEventsFactory,
+    ) -> None:
+        """Test filtering events by inclusive ``created_at`` range via bracket operators."""
+        from datetime import UTC, datetime, timedelta
+
+        base = datetime(2025, 6, 1, tzinfo=UTC)
+        for i in range(5):
+            await audit_events_factory.create_event(
+                event_action=f"action_{i}",
+                created_at=base + timedelta(days=i),
+            )
+
+        service = AuditEventService(test_db_session, test_user)
+
+        # Inclusive window spanning days 1..3 should return 3 events.
+        window_from = (base + timedelta(days=1)).isoformat()
+        window_to = (base + timedelta(days=3)).isoformat()
+        response = await service.list_resources(
+            model=AuditEventRecord,
+            response_type=AuditEventListResponse,
+            query_params_items=[("created_at[gte]", window_from), ("created_at[lte]", window_to)],
+        )
+
+        assert len(response.resources) == 3
+        assert all(base + timedelta(days=1) <= r.created_at <= base + timedelta(days=3) for r in response.resources)

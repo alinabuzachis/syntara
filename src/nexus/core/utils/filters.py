@@ -389,9 +389,16 @@ def apply_filters(
 ) -> Select[TP] | SelectOfScalar[TP]:
     """Apply filters to a SQLAlchemy Query or SQLModel Select using Query API.
 
-    Groups filters by field and applies OR logic within each field group,
-    then AND logic between different field groups. This enables comma-separated
-    values to work as logical OR (e.g., ?name=alice,bob becomes name='alice' OR name='bob').
+    Groups filters by ``(field, operator)`` and applies OR logic within each
+    group (so comma-separated values of the same operator are unioned), then
+    AND logic between different groups.  This means:
+
+    - Same field, same operator, multiple values → OR (the ``?name=alice,bob``
+      case).
+    - Same field, *different* operators → AND (the range-filter case:
+      ``?created_at[gte]=X&created_at[lte]=Y`` becomes
+      ``created_at >= X AND created_at <= Y``).
+    - Different fields → AND.
 
     Args:
         query: SQLAlchemy Query object or SQLModel Select statement to filter
@@ -402,18 +409,23 @@ def apply_filters(
         Filtered query object of the same type as input
 
     Examples:
-        >>> # Single field with OR: ?name=alice,bob
+        >>> # Single field with OR (same operator): ?name=alice,bob
         >>> # Becomes: WHERE name = 'alice' OR name = 'bob'
 
-        >>> # Multiple fields with AND: ?name=alice,bob&status=active
+        >>> # Same field, different operators (range): ?created_at[gte]=X&created_at[lte]=Y
+        >>> # Becomes: WHERE created_at >= X AND created_at <= Y
+
+        >>> # Different fields with AND: ?name=alice,bob&status=active
         >>> # Becomes: WHERE (name = 'alice' OR name = 'bob') AND status = 'active'
 
     """
     if not filters:
         return query
 
-    # Group filters by field name for OR logic within each field
-    field_groups: dict[str, list[Filter]] = {}
+    # Group filters by (field, operator) so multiple values of the same
+    # operator (e.g. ?name=alice,bob) are OR'd, while different operators on
+    # the same field (e.g. [gte] + [lte]) are AND'd via the outer combine.
+    operator_groups: dict[tuple[str, FilterOperator], list[Filter]] = {}
 
     for filter_obj in filters:
         # Validate field exists on model
@@ -421,31 +433,22 @@ def apply_filters(
             msg = f"Invalid filter field: {filter_obj.field}"
             raise SafeValueError(msg)
 
-        if filter_obj.field not in field_groups:
-            field_groups[filter_obj.field] = []
-        field_groups[filter_obj.field].append(filter_obj)
+        operator_groups.setdefault((filter_obj.field, filter_obj.operator), []).append(filter_obj)
 
-    # Build conditions: OR within each field, AND between fields
-    field_conditions = []
+    # Build conditions: OR within each (field, operator) group, AND between groups.
+    group_conditions = []
 
-    for field_name, field_filters in field_groups.items():
+    for (field_name, operator), group_filters in operator_groups.items():
         field_attr = getattr(model, field_name)
 
-        # Build conditions for this field
-        filter_conditions = []
-        for filter_obj in field_filters:
-            condition = _build_condition(field_attr, filter_obj.operator, filter_obj.value)
-            filter_conditions.append(condition)
+        filter_conditions = [_build_condition(field_attr, operator, f.value) for f in group_filters]
 
-        # If multiple conditions for this field, combine with OR
-        # If only one condition, use it directly
         if len(filter_conditions) == 1:
-            field_conditions.append(filter_conditions[0])
+            group_conditions.append(filter_conditions[0])
         else:
-            field_conditions.append(or_(*filter_conditions))
+            group_conditions.append(or_(*filter_conditions))
 
-    # Apply all field conditions with AND logic
-    if field_conditions:
-        query = query.filter(and_(*field_conditions))
+    if group_conditions:
+        query = query.filter(and_(*group_conditions))
 
     return query

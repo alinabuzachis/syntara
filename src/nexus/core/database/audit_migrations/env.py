@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.engine import Connection
 
-from nexus.audit.models import AuditEventRecord
+from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.core.config.base import get_settings
 from nexus.core.logging.logging import configure_structlog
 

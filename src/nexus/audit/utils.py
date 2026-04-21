@@ -1,6 +1,6 @@
 """Utility functions for the audit package."""
 
-from nexus.audit.models import EventSeverity
+from nexus.audit.models.audit_event import EventSeverity
 
 # Ordering for EventSeverity (StrEnum does not provide natural ordering).
 # Higher rank means more severe.

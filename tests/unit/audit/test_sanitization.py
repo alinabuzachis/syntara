@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from nexus.audit.models import (
+from nexus.audit.models.structured_data import (
     AuditContextData,
     BaseAuditData,
     FunctionData,
