@@ -555,6 +555,47 @@ describe('filterUtils', () => {
     })
   })
 
+  describe('parseFiltersFromUrl - malformed bracket inputs and ReDoS protection (S5852)', () => {
+    it('should treat a key with "[" but no closing "]" as a plain eq filter', () => {
+      // "name[contains=deploy" parses to key="name[contains", value="deploy".
+      // The bracket pattern doesn't match (no closing "]"), so it falls through
+      // to the eq path — the literal key is passed as-is with operator "eq".
+      const searchParams = new URLSearchParams('name[contains=deploy')
+      expect(parseFiltersFromUrl(searchParams)).toEqual([{ key: 'name[contains', operator: 'eq', value: 'deploy' }])
+    })
+
+    it('should treat a key with empty brackets as a plain eq filter', () => {
+      // "name[]" — the regex requires 1+ chars inside brackets, so it does not match;
+      // the literal key falls through to the eq path.
+      const searchParams = new URLSearchParams('name[]=deploy')
+      expect(parseFiltersFromUrl(searchParams)).toEqual([{ key: 'name[]', operator: 'eq', value: 'deploy' }])
+    })
+
+    it('should treat a key starting with "[" as a plain eq filter', () => {
+      // "[contains]" — [^[]+ requires 1+ non-"[" chars before the bracket;
+      // the match fails immediately and the key falls through to the eq path.
+      const searchParams = new URLSearchParams('[contains]=deploy')
+      expect(parseFiltersFromUrl(searchParams)).toEqual([{ key: '[contains]', operator: 'eq', value: 'deploy' }])
+    })
+
+    it('should complete in linear time on pathological inputs (ReDoS guard)', () => {
+      // The old regex /^(.+?)\[(.+)\]$/ causes O(n²) backtracking on inputs with
+      // many "[" characters and no closing "]": for each "[", the engine exhausts
+      // all remaining characters looking for "\]$" before giving up and advancing.
+      // The fixed regex uses [^[]+ and [^\]]+ (negated classes) which are O(n).
+      const n = 5_000
+      const maliciousKey = 'a['.repeat(n) // n "[" characters — triggers O(n²) in old regex
+      const searchParams = new URLSearchParams(`${maliciousKey}=value`)
+
+      const start = performance.now()
+      parseFiltersFromUrl(searchParams)
+      const elapsed = performance.now() - start
+
+      // O(n²) with n=5000 yields ~25M operations; O(n) finishes near-instantly
+      expect(elapsed).toBeLessThan(500)
+    })
+  })
+
   describe('integration: buildFilterParams and parseFiltersFromUrl', () => {
     it('should round-trip filters correctly', () => {
       const originalFilters: FilterConfig[] = [

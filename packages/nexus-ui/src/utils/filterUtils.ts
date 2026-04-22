@@ -213,8 +213,10 @@ const RESERVED_URL_PARAMS = new Set(['sort', 'page', 'perPage', 'cursor'])
 function parseFilterParam(key: string, value: string): FilterConfig | null {
   if (RESERVED_URL_PARAMS.has(key)) return null
 
-  // Match pattern: key[operator] or just key
-  const match = key.match(/^(.+?)\[(.+)\]$/)
+  // Match pattern: key[operator] — e.g. "name[contains]"
+  // Negated character classes ([^[]+, [^\]]+) prevent backtracking; avoids ReDoS on malformed input like "aaa[aaa"
+  // regex.exec(string) preferred over string.match(regex) for performance (SonarQube S5852)
+  const match = /^([^[]+)\[([^\]]+)\]$/.exec(key)
 
   if (match) {
     // Has operator in brackets
