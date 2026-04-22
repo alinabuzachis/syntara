@@ -90,6 +90,13 @@ class NodeType(str, Enum):
     SCRIPT = "script"
 
 
+class LoopType(StrEnum):
+    """Loop sub-types for V2 workflows."""
+
+    FOR_EACH = "for_each"
+    DO_WHILE = "do_while"
+
+
 class ActivityTerminalStatus(str, Enum):
     """Terminal activity execution statuses for telemetry events."""
 

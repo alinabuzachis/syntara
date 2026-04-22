@@ -22,7 +22,7 @@ with workflow.unsafe.imports_passed_through():
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.expression_resolver import safe_eval_condition
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, LoopType, NodeType
 
 # Temporal start-to-close safety ceiling for activities that don't specify a timeout.
 # Each node type has its own configurable timeout in Settings; this is only the
@@ -269,18 +269,18 @@ class NexusWorkflow:
         completed_node = graph.get_node(completed_node_id)
 
         # Control-flow nodes must always have routing port data
-        if from_port is None and completed_node.type in ("condition", "loop"):
+        if from_port is None and completed_node.type in (NodeType.CONDITION, NodeType.LOOP):
             workflow.logger.warning(
                 f"Control-flow node {completed_node_id} (type={completed_node.type}) "
                 f"has no routing port — returning all successors"
             )
 
         # Handle condition branch skipping
-        if from_port and completed_node.type == "condition":
+        if from_port and completed_node.type == NodeType.CONDITION:
             self._skip_non_taken_branches(completed_node_id, from_port, graph)
 
         successors = graph.get_next_activities_by_port(completed_node_id, from_port)
-        is_loop_iterate = completed_node.type == "loop" and from_port == "iterate"
+        is_loop_iterate = completed_node.type == NodeType.LOOP and from_port == "iterate"
 
         if is_loop_iterate:
             self._setup_loop_namespace(completed_node_id)
@@ -364,7 +364,7 @@ class NexusWorkflow:
             return True
 
         # Converge nodes wait for all predecessors
-        if successor.type == "converge" and not self._are_predecessors_complete(node_id, graph):
+        if successor.type == NodeType.CONVERGE and not self._are_predecessors_complete(node_id, graph):
             self._handle_converge_wait(node_id, successor, graph)
             return True
 
@@ -732,10 +732,10 @@ class NexusWorkflow:
     # Mapping from node type to Temporal activity name for simple executor nodes
     # Note: agentic and approval are NOT in this map as they require signal handling
     _EXECUTOR_ACTIVITY_MAP: ClassVar[dict[str, str]] = {
-        "aap_job_template": ActivityName.AAP_JOB_TEMPLATE,
-        "http_request": ActivityName.HTTP_REQUEST,
-        "script": ActivityName.SCRIPT,
-        "condition": ActivityName.CONDITION,
+        NodeType.AAP_JOB_TEMPLATE: ActivityName.AAP_JOB_TEMPLATE,
+        NodeType.HTTP_REQUEST: ActivityName.HTTP_REQUEST,
+        NodeType.SCRIPT: ActivityName.SCRIPT,
+        NodeType.CONDITION: ActivityName.CONDITION,
     }
 
     async def _execute_executor_node(
@@ -898,22 +898,22 @@ class NexusWorkflow:
             Activity result with output and control data
 
         """
-        loop_type = resolved_config.get("type", "for_each")
+        loop_type = resolved_config.get("type", LoopType.FOR_EACH)
 
         # Get or initialize loop state
         if node_id not in self.loop_state:
-            if loop_type == "for_each":
+            if loop_type == LoopType.FOR_EACH:
                 # First execution - extract items from config
                 items = _parse_items(resolved_config.get("items", []))
                 self.loop_state[node_id] = {
-                    "type": "for_each",
+                    "type": LoopType.FOR_EACH,
                     "items": items,
                     "current_index": 0,
                 }
-            elif loop_type == "do_while":
+            elif loop_type == LoopType.DO_WHILE:
                 # First execution - store condition and max_iterations
                 self.loop_state[node_id] = {
-                    "type": "do_while",
+                    "type": LoopType.DO_WHILE,
                     "condition": node.config.get("condition"),  # Raw template, not resolved
                     "max_iterations": resolved_config.get("max_iterations", constants.MAX_LOOP_ITERATIONS),
                     "current_index": 0,
@@ -925,7 +925,7 @@ class NexusWorkflow:
 
         # For do_while, evaluate condition after first iteration
         condition_result = None
-        if loop_type == "do_while" and self.loop_state[node_id]["current_index"] > 0:
+        if loop_type == LoopType.DO_WHILE and self.loop_state[node_id]["current_index"] > 0:
             # Set context for condition evaluation (loop body nodes are available)
             self.resolver.set_context(loop_node_id=node_id)
             condition_template = self.loop_state[node_id]["condition"]
@@ -939,9 +939,9 @@ class NexusWorkflow:
             "current_index": self.loop_state[node_id]["current_index"],
         }
 
-        if loop_type == "for_each":
+        if loop_type == LoopType.FOR_EACH:
             loop_config["items"] = self.loop_state[node_id]["items"]
-        elif loop_type == "do_while":
+        elif loop_type == LoopType.DO_WHILE:
             loop_config["condition_result"] = condition_result
             loop_config["max_iterations"] = self.loop_state[node_id]["max_iterations"]
 
@@ -992,7 +992,7 @@ class NexusWorkflow:
         """
         self.resolver.set_context(loop_node_id=self.loop_body_map.get(node.id))
 
-        if node.type == "loop" and node.config.get("type") == "do_while":
+        if node.type == NodeType.LOOP and node.config.get("type") == LoopType.DO_WHILE:
             return {
                 key: value if key == "condition" else self.resolver.resolve_value(value)
                 for key, value in node.config.items()
@@ -1064,7 +1064,7 @@ class NexusWorkflow:
             return await self._execute_executor_node(
                 node_id, node_type, resolved_config, node.outputs, timeout_seconds=timeout_seconds
             )
-        if node_type == "agentic":
+        if node_type == NodeType.AGENTIC:
             return await self._execute_signal_node(
                 node_id,
                 ActivityName.AGENTIC,
@@ -1073,7 +1073,7 @@ class NexusWorkflow:
                 signal_timeout=timedelta(minutes=5),
                 timeout_seconds=timeout_seconds,
             )
-        if node_type == "approval":
+        if node_type == NodeType.APPROVAL:
             return await self._execute_signal_node(
                 node_id,
                 ActivityName.APPROVAL,
@@ -1082,11 +1082,11 @@ class NexusWorkflow:
                 signal_timeout=timedelta(hours=24),
                 timeout_seconds=timeout_seconds,
             )
-        if node_type == "converge":
+        if node_type == NodeType.CONVERGE:
             return await self._execute_converge_node(
                 node_id, resolved_config, node.outputs, graph, timeout_seconds=timeout_seconds
             )
-        if node_type == "loop":
+        if node_type == NodeType.LOOP:
             return await self._execute_loop_node(node_id, node, resolved_config, timeout_seconds=timeout_seconds)
 
         return {"output": {"status": "skipped", "reason": f"Unsupported node type: {node_type}"}}

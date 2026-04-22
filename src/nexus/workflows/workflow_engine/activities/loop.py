@@ -6,7 +6,7 @@ import structlog
 from temporalio import activity
 
 from nexus.workflows.workflow_engine import constants
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, LoopType
 
 from .output_mapping import apply_output_mapping
 
@@ -42,10 +42,10 @@ async def loop(
     - control: next_port ("iterate" or "complete") and loop state
 
     """
-    loop_type = input_config.get("type", "for_each")
+    loop_type = input_config.get("type", LoopType.FOR_EACH)
     current_index = input_config.get("current_index", 0)
 
-    if loop_type == "for_each":
+    if loop_type == LoopType.FOR_EACH:
         items = input_config.get("items") or []
         if not isinstance(items, list):
             return {
@@ -94,7 +94,7 @@ async def loop(
             },
         }
 
-    if loop_type == "do_while":
+    if loop_type == LoopType.DO_WHILE:
         condition_result = input_config.get("condition_result")
         max_iterations = input_config.get("max_iterations", constants.MAX_LOOP_ITERATIONS)
 
