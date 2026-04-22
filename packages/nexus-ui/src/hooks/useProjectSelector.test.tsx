@@ -201,27 +201,27 @@ describe('useProjectSelector', () => {
     it('shows "All projects" in toggle when no project selected', () => {
       renderSelector()
 
-      expect(screen.getByRole('button', { name: 'All projects' })).toBeInTheDocument()
+      expect(screen.getByDisplayValue('All projects')).toBeInTheDocument()
     })
 
     it('shows selected project name in toggle', () => {
       mockSelectedProjectId = 'proj-1'
       renderSelector()
 
-      expect(screen.getByRole('button', { name: 'Alpha' })).toBeInTheDocument()
+      expect(screen.getByDisplayValue('Alpha')).toBeInTheDocument()
     })
 
     it('shows "Select a project" in requireProject mode', () => {
       renderSelector({ requireProject: true })
 
-      expect(screen.getByRole('button', { name: 'Select a project' })).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Select a project')).toBeInTheDocument()
     })
 
     it('shows All projects option and project list in dropdown', async () => {
       const user = userEvent.setup()
       renderSelector()
 
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
 
       expect(screen.getByRole('option', { name: 'All projects' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Alpha' })).toBeInTheDocument()
@@ -233,7 +233,7 @@ describe('useProjectSelector', () => {
       const user = userEvent.setup()
       renderSelector({ requireProject: true })
 
-      await user.click(screen.getByRole('button', { name: 'Select a project' }))
+      await user.click(screen.getByPlaceholderText('Select a project'))
 
       expect(screen.queryByRole('option', { name: 'All projects' })).not.toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Alpha' })).toBeInTheDocument()
@@ -244,7 +244,7 @@ describe('useProjectSelector', () => {
       const user = userEvent.setup()
       renderSelector()
 
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Beta' }))
 
       expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-2')
@@ -255,7 +255,7 @@ describe('useProjectSelector', () => {
       const user = userEvent.setup()
       renderSelector()
 
-      await user.click(screen.getByRole('button', { name: 'Alpha' }))
+      await user.click(screen.getByDisplayValue('Alpha'))
       await user.click(screen.getByRole('option', { name: 'All projects' }))
 
       expect(mockSetSelectedProjectId).toHaveBeenCalledWith(null)
@@ -269,7 +269,7 @@ describe('useProjectSelector', () => {
       const user = userEvent.setup()
       renderSelector()
 
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -282,7 +282,7 @@ describe('useProjectSelector', () => {
       renderSelector()
 
       // Open dropdown then create dialog
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
       expect(screen.getByRole('dialog')).toBeInTheDocument()
 
@@ -299,7 +299,7 @@ describe('useProjectSelector', () => {
       renderSelector()
 
       // Open create dialog
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
       expect(screen.getByRole('dialog')).toBeInTheDocument()
 
@@ -316,7 +316,7 @@ describe('useProjectSelector', () => {
       renderSelector()
 
       // Open create dialog
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
 
       // Fill form
@@ -357,7 +357,7 @@ describe('useProjectSelector', () => {
       renderSelector()
 
       // Open create dialog
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
 
       // Fill and submit
@@ -380,7 +380,7 @@ describe('useProjectSelector', () => {
       renderSelector()
 
       // Open create dialog
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
 
       // Fill and submit
@@ -412,7 +412,7 @@ describe('useProjectSelector', () => {
       const user = userEvent.setup()
       const { container } = renderSelector()
 
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
 
       const results = await axe(container)
       expect(results).toHaveNoViolations()
@@ -422,7 +422,7 @@ describe('useProjectSelector', () => {
       const user = userEvent.setup()
       const { container } = renderSelector()
 
-      await user.click(screen.getByRole('button', { name: 'All projects' }))
+      await user.click(screen.getByDisplayValue('All projects'))
       await user.click(screen.getByRole('option', { name: 'Create project' }))
 
       const results = await axe(container)

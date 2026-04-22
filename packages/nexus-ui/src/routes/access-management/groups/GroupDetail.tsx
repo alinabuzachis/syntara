@@ -16,7 +16,7 @@ import {
   Tabs,
   Title,
 } from '@patternfly/react-core'
-import { RhUiArrowLeftIcon, RhUiEditIcon } from '@patternfly/react-icons'
+import { RhUiEditIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
@@ -28,6 +28,7 @@ import { useQueryState } from '../../../components/states/useQueryState'
 import { useDetailTab } from '../../../hooks/useDetailTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { accessClient } from '../../access/accessClient'
+import { DetailPageShell } from '../DetailPageShell'
 import { GroupFormModal } from '../GroupFormModal'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
 
@@ -154,51 +155,26 @@ export function GroupDetail() {
 
   if (groupQuery.error) {
     return (
-      <AppPage>
-        <AppPageHeader title="Group Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <GroupNotFoundState
-              onBack={navigateBack}
-              onRetry={() => {
-                refetchGroup().catch(() => {})
-              }}
-            />
-          </CompassPanel>
-        </StackItem>
-      </AppPage>
+      <DetailPageShell title="Group Details">
+        <GroupNotFoundState
+          onBack={navigateBack}
+          onRetry={() => {
+            refetchGroup().catch(() => {})
+          }}
+        />
+      </DetailPageShell>
     )
   }
 
   if (queryState) {
-    return (
-      <AppPage>
-        <AppPageHeader title="Group Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
-        </StackItem>
-      </AppPage>
-    )
+    return <DetailPageShell title="Group Details">{queryState}</DetailPageShell>
   }
 
   if (!groupData) return null
 
-  const headerTitle = (
-    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-      <FlexItem>
-        <Button variant="plain" aria-label="Back to groups" onClick={navigateBack}>
-          <RhUiArrowLeftIcon />
-        </Button>
-      </FlexItem>
-      <FlexItem>
-        <Title headingLevel="h1">{groupData.name}</Title>
-      </FlexItem>
-    </Flex>
-  )
-
   return (
     <AppPage>
-      <AppPageHeader title={headerTitle}>
+      <AppPageHeader title={<Title headingLevel="h1">{groupData.name}</Title>}>
         <FlexItem grow={{ default: 'grow' }} />
         {!groupData.is_builtin && (
           <Button variant="secondary" icon={<RhUiEditIcon />} onClick={() => setEditModalOpen(true)}>

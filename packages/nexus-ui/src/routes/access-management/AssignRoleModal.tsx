@@ -13,12 +13,13 @@ import {
   SelectOption,
 } from '@patternfly/react-core'
 import { type Ref, useEffect, useMemo, useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { useAlerts } from '../../components/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { accessClient } from '../access/accessClient'
+import { useAllRoles } from '../access/useAllRoles'
 
 import { MultiRoleSelect, type RoleOption } from './MultiRoleSelect'
 
@@ -103,12 +104,12 @@ export function AssignRoleModal({
   const [isPending, setIsPending] = useState(false)
   const { showAlert } = useAlerts()
 
-  const { control, handleSubmit, watch, setValue, reset, formState } = useForm<AssignRoleFormData>({
+  const { control, handleSubmit, setValue, reset, formState } = useForm<AssignRoleFormData>({
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: { scope: 'system', projectId: '', roleIds: [] },
   })
 
-  const scope = watch('scope')
+  const scope = useWatch({ control, name: 'scope' })
 
   // Clear roles when scope changes (different role sets for system vs project)
   useEffect(() => {
@@ -122,18 +123,19 @@ export function AssignRoleModal({
     }
   }, [isOpen, reset])
 
-  const rolesQuery = accessClient.useQuery('get', '/roles', { params: { query: { limit: 100 } } })
+  const { roles: allRoles } = useAllRoles()
   const projectsQuery = accessClient.useQuery('get', '/projects')
 
   const roleOptions = useMemo((): RoleOption[] => {
-    const allRoles = rolesQuery.data?.resources ?? []
     if (scope === 'system') {
       return allRoles
         .filter((r) => r.project_id === null)
         .map((r) => ({ id: r.id, name: r.name, description: r.description ?? null }))
     }
-    return allRoles.map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
-  }, [rolesQuery.data, scope])
+    return allRoles
+      .filter((r) => r.project_id === null && r.is_builtin && r.name.startsWith('project-'))
+      .map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
+  }, [allRoles, scope])
 
   const projectOptions = useMemo(() => {
     return (projectsQuery.data ?? []).map((p) => ({ value: p.id, label: p.name }))
@@ -191,7 +193,7 @@ export function AssignRoleModal({
     }
   })
 
-  const roleIds = watch('roleIds')
+  const roleIds = useWatch({ control, name: 'roleIds' })
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} variant="medium">

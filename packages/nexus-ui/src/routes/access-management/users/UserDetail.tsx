@@ -7,7 +7,6 @@ import {
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
-  Flex,
   FlexItem,
   StackItem,
   Tab,
@@ -15,7 +14,7 @@ import {
   Tabs,
   Title,
 } from '@patternfly/react-core'
-import { RhUiArrowLeftIcon, RhUiEditIcon } from '@patternfly/react-icons'
+import { RhUiEditIcon } from '@patternfly/react-icons'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -28,6 +27,7 @@ import { formatDateTime } from '../../../utils/dateUtils'
 import { detachPromise } from '../../../utils/detachPromise'
 import { isValidUUID } from '../../../utils/generateUUID'
 import { accessClient } from '../../access/accessClient'
+import { DetailPageShell } from '../DetailPageShell'
 import { RoleAssignmentsPanel } from '../RoleAssignmentsPanel'
 import { splitFullName } from '../userFormSchema'
 
@@ -114,51 +114,26 @@ export function UserDetail() {
 
   if (userQuery.error) {
     return (
-      <AppPage>
-        <AppPageHeader title="User Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <UserNotFoundState
-              onBack={navigateBack}
-              onRetry={() => {
-                detachPromise(refetchUser())
-              }}
-            />
-          </CompassPanel>
-        </StackItem>
-      </AppPage>
+      <DetailPageShell title="User Details">
+        <UserNotFoundState
+          onBack={navigateBack}
+          onRetry={() => {
+            detachPromise(refetchUser())
+          }}
+        />
+      </DetailPageShell>
     )
   }
 
   if (queryState) {
-    return (
-      <AppPage>
-        <AppPageHeader title="User Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
-        </StackItem>
-      </AppPage>
-    )
+    return <DetailPageShell title="User Details">{queryState}</DetailPageShell>
   }
 
   if (!userData) return null
 
-  const headerTitle = (
-    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-      <FlexItem>
-        <Button variant="plain" aria-label="Back to users" onClick={navigateBack}>
-          <RhUiArrowLeftIcon />
-        </Button>
-      </FlexItem>
-      <FlexItem>
-        <Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>
-      </FlexItem>
-    </Flex>
-  )
-
   return (
     <AppPage>
-      <AppPageHeader title={headerTitle}>
+      <AppPageHeader title={<Title headingLevel="h1">{userData.full_name ?? userData.username}</Title>}>
         <FlexItem grow={{ default: 'grow' }} />
         <Button variant="secondary" icon={<RhUiEditIcon />} onClick={navigateEdit}>
           Edit user

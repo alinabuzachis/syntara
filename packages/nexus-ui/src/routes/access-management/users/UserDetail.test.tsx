@@ -387,15 +387,6 @@ describe('UserDetail', () => {
   // ---- Navigation ---------------------------------------------------------
 
   describe('Navigation', () => {
-    it('navigates back to users list when back button is clicked', async () => {
-      const user = userEvent.setup()
-      render(<UserDetail />, { wrapper })
-
-      await user.click(screen.getByRole('button', { name: 'Back to users' }))
-
-      expect(mockNavigate).toHaveBeenCalledWith('/access-management/users')
-    })
-
     it('navigates to edit page when Edit user button is clicked', async () => {
       const user = userEvent.setup()
       render(<UserDetail />, { wrapper })

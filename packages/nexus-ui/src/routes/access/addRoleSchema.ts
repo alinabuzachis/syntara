@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
-export const addRoleSchema = z.object({
+/** Shared fields for both add and edit role forms */
+export const roleBaseSchema = z.object({
   name: z
     .string()
     .min(1, 'Name is required')
@@ -12,5 +13,23 @@ export const addRoleSchema = z.object({
   description: z.string().max(1024, 'Description must be 1024 characters or fewer').optional().or(z.literal('')),
   policies: z.array(z.string()).min(1, 'At least one policy is required'),
 })
+
+export type EditRoleFormData = z.infer<typeof roleBaseSchema>
+
+/** Add role schema includes scope and project selection */
+export const addRoleSchema = roleBaseSchema
+  .extend({
+    scope: z.enum(['system', 'project']),
+    projectId: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.scope === 'project' && !data.projectId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Project is required for project-scoped roles',
+        path: ['projectId'],
+      })
+    }
+  })
 
 export type AddRoleFormData = z.infer<typeof addRoleSchema>

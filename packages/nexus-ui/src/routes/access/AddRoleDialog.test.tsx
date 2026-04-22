@@ -38,21 +38,54 @@ describe('AddRoleDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Mock policies query (used by PolicySelect)
-    vi.mocked(accessClient.useQuery).mockReturnValue({
-      data: {
-        resources: [
-          { id: 'p1', name: 'workflow-admin', description: 'Manage workflows' },
-          { id: 'p2', name: 'project-viewer', description: 'View projects' },
-        ],
-      },
-      isPending: false,
-      isError: false,
-      error: null,
-      isFetching: false,
-      isLoading: false,
-      refetch: vi.fn(),
-    } as never)
+    // Mock queries — handle both /projects and /policies endpoints
+    vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
+      if (path === '/projects') {
+        return {
+          data: [
+            {
+              id: 'proj-1',
+              name: 'Project Alpha',
+              description: null,
+              labels: {},
+              is_default: true,
+              created_at: null,
+              updated_at: null,
+            },
+            {
+              id: 'proj-2',
+              name: 'Project Beta',
+              description: null,
+              labels: {},
+              is_default: false,
+              created_at: null,
+              updated_at: null,
+            },
+          ],
+          isPending: false,
+          isError: false,
+          error: null,
+          isFetching: false,
+          isLoading: false,
+          refetch: vi.fn(),
+        } as never
+      }
+      // /policies
+      return {
+        data: {
+          resources: [
+            { id: 'p1', name: 'workflow-admin', description: 'Manage workflows' },
+            { id: 'p2', name: 'project-viewer', description: 'View projects' },
+          ],
+        },
+        isPending: false,
+        isError: false,
+        error: null,
+        isFetching: false,
+        isLoading: false,
+        refetch: vi.fn(),
+      } as never
+    })
 
     vi.mocked(accessClient.useMutation).mockReturnValue({
       mutate: mockMutate,
@@ -188,6 +221,7 @@ describe('AddRoleDialog', () => {
           name: 'my-role',
           description: 'A test role',
           policies: ['workflow-admin'],
+          project_id: undefined,
         },
       })
     })

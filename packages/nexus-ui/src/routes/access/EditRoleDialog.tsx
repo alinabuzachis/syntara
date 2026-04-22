@@ -18,8 +18,8 @@ import { useAlerts } from '../../components/alerts'
 import { getErrorMessage } from '../../utils/apiErrors'
 
 import { accessClient } from './accessClient'
-import { addRoleSchema } from './addRoleSchema'
-import type { AddRoleFormData } from './addRoleSchema'
+import { roleBaseSchema } from './addRoleSchema'
+import type { EditRoleFormData } from './addRoleSchema'
 import { PolicySelect } from './PolicySelect'
 import type { RoleRead } from './types'
 
@@ -37,8 +37,8 @@ export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDi
     handleSubmit,
     control,
     formState: { errors },
-  } = useForm<AddRoleFormData>({
-    resolver: zodResolver(addRoleSchema, undefined, { mode: 'sync' }),
+  } = useForm<EditRoleFormData>({
+    resolver: zodResolver(roleBaseSchema, undefined, { mode: 'sync' }),
     defaultValues: {
       name: role.name,
       description: role.description ?? '',
@@ -48,7 +48,7 @@ export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDi
 
   const { mutate: updateRole, isPending } = accessClient.useMutation('put', '/roles/{role_id}')
 
-  const onSubmit = (data: AddRoleFormData) => {
+  const onSubmit = (data: EditRoleFormData) => {
     updateRole(
       {
         params: { path: { role_id: role.id } },
@@ -120,7 +120,12 @@ export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDi
               name="policies"
               control={control}
               render={({ field }) => (
-                <PolicySelect selected={field.value} onChange={field.onChange} hasError={!!errors.policies} />
+                <PolicySelect
+                  selected={field.value}
+                  onChange={field.onChange}
+                  hasError={!!errors.policies}
+                  scopeProjectId={role.project_id ?? null}
+                />
               )}
             />
             {errors.policies && (

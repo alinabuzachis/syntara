@@ -1,0 +1,9 @@
+.labelButton,
+.labelButton:hover,
+.labelButton:focus,
+.labelButton:active {
+  color: inherit;
+  min-height: auto;
+  padding: 0;
+  text-decoration: none;
+}

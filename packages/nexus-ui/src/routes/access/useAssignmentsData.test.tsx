@@ -406,7 +406,7 @@ describe('useAssignmentsData', () => {
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
       act(() => {
-        result.current.handleFilterChange([{ key: 'scope', value: 'system' }])
+        result.current.handleFilterChange([{ key: 'scope', value: '__system__' }])
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
@@ -418,11 +418,11 @@ describe('useAssignmentsData', () => {
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
       act(() => {
-        result.current.handleFilterChange([{ key: 'scope', value: 'project' }])
+        result.current.handleFilterChange([{ key: 'scope', value: 'p1' }])
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
-      expect(result.current.sortedRows.every((r) => r.scopeType === 'project')).toBe(true)
+      expect(result.current.sortedRows.every((r) => r.projectId === 'p1')).toBe(true)
     })
 
     it('filters by project id', () => {
@@ -430,7 +430,7 @@ describe('useAssignmentsData', () => {
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
       act(() => {
-        result.current.handleFilterChange([{ key: 'project', value: 'p1' }])
+        result.current.handleFilterChange([{ key: 'scope', value: 'p1' }])
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
@@ -444,7 +444,7 @@ describe('useAssignmentsData', () => {
       act(() => {
         result.current.handleFilterChange([
           { key: 'type', value: 'user' },
-          { key: 'scope', value: 'project' },
+          { key: 'scope', value: 'p1' },
         ])
       })
 

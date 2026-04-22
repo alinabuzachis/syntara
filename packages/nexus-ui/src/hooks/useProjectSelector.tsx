@@ -12,9 +12,11 @@ import {
   SelectList,
   SelectOption,
   TextInput,
+  TextInputGroup,
+  TextInputGroupMain,
 } from '@patternfly/react-core'
 import { PlusIcon } from '@patternfly/react-icons'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
 import { useAlerts } from '../components/alerts'
@@ -52,11 +54,13 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
   const { requireProject = false } = options ?? {}
   const { selectedProjectId, setSelectedProjectId } = useProjectStore()
   const [isOpen, setIsOpen] = useState(false)
+  const [filterValue, setFilterValue] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const { showSuccess, showError } = useAlerts()
 
   const projectsQuery = accessClient.useQuery('get', '/projects')
-  const projects = projectsQuery.data ?? []
+  const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data])
   const selectedProject = selectedProjectId ? (projects.find((p) => p.id === selectedProjectId) ?? null) : null
 
   // Clear stale project ID if it doesn't match any known project
@@ -98,13 +102,28 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
     )
   }
 
+  const filteredProjects = useMemo(() => {
+    if (!filterValue) return projects
+    const term = filterValue.toLowerCase()
+    return projects.filter((p) => p.name.toLowerCase().includes(term))
+  }, [projects, filterValue])
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 0)
+    }
+  }, [isOpen])
+
   const toggleLabel = selectedProject?.name ?? (requireProject ? 'Select a project' : 'All projects')
 
   const ProjectSelector = (
     <>
       <Select
         isOpen={isOpen}
-        onOpenChange={setIsOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open)
+          if (!open) setFilterValue('')
+        }}
         onSelect={(_event, value) => {
           if (value === CREATE_PROJECT_VALUE) {
             setIsOpen(false)
@@ -113,15 +132,30 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
           }
           setSelectedProjectId(value === ALL_PROJECTS_VALUE ? null : (value as string))
           setIsOpen(false)
+          setFilterValue('')
         }}
         selected={selectedProjectId ?? (requireProject ? undefined : ALL_PROJECTS_VALUE)}
         toggle={(toggleRef) => (
-          <MenuToggle ref={toggleRef} onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen}>
-            {toggleLabel}
+          <MenuToggle ref={toggleRef} variant="typeahead" onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen}>
+            <TextInputGroup isPlain>
+              <TextInputGroupMain
+                value={isOpen ? filterValue : toggleLabel}
+                onChange={(_e, val) => {
+                  setFilterValue(val)
+                  if (!isOpen) setIsOpen(true)
+                }}
+                onClick={() => {
+                  if (!isOpen) setIsOpen(true)
+                }}
+                placeholder={toggleLabel}
+                autoComplete="off"
+                innerRef={searchInputRef}
+              />
+            </TextInputGroup>
           </MenuToggle>
         )}
       >
-        <SelectList>
+        <SelectList style={{ maxHeight: '200px', overflow: 'auto' }}>
           {!requireProject && (
             <>
               <SelectOption key={ALL_PROJECTS_VALUE} value={ALL_PROJECTS_VALUE}>
@@ -130,7 +164,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
               <Divider key="divider-all" />
             </>
           )}
-          {projects.map((p) => (
+          {filteredProjects.map((p) => (
             <SelectOption key={p.id} value={p.id}>
               {p.name}
             </SelectOption>

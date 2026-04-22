@@ -21,6 +21,8 @@ import { accessClient } from './accessClient'
 import { assignRoleSchema } from './assignRoleSchema'
 import type { AssignRoleFormData } from './assignRoleSchema'
 import { TypeaheadSelect } from './TypeaheadSelect'
+import { useAllRoles } from './useAllRoles'
+import { useAllUsers } from './useAllUsers'
 
 const ASSIGNMENT_TYPE_OPTIONS = [
   { value: 'user-project', label: 'User to Project' },
@@ -34,7 +36,9 @@ const ASSIGNMENT_TYPE_OPTIONS = [
 interface AssignmentFormFieldsProps {
   assignmentType: string
   projectOptions: { value: string; label: string }[]
+  userOptions: { value: string; label: string }[]
   roleOptions: { value: string; label: string }[]
+  isRoleDisabled: boolean
   errors: ReturnType<typeof useForm<AssignRoleFormData>>['formState']['errors']
   control: ReturnType<typeof useForm<AssignRoleFormData>>['control']
   register: ReturnType<typeof useForm<AssignRoleFormData>>['register']
@@ -43,7 +47,9 @@ interface AssignmentFormFieldsProps {
 function AssignmentFormFields({
   assignmentType,
   projectOptions,
+  userOptions,
   roleOptions,
+  isRoleDisabled,
   errors,
   control,
   register,
@@ -73,13 +79,21 @@ function AssignmentFormFields({
       )}
 
       {(assignmentType === 'user-project' || assignmentType === 'user-system') && (
-        <FormGroup label="User ID" isRequired fieldId="user-id">
-          <TextInput
-            id="user-id"
-            isRequired
-            aria-label="User ID"
-            validated={errors.userId ? 'error' : 'default'}
-            {...register('userId')}
+        <FormGroup label="User" isRequired fieldId="user-id">
+          <Controller
+            name="userId"
+            control={control}
+            render={({ field }) => (
+              <TypeaheadSelect
+                id="user-id"
+                ariaLabel="User"
+                options={userOptions}
+                selected={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Select a user..."
+                hasError={!!errors.userId}
+              />
+            )}
           />
         </FormGroup>
       )}
@@ -108,8 +122,9 @@ function AssignmentFormFields({
               options={roleOptions}
               selected={field.value ?? ''}
               onChange={field.onChange}
-              placeholder="Select a role..."
+              placeholder={isRoleDisabled ? 'Select a project first...' : 'Select a role...'}
               hasError={isProjectScoped ? !!errors.roleName : !!errors.roleId}
+              isDisabled={isRoleDisabled}
             />
           )}
         />
@@ -121,19 +136,18 @@ function AssignmentFormFields({
 // ── Dialog ─────────────────────────────────────────────────────────────────
 
 interface AssignRoleDialogProps {
-  projectId?: string
   onClose: () => void
   onSuccess: () => void
 }
 
-export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<AssignRoleDialogProps>) {
+export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDialogProps>) {
   const { showSuccess, showError } = useAlerts()
 
   const projectsQuery = accessClient.useQuery('get', '/projects')
   const projectsData = projectsQuery.data
 
-  const rolesQuery = accessClient.useQuery('get', '/roles', { params: { query: { limit: 100 } } })
-  const rolesData = rolesQuery.data
+  const { users } = useAllUsers()
+  const { roles: allRoles } = useAllRoles()
 
   const {
     register,
@@ -145,7 +159,7 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
     resolver: zodResolver(assignRoleSchema, undefined, { mode: 'sync' }),
     defaultValues: {
       assignmentType: 'user-project',
-      projectId: projectId ?? '',
+      projectId: '',
       userId: '',
       groupId: '',
       roleName: '',
@@ -154,6 +168,7 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
   })
 
   const assignmentType = useWatch({ control, name: 'assignmentType' })
+  const selectedProjectId = useWatch({ control, name: 'projectId' })
   const isProjectScoped = assignmentType === 'user-project' || assignmentType === 'group-project'
 
   // Reset role selection when switching between project/system scope
@@ -163,18 +178,31 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
     setValue('roleId', '')
   }, [assignmentType, setValue])
 
+  // Reset role selection when project changes (roles are project-specific)
+  useEffect(() => {
+    if (isProjectScoped) {
+      setValue('roleName', '')
+    }
+  }, [selectedProjectId, isProjectScoped, setValue])
+
   const projectOptions = useMemo(
     () => (projectsData ?? []).map((p) => ({ value: p.id, label: p.name })),
     [projectsData]
   )
 
-  const roleOptions = useMemo(
-    () =>
-      (rolesData?.resources ?? []).map((role) =>
-        isProjectScoped ? { value: role.name, label: role.name } : { value: role.id, label: role.name }
-      ),
-    [rolesData, isProjectScoped]
-  )
+  const userOptions = useMemo(() => users.map((u) => ({ value: u.id, label: u.username })), [users])
+
+  const roleOptions = useMemo(() => {
+    const filtered =
+      isProjectScoped && selectedProjectId ? allRoles.filter((role) => role.project_id === selectedProjectId) : allRoles
+    return filtered.map((role) => ({
+      value: isProjectScoped ? role.name : role.id,
+      label: role.name,
+      tag: role.is_system_scoped
+        ? { label: 'System', color: 'blue' as const }
+        : { label: 'Project', color: 'green' as const },
+    }))
+  }, [allRoles, isProjectScoped, selectedProjectId])
 
   const { mutate: assignProjectRole, isPending: isPendingProjectRole } = accessClient.useMutation(
     'post',
@@ -268,7 +296,9 @@ export function AssignRoleDialog({ projectId, onClose, onSuccess }: Readonly<Ass
           <AssignmentFormFields
             assignmentType={assignmentType}
             projectOptions={projectOptions}
+            userOptions={userOptions}
             roleOptions={roleOptions}
+            isRoleDisabled={isProjectScoped && !selectedProjectId}
             errors={errors}
             control={control}
             register={register}

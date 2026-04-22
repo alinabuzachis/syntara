@@ -165,6 +165,8 @@ export interface components {
       labels?: {
         [key: string]: unknown
       }
+      /** @description True when the policy is not scoped to a specific project (computed from project_id) */
+      readonly is_system_scoped?: boolean
       /**
        * Format: date-time
        * @description Creation timestamp
@@ -298,6 +300,8 @@ export interface operations {
         is_builtin?: boolean
         /** @description Filter by project scope */
         project_id?: string
+        /** @description When true, return only policies whose actions are valid for project-scoped roles */
+        project_eligible?: boolean
       }
       header?: never
       path?: never

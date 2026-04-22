@@ -20,12 +20,25 @@ interface PolicySelectProps {
   selected: string[]
   onChange: (selected: string[]) => void
   hasError?: boolean
+  /** Filter policies by project scope. Omit or pass `null`/`undefined` for system (unfiltered), UUID for project-scoped. */
+  scopeProjectId?: string | null
+  /** When true, fetch only policies whose actions are valid for project-scoped roles. */
+  projectEligible?: boolean
+  /** When true, the select is disabled (e.g. waiting for project selection). */
+  isDisabled?: boolean
 }
 
 const DEBOUNCE_MS = 300
 const PAGE_SIZE = 50
 
-export function PolicySelect({ selected, onChange, hasError }: Readonly<PolicySelectProps>) {
+export function PolicySelect({
+  selected,
+  onChange,
+  hasError,
+  scopeProjectId,
+  projectEligible,
+  isDisabled,
+}: Readonly<PolicySelectProps>) {
   const [isOpen, setIsOpen] = useState(false)
   const [filterValue, setFilterValue] = useState('')
   const [debouncedFilter, setDebouncedFilter] = useState('')
@@ -43,7 +56,16 @@ export function PolicySelect({ selected, onChange, hasError }: Readonly<PolicySe
   const policiesQuery = accessClient.useQuery(
     'get',
     '/policies',
-    { params: { query: { limit: PAGE_SIZE, 'name[contains]': debouncedFilter || undefined } } },
+    {
+      params: {
+        query: {
+          limit: PAGE_SIZE,
+          'name[contains]': debouncedFilter || undefined,
+          ...(scopeProjectId ? { project_id: scopeProjectId } : {}),
+          ...(projectEligible ? { project_eligible: true } : {}),
+        },
+      },
+    },
     { enabled: isOpen }
   )
 
@@ -104,9 +126,10 @@ export function PolicySelect({ selected, onChange, hasError }: Readonly<PolicySe
       onClick={() => setIsOpen(!isOpen)}
       isExpanded={isOpen}
       isFullWidth
+      isDisabled={isDisabled}
       status={hasError ? 'danger' : undefined}
     >
-      <TextInputGroup isPlain>
+      <TextInputGroup isPlain isDisabled={isDisabled}>
         <TextInputGroupMain
           value={filterValue}
           onChange={(_e, val) => {

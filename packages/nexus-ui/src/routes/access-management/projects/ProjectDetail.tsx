@@ -1,5 +1,4 @@
 import {
-  Button,
   CompassPanel,
   DescriptionList,
   DescriptionListDescription,
@@ -15,7 +14,6 @@ import {
   Tabs,
   Title,
 } from '@patternfly/react-core'
-import { RhUiArrowLeftIcon } from '@patternfly/react-icons'
 import { useParams } from 'wouter'
 import { navigate } from 'wouter/use-browser-location'
 
@@ -27,8 +25,10 @@ import { useDetailTab } from '../../../hooks/useDetailTab'
 import { formatDateTime } from '../../../utils/dateUtils'
 import { accessClient } from '../../access/accessClient'
 import type { ProjectRead } from '../../access/types'
+import { DetailPageShell } from '../DetailPageShell'
 
 import { ProjectNotFoundState } from './ProjectNotFoundState'
+import { ProjectPermissionsTab } from './ProjectPermissionsTab'
 
 function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
   const labelEntries = Object.entries(project.labels ?? {})
@@ -83,7 +83,8 @@ function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>()
   const basePath = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId ?? '')
-  const [activeTab, goToTab] = useDetailTab<'details'>(basePath)
+  type ProjectTab = 'details' | 'permissions'
+  const [activeTab, goToTab] = useDetailTab<ProjectTab>(basePath)
 
   const projectQuery = accessClient.useQuery(
     'get',
@@ -105,59 +106,36 @@ export function ProjectDetail() {
 
   if (projectQuery.error) {
     return (
-      <AppPage>
-        <AppPageHeader title="Project Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>
-            <ProjectNotFoundState
-              onBack={navigateBack}
-              onRetry={() => {
-                refetchProject().catch(() => {})
-              }}
-            />
-          </CompassPanel>
-        </StackItem>
-      </AppPage>
+      <DetailPageShell title="Project Details">
+        <ProjectNotFoundState
+          onBack={navigateBack}
+          onRetry={() => {
+            refetchProject().catch(() => {})
+          }}
+        />
+      </DetailPageShell>
     )
   }
 
   if (queryState) {
-    return (
-      <AppPage>
-        <AppPageHeader title="Project Details" />
-        <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
-          <CompassPanel isFullHeight>{queryState}</CompassPanel>
-        </StackItem>
-      </AppPage>
-    )
+    return <DetailPageShell title="Project Details">{queryState}</DetailPageShell>
   }
 
   if (!projectData) return null
 
-  const headerTitle = (
-    <Flex alignItems={{ default: 'alignItemsCenter' }} gap={{ default: 'gapMd' }}>
-      <FlexItem>
-        <Button variant="plain" aria-label="Back to projects" onClick={navigateBack}>
-          <RhUiArrowLeftIcon />
-        </Button>
-      </FlexItem>
-      <FlexItem>
-        <Title headingLevel="h1">{projectData.name}</Title>
-      </FlexItem>
-    </Flex>
-  )
-
   return (
     <AppPage>
-      <AppPageHeader title={headerTitle} />
+      <AppPageHeader title={<Title headingLevel="h1">{projectData.name}</Title>} />
       <StackItem>
-        <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as 'details')}>
+        <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as ProjectTab)}>
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
+          <Tab eventKey="permissions" title={<TabTitleText>Permissions</TabTitleText>} />
         </Tabs>
       </StackItem>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <CompassPanel isFullHeight>
           {activeTab === 'details' && <ProjectDetailsTab project={projectData} />}
+          {activeTab === 'permissions' && <ProjectPermissionsTab projectId={projectId ?? ''} />}
         </CompassPanel>
       </StackItem>
     </AppPage>

@@ -25,6 +25,7 @@ interface AuthState {
   isRefreshing: boolean
   error: string | null
   logoutCount: number
+  username: string | null
 }
 
 interface LoginCredentials {
@@ -61,6 +62,7 @@ const INITIAL_STATE: AuthState = {
   isRefreshing: false,
   error: null,
   logoutCount: 0,
+  username: null,
 }
 
 // ============================================================================
@@ -96,6 +98,19 @@ async function postAuth(url: string, body?: object): Promise<LoginResponse> {
   return (await response.json()) as LoginResponse
 }
 
+function parseUsernameFromJwt(token: string): string | null {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return null
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+    const decoded = JSON.parse(atob(padded)) as { preferred_username?: string }
+    return decoded.preferred_username ?? null
+  } catch {
+    return null
+  }
+}
+
 function applyTokenResponse(set: (partial: Partial<AuthState>) => void, data: LoginResponse): void {
   set({
     accessToken: data.access_token,
@@ -103,6 +118,7 @@ function applyTokenResponse(set: (partial: Partial<AuthState>) => void, data: Lo
     isAuthenticated: true,
     isRefreshing: false,
     error: null,
+    username: parseUsernameFromJwt(data.access_token),
   })
 }
 

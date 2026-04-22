@@ -7,6 +7,7 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../components/alerts'
 import { accessClient } from '../access/accessClient'
+import { useAllRoles } from '../access/useAllRoles'
 
 import { AssignRoleModal } from './AssignRoleModal'
 
@@ -19,6 +20,10 @@ vi.mock('../access/accessClient', () => ({
 
 vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
+}))
+
+vi.mock('../access/useAllRoles', () => ({
+  useAllRoles: vi.fn(),
 }))
 
 const mockMutateAsync = vi.fn()
@@ -54,9 +59,18 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 const mockRoles = {
   resources: [
-    { id: 'r1', name: 'admin-role', description: 'Admin', project_id: null, policies: [] },
-    { id: 'r2', name: 'viewer-role', description: 'Viewer', project_id: null, policies: [] },
-    { id: 'r3', name: 'project-editor', description: 'Editor', project_id: 'proj1', policies: [] },
+    { id: 'r1', name: 'admin-role', description: 'Admin', project_id: null, is_builtin: true, policies: [] },
+    { id: 'r2', name: 'viewer-role', description: 'Viewer', project_id: null, is_builtin: true, policies: [] },
+    { id: 'r3', name: 'project-admin', description: 'Project Admin', project_id: null, is_builtin: true, policies: [] },
+    { id: 'r4', name: 'project-user', description: 'Project User', project_id: null, is_builtin: true, policies: [] },
+    {
+      id: 'r5',
+      name: 'project-auditor',
+      description: 'Project Auditor',
+      project_id: null,
+      is_builtin: true,
+      policies: [],
+    },
   ],
 }
 
@@ -86,10 +100,13 @@ describe('AssignRoleModal', () => {
   const mockOnSuccess = vi.fn()
 
   function setupMocks() {
+    vi.mocked(useAllRoles).mockReturnValue({
+      roles: mockRoles.resources as never,
+      isLoading: false,
+      error: null,
+    })
+
     vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-      if (path === '/roles') {
-        return { data: mockRoles, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
-      }
       if (path === '/projects') {
         return { data: mockProjects, isPending: false, isError: false, error: null, refetch: vi.fn() } as never
       }
@@ -219,7 +236,7 @@ describe('AssignRoleModal', () => {
       expect(screen.queryByRole('option', { name: /project-editor/i })).not.toBeInTheDocument()
     })
 
-    it('shows all roles by name in project scope', async () => {
+    it('shows only project-scoped built-in roles in project scope', async () => {
       const user = userEvent.setup()
       renderModal()
 
@@ -236,10 +253,13 @@ describe('AssignRoleModal', () => {
       // Open the role multi-select via its placeholder/input
       await user.click(screen.getByPlaceholderText('Search for roles...'))
 
-      // All roles should appear (mapped by name)
-      expect(screen.getByRole('option', { name: /admin-role/i })).toBeInTheDocument()
-      expect(screen.getByRole('option', { name: /viewer-role/i })).toBeInTheDocument()
-      expect(screen.getByRole('option', { name: /project-editor/i })).toBeInTheDocument()
+      // Only project-* roles (project_id === null && name.startsWith('project-'))
+      expect(screen.getByRole('option', { name: /project-admin/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /project-user/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /project-auditor/i })).toBeInTheDocument()
+      // System-only roles should not appear
+      expect(screen.queryByRole('option', { name: /^admin-role/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('option', { name: /^viewer-role/i })).not.toBeInTheDocument()
     })
   })
 
@@ -329,10 +349,9 @@ describe('AssignRoleModal', () => {
       await user.click(projectToggle)
       await user.click(screen.getByRole('option', { name: 'Project Alpha' }))
 
-      // Select a role (in project scope, id = name)
-      // Open the role multi-select via its placeholder/input
+      // Select a role (in project scope, id = name for project-* roles)
       await user.click(screen.getByPlaceholderText('Search for roles...'))
-      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+      await user.click(screen.getByRole('option', { name: /project-admin/i }))
 
       // Submit
       await user.click(screen.getByRole('button', { name: /Assign \(1\)/i }))
@@ -340,7 +359,7 @@ describe('AssignRoleModal', () => {
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
           params: { path: { project_id: 'proj1' } },
-          body: { user_id: 'u1', role_name: 'admin-role' },
+          body: { user_id: 'u1', role_name: 'project-admin' },
         })
       })
     })
@@ -363,17 +382,16 @@ describe('AssignRoleModal', () => {
       await user.click(projectToggle)
       await user.click(screen.getByRole('option', { name: 'Project Alpha' }))
 
-      // Select a role
-      // Open the role multi-select via its placeholder/input
+      // Select a role (project-scoped roles)
       await user.click(screen.getByPlaceholderText('Search for roles...'))
-      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+      await user.click(screen.getByRole('option', { name: /project-admin/i }))
 
       await user.click(screen.getByRole('button', { name: /Assign \(1\)/i }))
 
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
           params: { path: { project_id: 'proj1' } },
-          body: { group_id: 'g1', role_name: 'admin-role' },
+          body: { group_id: 'g1', role_name: 'project-admin' },
         })
       })
     })
@@ -399,13 +417,14 @@ describe('AssignRoleModal', () => {
       await user.click(screen.getByText('System'))
       await user.click(screen.getByRole('option', { name: 'Project' }))
 
-      // Select a role (without selecting a project)
+      // Wait for project selector to appear
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Select a project...' })).toBeInTheDocument()
       })
-      // Open the role multi-select via its placeholder/input
+
+      // Select a role (without selecting a project first)
       await user.click(screen.getByPlaceholderText('Search for roles...'))
-      await user.click(screen.getByRole('option', { name: /admin-role/i }))
+      await user.click(screen.getByRole('option', { name: /project-admin/i }))
 
       // Submit button should be disabled (no project selected)
       expect(screen.getByRole('button', { name: /Assign \(1\)/i })).toBeDisabled()
