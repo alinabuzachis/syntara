@@ -6,15 +6,19 @@ Tests cover:
 - update: stores value, increments version, validates, optimistic locking
 - update edge cases: None clears override, 0/False/"" are valid
 - bulk_update: updates multiple settings
+- concurrent update: optimistic locking under asyncio.gather
 """
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.core.models import User
 from nexus.settings.exceptions import OptimisticLockError, SettingNotFoundError, SettingValidationError
@@ -24,7 +28,7 @@ from nexus.settings.services.settings_service import SettingsService
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    from sqlmodel.ext.asyncio.session import AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncEngine
 
 
 def _make_user() -> User:
@@ -451,3 +455,32 @@ async def test_update_rejects_non_serializable_value(test_db_session: AsyncSessi
 
     with pytest.raises(SettingValidationError, match="not JSON-serializable"):
         await service.update(key="test.update.nonserial", value=object(), expected_version=1)
+
+
+# ---------------------------------------------------------------------------
+# Concurrent optimistic locking
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_concurrent_update_only_one_succeeds(test_db_engine: AsyncEngine) -> None:
+    """Two concurrent updates with the same expected_version: exactly one wins."""
+    session_factory = async_sessionmaker(test_db_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with session_factory() as setup_session:
+        await _insert_setting(setup_session, key="test.concurrent.lock")
+        await setup_session.commit()
+
+    async def attempt_update() -> object:
+        async with session_factory() as session:
+            service = SettingsService(session, _make_user())
+            return await service.update(key="test.concurrent.lock", value=999, expected_version=1)
+
+    results = await asyncio.gather(attempt_update(), attempt_update(), return_exceptions=True)
+
+    successes = [r for r in results if not isinstance(r, Exception)]
+    lock_errors = [r for r in results if isinstance(r, OptimisticLockError)]
+
+    assert len(successes) == 1, "Exactly one concurrent update should succeed"
+    assert len(lock_errors) == 1, "Exactly one should raise OptimisticLockError"
+    assert lock_errors[0].submitted_version == 1

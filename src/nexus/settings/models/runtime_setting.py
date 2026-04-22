@@ -26,6 +26,8 @@ from nexus.core.utils.sqlmodel import postgres_enum_column
 _KEY_MAX_LENGTH = FieldLimits.NAME_MAX_LENGTH
 
 
+# PostgreSQL ENUM migration note: adding a value is safe (ALTER TYPE … ADD VALUE).
+# Renaming or removing requires a multi-step migration; Alembic autogenerate cannot handle it.
 class SettingCategory(str, Enum):
     """Logical grouping for runtime settings, used for display and filtering."""
 
@@ -37,6 +39,7 @@ class SettingCategory(str, Enum):
     APPLICATION = "application"
 
 
+# Same PostgreSQL ENUM migration constraints as SettingCategory apply.
 class SettingValueType(str, Enum):
     """Expected value type for a runtime setting, used for UI rendering and validation."""
 

@@ -121,15 +121,14 @@ async def test_get_returns_value_when_set(
 
 
 @pytest.mark.asyncio
-async def test_get_returns_none_for_unknown_key(
+async def test_get_raises_for_unknown_catalog_key(
     test_session_factory: Callable[[], object],
 ) -> None:
-    """get() returns None when the key does not exist in the database."""
+    """get() raises KeyError for keys not registered in the settings catalog."""
     cache = SettingsCache(session_factory=test_session_factory)
 
-    result = await cache.get("test.cache.nonexistent")
-
-    assert result is None
+    with pytest.raises(KeyError, match="not in catalog"):
+        await cache.get("test.cache.nonexistent")
 
 
 @pytest.mark.asyncio
@@ -137,7 +136,7 @@ async def test_get_returns_none_when_both_value_and_default_are_none(
     test_db_session: AsyncSession,
     test_session_factory: Callable[[], object],
 ) -> None:
-    """get() returns None when a row exists but both value and default_value are NULL."""
+    """get() returns None when a catalog key exists but both DB columns are NULL."""
     await _seed_setting(
         test_db_session,
         key="test.cache.both_none",
@@ -146,7 +145,8 @@ async def test_get_returns_none_when_both_value_and_default_are_none(
     )
     cache = SettingsCache(session_factory=test_session_factory)
 
-    result = await cache.get("test.cache.both_none")
+    with _catalog_with_key("test.cache.both_none"):
+        result = await cache.get("test.cache.both_none")
 
     assert result is None
 
@@ -241,12 +241,21 @@ async def test_get_bool_with_real_db(
 
 @pytest.mark.asyncio
 async def test_get_int_with_default_fallback(
+    test_db_session: AsyncSession,
     test_session_factory: Callable[[], object],
 ) -> None:
-    """get_int() returns the caller-supplied default when the key is missing."""
+    """get_int() returns the caller-supplied default when the DB row has no value set."""
+    await _seed_setting(
+        test_db_session,
+        key="test.cache.missing_int",
+        value=None,
+        default_value=None,
+        value_type=SettingValueType.INTEGER,
+    )
     cache = SettingsCache(session_factory=test_session_factory)
 
-    result = await cache.get_int("test.cache.missing_int", default=42)
+    with _catalog_with_key("test.cache.missing_int", SettingValueType.INTEGER):
+        result = await cache.get_int("test.cache.missing_int", default=42)
 
     assert result == 42
 
@@ -265,5 +274,5 @@ async def test_get_int_raises_type_error_for_wrong_type(
     )
     cache = SettingsCache(session_factory=test_session_factory)
 
-    with pytest.raises(SettingTypeError):
+    with _catalog_with_key("test.cache.wrong_type", SettingValueType.INTEGER), pytest.raises(SettingTypeError):
         await cache.get_int("test.cache.wrong_type")

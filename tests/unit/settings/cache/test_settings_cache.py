@@ -2,7 +2,7 @@
 
 Tests cover:
 - get() reads from DB and returns resolved value
-- get() returns None for unknown keys
+- get() raises KeyError for unknown catalog keys
 - invalidate() is a safe no-op
 - get_runtime_settings() / set_runtime_settings() singleton management
 """
@@ -91,25 +91,27 @@ async def test_get_returns_value_when_set(cache: SettingsCache) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_returns_none_for_unknown_key(cache: SettingsCache) -> None:
-    """get() returns None immediately for keys not in the catalog, without hitting the DB."""
+async def test_get_raises_for_unknown_key(cache: SettingsCache) -> None:
+    """get() raises KeyError immediately for keys not in the catalog, without hitting the DB."""
     mock_store = AsyncMock()
     mock_store.get = AsyncMock(return_value=None)
 
-    with patch(
-        "nexus.settings.cache.settings_cache.SettingsStore",
-        return_value=mock_store,
+    with (
+        patch(
+            "nexus.settings.cache.settings_cache.SettingsStore",
+            return_value=mock_store,
+        ),
+        pytest.raises(KeyError, match="not in catalog"),
     ):
-        result = await cache.get("does.not.exist")
+        await cache.get("does.not.exist")
 
-    assert result is None
     mock_store.get.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_unknown_key_not_cached(cache: SettingsCache) -> None:
     """Unknown keys are not stored in L1, keeping the cache bounded."""
-    with patch("nexus.settings.cache.settings_cache.SettingsStore"):
+    with patch("nexus.settings.cache.settings_cache.SettingsStore"), pytest.raises(KeyError):
         await cache.get("attacker.injected.key")
 
     assert "attacker.injected.key" not in cache._cache

@@ -12,6 +12,8 @@ Design:
       ``version``).
     - Safe under concurrent execution: the upsert is atomic per row at
       the database level.
+    - Uses ``RETURNING (xmax = 0)`` to distinguish new inserts from
+      metadata refreshes on existing rows (``xmax = 0`` ↔ new insert).
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+import sqlalchemy as sa
 import structlog
 from sqlalchemy.dialects.postgresql import insert
 
@@ -46,19 +49,49 @@ _UPSERT_UPDATE_FIELDS = (
     "updated_at",
 )
 
-
 _CATEGORY_UPSERT_FIELDS = ("name", "description", "display_order", "updated_at")
 
 
 # ---------------------------------------------------------------------------
-# Core upsert helpers (session-based)
+# Shared upsert helper
 # ---------------------------------------------------------------------------
 
 
-async def _upsert_categories(session: AsyncSession) -> int:
-    """Upsert category catalog entries. Returns row count."""
+async def _upsert(
+    session: AsyncSession,
+    model: type,
+    rows: list[dict[str, object]],
+    conflict_on: list[str],
+    update_fields: tuple[str, ...],
+) -> tuple[int, int]:
+    """Insert rows, updating on conflict. Returns ``(inserts, updates)``.
+
+    Uses ``RETURNING (xmax = 0)`` to distinguish new inserts (xmax is the
+    transaction ID of the last update; 0 means the row was just inserted).
+    """
+    if not rows:
+        return 0, 0
+
+    upsert = insert(model).values(rows)
+    upsert = upsert.on_conflict_do_update(
+        index_elements=conflict_on,
+        set_={col: upsert.excluded[col] for col in update_fields},
+    )
+    result = await session.execute(upsert.returning(sa.literal_column("(xmax = 0)")))
+    is_insert_flags = list(result.scalars().all())
+    inserts = sum(1 for flag in is_insert_flags if flag)
+    return inserts, len(is_insert_flags) - inserts
+
+
+# ---------------------------------------------------------------------------
+# Per-table upsert builders
+# ---------------------------------------------------------------------------
+
+
+async def _upsert_categories(session: AsyncSession) -> tuple[int, int]:
+    """Upsert category catalog entries. Returns ``(inserts, updates)``."""
     if not CATEGORY_CATALOG:
-        return 0
+        return 0, 0
 
     now = datetime.now(UTC)
     rows: list[dict[str, object]] = [
@@ -75,13 +108,7 @@ async def _upsert_categories(session: AsyncSession) -> int:
         for cat in CATEGORY_CATALOG
     ]
 
-    stmt = insert(SettingCategoryModel).values(rows)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["slug"],
-        set_={col: stmt.excluded[col] for col in _CATEGORY_UPSERT_FIELDS},
-    )
-    await session.execute(stmt)
-    return len(rows)
+    return await _upsert(session, SettingCategoryModel, rows, ["slug"], _CATEGORY_UPSERT_FIELDS)
 
 
 def _validate_catalog() -> None:
@@ -102,15 +129,15 @@ def _validate_catalog() -> None:
         )
 
 
-async def _upsert_settings(session: AsyncSession) -> int:
-    """Upsert settings catalog entries. Returns row count."""
+async def _upsert_settings(session: AsyncSession) -> tuple[int, int]:
+    """Upsert settings catalog entries. Returns ``(inserts, updates)``."""
     if not SETTINGS_CATALOG:
-        return 0
+        return 0, 0
 
     _validate_catalog()
 
     now = datetime.now(UTC)
-    rows = [
+    rows: list[dict[str, object]] = [
         {
             "id": uuid4(),
             "name": defn.name,
@@ -132,13 +159,7 @@ async def _upsert_settings(session: AsyncSession) -> int:
         for defn in SETTINGS_CATALOG
     ]
 
-    stmt = insert(RuntimeSetting).values(rows)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["key"],
-        set_={col: stmt.excluded[col] for col in _UPSERT_UPDATE_FIELDS},
-    )
-    await session.execute(stmt)
-    return len(rows)
+    return await _upsert(session, RuntimeSetting, rows, ["key"], _UPSERT_UPDATE_FIELDS)
 
 
 # ---------------------------------------------------------------------------
@@ -152,13 +173,13 @@ async def seed_settings_with_session(session: AsyncSession) -> None:
     Conforms to the unified ``SeederFunc(session)`` interface used by
     :func:`nexus.core.seed.run_seeders`.
     """
-    cat_count = await _upsert_categories(session)
-    if cat_count:
-        logger.info("settings.categories.seeded", count=cat_count)
+    cat_inserts, cat_updates = await _upsert_categories(session)
+    if cat_inserts or cat_updates:
+        logger.info("settings.categories.seeded", inserted=cat_inserts, updated=cat_updates)
 
-    settings_count = await _upsert_settings(session)
-    if settings_count:
-        logger.info("settings.seeder.complete", count=settings_count)
+    setting_inserts, setting_updates = await _upsert_settings(session)
+    if setting_inserts or setting_updates:
+        logger.info("settings.seeder.complete", inserted=setting_inserts, updated=setting_updates)
     else:
         logger.info("settings.seeder.empty_catalog")
 

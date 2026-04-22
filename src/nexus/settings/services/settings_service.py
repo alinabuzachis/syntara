@@ -301,8 +301,7 @@ class SettingsService(BaseService):
 
         if result.rowcount == 0:  # type: ignore[attr-defined]
             if expected_version is not None:
-                refreshed = await self._get_by_key(key)
-                raise OptimisticLockError(key, refreshed.version, expected_version)
+                raise OptimisticLockError(key, current.version, expected_version)
             # rowcount=0 without locking means key not found (already checked above)
             raise SettingNotFoundError(key)
 

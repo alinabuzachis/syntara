@@ -199,9 +199,11 @@ class SettingsCache:
                 ``'context_manager.max_total_tokens'``.
 
         Returns:
-            The resolved value as a native Python type, or ``None`` if the
-            key does not exist or both ``value`` and ``default_value`` are
-            ``None``.
+            The resolved value as a native Python type, or ``None`` if both
+            ``value`` and ``default_value`` are unset in the database.
+
+        Raises:
+            KeyError: If *key* is not registered in the settings catalog.
 
         """
         # Reject keys not in the catalog — keeps L1 bounded and prevents
@@ -209,8 +211,8 @@ class SettingsCache:
         from nexus.settings.catalog import SETTINGS_CATALOG  # noqa: PLC0415
 
         if not any(d.key == key for d in SETTINGS_CATALOG):
-            logger.debug("settings.unknown_key_rejected", key=key)
-            return None
+            msg = f"Setting key not in catalog: {key!r}"
+            raise KeyError(msg)
 
         # L1 check
         cached = self._cache.get(key)
@@ -347,6 +349,14 @@ class SettingsCache:
     async def get_bool(self, key: str, *, default: bool | None = None) -> bool:
         """Return the setting value as a ``bool``."""
         return await self._get_typed(key, bool, "bool", default=default)  # type: ignore[no-any-return]
+
+    async def get_list(self, key: str, *, default: list[Any] | None = None) -> list[Any]:
+        """Return the setting value as a ``list``."""
+        return await self._get_typed(key, list, "list", default=default)  # type: ignore[no-any-return]
+
+    async def get_dict(self, key: str, *, default: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Return the setting value as a ``dict``."""
+        return await self._get_typed(key, dict, "dict", default=default)  # type: ignore[no-any-return]
 
     # ------------------------------------------------------------------
     # Cache management
@@ -576,12 +586,7 @@ class SettingsCache:
         self._watch_values[key] = new_value
 
         if old_value is not _SENTINEL and old_value != new_value:
-            logger.info(
-                "settings.value_changed",
-                key=key,
-                old_value=old_value,
-                new_value=new_value,
-            )
+            logger.info("settings.value_changed", key=key)
             await self._fire_callbacks(key, new_value)
 
     # ------------------------------------------------------------------
@@ -691,12 +696,7 @@ class SettingsCache:
 
             # Fire callbacks only if value actually changed
             if old_value is not _SENTINEL and old_value != new_value:
-                logger.info(
-                    "settings.value_changed",
-                    key=key,
-                    old_value=old_value,
-                    new_value=new_value,
-                )
+                logger.info("settings.value_changed", key=key)
                 await self._fire_callbacks(key, new_value)
 
         # Attempt to reconnect Pub/Sub if it died
