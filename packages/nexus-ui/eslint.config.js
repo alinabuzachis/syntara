@@ -130,6 +130,7 @@ export default tseslint.config(
       'import-x/no-duplicates': 'error',
       'import-x/no-cycle': ['error', { maxDepth: 2 }],
       'import-x/no-self-import': 'error',
+      '@typescript-eslint/consistent-type-definitions': ['warn', 'type'],
     },
   },
   {

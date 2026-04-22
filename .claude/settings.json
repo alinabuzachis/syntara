@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/format-on-save.sh",
+            "command": "bash -c 'ROOT=$(git rev-parse --show-toplevel) && \"$ROOT/.claude/hooks/format-on-save.sh\"'",
             "timeout": 10000
           }
         ]
@@ -18,12 +18,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/pre-commit-checks.sh",
+            "command": "bash -c 'ROOT=$(git rev-parse --show-toplevel) && \"$ROOT/.claude/hooks/pre-commit-checks.sh\"'",
             "timeout": 120000
           },
           {
             "type": "command",
-            "command": ".claude/hooks/pre-pr-checks.sh",
+            "command": "bash -c 'ROOT=$(git rev-parse --show-toplevel) && \"$ROOT/.claude/hooks/pre-pr-checks.sh\"'",
             "timeout": 300000
           }
         ]
