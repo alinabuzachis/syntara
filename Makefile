@@ -166,6 +166,12 @@ db-seed: check-deps ## Run all required database seeders
 	@uv run python -m nexus.seed
 	@echo "✅ Seeding complete"
 
+.PHONY: admin-password
+admin-password: check-deps _ensure-secrets ## Sync bootstrap admin password from .secrets/admin-password
+	@echo "🔐 Syncing bootstrap admin password..."
+	@APP_ADMIN_PASSWORD_PATH=.secrets/admin-password uv run python tools/set_admin_password.py < .secrets/admin-password
+	@echo "✅ Bootstrap admin password synced"
+
 .PHONY: db-seed-all
 db-seed-all: check-deps ## Run all database seeders including dev samples
 	@echo "🌱 Seeding database (including samples)..."

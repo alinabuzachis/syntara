@@ -19,51 +19,74 @@ from pathlib import Path
 from uuid import uuid4
 
 import structlog
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import insert
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from nexus.auth.passwords import hash_password
-from nexus.core.config.base import get_settings
-from nexus.core.models.user import User
+from nexus.core.database.session import AsyncSessionLocal
+from nexus.core.models import User
+from nexus.core.models.group import Group, user_groups
 
 logger = structlog.stdlib.get_logger(__name__)
+
+BOOTSTRAP_ADMIN_USERNAME = "admin"
+BOOTSTRAP_ADMIN_EMAIL = "admin@nexus.local"
+BOOTSTRAP_ADMIN_FULL_NAME = "Administrator"
+ADMINS_GROUP_NAME = "admins"
 
 
 async def set_admin_password(password: str) -> None:
     """Create or update the admin user with the given plaintext password."""
-    settings = get_settings()
-    engine = create_async_engine(settings.database_url, echo=False)
-
-    try:
-        async with AsyncSession(engine) as session:
-            result = await session.exec(
-                select(User).filter(User.username == "admin", User.deleted_at.is_(None))  # type: ignore[arg-type]
+    async with AsyncSessionLocal() as session:
+        result = await session.exec(
+            select(User).where(
+                User.username == BOOTSTRAP_ADMIN_USERNAME,
+                User.deleted_at.is_(None),  # type: ignore[union-attr]
             )
-            admin = result.first()
+        )
+        admin = result.one_or_none()
+        password_hash = hash_password(password)
 
-            hashed = hash_password(password)
+        if admin is None:
+            admin = User(
+                id=uuid4(),
+                username=BOOTSTRAP_ADMIN_USERNAME,
+                email=BOOTSTRAP_ADMIN_EMAIL,
+                full_name=BOOTSTRAP_ADMIN_FULL_NAME,
+                password_hash=password_hash,
+                is_active=True,
+            )
+            session.add(admin)
+            await session.flush()
+            logger.info("Created admin user", user_id=str(admin.id))
+        else:
+            admin.password_hash = password_hash
+            logger.info("Updated admin password", user_id=str(admin.id))
 
-            if admin:
-                admin.password_hash = hashed
-                logger.info("Updated admin password", user_id=str(admin.id))
-            else:
-                admin = User(
-                    id=uuid4(),
-                    username="admin",
-                    email="admin@nexus.local",
-                    full_name="Administrator",
-                    password_hash=hashed,
-                    is_active=True,
+        admin_group = (
+            await session.exec(
+                select(Group).where(
+                    Group.name == ADMINS_GROUP_NAME,
+                    Group.deleted_at.is_(None),  # type: ignore[union-attr]
                 )
-                session.add(admin)
-                logger.info("Created admin user", user_id=str(admin.id))
+            )
+        ).one_or_none()
+        if admin_group is not None:
+            membership = await session.exec(
+                select(user_groups.c.user_id).where(
+                    user_groups.c.user_id == admin.id,
+                    user_groups.c.group_id == admin_group.id,
+                )
+            )
+            if membership.one_or_none() is None:
+                await session.exec(insert(user_groups).values(user_id=admin.id, group_id=admin_group.id))
+        else:
+            logger.warning("Admins group not found; skipping admin group membership sync")
 
-            await session.commit()
-    finally:
-        await engine.dispose()
+        await session.commit()
+        logger.info("Bootstrap admin password synced", user_id=str(admin.id))
 
 
 def read_password() -> str:
