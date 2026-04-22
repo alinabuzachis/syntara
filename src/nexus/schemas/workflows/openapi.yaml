@@ -56,27 +56,10 @@ paths:
         scope: project
         default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       parameters:
-        - name: created_by
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-          description: Filter by creator user ID
-        - name: is_enabled
-          in: query
-          required: false
-          schema:
-            type: boolean
-          description: Filter by enabled status
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
       responses:
         '200':
           description: List of workflows
@@ -84,6 +67,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowListResponse'
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
     post:
@@ -104,51 +101,25 @@ paths:
               $ref: '#/components/schemas/WorkflowCreate'
       responses:
         '201':
-          description: Workflow created successfully
+          description: Workflow created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowRead'
         '400':
-          description: Invalid workflow definition
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Invalid workflow definition
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
         '409':
-          description: Name conflict - workflow with this name already exists
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              example:
-                type: https://api.nexus.com/errors/name-conflict
-                title: Workflow Name Conflict
-                detail: A workflow with this name already exists
-                code: WORKFLOW_NAME_CONFLICT
-                retryable: false
-                instance: /api/v1/workflows
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
-          description: Validation error (e.g., invalid label types)
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              example:
-                type: https://api.nexus.com/errors/validation-error
-                title: Validation Error
-                detail: Field validation failed
-                code: VALIDATION_ERROR
-                retryable: false
-                instance: /api/v1/workflows
-
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
   /workflows/{workflow_id}:
@@ -169,19 +140,28 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Workflow Id
       responses:
         '200':
-          description: Workflow details including current version information
+          description: Workflow details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowReadWithVersion'
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
         '404':
-          description: Workflow not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
     patch:
@@ -207,6 +187,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Workflow Id
       requestBody:
         required: true
         content:
@@ -215,35 +196,25 @@ paths:
               $ref: '#/components/schemas/WorkflowUpdate'
       responses:
         '200':
-          description: Workflow updated successfully (may include new version if workflow_definition changed)
+          description: Updated workflow
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowReadWithVersion'
         '400':
-          description: Invalid workflow definition or validation error
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
         '404':
-          description: Workflow not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
         '409':
-          description: Name conflict - workflow with this name already exists
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
-          description: Validation error (e.g., invalid label types)
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
     delete:
@@ -263,22 +234,24 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Workflow Id
       responses:
         '204':
-          description: Workflow soft deleted successfully
+          description: Workflow deleted
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
         '404':
-          description: Workflow not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
         '409':
-          description: Workflow cannot be deleted (has running executions)
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
   /workflows/{workflow_id}/versions:
@@ -300,25 +273,28 @@ paths:
           schema:
             type: string
             format: uuid
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
+            title: Workflow Id
       responses:
         '200':
-          description: List of workflow versions
+          description: Workflow version history
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowVersionListResponse'
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
         '404':
-          description: Workflow not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
   /workflows/{workflow_id}/versions/{version}:
@@ -339,13 +315,13 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Workflow Id
         - name: version
           in: path
           required: true
           schema:
             type: integer
-            minimum: 1
-          description: Version number to retrieve
+            title: Version
       responses:
         '200':
           description: Workflow version details
@@ -353,12 +329,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowVersionRead'
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
         '404':
-          description: Workflow or version not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
+        '422':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
       # Note: Approval endpoints are in a separate API
       # See: src/nexus/schemas/approvals/openapi.yaml

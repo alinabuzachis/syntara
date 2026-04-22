@@ -14,7 +14,7 @@ from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 
-router = NexusRouter(prefix="/policies", tags=["policies"])
+router = NexusRouter(prefix="/policies", tags=["Policies"])
 
 
 def get_policy_service(
@@ -29,6 +29,8 @@ def get_policy_service(
     "",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("policy", "create", roles=["admin"]))],
+    operation_id="create_policy",
+    response_description="Policy created",
 )
 async def create_policy(
     body: PolicyCreate,
@@ -45,7 +47,12 @@ async def create_policy(
     return PolicyRead.model_validate(policy)
 
 
-@router.get("", dependencies=[NO_PERMISSION])
+@router.get(
+    "",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_policies",
+    response_description="Paginated list of policies",
+)
 async def list_policies(
     request: Request,
     params: Annotated[PolicyListParams, Depends()],
@@ -61,7 +68,12 @@ async def list_policies(
     )
 
 
-@router.get("/{policy_id}", dependencies=[NO_PERMISSION])
+@router.get(
+    "/{policy_id}",
+    dependencies=[NO_PERMISSION],
+    operation_id="get_policy",
+    response_description="Policy details",
+)
 async def get_policy(
     policy_id: UUID,
     service: Annotated[PolicyService, Depends(get_policy_service)],
@@ -93,6 +105,8 @@ async def _do_update_policy(
 @router.patch(
     "/{policy_id}",
     dependencies=[Depends(PermissionChecker("policy", "update", roles=["admin"]))],
+    operation_id="update_policy",
+    response_description="Updated policy",
 )
 async def update_policy(
     policy_id: UUID,
@@ -106,6 +120,8 @@ async def update_policy(
 @router.put(
     "/{policy_id}",
     dependencies=[Depends(PermissionChecker("policy", "update", roles=["admin"]))],
+    operation_id="replace_policy",
+    response_description="Updated policy",
 )
 async def replace_policy(
     policy_id: UUID,
@@ -120,6 +136,8 @@ async def replace_policy(
     "/{policy_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(PermissionChecker("policy", "delete", roles=["admin"]))],
+    operation_id="delete_policy",
+    response_description="Policy deleted",
 )
 async def delete_policy(
     policy_id: UUID,

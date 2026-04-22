@@ -25,25 +25,18 @@ paths:
         scope: any
         default_roles: [admin]
       parameters:
-        - name: enabled
+        - name: limit
           in: query
           required: false
           schema:
-            type: boolean
-          description: Filter by enabled status
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Sort field and direction (e.g., 'name', '-created_at')
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+            default: 100
+            exclusiveMinimum: 0
+            maximum: 100
+            title: Limit
+            type: integer
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
       responses:
         '200':
           description: List of identity providers
@@ -51,6 +44,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IdentityProviderListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      tags:
+        - IdentityProviders
       security:
         - bearerAuth: []
     post:
@@ -75,13 +84,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IdentityProviderResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Name conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
-
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      tags:
+        - IdentityProviders
       security:
         - bearerAuth: []
   /identity_providers/{provider_id}:
@@ -101,6 +119,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Provider Id
       responses:
         '200':
           description: Identity provider details
@@ -108,8 +127,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IdentityProviderResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Identity provider not found
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      tags:
+        - IdentityProviders
       security:
         - bearerAuth: []
     patch:
@@ -128,6 +161,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Provider Id
       requestBody:
         required: true
         content:
@@ -136,19 +170,27 @@ paths:
               $ref: '#/components/schemas/IdentityProviderPatch'
       responses:
         '200':
-          description: Updated identity provider
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/IdentityProviderResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Identity provider not found
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Name conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      tags:
+        - IdentityProviders
       security:
         - bearerAuth: []
     delete:
@@ -167,12 +209,26 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Provider Id
       responses:
         '204':
           description: Identity provider deleted
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Identity provider not found
-
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      tags:
+        - IdentityProviders
       security:
         - bearerAuth: []
   /identity_providers/test:
@@ -193,12 +249,27 @@ paths:
               $ref: '#/components/schemas/OIDCTestRequest'
       responses:
         '200':
-          description: Test result
+          description: Test results
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OIDCTestResult'
-
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
+      tags:
+        - IdentityProviders
       security:
         - bearerAuth: []
 components:

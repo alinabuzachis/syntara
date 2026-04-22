@@ -33,7 +33,7 @@ from nexus.workflows.models import WorkflowListParams
 from nexus.workflows.models.workflow import WorkflowListResponse
 from nexus.workflows.services import WorkflowService
 
-router = NexusRouter(prefix="/projects", tags=["projects"])
+router = NexusRouter(prefix="/projects", tags=["Projects"])
 
 _ALL_ROLES = ["admin", "auditor", "user", "project-admin", "project-user", "project-auditor"]
 _perm_project_read = PermissionChecker("project", "read", roles=_ALL_ROLES, project_param="project_id")
@@ -70,6 +70,8 @@ def get_project_service(
     "",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("project", "create", roles=["admin", "user", "default"]))],
+    operation_id="create_project",
+    response_description="Project created",
 )
 async def create_project(
     body: ProjectCreate,
@@ -88,7 +90,7 @@ async def create_project(
     return ProjectRead.model_validate(project)
 
 
-@router.get("")
+@router.get("", operation_id="list_projects", response_description="List of accessible projects")
 async def list_projects(
     service: Annotated[ProjectService, Depends(get_project_service)],
     allowed_projects: Annotated[AllowedProjectsResult, Depends(ProjectScopeFilter("project", "read"))],
@@ -98,7 +100,12 @@ async def list_projects(
     return [ProjectRead.model_validate(p) for p in projects]
 
 
-@router.get("/{project_id}", dependencies=[Depends(_perm_project_read)])
+@router.get(
+    "/{project_id}",
+    dependencies=[Depends(_perm_project_read)],
+    operation_id="get_project",
+    response_description="Project details",
+)
 async def get_project(
     project_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
@@ -126,6 +133,8 @@ async def _do_update_project(
 @router.patch(
     "/{project_id}",
     dependencies=[Depends(_perm_project_update)],
+    operation_id="update_project",
+    response_description="Updated project",
 )
 async def update_project(
     project_id: UUID,
@@ -139,6 +148,8 @@ async def update_project(
 @router.put(
     "/{project_id}",
     dependencies=[Depends(_perm_project_update)],
+    operation_id="replace_project",
+    response_description="Updated project",
 )
 async def replace_project(
     project_id: UUID,
@@ -153,6 +164,8 @@ async def replace_project(
     "/{project_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_project_delete)],
+    operation_id="delete_project",
+    response_description="Project deleted",
 )
 async def delete_project(
     project_id: UUID,
@@ -178,6 +191,8 @@ def get_workflow_service(
 @router.get(
     "/{project_id}/workflows",
     dependencies=[Depends(_perm_workflow_read)],
+    operation_id="list_project_workflows",
+    response_description="Paginated list of workflows in the project",
 )
 async def list_project_workflows(
     project_id: UUID,
@@ -217,6 +232,8 @@ def get_approval_service(
 @router.get(
     "/{project_id}/approvals",
     dependencies=[Depends(_perm_approval_read)],
+    operation_id="list_project_approvals",
+    response_description="Paginated list of approvals in the project",
 )
 async def list_project_approvals(
     project_id: UUID,
@@ -249,6 +266,8 @@ async def list_project_approvals(
     "/{project_id}/roles",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_perm_project_role_assign)],
+    operation_id="assign_project_role",
+    response_description="Role assigned",
 )
 async def assign_project_role(
     project_id: UUID,
@@ -280,7 +299,12 @@ async def assign_project_role(
     )
 
 
-@router.get("/{project_id}/roles", dependencies=[NO_PERMISSION])
+@router.get(
+    "/{project_id}/roles",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_project_roles",
+    response_description="List of role assignments",
+)
 async def list_project_roles(
     project_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
@@ -294,6 +318,8 @@ async def list_project_roles(
     "/{project_id}/roles/{assignment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_project_role_revoke)],
+    operation_id="revoke_project_role",
+    response_description="Assignment removed",
 )
 async def revoke_project_role(
     project_id: UUID,
@@ -313,6 +339,8 @@ async def revoke_project_role(
     "/{project_id}/group-roles",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(_perm_project_role_assign)],
+    operation_id="assign_project_group_role",
+    response_description="Role assigned to group",
 )
 async def assign_project_group_role(
     project_id: UUID,
@@ -345,7 +373,12 @@ async def assign_project_group_role(
     )
 
 
-@router.get("/{project_id}/group-roles", dependencies=[NO_PERMISSION])
+@router.get(
+    "/{project_id}/group-roles",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_project_group_roles",
+    response_description="List of group role assignments",
+)
 async def list_project_group_roles(
     project_id: UUID,
     service: Annotated[ProjectService, Depends(get_project_service)],
@@ -359,6 +392,8 @@ async def list_project_group_roles(
     "/{project_id}/group-roles/{assignment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(_perm_project_role_revoke)],
+    operation_id="revoke_project_group_role",
+    response_description="Assignment removed",
 )
 async def revoke_project_group_role(
     project_id: UUID,

@@ -14,7 +14,7 @@ from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 
-router = NexusRouter(prefix="/roles", tags=["roles"])
+router = NexusRouter(prefix="/roles", tags=["Roles"])
 
 
 def get_role_service(
@@ -28,6 +28,7 @@ def get_role_service(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
+    operation_id="create_role",
     dependencies=[Depends(PermissionChecker("role", "create", roles=["admin"]))],
 )
 async def create_role(
@@ -45,7 +46,7 @@ async def create_role(
     return await service.to_role_read(role)
 
 
-@router.get("", dependencies=[NO_PERMISSION])
+@router.get("", dependencies=[NO_PERMISSION], operation_id="list_roles")
 async def list_roles(
     request: Request,
     params: Annotated[RoleListParams, Depends()],
@@ -61,7 +62,7 @@ async def list_roles(
     )
 
 
-@router.get("/{role_id}", dependencies=[NO_PERMISSION])
+@router.get("/{role_id}", dependencies=[NO_PERMISSION], operation_id="get_role")
 async def get_role(
     role_id: UUID,
     service: Annotated[RoleService, Depends(get_role_service)],
@@ -89,6 +90,7 @@ async def _do_update_role(
 
 @router.patch(
     "/{role_id}",
+    operation_id="update_role",
     dependencies=[Depends(PermissionChecker("role", "update", roles=["admin"]))],
 )
 async def update_role(
@@ -102,6 +104,7 @@ async def update_role(
 
 @router.put(
     "/{role_id}",
+    operation_id="replace_role",
     dependencies=[Depends(PermissionChecker("role", "update", roles=["admin"]))],
 )
 async def replace_role(
@@ -116,6 +119,7 @@ async def replace_role(
 @router.delete(
     "/{role_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="delete_role",
     dependencies=[Depends(PermissionChecker("role", "delete", roles=["admin"]))],
 )
 async def delete_role(

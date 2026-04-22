@@ -152,53 +152,88 @@ components:
 
     ErrorData:
       type: object
-      title: RFC 9457 Problem Details
-      description: |
-        RFC 9457 Problem Details format for error responses.
-        This format provides machine-readable and human-readable error information
-        with consistent structure for all API error responses.
+      title: ErrorData
+      description: >
+        RFC 9457 Problem Details format for error event data.
+
+        This model is used for streaming error events and follows the RFC 9457
+        Problem Details specification. It provides machine-readable and human-readable
+        error information with consistent structure.
+
+        Attributes:
+            type: URI reference identifying the problem type
+            title: Short, human-readable summary of the problem
+            detail: Human-readable explanation specific to this occurrence
+            code: Machine-readable error code for programmatic handling
+            retryable: Whether this error can be retried by creating a new invocation
+            instance: Optional URI reference identifying the specific occurrence
       required:
         - type
         - title
         - detail
         - code
         - retryable
+      examples:
+        - type: https://api.nexus.com/errors/llm-error
+          title: LLM Rate Limit Exceeded
+          detail: OpenRouter API rate limit exceeded. Please try again in a few moments.
+          code: RATE_LIMIT_EXCEEDED
+          retryable: true
+          instance: /invocations/550e8400-e29b-41d4-a716-446655440000
+        - type: https://api.nexus.com/errors/timeout-error
+          title: Streaming Timeout
+          detail: LLM streaming timed out after 30 seconds
+          code: STREAM_TIMEOUT
+          retryable: true
+          instance: /invocations/550e8400-e29b-41d4-a716-446655440000
       properties:
         type:
           type: string
+          minLength: 1
           maxLength: 500
-          title: Problem Type URI
+          title: Type
           description: URI reference identifying the problem type
-          example: https://api.nexus.com/errors/validation-error
+          examples:
+            - https://api.nexus.com/errors/llm-error
         title:
           type: string
+          minLength: 1
           maxLength: 200
-          title: Problem Title
+          title: Title
           description: Short, human-readable summary of the problem
-          example: Validation Error
+          examples:
+            - LLM Service Unavailable
         detail:
           type: string
+          minLength: 1
           maxLength: 2000
-          title: Problem Detail
+          title: Detail
           description: Human-readable explanation specific to this occurrence
-          example: Field 'name' must be between 1 and 255 characters
+          examples:
+            - 'OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.'
         code:
           type: string
+          minLength: 1
           maxLength: 100
-          title: Error Code
+          title: Code
           description: Machine-readable error code for programmatic handling
-          example: VALIDATION_ERROR
+          examples:
+            - RATE_LIMIT_EXCEEDED
         retryable:
           type: boolean
-          title: Retryable Flag
-          description: Whether this error can be retried
-          example: false
+          title: Retryable
+          description: Whether this error can be retried by creating a new invocation
+          examples:
+            - true
         instance:
-          type: [string, "null"]
-          maxLength: 500
-          title: Problem Instance
-          description: URI reference identifying the specific occurrence
-          example: /api/v1/workflows
+          anyOf:
+            - type: string
+              maxLength: 2048
+            - type: 'null'
+          title: Instance
+          description: Optional URI reference identifying the specific occurrence
+          examples:
+            - /invocations/550e8400-e29b-41d4-a716-446655440000
 
     ResourcesResponseBase:
       type: object
@@ -242,23 +277,24 @@ components:
       required: false
       schema:
         type: integer
-        minimum: 1
+        exclusiveMinimum: 0
         maximum: 100
         default: 20
-      description: Number of resources to return per page
-      example: 20
+        description: Maximum number of results per page
+        title: Limit
+      description: Maximum number of results per page
 
     sortParam:
       name: sort
       in: query
       required: false
       schema:
-        type: string
-      description: |
-        Sort order for resources.
-        - Ascending: `field` (e.g., `name`)
-        - Descending: `-field` (e.g., `-created_at`)
-      example: -created_at
+        anyOf:
+          - type: string
+          - type: "null"
+        description: Sort parameter (e.g., 'name', '-created_at')
+        title: Sort
+      description: Sort parameter (e.g., 'name', '-created_at')
 
     nameFilterParam:
       name: name
@@ -389,9 +425,12 @@ components:
       in: query
       required: false
       schema:
-        type: string
-      description: Opaque cursor for pagination (from previous response)
-      example: eyJpZCI6InV1aWQifQ
+        anyOf:
+          - type: string
+          - type: "null"
+        description: Pagination cursor from previous response
+        title: Cursor
+      description: Pagination cursor from previous response
 
     labelsFilterParam:
       name: labels
@@ -419,12 +458,13 @@ components:
       schema:
         type: boolean
         default: false
-      description: Whether to include total count in response (may impact performance)
-      example: true
+        description: Include total count in response (expensive)
+        title: Include Total
+      description: Include total count in response (expensive)
 
   responses:
     ValidationError:
-      description: Validation error response
+      description: Validation Error
       content:
         application/problem+json:
           schema:
@@ -438,7 +478,7 @@ components:
             instance: /api/v1/workflows
 
     NotFoundError:
-      description: Resource not found
+      description: Not Found
       content:
         application/problem+json:
           schema:
@@ -451,8 +491,60 @@ components:
             retryable: false
             instance: /api/v1/workflows
 
+    BadRequestError:
+      description: Bad Request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorData'
+          example:
+            type: https://api.nexus.com/errors/bad-request
+            title: Bad Request
+            detail: The request was malformed or contained invalid parameters
+            code: BAD_REQUEST
+            retryable: false
+
+    UnauthorizedError:
+      description: Unauthorized
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorData'
+          example:
+            type: https://api.nexus.com/errors/unauthorized
+            title: Unauthorized
+            detail: Authentication is required to access this resource
+            code: UNAUTHORIZED
+            retryable: false
+
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorData'
+          example:
+            type: https://api.nexus.com/errors/forbidden
+            title: Forbidden
+            detail: You do not have permission to access this resource
+            code: FORBIDDEN
+            retryable: false
+
+    ConflictError:
+      description: Conflict
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorData'
+          example:
+            type: https://api.nexus.com/errors/conflict
+            title: Conflict
+            detail: The request conflicts with the current state of the resource
+            code: CONFLICT
+            retryable: false
+
     InternalServerError:
-      description: Internal server error
+      description: Internal Server Error
       content:
         application/problem+json:
           schema:

@@ -65,7 +65,7 @@ async def _get_aap_proxy_service(
 # ============================================================================
 
 
-@router.get("/organizations")
+@router.get("/organizations", operation_id="list_aap_organizations")
 async def list_organizations(
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -75,7 +75,7 @@ async def list_organizations(
     return await service.list_organizations(query, user_id=current_user.id)
 
 
-@router.get("/job-templates")
+@router.get("/job-templates", operation_id="list_aap_job_templates")
 async def list_job_templates(
     query: Annotated[AAPResourceQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -85,7 +85,7 @@ async def list_job_templates(
     return await service.list_job_templates(query, user_id=current_user.id)
 
 
-@router.get("/job-templates/{job_template_id}")
+@router.get("/job-templates/{job_template_id}", operation_id="get_aap_job_template")
 async def get_job_template(
     job_template_id: Annotated[int, Path(ge=1)],
     query: Annotated[AAPBaseQuery, Depends()],
@@ -98,7 +98,7 @@ async def get_job_template(
     return await service.get_job_template(job_template_id, credential_id=credential_id_str, user_id=current_user.id)
 
 
-@router.get("/inventories")
+@router.get("/inventories", operation_id="list_aap_inventories")
 async def list_inventories(
     query: Annotated[AAPResourceQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -108,7 +108,7 @@ async def list_inventories(
     return await service.list_inventories(query, user_id=current_user.id)
 
 
-@router.get("/execution-environments")
+@router.get("/execution-environments", operation_id="list_aap_execution_environments")
 async def list_execution_environments(
     query: Annotated[AAPResourceQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -118,7 +118,7 @@ async def list_execution_environments(
     return await service.list_execution_environments(query, user_id=current_user.id)
 
 
-@router.get("/credentials")
+@router.get("/credentials", operation_id="list_aap_credentials")
 async def list_credentials(
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -128,7 +128,7 @@ async def list_credentials(
     return await service.list_credentials(query, user_id=current_user.id)
 
 
-@router.get("/instance-groups")
+@router.get("/instance-groups", operation_id="list_aap_instance_groups")
 async def list_instance_groups(
     query: Annotated[AAPBaseQuery, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],

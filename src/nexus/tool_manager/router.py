@@ -30,7 +30,7 @@ from nexus.tool_manager.models.tool_provider_validation_result import ToolProvid
 from nexus.tool_manager.services.tool_provider_service import ToolProviderService
 from nexus.tool_manager.services.tool_service import ToolService
 
-router = NexusRouter(prefix="/tool_manager", tags=["tool_manager"])
+router = NexusRouter(prefix="/tool_manager", tags=["ToolManager"])
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -82,7 +82,7 @@ def get_tool_provider_service(
     return ToolProviderService(db, current_user, provider_factory)
 
 
-@router.get("/tools", dependencies=[NO_PERMISSION])
+@router.get("/tools", dependencies=[NO_PERMISSION], operation_id="get_tools")
 async def get_tools(
     request: Request,
     service: Annotated[ToolService, Depends(get_tool_service)],
@@ -121,7 +121,7 @@ async def get_tools(
     )
 
 
-@router.get("/tools/{tool_id}", dependencies=[NO_PERMISSION])
+@router.get("/tools/{tool_id}", dependencies=[NO_PERMISSION], operation_id="get_tool")
 async def get_tool(
     tool_id: UUID,
     service: Annotated[ToolService, Depends(get_tool_service)],
@@ -148,7 +148,7 @@ async def get_tool(
     return await service.get_tool_detail(tool_id)
 
 
-@router.patch("/tools/bulk_update", dependencies=[NO_PERMISSION])
+@router.patch("/tools/bulk_update", dependencies=[NO_PERMISSION], operation_id="bulk_update_tools")
 async def bulk_update_tools(
     bulk_update: ToolBulkUpdate,
     service: Annotated[ToolService, Depends(get_tool_service)],
@@ -175,7 +175,7 @@ async def bulk_update_tools(
     return await service.bulk_update_tools(bulk_update.tool_ids, enabled=bulk_update.enabled)
 
 
-@router.patch("/tools/{tool_id}", dependencies=[NO_PERMISSION])
+@router.patch("/tools/{tool_id}", dependencies=[NO_PERMISSION], operation_id="patch_tool")
 async def patch_tool(
     tool_id: UUID,
     tool_update: ToolUpdate,
@@ -207,7 +207,7 @@ async def patch_tool(
     )
 
 
-@router.get("/tool_providers", dependencies=[NO_PERMISSION])
+@router.get("/tool_providers", dependencies=[NO_PERMISSION], operation_id="get_tool_providers")
 async def get_tool_providers(
     request: Request,
     service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
@@ -245,7 +245,12 @@ async def get_tool_providers(
     )
 
 
-@router.post("/tool_providers", status_code=status.HTTP_201_CREATED, dependencies=[NO_PERMISSION])
+@router.post(
+    "/tool_providers",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[NO_PERMISSION],
+    operation_id="register_tool_provider",
+)
 async def register_tool_provider(
     provider_create: ToolProviderCreate,
     service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
@@ -272,7 +277,7 @@ async def register_tool_provider(
     return await service.create_provider(provider_create)
 
 
-@router.get("/tool_providers/{provider_id}", dependencies=[NO_PERMISSION])
+@router.get("/tool_providers/{provider_id}", dependencies=[NO_PERMISSION], operation_id="get_tool_provider")
 async def get_tool_provider(
     provider_id: UUID,
     service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
@@ -299,7 +304,7 @@ async def get_tool_provider(
     return await service.get_provider(provider_id)
 
 
-@router.put("/tool_providers/{provider_id}", dependencies=[NO_PERMISSION])
+@router.put("/tool_providers/{provider_id}", dependencies=[NO_PERMISSION], operation_id="update_tool_provider")
 async def update_tool_provider(
     provider_id: UUID,
     provider_update: ToolProviderCreate,
@@ -328,7 +333,7 @@ async def update_tool_provider(
     return await service.update_provider(provider_id, provider_update)
 
 
-@router.patch("/tool_providers/{provider_id}", dependencies=[NO_PERMISSION])
+@router.patch("/tool_providers/{provider_id}", dependencies=[NO_PERMISSION], operation_id="patch_tool_provider")
 async def patch_tool_provider(
     provider_id: UUID,
     provider_patch: ToolProviderPatch,
@@ -357,7 +362,12 @@ async def patch_tool_provider(
     return await service.patch_provider(provider_id, provider_patch)
 
 
-@router.delete("/tool_providers/{provider_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[NO_PERMISSION])
+@router.delete(
+    "/tool_providers/{provider_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[NO_PERMISSION],
+    operation_id="delete_tool_provider",
+)
 async def delete_tool_provider(
     provider_id: UUID,
     service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
@@ -381,7 +391,9 @@ async def delete_tool_provider(
     await service.delete_provider(provider_id)
 
 
-@router.post("/tool_providers/{provider_id}/validate", dependencies=[NO_PERMISSION])
+@router.post(
+    "/tool_providers/{provider_id}/validate", dependencies=[NO_PERMISSION], operation_id="validate_tool_provider"
+)
 async def validate_tool_provider(
     provider_id: UUID,
     service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
@@ -408,7 +420,7 @@ async def validate_tool_provider(
     return await service.validate_provider(provider_id)
 
 
-@router.post("/tool_providers/test", dependencies=[NO_PERMISSION])
+@router.post("/tool_providers/test", dependencies=[NO_PERMISSION], operation_id="test_tool_provider")
 async def test_tool_provider(
     provider_create: ToolProviderCreate,
     service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],
@@ -435,7 +447,9 @@ async def test_tool_provider(
     return await service.validate_provider_definition(provider_create)
 
 
-@router.post("/tool_providers/{provider_id}/refresh_tools", dependencies=[NO_PERMISSION])
+@router.post(
+    "/tool_providers/{provider_id}/refresh_tools", dependencies=[NO_PERMISSION], operation_id="refresh_tool_provider"
+)
 async def refresh_tool_provider(
     provider_id: UUID,
     service: Annotated[ToolProviderService, Depends(get_tool_provider_service)],

@@ -23,7 +23,7 @@ from nexus.settings.models.api_models import (
 from nexus.settings.models.query_params import SettingsListParams
 from nexus.settings.services.settings_service import SettingsService
 
-router = NexusRouter(prefix="/settings", tags=["settings"])
+router = NexusRouter(prefix="/settings", tags=["Settings"])
 
 
 # ============================================================================
@@ -60,7 +60,12 @@ def _validate_key(key: str) -> None:
 # ============================================================================
 
 
-@router.get("", dependencies=[Depends(_require_settings_read)])
+@router.get(
+    "",
+    dependencies=[Depends(_require_settings_read)],
+    operation_id="list_settings",
+    response_description="Paginated list of runtime settings",
+)
 async def list_settings(
     request: Request,
     service: Annotated[SettingsService, Depends(get_settings_service)],
@@ -76,7 +81,12 @@ async def list_settings(
     )
 
 
-@router.get("/categories", dependencies=[Depends(_require_settings_read)])
+@router.get(
+    "/categories",
+    dependencies=[Depends(_require_settings_read)],
+    operation_id="list_categories",
+    response_description="List of setting categories",
+)
 async def list_categories(
     service: Annotated[SettingsService, Depends(get_settings_service)],
 ) -> CategoriesListResponse:
@@ -84,7 +94,12 @@ async def list_categories(
     return await service.list_categories()
 
 
-@router.get("/{key}", dependencies=[Depends(_require_settings_read)])
+@router.get(
+    "/{key}",
+    dependencies=[Depends(_require_settings_read)],
+    operation_id="get_setting",
+    response_description="Setting details",
+)
 async def get_setting(
     key: str,
     service: Annotated[SettingsService, Depends(get_settings_service)],
@@ -94,7 +109,12 @@ async def get_setting(
     return await service.get(key)
 
 
-@router.patch("/{key}", dependencies=[Depends(_require_settings_write)])
+@router.patch(
+    "/{key}",
+    dependencies=[Depends(_require_settings_write)],
+    operation_id="update_setting",
+    response_description="Setting updated",
+)
 @track_event(
     EventCategory.USER_ACTION,
     capture_args={"key"},
@@ -116,7 +136,12 @@ async def update_setting(
     )
 
 
-@router.patch("", dependencies=[Depends(_require_settings_write)])
+@router.patch(
+    "",
+    dependencies=[Depends(_require_settings_write)],
+    operation_id="bulk_update_settings",
+    response_description="All settings updated successfully",
+)
 @track_event(EventCategory.USER_ACTION, capture_args={"body"}, actor_param="_current_user")
 async def bulk_update_settings(
     body: SettingBulkUpdateRequest,

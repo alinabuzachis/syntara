@@ -310,7 +310,7 @@ class ValidateNameResponse(SQLModel):
     reason: str = ""
 
 
-@router.get("/validate-name", dependencies=[NO_PERMISSION])
+@router.get("/validate-name", dependencies=[NO_PERMISSION], operation_id="validate_name")
 async def validate_name(
     name: Annotated[str, Query(description="Name to validate")],
     resource_type: Annotated[  # noqa: ARG001

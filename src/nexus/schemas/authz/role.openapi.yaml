@@ -39,17 +39,25 @@ paths:
               $ref: "#/components/schemas/RoleCreate"
       responses:
         "201":
-          description: Role created
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoleRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         "409":
-          description: Role name conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -67,45 +75,64 @@ paths:
       parameters:
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Sort field and direction (e.g., 'name', '-created_at')
         - name: name
           in: query
           required: false
           schema:
-            type: string
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Name
           description: Filter by role name
         - name: is_builtin
           in: query
           required: false
           schema:
-            type: boolean
+            anyOf:
+              - type: boolean
+              - type: "null"
+            title: Is Builtin
           description: Filter by builtin status
         - name: project_id
           in: query
           required: false
           schema:
-            type: string
-            format: uuid
+            anyOf:
+              - type: string
+                format: uuid
+              - type: "null"
+            title: Project Id
           description: Filter by project scope
       responses:
         "200":
-          description: Paginated list of roles
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoleListResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
   /roles/{role_id}:
     get:
       summary: Get Role
+      description: Get a role by ID.
       operationId: get_role
       x-app-permission:
         resource: null
@@ -121,19 +148,28 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Role Id
       responses:
         "200":
-          description: Role details
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoleRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Role not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -156,6 +192,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Role Id
       requestBody:
         required: true
         content:
@@ -164,17 +201,25 @@ paths:
               $ref: "#/components/schemas/RoleUpdate"
       responses:
         "200":
-          description: Updated role
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoleRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Role not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -197,6 +242,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Role Id
       requestBody:
         required: true
         content:
@@ -205,17 +251,25 @@ paths:
               $ref: "#/components/schemas/RoleUpdate"
       responses:
         "200":
-          description: Updated role
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RoleRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Role not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -238,15 +292,24 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Role Id
       responses:
         "204":
-          description: Role deleted
+          description: Successful Response
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Role not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -264,6 +327,7 @@ components:
           type: string
           minLength: 1
           maxLength: 255
+          pattern: ^[a-zA-Z0-9]([a-zA-Z0-9:_-]*[a-zA-Z0-9])?$
           title: Name
         description:
           anyOf:
@@ -299,6 +363,7 @@ components:
             - type: string
               minLength: 1
               maxLength: 255
+              pattern: ^[a-zA-Z0-9]([a-zA-Z0-9:_-]*[a-zA-Z0-9])?$
             - type: "null"
           title: Name
         description:
@@ -328,6 +393,7 @@ components:
       required:
         - id
         - name
+        - is_system_scoped
       properties:
         id:
           type: string
@@ -351,6 +417,11 @@ components:
           type: boolean
           default: false
           title: Is Builtin
+        is_system_scoped:
+          type: boolean
+          readOnly: true
+          description: True when the role is not scoped to a specific project.
+          title: Is System Scoped
         project_id:
           anyOf:
             - type: string

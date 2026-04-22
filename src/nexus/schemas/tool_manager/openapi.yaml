@@ -45,74 +45,46 @@ paths:
         scope: null
         default_roles: []
       parameters:
-        - name: status
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            allOf:
-              - type: string
-                description: Exact match of the status. ?status=<status>
-              - type: object
-                properties:
-                  eq:
-                    type: string
-                    description: Exact match of the status. ?status[eq]=<status>
-          description: |
-            Filter tools by status.
-            - Exact match: `status=available`
-        - name: enabled
+        - name: limit
           in: query
           required: false
           schema:
-            type: boolean
-          description: Filter tools by enabled status
-        - name: provider_id
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uuid
-          description: Filter tools by provider ID
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Sort field and direction (e.g., 'name', '-created_at')
-        - name: namespaced_name
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            type: string
-            description: Filter by namespaced name (namespaced_name[contains]=text)
-          description: Filter tools by namespaced name with text matching
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 100
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
       responses:
         '200':
-          description: List of tools
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
   /tool_manager/tools/{tool_id}:
     get:
       summary: Get Tool
@@ -144,28 +116,33 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Tool Id
       responses:
         '200':
-          description: Tool details
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolWithParameters'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Tool not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
     patch:
       summary: Patch Tool
       description: |-
@@ -197,40 +174,39 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Tool Id
       requestBody:
         required: true
         content:
-          application/merge-patch+json:
+          application/json:
             schema:
               $ref: '#/components/schemas/ToolUpdate'
       responses:
         '200':
-          description: Tool updated successfully
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolWithParameters'
         '400':
-          description: Invalid tool configuration
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Tool not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
   /tool_manager/tools/bulk_update:
     patch:
       summary: Bulk Update Tools
@@ -263,22 +239,32 @@ paths:
               $ref: '#/components/schemas/ToolBulkUpdate'
       responses:
         '200':
-          description: Tools updated successfully
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Bulk Update Tools
         '400':
-          description: Invalid request
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
   /tool_manager/tool_providers:
     get:
       summary: Get Tool Providers
@@ -308,85 +294,46 @@ paths:
         scope: null
         default_roles: []
       parameters:
-        - name: status
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            allOf:
-              - type: string
-                description: Exact match of the status. ?status=<status>
-              - type: object
-                properties:
-                  eq:
-                    type: string
-                    description: Exact match of the status. ?status[eq]=<status>
-          description: |
-            Filter providers by status.
-            - Exact match: `status=available`
-        - name: provider_type
-          in: query
-          required: false
-          style: deepObject
-          explode: true
-          schema:
-            allOf:
-              - type: string
-                description: Exact match of the provider type. ?provider_type=<type>
-              - type: object
-                properties:
-                  eq:
-                    type: string
-                    description: Exact match of the provider type. ?provider_type[eq]=<type>
-          description: |
-            Filter providers by provider type.
-            - Exact match: `provider_type=mcp`
-        - name: enabled
+        - name: limit
           in: query
           required: false
           schema:
-            type: boolean
-          description: Filter by enabled status
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Sort field and direction (e.g., 'name', '-created_at')
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 100
+            default: 100
+            description: Maximum number of results per page
+            title: Limit
+          description: Maximum number of results per page
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/nameFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
       responses:
         '200':
-          description: List of Tool Providers
+          description: Successful Response
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/ToolProviderWithConfiguration'
-                        maxItems: 100
-                    required:
-                      - resources
+                $ref: '#/components/schemas/ToolProviderListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
     post:
       summary: Register Tool Provider
       description: |-
@@ -418,32 +365,30 @@ paths:
               $ref: '#/components/schemas/ToolProviderCreate'
       responses:
         '201':
-          description: Provider registered successfully
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolProviderWithConfiguration'
         '400':
-          description: Invalid provider configuration
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Provider name already exists
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
   /tool_manager/tool_providers/{provider_id}:
     get:
       summary: Get Tool Provider
@@ -475,28 +420,33 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Provider Id
       responses:
         '200':
-          description: Provider details
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolProviderWithConfiguration'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Provider not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
     put:
       summary: Update Tool Provider
       description: |-
@@ -528,6 +478,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Provider Id
       requestBody:
         required: true
         content:
@@ -536,32 +487,30 @@ paths:
               $ref: '#/components/schemas/ToolProviderCreate'
       responses:
         '200':
-          description: Provider updated successfully
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolProviderWithConfiguration'
         '400':
-          description: Invalid provider configuration
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Provider not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
     patch:
       summary: Patch Tool Provider
       description: |-
@@ -593,40 +542,39 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Provider Id
       requestBody:
         required: true
         content:
-          application/merge-patch+json:
+          application/json:
             schema:
               $ref: '#/components/schemas/ToolProviderPatch'
       responses:
         '200':
-          description: Provider updated successfully
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolProviderWithConfiguration'
         '400':
-          description: Invalid provider configuration
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Provider not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
     delete:
       summary: Delete Tool Provider
       description: |-
@@ -654,24 +602,29 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Provider Id
       responses:
         '204':
-          description: Provider removed successfully
+          description: Successful Response
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Provider not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
   /tool_manager/tool_providers/{provider_id}/validate:
     post:
       summary: Validate Tool Provider
@@ -703,28 +656,33 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Provider Id
       responses:
         '200':
-          description: Provider validation completed (check 'valid' field for success/failure)
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolProviderValidationResult'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Provider not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
   /tool_manager/tool_providers/{provider_id}/refresh_tools:
     post:
       summary: Refresh Tool Provider
@@ -756,34 +714,33 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Provider Id
       responses:
         '200':
-          description: Tool refresh completed
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolProviderRefreshResult'
         '400':
-          description: Tool refresh failed
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Provider not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
   /tool_manager/tool_providers/test:
     post:
       summary: Test Tool Provider
@@ -816,20 +773,30 @@ paths:
               $ref: '#/components/schemas/ToolProviderCreate'
       responses:
         '200':
-          description: Provider definition test completed (check 'valid' field for success/failure)
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolProviderValidationResult'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolManager
 components:
   schemas:
     ToolListResponse:

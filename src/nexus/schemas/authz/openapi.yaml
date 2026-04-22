@@ -45,6 +45,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CanIResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -73,6 +87,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WhoCanResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -95,6 +123,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WhatCanIResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -107,6 +149,11 @@ paths:
         Returns whether the name is valid and, if not, why.
         Intended for real-time UI validation.
       operationId: validate_name
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       tags:
         - Authorization
       parameters:
@@ -138,6 +185,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ValidateNameResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
 components:
   schemas:

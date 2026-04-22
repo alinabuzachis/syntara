@@ -25,46 +25,10 @@ paths:
         default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags: [executions]
       parameters:
-        - description: Maximum number of results per page
-          in: query
-          name: limit
-          required: false
-          schema:
-            default: 20
-            description: Maximum number of results per page
-            exclusiveMinimum: 0
-            maximum: 100
-            title: Limit
-            type: integer
-        - description: Pagination cursor from previous response
-          in: query
-          name: cursor
-          required: false
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            description: Pagination cursor from previous response
-            title: Cursor
-        - description: Sort parameter (e.g., 'name', '-created_at')
-          in: query
-          name: sort
-          required: false
-          schema:
-            anyOf:
-              - type: string
-              - type: 'null'
-            description: Sort parameter (e.g., 'name', '-created_at')
-            title: Sort
-        - description: Include total count in response (expensive)
-          in: query
-          name: include_total
-          required: false
-          schema:
-            default: false
-            description: Include total count in response (expensive)
-            title: Include Total
-            type: boolean
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
       responses:
         '200':
           content:
@@ -72,12 +36,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExecutionListResponse'
           description: Successful Response
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
     post:
@@ -103,12 +75,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExecutionRead'
           description: Successful Response
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
 
@@ -148,12 +128,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ExecutionRead'
           description: Successful Response
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
 
@@ -186,12 +174,20 @@ paths:
                 title: Response List Execution Activities
                 type: array
           description: Successful Response
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
 
@@ -233,12 +229,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/SignalResponse'
           description: Successful Response
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
       security:
         - bearerAuth: []
 
@@ -504,38 +508,6 @@ components:
               status: "completed"
               result:
                 value: 42
-
-    HTTPValidationError:
-      properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          title: Detail
-          type: array
-      title: HTTPValidationError
-      type: object
-
-    ValidationError:
-      properties:
-        loc:
-          items:
-            anyOf:
-              - type: string
-              - type: integer
-          title: Location
-          type: array
-        msg:
-          title: Message
-          type: string
-        type:
-          title: Error Type
-          type: string
-      required:
-        - loc
-        - msg
-        - type
-      title: ValidationError
-      type: object
 
   securitySchemes:
     bearerAuth:

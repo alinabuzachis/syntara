@@ -14,7 +14,7 @@ from urllib.parse import quote, urlparse
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlmodel import col, select
@@ -489,23 +489,22 @@ async def list_auth_providers(
     "/oidc/authorize",
     operation_id="oidc_authorize",
     summary="Initiate OIDC login",
-    description="""
-    Initiates the OIDC authorization code flow. Redirects the user's browser
-    to the identity provider's authorization endpoint.
-
-    This is a public endpoint (no authentication required). On any error it
-    redirects to the frontend login page with an `auth_error` query parameter
-    instead of returning a JSON error response.
-    """,
+    description=(
+        "Initiates the OIDC authorization code flow. Redirects the user's browser\n"
+        "to the identity provider's authorization endpoint.\n\n"
+        "This is a public endpoint (no authentication required). On any error it\n"
+        "redirects to the frontend login page with an `auth_error` query parameter\n"
+        "instead of returning a JSON error response.\n"
+    ),
     responses={
         302: {"description": "Redirect to identity provider or frontend on error"},
     },
 )
 async def oidc_authorize(
-    provider_id: UUID,
+    provider_id: Annotated[UUID, Query(description="UUID of the identity provider to use")],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-    redirect_to: str | None = None,
+    redirect_to: Annotated[str | None, Query(description="URL to redirect to after successful login")] = None,
 ) -> RedirectResponse:
     """Initiate OIDC login by redirecting to the provider's authorization endpoint."""
     origin = _extract_referer_origin(request)
@@ -776,23 +775,25 @@ _OIDC_ERR_USER_FAILED = "Unable to sign in. Contact your administrator."
     "/oidc/callback",
     operation_id="oidc_callback",
     summary="OIDC callback",
-    description="""
-    Handles the OIDC callback after the user authenticates at the identity provider.
-    Exchanges the authorization code for tokens, validates the ID token,
-    creates or maps a local user, and establishes a session.
-    """,
+    description=(
+        "Handles the OIDC callback after the user authenticates at the identity provider.\n"
+        "Exchanges the authorization code for tokens, validates the ID token,\n"
+        "creates or maps a local user, and establishes a session.\n"
+    ),
     responses={
         302: {"description": "Redirect to frontend after successful login"},
         401: {"description": "Authentication failed"},
     },
 )
 async def oidc_callback(
-    state: str,
+    state: Annotated[str, Query(description="OIDC state parameter for CSRF protection")],
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-    code: str | None = None,
-    error: str | None = None,
-    error_description: str | None = None,
+    code: Annotated[str | None, Query(description="Authorization code from identity provider")] = None,
+    error: Annotated[str | None, Query(description="Error code from identity provider")] = None,
+    error_description: Annotated[
+        str | None, Query(description="Human-readable error description from identity provider")
+    ] = None,
 ) -> RedirectResponse:
     """Handle OIDC callback. Exchanges code for tokens, creates session."""
     try:

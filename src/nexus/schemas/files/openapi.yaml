@@ -76,88 +76,20 @@ paths:
                         size_bytes: 524288
                         mime_type: application/pdf
                         status: pending_conversion
-                multipleFiles:
-                  summary: Multiple file upload
-                  value:
-                    file_ids:
-                      - 550e8400-e29b-41d4-a716-446655440000
-                      - 660e8400-e29b-41d4-a716-446655440001
-                    files:
-                      - file_id: 550e8400-e29b-41d4-a716-446655440000
-                        filename: document.pdf
-                        size_bytes: 524288
-                        mime_type: application/pdf
-                        status: pending_conversion
-                      - file_id: 660e8400-e29b-41d4-a716-446655440001
-                        filename: notes.txt
-                        size_bytes: 1024
-                        mime_type: text/plain
-                        status: pending_conversion
         '400':
-          description: Bad Request - Validation error
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                noFiles:
-                  summary: No files provided
-                  value:
-                    type: https://api.nexus.com/errors/validation-error
-                    title: Validation Error
-                    detail: At least one file must be provided
-                    code: VALIDATION_ERROR
-                    retryable: false
-                    instance: /api/v1/files
-                fileTooLarge:
-                  summary: File exceeds size limit
-                  value:
-                    type: https://api.nexus.com/errors/file-too-large
-                    title: File Too Large
-                    detail: Uploaded file size (15728640 bytes) exceeds maximum allowed size (10485760 bytes / 10 MB)
-                    code: FILE_TOO_LARGE
-                    retryable: false
-                    instance: /api/v1/files
-                unsupportedFormat:
-                  summary: File format not supported
-                  value:
-                    type: https://api.nexus.com/errors/unsupported-format
-                    title: Unsupported File Format
-                    detail: File type 'image/png' is not supported. Supported formats - PDF, DOC, DOCX, TXT, MD
-                    code: UNSUPPORTED_FILE_FORMAT
-                    retryable: false
-                    instance: /api/v1/files
-                tooManyFiles:
-                  summary: Too many files uploaded
-                  value:
-                    type: https://api.nexus.com/errors/too-many-files
-                    title: Too Many Files
-                    detail: Uploaded 15 files, but maximum allowed is 10 files per request
-                    code: TOO_MANY_FILES
-                    retryable: false
-                    instance: /api/v1/files
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
         '500':
-          description: Internal Server Error - Storage failure
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                storageFailure:
-                  summary: File storage failed
-                  value:
-                    type: https://api.nexus.com/errors/internal-error
-                    title: Internal Server Error
-                    detail: Failed to process file upload
-                    code: INTERNAL_ERROR
-                    retryable: true
-                    instance: /api/v1/files
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []

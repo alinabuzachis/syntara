@@ -60,7 +60,14 @@ def get_group_service(
 # ============================================================================
 
 
-@router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(_user_create)])
+@router.post(
+    "",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_user_create)],
+    operation_id="create_user",
+    response_description="User created",
+)
 async def create_user(
     request: UserCreate,
     service: Annotated[UsersService, Depends(get_user_service)],
@@ -185,7 +192,12 @@ async def list_user_groups(
     )
 
 
-@router.put("/{user_id}/groups", dependencies=[Depends(_user_update)])
+@router.put(
+    "/{user_id}/groups",
+    dependencies=[Depends(_user_update)],
+    operation_id="set_user_groups",
+    response_description="Updated group memberships",
+)
 async def set_user_groups(
     user_id: UUID,
     request: UserGroupsSet,

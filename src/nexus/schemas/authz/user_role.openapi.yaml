@@ -14,7 +14,7 @@ servers:
     description: API v1
 
 tags:
-  - name: User Role Assignments
+  - name: UserRoleAssignments
     description: System-level user-to-role assignment management
 
 paths:
@@ -30,7 +30,7 @@ paths:
         scope: any
         default_roles: [admin]
       tags:
-        - User Role Assignments
+        - UserRoleAssignments
       requestBody:
         required: true
         content:
@@ -44,18 +44,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserRoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: User or role not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         "409":
-          description: Assignment already exists
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -69,7 +71,7 @@ paths:
         scope: null
         default_roles: []
       tags:
-        - User Role Assignments
+        - UserRoleAssignments
       responses:
         "200":
           description: List of user-role assignments
@@ -77,8 +79,23 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List User Role Assignments
                 items:
                   $ref: "#/components/schemas/UserRoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -94,23 +111,32 @@ paths:
         scope: any
         default_roles: [admin]
       tags:
-        - User Role Assignments
+        - UserRoleAssignments
       parameters:
-        - name: assignment_id
-          in: path
+        - in: path
+          name: assignment_id
           required: true
           schema:
             type: string
             format: uuid
+            title: Assignment Id
       responses:
         "204":
           description: Assignment removed
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Assignment not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []

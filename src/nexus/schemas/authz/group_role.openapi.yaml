@@ -44,18 +44,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GroupRoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Group or role not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         "409":
-          description: Assignment already exists
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -77,8 +79,23 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Group Role Assignments
                 items:
                   $ref: "#/components/schemas/GroupRoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -102,15 +119,24 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Assignment Id
       responses:
         "204":
           description: Assignment removed
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Assignment not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []

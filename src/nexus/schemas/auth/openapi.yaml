@@ -55,12 +55,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccessTokenResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
           description: Invalid username or password
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
   /auth/refresh:
     post:
@@ -87,12 +95,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccessTokenResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
           description: Invalid or expired refresh token
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
   /auth/logout:
     post:
@@ -120,16 +136,23 @@ paths:
             application/json:
               schema:
                 type: object
-                properties:
-                  detail:
-                    type: string
-                    example: Successfully logged out
+                additionalProperties:
+                  type: string
+                title: Response Logout
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
           description: Invalid or expired refresh token
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
   /auth/me:
     get:
@@ -152,12 +175,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserInfo'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
           description: Invalid or missing authentication
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -183,11 +214,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthProvidersResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
   /auth/oidc/authorize:
     get:
       summary: Initiate OIDC login
-      description: |
+      description: |-
         Initiates the OIDC authorization code flow. Redirects the user's browser
         to the identity provider's authorization endpoint.
 
@@ -206,24 +251,47 @@ paths:
         - name: provider_id
           in: query
           required: true
+          description: UUID of the identity provider to use
           schema:
             type: string
             format: uuid
-          description: UUID of the identity provider to use
+            title: Provider Id
         - name: redirect_to
           in: query
           required: false
-          schema:
-            type: string
           description: URL to redirect to after successful login
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Redirect To
       responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
         '302':
           description: Redirect to identity provider or frontend on error
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
   /auth/oidc/callback:
     get:
       summary: OIDC callback
-      description: |
+      description: |-
         Handles the OIDC callback after the user authenticates at the identity provider.
         Exchanges the authorization code for tokens, validates the ID token,
         creates or maps a local user, and establishes a session.
@@ -239,32 +307,59 @@ paths:
         - name: state
           in: query
           required: true
+          description: OIDC state parameter for CSRF protection
           schema:
             type: string
-          description: OIDC state parameter for CSRF protection
+            title: State
         - name: code
           in: query
           required: false
-          schema:
-            type: string
           description: Authorization code from identity provider
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Code
         - name: error
           in: query
           required: false
-          schema:
-            type: string
           description: Error code from identity provider
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Error
         - name: error_description
           in: query
           required: false
-          schema:
-            type: string
           description: Human-readable error description from identity provider
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Error Description
       responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
         '302':
           description: Redirect to frontend after successful login
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
         '401':
           description: Authentication failed
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
 components:
   schemas:

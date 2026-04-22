@@ -35,7 +35,7 @@ paths:
     post:
       summary: Create Invocation (Async)
       description: |-
-        Accept async agent invocation request and return invocation ID immediately. Accepts application/json only.
+        Accept async agent invocation request and return invocation ID immediately.
 
       operationId: create_invocation
       tags:
@@ -55,16 +55,8 @@ paths:
               workflowGeneration:
                 summary: Workflow generation request
                 value:
-                  prompt: Create a workflow to deploy customer service app to production with health checks
+                  prompt: Create a workflow to deploy app to production
                   sessionId: session-001
-                  contextData:
-                    environment: production
-                    app_id: customer-svc
-              toolAnalysis:
-                summary: Tool analysis request
-                value:
-                  prompt: What tools are available for deployment?
-                  sessionId: session-002
       responses:
         '202':
           description: Invocation accepted
@@ -77,56 +69,23 @@ paths:
                   summary: Invocation accepted
                   value:
                     id: 550e8400-e29b-41d4-a716-446655440000
-                    prompt: Create a workflow to deploy customer service app
-                    created_by: 770e8400-e29b-41d4-a716-446655440000
-                    updated_by:
+                    prompt: Create a workflow to deploy app
                     session_id: session-001
                     status: running
-                    created_at: '2025-10-21T10:30:00Z'
-                    updated_at: '2025-10-21T10:30:00Z'
-                    started_at:
-                    completed_at:
-                    labels:
-                      environment: production
-                      team: platform
-                    context_data:
-                      app_id: customer-svc
-                      region: us-east-1
-                    result:
-                    error_message:
-                    checkpoint_data:
         '400':
-          description: Bad Request - Validation error
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                validation:
-                  summary: Standard validation error
-                  value:
-                    error: Validation Error
-                    detail: Missing required field 'prompt'
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/BadRequestError
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError
+        '403':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError
+        '404':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
+        '409':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ConflictError
+        '422':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ValidationError
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
-        '503':
-          description: Service Unavailable - LLM provider not configured
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                openrouterNotConfigured:
-                  summary: OpenRouter API key not configured
-                  value:
-                    error: service_unavailable
-                    message: APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys
       security:
         - bearerAuth: []
     get:
@@ -143,41 +102,50 @@ paths:
         scope: null
         default_roles: []
       parameters:
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
         - name: status
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/InvocationStatus'
+            anyOf:
+              - $ref: '#/components/schemas/InvocationStatus'
+              - type: 'null'
+            title: Status
           description: Filter invocations by status (running, paused, cancelled, completed, failed)
-        - name: prompt
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Filter by prompt text (substring match)
         - name: created_by
           in: query
           required: false
           schema:
-            type: string
-            format: uuid
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Created By
           description: Filter by creator UUID
         - name: session_id
           in: query
           required: false
           schema:
-            type: string
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Session Id
           description: Filter by session ID
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/labelsFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/createdAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/updatedAtFilterParam
-        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
+        - name: prompt
+          in: query
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            title: Prompt
+          description: Filter by prompt text (substring match)
       responses:
         '200':
-          description: Successful response with paginated invocations
+          description: List of invocations
           content:
             application/json:
               schema:
@@ -189,45 +157,19 @@ paths:
                     resources:
                       - id: 550e8400-e29b-41d4-a716-446655440000
                         prompt: Deploy app to production
-                        created_by: 770e8400-e29b-41d4-a716-446655440000
-                        updated_by:
                         session_id: session-001
                         status: running
-                        created_at: '2025-10-21T10:30:00Z'
-                        updated_at: '2025-10-21T10:30:00Z'
-                        started_at: '2025-10-21T10:30:01Z'
-                        completed_at:
-                        labels:
-                          environment: production
-                          team: platform
-                        context_data:
-                          environment: production
-                          app_id: customer-svc
-                        result:
-                        error_message:
-                        checkpoint_data:
-                      - id: 660e8400-e29b-41d4-a716-446655440001
-                        prompt: Analyze metrics
-                        created_by: 770e8400-e29b-41d4-a716-446655440000
-                        updated_by:
-                        session_id: session-002
-                        status: completed
-                        created_at: '2025-10-21T09:00:00Z'
-                        updated_at: '2025-10-21T09:05:00Z'
-                        started_at: '2025-10-21T09:00:01Z'
-                        completed_at: '2025-10-21T09:05:00Z'
-                        labels:
-                          environment: staging
-                        context_data: {}
-                        result:
-                          workflow_id: wf-123
-                          status: success
-                        error_message:
-                        checkpoint_data:
-                    next: eyJpZCI6IjY2MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMSJ9
-                    prev:
-                    total: 42
         '400':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/BadRequestError
+        '401':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError
+        '403':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError
+        '404':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
+        '409':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ConflictError
+        '422':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/ValidationError
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
@@ -243,15 +185,17 @@ paths:
       operationId: create_invocation_chat
       tags:
         - Invocation
+      x-app-permission:
+        resource: null
+        action: null
+        scope: null
+        default_roles: []
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/InvocationRequestWithFile'
-            encoding:
-              files:
-                contentType: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, text/markdown
       responses:
         '202':
           description: Invocation accepted
@@ -260,52 +204,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/Invocation'
         '400':
-          description: Bad Request - Validation or file processing error
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                validation:
-                  summary: Standard validation error
-                  value:
-                    error: Validation Error
-                    detail: Missing required field 'prompt'
-                fileTooLarge:
-                  summary: File exceeds size limit
-                  value:
-                    error: File Too Large
-                    detail: Uploaded file size (15728640 bytes) exceeds maximum allowed size (10485760 bytes / 10 MB)
-                unsupportedFormat:
-                  summary: File format not supported
-                  value:
-                    error: Unsupported File Format
-                    detail: File type 'image/png' is not supported. Supported formats - PDF, DOC, DOCX, TXT, MD
-                tooManyFiles:
-                  summary: Too many files uploaded
-                  value:
-                    error: Too Many Files
-                    detail: Uploaded 15 files, but maximum allowed is 10 files per invocation (configurable via file_upload_max_files)
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/BadRequestError
         '401':
-          description: Unauthorized
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError
+        '403':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError
+        '404':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
+        '409':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ConflictError
+        '422':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ValidationError
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
-        '503':
-          description: Service Unavailable - LLM provider not configured
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                openrouterNotConfigured:
-                  summary: OpenRouter API key not configured
-                  value:
-                    error: service_unavailable
-                    message: APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys
       security:
         - bearerAuth: []
   /invocations/{invocation_id}:
@@ -329,103 +240,34 @@ paths:
           description: UUID of the invocation to retrieve
           schema:
             type: string
-            format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
+            title: Invocation Id
       responses:
         '200':
-          description: Successful response with full invocation details
+          description: Invocation details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Invocation'
               examples:
-                completedGenericAgent:
-                  summary: Completed GenericAgent invocation with context enhancement
+                completedInvocation:
+                  summary: Completed invocation
                   value:
                     id: 550e8400-e29b-41d4-a716-446655440000
                     prompt: What deployment tools are available?
-                    created_by: 770e8400-e29b-41d4-a716-446655440000
-                    updated_by:
                     session_id: test-session-123
                     status: completed
-                    created_at: '2025-10-21T10:00:00Z'
-                    updated_at: '2025-10-21T10:00:05Z'
-                    started_at: '2025-10-21T10:00:01Z'
-                    completed_at: '2025-10-21T10:00:05Z'
-                    labels:
-                      environment: development
-                    context_data:
-                      user_context: testing
-                    result:
-                      type: answer
-                      content: Based on the available documentation, the Nexus system provides several deployment tools including Docker for containerization, Kubernetes for orchestration, and Terraform for infrastructure as code...
-                      response_metadata:
-                        model: anthropic/claude-3.5-sonnet
-                      grounding_score: 0.8
-                      context_enhancement:
-                        turn_id: 770e8400-e29b-41d4-a716-446655440003
-                        citations:
-                          - source: deployment-guide.md
-                            relevance: 0.9
-                          - source: tools-inventory.yaml
-                            relevance: 0.7
-                        context_applied: true
-                    error_message:
-                    checkpoint_data:
-                runningInvocation:
-                  summary: Running invocation (not yet completed)
-                  value:
-                    id: 660e8400-e29b-41d4-a716-446655440001
-                    prompt: Analyze production metrics
-                    created_by: 770e8400-e29b-41d4-a716-446655440000
-                    updated_by:
-                    session_id: test-session-456
-                    status: running
-                    created_at: '2025-10-21T10:30:00Z'
-                    updated_at: '2025-10-21T10:30:00Z'
-                    started_at: '2025-10-21T10:30:01Z'
-                    completed_at:
-                    labels: {}
-                    context_data: {}
-                    result:
-                    error_message:
-                    checkpoint_data:
-                failedInvocation:
-                  summary: Failed invocation with error
-                  value:
-                    id: 770e8400-e29b-41d4-a716-446655440002
-                    prompt: Invalid query
-                    created_by: 770e8400-e29b-41d4-a716-446655440000
-                    updated_by:
-                    session_id: test-session-789
-                    status: failed
-                    created_at: '2025-10-21T11:00:00Z'
-                    updated_at: '2025-10-21T11:00:02Z'
-                    started_at: '2025-10-21T11:00:01Z'
-                    completed_at: '2025-10-21T11:00:02Z'
-                    labels: {}
-                    context_data: {}
-                    result:
-                    error_message: GenericAgent not configured. Set APP_OPENROUTER_API_KEY environment variable.
-                    checkpointData:
-        '422':
-          description: Invalid UUID format or validation error
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              example:
-                error: Validation Error
-                detail: Invalid UUID provided (not-a-uuid)
+        '400':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/BadRequestError
+        '401':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError
+        '403':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError
         '404':
-          description: Invocation not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              example:
-                error: Not Found
-                detail: Invocation 550e8400-e29b-41d4-a716-446655440000 not found
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
+        '409':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ConflictError
+        '422':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ValidationError
         '500':
           $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
 
@@ -439,7 +281,7 @@ paths:
 
       operationId: cancel_invocation
       tags:
-        - Control
+        - Invocation
       x-app-permission:
         resource: null
         action: null
@@ -452,8 +294,7 @@ paths:
           description: UUID of the invocation to cancel
           schema:
             type: string
-            format: uuid
-          example: 550e8400-e29b-41d4-a716-446655440000
+            title: Invocation Id
       requestBody:
         required: true
         content:
@@ -465,13 +306,9 @@ paths:
                 summary: Default cancellation reason
                 value:
                   reason: User cancelled
-              custom_reason:
-                summary: Custom cancellation reason
-                value:
-                  reason: Request taking too long
       responses:
         '200':
-          description: Cancellation successful
+          description: Cancellation result
           content:
             application/json:
               schema:
@@ -482,66 +319,20 @@ paths:
                   value:
                     success: true
                     message: Invocation 550e8400-e29b-41d4-a716-446655440000 cancelled successfully
-        '422':
-          description: Invalid UUID format or validation error
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                invalid_uuid:
-                  summary: Invalid UUID format
-                  value:
-                    type: https://nexus.example.com/errors/validation-error
-                    title: Validation Error
-                    status: 422
-                    detail: 'Invalid UUID format: abc123'
-                    instance: /api/v1/invocations/abc123/cancel
+        '400':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/BadRequestError
+        '401':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError
+        '403':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError
         '404':
-          description: Invocation not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                not_found:
-                  summary: Invocation not found
-                  value:
-                    type: https://nexus.example.com/errors/not-found
-                    title: Resource Not Found
-                    status: 404
-                    detail: Invocation 550e8400-e29b-41d4-a716-446655440000 not found
-                    instance: /api/v1/invocations/550e8400-e29b-41d4-a716-446655440000/cancel
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/NotFoundError
         '409':
-          description: Invocation cannot be cancelled (wrong state)
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                wrong_state:
-                  summary: Invocation not in cancellable state
-                  value:
-                    type: https://nexus.example.com/errors/state-conflict
-                    title: Operation Not Allowed
-                    status: 409
-                    detail: 'Invocation 550e8400-e29b-41d4-a716-446655440000 cannot be cancelled (status: completed)'
-                    instance: /api/v1/invocations/550e8400-e29b-41d4-a716-446655440000/cancel
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ConflictError
+        '422':
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/ValidationError
         '500':
-          description: Internal server error
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
-              examples:
-                server_error:
-                  summary: Internal server error
-                  value:
-                    type: https://nexus.example.com/errors/internal
-                    title: Internal Server Error
-                    status: 500
-                    detail: Internal server error
-                    instance: /api/v1/invocations/550e8400-e29b-41d4-a716-446655440000/cancel
+          $ref: ../base/shared-resources.openapi.yaml#/components/responses/InternalServerError
 
       security:
         - bearerAuth: []

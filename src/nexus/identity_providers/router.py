@@ -21,7 +21,7 @@ from nexus.identity_providers.models.identity_provider import (
 from nexus.identity_providers.services.identity_provider_service import IdentityProviderService
 from nexus.identity_providers.services.oidc_discovery import OIDCTestResult, test_oidc_connection
 
-router = APIRouter(prefix="/identity_providers", tags=["identity_providers"])
+router = APIRouter(prefix="/identity_providers", tags=["IdentityProviders"])
 
 _idp_create = PermissionChecker("identity-provider", "create", roles=["admin"])
 _idp_read = PermissionChecker("identity-provider", "read", roles=["admin"])

@@ -22,15 +22,65 @@ _EXCLUDED_KEYS: frozenset[str] = frozenset({"tags"})
 # This avoids false positives from YAML block-scalar vs Python triple-quoted-string formatting.
 _TEXT_NORMALIZE_KEYS: frozenset[str] = frozenset({"description", "summary"})
 
+# Valid values for the OpenAPI "in" field on parameter objects.
+# Used to distinguish parameters from other objects that incidentally have "name" and "in" keys
+# (e.g. security scheme objects: {type: apiKey, in: header, name: X-API-Key}).
+_PARAM_IN_VALUES: frozenset[str] = frozenset({"query", "path", "header", "cookie"})
+
 
 def _normalize_text(text: str) -> str:
     """Collapse whitespace runs and normalize RST ``backticks`` → `backticks` for comparison."""
     return re.sub(r"\s+", " ", text).strip().replace("``", "`")
 
 
+def _is_parameter_object(obj: dict) -> bool:
+    return "name" in obj and obj.get("in") in _PARAM_IN_VALUES
+
+
+def _strip_schema_description(param: dict) -> dict:
+    """Remove descriptions from a parameter object before comparison.
+
+    Two cases are handled:
+
+    1. Schema-level description (``parameters[i].schema.description``):
+       FastAPI copies the parameter description into the schema sub-object as a
+       redundant duplicate; our sub-specs only store it at the parameter level.
+
+    2. Query and path parameter top-level description (``parameters[i].description``):
+       descriptions are authored in sub-specs but FastAPI does not generate them,
+       causing widespread false-positive drift.
+    """
+    schema = param.get("schema")
+    if isinstance(schema, dict) and "description" in schema:
+        stripped_schema = {k: v for k, v in schema.items() if k != "description"}
+        param = {**param, "schema": stripped_schema}
+    if param.get("in") in ("query", "path") and "description" in param:
+        param = {k: v for k, v in param.items() if k != "description"}
+    return param
+
+
+def _normalize_for_display(obj: object) -> object:
+    """Strip ignored fields from parameter objects before rendering the diff.
+
+    Mirrors the suppression logic in _normalize_for_comparison so that the
+    displayed diff only shows differences that actually matter for the check.
+    Unlike _normalize_for_comparison, this does NOT collapse whitespace in text
+    fields — the raw values are preserved for readability.
+    """
+    if isinstance(obj, dict):
+        if _is_parameter_object(obj):
+            obj = _strip_schema_description(obj)
+        return {k: _normalize_for_display(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_for_display(item) for item in obj]
+    return obj
+
+
 def _normalize_for_comparison(obj: object) -> object:
     """Recursively normalize description/summary text fields for equality comparison."""
     if isinstance(obj, dict):
+        if _is_parameter_object(obj):
+            obj = _strip_schema_description(obj)
         return {
             k: _normalize_text(v) if k in _TEXT_NORMALIZE_KEYS and isinstance(v, str) else _normalize_for_comparison(v)
             for k, v in obj.items()
@@ -139,8 +189,8 @@ def _print_subkey_full_diff(label: str, committed_val: object, generated_val: ob
     print(f"\n  {label}:", file=sys.stderr)
     for name, status in items:
         print(f"    {name:<{col_width}}  {_INDICATORS[status]}", file=sys.stderr)
-        c_lines = _to_yaml_text(c.get(name)).splitlines(keepends=True)
-        g_lines = _to_yaml_text(g.get(name)).splitlines(keepends=True)
+        c_lines = _to_yaml_text(_normalize_for_display(c.get(name))).splitlines(keepends=True)
+        g_lines = _to_yaml_text(_normalize_for_display(g.get(name))).splitlines(keepends=True)
         for line in difflib.unified_diff(c_lines, g_lines, fromfile="committed", tofile="generated", n=2):
             sys.stderr.write(f"      {line}")
 
@@ -160,8 +210,8 @@ def _print_full_diff(differing_keys: list[str], committed_dict: dict, generated_
         else:
             status = _key_status(committed_dict, generated_dict, key)
             print(f"\n  {key}  {_INDICATORS[status]}", file=sys.stderr)
-            c_lines = _to_yaml_text(c_val).splitlines(keepends=True)
-            g_lines = _to_yaml_text(g_val).splitlines(keepends=True)
+            c_lines = _to_yaml_text(_normalize_for_display(c_val)).splitlines(keepends=True)
+            g_lines = _to_yaml_text(_normalize_for_display(g_val)).splitlines(keepends=True)
             for line in difflib.unified_diff(c_lines, g_lines, fromfile="committed", tofile="generated", n=2):
                 sys.stderr.write(f"    {line}")
 

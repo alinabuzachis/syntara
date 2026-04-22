@@ -23,8 +23,6 @@ class ErrorData(SQLModel):
     Problem Details specification. It provides machine-readable and human-readable
     error information with consistent structure.
 
-    Will eventually replace the Error class above which does not conform to RFC 9457.
-
     Attributes:
         type: URI reference identifying the problem type
         title: Short, human-readable summary of the problem

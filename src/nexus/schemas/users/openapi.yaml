@@ -40,13 +40,8 @@ paths:
       parameters:
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Sort field and direction (e.g., 'username', '-created_at')
       responses:
         '200':
           description: List of users
@@ -54,6 +49,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -81,12 +90,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Username or email conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -103,13 +120,13 @@ paths:
       tags:
         - Users
       parameters:
-        - name: user_id
-          in: path
+        - in: path
+          name: user_id
           required: true
           schema:
             type: string
             format: uuid
-          description: User UUID
+            title: User Id
       responses:
         '200':
           description: User details
@@ -117,12 +134,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: User not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -141,13 +166,13 @@ paths:
       tags:
         - Users
       parameters:
-        - name: user_id
-          in: path
+        - in: path
+          name: user_id
           required: true
           schema:
             type: string
             format: uuid
-          description: User UUID
+            title: User Id
       requestBody:
         required: true
         content:
@@ -161,24 +186,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Forbidden (e.g., non-admin disabling built-in admin)
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: User not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Email conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -194,22 +215,30 @@ paths:
       tags:
         - Users
       parameters:
-        - name: user_id
-          in: path
+        - in: path
+          name: user_id
           required: true
           schema:
             type: string
             format: uuid
-          description: User UUID
+            title: User Id
       responses:
         '204':
           description: User deleted
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: User not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -226,28 +255,38 @@ paths:
       tags:
         - Users
       parameters:
-        - name: user_id
-          in: path
+        - in: path
+          name: user_id
           required: true
           schema:
             type: string
             format: uuid
-          description: User UUID
+            title: User Id
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
       responses:
         '200':
-          description: List of groups
+          description: List of groups the user belongs to
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: User not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -267,13 +306,13 @@ paths:
       tags:
         - Users
       parameters:
-        - name: user_id
-          in: path
+        - in: path
+          name: user_id
           required: true
           schema:
             type: string
             format: uuid
-          description: User UUID
+            title: User Id
       requestBody:
         required: true
         content:
@@ -287,12 +326,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: User or group not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       # ── Groups ──────────────────────────────────────────────────────────
       security:
@@ -312,13 +359,8 @@ paths:
       parameters:
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Sort field and direction (e.g., 'name', '-created_at')
       responses:
         '200':
           description: List of groups
@@ -326,6 +368,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -353,12 +409,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Group name conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -381,6 +445,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Group Id
           description: Group UUID
       responses:
         '200':
@@ -389,18 +454,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Group not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
     patch:
       summary: Update Group
-      description: Partially update a group. Only provided fields are updated.
+      description: Update a group partially; only provided fields are changed.
       operationId: update_group
       x-app-permission:
         resource: group
@@ -416,6 +489,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Group Id
           description: Group UUID
       requestBody:
         required: true
@@ -430,18 +504,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupRead'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Group not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: Group name conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -463,16 +539,25 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Group Id
           description: Group UUID
       responses:
         '204':
           description: Group deleted
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Group not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -495,9 +580,12 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Group Id
           description: Group UUID
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/limitParam
         - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/cursorParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/sortParam
+        - $ref: ../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam
       responses:
         '200':
           description: List of group members
@@ -505,12 +593,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        '403':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Group not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -532,6 +628,7 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Group Id
           description: Group UUID
       requestBody:
         required: true
@@ -546,24 +643,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupMemberAddResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: User is not a local user
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Group or user not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         '409':
-          description: User already a member
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -586,29 +679,32 @@ paths:
           schema:
             type: string
             format: uuid
+            title: Group Id
           description: Group UUID
-        - name: user_id
-          in: path
+        - in: path
+          name: user_id
           required: true
           schema:
             type: string
             format: uuid
-          description: User UUID
+            title: User Id
       responses:
         '204':
           description: Member removed
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: User is not a local user
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         '404':
-          description: Group not found or user not a member
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []

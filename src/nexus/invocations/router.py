@@ -118,6 +118,42 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
     dependencies=[NO_PERMISSION],
     operation_id="create_invocation",
     response_description="Invocation accepted",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "workflowGeneration": {
+                            "summary": "Workflow generation request",
+                            "value": {
+                                "prompt": "Create a workflow to deploy app to production",
+                                "sessionId": "session-001",
+                            },
+                        }
+                    }
+                }
+            }
+        },
+        "responses": {
+            "202": {
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "invocationAccepted": {
+                                "summary": "Invocation accepted",
+                                "value": {
+                                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                                    "prompt": "Create a workflow to deploy app",
+                                    "session_id": "session-001",
+                                    "status": "running",
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    },
 )
 async def create_invocation(
     request_body: InvocationCreateRequest,
@@ -160,7 +196,7 @@ async def create_invocation(
 )
 async def create_invocation_chat(
     service: Annotated[InvocationService, Depends(get_invocation_service_with_background_tasks)],
-    form: Annotated[InvocationRequestWithFile, Form()],
+    form: Annotated[InvocationRequestWithFile, Form(media_type="multipart/form-data")],
 ) -> Invocation:
     """Accept async invocation request with optional file uploads (multipart/form-data).
 
@@ -198,6 +234,33 @@ async def create_invocation_chat(
     dependencies=[NO_PERMISSION],
     operation_id="list_invocations",
     response_description="List of invocations",
+    openapi_extra={
+        "responses": {
+            "200": {
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "paginatedList": {
+                                "summary": "Paginated invocation list",
+                                "value": {
+                                    "resources": [
+                                        {
+                                            "id": "550e8400-e29b-41d4-a716-446655440000",
+                                            "prompt": "Deploy app to production",
+                                            "session_id": "session-001",
+                                            "status": "running",
+                                        }
+                                    ],
+                                    "next": None,
+                                    "prev": None,
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
 )
 async def list_invocations(
     request: Request,
@@ -251,6 +314,27 @@ async def list_invocations(
     dependencies=[NO_PERMISSION],
     operation_id="get_invocation",
     response_description="Invocation details",
+    openapi_extra={
+        "responses": {
+            "200": {
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "completedInvocation": {
+                                "summary": "Completed invocation",
+                                "value": {
+                                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                                    "prompt": "What deployment tools are available?",
+                                    "session_id": "test-session-123",
+                                    "status": "completed",
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
 )
 async def get_invocation(
     invocation_id: Annotated[
@@ -312,6 +396,37 @@ async def get_invocation(
     dependencies=[NO_PERMISSION],
     operation_id="cancel_invocation",
     response_description="Cancellation result",
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "default_reason": {
+                            "summary": "Default cancellation reason",
+                            "value": {"reason": "User cancelled"},
+                        }
+                    }
+                }
+            }
+        },
+        "responses": {
+            "200": {
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "success": {
+                                "summary": "Successful cancellation",
+                                "value": {
+                                    "success": True,
+                                    "message": "Invocation 550e8400-e29b-41d4-a716-446655440000 cancelled successfully",
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    },
 )
 async def cancel_invocation(
     invocation_id: Annotated[

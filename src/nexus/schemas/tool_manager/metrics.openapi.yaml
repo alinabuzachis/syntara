@@ -31,67 +31,64 @@ paths:
         Uses UsageCounter for unfiltered queries (fast path) and SQL aggregation
         for time-filtered queries (flexible path).
       parameters:
-        - name: field[operator]
+        - name: namespaced_name
           in: query
-          description: |
-            Generic field filtering with operators. Syntax: field[operator]=value
-
-            Supported operators:
-            - eq: equals
-            - contains: string contains
-            - starts_with: string starts with
-            - gt: greater than
-            - gte: greater than or equal
-            - lt: less than
-            - lte: less than or equal
-
-            Examples:
-            - ?time_window[eq]=day
-            - ?start_date[gte]=2025-01-01
-            - ?provider_id[eq]=uuid1
-            - ?user_id[contains]=agent
+          description: Filter by tool namespaced name
+          required: false
           schema:
-            type: object
-            additionalProperties:
-              type: string
-          style: deepObject
-          explode: true
-        - name: limit
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Filter by tool namespaced name
+            title: Namespaced Name
+        - name: start_time
           in: query
-          description: Maximum number of metric records to return
+          description: Start of time range (ISO 8601)
+          required: false
           schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - name: cursor
+            anyOf:
+              - type: string
+                format: date-time
+              - type: 'null'
+            description: Start of time range (ISO 8601)
+            title: Start Time
+        - name: end_time
           in: query
-          description: Cursor for keyset pagination (metric ID to start after)
+          description: End of time range (ISO 8601)
+          required: false
           schema:
-            type: string
-            format: uuid
-        - name: include_total
-          in: query
-          description: Include total count in response (may impact performance)
-          schema:
-            type: boolean
-            default: false
+            anyOf:
+              - type: string
+                format: date-time
+              - type: 'null'
+            description: End of time range (ISO 8601)
+            title: End Time
       responses:
         '200':
-          description: Tool usage metrics
+          description: Successful Response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ToolMetricsToolSummaryListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolMetrics
   /tool_manager/metrics/executions:
     get:
       operationId: get_tool_executions
@@ -107,89 +104,114 @@ paths:
         Supports filtering by namespaced_name, status, and time range.
         Uses cursor-based pagination consistent with other Nexus list endpoints.
       parameters:
-        - name: field[operator]
-          in: query
-          description: |
-            Generic field filtering with operators. Syntax: field[operator]=value
-
-            Supported operators:
-            - eq: equals
-            - contains: string contains
-            - starts_with: string starts with
-            - gt: greater than
-            - gte: greater than or equal
-            - lt: less than
-            - lte: less than or equal
-
-            Examples:
-            - ?status[eq]=success
-            - ?execution_start[gte]=2025-01-01T00:00:00Z
-            - ?duration_ms[gt]=100
-            - ?user_id[contains]=agent
-          schema:
-            type: object
-            additionalProperties:
-              type: string
-          style: deepObject
-          explode: true
         - name: limit
           in: query
-          description: Maximum number of executions to return
+          description: Maximum number of results per page
+          required: false
           schema:
             type: integer
-            minimum: 1
+            exclusiveMinimum: 0
             maximum: 100
-            default: 50
+            default: 20
+            description: Maximum number of results per page
+            title: Limit
         - name: cursor
           in: query
-          description: Cursor for keyset pagination (execution ID to start after)
+          description: Pagination cursor from previous response
+          required: false
           schema:
-            type: string
-            format: uuid
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Pagination cursor from previous response
+            title: Cursor
+        - name: sort
+          in: query
+          description: Sort parameter (e.g., 'name', '-created_at')
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Sort parameter (e.g., 'name', '-created_at')
+            title: Sort
         - name: include_total
           in: query
-          description: Include total count in response (may impact performance)
+          description: Include total count in response (expensive)
+          required: false
           schema:
             type: boolean
             default: false
+            description: Include total count in response (expensive)
+            title: Include Total
+        - name: namespaced_name
+          in: query
+          description: Filter by tool namespaced name
+          required: false
+          schema:
+            anyOf:
+              - type: string
+              - type: 'null'
+            description: Filter by tool namespaced name
+            title: Namespaced Name
+        - name: status
+          in: query
+          description: Filter by execution status
+          required: false
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/ToolExecutionStatus'
+              - type: 'null'
+            description: Filter by execution status
+            title: Status
+        - name: start_time
+          in: query
+          description: Start of time range (ISO 8601)
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: date-time
+              - type: 'null'
+            description: Start of time range (ISO 8601)
+            title: Start Time
+        - name: end_time
+          in: query
+          description: End of time range (ISO 8601)
+          required: false
+          schema:
+            anyOf:
+              - type: string
+                format: date-time
+              - type: 'null'
+            description: End of time range (ISO 8601)
+            title: End Time
       responses:
         '200':
-          description: Execution logs
+          description: Successful Response
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  executions:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ToolExecution'
-                  limit:
-                    type: integer
-                    description: Maximum number of items requested
-                  next_cursor:
-                    type: [string, "null"]
-                    format: uuid
-                    description: Cursor for the next page (null if no more pages)
-                  has_more:
-                    type: boolean
-                    description: Whether there are more items available
-                  total:
-                    type: integer
-                    description: Total count (only included if include_total=true)
-                required:
-                  - executions
-                  - limit
-                  - has_more
+                $ref: '#/components/schemas/ToolExecutionListResponse'
+        '400':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        '401':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         '403':
-          description: Admin access required
-          content:
-            application/problem+json:
-              schema:
-                $ref: ../base/shared-resources.openapi.yaml#/components/schemas/ErrorData
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        '404':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        '409':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        '422':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        '500':
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
+      tags:
+        - ToolMetrics
 components:
   schemas:
     ToolExecutionStatus:

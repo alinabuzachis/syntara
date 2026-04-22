@@ -105,6 +105,33 @@ class FileUploadResponse(BaseModel):
     dependencies=[NO_PERMISSION],
     operation_id="upload_files",
     response_description="Files uploaded successfully",
+    openapi_extra={
+        "responses": {
+            "200": {
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "singleFile": {
+                                "summary": "Single file upload",
+                                "value": {
+                                    "file_ids": ["550e8400-e29b-41d4-a716-446655440000"],
+                                    "files": [
+                                        {
+                                            "file_id": "550e8400-e29b-41d4-a716-446655440000",
+                                            "filename": "document.pdf",
+                                            "size_bytes": 524288,
+                                            "mime_type": "application/pdf",
+                                            "status": "pending_conversion",
+                                        }
+                                    ],
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
 )
 async def upload_files(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -112,7 +139,7 @@ async def upload_files(
     file_manager: Annotated[FileManager, Depends(get_file_manager)],
     background_tasks: BackgroundTasks,
     document_conversion_task: Annotated[DocumentConversionTask, Depends(get_document_conversion_task)],
-    body: Annotated[UploadFilesBody, Form()],
+    body: Annotated[UploadFilesBody, Form(media_type="multipart/form-data")],
 ) -> FileUploadResponse:
     """Upload files for later use in agent invocations.
 

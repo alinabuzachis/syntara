@@ -38,6 +38,7 @@ from nexus.core.database.session import AsyncSessionLocal, engine, get_db
 from nexus.core.error_handlers import (
     generic_exception_handler,
     integrity_error_handler,
+    problem_details_response_map,
     validation_error_handler,
     value_error_handler,
 )
@@ -233,6 +234,7 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
     lifespan=lifespan,
+    responses=problem_details_response_map(),
 )
 
 # Configure CORS middleware using centralized settings

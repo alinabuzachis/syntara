@@ -15,7 +15,7 @@ from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 
-router = NexusRouter(prefix="/user-role-assignments", tags=["user-role-assignments"])
+router = NexusRouter(prefix="/user-role-assignments", tags=["UserRoleAssignments"])
 
 
 class UserRoleAssignmentCreate(SQLModel):
@@ -48,6 +48,8 @@ def get_user_role_service(
     "",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(PermissionChecker("user-role", "assign", roles=["admin"]))],
+    operation_id="assign_user_role",
+    response_description="Role assigned to user",
 )
 async def assign_user_role(
     body: UserRoleAssignmentCreate,
@@ -72,7 +74,12 @@ async def assign_user_role(
     )
 
 
-@router.get("", dependencies=[NO_PERMISSION])
+@router.get(
+    "",
+    dependencies=[NO_PERMISSION],
+    operation_id="list_user_role_assignments",
+    response_description="List of user-role assignments",
+)
 async def list_user_role_assignments(
     service: Annotated[UserRoleService, Depends(get_user_role_service)],
 ) -> list[UserRoleAssignmentRead]:
@@ -85,6 +92,8 @@ async def list_user_role_assignments(
     "/{assignment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(PermissionChecker("user-role", "revoke", roles=["admin"]))],
+    operation_id="revoke_user_role_assignment",
+    response_description="Assignment removed",
 )
 async def revoke_user_role_assignment(
     assignment_id: UUID,

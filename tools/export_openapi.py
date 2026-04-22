@@ -19,6 +19,7 @@ import yaml
 from fastapi import FastAPI
 
 from nexus.api.constants import API_V1_PATH_PREFIX
+from nexus.core.error_handlers import apply_rfc9457_media_types, problem_details_response_map
 from nexus.core.router_discovery import discover_and_register_routers
 
 
@@ -134,6 +135,7 @@ def build_spec_app() -> FastAPI:
         description="A distributed multi-agent workflow orchestration system",
         version="0.1.0",
         servers=[{"url": API_V1_PATH_PREFIX, "description": "API v1"}],
+        responses=problem_details_response_map(),
     )
 
     discover_and_register_routers(
@@ -166,6 +168,7 @@ def main() -> int:
 
     app = build_spec_app()
     spec = app.openapi()
+    apply_rfc9457_media_types(spec)
     _inject_permission_metadata(app, spec)
 
     if args.format == "yaml":

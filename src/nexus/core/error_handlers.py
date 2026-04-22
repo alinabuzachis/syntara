@@ -4,7 +4,7 @@ This module provides centralized error handling utilities and framework-level
 error handlers that are shared across all domains.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from fastapi import HTTPException, Request, status
@@ -36,6 +36,117 @@ PROBLEM_TYPES = {
     "provider_error": "https://api.nexus.com/errors/provider-error",
     "internal_error": "https://api.nexus.com/errors/internal-error",
 }
+
+
+_ERROR_RESPONSE_EXAMPLES: dict[int, dict[str, object]] = {
+    400: {
+        "type": "https://api.nexus.com/errors/bad-request",
+        "title": "Bad Request",
+        "detail": "The request was malformed or contained invalid parameters",
+        "code": "BAD_REQUEST",
+        "retryable": False,
+    },
+    401: {
+        "type": "https://api.nexus.com/errors/unauthorized",
+        "title": "Unauthorized",
+        "detail": "Authentication is required to access this resource",
+        "code": "UNAUTHORIZED",
+        "retryable": False,
+    },
+    403: {
+        "type": "https://api.nexus.com/errors/forbidden",
+        "title": "Forbidden",
+        "detail": "You do not have permission to access this resource",
+        "code": "FORBIDDEN",
+        "retryable": False,
+    },
+    404: {
+        "type": "https://api.nexus.com/errors/not-found",
+        "title": "Resource Not Found",
+        "detail": "No resource exists with the provided identifier",
+        "code": "NOT_FOUND",
+        "retryable": False,
+        "instance": "/api/v1/workflows",
+    },
+    409: {
+        "type": "https://api.nexus.com/errors/conflict",
+        "title": "Conflict",
+        "detail": "The request conflicts with the current state of the resource",
+        "code": "CONFLICT",
+        "retryable": False,
+    },
+    422: {
+        "type": "https://api.nexus.com/errors/validation-error",
+        "title": "Validation Error",
+        "detail": "Field 'name' must be between 1 and 255 characters",
+        "code": "VALIDATION_ERROR",
+        "retryable": False,
+        "instance": "/api/v1/workflows",
+    },
+    500: {
+        "type": "https://api.nexus.com/errors/internal-error",
+        "title": "Internal Server Error",
+        "detail": "An unexpected error occurred",
+        "code": "INTERNAL_ERROR",
+        "retryable": True,
+    },
+}
+
+
+def problem_details_response_map() -> dict[int | str, dict[str, Any]]:
+    """App-level error responses so FastAPI includes ErrorData in the generated OpenAPI schema.
+
+    Uses ``model`` for automatic schema registration in ``components/schemas``
+    and ``content`` with ``application/json`` to attach RFC 9457 examples.
+    The media type is later renamed to ``application/problem+json`` by
+    :func:`apply_rfc9457_media_types`.
+    """
+    from nexus.core.models.error import ErrorData  # noqa: PLC0415
+
+    error_schema = {"$ref": "#/components/schemas/ErrorData"}
+    descriptions: dict[int, str] = {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+        500: "Internal Server Error",
+    }
+
+    return {
+        code: {
+            "model": ErrorData,
+            "description": desc,
+            "content": {
+                "application/json": {
+                    "schema": error_schema,
+                    "example": _ERROR_RESPONSE_EXAMPLES[code],
+                },
+            },
+        }
+        for code, desc in descriptions.items()
+    }
+
+
+def apply_rfc9457_media_types(spec: dict[str, Any]) -> None:
+    """Rename ``application/json`` → ``application/problem+json`` for error responses.
+
+    FastAPI always generates ``application/json`` as the media type.  RFC 9457
+    requires ``application/problem+json`` for error responses.  Call this after
+    ``app.openapi()`` to fix the generated spec.
+    """
+    error_codes = frozenset(str(c) for c in _ERROR_RESPONSE_EXAMPLES)
+    for path_item in spec.get("paths", {}).values():
+        for operation in path_item.values():
+            if not isinstance(operation, dict):
+                continue
+            for code, response in operation.get("responses", {}).items():
+                if str(code) not in error_codes or not isinstance(response, dict):
+                    continue
+                content = response.get("content", {})
+                if "application/json" in content:
+                    content["application/problem+json"] = content.pop("application/json")
 
 
 if TYPE_CHECKING:

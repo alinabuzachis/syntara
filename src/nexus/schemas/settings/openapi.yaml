@@ -44,37 +44,39 @@ paths:
           in: query
           required: false
           schema:
-            type: string
-          description: Filter by category slug (e.g. `context_manager`)
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Category
         - name: group
           in: query
           required: false
           schema:
-            type: string
-          description: Filter by group name (e.g. `Token limits`)
+            anyOf:
+              - type: string
+              - type: "null"
+            title: Group
       responses:
         "200":
           description: Paginated list of runtime settings
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ResourcesResponseBase"
-                  - type: object
-                    properties:
-                      resources:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/RuntimeSettingRead"
-                        maxItems: 100
-                    required:
-                      - resources
+                $ref: "#/components/schemas/SettingsListResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
         "403":
-          description: Insufficient permissions
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -102,27 +104,24 @@ paths:
           content:
             application/json:
               schema:
+                title: Response Bulk Update Settings
                 type: array
                 items:
                   $ref: "#/components/schemas/RuntimeSettingRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Setting not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         "409":
-          description: Version conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         "422":
-          description: Validation error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -146,6 +145,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CategoriesListResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -167,6 +180,7 @@ paths:
           in: path
           required: true
           schema:
+            title: Key
             type: string
           description: Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`)
       responses:
@@ -176,12 +190,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RuntimeSettingRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Setting not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -202,6 +224,7 @@ paths:
           in: path
           required: true
           schema:
+            title: Key
             type: string
           description: Dot-namespaced setting key (e.g. `context_manager.max_total_tokens`)
       requestBody:
@@ -217,24 +240,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RuntimeSettingRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Setting not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         "409":
-          description: Version conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
         "422":
-          description: Validation error
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []

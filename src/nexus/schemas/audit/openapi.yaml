@@ -27,8 +27,9 @@ paths:
   /audit:
     get:
       summary: List Audit Events
-      description: |
+      description: |-
         Retrieve a paginated list of audit events with optional filtering.
+
         Use this endpoint to:
         - Review system activity for a specific actor
         - Trace operations within a workflow or execution
@@ -193,12 +194,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditEventListResponse'
+        '400':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/BadRequestError'
+        '401':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError'
+        '404':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/NotFoundError'
+        '409':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ConflictError'
         '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/ValidationError'
+        '500':
+          $ref: '../base/shared-resources.openapi.yaml#/components/responses/InternalServerError'
 
       security:
         - bearerAuth: []
@@ -441,37 +450,6 @@ components:
           title: User Role
           description: Authenticated user role if available
 
-    HTTPValidationError:
-      type: object
-      title: HTTPValidationError
-      properties:
-        detail:
-          type: array
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          title: Detail
-
-    ValidationError:
-      type: object
-      title: ValidationError
-      required:
-        - loc
-        - msg
-        - type
-      properties:
-        loc:
-          type: array
-          items:
-            anyOf:
-              - type: string
-              - type: integer
-          title: Location
-        msg:
-          type: string
-          title: Message
-        type:
-          type: string
-          title: Error Type
     EventCategory:
       type: string
       title: EventCategory

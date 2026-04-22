@@ -21,24 +21,18 @@ servers:
 
 tags:
   - name: Projects
-    description: Project CRUD operations
-  - name: Project Workflows
-    description: Project-scoped workflow listing
-  - name: Project Approvals
-    description: Project-scoped approval listing
-  - name: Project Role Assignments
-    description: User role assignments within a project
-  - name: Project Group Role Assignments
-    description: Group role assignments within a project
+    description: Project CRUD and project-scoped resource operations
 
 paths:
   # ── Project CRUD ─────────────────────────────────────────────────────
   /projects:
     post:
       summary: Create Project
-      description: |
-        Create a new project. The creator is automatically assigned
-        the project-admin role. Requires: project:create permission.
+      description: |-
+        Create a new project.
+
+        The creator is automatically assigned the project-admin role.
+        Requires: project:create permission.
       operationId: create_project
       x-app-permission:
         resource: project
@@ -60,12 +54,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         "409":
-          description: Project name conflict
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -88,8 +90,23 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Projects
                 items:
                   $ref: "#/components/schemas/ProjectRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -112,7 +129,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
       responses:
         "200":
           description: Project details
@@ -120,12 +137,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Project not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -148,7 +173,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
       requestBody:
         required: true
         content:
@@ -162,12 +187,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Project not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -190,7 +223,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
       requestBody:
         required: true
         content:
@@ -204,12 +237,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Project not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -232,16 +273,24 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
       responses:
         "204":
           description: Project deleted
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Project not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       # ── Project Workflows ────────────────────────────────────────────────
       security:
@@ -261,7 +310,7 @@ paths:
         scope: project
         default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
-        - Project Workflows
+        - Projects
       parameters:
         - name: project_id
           in: path
@@ -269,16 +318,11 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
-        - name: sort
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Sort field and direction (e.g., 'name', '-created_at')
       responses:
         "200":
           description: Paginated list of workflows in the project
@@ -286,12 +330,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WorkflowListResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Project not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       # ── Project Approvals ────────────────────────────────────────────────
       security:
@@ -311,7 +363,7 @@ paths:
         scope: project
         default_roles: [admin, auditor, user, project-admin, project-user, project-auditor]
       tags:
-        - Project Approvals
+        - Projects
       parameters:
         - name: project_id
           in: path
@@ -319,29 +371,28 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/limitParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/cursorParam"
         - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/sortParam"
+        - $ref: "../base/shared-resources.openapi.yaml#/components/parameters/includeTotalParam"
         - name: status
           in: query
           required: false
           schema:
-            type: string
-            enum:
-              - pending
-              - approved
-              - rejected
-              - expired
-              - cancelled
-          description: Filter by approval status
+            anyOf:
+              - $ref: "#/components/schemas/ApprovalRequestStatus"
+              - type: 'null'
+            title: Status
         - name: execution_id
           in: query
           required: false
           schema:
-            type: string
-            format: uuid
-          description: Filter by parent workflow execution ID
+            anyOf:
+              - type: string
+                format: uuid
+              - type: 'null'
+            title: Execution Id
       responses:
         "200":
           description: Paginated list of approvals in the project
@@ -349,12 +400,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApprovalListResponse"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Project not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       # ── Project User Role Assignments ────────────────────────────────────
       security:
@@ -374,7 +433,7 @@ paths:
         scope: project
         default_roles: [admin, project-admin]
       tags:
-        - Project Role Assignments
+        - Projects
       parameters:
         - name: project_id
           in: path
@@ -382,7 +441,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
       requestBody:
         required: true
         content:
@@ -396,18 +455,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectRoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Project, user, or role not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         "409":
-          description: Assignment already exists
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -421,7 +482,7 @@ paths:
         scope: null
         default_roles: []
       tags:
-        - Project Role Assignments
+        - Projects
       parameters:
         - name: project_id
           in: path
@@ -429,7 +490,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
       responses:
         "200":
           description: List of role assignments
@@ -437,8 +498,23 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Project Roles
                 items:
                   $ref: "#/components/schemas/ProjectRoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -454,7 +530,7 @@ paths:
         scope: project
         default_roles: [admin, project-admin]
       tags:
-        - Project Role Assignments
+        - Projects
       parameters:
         - name: project_id
           in: path
@@ -462,23 +538,31 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
         - name: assignment_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-          description: Assignment UUID
+            title: Assignment Id
       responses:
         "204":
           description: Assignment removed
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Assignment not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       # ── Project Group Role Assignments ───────────────────────────────────
       security:
@@ -499,7 +583,7 @@ paths:
         scope: project
         default_roles: [admin, project-admin]
       tags:
-        - Project Group Role Assignments
+        - Projects
       parameters:
         - name: project_id
           in: path
@@ -507,7 +591,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
       requestBody:
         required: true
         content:
@@ -521,18 +605,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectGroupRoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Project, group, or role not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
         "409":
-          description: Assignment already exists
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -546,7 +632,7 @@ paths:
         scope: null
         default_roles: []
       tags:
-        - Project Group Role Assignments
+        - Projects
       parameters:
         - name: project_id
           in: path
@@ -554,7 +640,7 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
       responses:
         "200":
           description: List of group role assignments
@@ -562,8 +648,23 @@ paths:
             application/json:
               schema:
                 type: array
+                title: Response List Project Group Roles
                 items:
                   $ref: "#/components/schemas/ProjectGroupRoleAssignmentRead"
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
+        "404":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -579,7 +680,7 @@ paths:
         scope: project
         default_roles: [admin, project-admin]
       tags:
-        - Project Group Role Assignments
+        - Projects
       parameters:
         - name: project_id
           in: path
@@ -587,23 +688,31 @@ paths:
           schema:
             type: string
             format: uuid
-          description: Project UUID
+            title: Project Id
         - name: assignment_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
-          description: Assignment UUID
+            title: Assignment Id
       responses:
         "204":
           description: Assignment removed
+        "400":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/BadRequestError"
+        "401":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ForbiddenError"
         "404":
-          description: Assignment not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: "../base/shared-resources.openapi.yaml#/components/schemas/ErrorData"
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/NotFoundError"
+        "409":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ConflictError"
+        "422":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/ValidationError"
+        "500":
+          $ref: "../base/shared-resources.openapi.yaml#/components/responses/InternalServerError"
 
       security:
         - bearerAuth: []
@@ -618,6 +727,9 @@ components:
       properties:
         name:
           type: string
+          minLength: 1
+          maxLength: 255
+          pattern: ^[a-zA-Z0-9]([a-zA-Z0-9:_-]*[a-zA-Z0-9])?$
           title: Name
         description:
           anyOf:
@@ -638,6 +750,9 @@ components:
         name:
           anyOf:
             - type: string
+              minLength: 1
+              maxLength: 255
+              pattern: ^[a-zA-Z0-9]([a-zA-Z0-9:_-]*[a-zA-Z0-9])?$
             - type: "null"
           title: Name
         description:
@@ -789,6 +904,17 @@ components:
               format: date-time
             - type: "null"
           title: Created At
+
+    ApprovalRequestStatus:
+      type: string
+      title: ApprovalRequestStatus
+      description: Approval request status enumeration.
+      enum:
+        - pending
+        - approved
+        - rejected
+        - expired
+        - cancelled
 
     ApprovalListResponse:
       allOf:
