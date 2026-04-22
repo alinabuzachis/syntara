@@ -29,8 +29,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           alert-lookup: true
 
-      - name: Enable auto-merge for critical and high severity PRs
-        if: steps.metadata.outputs.cvss >= 7.0
+      - name: Enable auto-merge for Dependabot PRs
         run: gh pr merge --auto --squash "$PR_URL"
 
       - name: Comment on failure
