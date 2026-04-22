@@ -49,6 +49,21 @@ interface FieldSelectorProps {
   popperProps?: Record<string, unknown>
 }
 
+interface FieldSelectorMenuToggleProps {
+  toggleRef: React.Ref<MenuToggleElement>
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  label: string
+}
+
+function FieldSelectorMenuToggle({ toggleRef, isOpen, onOpenChange, label }: Readonly<FieldSelectorMenuToggleProps>) {
+  return (
+    <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)} icon={<FilterIcon />}>
+      {label}
+    </MenuToggle>
+  )
+}
+
 function FieldSelector({
   selectedField,
   fieldDefinitions,
@@ -66,9 +81,12 @@ function FieldSelector({
       onOpenChange={onOpenChange}
       popperProps={popperProps}
       toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-        <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)} icon={<FilterIcon />}>
-          {selectedField.label}
-        </MenuToggle>
+        <FieldSelectorMenuToggle
+          toggleRef={toggleRef}
+          isOpen={isOpen}
+          onOpenChange={onOpenChange}
+          label={selectedField.label}
+        />
       )}
     >
       <SelectList>
@@ -135,6 +153,26 @@ interface SelectFilterInputProps {
   onOpenChange: (isOpen: boolean) => void
   onSelect: (_event: React.MouseEvent | undefined, value: string | number | undefined) => void
   popperProps?: Record<string, unknown>
+}
+
+interface SelectFilterInputMenuToggleProps {
+  toggleRef: React.Ref<MenuToggleElement>
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  toggleLabel: string
+}
+
+function SelectFilterInputMenuToggle({
+  toggleRef,
+  isOpen,
+  onOpenChange,
+  toggleLabel,
+}: Readonly<SelectFilterInputMenuToggleProps>) {
+  return (
+    <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)}>
+      {toggleLabel}
+    </MenuToggle>
+  )
 }
 
 function SelectFilterInput({
@@ -286,9 +324,12 @@ function SelectFilterInput({
         onOpenChange={handleOpenChange}
         popperProps={popperProps}
         toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-          <MenuToggle ref={toggleRef} onClick={() => handleOpenChange(!isOpen)}>
-            {toggleLabel}
-          </MenuToggle>
+          <SelectFilterInputMenuToggle
+            toggleRef={toggleRef}
+            isOpen={isOpen}
+            onOpenChange={handleOpenChange}
+            toggleLabel={toggleLabel}
+          />
         )}
       >
         <SearchInput
@@ -315,6 +356,26 @@ interface MultiSelectFilterInputProps {
   onSelect: (_event: React.MouseEvent | undefined, value: string | number | undefined) => void
 }
 
+interface MultiSelectFilterInputMenuToggleProps {
+  toggleRef: React.Ref<MenuToggleElement>
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+  displayText: string
+}
+
+function MultiSelectFilterInputMenuToggle({
+  toggleRef,
+  isOpen,
+  onOpenChange,
+  displayText,
+}: Readonly<MultiSelectFilterInputMenuToggleProps>) {
+  return (
+    <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)}>
+      {displayText}
+    </MenuToggle>
+  )
+}
+
 function MultiSelectFilterInput({
   selectedField,
   values,
@@ -332,9 +393,14 @@ function MultiSelectFilterInput({
         onOpenChange={onOpenChange}
         onSelect={onSelect}
         toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-          <MenuToggle ref={toggleRef} onClick={() => onOpenChange(!isOpen)}>
-            {values.length > 0 ? `${values.length} selected` : (selectedField.placeholder ?? 'Select values')}
-          </MenuToggle>
+          <MultiSelectFilterInputMenuToggle
+            toggleRef={toggleRef}
+            isOpen={isOpen}
+            onOpenChange={onOpenChange}
+            displayText={
+              values.length > 0 ? `${values.length} selected` : (selectedField.placeholder ?? 'Select values')
+            }
+          />
         )}
       >
         <SelectList>

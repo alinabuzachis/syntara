@@ -47,6 +47,24 @@ function KebabToggle({
   )
 }
 
+interface SettingFieldKebabMenuToggleProps {
+  readonly toggleRef: React.Ref<HTMLButtonElement>
+  readonly onClick: () => void
+  readonly isExpanded: boolean
+  readonly settingName: string
+}
+
+function SettingFieldKebabMenuToggle({
+  toggleRef,
+  onClick,
+  isExpanded,
+  settingName,
+}: SettingFieldKebabMenuToggleProps) {
+  return (
+    <KebabToggle toggleRef={toggleRef} onClick={onClick} isExpanded={isExpanded} label={`Actions for ${settingName}`} />
+  )
+}
+
 export function SettingField({ setting, value, onChange, onResetSingle, onValidationChange }: SettingFieldProps) {
   const [kebabOpen, setKebabOpen] = useState(false)
   const [stringError, setStringError] = useState<string | null>(null)
@@ -113,11 +131,11 @@ export function SettingField({ setting, value, onChange, onResetSingle, onValida
       onSelect={() => setKebabOpen(false)}
       onOpenChange={setKebabOpen}
       toggle={(toggleRef) => (
-        <KebabToggle
+        <SettingFieldKebabMenuToggle
           toggleRef={toggleRef}
           onClick={handleToggleClick}
           isExpanded={kebabOpen}
-          label={`Actions for ${setting.name}`}
+          settingName={setting.name}
         />
       )}
       popperProps={{ position: 'right' }}

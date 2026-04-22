@@ -16,9 +16,18 @@ import { NodeExpandedAllContext } from './nodes/common/NodeExpandedAllContext'
 
 const LEGEND_REGION_ID = 'workflow-canvas-legend'
 
-export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayout?: boolean }>) {
-  const { fitView, zoomIn, zoomOut } = useReactFlow()
-  const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
+interface CanvasLegendPopoverBodyProps {
+  hide?: () => void
+  onClose: () => void
+  regionId: string
+}
+
+function CanvasLegendPopoverBody({ hide, onClose, regionId }: Readonly<CanvasLegendPopoverBodyProps>) {
+  const notifyHide = hide ?? (() => {})
+  return <CanvasLegend hide={notifyHide} onClose={onClose} regionId={regionId} />
+}
+
+function CanvasLegendPopoverBlock() {
   const [legendOpen, setLegendOpen] = useState(false)
   const legendToggleRef = useRef<HTMLButtonElement>(null)
 
@@ -37,40 +46,55 @@ export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayou
     [closeLegend]
   )
 
+  const legendPopoverBodyContent = useCallback(
+    (hide?: () => void) => {
+      if (!legendOpen) return null
+      return <CanvasLegendPopoverBody hide={hide} onClose={closeLegend} regionId={LEGEND_REGION_ID} />
+    },
+    [closeLegend, legendOpen]
+  )
+
+  return (
+    <FlexItem>
+      <Popover
+        isVisible={legendOpen}
+        position="top-start"
+        shouldOpen={() => setLegendOpen(true)}
+        shouldClose={handleLegendShouldClose}
+        showClose={false}
+        hasNoPadding
+        hasAutoWidth
+        aria-label="Legend"
+        bodyContent={legendPopoverBodyContent}
+      >
+        <Button
+          ref={legendToggleRef}
+          variant="plain"
+          isClicked={legendOpen}
+          aria-label={legendOpen ? 'Hide node legend' : 'Show node legend'}
+          aria-expanded={legendOpen}
+          aria-controls={legendOpen ? LEGEND_REGION_ID : undefined}
+          aria-pressed={legendOpen}
+          icon={
+            <Icon isInline>
+              <RhUiInformationIcon />
+            </Icon>
+          }
+        />
+      </Popover>
+    </FlexItem>
+  )
+}
+
+export function CanvasControls(props: Readonly<{ onLayout: () => void; hideLayout?: boolean }>) {
+  const { fitView, zoomIn, zoomOut } = useReactFlow()
+  const { expandAllEvent, collapseAllEvent } = React.useContext(NodeExpandedAllContext)
+
   return (
     <Panel position="bottom-left">
       <CompassPanel isPill hasNoPadding>
         <Flex gap={{ default: 'gapNone' }}>
-          <FlexItem>
-            <Popover
-              isVisible={legendOpen}
-              position="top-start"
-              shouldOpen={() => setLegendOpen(true)}
-              shouldClose={handleLegendShouldClose}
-              showClose={false}
-              hasNoPadding
-              hasAutoWidth
-              aria-label="Legend"
-              bodyContent={(hide) =>
-                legendOpen ? <CanvasLegend hide={hide} onClose={closeLegend} regionId={LEGEND_REGION_ID} /> : null
-              }
-            >
-              <Button
-                ref={legendToggleRef}
-                variant="plain"
-                isClicked={legendOpen}
-                aria-label={legendOpen ? 'Hide node legend' : 'Show node legend'}
-                aria-expanded={legendOpen}
-                aria-controls={legendOpen ? LEGEND_REGION_ID : undefined}
-                aria-pressed={legendOpen}
-                icon={
-                  <Icon isInline>
-                    <RhUiInformationIcon />
-                  </Icon>
-                }
-              />
-            </Popover>
-          </FlexItem>
+          <CanvasLegendPopoverBlock />
           <FlexItem>
             <Button
               variant="plain"

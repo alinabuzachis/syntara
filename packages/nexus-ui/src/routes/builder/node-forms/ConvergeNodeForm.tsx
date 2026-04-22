@@ -13,9 +13,10 @@ import {
   StackItem,
   Switch,
   TextInput,
+  type MenuToggleElement,
 } from '@patternfly/react-core'
 import { RhUiErrorIcon } from '@patternfly/react-icons'
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form'
 
@@ -60,6 +61,26 @@ const TIMEOUT_ACTION_OPTIONS: Array<{ label: string; value: 'fail' | 'continue';
     description: 'The automation will continue ignoring the parameters set for this converge step.',
   },
 ]
+
+interface ConvergeTimeoutActionMenuToggleProps {
+  toggleRef: Ref<MenuToggleElement>
+  isExpanded: boolean
+  onToggleClick: () => void
+  children: ReactNode
+}
+
+function ConvergeTimeoutActionMenuToggle({
+  toggleRef,
+  isExpanded,
+  onToggleClick,
+  children,
+}: Readonly<ConvergeTimeoutActionMenuToggleProps>) {
+  return (
+    <MenuToggle ref={toggleRef} onClick={onToggleClick} isExpanded={isExpanded} isFullWidth>
+      {children}
+    </MenuToggle>
+  )
+}
 
 interface ConvergeNodeFormProps {
   onSubmit: (data: ConvergeFormData) => void
@@ -285,14 +306,13 @@ function ConvergeFormFields({
                     }}
                     selected={field.value}
                     toggle={(toggleRef) => (
-                      <MenuToggle
-                        ref={toggleRef}
-                        onClick={() => setIsTimeoutActionOpen(!isTimeoutActionOpen)}
+                      <ConvergeTimeoutActionMenuToggle
+                        toggleRef={toggleRef}
                         isExpanded={isTimeoutActionOpen}
-                        isFullWidth
+                        onToggleClick={() => setIsTimeoutActionOpen(!isTimeoutActionOpen)}
                       >
                         {TIMEOUT_ACTION_OPTIONS.find((o) => o.value === field.value)?.label ?? 'Select timeout action'}
-                      </MenuToggle>
+                      </ConvergeTimeoutActionMenuToggle>
                     )}
                   >
                     <SelectList>

@@ -3,6 +3,35 @@ import React, { useCallback, useState } from 'react'
 
 import { FilterOperatorEnum, type FilterConfig, type FilterOperator } from '../../types/filters'
 
+interface MultiSelectFilterMenuToggleProps {
+  toggleRef: React.Ref<MenuToggleElement>
+  isOpen: boolean
+  onToggle: () => void
+  selectedCount: number
+  toggleLabel: string
+}
+
+function MultiSelectFilterMenuToggle({
+  toggleRef,
+  isOpen,
+  onToggle,
+  selectedCount,
+  toggleLabel,
+}: Readonly<MultiSelectFilterMenuToggleProps>) {
+  return (
+    <MenuToggle
+      ref={toggleRef}
+      onClick={onToggle}
+      isExpanded={isOpen}
+      {...(selectedCount > 0 && {
+        badge: <Badge isRead>{selectedCount}</Badge>,
+      })}
+    >
+      {toggleLabel}
+    </MenuToggle>
+  )
+}
+
 /**
  * Props for MultiSelectFilter component
  */
@@ -55,6 +84,10 @@ export function MultiSelectFilter({
 }: MultiSelectFilterProps) {
   const [isOpen, setIsOpen] = useState(false)
 
+  const toggleOpen = useCallback(() => {
+    setIsOpen((prev) => !prev)
+  }, [])
+
   const handleSelect = useCallback(
     (_event: React.MouseEvent | undefined, value: string | number | undefined) => {
       if (value === undefined || value === null) return
@@ -83,16 +116,13 @@ export function MultiSelectFilter({
       onSelect={handleSelect}
       onOpenChange={setIsOpen}
       toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-        <MenuToggle
-          ref={toggleRef}
-          onClick={() => setIsOpen((prev) => !prev)}
-          isExpanded={isOpen}
-          {...(selectedValues.length > 0 && {
-            badge: <Badge isRead>{selectedValues.length}</Badge>,
-          })}
-        >
-          {toggleLabel}
-        </MenuToggle>
+        <MultiSelectFilterMenuToggle
+          toggleRef={toggleRef}
+          isOpen={isOpen}
+          onToggle={toggleOpen}
+          selectedCount={selectedValues.length}
+          toggleLabel={toggleLabel}
+        />
       )}
     >
       <SelectList aria-label={`Filter by ${label}`}>

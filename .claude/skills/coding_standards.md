@@ -873,3 +873,35 @@ const isAllowed = (value: number) => allowedValues.includes(value)
 const allowedValues = new Set([1, 2, 3, 4, 5])
 const isAllowed = (value: number) => allowedValues.has(value)
 ```
+
+---
+
+## 18. No nested React components; stable PatternFly `toggle` / render props (Sonar **typescript:S6478**)
+
+Sonar **typescript:S6478** (_React components should not be nested_): do not declare **function or class components inside** another component’s body. A nested definition is a **new component type on every parent render**, which can **reset subtree state** and waste reconciliation work.
+
+**PatternFly `Select`, `Dropdown`, `Popover`, etc.** often require a **`toggle={(toggleRef) => …}`** or **`bodyContent={(hide) => …}`**. You cannot remove that callback, but you **must not** declare `function Inner()` / `const Inner = () => …` **inside** the parent component just to return JSX from it.
+
+**Do instead:** define a **named component at module scope** (same file above the export is fine), pass all dynamic bits as **props**, and return that type from the PF prop:
+
+```tsx
+// ❌ Non-compliant — component type recreated every parent render
+function Parent() {
+  function Toggle(props: { toggleRef: Ref<MenuToggleElement> }) {
+    return <MenuToggle ref={props.toggleRef}>…</MenuToggle>
+  }
+  return <Select toggle={(ref) => <Toggle toggleRef={ref} />} />
+}
+
+// ✅ Compliant — stable element type; PF still receives a toggle render prop
+function ParentMenuToggle(props: Readonly<{ toggleRef: Ref<MenuToggleElement>; label: string }>) {
+  return <MenuToggle ref={props.toggleRef}>{props.label}</MenuToggle>
+}
+
+function Parent() {
+  return <Select toggle={(ref) => <ParentMenuToggle toggleRef={ref} label={label} />} />
+```
+
+Sonar’s docs also allow factories in props whose names match **`render*`** (and some **`children`** patterns). PatternFly uses names like **`toggle`**, so **module-scoped** presentational components are the usual fix.
+
+**ESLint:** `react/no-unstable-nested-components` overlaps this theme but often still flags **valid** `(ref) => <ModuleScopedToggle … />` shapes unless **`allowAsProps: true`**, which then **permits** many other “component in prop” patterns Sonar would still reject. This repo therefore relies on **SonarCloud S6478** (and review) rather than enabling that rule globally.
