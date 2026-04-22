@@ -352,6 +352,80 @@ simple_wf "hello-world"         "default"
 simple_wf "smoke-test"          "default"
 
 # ---------------------------------------------------------------------------
+# 8b. Credentials (org-level + project-scoped)
+# ---------------------------------------------------------------------------
+info "Creating credentials..."
+
+resolve_credential_type_id() {
+    curl -sf "$API/credential_types" -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -c "
+import sys, json
+for t in json.load(sys.stdin).get('resources', []):
+    if t['name'] == '$1': print(t['id']); break
+" 2>/dev/null
+}
+
+BEARER_TYPE=$(resolve_credential_type_id "HTTP Bearer Token")
+BASIC_TYPE=$(resolve_credential_type_id "HTTP Basic Auth")
+LLM_TYPE=$(resolve_credential_type_id "LLM Provider")
+AAP_TYPE=$(resolve_credential_type_id "Ansible Automation Platform")
+SSH_TYPE=$(resolve_credential_type_id "SSH Key")
+
+step "bearer=$BEARER_TYPE basic=$BASIC_TYPE llm=$LLM_TYPE aap=$AAP_TYPE ssh=$SSH_TYPE"
+
+create_credential() {
+    local name="$1" type_id="$2" inputs="$3" project_id="${4:-}"
+    local body="{\"name\": \"$name\", \"credential_type_id\": \"$type_id\", \"inputs\": $inputs"
+    if [ -n "$project_id" ]; then
+        body="$body, \"project_id\": \"$project_id\""
+    fi
+    body="$body}"
+    step "Creating credential: $name"
+    curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$API/credentials" \
+        -H "Content-Type: application/json" \
+        -d "$body" > /dev/null && step "  $name created" || warn "  $name failed"
+}
+
+# -- Org-level credentials (project_id=NULL, visible to all) --
+create_credential "OpenRouter API Key" "$LLM_TYPE" \
+    '{"api_key": "sk-or-v1-demo-openrouter-key", "provider": "openrouter"}' ""
+create_credential "GitHub Actions Token" "$BEARER_TYPE" \
+    '{"token": "ghp_demo_github_actions_token_2026"}' ""
+create_credential "Shared SSH Deploy Key" "$SSH_TYPE" \
+    '{"username": "deploy", "ssh_private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\ndemo-key-content\n-----END OPENSSH PRIVATE KEY-----"}' ""
+
+# -- Storefront credentials --
+create_credential "Storefront Stripe API Key" "$BEARER_TYPE" \
+    '{"token": "sk_live_demo_stripe_storefront_key"}' "$STOREFRONT_ID"
+create_credential "Storefront CDN Token" "$BEARER_TYPE" \
+    '{"token": "cdn-demo-token-storefront-2026"}' "$STOREFRONT_ID"
+
+# -- Payment service credentials --
+create_credential "Payment DB Credentials" "$BASIC_TYPE" \
+    '{"username": "payment_svc", "password": "demo-payment-db-password"}' "$PAYMENT_ID"
+create_credential "Payment Gateway API Key" "$BEARER_TYPE" \
+    '{"token": "pgw-demo-api-key-production"}' "$PAYMENT_ID"
+create_credential "PCI Compliance Scanner" "$BASIC_TYPE" \
+    '{"username": "pci-scanner", "password": "demo-pci-scanner-creds"}' "$PAYMENT_ID"
+
+# -- Data pipeline credentials --
+create_credential "Data Warehouse Credentials" "$BASIC_TYPE" \
+    '{"username": "etl_pipeline", "password": "demo-warehouse-password"}' "$PIPELINE_ID"
+create_credential "Analytics API Key" "$BEARER_TYPE" \
+    '{"token": "analytics-demo-api-key-2026"}' "$PIPELINE_ID"
+
+# -- Mobile app credentials --
+create_credential "App Store Connect Key" "$BEARER_TYPE" \
+    '{"token": "asc-demo-api-key-ios-2026"}' "$MOBILE_ID"
+create_credential "Firebase Service Account" "$BEARER_TYPE" \
+    '{"token": "firebase-demo-sa-token-2026"}' "$MOBILE_ID"
+
+# -- Internal tools credentials --
+create_credential "AAP Production Controller" "$AAP_TYPE" \
+    '{"host": "https://aap.internal.example.com", "username": "nexus-svc", "password": "demo-aap-password", "verify_ssl": true}' "$TOOLS_ID"
+create_credential "Internal Vault Token" "$BEARER_TYPE" \
+    '{"token": "hvs.demo-vault-root-token-2026"}' "$TOOLS_ID"
+
+# ---------------------------------------------------------------------------
 # 9. Sample executions
 # ---------------------------------------------------------------------------
 info "Creating sample executions..."
@@ -464,6 +538,7 @@ echo ""
 echo "Projects (5):  default, storefront, payment-service, data-pipeline,"
 echo "               mobile-app, internal-tools"
 echo ""
+echo "Credentials:   15 (3 org-level + 12 project-scoped across 5 types)"
 echo "Workflows:     ~35 (mix of simple + approval-gated)"
 echo "Executions:    12 sample runs"
 echo "Approvals:     6 pending approval requests"

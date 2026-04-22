@@ -20,7 +20,8 @@ class CredentialType(BaseResource, table=True):
     """CredentialType database model.
 
     Extends BaseResource with credential-type-specific fields.
-    Manages its own name field (no uniqueness constraint from Resource).
+    Manages its own name field with a unique constraint.
+    CredentialType does not support soft delete (managed types cannot be deleted).
     """
 
     __tablename__ = "credential_types"
@@ -30,6 +31,7 @@ class CredentialType(BaseResource, table=True):
         max_length=FieldLimits.NAME_MAX_LENGTH,
         sa_type=String(FieldLimits.NAME_MAX_LENGTH),  # type: ignore[call-overload]
         description="Human-readable credential type name",
+        unique=True,
         index=True,
     )
 

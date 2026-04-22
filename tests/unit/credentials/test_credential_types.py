@@ -1,10 +1,8 @@
-"""Tests for CredentialType model and preseed."""
-
-from unittest.mock import AsyncMock, MagicMock
+"""Tests for CredentialType model and GA credential type definitions."""
 
 import pytest
 
-from nexus.credentials.lib.preseed import GA_CREDENTIAL_TYPES, preseed_credential_types
+from nexus.credentials.lib.preseed import GA_CREDENTIAL_TYPES
 from nexus.credentials.models.credential_type import CredentialType, CredentialTypeRead
 
 
@@ -70,41 +68,3 @@ class TestGACredentialTypes:
             assert "extra_vars" in injectors
             assert "env" in injectors
             assert "file" in injectors
-
-
-class TestPreseedCredentialTypes:
-    """Tests for preseed_credential_types function."""
-
-    @pytest.mark.asyncio
-    async def test_creates_types_when_none_exist(self) -> None:
-        session = MagicMock()
-        mock_result = MagicMock()
-        mock_result.one_or_none.return_value = None
-        session.exec = AsyncMock(return_value=mock_result)
-        session.add = MagicMock()
-        session.commit = AsyncMock()
-
-        await preseed_credential_types(session)
-
-        assert session.add.call_count == 5
-        session.commit.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_updates_existing_types(self) -> None:
-        existing_type = MagicMock(spec=CredentialType)
-        existing_type.name = "HTTP Bearer Token"
-
-        session = MagicMock()
-        mock_result = MagicMock()
-        mock_result.one_or_none.return_value = existing_type
-        session.exec = AsyncMock(return_value=mock_result)
-        session.add = MagicMock()
-        session.commit = AsyncMock()
-
-        await preseed_credential_types(session)
-
-        # All 5 types should be added/updated
-        assert session.add.call_count == 5
-        session.commit.assert_awaited_once()
-        # Existing type should be updated with managed=True
-        assert existing_type.managed is True

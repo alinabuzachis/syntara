@@ -1,18 +1,32 @@
-"""Preseed GA managed credential types on application startup.
+"""Preseed GA managed credential types.
 
 Creates 5 managed credential types if they don't exist, updates them
-in place if they do. Idempotent — safe to run on every startup.
+in place if they do. Uses INSERT ... ON CONFLICT DO UPDATE for atomicity —
+safe under concurrent execution.
+
+Registered in the unified seeder (``nexus.core.seed``) and invoked via
+``uv run python -m nexus.seed``.
 """
 
+from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
 
 import structlog
-from sqlmodel import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.credentials.models.credential_type import CredentialType
 
 logger = structlog.stdlib.get_logger(__name__)
+
+_UPSERT_UPDATE_FIELDS = (
+    "description",
+    "inputs",
+    "injectors",
+    "managed",
+    "updated_at",
+)
 
 GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
     {
@@ -217,33 +231,41 @@ GA_CREDENTIAL_TYPES: list[dict[str, Any]] = [
 
 
 async def preseed_credential_types(session: AsyncSession) -> None:
-    """Create or update GA managed credential types.
+    """Upsert GA managed credential types into the database.
 
-    Idempotent: queries by name, creates if missing, updates if exists.
-    Safe to run on every application startup.
+    Uses INSERT ... ON CONFLICT DO UPDATE for atomicity — safe under
+    concurrent execution. The upsert targets the unique constraint
+    on ``CredentialType.name``.
+
+    Args:
+        session: An open async database session. This function commits
+            the transaction before returning.
+
     """
-    for type_def in GA_CREDENTIAL_TYPES:
-        stmt = select(CredentialType).where(CredentialType.name == type_def["name"])
-        result = await session.exec(stmt)
-        existing = result.one_or_none()
+    now = datetime.now(UTC)
 
-        if existing:
-            existing.description = type_def["description"]
-            existing.inputs = type_def["inputs"]
-            existing.injectors = type_def["injectors"]
-            existing.managed = True
-            session.add(existing)
-            logger.debug("Updated managed credential type", name=type_def["name"])
-        else:
-            credential_type = CredentialType(
-                name=type_def["name"],
-                description=type_def["description"],
-                inputs=type_def["inputs"],
-                injectors=type_def["injectors"],
-                managed=True,
-            )
-            session.add(credential_type)
-            logger.info("Created managed credential type", name=type_def["name"])
+    rows = [
+        {
+            "id": uuid4(),
+            "name": type_def["name"],
+            "description": type_def["description"],
+            "inputs": type_def["inputs"],
+            "injectors": type_def["injectors"],
+            "managed": True,
+            "labels": {},
+            "created_at": now,
+            "updated_at": now,
+        }
+        for type_def in GA_CREDENTIAL_TYPES
+    ]
 
+    stmt = insert(CredentialType).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["name"],
+        set_={col: stmt.excluded[col] for col in _UPSERT_UPDATE_FIELDS},
+    )
+
+    await session.execute(stmt)
     await session.commit()
-    logger.info("Credential type preseed complete", count=len(GA_CREDENTIAL_TYPES))
+
+    logger.info("credential_types.preseed.complete", count=len(rows))
