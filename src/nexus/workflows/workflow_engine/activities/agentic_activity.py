@@ -15,6 +15,7 @@ from temporalio import activity, workflow
 
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import AgenticExecutorConfig
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.utils.credential_scrubber import ensure_resolved_credentials_dict
 
 from .common import ActivityExecutionError
@@ -47,7 +48,7 @@ class AgenticActivityError(ActivityExecutionError):
 # ============================================================================
 
 
-@activity.defn(name="execute_agentic_activity")
+@activity.defn(name=ActivityName.AGENTIC)
 async def execute_agentic_activity(
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,

@@ -6,7 +6,7 @@ These are used by V2 workflow activities for config validation.
 
 import re
 import uuid
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, StrEnum
 from http import HTTPMethod
 from typing import Any
 from urllib.parse import urlparse
@@ -50,6 +50,26 @@ class TemplateAwareBaseModel(BaseModel):
 
         # For non-template values, run normal validation
         return handler(value)
+
+
+class ActivityName(StrEnum):
+    """Temporal activity names for V2 workflows."""
+
+    # Triggers
+    MANUAL_TRIGGER = "manual_trigger"
+    # Control nodes
+    CONDITION = "condition"
+    CONVERGE = "converge"
+    LOOP = "loop"
+    # Executor nodes
+    AAP_JOB_TEMPLATE = "execute_aap_job_template_activity"
+    AGENTIC = "execute_agentic_activity"
+    APPROVAL = "execute_approval_activity"
+    HTTP_REQUEST = "execute_http_request_activity"
+    SCRIPT = "execute_script_activity"
+    # Internal
+    CREDENTIAL_RESOLUTION = "resolve_workflow_credentials"
+    ACTIVITY_MONITORING = "register_activity_monitoring"
 
 
 # Enums

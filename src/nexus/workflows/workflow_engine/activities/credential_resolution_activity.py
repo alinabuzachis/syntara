@@ -19,6 +19,7 @@ from nexus.core.services.secret_service import SecretService, create_secret_serv
 from nexus.credentials.lib.injector_resolver import InjectorResolver
 from nexus.credentials.models.credential import Credential
 from nexus.credentials.models.credential_type import CredentialType
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -27,7 +28,7 @@ logger = structlog.stdlib.get_logger(__name__)
 _session_factory = AsyncSessionLocal
 
 
-@activity.defn(name="resolve_workflow_credentials")
+@activity.defn(name=ActivityName.CREDENTIAL_RESOLUTION)
 async def resolve_workflow_credentials(credential_map: dict[str, str]) -> dict[str, Any]:
     """Resolve credentials for workflow activities.
 

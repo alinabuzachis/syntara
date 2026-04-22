@@ -11,6 +11,7 @@ import structlog
 from temporalio import activity
 
 from nexus.workflows.utils.url import generate_activity_signal_url
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 from .common import ActivityExecutionError
 from .output_mapping import apply_output_mapping
@@ -22,7 +23,7 @@ class ApprovalActivityError(ActivityExecutionError):
     """Base exception for approval activity errors."""
 
 
-@activity.defn(name="execute_approval_activity")
+@activity.defn(name=ActivityName.APPROVAL)
 async def execute_approval_activity(
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,

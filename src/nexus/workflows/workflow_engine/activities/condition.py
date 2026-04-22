@@ -5,11 +5,12 @@ from typing import Any
 from temporalio import activity
 
 from nexus.workflows.workflow_engine.expression_resolver import safe_eval_condition
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 from .output_mapping import apply_output_mapping
 
 
-@activity.defn(name="condition")
+@activity.defn(name=ActivityName.CONDITION)
 async def condition(
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,

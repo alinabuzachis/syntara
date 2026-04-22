@@ -5,12 +5,14 @@ from typing import Any
 import structlog
 from temporalio import activity
 
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+
 from .output_mapping import apply_output_mapping
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-@activity.defn(name="manual_trigger")
+@activity.defn(name=ActivityName.MANUAL_TRIGGER)
 async def manual_trigger(
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,

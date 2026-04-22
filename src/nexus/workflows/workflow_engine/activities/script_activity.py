@@ -16,7 +16,7 @@ from temporalio import activity
 
 from nexus.core.exceptions import SafeValueError
 from nexus.workflows.workflow_engine import constants
-from nexus.workflows.workflow_engine.models.workflow_definition import ScriptExecutorConfig
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ScriptExecutorConfig
 
 from .common import ActivityExecutionError
 
@@ -288,7 +288,7 @@ async def _execute_script_common(
             await _cleanup_process(process)
 
 
-@activity.defn(name="execute_script_activity")
+@activity.defn(name=ActivityName.SCRIPT)
 async def execute_script_activity(
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,

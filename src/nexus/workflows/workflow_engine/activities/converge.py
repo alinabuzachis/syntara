@@ -5,12 +5,14 @@ from typing import Any
 import structlog
 from temporalio import activity
 
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+
 from .output_mapping import apply_output_mapping
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
-@activity.defn(name="converge")
+@activity.defn(name=ActivityName.CONVERGE)
 async def converge(
     input_config: dict[str, Any],  # noqa: ARG001
     output_config: dict[str, str] | None,

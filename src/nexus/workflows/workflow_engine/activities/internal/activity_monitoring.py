@@ -17,6 +17,7 @@ from nexus.workflows.models.execution import Execution
 
 # Import directly from registry module file to avoid triggering services/__init__.py
 # which would cause circular import with temporal_worker
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 from nexus.workflows.workflow_engine.services.activity_sync_registry import (
     get_activity_sync_service,
 )
@@ -24,7 +25,7 @@ from nexus.workflows.workflow_engine.services.activity_sync_registry import (
 logger = structlog.stdlib.get_logger(__name__)
 
 
-@activity.defn(name="register_activity_monitoring")
+@activity.defn(name=ActivityName.ACTIVITY_MONITORING)
 async def register_activity_monitoring(
     execution_id: str,
     temporal_workflow_id: str,

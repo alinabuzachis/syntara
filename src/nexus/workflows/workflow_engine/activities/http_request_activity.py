@@ -12,6 +12,7 @@ from temporalio import activity
 
 from nexus.credentials.lib.auth_types import AUTH_TYPE_API_KEY, AUTH_TYPE_BASIC, AUTH_TYPE_BEARER
 from nexus.workflows.workflow_engine.models.workflow_definition import (
+    ActivityName,
     APIExecutorConfig,
     AuthenticationType,
 )
@@ -90,7 +91,7 @@ def _apply_authentication(headers: dict[str, Any], config: APIExecutorConfig) ->
         headers["Authorization"] = f"Bearer {credential_value}"
 
 
-@activity.defn(name="execute_http_request_activity")
+@activity.defn(name=ActivityName.HTTP_REQUEST)
 async def execute_http_request_activity(
     input_config: dict[str, Any],
     output_config: dict[str, str] | None,

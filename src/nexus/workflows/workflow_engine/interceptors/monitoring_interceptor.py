@@ -17,6 +17,8 @@ from temporalio.worker import (
     WorkflowInterceptorClassInput,
 )
 
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
+
 logger = structlog.stdlib.get_logger(__name__)
 
 
@@ -63,7 +65,7 @@ class _MonitoringWorkflowInboundInterceptor(WorkflowInboundInterceptor):
             # 2. Checking if monitoring is already running
             # 3. Starting the monitoring if needed
             workflow.start_activity(
-                "register_activity_monitoring",
+                ActivityName.ACTIVITY_MONITORING,
                 args=[execution_id, temporal_workflow_id, request_id],
                 activity_id="__internal__register_monitoring",
                 start_to_close_timeout=timedelta(seconds=30),

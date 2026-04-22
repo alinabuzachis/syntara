@@ -22,6 +22,7 @@ with workflow.unsafe.imports_passed_through():
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.expression_resolver import safe_eval_condition
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
+from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
 
 # Temporal start-to-close safety ceiling for activities that don't specify a timeout.
 # Each node type has its own configurable timeout in Settings; this is only the
@@ -145,7 +146,7 @@ class NexusWorkflow:
         self.node_inputs[trigger_node.id] = trigger_inputs
 
         trigger_result = await workflow.execute_activity(
-            "manual_trigger",
+            ActivityName.MANUAL_TRIGGER,
             args=[trigger_inputs, trigger_node.outputs],
             activity_id=trigger_node.id,
             start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
@@ -731,10 +732,10 @@ class NexusWorkflow:
     # Mapping from node type to Temporal activity name for simple executor nodes
     # Note: agentic and approval are NOT in this map as they require signal handling
     _EXECUTOR_ACTIVITY_MAP: ClassVar[dict[str, str]] = {
-        "aap_job_template": "execute_aap_job_template_activity",
-        "http_request": "execute_http_request_activity",
-        "script": "execute_script_activity",
-        "condition": "condition",
+        "aap_job_template": ActivityName.AAP_JOB_TEMPLATE,
+        "http_request": ActivityName.HTTP_REQUEST,
+        "script": ActivityName.SCRIPT,
+        "condition": ActivityName.CONDITION,
     }
 
     async def _execute_executor_node(
@@ -871,7 +872,7 @@ class NexusWorkflow:
         return cast(
             "dict[str, Any]",
             await workflow.execute_activity(
-                "converge",
+                ActivityName.CONVERGE,
                 args=[resolved_config, outputs, predecessor_results],
                 activity_id=node_id,
                 start_to_close_timeout=timedelta(seconds=timeout_seconds),
@@ -947,7 +948,7 @@ class NexusWorkflow:
         loop_result = cast(
             "dict[str, Any]",
             await workflow.execute_activity(
-                "loop",
+                ActivityName.LOOP,
                 args=[loop_config, node.outputs, self.loop_iteration_results[node_id]],
                 activity_id=f"{node_id}_iter_{self.loop_state[node_id]['current_index']}",
                 start_to_close_timeout=timedelta(seconds=timeout_seconds),
@@ -1066,7 +1067,7 @@ class NexusWorkflow:
         if node_type == "agentic":
             return await self._execute_signal_node(
                 node_id,
-                "execute_agentic_activity",
+                ActivityName.AGENTIC,
                 resolved_config,
                 node.outputs,
                 signal_timeout=timedelta(minutes=5),
@@ -1075,7 +1076,7 @@ class NexusWorkflow:
         if node_type == "approval":
             return await self._execute_signal_node(
                 node_id,
-                "execute_approval_activity",
+                ActivityName.APPROVAL,
                 resolved_config,
                 node.outputs,
                 signal_timeout=timedelta(hours=24),

@@ -29,6 +29,7 @@ from nexus.workflows.models.execution import Execution, ExecutionStatus
 from nexus.workflows.models.workflow_version import WorkflowVersion
 from nexus.workflows.services.activity_update_publisher import ActivityUpdatePublisher
 from nexus.workflows.utils.datetime import ensure_timezone_aware
+from nexus.workflows.workflow_engine.models.workflow_definition import NodeType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -344,7 +345,7 @@ class ActivitySyncService:
                 #   - Loop: "iterate" and "complete" ports both execute at different times (no skipping)
                 #   - Converge: Waits for all predecessors (no skipping)
                 #   - Approval: TBD - needs design clarification on port-based routing
-                if activity_type == "condition":
+                if activity_type == NodeType.CONDITION:
                     await self._sync_skipped_nodes(metadata.execution_id, handle)
 
         if event.event_type in {
@@ -1108,17 +1109,17 @@ class ActivitySyncService:
                     # V2 workflows: Create records for all node types (triggers, control, executors)
                     if activity_type in [
                         # V2 triggers
-                        "manual_trigger",
+                        NodeType.MANUAL_TRIGGER,
                         # V2 control nodes
-                        "condition",
-                        "converge",
-                        "loop",
+                        NodeType.CONDITION,
+                        NodeType.CONVERGE,
+                        NodeType.LOOP,
                         # V2 executor nodes
-                        "aap_job_template",
-                        "agentic",
-                        "approval",
-                        "http_request",
-                        "script",
+                        NodeType.AAP_JOB_TEMPLATE,
+                        NodeType.AGENTIC,
+                        NodeType.APPROVAL,
+                        NodeType.HTTP_REQUEST,
+                        NodeType.SCRIPT,
                     ]:
                         new_activity = ActivityExecution(
                             execution_id=execution_id,
