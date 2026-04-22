@@ -479,6 +479,22 @@ describe('RolesTab', () => {
     })
   })
 
+  describe('Filter bar', () => {
+    it('does not offer Description in the attribute field selector', async () => {
+      const user = userEvent.setup()
+      render(<RolesTab />, { wrapper })
+
+      const filterToolbar = document.getElementById('filter-toolbar')
+      expect(filterToolbar).toBeTruthy()
+      await user.click(within(filterToolbar as HTMLElement).getByRole('button', { name: /^Name$/ }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: 'Scope' })).toBeInTheDocument()
+      })
+      expect(screen.queryByRole('option', { name: /^Description$/ })).not.toBeInTheDocument()
+    })
+  })
+
   describe('Filter empty state', () => {
     it('shows filter empty state when filters are active but no results', async () => {
       // Mock implementation: return data on initial load, empty after filter

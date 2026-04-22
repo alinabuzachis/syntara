@@ -46,14 +46,6 @@ const BASE_FILTER_FIELD_DEFS = [
     placeholder: 'Filter by name',
   },
   {
-    key: 'description',
-    label: 'Description',
-    type: FilterTypeEnum.TEXT,
-    operators: [FilterOperatorEnum.CONTAINS],
-    defaultOperator: FilterOperatorEnum.CONTAINS,
-    placeholder: 'Filter by description',
-  },
-  {
     key: 'scope',
     label: 'Scope',
     type: FilterTypeEnum.SELECT,
