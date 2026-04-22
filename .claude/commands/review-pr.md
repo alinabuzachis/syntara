@@ -21,7 +21,6 @@ Start by:
 - Edit modals not resetting `defaultValues`
 - Duplicated dialog/logic patterns across files
 - Inconsistent `useQueryState` / mutation error-handler usage vs project patterns
-- PR size exceeding budget (see [PR_GUIDELINES.md](../../.github/PR_GUIDELINES.md) for limits)
 - UI changes without screenshots or screen recordings
 - New API endpoints without mock API handlers in `packages/nexus-mock-api/src/handlers.ts`
 

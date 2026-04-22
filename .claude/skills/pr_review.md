@@ -105,7 +105,6 @@ Check whether the changes follow:
 
 | Check                                                                          | How to verify                                                                                      |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| **PR size within budget** ([PR_GUIDELINES.md](../../.github/PR_GUIDELINES.md)) | Soft limit: ≤ 500 lines / ≤ 15 files; flag if exceeded and suggest stacking                        |
 | **UI PRs include screenshots**                                                 | PRs changing visible UI must include screenshots or recordings of key states                       |
 | **New API endpoints have mock handlers**                                       | Check `packages/nexus-mock-api/src/handlers.ts`; note exception if backend not yet merged          |
 | **Error handling consistency**                                                 | Verify `useQueryState` / `useMutationErrorHandler` — no ad-hoc try/catch with custom error display |

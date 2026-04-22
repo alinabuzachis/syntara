@@ -61,17 +61,6 @@ Treat accessibility as part of every UI change, not an optional follow-up:
 - When rebasing or resolving conflicts, always prefer keeping both sides' features unless told otherwise
 - If unsure whether something should be removed, ASK
 
-### Pull Request Rules
-
-All changes must follow the PR sizing and slicing policy defined in [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md).
-
-Before writing code:
-
-1. Read the PR sizing rules
-2. Propose a stacked PR plan
-3. Ensure each PR fits within the limits
-4. Only implement the first PR unless asked otherwise
-
 ### Documentation Must Stay in Sync with Code
 
 **CRITICAL: Documentation must always reflect the current state of the codebase.**
@@ -134,7 +123,6 @@ For how the UI is structured, see these comprehensive guides:
 - [`docs/zustand-architecture.md`](docs/zustand-architecture.md) - Workflow store details, state management patterns, and best practices
 - [`docs/websocket-architecture.md`](docs/websocket-architecture.md) - WebSocket infrastructure, multi-channel architecture, and real-time features
 - [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) - Execution visualizer WebSocket protocol, endpoints, and data structures
-- [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) - PR sizing, stacking strategy, and change isolation rules
 
 ### Quick Navigation by Task
 
@@ -147,7 +135,6 @@ For how the UI is structured, see these comprehensive guides:
 | **State management**               | [`docs/zustand-architecture.md`](docs/zustand-architecture.md) — Zustand guide                                                |
 | **WebSocket / real-time**          | [`docs/websocket-architecture.md`](docs/websocket-architecture.md) — multi-channel infrastructure                             |
 | **Execution visualization**        | [`docs/execution-visualizer-protocol.md`](docs/execution-visualizer-protocol.md) — protocol, endpoints, data specs            |
-| **PR sizing / stacking**           | [`.github/PR_GUIDELINES.md`](.github/PR_GUIDELINES.md) — budget, stacking, stop rules                                         |
 | **List page with pagination**      | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `useCursorPagination` pattern                    |
 | **Confirmation dialogs**           | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `ConfirmationDialog` component                   |
 | **Dialog state management**        | [`.claude/skills/coding_standards.md`](.claude/skills/coding_standards.md) — `useDialogState` hook                            |
