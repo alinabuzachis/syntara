@@ -49,7 +49,7 @@ async def test_invoke_agent_with_pdf_document_conversion(auth_client_with_mocked
 
         # POST invocation with document
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )
@@ -119,7 +119,7 @@ async def test_invoke_agent_with_text_document_conversion(auth_client_with_mocke
 
         # POST invocation with document
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )

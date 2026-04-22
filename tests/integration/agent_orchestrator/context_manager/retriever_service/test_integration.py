@@ -42,7 +42,7 @@ async def test_retriever_service_integration_with_agent_invocation(
         }
 
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )
@@ -95,7 +95,7 @@ async def test_file_upload_with_streaming_events(auth_client_with_mocked_llm, te
         }
 
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )
@@ -173,7 +173,7 @@ async def test_file_upload_creates_db_records(auth_client_with_mocked_llm, test_
         files = {"files": ("test_file.txt", text_file, "text/plain")}
         data = {"prompt": "Test prompt", "session_id": f"db-record-test-{uuid4().hex[:8]}"}
 
-        response = await auth_client_with_mocked_llm.post("/api/v1/invocations", data=data, files=files)
+        response = await auth_client_with_mocked_llm.post("/api/v1/invocations/chat", data=data, files=files)
 
         assert response.status_code == 202
         invocation_data = response.json()
@@ -200,7 +200,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm, test_user, test_db_session)
         "context_data": f'{{"callback_url": "{callback_url}"}}',
     }
 
-    response = await auth_client_with_mocked_llm.post("/api/v1/invocations", data=data)
+    response = await auth_client_with_mocked_llm.post("/api/v1/invocations/chat", data=data)
     assert response.status_code == 202
 
     invocation_id = response.json()["id"]

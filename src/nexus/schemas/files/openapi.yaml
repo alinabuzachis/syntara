@@ -56,21 +56,7 @@ paths:
         content:
           multipart/form-data:
             schema:
-              type: object
-              required:
-                - files
-              properties:
-                files:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
-                  description: Files to upload (1-10 files, max 10MB each)
-                  minItems: 1
-                  maxItems: 10
-            encoding:
-              files:
-                contentType: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, text/markdown
+              $ref: '#/components/schemas/UploadFilesBody'
       responses:
         '200':
           description: Files uploaded successfully
@@ -177,6 +163,21 @@ paths:
         - bearerAuth: []
 components:
   schemas:
+    UploadFilesBody:
+      type: object
+      title: UploadFilesBody
+      description: Request body for POST /files endpoint.
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+          title: Files
+          description: Files to upload (1-10 files, max 10MB each)
+
     FileUploadResponse:
       type: object
       title: FileUploadResponse
@@ -192,8 +193,8 @@ components:
             format: uuid
           title: File IDs
           description: List of file IDs for later reference in invocations
-          example:
-            - 550e8400-e29b-41d4-a716-446655440000
+          examples:
+            - [550e8400-e29b-41d4-a716-446655440000]
         files:
           type: array
           items:
@@ -222,31 +223,42 @@ components:
           format: uuid
           title: File ID
           description: Unique file identifier (UUID)
-          example: 550e8400-e29b-41d4-a716-446655440000
+          examples:
+            - 550e8400-e29b-41d4-a716-446655440000
         filename:
           type: string
           title: Filename
           description: Original filename from upload
-          example: document.pdf
+          examples:
+            - document.pdf
         size_bytes:
           type: integer
           title: Size Bytes
           description: File size in bytes
-          example: 524288
+          examples:
+            - 524288
         mime_type:
           type: string
           title: MIME Type
           description: Detected MIME type of the file
-          example: application/pdf
+          examples:
+            - application/pdf
         status:
           $ref: '#/components/schemas/FileStatus'
+          description: Processing status (pending_conversion)
 
     FileStatus:
       type: string
       enum: [pending_conversion, converting, converted, conversion_failed]
       title: FileStatus
-      description: Current status of file processing/conversion
-      example: pending_conversion
+      description: |-
+        Status enum for file conversion lifecycle.
+
+        States:
+            PENDING_CONVERSION: File uploaded, waiting for conversion
+            CONVERTING: Conversion in progress
+            CONVERTED: Successfully converted to text/markdown
+            CONVERSION_FAILED: Conversion failed with error
 
   securitySchemes:
     bearerAuth:

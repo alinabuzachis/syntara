@@ -8,18 +8,19 @@ as a background task (AAP-60780 decoupling).
 """
 
 from typing import Annotated
+from uuid import UUID
 
 import structlog
 from fastapi import (
     BackgroundTasks,
     Depends,
-    File,
+    Form,
     HTTPException,
     Request,
     UploadFile,
     status,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.auth import get_current_user
@@ -56,6 +57,14 @@ def get_document_conversion_task(
     return DocumentConversionTask(session_factory=session_factory)
 
 
+class UploadFilesBody(BaseModel):
+    """Request body for POST /files endpoint."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    files: list[UploadFile] = Field(description="Files to upload (1-10 files, max 10MB each)")
+
+
 class FileUploadInfo(BaseModel):
     """Response model for individual file upload information.
 
@@ -64,17 +73,25 @@ class FileUploadInfo(BaseModel):
         exposing internal filesystem paths in API responses.
     """
 
-    file_id: str = Field(title="File ID", description="Unique file identifier (UUID)")
-    filename: str = Field(description="Original filename from upload")
-    size_bytes: int = Field(description="File size in bytes")
-    mime_type: str = Field(title="MIME Type", description="Detected MIME type of the file")
+    file_id: UUID = Field(
+        title="File ID", description="Unique file identifier (UUID)", examples=["550e8400-e29b-41d4-a716-446655440000"]
+    )
+    filename: str = Field(description="Original filename from upload", examples=["document.pdf"])
+    size_bytes: int = Field(description="File size in bytes", examples=[524288])
+    mime_type: str = Field(
+        title="MIME Type", description="Detected MIME type of the file", examples=["application/pdf"]
+    )
     status: FileStatus = Field(description="Processing status (pending_conversion)")
 
 
 class FileUploadResponse(BaseModel):
     """Response model for POST /api/v1/files endpoint."""
 
-    file_ids: list[str] = Field(title="File IDs", description="List of file IDs for later reference in invocations")
+    file_ids: list[UUID] = Field(
+        title="File IDs",
+        description="List of file IDs for later reference in invocations",
+        examples=[["550e8400-e29b-41d4-a716-446655440000"]],
+    )
     files: list[FileUploadInfo] = Field(description="Metadata for each uploaded file")
 
 
@@ -95,7 +112,7 @@ async def upload_files(
     file_manager: Annotated[FileManager, Depends(get_file_manager)],
     background_tasks: BackgroundTasks,
     document_conversion_task: Annotated[DocumentConversionTask, Depends(get_document_conversion_task)],
-    files: Annotated[list[UploadFile], File(description="Files to upload (1-10 files, max 10MB each)")],
+    body: Annotated[UploadFilesBody, Form()],
 ) -> FileUploadResponse:
     """Upload files for later use in agent invocations.
 
@@ -115,7 +132,7 @@ async def upload_files(
         file_manager: FileManager instance (dependency injected)
         background_tasks: FastAPI background tasks for scheduling conversion
         document_conversion_task: DocumentConversionTask with session factory
-        files: List of files to upload (multipart/form-data)
+        body: Upload body containing the list of files (multipart/form-data)
 
     Returns:
         FileUploadResponse with file_ids and file metadata
@@ -125,14 +142,14 @@ async def upload_files(
 
     """
     # Validate at least one file is provided
-    if not files:
+    if not body.files:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="At least one file must be provided",
         )
 
     # Validate and save files (returns in-memory FileMetadata objects)
-    file_metadata_list = await file_manager.validate_and_save_files(files)
+    file_metadata_list = await file_manager.validate_and_save_files(body.files)
 
     # Persist FileMetadata records to database
     for metadata in file_metadata_list:
@@ -156,7 +173,7 @@ async def upload_files(
     # Build response (exclude file_path for security)
     file_upload_infos = [
         FileUploadInfo(
-            file_id=str(metadata.id),
+            file_id=metadata.id,
             filename=metadata.filename,
             size_bytes=metadata.size_bytes,
             mime_type=metadata.mime_type,
@@ -166,6 +183,6 @@ async def upload_files(
     ]
 
     return FileUploadResponse(
-        file_ids=[str(m.id) for m in file_metadata_list],
+        file_ids=[m.id for m in file_metadata_list],
         files=file_upload_infos,
     )

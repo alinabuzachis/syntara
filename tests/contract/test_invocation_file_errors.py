@@ -1,7 +1,7 @@
-"""Contract tests for file error responses (RFC 9457 format).
+"""Contract tests for file error responses on POST /invocations/chat (RFC 9457 format).
 
 These tests validate:
-- RFC 9457 Problem Details format for file errors
+- RFC 9457 Problem Details format for file errors on the /chat endpoint
 - 400 errors for validation failures (fileTooLarge, unsupportedFormat, tooManyFiles)
 - 500 errors for storage failures (generic message, no internal details exposed)
 - 503 errors for service configuration failures (LLM not configured)
@@ -18,7 +18,7 @@ from tests.fixtures import get_fixtures_dir
 
 @pytest.mark.asyncio
 async def test_file_too_large_error_format(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
-    """Test RFC 9457 error format for fileTooLarge (400).
+    """Test RFC 9457 error format for fileTooLarge on POST /invocations/chat (400).
 
     Validates:
     - 400 status code
@@ -39,7 +39,7 @@ async def test_file_too_large_error_format(auth_client_with_mocked_llm: AsyncCli
 
     # Act
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
         files=files,
     )
@@ -58,7 +58,7 @@ async def test_file_too_large_error_format(auth_client_with_mocked_llm: AsyncCli
 
 @pytest.mark.asyncio
 async def test_unsupported_format_error_format(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
-    """Test RFC 9457 error format for unsupportedFormat (400).
+    """Test RFC 9457 error format for unsupportedFormat on POST /invocations/chat (400).
 
     Validates:
     - 400 status code
@@ -80,7 +80,7 @@ async def test_unsupported_format_error_format(auth_client_with_mocked_llm: Asyn
 
         # Act
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )
@@ -99,7 +99,7 @@ async def test_unsupported_format_error_format(auth_client_with_mocked_llm: Asyn
 
 @pytest.mark.asyncio
 async def test_too_many_files_error_format(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
-    """Test RFC 9457 error format for tooManyFiles (400).
+    """Test RFC 9457 error format for tooManyFiles on POST /invocations/chat (400).
 
     Validates:
     - 400 status code
@@ -115,7 +115,7 @@ async def test_too_many_files_error_format(auth_client_with_mocked_llm: AsyncCli
 
     # Act
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
         files=files,
     )
@@ -134,7 +134,7 @@ async def test_too_many_files_error_format(auth_client_with_mocked_llm: AsyncCli
 
 @pytest.mark.asyncio
 async def test_validation_error_no_invocation_created(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
-    """Test that validation errors do not create invocation records.
+    """Test that file validation errors on POST /invocations/chat do not create invocation records.
 
     Validates:
     - Failed validations don't create database records
@@ -149,7 +149,7 @@ async def test_validation_error_no_invocation_created(auth_client_with_mocked_ll
 
     # Act
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
         files=files,
     )
@@ -166,7 +166,7 @@ async def test_validation_error_no_invocation_created(auth_client_with_mocked_ll
 
 @pytest.mark.asyncio
 async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
-    """Test that all error responses follow consistent RFC 9457 structure.
+    """Test that POST /invocations/chat file error responses follow consistent RFC 9457 structure.
 
     Validates:
     - Consistent error response format
@@ -187,7 +187,7 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
 
         # Act
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )

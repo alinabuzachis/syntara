@@ -6,7 +6,8 @@ to support snake_case API contracts while maintaining backward compatibility.
 
 from enum import Enum
 
-from pydantic import AliasChoices, Field
+from fastapi import UploadFile
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from sqlmodel import SQLModel
 
 
@@ -49,6 +50,17 @@ class InvocationCreateRequest(SQLModel, populate_by_name=True):
             "Use 'file_ids' (array of UUID strings) to reference uploaded files."
         ),
     )
+
+
+class InvocationRequestWithFile(BaseModel):
+    """Multipart form body for POST /invocations/chat (file upload path)."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    prompt: str | None = None
+    session_id: str | None = None
+    context_data: str | None = None
+    files: list[UploadFile] | None = None
 
 
 class InvocationCancelRequest(SQLModel, populate_by_name=True):

@@ -6,7 +6,70 @@ import pytest
 from httpx import AsyncClient
 
 from nexus.agent_orchestrator.exceptions import LLMConfigurationError
+from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 from tests.helpers.invocations import wait_for_invocation_execution
+
+
+@pytest.mark.asyncio
+async def test_invoke_with_credential_id_skips_llm_check(auth_client: AsyncClient) -> None:
+    """Test that POST /invocations skips the LLM availability check when credential_id is set.
+
+    The workflow engine sets context_data.metadata.credential_id to resolve the LLM
+    credential at execution time, so the startup check must not block the request.
+    """
+    with patch("nexus.invocations.router.get_openrouter_llm") as mock_get_llm:
+        mock_get_llm.side_effect = LLMConfigurationError("LLM not configured")
+
+        response = await auth_client.post(
+            "/api/v1/invocations",
+            json={
+                "prompt": "Workflow engine request",
+                "session_id": "wf-session-001",
+                "context_data": {"metadata": {"credential_id": "cred-abc-123"}},
+            },
+        )
+
+    assert response.status_code == 202
+    mock_get_llm.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_invoke_accepts_camel_case_field_names(auth_client_with_mocked_llm: AsyncClient) -> None:
+    """Test that POST /invocations accepts camelCase aliases sessionId and contextData.
+
+    InvocationCreateRequest supports camelCase for backward compatibility with
+    the workflow engine client (agent_orchestrator_client.py).
+    """
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations",
+        json={
+            "prompt": "camelCase aliases test",
+            "sessionId": "camel-session-001",
+            "contextData": {"environment": "staging"},
+        },
+    )
+
+    assert response.status_code == 202
+    data = response.json()
+    assert data["session_id"] == "camel-session-001"
+    assert data["context_data"] == {"environment": "staging"}
+
+
+@pytest.mark.asyncio
+async def test_multipart_request_rejected_by_json_endpoint(auth_client_with_mocked_llm: AsyncClient) -> None:
+    """Test that POST /invocations rejects multipart/form-data requests.
+
+    The JSON endpoint is strict; multipart payloads must use POST /invocations/chat.
+    """
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations",
+        data={
+            "prompt": "multipart body",
+            "session_id": "form-session-001",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -1029,3 +1092,128 @@ async def test_list_invocations_filter_session_id_starts_with(
     # All returned invocations should start with "prefix"
     for invocation in data["resources"]:
         assert invocation["session_id"].startswith("prefix")
+
+
+# POST /invocations/chat tests
+
+
+@pytest.mark.asyncio
+async def test_chat_invoke_returns_202_without_files(auth_client_with_mocked_llm: AsyncClient) -> None:
+    """Test that POST /invocations/chat returns 202 when no files are provided."""
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data={
+            "prompt": "No files chat",
+            "session_id": "chat-test-001",
+        },
+    )
+
+    assert response.status_code == 202
+    data = response.json()
+    assert "id" in data
+    assert data["prompt"] == "No files chat"
+    assert data["session_id"] == "chat-test-001"
+    assert data.get(CONTEXT_KEY, {}) == {}
+    assert CONTEXT_KEY_FILE_IDS not in data.get(CONTEXT_KEY, {})
+
+
+@pytest.mark.asyncio
+async def test_chat_invoke_returns_202_with_files(auth_client_with_mocked_llm: AsyncClient) -> None:
+    """Test that POST /invocations/chat returns 202 and file_ids when files are uploaded."""
+    files = [
+        ("files", ("doc.pdf", b"PDF content", "application/pdf")),
+        ("files", ("notes.txt", b"Plain text", "text/plain")),
+    ]
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data={
+            "prompt": "Summarise these docs",
+            "session_id": "chat-test-002",
+        },
+        files=files,
+    )
+
+    assert response.status_code == 202
+    data = response.json()
+    assert CONTEXT_KEY in data
+    file_ids = data[CONTEXT_KEY].get(CONTEXT_KEY_FILE_IDS, [])
+    assert len(file_ids) == 2
+
+
+@pytest.mark.asyncio
+async def test_chat_invoke_missing_prompt_returns_400(auth_client_with_mocked_llm: AsyncClient) -> None:
+    """Test that POST /invocations/chat returns 400 when prompt is missing."""
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data={"session_id": "chat-test-003"},
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_chat_invoke_missing_session_id_returns_400(auth_client_with_mocked_llm: AsyncClient) -> None:
+    """Test that POST /invocations/chat returns 400 when session_id is missing."""
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data={"prompt": "Missing session id"},
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_chat_invoke_returns_503_when_llm_not_configured(auth_client: AsyncClient) -> None:
+    """Test that POST /invocations/chat returns 503 when the LLM is not configured."""
+    with patch("nexus.invocations.router.get_openrouter_llm") as mock_get_llm:
+        mock_get_llm.side_effect = LLMConfigurationError("APP_OPENROUTER_API_KEY environment variable is required.")
+        response = await auth_client.post(
+            "/api/v1/invocations/chat",
+            data={
+                "prompt": "Test LLM config",
+                "session_id": "chat-test-004",
+            },
+        )
+
+    assert response.status_code == 503
+    data = response.json()
+    assert data["type"] == "https://api.nexus.com/errors/service-unavailable"
+    assert data["code"] == "LLM_CONFIGURATION_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_chat_invoke_with_context_data(auth_client_with_mocked_llm: AsyncClient) -> None:
+    """Test that POST /invocations/chat correctly parses JSON-encoded context_data form field."""
+    import json
+
+    context = {"environment": "production", "region": "us-east-1"}
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        data={
+            "prompt": "Context data test",
+            "session_id": "chat-test-005",
+            "context_data": json.dumps(context),
+        },
+    )
+
+    assert response.status_code == 202
+    data = response.json()
+    assert data[CONTEXT_KEY].get("environment") == "production"
+    assert data[CONTEXT_KEY].get("region") == "us-east-1"
+
+
+@pytest.mark.asyncio
+async def test_json_request_rejected_by_chat_endpoint(auth_client_with_mocked_llm: AsyncClient) -> None:
+    """Test that POST /invocations/chat rejects application/json content-type.
+
+    The /chat endpoint is multipart-only; JSON payloads must use POST /invocations.
+    """
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations/chat",
+        json={
+            "prompt": "JSON body",
+            "session_id": "chat-test-006",
+        },
+    )
+
+    assert response.status_code == 400

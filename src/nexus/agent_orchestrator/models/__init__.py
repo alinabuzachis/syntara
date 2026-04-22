@@ -15,6 +15,7 @@ from nexus.agent_orchestrator.models.request import (
     InvocationCancelRequest,
     InvocationCancelResponse,
     InvocationCreateRequest,
+    InvocationRequestWithFile,
 )
 
 __all__ = [
@@ -27,5 +28,6 @@ __all__ = [
     "InvocationCreateRequest",
     "InvocationListParams",
     "InvocationListResponse",
+    "InvocationRequestWithFile",
     "InvocationStatus",
 ]

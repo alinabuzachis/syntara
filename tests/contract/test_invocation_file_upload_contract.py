@@ -1,13 +1,13 @@
-"""Contract tests for POST /invocations with multipart/form-data file uploads.
+"""Contract tests for POST /invocations/chat with multipart/form-data file uploads.
 
 These tests validate contract compliance with the OpenAPI schema:
 - Multipart/form-data request schema with files array
-- Files parameter is optional (backward compatibility)
+- Files parameter is optional
 - Files array maxItems: 10 constraint
 - Response includes file_ids array in context_data (AAP-60780)
 - FileMetadata is stored in database, not exposed in API response
 
-Contract matches schemas/agent_orchestrator/openapi.yaml
+Contract matches schemas/invocations/openapi.yaml
 
 NOTE: With AAP-60780 refactoring, context_data no longer contains file_metadata.
 Instead, it contains file_ids (UUIDs) when files are uploaded.
@@ -25,10 +25,10 @@ from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 async def test_files_parameter_is_optional(
     auth_client_with_mocked_llm: AsyncClient,
 ) -> None:
-    """Test that files parameter is optional (backward compatibility).
+    """Test that files parameter is optional on POST /invocations/chat.
 
     Validates:
-    - Request without files succeeds
+    - Multipart request without files succeeds
     - context_data is empty when no files uploaded (AAP-60780)
     """
     # Arrange
@@ -39,7 +39,7 @@ async def test_files_parameter_is_optional(
 
     # Act
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
     )
 
@@ -55,7 +55,7 @@ async def test_files_parameter_is_optional(
 async def test_files_array_max_items_constraint(
     auth_client_with_mocked_llm: AsyncClient,
 ) -> None:
-    """Test that files array enforces maxItems: 10 constraint.
+    """Test that POST /invocations/chat enforces maxItems: 10 constraint on files.
 
     Validates:
     - Accepts up to 10 files (202)
@@ -70,7 +70,7 @@ async def test_files_array_max_items_constraint(
 
     # Act - 10 files
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
         files=files_10,
     )
@@ -83,7 +83,7 @@ async def test_files_array_max_items_constraint(
 
     # Act - 11 files
     response_11 = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
         files=files_11,
     )
@@ -96,7 +96,7 @@ async def test_files_array_max_items_constraint(
 async def test_response_schema_file_ids(
     auth_client_with_mocked_llm: AsyncClient,
 ) -> None:
-    """Test file_ids array schema in response (AAP-60780).
+    """Test file_ids array schema in POST /invocations/chat response.
 
     Validates:
     - file_ids is array in context_data (not file_metadata)
@@ -116,7 +116,7 @@ async def test_response_schema_file_ids(
 
     # Act
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
         files=files,
     )

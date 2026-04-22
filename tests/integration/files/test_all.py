@@ -47,7 +47,7 @@ async def test_upload_pdf_file(auth_client_with_mocked_llm: AsyncClient, test_us
 
         # Act
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )
@@ -98,7 +98,7 @@ async def test_upload_docx_file(auth_client_with_mocked_llm: AsyncClient, test_u
 
         # Act
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )
@@ -143,7 +143,7 @@ async def test_upload_text_and_markdown(
         }
 
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )
@@ -165,7 +165,7 @@ async def test_upload_text_and_markdown(
         }
 
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )
@@ -231,7 +231,7 @@ async def test_file_too_large_error(auth_client_with_mocked_llm: AsyncClient, te
 
     # Act
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
         files=files,
     )
@@ -271,7 +271,7 @@ async def test_unsupported_format_error(
 
         # Act
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )
@@ -313,7 +313,7 @@ async def test_too_many_files_error(auth_client_with_mocked_llm: AsyncClient, te
 
     # Act
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
         files=files,
     )
@@ -378,7 +378,7 @@ async def test_multiple_files_upload(
 
     # Act
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
         files=files,
     )
@@ -422,7 +422,7 @@ async def test_context_metadata(auth_client_with_mocked_llm: AsyncClient, test_u
 
         # Act - Create invocation with file
         response = await auth_client_with_mocked_llm.post(
-            "/api/v1/invocations",
+            "/api/v1/invocations/chat",
             data=data,
             files=files,
         )

@@ -3070,21 +3070,7 @@ paths:
         content:
           multipart/form-data:
             schema:
-              type: object
-              required:
-                - files
-              properties:
-                files:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
-                  description: Files to upload (1-10 files, max 10MB each)
-                  minItems: 1
-                  maxItems: 10
-            encoding:
-              files:
-                contentType: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, text/markdown
+              $ref: '#/components/schemas/UploadFilesBody'
       responses:
         '200':
           description: Files uploaded successfully
@@ -3528,7 +3514,7 @@ paths:
   /invocations:
     post:
       summary: Create Invocation (Async)
-      description: Accept async agent invocation request and return invocation ID immediately. Supports both application/json and multipart/form-data with optional file uploads.
+      description: Accept async agent invocation request and return invocation ID immediately. Accepts application/json only.
       operationId: create_invocation
       tags:
         - Invocation
@@ -3557,12 +3543,6 @@ paths:
                 value:
                   prompt: What tools are available for deployment?
                   sessionId: session-002
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvocationRequestWithFile'
-            encoding:
-              files:
-                contentType: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, text/markdown
       responses:
         '202':
           description: Invocation accepted
@@ -3594,7 +3574,7 @@ paths:
                     error_message: null
                     checkpoint_data: null
         '400':
-          description: Bad Request - Validation or file processing error
+          description: Bad Request - Validation error
           content:
             application/problem+json:
               schema:
@@ -3605,21 +3585,6 @@ paths:
                   value:
                     error: Validation Error
                     detail: Missing required field 'prompt'
-                fileTooLarge:
-                  summary: File exceeds size limit
-                  value:
-                    error: File Too Large
-                    detail: Uploaded file size (15728640 bytes) exceeds maximum allowed size (10485760 bytes / 10 MB)
-                unsupportedFormat:
-                  summary: File format not supported
-                  value:
-                    error: Unsupported File Format
-                    detail: File type 'image/png' is not supported. Supported formats - PDF, DOC, DOCX, TXT, MD
-                tooManyFiles:
-                  summary: Too many files uploaded
-                  value:
-                    error: Too Many Files
-                    detail: Uploaded 15 files, but maximum allowed is 10 files per invocation (configurable via file_upload_max_files)
         '401':
           description: Unauthorized
           content:
@@ -3888,6 +3853,88 @@ paths:
                 detail: An unexpected error occurred
                 code: INTERNAL_ERROR
                 retryable: true
+      security:
+        - bearerAuth: []
+  /invocations/chat:
+    post:
+      summary: Create Invocation with File Uploads (Async)
+      description: Accept async agent invocation request with optional file uploads via multipart/form-data.
+      operationId: create_invocation_chat
+      tags:
+        - Invocation
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InvocationRequestWithFile'
+            encoding:
+              files:
+                contentType: application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, text/markdown
+      responses:
+        '202':
+          description: Invocation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invocation'
+        '400':
+          description: Bad Request - Validation or file processing error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              examples:
+                validation:
+                  summary: Standard validation error
+                  value:
+                    error: Validation Error
+                    detail: Missing required field 'prompt'
+                fileTooLarge:
+                  summary: File exceeds size limit
+                  value:
+                    error: File Too Large
+                    detail: Uploaded file size (15728640 bytes) exceeds maximum allowed size (10485760 bytes / 10 MB)
+                unsupportedFormat:
+                  summary: File format not supported
+                  value:
+                    error: Unsupported File Format
+                    detail: File type 'image/png' is not supported. Supported formats - PDF, DOC, DOCX, TXT, MD
+                tooManyFiles:
+                  summary: Too many files uploaded
+                  value:
+                    error: Too Many Files
+                    detail: Uploaded 15 files, but maximum allowed is 10 files per invocation (configurable via file_upload_max_files)
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              example:
+                type: https://api.nexus.com/errors/internal-error
+                title: Internal Server Error
+                detail: An unexpected error occurred
+                code: INTERNAL_ERROR
+                retryable: true
+        '503':
+          description: Service Unavailable - LLM provider not configured
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorData'
+              examples:
+                openrouterNotConfigured:
+                  summary: OpenRouter API key not configured
+                  value:
+                    error: service_unavailable
+                    message: APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys
       security:
         - bearerAuth: []
   /invocations/{invocation_id}:
@@ -10260,6 +10307,20 @@ components:
           title: Message
       required:
         - message
+    UploadFilesBody:
+      type: object
+      title: UploadFilesBody
+      description: Request body for POST /files endpoint.
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+          title: Files
+          description: Files to upload (1-10 files, max 10MB each)
     FileUploadResponse:
       type: object
       title: FileUploadResponse
@@ -10275,8 +10336,8 @@ components:
             format: uuid
           title: File IDs
           description: List of file IDs for later reference in invocations
-          example:
-            - 550e8400-e29b-41d4-a716-446655440000
+          examples:
+            - - 550e8400-e29b-41d4-a716-446655440000
         files:
           type: array
           items:
@@ -10304,24 +10365,29 @@ components:
           format: uuid
           title: File ID
           description: Unique file identifier (UUID)
-          example: 550e8400-e29b-41d4-a716-446655440000
+          examples:
+            - 550e8400-e29b-41d4-a716-446655440000
         filename:
           type: string
           title: Filename
           description: Original filename from upload
-          example: document.pdf
+          examples:
+            - document.pdf
         size_bytes:
           type: integer
           title: Size Bytes
           description: File size in bytes
-          example: 524288
+          examples:
+            - 524288
         mime_type:
           type: string
           title: MIME Type
           description: Detected MIME type of the file
-          example: application/pdf
+          examples:
+            - application/pdf
         status:
           $ref: '#/components/schemas/FileStatus'
+          description: Processing status (pending_conversion)
     FileStatus:
       type: string
       enum:
@@ -10330,8 +10396,14 @@ components:
         - converted
         - conversion_failed
       title: FileStatus
-      description: Current status of file processing/conversion
-      example: pending_conversion
+      description: |-
+        Status enum for file conversion lifecycle.
+
+        States:
+            PENDING_CONVERSION: File uploaded, waiting for conversion
+            CONVERTING: Conversion in progress
+            CONVERTED: Successfully converted to text/markdown
+            CONVERSION_FAILED: Conversion failed with error
     OIDCConfiguration:
       type: object
       title: OIDCConfiguration
@@ -10934,56 +11006,34 @@ components:
         - prompt
         - session_id
       type: object
-    InvocationRequest:
+    InvocationRequestWithFile:
       type: object
-      title: Invocation Request
-      description: Request body for creating a new invocation
-      required:
-        - prompt
-        - created_by
-        - session_id
+      title: InvocationRequestWithFile
+      description: Multipart form body for POST /invocations/chat (file upload path).
       properties:
         prompt:
-          type: string
-          minLength: 1
-          maxLength: 10000
+          anyOf:
+            - type: string
+            - type: 'null'
           title: Prompt
-          description: Natural language request describing desired automation task
-          example: Create a workflow to deploy customer service app
-        created_by:
-          type: string
-          format: uuid
-          title: Created By
-          description: User identifier for authentication and policy evaluation
-          example: 550e8400-e29b-41d4-a716-446655440000
         session_id:
-          type: string
-          title: Session ID
-          description: Session identifier for grouping related invocations
-          example: session-001
+          anyOf:
+            - type: string
+            - type: 'null'
+          title: Session Id
         context_data:
-          type: object
-          default: {}
+          anyOf:
+            - type: string
+            - type: 'null'
           title: Context Data
-          description: Optional additional context for the request
-          additionalProperties: true
-          example:
-            environment: production
-            app_id: customer-svc
-    InvocationRequestWithFile:
-      allOf:
-        - $ref: '#/components/schemas/InvocationRequest'
-        - type: object
-          title: Invocation Request with Files
-          description: Request body for creating invocation with optional file attachments
-          properties:
-            files:
-              type: array
-              items:
-                type: string
+        files:
+          anyOf:
+            - items:
                 format: binary
-              description: Optional file attachments (PDF, DOC, DOCX, TXT, MD). Max 10MB per file by default (configurable via file_upload_max_size_mb). Max 10 files per invocation by default (configurable via file_upload_max_files).
-              maxItems: 10
+                type: string
+              type: array
+            - type: 'null'
+          title: Files
     InvocationListResponse:
       title: InvocationListResponse
       description: Paginated list response for invocations.

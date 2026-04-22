@@ -7,15 +7,12 @@ from uuid import UUID
 import structlog
 from fastapi import (
     BackgroundTasks,
-    Body,
     Depends,
-    File,
     Form,
     HTTPException,
     Path,
     Query,
     Request,
-    UploadFile,
     status,
 )
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -28,6 +25,7 @@ from nexus.agent_orchestrator.models import (
     InvocationCreateRequest,
     InvocationListParams,
     InvocationListResponse,
+    InvocationRequestWithFile,
 )
 from nexus.agent_orchestrator.models.request import CancellationResult
 from nexus.agent_orchestrator.services import InvocationService
@@ -38,6 +36,8 @@ from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.core.utils.session_factory import create_session_factory_from_request
 
 router = NexusRouter(prefix="/invocations", tags=["Invocation"])
+
+
 logger = structlog.stdlib.get_logger(__name__)
 
 # ============================================================================
@@ -114,98 +114,80 @@ def _validate_multipart_required_fields(prompt: str | None, session_id: str | No
     "",
     status_code=status.HTTP_202_ACCEPTED,
     summary="Create Invocation (Async)",
-    description="Accept async agent invocation request and return invocation ID immediately. "
-    "Supports both application/json and multipart/form-data with optional file uploads.",
+    description="Accept async agent invocation request and return invocation ID immediately.",
     dependencies=[NO_PERMISSION],
     operation_id="create_invocation",
     response_description="Invocation accepted",
 )
 async def create_invocation(
-    request: Request,
+    request_body: InvocationCreateRequest,
     service: Annotated[InvocationService, Depends(get_invocation_service_with_background_tasks)],
-    request_body: Annotated[InvocationCreateRequest | None, Body()] = None,
-    prompt: Annotated[str | None, Form()] = None,
-    session_id: Annotated[str | None, Form()] = None,
-    context_data: Annotated[str | None, Form()] = None,
-    files: Annotated[list[UploadFile] | None, File()] = None,
 ) -> Invocation:
-    """Accept async invocation request.
-
-    Supports both formats:
-    1. application/json (backward compatible, no file support)
-    2. multipart/form-data (with optional file uploads)
+    """Accept async invocation request (JSON).
 
     Args:
-        request: FastAPI request object (for determining content type)
+        request_body: JSON request body with prompt, session_id, and optional context_data
         service: Invocation service (with background tasks support)
-        request_body: JSON request body (for application/json)
-        prompt: Prompt field (for multipart/form-data)
-        session_id: Session ID field (for multipart/form-data)
-        context_data: Context data JSON string (for multipart/form-data)
-        files: File uploads (multipart/form-data only, 1-10 files, max 10MB each by default)
 
     Returns:
-        Created invocation with file_ids in context_data if files uploaded
+        Created invocation
 
     Raises:
-        HTTPException: 400 for validation errors, 500 for storage failures
-
-    Note:
-        To upload files, use Content-Type: multipart/form-data.
-        JSON requests (Content-Type: application/json) do not support file uploads.
+        HTTPException: 503 if LLM not configured
 
     """
-    # Check content type to determine request format
-    content_type = request.headers.get("content-type", "")
-    is_json_request = "application/json" in content_type
-    is_multipart_request = "multipart/form-data" in content_type
-
-    # Determine request format and extract data
-    final_prompt: str
-    final_session_id: str
-    final_context_data: dict[str, object] | None
-    final_files: list[UploadFile] | None
-
-    if is_json_request:
-        # JSON request (backward compatible, no file support)
-        # Parse JSON manually because FastAPI gets confused with mixed Body() and Form() params
-        if request_body is not None:
-            # FastAPI successfully parsed it
-            body = request_body
-        else:
-            # Manually parse JSON from request
-            json_data = await request.json()
-            body = InvocationCreateRequest.model_validate(json_data)
-
-        final_prompt = body.prompt
-        final_session_id = body.session_id
-        final_context_data = body.context_data
-        final_files = None  # Files not supported in JSON mode
-    elif is_multipart_request or prompt is not None or session_id is not None:
-        # Multipart form data request (supports files)
-        final_prompt, final_session_id = _validate_multipart_required_fields(prompt, session_id)
-        # Parse context_data JSON string if provided
-        parsed_context: dict[str, object] | None = json.loads(context_data) if context_data else None
-        final_context_data = parsed_context
-        final_files = files
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Request must be either application/json or multipart/form-data",
-        )
-
-    # Fail fast if LLM is not configured - return 503 Service Unavailable
-    # Skip check if a credential will be resolved at execution time
-    ctx_metadata = (final_context_data or {}).get("metadata")
+    ctx_metadata = (request_body.context_data or {}).get("metadata")
     metadata = ctx_metadata if isinstance(ctx_metadata, dict) else {}
     if not metadata.get("credential_id"):
         get_openrouter_llm()
 
     return await service.create_invocation(
-        prompt=final_prompt,
-        session_id=final_session_id,
-        context_data=final_context_data,
-        files=final_files,
+        prompt=request_body.prompt,
+        session_id=request_body.session_id,
+        context_data=request_body.context_data,
+        files=None,
+    )
+
+
+@router.post(
+    "/chat",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Create Invocation with File Uploads (Async)",
+    description="Accept async agent invocation request with optional file uploads via multipart/form-data.",
+    dependencies=[NO_PERMISSION],
+    operation_id="create_invocation_chat",
+    response_description="Invocation accepted",
+)
+async def create_invocation_chat(
+    service: Annotated[InvocationService, Depends(get_invocation_service_with_background_tasks)],
+    form: Annotated[InvocationRequestWithFile, Form()],
+) -> Invocation:
+    """Accept async invocation request with optional file uploads (multipart/form-data).
+
+    Args:
+        service: Invocation service (with background tasks support)
+        form: Multipart form body with prompt, session_id, optional context_data and files
+
+    Returns:
+        Created invocation with file_ids in context_data if files uploaded
+
+    Raises:
+        HTTPException: 400 for validation errors, 503 if LLM not configured
+
+    """
+    prompt, session_id = _validate_multipart_required_fields(form.prompt, form.session_id)
+    context_data: dict[str, object] | None = json.loads(form.context_data) if form.context_data else None
+
+    ctx_metadata = (context_data or {}).get("metadata")
+    metadata = ctx_metadata if isinstance(ctx_metadata, dict) else {}
+    if not metadata.get("credential_id"):
+        get_openrouter_llm()
+
+    return await service.create_invocation(
+        prompt=prompt,
+        session_id=session_id,
+        context_data=context_data,
+        files=form.files,
     )
 
 

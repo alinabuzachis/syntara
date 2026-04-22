@@ -1,13 +1,12 @@
-"""Contract tests for backward compatibility with JSON requests.
+"""Contract tests for backward compatibility of POST /invocations (JSON-only endpoint).
 
 These tests validate:
-- Application/json requests still work without files
-- Context_data is empty object when no files (no file_ids key)
-- Existing functionality not broken by file upload feature
+- application/json requests still work without files
+- context_data is empty object when no files (no file_ids key)
+- multipart/form-data is rejected — file uploads must use POST /invocations/chat
 
-NOTE: With AAP-60780 refactoring, context_data no longer contains file_metadata.
-Instead, it contains file_ids (UUIDs) when files are uploaded, and is empty
-when no files are present.
+NOTE: POST /invocations is JSON-only. Multipart requests (with or without files)
+must be sent to POST /invocations/chat instead.
 """
 
 import pytest
@@ -111,12 +110,36 @@ async def test_json_request_with_existing_context_data(auth_client_with_mocked_l
 
 
 @pytest.mark.asyncio
-async def test_multipart_request_without_files_compatible(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
-    """Test that multipart/form-data without files also works.
+async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+    """Test that POST /invocations rejects multipart/form-data requests.
 
     Validates:
-    - Multipart requests can omit files parameter
-    - Maintains same behavior as JSON requests (AAP-60780)
+    - The JSON-only endpoint does not accept multipart form submissions
+    - Clients must use POST /invocations/chat for file uploads
+    """
+    # Arrange
+    data = {
+        "prompt": "Multipart payload",
+        "session_id": "backward-compat-rejection-001",
+    }
+
+    # Act — send as multipart/form-data (httpx uses this when `data=` is passed)
+    response = await auth_client_with_mocked_llm.post(
+        "/api/v1/invocations",
+        data=data,
+    )
+
+    # Assert — FastAPI returns 422 when the body cannot be parsed as JSON
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_multipart_request_without_files_compatible(auth_client_with_mocked_llm: AsyncClient, test_user) -> None:
+    """Test that POST /invocations/chat without files works as expected.
+
+    Validates:
+    - Multipart requests can omit files parameter on the /chat endpoint
+    - context_data is empty when no files are uploaded (AAP-60780)
     """
     # Arrange
     data = {
@@ -126,7 +149,7 @@ async def test_multipart_request_without_files_compatible(auth_client_with_mocke
 
     # Act
     response = await auth_client_with_mocked_llm.post(
-        "/api/v1/invocations",
+        "/api/v1/invocations/chat",
         data=data,
     )
 
