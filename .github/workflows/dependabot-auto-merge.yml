@@ -12,7 +12,7 @@ permissions:
 jobs:
   dependabot-auto-merge:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]' && github.repository == 'syntara-orchestration/syntara'
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'syntara-orchestration/syntara'
     env:
       PR_URL: ${{ github.event.pull_request.html_url }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
