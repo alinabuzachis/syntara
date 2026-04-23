@@ -137,19 +137,10 @@ jobs:
           kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/set_admin_password.py' < tools/set_admin_password.py
           cat .secrets/admin-password | kubectl exec -i "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/set_admin_password.py'
 
-      - name: Seed settings
-        working-directory: aap-dev/src/nexus
+      - name: Seed database (settings, credential types, authz, default project)
         run: |
           POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
-          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/seed_settings.py' < tools/seed_settings.py
-          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/seed_settings.py'
-
-      - name: Seed authorization data (roles, policies, default project)
-        working-directory: aap-dev/src/nexus
-        run: |
-          POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
-          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/authz_cli.py' < tools/authz_cli.py
-          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/authz_cli.py seed-builtin'
+          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python -m nexus.seed'
 
       # --- Wait for background npm/Playwright install to finish ---
       - name: Wait for npm + Playwright install
