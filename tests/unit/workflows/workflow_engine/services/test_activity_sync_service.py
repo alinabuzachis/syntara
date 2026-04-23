@@ -1343,6 +1343,308 @@ class TestIsAgenticActivity:
         assert ActivitySyncService._is_agentic_activity(activity_def) == expected
 
 
+class TestPendingOutputFlag:
+    """Test _pending_output flag logic in _sync_activities_to_db.
+
+    Signal-based nodes (agentic, approval) complete before their signal arrives,
+    so output_data is null initially. The _pending_output flag keeps them in
+    pending_activity_updates so they get re-queried on the next sync pass.
+    """
+
+    def setup_method(self) -> None:
+        """Set up test fixtures."""
+        self.execution_id = uuid4()
+        self.mock_session_factory = Mock()
+        self.mock_activity_publisher = AsyncMock()
+        self.service = ActivitySyncService(Mock(), self.mock_session_factory, self.mock_activity_publisher)
+
+    def _create_mock_activity_execution(
+        self,
+        activity_name: str = "approval-node",
+        status: ActivityStatus = ActivityStatus.PENDING,
+    ) -> Mock:
+        """Create a mock ActivityExecution database record."""
+        activity = Mock()
+        activity.activity_name = activity_name
+        activity.status = status
+        activity.started_at = None
+        activity.completed_at = None
+        activity.error_details = None
+        activity.retry_count = 0
+        activity.input_data = {}
+        activity.output_data = None
+        activity.updated_at = None
+        return activity
+
+    def _mock_session_with_activities(self, activities: list[Mock]) -> Mock:
+        """Create a mock session that returns the given activities and a mock execution."""
+        from nexus.workflows.models.execution import Execution
+
+        # Mock for the activity query
+        mock_activity_result = Mock()
+        mock_activity_result.all.return_value = activities
+
+        # Mock for the execution query (used to update last_processed_event_id)
+        mock_execution = Mock(spec=Execution)
+        mock_execution.id = self.execution_id
+        mock_execution.last_processed_event_id = 0
+        mock_execution_result = Mock()
+        mock_execution_result.one_or_none.return_value = mock_execution
+
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(side_effect=[mock_activity_result, mock_execution_result])
+        mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        self.mock_session_factory.return_value = mock_session
+        return mock_session
+
+    def _create_mock_handle(
+        self,
+        input_data: dict[str, Any] | None = None,
+        output_data: dict[str, Any] | None = None,
+    ) -> AsyncMock:
+        """Create a mock workflow handle that returns given data for queries."""
+        handle = AsyncMock()
+
+        async def mock_query(query_name: str, activity_id: str) -> dict[str, object] | None:
+            if query_name == "get_activity_input":
+                return input_data or {}
+            if query_name == "get_activity_output":
+                return output_data
+            return None
+
+        handle.query = AsyncMock(side_effect=mock_query)
+        return handle
+
+    @pytest.mark.asyncio
+    async def test_completed_activity_with_null_output_gets_pending_output_flag(self) -> None:
+        """Completed signal-based activity with null output_data gets tagged with _pending_output = True."""
+        activity = self._create_mock_activity_execution(activity_name="approval-node")
+        self._mock_session_with_activities([activity])
+
+        # Handle returns None for output (signal hasn't arrived yet)
+        handle = self._create_mock_handle(output_data=None)
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"approval-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "approval-node",
+                    "activity_name": "approval-node",
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        # The activity should be tagged with _pending_output
+        assert metadata.pending_activity_updates[10].get("_pending_output") is True
+
+    @pytest.mark.asyncio
+    async def test_tagged_activity_remains_in_pending_for_next_sync(self) -> None:
+        """Activities tagged with _pending_output remain in pending_activity_updates after sync."""
+        activity = self._create_mock_activity_execution(activity_name="approval-node")
+        self._mock_session_with_activities([activity])
+
+        # Handle returns None for output
+        handle = self._create_mock_handle(output_data=None)
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"approval-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "approval-node",
+                    "activity_name": "approval-node",
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        # The activity must still be in pending_activity_updates (not cleared)
+        # because _pending_output prevents terminal-status cleanup
+        assert 10 in metadata.pending_activity_updates
+        assert metadata.pending_activity_updates[10]["_pending_output"] is True
+
+    @pytest.mark.asyncio
+    async def test_output_available_on_requery_clears_pending_output_flag(self) -> None:
+        """When output_data becomes available on re-query, _pending_output is cleared and activity is finalized."""
+        activity = self._create_mock_activity_execution(activity_name="approval-node")
+
+        # First sync: output is None -> _pending_output = True
+        self._mock_session_with_activities([activity])
+        handle_no_output = self._create_mock_handle(output_data=None)
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"approval-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "approval-node",
+                    "activity_name": "approval-node",
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle_no_output)
+        assert metadata.pending_activity_updates[10].get("_pending_output") is True
+
+        # Second sync: output is now available
+        self._mock_session_with_activities([activity])
+        handle_with_output = self._create_mock_handle(output_data={"status": "approved", "approved_by": "user-1"})
+
+        await self.service._sync_activities_to_db(metadata, handle_with_output)
+
+        # _pending_output should be cleared
+        assert "_pending_output" not in metadata.pending_activity_updates.get(10, {})
+        # Activity should have been removed from pending (terminal + no _pending_output)
+        assert 10 not in metadata.pending_activity_updates
+        # Output should be persisted on the activity record
+        assert activity.output_data == {"status": "approved", "approved_by": "user-1"}
+
+    @pytest.mark.asyncio
+    async def test_completed_activity_with_output_does_not_get_pending_flag(self) -> None:
+        """A completed activity that already has output_data does NOT get _pending_output."""
+        activity = self._create_mock_activity_execution(activity_name="script-node")
+        self._mock_session_with_activities([activity])
+
+        handle = self._create_mock_handle(output_data={"stdout": "hello", "exit_code": 0})
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"script-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "script-node",
+                    "activity_name": "script-node",
+                    "status": ActivityStatus.COMPLETED,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": datetime.now(UTC),
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        # Should be cleared from pending (terminal + has output)
+        assert 10 not in metadata.pending_activity_updates
+
+    @pytest.mark.asyncio
+    async def test_workflow_completes_before_output_available_activity_finalized(self) -> None:
+        """Edge case: if workflow completes before output is available, activity is finalized properly.
+
+        When the workflow reaches a terminal state, _update_execution_status_from_event
+        finalizes agentic activities. This test verifies that a RUNNING agentic activity
+        with null output gets finalized to the correct terminal status.
+        """
+        from nexus.workflows.models.execution import Execution, ExecutionStatus
+
+        # Create a RUNNING agentic activity with no output yet
+        agentic_activity = Mock()
+        agentic_activity.id = uuid4()
+        agentic_activity.activity_name = "agent-node"
+        agentic_activity.temporal_activity_id = "agent-node"
+        agentic_activity.status = ActivityStatus.RUNNING
+        agentic_activity.completed_at = None
+        agentic_activity.error_details = None
+        agentic_activity.output_data = None
+        agentic_activity.activity_definition = {"type": "agentic"}
+
+        execution = Mock(spec=Execution)
+        execution.id = self.execution_id
+        execution.status = ExecutionStatus.RUNNING
+        execution.temporal_workflow_id = f"exec-{self.execution_id}"
+        execution.created_at = datetime(2025, 1, 20, 10, 0, 0, tzinfo=UTC)
+        execution.updated_at = execution.created_at
+        execution.completed_at = None
+        execution.error_details = None
+        execution.activities = [agentic_activity]
+
+        mock_result = Mock()
+        mock_result.one_or_none.return_value = execution
+        mock_session = Mock()
+        mock_session.exec = AsyncMock(return_value=mock_result)
+        mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        self.mock_session_factory.return_value = mock_session
+
+        # Workflow completed but output query still returns None
+        handle = AsyncMock()
+        handle.query = AsyncMock(return_value=None)
+
+        event = Mock()
+        event.event_type = EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+        event.event_id = 100
+        event.event_time = datetime(2025, 1, 20, 12, 30, 0, tzinfo=UTC)
+        attrs = Mock()
+        attrs.result = Mock(payloads=[])
+        event.workflow_execution_completed_event_attributes = attrs
+
+        metadata = create_test_metadata(execution_id=self.execution_id)
+
+        await self.service._update_execution_status_from_event(metadata, event, handle)
+
+        # Activity should be finalized to COMPLETED (matching workflow terminal status)
+        assert agentic_activity.status == ActivityStatus.COMPLETED
+        assert agentic_activity.completed_at is not None
+        # output_data should be None since the query returned None
+        assert agentic_activity.output_data is None
+        assert agentic_activity.error_details is None
+
+    @pytest.mark.asyncio
+    async def test_non_completed_activity_does_not_get_pending_flag(self) -> None:
+        """Activities in non-COMPLETED states (RUNNING, FAILED) should not get _pending_output flag."""
+        activity = self._create_mock_activity_execution(activity_name="running-node")
+        self._mock_session_with_activities([activity])
+
+        handle = self._create_mock_handle(output_data=None)
+
+        metadata = create_test_metadata(
+            execution_id=self.execution_id,
+            activity_index_map={"running-node": 0},
+            pending_activity_updates={
+                10: {
+                    "activity_id": "running-node",
+                    "activity_name": "running-node",
+                    "status": ActivityStatus.RUNNING,
+                    "started_at": datetime.now(UTC),
+                    "completed_at": None,
+                    "error_details": None,
+                    "retry_count": 0,
+                },
+            },
+        )
+
+        await self.service._sync_activities_to_db(metadata, handle)
+
+        # RUNNING activity should NOT get _pending_output (it's not completed yet)
+        assert "_pending_output" not in metadata.pending_activity_updates.get(10, {})
+
+
 class TestExtractFailedActivityErrors:
     """Test _extract_failed_activity_errors static method."""
 

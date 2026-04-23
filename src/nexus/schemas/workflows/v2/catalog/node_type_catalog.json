@@ -34,6 +34,17 @@
       "since": "2.0.0"
     },
     {
+      "type": "script",
+      "name": "Script",
+      "description": "Execute Python or Bash scripts with structured output",
+      "labels": {
+        "category": "executor"
+      },
+      "schema_ref": "../executors/script.schema.json",
+      "deprecated": false,
+      "since": "2.0.0"
+    },
+    {
       "type": "aap_job_template",
       "name": "AAP Job Template",
       "description": "Launch Ansible Automation Platform job templates",

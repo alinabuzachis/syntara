@@ -26,6 +26,10 @@ class ExecutionListParams(BaseListParams):
     # for complex filtering operations like workflow_id, status, etc.
 
 
+class ActivityListParams(BaseListParams):
+    """Query parameters for activity execution list endpoint."""
+
+
 class ExecutionIncludeParams(SQLModel):
     """Query parameters for execution include functionality."""
 

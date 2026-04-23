@@ -22,8 +22,8 @@ async def test_list_execution_activities_empty_when_temporal_unavailable(
     assert response.status_code == 200
     data = response.json()
     # When Temporal is not available and no activities in DB, should return empty list
-    assert isinstance(data, list)
-    assert len(data) == 0
+    assert "resources" in data
+    assert len(data["resources"]) == 0
 
 
 @pytest.mark.asyncio
@@ -59,8 +59,9 @@ async def test_list_execution_activities_returns_persisted_data(
     response = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
 
     assert response.status_code == 200
-    data = response.json()
-    assert isinstance(data, list)
+    body = response.json()
+    assert "resources" in body
+    data = body["resources"]
     assert len(data) == 3
 
     # Verify activity structure
@@ -72,9 +73,11 @@ async def test_list_execution_activities_returns_persisted_data(
         assert "status" in activity_data
         assert activity_data["execution_id"] == str(test_execution.id)
 
-    # Verify ordering by created_at (T047 requirement)
+    # Verify ordering by created_at descending (default sort)
     created_at_times = [datetime.fromisoformat(a["created_at"]) for a in data]
-    assert created_at_times == sorted(created_at_times), "Activities should be ordered by created_at ascending"
+    assert created_at_times == sorted(created_at_times, reverse=True), (
+        "Activities should be ordered by created_at descending"
+    )
 
 
 @pytest.mark.asyncio
@@ -115,10 +118,10 @@ async def test_list_execution_activities_includes_all_fields(
     response = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
 
     assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 1
+    body = response.json()
+    assert len(body["resources"]) == 1
 
-    activity_data = data[0]
+    activity_data = body["resources"][0]
     # Verify all fields are present
     assert activity_data["activity_name"] == "complete_activity"
     assert activity_data["temporal_activity_id"] == "temporal-123"
@@ -179,7 +182,8 @@ async def test_list_execution_activities_with_different_statuses(
     response = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
 
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body["resources"]
     assert len(data) == 5
 
     # Verify all statuses are represented
@@ -233,7 +237,8 @@ async def test_list_execution_activities_with_nested_activity_definition(
     response = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
 
     assert response.status_code == 200
-    data = response.json()
+    body = response.json()
+    data = body["resources"]
     assert len(data) == 1
 
     # Verify nested structure is preserved
@@ -289,13 +294,13 @@ async def test_list_execution_activities_multiple_executions_isolated(
     # List activities for first execution
     response1 = await jwt_client.get(f"/api/v1/executions/{test_execution.id}/activities")
     assert response1.status_code == 200
-    data1 = response1.json()
+    data1 = response1.json()["resources"]
     assert len(data1) == 2
     assert all(a["activity_name"].startswith("exec1_") for a in data1)
 
     # List activities for second execution
     response2 = await jwt_client.get(f"/api/v1/executions/{execution2.id}/activities")
     assert response2.status_code == 200
-    data2 = response2.json()
+    data2 = response2.json()["resources"]
     assert len(data2) == 3
     assert all(a["activity_name"].startswith("exec2_") for a in data2)

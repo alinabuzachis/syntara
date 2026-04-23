@@ -18,14 +18,14 @@ from nexus.core.database.session import get_db
 from nexus.core.models import User
 from nexus.core.nexus_router import NO_PERMISSION, NexusRouter
 from nexus.workflows.models import ActivitySignalPayload, ExecutionListParams, SignalResponse
-from nexus.workflows.models.activity_execution import ActivityExecution
+from nexus.workflows.models.activity_execution import ActivityExecutionListResponse
 from nexus.workflows.models.execution import (
     Execution,
     ExecutionCreate,
     ExecutionListResponse,
     ExecutionRead,
 )
-from nexus.workflows.models.query_params import ExecutionIncludeParams
+from nexus.workflows.models.query_params import ActivityListParams, ExecutionIncludeParams
 from nexus.workflows.services import ExecutionService
 from nexus.workflows.workflow_engine.services.temporal_execution_service import (
     TemporalExecutionService,
@@ -268,29 +268,39 @@ async def get_execution(
     dependencies=[Depends(_exec_perm_read)],
 )
 async def list_execution_activities(
+    request: Request,
     execution_id: UUID,
     service: Annotated[ExecutionService, Depends(get_execution_service)],
-) -> list[ActivityExecution]:
-    """List all activities for a workflow execution.
+    params: Annotated[ActivityListParams, Query()],
+) -> ActivityExecutionListResponse:
+    """List activities for a workflow execution with cursor-based pagination.
 
     Returns persisted activity data from database. Activities are synced from Temporal
     and stored to enable querying after Temporal's retention period expires.
 
     Args:
+        request: FastAPI request object containing query parameters
         execution_id: Execution ID
         service: Execution service (injected by FastAPI)
+        params: Query parameters for pagination and filtering
 
     Returns:
-        List of activity executions
+        ActivityExecutionListResponse with activities and pagination metadata
 
     Raises:
         HTTPException: 404 if execution not found
-        HTTPException: 500 if Temporal query fails
 
     """
     logger.info("Listing activities for execution", execution_id=execution_id)
 
-    return await service.get_execution_activities(execution_id)
+    return await service.list_execution_activities(
+        execution_id=execution_id,
+        limit=params.limit,
+        cursor=params.cursor,
+        sort=params.sort,
+        query_params_items=request.query_params.items(),
+        include_total=params.include_total,
+    )
 
 
 @router.post(

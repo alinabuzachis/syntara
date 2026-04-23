@@ -199,8 +199,8 @@ class NexusWorkflow:
 
                 try:
                     result = await task
-                    output_data = result.get("output", result)
-                    self.resolver.set_namespace(completed_node_id, output_data)
+                    output = result["output"] if isinstance(result, dict) and "output" in result else result
+                    self.resolver.set_namespace(completed_node_id, output)
 
                     workflow.logger.info(f"Node {completed_node_id} completed, pending: {list(pending_tasks.keys())}")
 

@@ -799,7 +799,7 @@ class ActivitySyncService:
         elif event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED:
             self._process_activity_canceled(event, metadata)
 
-    async def _sync_activities_to_db(  # noqa: C901, PLR0915
+    async def _sync_activities_to_db(  # noqa: C901, PLR0912, PLR0915
         self,
         metadata: ExecutionMonitorMetadata,
         handle: WorkflowHandle[Any, Any],
@@ -921,6 +921,14 @@ class ActivitySyncService:
                         if output_data is not None
                         else None
                     )
+                    # Tag activities that completed with null output for re-query on next sync pass.
+                    # Signal-based nodes (agentic, approval) complete before their signal arrives,
+                    # so output_data is null initially. Keeping them in pending_activity_updates
+                    # ensures they get re-queried when downstream events trigger the next sync.
+                    if output_data is None and activity_data["status"] == ActivityStatus.COMPLETED:
+                        activity_data["_pending_output"] = True
+                    else:
+                        activity_data.pop("_pending_output", None)
                     existing.error_details = activity_data["error_details"]
                     existing.retry_count = activity_data["retry_count"]
                     existing.updated_at = datetime.now(UTC)
@@ -938,7 +946,7 @@ class ActivitySyncService:
                 terminal_scheduled_ids = [
                     scheduled_id
                     for scheduled_id, data in metadata.pending_activity_updates.items()
-                    if data.get("status") in terminal_statuses
+                    if data.get("status") in terminal_statuses and not data.get("_pending_output")
                 ]
                 for scheduled_id in terminal_scheduled_ids:
                     del metadata.pending_activity_updates[scheduled_id]

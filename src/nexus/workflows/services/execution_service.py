@@ -26,7 +26,7 @@ from nexus.workflows.exceptions import (
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
-from nexus.workflows.models.activity_execution import ActivityExecution
+from nexus.workflows.models.activity_execution import ActivityExecution, ActivityExecutionListResponse
 from nexus.workflows.models.execution import (
     ActivityData,
     Execution,
@@ -324,50 +324,61 @@ class ExecutionService(BaseService):
             allowed_projects=allowed_projects,
         )
 
-    async def get_execution_activities(self, execution_id: UUID) -> list[ActivityExecution]:
-        """Get all activities for an execution from database.
+    async def list_execution_activities(
+        self,
+        execution_id: UUID,
+        limit: int = 20,
+        cursor: str | None = None,
+        sort: str | None = None,
+        query_params_items: Iterable[tuple[str, str]] | None = None,
+        *,
+        include_total: bool = False,
+    ) -> ActivityExecutionListResponse:
+        """List activities for an execution with cursor-based pagination.
 
         Activities are automatically synced to the database in real-time by the
-        ActivitySyncService running in the Temporal worker. This method simply
-        queries the database for the current state.
+        ActivitySyncService running in the Temporal worker. This method queries
+        the database for the current state with pagination support.
 
         Args:
             execution_id: Execution ID
+            limit: Maximum number of activities to return (default 20)
+            cursor: Cursor token for pagination
+            sort: Sort parameter (e.g., "created_at", "-created_at")
+            query_params_items: Raw query parameter items from request (for filtering)
+            include_total: Whether to include total count in response
 
         Returns:
-            List of activity executions from database, ordered by created_at
+            ActivityExecutionListResponse with activities and pagination metadata
 
         Raises:
             ExecutionNotFoundError: If execution not found
 
         """
+        # Verify execution exists
         exec_result = await self.session.exec(
-            select(Execution)
-            .where(Execution.id == execution_id)
-            .where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
-            .options(selectinload(Execution.workflow))  # type: ignore[arg-type]
+            select(Execution).where(Execution.id == execution_id).where(Execution.deleted_at.is_(None))  # type: ignore[union-attr]
         )
-        execution = exec_result.one_or_none()
-        if execution is None:
+        if exec_result.one_or_none() is None:
             raise ExecutionNotFoundError(execution_id)
 
-        # Load all activities from DB (single query), ordered by created_at
-        result = await self.session.exec(
-            select(ActivityExecution)
-            .where(ActivityExecution.execution_id == execution_id)
-            .order_by(ActivityExecution.created_at)  # type: ignore[arg-type]
+        # Inject execution_id as a filter param alongside any caller-supplied params
+        execution_filter = [("execution_id", str(execution_id))]
+        if query_params_items:
+            execution_filter.extend(query_params_items)
+
+        # Pass identity converter — the service's default mixin converts to ExecutionRead,
+        # but ActivityExecution is used directly as the response model.
+        return await self.list_resources(
+            model=ActivityExecution,
+            response_type=ActivityExecutionListResponse,
+            response_type_converter=lambda a: a,
+            limit=limit,
+            cursor=cursor,
+            sort=sort or "-created_at",
+            query_params_items=execution_filter,
+            include_total=include_total,
         )
-        activities = list(result.all())
-
-        await self._emit_completion_metrics(execution)
-
-        logger.debug(
-            "Retrieved activities for execution from database",
-            activity_count=len(activities),
-            execution_id=execution_id,
-        )
-
-        return activities
 
     async def _emit_completion_metrics(self, execution: Execution) -> None:
         """Emit workflow and activity metrics on first terminal-state read.

@@ -7,7 +7,7 @@ Temporal's retention period expires.
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, Column, DateTime, Index, String, Text, UniqueConstraint, text
@@ -17,6 +17,7 @@ from sqlmodel import Field, Relationship
 
 from nexus.core.constants import FieldLimits
 from nexus.core.models.base import BaseResource
+from nexus.core.models.pagination import ResourcesResponse
 
 if TYPE_CHECKING:
     from nexus.workflows.models.execution import Execution
@@ -51,6 +52,13 @@ class ActivityExecution(BaseResource, table=True):
     """
 
     __tablename__ = "activity_execution"
+
+    __filterable_fields__: ClassVar[list[str]] = [
+        *BaseResource.__filterable_fields__,
+        "execution_id",
+        "activity_name",
+        "status",
+    ]
 
     # Constraints for ensuring unique activities per execution
     __table_args__ = (
@@ -144,3 +152,6 @@ class ActivityExecution(BaseResource, table=True):
 
     # Loop tracking
     iteration: int | None = Field(None, description="Iteration number if activity is within a loop (0-indexed)")
+
+
+ActivityExecutionListResponse = ResourcesResponse[ActivityExecution]

@@ -22,7 +22,7 @@ Usage:
     from nexus.workflows.models import ActivityData, ExecutionSnapshotMessage, ActivityPatchMessage
 """
 
-from .activity_execution import ActivityExecution, ActivityStatus
+from .activity_execution import ActivityExecution, ActivityExecutionListResponse, ActivityStatus
 from .execution import (
     TERMINAL_EXECUTION_STATUSES,
     ActivityData,
@@ -31,7 +31,13 @@ from .execution import (
     ExecutionListResponse,
     ExecutionStatus,
 )
-from .query_params import ExecutionIncludeParams, ExecutionListParams, ExecutionStreamingQueryParams, WorkflowListParams
+from .query_params import (
+    ActivityListParams,
+    ExecutionIncludeParams,
+    ExecutionListParams,
+    ExecutionStreamingQueryParams,
+    WorkflowListParams,
+)
 from .signal import ActivitySignalPayload, SignalResponse
 from .visualization import (
     ActivityPatchMessage,
@@ -52,6 +58,8 @@ __all__ = [
     "TERMINAL_EXECUTION_STATUSES",
     "ActivityData",
     "ActivityExecution",
+    "ActivityExecutionListResponse",
+    "ActivityListParams",
     "ActivityPatchMessage",
     "ActivitySignalPayload",
     "ActivityStatus",

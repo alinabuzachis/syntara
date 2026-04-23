@@ -19,7 +19,6 @@ from nexus.workflows.exceptions import (
     WorkflowDisabledError,
     WorkflowNotFoundError,
 )
-from nexus.workflows.models.activity_execution import ActivityStatus
 from nexus.workflows.models.execution import Execution, ExecutionRead, ExecutionStatus
 from nexus.workflows.models.workflow import Workflow
 from nexus.workflows.models.workflow_version import WorkflowVersion
@@ -840,39 +839,12 @@ class TestListExecutionsWithTemporalSync(TestExecutionServiceBase):
         mock_session.commit.assert_not_called()
 
 
-class TestGetExecutionActivities(TestExecutionServiceBase):
-    """Test get_execution_activities method."""
+class TestListExecutionActivities(TestExecutionServiceBase):
+    """Test list_execution_activities method."""
 
     @pytest.mark.asyncio
-    async def test_get_execution_activities_no_temporal(self) -> None:
-        """Test getting activities returns empty list when Temporal is unavailable."""
-        mock_session = Mock(spec=AsyncSession)
-        mock_user = Mock(spec=User)
-
-        execution_id = uuid4()
-        execution = self._create_test_execution(execution_id=execution_id)
-
-        # Mock get_execution query (first exec call)
-        mock_execution_result = Mock()
-        mock_execution_result.one_or_none = Mock(return_value=execution)
-
-        # Mock activities query (second exec call)
-        mock_activities_result = Mock()
-        mock_activities_result.all = Mock(return_value=[])
-
-        # Set up exec to return different results for each query
-        mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result])
-
-        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
-
-        with patch.object(service, "_emit_completion_metrics", new_callable=AsyncMock):
-            result = await service.get_execution_activities(execution_id)
-
-        assert result == []
-
-    @pytest.mark.asyncio
-    async def test_get_execution_activities_not_found(self) -> None:
-        """Test getting activities for non-existent execution raises error."""
+    async def test_list_execution_activities_not_found(self) -> None:
+        """Test listing activities for non-existent execution raises error."""
         mock_session = Mock(spec=AsyncSession)
         mock_user = Mock(spec=User)
 
@@ -886,85 +858,226 @@ class TestGetExecutionActivities(TestExecutionServiceBase):
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
 
         with pytest.raises(ExecutionNotFoundError) as exc_info:
-            await service.get_execution_activities(execution_id)
+            await service.list_execution_activities(execution_id)
 
         assert exc_info.value.execution_id == execution_id
 
     @pytest.mark.asyncio
-    async def test_get_execution_activities_success(self) -> None:
-        """Test successfully getting activities from database."""
+    async def test_list_execution_activities_delegates_to_list_resources(self) -> None:
+        """Test that list_execution_activities delegates to list_resources after verifying execution."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
         execution_id = uuid4()
-        execution = self._create_test_execution(
-            execution_id=execution_id,
-            status=ExecutionStatus.RUNNING,
-            temporal_workflow_id="exec-123",
-        )
+        execution = self._create_test_execution(execution_id=execution_id)
 
-        activity = Mock()
-        activity.id = uuid4()
-        activity.activity_name = "activity-1"
-        activity.temporal_activity_id = "activity-1"
-        activity.status = ActivityStatus.COMPLETED
-        activity.retry_count = 0
-
+        # Mock execution exists check
         mock_execution_result = Mock()
         mock_execution_result.one_or_none = Mock(return_value=execution)
+        mock_session.exec = AsyncMock(return_value=mock_execution_result)
+
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+
+        mock_response = Mock()
+        with patch.object(service, "list_resources", new_callable=AsyncMock, return_value=mock_response) as mock_lr:
+            result = await service.list_execution_activities(
+                execution_id=execution_id,
+                limit=10,
+                sort="-created_at",
+            )
+
+        assert result is mock_response
+        mock_lr.assert_awaited_once()
+        call_kwargs = mock_lr.call_args.kwargs
+        assert call_kwargs["limit"] == 10
+        assert call_kwargs["sort"] == "-created_at"
+
+    @pytest.mark.asyncio
+    async def test_list_execution_activities_field_mapping(self) -> None:
+        """Test that activity field mapping returns correct values for activity_name, status, and retry_count."""
+        from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
+
+        mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
+
+        execution_id = uuid4()
+        execution = self._create_test_execution(execution_id=execution_id)
+
+        # Create a real ActivityExecution with specific field values
+        activity_id = uuid4()
+        activity = ActivityExecution(
+            id=activity_id,
+            execution_id=execution_id,
+            activity_name="run-script-1",
+            activity_definition={"type": "script"},
+            temporal_activity_id="run-script-1",
+            status=ActivityStatus.COMPLETED,
+            started_at=datetime(2025, 1, 1, 10, 0, 0, tzinfo=UTC),
+            completed_at=datetime(2025, 1, 1, 10, 1, 0, tzinfo=UTC),
+            input_data={"host": "server-1"},
+            output_data={"stdout": "ok"},
+            error_details=None,
+            retry_count=2,
+            created_at=datetime(2025, 1, 1, 10, 0, 0, tzinfo=UTC),
+            updated_at=datetime(2025, 1, 1, 10, 1, 0, tzinfo=UTC),
+        )
+
+        # First call: execution exists check
+        mock_execution_result = Mock()
+        mock_execution_result.one_or_none = Mock(return_value=execution)
+
+        # Second call: list_resources query returns activities
         mock_activities_result = Mock()
         mock_activities_result.all = Mock(return_value=[activity])
 
+        # Count query for pagination
+        mock_count_result = Mock()
+        mock_count_result.scalar = Mock(return_value=None)
+
         mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result])
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
-        mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+        result = await service.list_execution_activities(execution_id=execution_id, limit=10)
 
-        result = await service.get_execution_activities(execution_id)
-
-        assert len(result) == 1
-        assert result[0].activity_name == "activity-1"
-        assert result[0].temporal_activity_id == "activity-1"
-        assert result[0].status == ActivityStatus.COMPLETED
-        assert result[0].retry_count == 0
+        assert len(result.resources) == 1
+        returned_activity = result.resources[0]
+        assert returned_activity.activity_name == "run-script-1"
+        assert returned_activity.status == ActivityStatus.COMPLETED
+        assert returned_activity.retry_count == 2
+        assert returned_activity.output_data == {"stdout": "ok"}
+        assert returned_activity.input_data == {"host": "server-1"}
+        assert returned_activity.started_at == datetime(2025, 1, 1, 10, 0, 0, tzinfo=UTC)
+        assert returned_activity.completed_at == datetime(2025, 1, 1, 10, 1, 0, tzinfo=UTC)
 
     @pytest.mark.asyncio
-    async def test_get_execution_activities_incremental_sync(self) -> None:
-        """Test getting multiple activities from database."""
+    async def test_list_execution_activities_empty_list(self) -> None:
+        """Test that empty activity list returns empty resources."""
         mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
 
         execution_id = uuid4()
-        execution = self._create_test_execution(
-            execution_id=execution_id,
-            status=ExecutionStatus.RUNNING,
-            temporal_workflow_id="exec-123",
-        )
+        execution = self._create_test_execution(execution_id=execution_id)
 
-        activity1 = Mock()
-        activity1.id = uuid4()
-        activity1.activity_name = "activity-1"
-        activity1.temporal_activity_id = "activity-1"
-        activity1.status = ActivityStatus.COMPLETED
-
-        activity2 = Mock()
-        activity2.id = uuid4()
-        activity2.activity_name = "activity-2"
-        activity2.temporal_activity_id = "activity-2"
-        activity2.status = ActivityStatus.RUNNING
-
+        # First call: execution exists check
         mock_execution_result = Mock()
         mock_execution_result.one_or_none = Mock(return_value=execution)
+
+        # Second call: no activities found
         mock_activities_result = Mock()
-        mock_activities_result.all = Mock(return_value=[activity1, activity2])
+        mock_activities_result.all = Mock(return_value=[])
+
+        # Count query
+        mock_count_result = Mock()
+        mock_count_result.scalar = Mock(return_value=None)
 
         mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result])
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
 
-        mock_user = Mock(spec=User)
         service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+        result = await service.list_execution_activities(execution_id=execution_id, limit=10)
 
-        result = await service.get_execution_activities(execution_id)
+        assert len(result.resources) == 0
+        assert result.resources == []
 
-        assert len(result) == 2
-        assert result[0].activity_name == "activity-1"
-        assert result[0].status == ActivityStatus.COMPLETED
-        assert result[1].activity_name == "activity-2"
-        assert result[1].status == ActivityStatus.RUNNING
+    @pytest.mark.asyncio
+    async def test_list_execution_activities_multiple_activities(self) -> None:
+        """Test that multiple activities are returned correctly with proper field values."""
+        from nexus.workflows.models.activity_execution import ActivityExecution, ActivityStatus
+
+        mock_session = Mock(spec=AsyncSession)
+        mock_user = Mock(spec=User)
+
+        execution_id = uuid4()
+        execution = self._create_test_execution(execution_id=execution_id)
+
+        # Create multiple activities with different statuses and field values
+        activity1 = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="step-1-script",
+            activity_definition={"type": "script"},
+            temporal_activity_id="step-1-script",
+            status=ActivityStatus.COMPLETED,
+            started_at=datetime(2025, 1, 1, 10, 0, 0, tzinfo=UTC),
+            completed_at=datetime(2025, 1, 1, 10, 1, 0, tzinfo=UTC),
+            input_data={"cmd": "echo hello"},
+            output_data={"stdout": "hello"},
+            error_details=None,
+            retry_count=0,
+            created_at=datetime(2025, 1, 1, 10, 0, 0, tzinfo=UTC),
+            updated_at=datetime(2025, 1, 1, 10, 1, 0, tzinfo=UTC),
+        )
+        activity2 = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="step-2-http",
+            activity_definition={"type": "http_request"},
+            temporal_activity_id="step-2-http",
+            status=ActivityStatus.FAILED,
+            started_at=datetime(2025, 1, 1, 10, 2, 0, tzinfo=UTC),
+            completed_at=datetime(2025, 1, 1, 10, 3, 0, tzinfo=UTC),
+            input_data={"url": "https://example.com"},
+            output_data=None,
+            error_details="Connection refused",
+            retry_count=3,
+            created_at=datetime(2025, 1, 1, 10, 2, 0, tzinfo=UTC),
+            updated_at=datetime(2025, 1, 1, 10, 3, 0, tzinfo=UTC),
+        )
+        activity3 = ActivityExecution(
+            id=uuid4(),
+            execution_id=execution_id,
+            activity_name="step-3-pending",
+            activity_definition={"type": "approval"},
+            temporal_activity_id="step-3-pending",
+            status=ActivityStatus.PENDING,
+            started_at=None,
+            completed_at=None,
+            input_data={},
+            output_data=None,
+            error_details=None,
+            retry_count=0,
+            created_at=datetime(2025, 1, 1, 10, 4, 0, tzinfo=UTC),
+            updated_at=datetime(2025, 1, 1, 10, 4, 0, tzinfo=UTC),
+        )
+
+        # First call: execution exists check
+        mock_execution_result = Mock()
+        mock_execution_result.one_or_none = Mock(return_value=execution)
+
+        # Second call: three activities
+        mock_activities_result = Mock()
+        mock_activities_result.all = Mock(return_value=[activity1, activity2, activity3])
+
+        # Count query
+        mock_count_result = Mock()
+        mock_count_result.scalar = Mock(return_value=None)
+
+        mock_session.exec = AsyncMock(side_effect=[mock_execution_result, mock_activities_result])
+        mock_session.execute = AsyncMock(return_value=mock_count_result)
+
+        service = ExecutionService(session=mock_session, user=mock_user, temporal_service=None)
+        result = await service.list_execution_activities(execution_id=execution_id, limit=10)
+
+        assert len(result.resources) == 3
+
+        # Verify first activity (completed script)
+        assert result.resources[0].activity_name == "step-1-script"
+        assert result.resources[0].status == ActivityStatus.COMPLETED
+        assert result.resources[0].retry_count == 0
+        assert result.resources[0].output_data == {"stdout": "hello"}
+        assert result.resources[0].error_details is None
+
+        # Verify second activity (failed HTTP with retries and error)
+        assert result.resources[1].activity_name == "step-2-http"
+        assert result.resources[1].status == ActivityStatus.FAILED
+        assert result.resources[1].retry_count == 3
+        assert result.resources[1].output_data is None
+        assert result.resources[1].error_details == "Connection refused"
+
+        # Verify third activity (pending approval)
+        assert result.resources[2].activity_name == "step-3-pending"
+        assert result.resources[2].status == ActivityStatus.PENDING
+        assert result.resources[2].retry_count == 0
+        assert result.resources[2].started_at is None
+        assert result.resources[2].completed_at is None
