@@ -144,6 +144,13 @@ jobs:
           kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/seed_settings.py' < tools/seed_settings.py
           kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/seed_settings.py'
 
+      - name: Seed authorization data (roles, policies, default project)
+        working-directory: aap-dev/src/nexus
+        run: |
+          POD=$(kubectl get endpoints myaap-ao-api -o jsonpath='{.subsets[0].addresses[0].targetRef.name}')
+          kubectl exec -i "${POD}" -- sh -c 'cat > /opt/app-root/src/tools/authz_cli.py' < tools/authz_cli.py
+          kubectl exec "${POD}" -- sh -c 'cd /opt/app-root/src && uv run python tools/authz_cli.py seed-builtin'
+
       # --- Wait for background npm/Playwright install to finish ---
       - name: Wait for npm + Playwright install
         run: |
