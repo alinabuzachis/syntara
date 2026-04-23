@@ -145,7 +145,7 @@ function RolesTable({
             </Td>
             <Td dataLabel="Type">
               {role.is_builtin ? (
-                <Label color="yellow" icon={<RhUiLockIcon />} isCompact>
+                <Label color="grey" icon={<RhUiLockIcon />} isCompact>
                   Built-in
                 </Label>
               ) : (
