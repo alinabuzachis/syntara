@@ -5,13 +5,11 @@ a simplified RH1 approach with binary decision making (pass-through or
 compress entire collection).
 """
 
-import asyncio
 from typing import Literal
 
 import structlog
 from langchain_openai import ChatOpenAI
 
-from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.token_manager.services import TokenCalculator
 from nexus.settings.cache.settings_cache import get_runtime_settings
 
@@ -28,29 +26,17 @@ class CompressorService:
     This approach prioritizes simplicity and consistent output over complex ranking.
     """
 
-    def __init__(self, token_calculator: TokenCalculator | None = None, llm: ChatOpenAI | None = None) -> None:
+    def __init__(self, token_calculator: TokenCalculator | None = None, *, llm: ChatOpenAI) -> None:
         """Initialize the compressor service.
 
         Args:
             token_calculator: Service for counting tokens (creates default if None)
-            llm: LangChain LLM instance (lazy-initialized from runtime settings if None)
+            llm: LangChain LLM instance (required, injected by executor)
 
         """
         self.settings = get_runtime_settings()
         self.token_calculator = token_calculator or TokenCalculator()
         self._llm = llm
-        self._init_lock = asyncio.Lock()
-
-    async def _get_llm(self) -> ChatOpenAI:
-        """Return the LLM instance, lazy-initializing from runtime settings on first call."""
-        if self._llm is None:
-            async with self._init_lock:
-                if self._llm is None:
-                    temperature = await self.settings.get_float("context_manager.compression_temperature")
-                    max_tokens = await self.settings.get_int("context_manager.compression_max_tokens")
-                    llm = get_openrouter_llm(temperature=temperature, max_tokens=max_tokens)
-                    self._llm = llm
-        return self._llm
 
     async def compress(
         self,
@@ -76,9 +62,6 @@ class CompressorService:
             strategy=strategy,
             max_tokens=max_tokens,
         )
-
-        # Ensure LLM is initialized (lazy-loads settings on first call)
-        await self._get_llm()
 
         # Normalize input data to consistent format
         documents = self._normalize_input(data)
@@ -114,17 +97,11 @@ class CompressorService:
             Either concatenated content or compressed summary
 
         """
-        # _get_llm() is always called in compress() before this method
-        llm = self._llm
-        if llm is None:  # pragma: no cover
-            msg = "_get_llm() must be called before _greedy_strategy()"
-            raise RuntimeError(msg)
-
         # Step 1: Format all documents (single docs pass through without prefix)
         concatenated_content = self._format_documents(documents)
 
         # Step 2: Calculate total token count
-        total_tokens = self.token_calculator.count_tokens(concatenated_content, model_name=llm.model_name)
+        total_tokens = self.token_calculator.count_tokens(concatenated_content, model_name=self._llm.model_name)
 
         logger.debug(
             "Token analysis",
@@ -182,11 +159,7 @@ class CompressorService:
             Compressed content with structured citations
 
         """
-        # _get_llm() is always called in compress() before this method
         llm = self._llm
-        if llm is None:  # pragma: no cover
-            msg = "_get_llm() must be called before _compress_with_llm()"
-            raise RuntimeError(msg)
 
         # Re-format with always_prefix=True for LLM citation context
         # (differs from pass-through format which omits prefix for single documents)
@@ -229,19 +202,3 @@ Goal: {goal_text}"""
             )
 
         return compressed_content
-
-
-# ===================================================
-# Generator for dependency injection
-# ---------------------------------------------------
-def get_compressor_service() -> CompressorService:
-    """Get CompressorService instance for dependency injection.
-
-    Returns:
-        CompressorService instance for dependency injection
-
-    """
-    return CompressorService()
-
-
-# ===================================================

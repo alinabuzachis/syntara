@@ -4,14 +4,19 @@ This module defines the RelevancyChecker interface that all relevancy checking
 implementations must follow for consistent integration with RetrieverService.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 import structlog
 
-from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
-    RelevancyConfiguration,
-)
-from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
+        RelevancyConfiguration,
+    )
+    from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+    from nexus.agent_orchestrator.models.llm_credential_config import LLMCredentialConfig
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -40,7 +45,13 @@ class RelevancyChecker(ABC):
     """
 
     @abstractmethod
-    async def check_relevancy(self, document: RelevantDocument, query: str, config: RelevancyConfiguration) -> float:
+    async def check_relevancy(
+        self,
+        document: RelevantDocument,
+        query: str,
+        config: RelevancyConfiguration,
+        llm_credential_config: LLMCredentialConfig | None = None,
+    ) -> float:
         """Determine the relevancy score of a document for the given query.
 
         This method analyzes the document content, metadata, and query to compute
@@ -50,6 +61,7 @@ class RelevancyChecker(ABC):
             document: RelevantDocument containing content and metadata to analyze
             query: User query to match against document
             config: Configuration parameters for this relevancy checking algorithm
+            llm_credential_config: Credential config from the agentic node for LLM-based checkers
 
         Returns:
             Relevancy score between 0.0 and 1.0, where:

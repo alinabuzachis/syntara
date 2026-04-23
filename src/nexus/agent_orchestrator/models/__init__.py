@@ -10,6 +10,7 @@ from nexus.agent_orchestrator.models.invocation import (
     InvocationListResponse,
     InvocationStatus,
 )
+from nexus.agent_orchestrator.models.llm_credential_config import LLMCredentialConfig
 from nexus.agent_orchestrator.models.query_params import InvocationListParams
 from nexus.agent_orchestrator.models.request import (
     InvocationCancelRequest,
@@ -30,4 +31,5 @@ __all__ = [
     "InvocationListResponse",
     "InvocationRequestWithFile",
     "InvocationStatus",
+    "LLMCredentialConfig",
 ]

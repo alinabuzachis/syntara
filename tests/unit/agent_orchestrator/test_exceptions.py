@@ -18,7 +18,7 @@ class TestLLMConfigurationError:
 
     def test_message_is_preserved(self) -> None:
         """Test that exception message is preserved."""
-        message = "APP_OPENROUTER_API_KEY environment variable is required"
+        message = "No LLM API key available. Attach an LLM Provider credential to the workflow's agentic node."
         error = LLMConfigurationError(message)
         assert str(error) == message
 

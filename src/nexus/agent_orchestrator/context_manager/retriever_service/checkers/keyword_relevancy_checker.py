@@ -4,9 +4,18 @@ This module provides a keyword-based relevancy checker that scores documents
 based on keyword matching with configurable algorithms and weighting.
 """
 
+from __future__ import annotations
+
 from collections import Counter
 from math import log
-from typing import cast
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
+        RelevancyConfiguration,
+    )
+    from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+    from nexus.agent_orchestrator.models.llm_credential_config import LLMCredentialConfig
 
 import structlog
 from rapidfuzz import fuzz
@@ -18,10 +27,6 @@ from spacy.lang.en.stop_words import STOP_WORDS
 
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RelevancyCheckError
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.relevancy_checker import RelevancyChecker
-from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
-    RelevancyConfiguration,
-)
-from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.core.constants import RetrieverServiceDefaults
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -74,13 +79,20 @@ class KeywordRelevancyChecker(RelevancyChecker):
 
         logger.debug("Initialized KeywordRelevancyChecker with spaCy model")
 
-    async def check_relevancy(self, document: RelevantDocument, query: str, config: RelevancyConfiguration) -> float:
+    async def check_relevancy(
+        self,
+        document: RelevantDocument,
+        query: str,
+        config: RelevancyConfiguration,
+        llm_credential_config: LLMCredentialConfig | None = None,  # noqa: ARG002
+    ) -> float:
         """Check relevancy of document against query using keyword analysis.
 
         Args:
             document: Document to check for relevancy
             query: Query string to match against
             config: Configuration settings for keyword checking
+            llm_credential_config: Unused — keyword checker does not use LLM
 
         Returns:
             Relevancy score between 0.0 and 1.0

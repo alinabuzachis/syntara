@@ -17,7 +17,6 @@ from fastapi import (
 )
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.models import (
     Invocation,
     InvocationCancelRequest,
@@ -172,11 +171,6 @@ async def create_invocation(
         HTTPException: 503 if LLM not configured
 
     """
-    ctx_metadata = (request_body.context_data or {}).get("metadata")
-    metadata = ctx_metadata if isinstance(ctx_metadata, dict) else {}
-    if not metadata.get("credential_id"):
-        get_openrouter_llm()
-
     return await service.create_invocation(
         prompt=request_body.prompt,
         session_id=request_body.session_id,
@@ -213,11 +207,6 @@ async def create_invocation_chat(
     """
     prompt, session_id = _validate_multipart_required_fields(form.prompt, form.session_id)
     context_data: dict[str, object] | None = json.loads(form.context_data) if form.context_data else None
-
-    ctx_metadata = (context_data or {}).get("metadata")
-    metadata = ctx_metadata if isinstance(ctx_metadata, dict) else {}
-    if not metadata.get("credential_id"):
-        get_openrouter_llm()
 
     return await service.create_invocation(
         prompt=prompt,

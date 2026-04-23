@@ -310,8 +310,8 @@ class TestLLMRelevancyCheckerIntegration:
             assert isinstance(relevancy_score, float)
             assert relevancy_score == pytest.approx(0.68)
 
-            # Verify that get_openrouter_llm was called with correct parameters
-            mock_get_llm.assert_called_once_with(model="anthropic/claude-3.5-sonnet", temperature=0.3)
+            # Verify that get_openrouter_llm was called (model from config defaults to None)
+            mock_get_llm.assert_called_once_with(model=None, temperature=0.3, api_key=None, base_url=None)
 
     @pytest.mark.asyncio
     async def test_empty_content_handling(self) -> None:

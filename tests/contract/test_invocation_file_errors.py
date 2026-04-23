@@ -7,12 +7,9 @@ These tests validate:
 - 503 errors for service configuration failures (LLM not configured)
 """
 
-from unittest.mock import patch
-
 import pytest
 from httpx import AsyncClient
 
-from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from tests.fixtures import get_fixtures_dir
 
 
@@ -200,44 +197,3 @@ async def ***REMOVED***(auth_client_with_mocked_llm: AsyncClient, test_user) -> 
     assert "detail" in error_data
     assert isinstance(error_data["detail"], str)
     assert len(error_data["detail"]) > 0
-
-
-@pytest.mark.asyncio
-async def test_llm_not_configured_returns_503(auth_client: AsyncClient, test_user) -> None:
-    """Test 503 Service Unavailable when OpenRouter API key is not configured.
-
-    Validates response matches schema example exactly:
-    - 503 status code
-    - error: "service_unavailable"
-    - message: "OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
-    """
-    # Arrange - Mock get_openrouter_llm to raise LLMConfigurationError
-    # Error message must match schema example in openapi.yaml
-    error_message = (
-        "APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
-    )
-
-    with patch(
-        "nexus.invocations.router.get_openrouter_llm",
-        side_effect=LLMConfigurationError(error_message),
-    ):
-        # Act
-        response = await auth_client.post(
-            "/api/v1/invocations",
-            json={
-                "prompt": "Test LLM configuration",
-                "session_id": "error-test-503",
-            },
-        )
-
-    # Assert - must match RFC 9457 format
-    assert response.status_code == 503
-    error_data = response.json()
-
-    # RFC 9457 compliant format
-    assert error_data["type"] == "https://api.nexus.com/errors/service-unavailable"
-    assert error_data["title"] == "LLM Configuration Error"
-    assert error_data["detail"] == "Language model service is not properly configured"
-    assert error_data["code"] == "LLM_CONFIGURATION_ERROR"
-    assert error_data["retryable"] is False
-    assert "instance" in error_data

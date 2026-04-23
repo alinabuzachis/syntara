@@ -655,14 +655,9 @@ def mock_openrouter_llm() -> Generator[MagicMock, None, None]:
     mock_compressor = AsyncMock()
     mock_compressor.compress = AsyncMock(return_value="Compressed content for testing")
 
-    # Patch in all locations where get_openrouter_llm is imported
-    # AND patch CompressorService.__init__ to avoid OpenRouter API key requirement
+    # Patch get_openrouter_llm in executor and CompressorService for planner integration
     # AND patch OrchestrationService._get_tools to avoid slow tool synchronization retry logic
     with (
-        patch(
-            "nexus.invocations.router.get_openrouter_llm",
-            return_value=mock_llm,
-        ),
         patch(
             "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
             return_value=mock_llm,

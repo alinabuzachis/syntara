@@ -4,8 +4,10 @@ This module provides an LLM-based relevancy checker that uses OpenRouter
 to access various language models for sophisticated document relevancy scoring.
 """
 
+from __future__ import annotations
+
 import re
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -14,13 +16,16 @@ from langchain_core.runnables import RunnableConfig
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import RelevancyCheckError
 from nexus.agent_orchestrator.context_manager.retriever_service.interfaces.relevancy_checker import RelevancyChecker
-from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
-    RelevancyConfiguration,
-)
-from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.core.constants import RetrieverServiceDefaults
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.instrumentation import record_llm_call
+
+if TYPE_CHECKING:
+    from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
+        RelevancyConfiguration,
+    )
+    from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+    from nexus.agent_orchestrator.models.llm_credential_config import LLMCredentialConfig
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -70,13 +75,20 @@ class LLMRelevancyChecker(RelevancyChecker):
         self.default_system_prompt = RetrieverServiceDefaults.LLM_SYSTEM_PROMPT
         logger.debug("Initialized LLMRelevancyChecker")
 
-    async def check_relevancy(self, document: RelevantDocument, query: str, config: RelevancyConfiguration) -> float:
+    async def check_relevancy(
+        self,
+        document: RelevantDocument,
+        query: str,
+        config: RelevancyConfiguration,
+        llm_credential_config: LLMCredentialConfig | None = None,
+    ) -> float:
         """Check relevancy of document against query using LLM analysis.
 
         Args:
             document: Document to check for relevancy
             query: Query string to match against
             config: Configuration settings for LLM checking
+            llm_credential_config: Credential config from the agentic node
 
         Returns:
             Relevancy score between 0.0 and 1.0
@@ -88,12 +100,12 @@ class LLMRelevancyChecker(RelevancyChecker):
         try:
             logger.debug("Starting LLM relevancy check for document", filename=document.file_metadata.filename)
 
-            # Extract algorithm parameters
+            # Extract algorithm parameters and resolve credential
             params = config.algorithm_parameters
-            model = cast("str", params.get("model"))
             temperature = cast("float", params.get("temperature"))
             max_tokens = cast("int", params.get("max_tokens"))
             system_prompt = cast("str", params.get("system_prompt"))
+            api_key, base_url, model = self._resolve_llm_params(llm_credential_config, params)
 
             # Build context with file metadata if enabled
             grounding_params = config.grounding_parameters
@@ -115,7 +127,7 @@ class LLMRelevancyChecker(RelevancyChecker):
 
             # Get OpenRouter LLM instance
             try:
-                llm = get_openrouter_llm(model=model, temperature=temperature)
+                llm = get_openrouter_llm(model=model, temperature=temperature, api_key=api_key, base_url=base_url)
             except Exception as e:
                 logger.exception("Failed to get OpenRouter LLM instance")
                 error_msg = f"LLM initialization failed: {e!s}"
@@ -288,6 +300,16 @@ class LLMRelevancyChecker(RelevancyChecker):
             "Could not parse relevancy score from LLM response, returning default 0.5", response_preview=response[:100]
         )
         return self._get_default_score()
+
+    @staticmethod
+    def _resolve_llm_params(
+        llm_credential_config: LLMCredentialConfig | None,
+        params: dict[str, object],
+    ) -> tuple[str | None, str | None, str | None]:
+        """Extract api_key, base_url, model from credential config or algorithm params."""
+        if llm_credential_config:
+            return llm_credential_config.api_key, llm_credential_config.base_url, llm_credential_config.model
+        return None, None, cast("str | None", params.get("model"))
 
     def _get_default_score(self) -> float:
         """Get default score when parsing fails."""

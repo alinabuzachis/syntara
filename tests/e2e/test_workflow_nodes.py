@@ -33,8 +33,8 @@ AGENTIC_POLL_TIMEOUT = 120
 _TERMINAL_STATUSES = {ExecutionStatus.COMPLETED, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED}
 
 requires_openrouter = pytest.mark.skipif(
-    not os.environ.get("APP_OPENROUTER_API_KEY"),
-    reason="APP_OPENROUTER_API_KEY not set — full stack required",
+    not os.environ.get("E2E_LLM_CREDENTIAL_CONFIGURED"),
+    reason="E2E_LLM_CREDENTIAL_CONFIGURED not set — full stack with LLM credential required",
 )
 
 

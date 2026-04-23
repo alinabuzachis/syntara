@@ -40,7 +40,7 @@ Settings are accessed via a cached singleton:
 from nexus.core.config.base import get_settings
 
 settings = get_settings()
-api_key = settings.openrouter_api_key
+model = settings.openrouter_model
 ```
 
 The `get_settings()` function uses `@lru_cache` to avoid repeated `.env` file reads. Domain settings classes should not be instantiated directly.
@@ -50,7 +50,7 @@ The `get_settings()` function uses `@lru_cache` to avoid repeated `.env` file re
 | Python field | Environment variable |
 |---|---|
 | `db_host` | `APP_DB_HOST` |
-| `openrouter_api_key` | `APP_OPENROUTER_API_KEY` |
+| `openrouter_model` | `APP_OPENROUTER_MODEL` |
 | `cache_port` | `APP_CACHE_PORT` |
 
 **Convention:** Field names use `lowercase_with_underscores`. The `APP_` prefix is added automatically by Pydantic.
@@ -217,7 +217,7 @@ Use the `override_settings` fixture:
 ```python
 def test_something(override_settings):
     with override_settings(
-        openrouter_api_key=SecretStr("test-key"),
+        openrouter_model="test/model",
         server_port=9000,
     ):
         settings = get_settings()

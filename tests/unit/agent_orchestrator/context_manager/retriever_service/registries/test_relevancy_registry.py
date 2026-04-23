@@ -19,7 +19,13 @@ from nexus.agent_orchestrator.context_manager.retriever_service.registries.relev
 class MockRelevancyChecker(RelevancyChecker):
     """Mock RelevancyChecker for testing."""
 
-    async def check_relevancy(self, _document: RelevantDocument, _query: str, _config: RelevancyConfiguration) -> float:
+    async def check_relevancy(
+        self,
+        _document: RelevantDocument,
+        _query: str,
+        _config: RelevancyConfiguration,
+        llm_credential_config: object = None,
+    ) -> float:
         """Check document relevancy."""
         return 0.5
 
@@ -188,7 +194,11 @@ class TestRelevancyRegistry:
 
         class AnotherMockChecker(RelevancyChecker):
             async def check_relevancy(
-                self, _document: RelevantDocument, _query: str, _config: RelevancyConfiguration
+                self,
+                _document: RelevantDocument,
+                _query: str,
+                _config: RelevancyConfiguration,
+                llm_credential_config: object = None,
             ) -> float:
                 return 0.8
 

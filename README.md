@@ -412,9 +412,8 @@ Nexus uses LangChain with OpenRouter for intelligent agent responses. The Generi
    # Copy the example environment file
    cp .env.example .env
 
-   # Edit .env and add your OpenRouter API key
-   APP_OPENROUTER_API_KEY=your_openrouter_api_key_here
-   APP_OPENROUTER_MODEL=anthropic/claude-3.5-sonnet  # or openai/gpt-4, google/gemini-pro
+   # Edit .env (LLM credentials are configured on workflow agentic nodes)
+   APP_OPENROUTER_MODEL=anthropic/claude-sonnet-4  # default model
    APP_OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
    ```
 
@@ -438,18 +437,13 @@ Nexus automatically routes requests to the appropriate agent:
   - Returns structured workflow results
   - Example: "Deploy customer service app to production"
 
-**Testing without OpenRouter**:
+**LLM Configuration**:
 
-For development and testing without configuring OpenRouter:
-```bash
-# The system works without APP_OPENROUTER_API_KEY set
-# GenericAgent will be disabled but other features work normally
-make test-all
-```
+LLM API keys are provided through the credential system — attach an LLM Provider
+credential to the workflow's agentic node. No global API key env var is needed.
 
 **Environment Variables**:
-- `APP_OPENROUTER_API_KEY` (required for GenericAgent, get from https://openrouter.ai/keys)
-- `APP_OPENROUTER_MODEL` (default: `anthropic/claude-3.5-sonnet`)
+- `APP_OPENROUTER_MODEL` (default: `anthropic/claude-sonnet-4`)
 - `APP_OPENROUTER_BASE_URL` (default: `https://openrouter.ai/api/v1`)
 
 **Example API Usage**:

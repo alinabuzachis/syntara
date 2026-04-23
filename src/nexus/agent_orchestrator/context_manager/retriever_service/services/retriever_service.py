@@ -5,24 +5,31 @@ document retrieval from multiple storage backends and applies relevancy
 checking with fallback mechanisms.
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
-from collections.abc import AsyncGenerator, Callable
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 import structlog
-from sqlmodel.ext.asyncio.session import AsyncSession
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Callable
+    from uuid import UUID
+
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from nexus.agent_orchestrator.context_manager.retriever_service.interfaces import RelevancyChecker
+    from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
+        RelevancyConfiguration,
+    )
+    from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
+    from nexus.agent_orchestrator.models.llm_credential_config import LLMCredentialConfig
 
 from nexus.agent_orchestrator.context_manager.retriever_service.exceptions import (
     DocumentRetrievalError,
     RetrieverServiceError,
 )
-from nexus.agent_orchestrator.context_manager.retriever_service.interfaces import RelevancyChecker
-from nexus.agent_orchestrator.context_manager.retriever_service.models.relevancy_configuration import (
-    RelevancyConfiguration,
-)
-from nexus.agent_orchestrator.context_manager.retriever_service.models.relevant_document import RelevantDocument
 from nexus.agent_orchestrator.context_manager.retriever_service.registries.relevancy_registry import (
     RelevancyRegistry,
     get_relevancy_registry,
@@ -119,7 +126,13 @@ class RetrieverService:
             return error
         return DocumentRetrievalError("Failed to retrieve document")
 
-    async def retrieve_relevant_documents(self, invocation_id: UUID | None, prompt: str) -> list[RelevantDocument]:
+    async def retrieve_relevant_documents(
+        self,
+        invocation_id: UUID | None,
+        prompt: str,
+        *,
+        llm_credential_config: LLMCredentialConfig | None = None,
+    ) -> list[RelevantDocument]:
         """Retrieve and rank relevant documents for the given invocation and prompt.
 
         This is the main entry point for document retrieval. The method follows
@@ -135,6 +148,7 @@ class RetrieverService:
         Args:
             invocation_id: ID of the invocation to retrieve context for
             prompt: User prompt/query to match documents against
+            llm_credential_config: Credential config for LLM-based relevancy checkers
 
         Returns:
             List of RelevantDocument objects ranked by relevancy score (highest first).
@@ -163,7 +177,9 @@ class RetrieverService:
             # Step 2-3: Retrieve and score documents from all backends with parallel processing
             try:
                 scored_documents = []
-                async for document in self._retrieve_and_score_streaming(invocation_context, prompt):
+                async for document in self._retrieve_and_score_streaming(
+                    invocation_context, prompt, llm_credential_config=llm_credential_config
+                ):
                     scored_documents.append(document)  # noqa: PERF401
 
                 if not scored_documents:
@@ -233,13 +249,18 @@ class RetrieverService:
         return context_data
 
     async def _retrieve_and_score_streaming(
-        self, invocation_context: dict[str, Any], prompt: str
+        self,
+        invocation_context: dict[str, Any],
+        prompt: str,
+        *,
+        llm_credential_config: LLMCredentialConfig | None = None,
     ) -> AsyncGenerator[RelevantDocument, None]:
         """Stream documents from all backends with parallel relevancy checking.
 
         Args:
             invocation_context: Context data from invocation
             prompt: Query prompt for relevancy checking
+            llm_credential_config: Credential config for LLM-based relevancy checking
 
         Yields:
             RelevantDocument objects with relevancy scores as they are processed
@@ -262,7 +283,13 @@ class RetrieverService:
         # Create and merge streams for all retrievers
         document_count = 0
         async for document in self._merge_retriever_streams(
-            invocation_context, prompt, retriever_names, primary_result, fallback_result, semaphore
+            invocation_context,
+            prompt,
+            retriever_names,
+            primary_result,
+            fallback_result,
+            semaphore,
+            llm_credential_config=llm_credential_config,
         ):
             document_count += 1
             yield document
@@ -291,11 +318,21 @@ class RetrieverService:
         primary_result: tuple[RelevancyChecker, RelevancyConfiguration] | None,
         fallback_result: tuple[RelevancyChecker, RelevancyConfiguration] | None,
         semaphore: asyncio.Semaphore,
+        *,
+        llm_credential_config: LLMCredentialConfig | None = None,
     ) -> AsyncGenerator[RelevantDocument, None]:
         """Merge documents from all retriever streams."""
         # Create streams for all retrievers
         retriever_streams = [
-            self._process_retriever_stream(name, invocation_context, prompt, primary_result, fallback_result, semaphore)
+            self._process_retriever_stream(
+                name,
+                invocation_context,
+                prompt,
+                primary_result,
+                fallback_result,
+                semaphore,
+                llm_credential_config=llm_credential_config,
+            )
             for name in retriever_names
         ]
 
@@ -319,6 +356,8 @@ class RetrieverService:
         primary_result: tuple[RelevancyChecker, RelevancyConfiguration] | None,
         fallback_result: tuple[RelevancyChecker, RelevancyConfiguration] | None,
         semaphore: asyncio.Semaphore,
+        *,
+        llm_credential_config: LLMCredentialConfig | None = None,
     ) -> AsyncGenerator[RelevantDocument, None]:
         """Process documents from a single retriever with parallel scoring."""
         try:
@@ -333,7 +372,11 @@ class RetrieverService:
                 try:
                     async with semaphore:
                         scored_document = await self._score_document_with_fallback(
-                            document, prompt, primary_result, fallback_result
+                            document,
+                            prompt,
+                            primary_result,
+                            fallback_result,
+                            llm_credential_config=llm_credential_config,
                         )
                     yield scored_document
                 except Exception as e:
@@ -360,6 +403,8 @@ class RetrieverService:
         prompt: str,
         primary_result: tuple[RelevancyChecker, RelevancyConfiguration] | None,
         fallback_result: tuple[RelevancyChecker, RelevancyConfiguration] | None,
+        *,
+        llm_credential_config: LLMCredentialConfig | None = None,
     ) -> RelevantDocument:
         """Score a document using primary checker with fallback logic.
 
@@ -368,6 +413,7 @@ class RetrieverService:
             prompt: Query prompt to match against
             primary_result: Primary checker and config tuple
             fallback_result: Fallback checker and config tuple
+            llm_credential_config: Credential config for LLM-based checkers
 
         Returns:
             Document with updated relevancy score and metadata
@@ -377,7 +423,9 @@ class RetrieverService:
         if primary_result:
             primary_checker, primary_config = primary_result
             try:
-                score = await primary_checker.check_relevancy(document, prompt, primary_config)
+                score = await primary_checker.check_relevancy(
+                    document, prompt, primary_config, llm_credential_config=llm_credential_config
+                )
                 document.relevancy_score = score
                 self._update_metadata_for_primary(document, primary_config)
                 return document
@@ -393,7 +441,9 @@ class RetrieverService:
         if fallback_result:
             fallback_checker, fallback_config = fallback_result
             try:
-                score = await fallback_checker.check_relevancy(document, prompt, fallback_config)
+                score = await fallback_checker.check_relevancy(
+                    document, prompt, fallback_config, llm_credential_config=llm_credential_config
+                )
                 document.relevancy_score = score
                 self._update_metadata_for_fallback(document, fallback_config)
                 return document

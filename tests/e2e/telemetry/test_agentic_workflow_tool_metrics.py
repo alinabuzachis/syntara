@@ -1,7 +1,7 @@
 """E2E test: agentic workflow executes a tool and records metrics + telemetry.
 
 Requires the full Nexus stack running (API, Temporal, MCP server, OpenRouter).
-Skipped when APP_OPENROUTER_API_KEY is not set.
+Skipped when E2E_LLM_CREDENTIAL_CONFIGURED is not set.
 
 Validates:
   - Workflow execution completes successfully
@@ -43,8 +43,8 @@ MCP_PROVIDER_URL = os.environ.get("MCP_BASE_URL", f"http://mcp-server:{MCP_PORT}
 MCP_HEALTH_URL = f"http://localhost:{MCP_PORT}/health"
 
 requires_openrouter = pytest.mark.skipif(
-    not os.environ.get("APP_OPENROUTER_API_KEY"),
-    reason="APP_OPENROUTER_API_KEY not set — full stack required",
+    not os.environ.get("E2E_LLM_CREDENTIAL_CONFIGURED"),
+    reason="E2E_LLM_CREDENTIAL_CONFIGURED not set — full stack with LLM credential required",
 )
 
 pytestmark = [pytest.mark.e2e, requires_openrouter]

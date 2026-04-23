@@ -35,7 +35,13 @@ from .conftest import TestUploadedFileRetriever, async_session_generator
 class MockRelevancyChecker(RelevancyChecker):
     """Mock relevancy checker that returns predictable scores for testing."""
 
-    async def check_relevancy(self, document: RelevantDocument, _prompt: str, _config: RelevancyConfiguration) -> float:
+    async def check_relevancy(
+        self,
+        document: RelevantDocument,
+        _prompt: str,
+        _config: RelevancyConfiguration,
+        llm_credential_config: object = None,
+    ) -> float:
         """Return mock scores based on document content for testing."""
         # Give high score to machine learning content, low score to gardening
         if "machine learning" in document.content.lower():

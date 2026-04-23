@@ -16,7 +16,6 @@ from nexus.agent_orchestrator.context_manager import (
     ContextManagerPlanner,
     ContextPackage,
 )
-from nexus.agent_orchestrator.context_manager.compressor import get_compressor_service
 from nexus.agent_orchestrator.context_manager.retriever_service.services import get_retriever_service
 from nexus.core.database.session import get_db
 from nexus.core.models import User
@@ -44,13 +43,15 @@ class TestContextManagerPlanner:
             full_name="Test User",
         )
 
-    def test_planner_initialization(self) -> None:
+    def test_planner_initialization(self, mock_compressor) -> None:
         """Test that ContextManagerPlanner initializes with correct default factories."""
-        planner = ContextManagerPlanner()
+        factory = lambda: mock_compressor  # noqa: E731
+        planner = ContextManagerPlanner(compressor_service_factory=factory)
 
         assert planner.session_factory is get_db
         assert planner.retriever_service_factory is get_retriever_service
-        assert planner.compressor_service_factory is get_compressor_service
+        assert planner.compressor_service_factory is factory
+        assert planner.llm_credential_config is None
 
     @pytest.mark.asyncio
     async def test_plan_request_successful_workflow(self, mock_user: User, mock_compressor) -> None:

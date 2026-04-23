@@ -3,8 +3,8 @@ schema_version: "2.0.0"
 name: agentic-with-aap
 description: >-
   Workflow combining agentic task and AAP task. You would have to configure
-  APP_AAP_BASE_URL, APP_AAP_USERNAME, APP_AAP_PASSWORD and
-  APP_OPENROUTER_API_KEY in your .env file.
+  APP_AAP_BASE_URL, APP_AAP_USERNAME, APP_AAP_PASSWORD in your .env file
+  and attach an LLM Provider credential to the agentic node.
 triggers:
   - id: trigger_manual
     type: manual_trigger

@@ -1,36 +1,10 @@
 """Integration tests for invocation API endpoints."""
 
-from unittest.mock import patch
-
 import pytest
 from httpx import AsyncClient
 
-from nexus.agent_orchestrator.exceptions import LLMConfigurationError
 from nexus.core.constants import CONTEXT_KEY, CONTEXT_KEY_FILE_IDS
 from tests.helpers.invocations import wait_for_invocation_execution
-
-
-@pytest.mark.asyncio
-async def test_invoke_with_credential_id_skips_llm_check(auth_client: AsyncClient) -> None:
-    """Test that POST /invocations skips the LLM availability check when credential_id is set.
-
-    The workflow engine sets context_data.metadata.credential_id to resolve the LLM
-    credential at execution time, so the startup check must not block the request.
-    """
-    with patch("nexus.invocations.router.get_openrouter_llm") as mock_get_llm:
-        mock_get_llm.side_effect = LLMConfigurationError("LLM not configured")
-
-        response = await auth_client.post(
-            "/api/v1/invocations",
-            json={
-                "prompt": "Workflow engine request",
-                "session_id": "wf-session-001",
-                "context_data": {"metadata": {"credential_id": "cred-abc-123"}},
-            },
-        )
-
-    assert response.status_code == 202
-    mock_get_llm.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -70,34 +44,6 @@ async def test_multipart_request_rejected_by_json_endpoint(auth_client_with_mock
     )
 
     assert response.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_invoke_returns_503_when_openrouter_not_configured(
-    auth_client: AsyncClient,
-) -> None:
-    """Test that POST /api/v1/invocations returns 503 when OpenRouter API key is not configured."""
-    with patch("nexus.invocations.router.get_openrouter_llm") as mock_get_llm:
-        mock_get_llm.side_effect = LLMConfigurationError(
-            "APP_OPENROUTER_API_KEY environment variable is required. Get your API key from https://openrouter.ai/keys"
-        )
-
-        response = await auth_client.post(
-            "/api/v1/invocations",
-            json={
-                "prompt": "Test prompt",
-                "session_id": "test-session",
-            },
-        )
-
-    assert response.status_code == 503
-    data = response.json()
-    # RFC 9457 format
-    assert data["type"] == "https://api.nexus.com/errors/service-unavailable"
-    assert data["title"] == "LLM Configuration Error"
-    assert data["code"] == "LLM_CONFIGURATION_ERROR"
-    assert data["retryable"] is False
-    assert data["detail"] == "Language model service is not properly configured"
 
 
 @pytest.mark.asyncio
@@ -1160,25 +1106,6 @@ async def test_chat_invoke_missing_session_id_returns_400(auth_client_with_mocke
     )
 
     assert response.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_chat_invoke_returns_503_when_llm_not_configured(auth_client: AsyncClient) -> None:
-    """Test that POST /invocations/chat returns 503 when the LLM is not configured."""
-    with patch("nexus.invocations.router.get_openrouter_llm") as mock_get_llm:
-        mock_get_llm.side_effect = LLMConfigurationError("APP_OPENROUTER_API_KEY environment variable is required.")
-        response = await auth_client.post(
-            "/api/v1/invocations/chat",
-            data={
-                "prompt": "Test LLM config",
-                "session_id": "chat-test-004",
-            },
-        )
-
-    assert response.status_code == 503
-    data = response.json()
-    assert data["type"] == "https://api.nexus.com/errors/service-unavailable"
-    assert data["code"] == "LLM_CONFIGURATION_ERROR"
 
 
 @pytest.mark.asyncio

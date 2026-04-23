@@ -71,7 +71,6 @@ class RetrieverServiceDefaults:
     """Default values for RetrieverService configuration."""
 
     # LLM Relevancy Checker Defaults
-    LLM_MODEL = "anthropic/claude-3.5-sonnet"
     LLM_TEMPERATURE = 0.3
     LLM_MAX_TOKENS = 150
     LLM_SIMILARITY_THRESHOLD = 0.7

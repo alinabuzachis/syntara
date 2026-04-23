@@ -15,42 +15,33 @@ logger = structlog.stdlib.get_logger(__name__)
 
 def get_openrouter_llm(
     *,
+    api_key: str | None = None,
     model: str | None = None,
     temperature: float | None = None,
     max_tokens: int | None = None,
-    api_key: str | None = None,
     base_url: str | None = None,
 ) -> ChatOpenAI:
     """Get LangChain ChatOpenAI configured for OpenRouter.
 
-    Credential-provided values take precedence over environment variables,
-    enabling the Nexus credential system to supply LLM keys at runtime.
-
     Args:
-        model: OpenRouter model name (e.g., 'anthropic/claude-3.5-sonnet').
-               If None, uses settings default.
+        api_key: API key from credential system (required).
+        model: OpenRouter model name. If None, uses settings default.
         temperature: LLM temperature (0.0-1.0). If None, uses settings default.
         max_tokens: Maximum tokens in response. If None, uses settings default.
-        api_key: API key from credential system. Falls back to APP_OPENROUTER_API_KEY.
-        base_url: Base URL from credential system. Falls back to APP_OPENROUTER_BASE_URL.
+        base_url: Base URL from credential system. If None, uses settings default.
 
     Returns:
         Configured ChatOpenAI instance
 
     Raises:
-        LLMConfigurationError: If no API key is available from credentials or env var
+        LLMConfigurationError: If no API key is provided
 
     """
-    settings = get_settings()
-
-    selected_api_key = api_key or settings.openrouter_api_key
-    if not selected_api_key:
-        error_msg = (
-            "No LLM API key available. Attach an LLM Provider credential to the workflow node, "
-            "or set APP_OPENROUTER_API_KEY environment variable."
-        )
+    if not api_key:
+        error_msg = "No LLM API key available. Attach an LLM Provider credential to the workflow's agentic node."
         raise LLMConfigurationError(error_msg)
 
+    settings = get_settings()
     selected_base_url = base_url or str(settings.openrouter_base_url)
     selected_model = model or settings.openrouter_model
     selected_temperature = temperature if temperature is not None else settings.openrouter_temperature
@@ -61,12 +52,11 @@ def get_openrouter_llm(
         model=selected_model,
         temperature=selected_temperature,
         max_tokens=selected_max_tokens,
-        has_credential_key=bool(api_key),
     )
 
     return ChatOpenAI(
         model=selected_model,
-        api_key=selected_api_key,  # type: ignore[arg-type]
+        api_key=api_key,  # type: ignore[arg-type]
         base_url=selected_base_url,
         temperature=selected_temperature,
         max_completion_tokens=selected_max_tokens,

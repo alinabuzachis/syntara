@@ -14,13 +14,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError
-from nexus.agent_orchestrator.models import Invocation, InvocationStatus
+from nexus.agent_orchestrator.models import Invocation, InvocationStatus, LLMCredentialConfig
 from nexus.agent_orchestrator.token_manager import TokenValidationService
 from nexus.core.database.session import get_db
 from nexus.settings.cache.settings_cache import get_runtime_settings
 
 from .assembler_service import AssemblerService
-from .compressor import CompressorService, get_compressor_service
+from .compressor import CompressorService
 from .models import ContextPackage
 from .retriever_service.services import RetrieverService, get_retriever_service
 
@@ -36,18 +36,21 @@ class ContextManagerPlanner:
 
     def __init__(
         self,
+        *,
+        compressor_service_factory: Callable[[], CompressorService],
         session_factory: Callable[[], AsyncGenerator[AsyncSession, None]] = get_db,
         retriever_service_factory: Callable[
             [Callable[[], AsyncGenerator[AsyncSession, None]]], RetrieverService
         ] = get_retriever_service,
-        compressor_service_factory: Callable[[], CompressorService] = get_compressor_service,
+        llm_credential_config: LLMCredentialConfig | None = None,
     ) -> None:
         """Initialize the context manager planner.
 
         Args:
+            compressor_service_factory: Factory function for creating CompressorService (required)
             session_factory: Session factory for cancellation checks. Defaults to get_db.
             retriever_service_factory: Factory function for creating RetrieverService
-            compressor_service_factory: Factory function for creating CompressorService
+            llm_credential_config: Credential config for downstream LLM services (relevancy checker)
 
         """
         self.settings = get_runtime_settings()
@@ -55,6 +58,7 @@ class ContextManagerPlanner:
         self.get_async_session_context = contextlib.asynccontextmanager(session_factory)
         self.retriever_service_factory = retriever_service_factory
         self.compressor_service_factory = compressor_service_factory
+        self.llm_credential_config = llm_credential_config
 
     async def _check_cancellation(self, invocation_id: UUID, phase: str) -> None:
         """Check if invocation has been cancelled.
@@ -126,7 +130,9 @@ class ContextManagerPlanner:
         retrieved_docs = []
         try:
             retriever = self.retriever_service_factory(self.session_factory)
-            retrieved_docs = await retriever.retrieve_relevant_documents(invocation_id, query)
+            retrieved_docs = await retriever.retrieve_relevant_documents(
+                invocation_id, query, llm_credential_config=self.llm_credential_config
+            )
             timing_data["retrieval_time_ms"] = int((time.time() - retrieval_start) * 1000)
             logger.info(
                 "Retrieval phase completed",

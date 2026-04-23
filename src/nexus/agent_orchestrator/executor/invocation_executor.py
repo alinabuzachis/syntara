@@ -16,7 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from nexus.agent_orchestrator import ContextManagerPlanner
 from nexus.agent_orchestrator.clients.openrouter_config import get_openrouter_llm
 from nexus.agent_orchestrator.exceptions import InvocationCancelledError, LLMConfigurationError
-from nexus.agent_orchestrator.models import Invocation, InvocationStatus
+from nexus.agent_orchestrator.models import Invocation, InvocationStatus, LLMCredentialConfig
 from nexus.agent_orchestrator.services.orchestration_service import OrchestrationService
 from nexus.agent_orchestrator.token_manager.models import UsageDetails, UsageDetailsResult
 from nexus.agent_orchestrator.token_manager.repository import TokenUsageRepository
@@ -310,6 +310,12 @@ class InvocationExecutor:
                 model=invocation_model,
             )
 
+            llm_credential_config = LLMCredentialConfig(
+                api_key=credential_api_key or "",
+                base_url=str(llm.openai_api_base or ""),
+                model=llm.model_name,
+            )
+
             # Pass the credential-configured LLM to the compressor so it doesn't
             # create its own (which would fail without env var).
             def compressor_factory() -> "CompressorService":
@@ -320,6 +326,7 @@ class InvocationExecutor:
             context_manager_planner = ContextManagerPlanner(
                 session_factory=self.session_factory,
                 compressor_service_factory=compressor_factory,
+                llm_credential_config=llm_credential_config,
             )
             service = OrchestrationService(llm=llm, context_manager_planner=context_manager_planner)
             logger.info("LLM initialized successfully for invocation", invocation_id=invocation.id)

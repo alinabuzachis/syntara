@@ -163,12 +163,8 @@ def mock_tool_aware_llm() -> Generator[MagicMock, None, None]:
     mock_compressor = AsyncMock()
     mock_compressor.compress = AsyncMock(return_value="Compressed content for testing")
 
-    # Patch LLM locations but DO NOT patch _get_tools (we want real tool discovery)
+    # Patch LLM in executor but DO NOT patch _get_tools (we want real tool discovery)
     with (
-        patch(
-            "nexus.invocations.router.get_openrouter_llm",
-            return_value=mock_llm,
-        ),
         patch(
             "nexus.agent_orchestrator.executor.invocation_executor.get_openrouter_llm",
             return_value=mock_llm,
