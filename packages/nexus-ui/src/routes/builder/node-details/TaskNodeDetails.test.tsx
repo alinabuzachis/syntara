@@ -136,12 +136,12 @@ vi.mock('../node-forms/AAPNodeForm', () => ({
         onClick={() =>
           onSubmit({
             name: 'Updated AAP Task',
-            jobTemplateId: 456,
-            inventory: '789',
-            extraVars: '{"key": "value"}',
+            job_template_id: 456,
+            inventory_name: '789',
+            extra_vars: '{"key": "value"}',
             limit: 'servers',
             tags: 'install',
-            skipTags: 'debug',
+            skip_tags: 'debug',
             verbosity: '3',
           })
         }
@@ -188,12 +188,12 @@ describe('TaskNodeDetails Component', () => {
     vi.clearAllMocks()
     // Setup mockCreateAAPJobTemplateActivity to return proper activity structure
     mockCreateAAPJobTemplateActivity.mockImplementation(
-      (id: string, name: string, jobTemplateId: number, config?: Record<string, unknown>) => ({
+      (id: string, name: string, job_template_id: number, config?: Record<string, unknown>) => ({
         type: 'aap_job_template' as const,
         id,
         name,
         config: {
-          job_template_id: jobTemplateId,
+          job_template_id,
           ...config,
         },
       })
@@ -324,7 +324,7 @@ describe('TaskNodeDetails Component', () => {
       config: {
         job_template_id: 123,
         inventory_id: 456,
-        credentials: [1, 2, 3],
+        job_credentials: [1, 2, 3],
         extra_vars: { env: 'prod' },
         limit: 'webservers',
         tags: 'deploy',

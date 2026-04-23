@@ -7,7 +7,7 @@ import { AIAgentNodeForm } from '../node-forms/AIAgentNodeForm'
 import type { AIAgentFormInitialData, AIAgentFormSubmitData } from '../node-forms/AIAgentNodeForm'
 import { parseToolsString } from '../utils/agentHelpers'
 
-interface AIAgentNodeDetailsProps {
+type AIAgentNodeDetailsProps = {
   taskData: Activity
   nodeId: string
   onClose: () => void
@@ -31,7 +31,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
     model?: string
     file_ids?: string[]
     fileIds?: string[]
-    credentialId?: string
+    credential_id?: string
   }
 
   const envModel: string | undefined = import.meta.env.VITE_NEXUS_OPENROUTER_MODEL as string | undefined
@@ -44,7 +44,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
     model: agentConfig.model ?? defaultModel,
     prompt: agentConfig.prompt ?? '',
     tools: tools.join(', '),
-    credentialId: agentConfig.credentialId ?? undefined,
+    credential_id: agentConfig.credential_id ?? undefined,
   }
 
   const handleSubmit = (data: AIAgentFormSubmitData) => {
@@ -64,7 +64,7 @@ export function AIAgentNodeDetails({ taskData, nodeId, onClose, onHeaderContentC
         prompt: data.prompt ?? undefined,
         model: data.model ?? undefined,
         fileIds: allFileIds.length > 0 ? allFileIds : undefined,
-        credentialId: data.credentialId ?? undefined,
+        credentialId: data.credential_id ?? undefined,
       })
 
       updateActivity(nodeId, updatedActivity)

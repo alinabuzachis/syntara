@@ -18,7 +18,7 @@ const scriptActionSchema = z.object({
   headers: z.string().optional(),
   body: z.string().optional(),
   parameters: z.string().optional(),
-  credentialId: z.string().optional(),
+  credential_id: z.string().optional(),
 })
 
 const apiActionSchema = z.object({
@@ -32,7 +32,7 @@ const apiActionSchema = z.object({
   headers: z.string().optional(),
   body: z.string().optional(),
   parameters: z.string().optional(),
-  credentialId: z.string().optional(),
+  credential_id: z.string().optional(),
 })
 
 export const actionFormSchema = z.discriminatedUnion('executor', [scriptActionSchema, apiActionSchema])

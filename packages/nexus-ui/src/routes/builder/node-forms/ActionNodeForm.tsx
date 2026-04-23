@@ -160,7 +160,7 @@ function ActionParametersContent(props: {
           <StackItem>
             <Controller
               control={control}
-              name="credentialId"
+              name="credential_id"
               render={({ field }) => (
                 <CredentialSelector
                   value={field.value ?? undefined}
@@ -345,7 +345,7 @@ export function ActionNodeForm(props: Readonly<ActionNodeFormProps>) {
       body: data.executor === ExecutorTypeEnum.HTTP_REQUEST ? data.body : undefined,
       parameters: data.parameters ?? undefined,
       requiresApproval: props.initialData?.requiresApproval,
-      credentialId: data.credentialId ?? undefined,
+      credential_id: data.credential_id ?? undefined,
     }
     props.onSubmit(cleanedData)
   }

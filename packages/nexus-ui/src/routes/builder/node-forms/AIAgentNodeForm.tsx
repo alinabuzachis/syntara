@@ -154,7 +154,7 @@ function AIAgentFormFields({
       <StackItem>
         <Controller
           control={control}
-          name="credentialId"
+          name="credential_id"
           render={({ field }) => (
             <CredentialSelector
               value={field.value ?? undefined}

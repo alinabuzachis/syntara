@@ -17,8 +17,8 @@ function TestWrapper({ children, defaultValues }: { children: React.ReactNode; d
   const methods = useForm<AAPFormData>({
     defaultValues: {
       name: '',
-      organization: '',
-      jobTemplateName: '',
+      organization_name: '',
+      job_template_name: '',
       ...defaultValues,
     },
   })
@@ -31,9 +31,9 @@ function renderField(
 ) {
   const props = {
     label: 'Inventory',
-    fieldId: 'aap-inventory',
-    nameField: 'inventory' as keyof AAPFormData,
-    idField: 'inventoryId' as keyof AAPFormData,
+    fieldId: 'aap-inventory_name',
+    nameField: 'inventory_name' as keyof AAPFormData,
+    idField: 'inventory_id' as keyof AAPFormData,
     items: [...mockItems],
     isLoading: false,
     helperText: 'Select an inventory to override the default',
@@ -80,7 +80,7 @@ describe('AAPResourceSelectField', () => {
     })
 
     it('displays the currently selected value', () => {
-      renderField({}, { inventory: 'Demo Inventory' })
+      renderField({}, { inventory_name: 'Demo Inventory' })
       expect(screen.getByDisplayValue('Demo Inventory')).toBeInTheDocument()
     })
   })
@@ -105,7 +105,7 @@ describe('AAPResourceSelectField', () => {
 
     it('clears the ID when selection is cleared', async () => {
       const user = userEvent.setup()
-      renderField({}, { inventory: 'Demo Inventory', inventoryId: 101 })
+      renderField({}, { inventory_name: 'Demo Inventory', inventory_id: 101 })
 
       // Click clear button
       await user.click(screen.getByRole('button', { name: 'Clear selection' }))

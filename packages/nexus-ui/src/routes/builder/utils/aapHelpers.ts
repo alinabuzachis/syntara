@@ -39,23 +39,23 @@ function parseExtraVars(value: string): Record<string, unknown> | undefined {
 type ConfigKey = keyof AAPJobTemplateConfig
 
 /**
- * Table-driven mapping from form fields to config fields.
- * Each entry: [formKey, configKey, predicate] — predicate determines whether to include.
+ * Table-driven mapping from form fields (snake_case) to config fields (camelCase).
+ * Form uses snake_case for Zod validation, config uses camelCase per JS convention.
  */
 const stringFields: [keyof AAPFormData, ConfigKey][] = [
   ['limit', 'limit'],
   ['tags', 'tags'],
-  ['skipTags', 'skipTags'],
-  ['jobType', 'jobType'],
-  ['executionEnvironment', 'executionEnvironment'],
-  ['instanceGroup', 'instanceGroups'],
+  ['skip_tags', 'skipTags'],
+  ['job_type', 'jobType'],
+  ['execution_environment', 'executionEnvironment'],
+  ['instance_group', 'instanceGroups'],
   ['labels', 'labels'],
 ]
 
 const numberFields: [keyof AAPFormData, ConfigKey][] = [
   ['forks', 'forks'],
   ['timeout', 'timeout'],
-  ['jobSlicing', 'jobSlicing'],
+  ['job_slice_count', 'jobSliceCount'],
 ]
 
 function collectStringFields(config: AAPJobTemplateConfig, data: AAPFormData): void {
@@ -77,20 +77,20 @@ function collectNumberFields(config: AAPJobTemplateConfig, data: AAPFormData): v
 }
 
 function setOrganizationAndTemplate(config: AAPJobTemplateConfig, data: AAPFormData): void {
-  if (data.organization) config.organization = data.organization
-  if (data.jobTemplateName) config.jobTemplateName = data.jobTemplateName
+  if (data.organization_name) config.organizationName = data.organization_name
+  if (data.job_template_name) config.jobTemplateName = data.job_template_name
 }
 
 function setInventoryFields(config: AAPJobTemplateConfig, data: AAPFormData): void {
-  if (data.inventoryId !== undefined && data.inventoryId !== null) {
-    config.inventory = data.inventoryId
+  if (data.inventory_id !== undefined && data.inventory_id !== null) {
+    config.inventoryId = data.inventory_id
   }
-  if (data.inventory) config.inventoryName = data.inventory
+  if (data.inventory_name) config.inventoryName = data.inventory_name
 }
 
 function setExtraVarsField(config: AAPJobTemplateConfig, data: AAPFormData): void {
-  if (!data.extraVars) return
-  const extraVars = parseExtraVars(data.extraVars)
+  if (!data.extra_vars) return
+  const extraVars = parseExtraVars(data.extra_vars)
   if (extraVars) config.extraVars = extraVars
 }
 
@@ -102,21 +102,22 @@ function setVerbosityField(config: AAPJobTemplateConfig, data: AAPFormData): voi
 
 function setCredentialFields(config: AAPJobTemplateConfig, data: AAPFormData): void {
   // Nexus credential for AAP authentication
-  if (data.credentialId) config.credentialId = data.credentialId
+  if (data.credential_id) config.credentialId = data.credential_id
 
   // AAP Controller credentials for job template launch (prompt-on-launch override)
-  if (data.credentials && data.credentials.length > 0) {
-    config.credentials = data.credentials
+  if (data.job_credentials && data.job_credentials.length > 0) {
+    config.jobCredentials = data.job_credentials
   }
 }
 
 function setDiffModeField(config: AAPJobTemplateConfig, data: AAPFormData): void {
-  if (data.diffMode !== undefined) config.diffMode = data.diffMode
+  if (data.diff_mode !== undefined) config.diffMode = data.diff_mode
 }
 
 /**
  * Build optional AAP job configuration from form data.
- * The jobTemplateId and organization are handled separately by the caller.
+ * Form data uses snake_case (from Zod), config uses camelCase (JS convention).
+ * The jobTemplateId is handled separately by the caller.
  */
 export function buildAAPConfig(data: AAPFormData): AAPJobTemplateConfig | undefined {
   const config: AAPJobTemplateConfig = {}

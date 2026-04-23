@@ -28,7 +28,7 @@ interface AAPResourceItem {
 interface AAPResourceMultiSelectFieldProps {
   readonly label: string
   readonly fieldId: string
-  readonly nameField: 'credentials' // Only credentials field is a number[] array
+  readonly nameField: 'job_credentials' // Only job_credentials field is a number[] array
   readonly items: readonly AAPResourceItem[]
   readonly isLoading: boolean
   readonly helperText: string
@@ -166,7 +166,7 @@ function MultiSelectContent({
 }
 
 function useMultiSelectHandlers(
-  nameField: 'credentials',
+  nameField: 'job_credentials',
   setValue: ReturnType<typeof useFormContext<AAPFormData>>['setValue'],
   setIsOpen: React.Dispatch<React.SetStateAction<boolean>>,
   setFilterValue: React.Dispatch<React.SetStateAction<string>>

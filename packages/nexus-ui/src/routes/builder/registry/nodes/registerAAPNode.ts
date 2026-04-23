@@ -23,13 +23,13 @@ export default function registerAAPNode() {
     formComponent: AAPNodeForm,
     onSubmit: (data, onSuccess, onError) => {
       try {
-        // Validate jobTemplateId (required, set by dropdown selection)
-        const jobTemplateId = validateJobTemplateId(data.jobTemplateId)
+        // Validate job_template_id (required, set by dropdown selection)
+        const job_template_id = validateJobTemplateId(data.job_template_id)
 
         const config = buildAAPConfig(data)
         const baseName = getDefaultNodeBaseName({ nodeTypeId: RegistryNodeId.AAP, label: 'AAP Job Execution' })
         const { activityId, activity } = buildNamedActivity(baseName, data.name, (id, name) =>
-          createAAPJobTemplateActivity(id, name, jobTemplateId, config)
+          createAAPJobTemplateActivity(id, name, job_template_id, config)
         )
 
         useWorkflowStore.getState().addActivity(activity)

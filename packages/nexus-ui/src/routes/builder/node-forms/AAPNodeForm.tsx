@@ -84,23 +84,23 @@ function AAPResourcePickers({ browser, projectId }: AAPResourcePickersProps) {
    */
   const clearPromptOverrides = () => {
     const clearedOverrides = {
-      inventory: '',
-      inventoryId: undefined,
-      extraVars: '',
+      inventory_name: '',
+      inventory_id: undefined,
+      extra_vars: '',
       limit: '',
       tags: '',
-      skipTags: '',
+      skip_tags: '',
       verbosity: '',
-      credentials: [],
-      jobType: '',
+      job_credentials: [],
+      job_type: '',
       forks: undefined,
       timeout: undefined,
-      jobSlicing: undefined,
-      diffMode: false,
-      executionEnvironment: '',
-      executionEnvironmentId: undefined,
-      instanceGroup: '',
-      instanceGroupId: undefined,
+      job_slice_count: undefined,
+      diff_mode: false,
+      execution_environment: '',
+      execution_environment_id: undefined,
+      instance_group: '',
+      instance_group_id: undefined,
       labels: '',
     }
     reset({ ...getValues(), ...clearedOverrides }, { keepDirty: false })
@@ -112,7 +112,7 @@ function AAPResourcePickers({ browser, projectId }: AAPResourcePickersProps) {
       <StackItem>
         <Controller
           control={control}
-          name="credentialId"
+          name="credential_id"
           render={({ field }) => (
             <CredentialSelector
               value={field.value ?? undefined}
@@ -136,7 +136,7 @@ function AAPResourcePickers({ browser, projectId }: AAPResourcePickersProps) {
         <FormGroup label="Organization" isRequired fieldId="aap-organization">
           <Controller
             control={control}
-            name="organization"
+            name="organization_name"
             render={({ field }) => (
               <AAPTypeaheadSelect
                 id="aap-organization"
@@ -147,22 +147,22 @@ function AAPResourcePickers({ browser, projectId }: AAPResourcePickersProps) {
                   field.onChange(value)
                   selectOrganization(value)
                   // Clear downstream selections and all prompt-on-launch overrides
-                  setValue('jobTemplateName', '')
-                  setValue('jobTemplateId', undefined)
+                  setValue('job_template_name', '')
+                  setValue('job_template_id', undefined)
                   clearPromptOverrides()
                 }}
                 onSearchChange={searchOrganizations}
                 placeholder="Select an organization"
                 isLoading={loadingOrgs}
-                hasError={!!errors.organization}
+                hasError={!!errors.organization_name}
               />
             )}
           />
           <FormHelperText>
             <HelperText>
-              {errors.organization ? (
+              {errors.organization_name ? (
                 <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                  {errors.organization.message}
+                  {errors.organization_name.message}
                 </HelperTextItem>
               ) : (
                 <HelperTextItem>AAP organization to browse resources from</HelperTextItem>
@@ -177,7 +177,7 @@ function AAPResourcePickers({ browser, projectId }: AAPResourcePickersProps) {
         <FormGroup label="Job template" isRequired fieldId="aap-jobTemplate">
           <Controller
             control={control}
-            name="jobTemplateName"
+            name="job_template_name"
             render={({ field }) => (
               <AAPTypeaheadSelect
                 id="aap-jobTemplate"
@@ -187,7 +187,7 @@ function AAPResourcePickers({ browser, projectId }: AAPResourcePickersProps) {
                 onChange={(value) => {
                   field.onChange(value)
                   const selected = jobTemplates.find((t) => t.name === value)
-                  setValue('jobTemplateId', selected?.id)
+                  setValue('job_template_id', selected?.id)
                   selectJobTemplate(selected?.id)
                   // Clear all prompt-on-launch overrides when template changes
                   clearPromptOverrides()
@@ -195,15 +195,15 @@ function AAPResourcePickers({ browser, projectId }: AAPResourcePickersProps) {
                 onSearchChange={searchJobTemplates}
                 placeholder="Select a job template"
                 isLoading={loadingTemplates}
-                hasError={!!errors.jobTemplateName}
+                hasError={!!errors.job_template_name}
               />
             )}
           />
           <FormHelperText>
             <HelperText>
-              {errors.jobTemplateName ? (
+              {errors.job_template_name ? (
                 <HelperTextItem icon={<RhUiErrorIcon />} variant="error">
-                  {errors.jobTemplateName.message}
+                  {errors.job_template_name.message}
                 </HelperTextItem>
               ) : (
                 <HelperTextItem>AAP job template to launch</HelperTextItem>
@@ -266,8 +266,8 @@ function AAPFormFields({
   const { register } = useFormContext<AAPFormData>()
 
   const browser = useAAPBrowser(selectedCredentialId, {
-    organization: initialData?.organization,
-    jobTemplateId: initialData?.jobTemplateId,
+    organization: initialData?.organization_name,
+    jobTemplateId: initialData?.job_template_id,
   })
 
   const nameField = useMemo(
@@ -321,18 +321,18 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
 
   const defaultValues: AAPFormData = {
     name: '',
-    credentialId: undefined,
-    organization: '',
-    jobTemplateName: '',
-    jobTemplateId: undefined,
-    inventory: '',
-    extraVars: '',
+    credential_id: undefined,
+    organization_name: '',
+    job_template_name: '',
+    job_template_id: undefined,
+    inventory_name: '',
+    extra_vars: '',
     limit: '',
     tags: '',
-    skipTags: '',
+    skip_tags: '',
     verbosity: '',
-    jobType: '',
-    diffMode: false,
+    job_type: '',
+    diff_mode: false,
     ...props.initialData,
   }
 
@@ -343,10 +343,10 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
     reValidateMode: 'onChange',
   })
 
-  // Watch credentialId using useWatch for proper reactivity
+  // Watch credential_id using useWatch for proper reactivity
   const selectedCredentialId = useWatch({
     control: methods.control,
-    name: 'credentialId',
+    name: 'credential_id',
   })
 
   const handleSubmit = (data: AAPFormData) => {
@@ -355,19 +355,19 @@ export function AAPNodeForm(props: Readonly<AAPNodeFormProps>) {
 
   const onSubmitWithFlush = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const valueFromEditor = extraVarsEditorRef.current?.getValue() ?? methods.getValues('extraVars') ?? ''
-    methods.setValue('extraVars', valueFromEditor)
+    const valueFromEditor = extraVarsEditorRef.current?.getValue() ?? methods.getValues('extra_vars') ?? ''
+    methods.setValue('extra_vars', valueFromEditor)
     detachPromise(
       methods.trigger().then((valid) => {
         setSubmitValidationTick((t) => t + 1)
-        const extraVarsError = methods.getFieldState('extraVars').error
+        const extraVarsError = methods.getFieldState('extra_vars').error
         if (valid && !extraVarsError) {
           return methods.handleSubmit(handleSubmit)()
         }
         const errs = methods.formState.errors
-        if (errs.organization) methods.setFocus('organization')
-        else if (errs.jobTemplateName) methods.setFocus('jobTemplateName')
-        else if (errs.extraVars) extraVarsEditorRef.current?.focus()
+        if (errs.organization_name) methods.setFocus('organization_name')
+        else if (errs.job_template_name) methods.setFocus('job_template_name')
+        else if (errs.extra_vars) extraVarsEditorRef.current?.focus()
       })
     )
   }

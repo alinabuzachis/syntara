@@ -7,9 +7,9 @@ import { buildAAPConfig, validateJobTemplateId } from './aapHelpers'
 function makeFormData(overrides: Partial<AAPFormData> = {}): AAPFormData {
   return {
     name: 'Test step',
-    organization: '',
-    jobTemplateName: '',
-    jobTemplateId: undefined,
+    organization_name: '',
+    job_template_name: '',
+    job_template_id: undefined,
     ...overrides,
   }
 }
@@ -42,48 +42,48 @@ describe('buildAAPConfig', () => {
     expect(result).toBeUndefined()
   })
 
-  it('includes organization and jobTemplateName when set', () => {
-    const result = buildAAPConfig(makeFormData({ organization: 'Default', jobTemplateName: 'Deploy' }))
-    expect(result).toEqual(expect.objectContaining({ organization: 'Default', jobTemplateName: 'Deploy' }))
+  it('includes organization_name and job_template_name when set', () => {
+    const result = buildAAPConfig(makeFormData({ organization_name: 'Default', job_template_name: 'Deploy' }))
+    expect(result).toEqual(expect.objectContaining({ organizationName: 'Default', jobTemplateName: 'Deploy' }))
   })
 
-  it('includes inventoryId and inventoryName when set', () => {
-    const result = buildAAPConfig(makeFormData({ inventoryId: 42, inventory: 'Production' }))
-    expect(result?.inventory).toBe(42)
+  it('includes inventory_id and inventory_name when set', () => {
+    const result = buildAAPConfig(makeFormData({ inventory_id: 42, inventory_name: 'Production' }))
+    expect(result?.inventoryId).toBe(42)
     expect(result?.inventoryName).toBe('Production')
   })
 
-  it('handles inventoryId of 0 (falsy but defined)', () => {
-    // inventoryId = 0 is defined and not null, so it should be included
-    const result = buildAAPConfig(makeFormData({ inventoryId: 0, organization: 'Default' }))
-    expect(result?.inventory).toBe(0)
+  it('handles inventory_id of 0 (falsy but defined)', () => {
+    // inventory_id = 0 is defined and not null, so it should be included
+    const result = buildAAPConfig(makeFormData({ inventory_id: 0, organization_name: 'Default' }))
+    expect(result?.inventoryId).toBe(0)
   })
 
-  it('excludes inventoryId when undefined', () => {
-    const result = buildAAPConfig(makeFormData({ organization: 'Default' }))
-    expect(result?.inventory).toBeUndefined()
+  it('excludes inventory_id when undefined', () => {
+    const result = buildAAPConfig(makeFormData({ organization_name: 'Default' }))
+    expect(result?.inventoryId).toBeUndefined()
   })
 
   it('parses valid JSON extra vars', () => {
-    const result = buildAAPConfig(makeFormData({ extraVars: '{"key": "value"}' }))
+    const result = buildAAPConfig(makeFormData({ extra_vars: '{"key": "value"}' }))
     expect(result?.extraVars).toEqual({ key: 'value' })
   })
 
   it('ignores invalid JSON extra vars', () => {
-    const result = buildAAPConfig(makeFormData({ extraVars: 'not json' }))
+    const result = buildAAPConfig(makeFormData({ extra_vars: 'not json' }))
     expect(result?.extraVars).toBeUndefined()
   })
 
   it('rejects array JSON extra vars (arrays are not valid objects)', () => {
     // parseExtraVars should reject arrays (they're not Record<string, unknown>)
     // The Zod schema already rejects arrays with 'Extra variables must be a JSON object'
-    const result = buildAAPConfig(makeFormData({ extraVars: '[1,2,3]' }))
-    // Arrays should be rejected - extraVars should be undefined
+    const result = buildAAPConfig(makeFormData({ extra_vars: '[1,2,3]' }))
+    // Arrays should be rejected - extra_vars should be undefined
     expect(result?.extraVars).toBeUndefined()
   })
 
   it('ignores null JSON extra vars', () => {
-    const result = buildAAPConfig(makeFormData({ extraVars: 'null' }))
+    const result = buildAAPConfig(makeFormData({ extra_vars: 'null' }))
     expect(result?.extraVars).toBeUndefined()
   })
 
@@ -102,30 +102,30 @@ describe('buildAAPConfig', () => {
     expect(result?.verbosity).toBeUndefined()
   })
 
-  it('includes credentials array when set', () => {
-    const result = buildAAPConfig(makeFormData({ credentials: [1, 2, 3] }))
-    expect(result?.credentials).toEqual([1, 2, 3])
+  it('includes job_credentials array when set', () => {
+    const result = buildAAPConfig(makeFormData({ job_credentials: [1, 2, 3] }))
+    expect(result?.jobCredentials).toEqual([1, 2, 3])
   })
 
-  it('excludes empty credentials array', () => {
-    const result = buildAAPConfig(makeFormData({ credentials: [], organization: 'Default' }))
-    expect(result?.credentials).toBeUndefined()
+  it('excludes empty job_credentials array', () => {
+    const result = buildAAPConfig(makeFormData({ job_credentials: [], organization_name: 'Default' }))
+    expect(result?.jobCredentials).toBeUndefined()
   })
 
-  it('includes diffMode when set', () => {
-    const result = buildAAPConfig(makeFormData({ diffMode: true }))
+  it('includes diff_mode when set', () => {
+    const result = buildAAPConfig(makeFormData({ diff_mode: true }))
     expect(result?.diffMode).toBe(true)
   })
 
-  it('includes string fields (limit, tags, skipTags, jobType, executionEnvironment, instanceGroup, labels)', () => {
+  it('includes string fields (limit, tags, skip_tags, job_type, execution_environment, instance_group, labels)', () => {
     const result = buildAAPConfig(
       makeFormData({
         limit: 'host1',
         tags: 'deploy',
-        skipTags: 'debug',
-        jobType: 'run',
-        executionEnvironment: 'Default EE',
-        instanceGroup: 'default',
+        skip_tags: 'debug',
+        job_type: 'run',
+        execution_environment: 'Default EE',
+        instance_group: 'default',
         labels: 'prod',
       })
     )
@@ -142,20 +142,20 @@ describe('buildAAPConfig', () => {
     )
   })
 
-  it('includes number fields (forks, timeout, jobSlicing) when finite', () => {
-    const result = buildAAPConfig(makeFormData({ forks: 10, timeout: 300, jobSlicing: 2 }))
+  it('includes number fields (forks, timeout, job_slice_count) when finite', () => {
+    const result = buildAAPConfig(makeFormData({ forks: 10, timeout: 300, job_slice_count: 2 }))
     expect(result?.forks).toBe(10)
     expect(result?.timeout).toBe(300)
-    expect(result?.jobSlicing).toBe(2)
+    expect(result?.jobSliceCount).toBe(2)
   })
 
   it('excludes NaN number fields', () => {
-    const result = buildAAPConfig(makeFormData({ forks: Number.NaN, organization: 'Default' }))
+    const result = buildAAPConfig(makeFormData({ forks: Number.NaN, organization_name: 'Default' }))
     expect(result?.forks).toBeUndefined()
   })
 
   it('excludes empty string fields', () => {
-    const result = buildAAPConfig(makeFormData({ limit: '', tags: '', organization: 'Default' }))
+    const result = buildAAPConfig(makeFormData({ limit: '', tags: '', organization_name: 'Default' }))
     expect(result?.limit).toBeUndefined()
     expect(result?.tags).toBeUndefined()
   })

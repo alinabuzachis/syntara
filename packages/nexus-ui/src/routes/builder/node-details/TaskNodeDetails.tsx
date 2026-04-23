@@ -17,24 +17,9 @@ import { buildAAPConfig, validateJobTemplateId } from '../utils/aapHelpers'
 import { AIAgentNodeDetails } from './AIAgentNodeDetails'
 
 /**
- * Stored AAP config supports both snake_case (API) and camelCase (legacy) field names.
- * Extends AAPJobTemplateConfig with snake_case API fields for backend compatibility.
+ * Stored AAP config uses snake_case to match the API contract.
  */
 type StoredAAPConfig = AAPJobTemplateConfig & {
-  // Snake_case API field names (backend format)
-  credential_id?: string
-  job_template_id?: number
-  job_template_name?: string
-  inventory_id?: number
-  inventory_name?: string
-  extra_vars?: Record<string, unknown>
-  skip_tags?: string
-  job_type?: string
-  job_slice_count?: number
-  diff_mode?: boolean
-  execution_environment?: string
-  instance_groups?: string
-
   // Index signature for unknown fields
   [key: string]: unknown
 }
@@ -54,16 +39,16 @@ function serializeExtraVars(extraVars: Record<string, unknown> | undefined): str
   return extraVars ? JSON.stringify(extraVars, null, 2) : ''
 }
 
-/** Get field value with snake_case → camelCase fallback. */
-function getField<T>(snakeCase: T | undefined, camelCase: T | undefined, defaultValue: T): T {
-  return snakeCase ?? camelCase ?? defaultValue
+/** Get field value with default fallback. */
+function getField<T>(value: T | undefined, defaultValue: T): T {
+  return value ?? defaultValue
 }
 
 /**
  * Type guard to check if config has AAP job template fields.
  */
 function hasJobTemplateConfig(config: Record<string, unknown>): config is StoredAAPConfig {
-  return 'job_template_id' in config || 'jobTemplateId' in config
+  return 'job_template_id' in config
 }
 
 /**
@@ -97,8 +82,8 @@ function buildActivityConfig(
   data: RegistryActionFormData,
   showError: (title: string, message: string) => void
 ):
-  | { language: string; code: string; credentialId?: string }
-  | { method: string; url: string; headers?: Record<string, string>; body?: unknown; credentialId?: string }
+  | { language: string; code: string; credential_id?: string }
+  | { method: string; url: string; headers?: Record<string, string>; body?: unknown; credential_id?: string }
   | null {
   const isScript = data.executor === ExecutorTypeEnum.SCRIPT
 
@@ -132,7 +117,7 @@ function mergeAuthHeaders(
 function buildHTTPConfig(
   data: RegistryActionFormData,
   headers: Record<string, string> | undefined
-): { method: string; url: string; headers?: Record<string, string>; body?: unknown; credentialId?: string } {
+): { method: string; url: string; headers?: Record<string, string>; body?: unknown; credential_id?: string } {
   return {
     method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     url: data.url!,
@@ -146,7 +131,7 @@ function buildHTTPConfig(
         }
       })(),
     }),
-    ...(data.credentialId && { credentialId: data.credentialId }),
+    ...(data.credential_id && { credential_id: data.credential_id }),
   }
 }
 
@@ -161,17 +146,17 @@ function serializeBody(body: unknown): string {
 /**
  * Build script config from form data.
  */
-function buildScriptConfig(data: RegistryActionFormData): { language: string; code: string; credentialId?: string } {
+function buildScriptConfig(data: RegistryActionFormData): { language: string; code: string; credential_id?: string } {
   return {
     language: data.language ?? 'python',
     code: data.code!,
-    ...(data.credentialId && { credentialId: data.credentialId }),
+    ...(data.credential_id && { credential_id: data.credential_id }),
   }
 }
 
 /**
  * Build initial form data from a stored AAP config.
- * Handles both snake_case (API) and camelCase (legacy) field names.
+ * All fields use snake_case to match API contract.
  */
 function buildAAPInitialData(taskName: string, config: Record<string, unknown>): Partial<AAPFormData> {
   if (!hasJobTemplateConfig(config)) {
@@ -181,30 +166,30 @@ function buildAAPInitialData(taskName: string, config: Record<string, unknown>):
 
   return {
     name: taskName,
-    credentialId: c.credential_id ?? c.credentialId,
-    organization: c.organization ?? '',
-    jobTemplateName: getField(c.job_template_name, c.jobTemplateName, ''),
-    jobTemplateId: (c.job_template_id ?? c.jobTemplateId) as number | undefined,
-    inventory: getField(c.inventory_name, c.inventoryName, ''),
-    inventoryId: c.inventory_id ?? c.inventory,
-    extraVars: serializeExtraVars(c.extra_vars ?? c.extraVars),
-    limit: c.limit ?? '',
-    tags: c.tags ?? '',
-    skipTags: c.skip_tags ?? c.skipTags ?? '',
-    verbosity: c.verbosity?.toString() ?? '',
-    credentials: c.credentials ?? [],
-    jobType: getField(c.job_type, c.jobType, ''),
+    credential_id: c.credential_id as string | undefined,
+    organization_name: getField(c.organization_name as string | undefined, ''),
+    job_template_name: getField(c.job_template_name as string | undefined, ''),
+    job_template_id: c.job_template_id as number | undefined,
+    inventory_name: getField(c.inventory_name as string | undefined, ''),
+    inventory_id: c.inventory_id as number | undefined,
+    extra_vars: serializeExtraVars(c.extra_vars as Record<string, unknown> | undefined),
+    limit: getField(c.limit, ''),
+    tags: getField(c.tags, ''),
+    skip_tags: getField(c.skip_tags as string | undefined, ''),
+    verbosity: (c.verbosity)?.toString() ?? '',
+    job_credentials: (c.job_credentials as number[] | undefined) ?? [],
+    job_type: getField(c.job_type as string | undefined, ''),
     forks: c.forks,
     timeout: c.timeout,
-    jobSlicing: c.job_slice_count ?? c.jobSlicing,
-    diffMode: getField(c.diff_mode, c.diffMode, false),
-    executionEnvironment: getField(c.execution_environment, c.executionEnvironment, ''),
-    instanceGroup: getField(c.instance_groups, c.instanceGroups, ''),
-    labels: c.labels ?? '',
+    job_slice_count: c.job_slice_count as number | undefined,
+    diff_mode: getField(c.diff_mode as boolean | undefined, false),
+    execution_environment: getField(c.execution_environment as string | undefined, ''),
+    instance_group: getField(c.instance_groups as string | undefined, ''),
+    labels: getField(c.labels, ''),
   }
 }
 
-interface TaskNodeDetailsProps {
+type TaskNodeDetailsProps = {
   readonly taskData: Activity
   readonly nodeId: string
   readonly onClose: () => void
@@ -239,11 +224,11 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
 
     const handleAAPSubmit = (data: AAPFormData) => {
       try {
-        // Validate jobTemplateId (required, set by dropdown selection)
-        const parsedJobTemplateId = validateJobTemplateId(data.jobTemplateId)
+        // Validate job_template_id (required, set by dropdown selection)
+        const job_template_id = validateJobTemplateId(data.job_template_id)
 
         const aapNodeConfig = buildAAPConfig(data)
-        const updatedActivity = createAAPJobTemplateActivity(nodeId, data.name, parsedJobTemplateId, aapNodeConfig)
+        const updatedActivity = createAAPJobTemplateActivity(nodeId, data.name, job_template_id, aapNodeConfig)
 
         updateActivity(nodeId, updatedActivity)
         onClose()
@@ -298,7 +283,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
         ? JSON.stringify(config.headers, null, 2)
         : undefined,
     body: serializedBody,
-    credentialId: (config as { credentialId?: string }).credentialId ?? undefined,
+    credential_id: (config as { credential_id?: string }).credential_id ?? undefined,
   }
 
   const handleSubmit = (data: RegistryActionFormData) => {

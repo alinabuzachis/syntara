@@ -28,7 +28,7 @@ import type { AAPFormData } from './aapFormSchema'
 import { AAPResourceMultiSelectField } from './AAPResourceMultiSelectField'
 import { AAPResourceSelectField } from './AAPResourceSelectField'
 
-interface PromptOnLaunchFieldsProps {
+type PromptOnLaunchFieldsProps = {
   readonly extraVarsEditorRef: React.RefObject<ExpandableCodeEditorHandle | null>
   readonly templateDetail?: AAPJobTemplateDetail
   readonly isLoadingDetail?: boolean
@@ -75,13 +75,13 @@ function RunTypeField() {
   const { control } = useFormContext<AAPFormData>()
   return (
     <StackItem>
-      <FormGroup label="Run type" fieldId="aap-jobType">
+      <FormGroup label="Run type" fieldId="aap-job_type">
         <Controller
           control={control}
-          name="jobType"
+          name="job_type"
           render={({ field }) => (
             <FormSelect
-              id="aap-jobType"
+              id="aap-job_type"
               value={field.value ?? ''}
               onChange={(_event, value) => field.onChange(value)}
               aria-label="Run type"
@@ -133,10 +133,10 @@ function DiffModeField() {
     <StackItem>
       <Controller
         control={control}
-        name="diffMode"
+        name="diff_mode"
         render={({ field }) => (
           <Switch
-            id="aap-diffMode"
+            id="aap-diff_mode"
             label="Show changes"
             isChecked={field.value ?? false}
             onChange={(_event, checked) => field.onChange(checked)}
@@ -157,14 +157,14 @@ function ExtraVariablesField({
     control,
     formState: { errors },
   } = useFormContext<AAPFormData>()
-  const extraVarsMessage = errors.extraVars?.message
+  const extraVarsMessage = errors.extra_vars?.message
 
   return (
     <StackItem>
-      <FormGroup label="Extra variables" fieldId="aap-extraVars">
+      <FormGroup label="Extra variables" fieldId="aap-extra_vars">
         <Controller
           control={control}
-          name="extraVars"
+          name="extra_vars"
           render={({ field }) => (
             <div className={extraVarsMessage ? 'pf-v6-c-form-control pf-m-error' : undefined}>
               <ExpandableCodeEditor
@@ -325,9 +325,9 @@ function PromptOnLaunchFieldList({
       {templateDetail.ask_inventory_on_launch && (
         <AAPResourceSelectField
           label="Inventory"
-          fieldId="aap-inventory"
-          nameField="inventory"
-          idField="inventoryId"
+          fieldId="aap-inventory_name"
+          nameField="inventory_name"
+          idField="inventory_id"
           items={inventories}
           isLoading={loadingInventories}
           helperText="Override default inventory for the job"
@@ -338,9 +338,9 @@ function PromptOnLaunchFieldList({
       {templateDetail.ask_execution_environment_on_launch && (
         <AAPResourceSelectField
           label="Execution environment"
-          fieldId="aap-executionEnvironment"
-          nameField="executionEnvironment"
-          idField="executionEnvironmentId"
+          fieldId="aap-execution_environment"
+          nameField="execution_environment"
+          idField="execution_environment_id"
           items={executionEnvironments}
           isLoading={loadingExecutionEnvironments}
           helperText="Override default execution environment for the job"
@@ -352,7 +352,7 @@ function PromptOnLaunchFieldList({
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="aap-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={credentials}
           isLoading={loadingCredentials}
           helperText="Select one or more credentials for the job"
@@ -366,7 +366,13 @@ function PromptOnLaunchFieldList({
         <NumberInputField label="Forks" fieldId="aap-forks" name="forks" placeholder="0" min={0} />
       )}
       {templateDetail.ask_job_slice_count_on_launch && (
-        <NumberInputField label="Job slicing" fieldId="aap-jobSlicing" name="jobSlicing" placeholder="1" min={1} />
+        <NumberInputField
+          label="Job slicing"
+          fieldId="aap-job_slice_count"
+          name="job_slice_count"
+          placeholder="1"
+          min={1}
+        />
       )}
       {templateDetail.ask_diff_mode_on_launch && <DiffModeField />}
       {templateDetail.ask_timeout_on_launch && (
@@ -376,8 +382,8 @@ function PromptOnLaunchFieldList({
         <AAPResourceSelectField
           label="Instance groups"
           fieldId="aap-instanceGroups"
-          nameField="instanceGroup"
-          idField="instanceGroupId"
+          nameField="instance_group"
+          idField="instance_group_id"
           items={instanceGroups}
           isLoading={loadingInstanceGroups}
           helperText="Override default instance groups for the job"
@@ -397,8 +403,8 @@ function PromptOnLaunchFieldList({
       {templateDetail.ask_skip_tags_on_launch && (
         <TagInputField
           label="Skip tags"
-          fieldId="aap-skipTags"
-          name="skipTags"
+          fieldId="aap-skip_tags"
+          name="skip_tags"
           placeholder="tag1"
           helperText="Type a tag and press Enter or comma to add"
         />

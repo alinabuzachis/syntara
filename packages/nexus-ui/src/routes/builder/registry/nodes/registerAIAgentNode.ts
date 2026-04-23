@@ -37,7 +37,7 @@ export default function registerAIAgentNode() {
             prompt: data.prompt || undefined,
             model: data.model || undefined,
             fileIds: data.fileIds.length > 0 ? data.fileIds : undefined,
-            credentialId: data.credentialId ?? undefined,
+            credentialId: data.credential_id ?? undefined,
           })
         )
 

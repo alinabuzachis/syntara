@@ -71,10 +71,10 @@ describe('taskNodeSubmitHelpers', () => {
     it('includes credentialId when present on config', () => {
       const data = buildRegistryActionInitialData(
         ExecutorTypeEnum.HTTP_REQUEST,
-        { method: 'GET', url: 'https://x', credentialId: 'cred-1' },
+        { method: 'GET', url: 'https://x', credential_id: 'cred-1' },
         baseTask
       )
-      expect(data.credentialId).toBe('cred-1')
+      expect(data.credential_id).toBe('cred-1')
     })
   })
 

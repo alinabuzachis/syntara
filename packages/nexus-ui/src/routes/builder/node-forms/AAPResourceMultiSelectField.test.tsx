@@ -11,9 +11,9 @@ function TestWrapper({ children, defaultValues }: { children: React.ReactNode; d
   const methods = useForm<AAPFormData>({
     defaultValues: {
       name: '',
-      organization: '',
-      jobTemplateName: '',
-      credentials: [],
+      organization_name: '',
+      job_template_name: '',
+      job_credentials: [],
       ...defaultValues,
     },
   })
@@ -33,7 +33,7 @@ describe('AAPResourceMultiSelectField', () => {
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="test-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={mockItems}
           isLoading={false}
           helperText="Select credentials"
@@ -48,11 +48,11 @@ describe('AAPResourceMultiSelectField', () => {
 
   it('shows badge with count when items are selected', () => {
     render(
-      <TestWrapper defaultValues={{ credentials: [1, 2] }}>
+      <TestWrapper defaultValues={{ job_credentials: [1, 2] }}>
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="test-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={mockItems}
           isLoading={false}
           helperText="Select credentials"
@@ -72,7 +72,7 @@ describe('AAPResourceMultiSelectField', () => {
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="test-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={mockItems}
           isLoading={false}
           helperText="Select credentials"
@@ -98,7 +98,7 @@ describe('AAPResourceMultiSelectField', () => {
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="test-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={mockItems}
           isLoading={false}
           helperText="Select credentials"
@@ -144,7 +144,7 @@ describe('AAPResourceMultiSelectField', () => {
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="test-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={mockItems}
           isLoading={false}
           helperText="Select credentials"
@@ -163,7 +163,7 @@ describe('AAPResourceMultiSelectField', () => {
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="test-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={[]}
           isLoading={true}
           helperText="Select credentials"
@@ -182,7 +182,7 @@ describe('AAPResourceMultiSelectField', () => {
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="test-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={[]}
           isLoading={false}
           helperText="Select credentials"
@@ -208,7 +208,7 @@ describe('AAPResourceMultiSelectField', () => {
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="test-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={mockItems}
           isLoading={false}
           helperText="Select credentials"
@@ -244,7 +244,7 @@ describe('AAPResourceMultiSelectField', () => {
         <AAPResourceMultiSelectField
           label="Credentials"
           fieldId="test-credentials"
-          nameField="credentials"
+          nameField="job_credentials"
           items={mockItems}
           isLoading={false}
           helperText="Select credentials"

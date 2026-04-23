@@ -60,7 +60,7 @@ export function buildRegistryActionInitialData(
       }
       return typeof config.body === 'string' ? config.body : JSON.stringify(config.body, null, 2)
     })(),
-    credentialId: (config as { credentialId?: string }).credentialId ?? undefined,
+    credential_id: (config as { credential_id?: string }).credential_id ?? undefined,
   }
 }
 
@@ -86,7 +86,7 @@ export function buildRegistryActivityUpdate(taskData: TaskActivity, data: Regist
         ? {
             language: data.language ?? 'python',
             code: data.code!,
-            ...(data.credentialId && { credentialId: data.credentialId }),
+            ...(data.credential_id && { credential_id: data.credential_id }),
           }
         : {
             method: data.method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
@@ -95,7 +95,7 @@ export function buildRegistryActivityUpdate(taskData: TaskActivity, data: Regist
             ...(data.body && {
               body: parseHttpBodyField(data.body),
             }),
-            ...(data.credentialId && { credentialId: data.credentialId }),
+            ...(data.credential_id && { credential_id: data.credential_id }),
           },
   } as Activity
 }

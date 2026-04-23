@@ -61,10 +61,10 @@ vi.mock('../../../hooks/useAAPBrowser', () => ({
       { id: 2, name: 'Engineering' },
     ],
     jobTemplates: [
-      { id: 10, name: 'Deploy App', description: 'Deploy the application', organization: 'Default' },
-      { id: 11, name: 'Backup DB', description: 'Backup the database', organization: 'Default' },
+      { id: 10, name: 'Deploy App', description: 'Deploy the application', organization_name: 'Default' },
+      { id: 11, name: 'Backup DB', description: 'Backup the database', organization_name: 'Default' },
     ],
-    inventories: [{ id: 1, name: 'Demo Inventory', description: 'Demo hosts', organization: 'Default' }],
+    inventories: [{ id: 1, name: 'Demo Inventory', description: 'Demo hosts', organization_name: 'Default' }],
     executionEnvironments: [
       { id: 1, name: 'Default EE', description: 'Default execution environment' },
       { id: 2, name: 'Custom EE', description: 'Custom EE with extra collections' },
@@ -165,9 +165,9 @@ describe('AAPNodeForm', () => {
         onCancel={vi.fn()}
         initialData={{
           name: 'Test Job',
-          organization: 'Default',
-          jobTemplateName: 'Deploy App',
-          jobTemplateId: 10,
+          organization_name: 'Default',
+          job_template_name: 'Deploy App',
+          job_template_id: 10,
         }}
       />
     )
@@ -179,9 +179,9 @@ describe('AAPNodeForm', () => {
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'Test Job',
-          organization: 'Default',
-          jobTemplateName: 'Deploy App',
-          jobTemplateId: 10,
+          organization_name: 'Default',
+          job_template_name: 'Deploy App',
+          job_template_id: 10,
         })
       )
     })
@@ -204,9 +204,9 @@ describe('AAPNodeForm', () => {
         onCancel={vi.fn()}
         initialData={{
           name: 'Existing Job',
-          organization: 'Default',
-          jobTemplateName: 'Deploy App',
-          jobTemplateId: 10,
+          organization_name: 'Default',
+          job_template_name: 'Deploy App',
+          job_template_id: 10,
           verbosity: '2',
         }}
       />
@@ -268,9 +268,9 @@ describe('AAPNodeForm', () => {
         onSubmit={mockOnSubmit}
         onCancel={vi.fn()}
         initialData={{
-          organization: 'Default',
-          jobTemplateName: 'Deploy App',
-          jobTemplateId: 10,
+          organization_name: 'Default',
+          job_template_name: 'Deploy App',
+          job_template_id: 10,
         }}
       />
     )
@@ -323,26 +323,26 @@ describe('AAPNodeForm', () => {
         onSubmit={mockOnSubmit}
         onCancel={vi.fn()}
         initialData={{
-          organization: 'Default',
-          jobTemplateName: 'Deploy App',
-          jobTemplateId: 10,
-          inventory: 'Production',
-          inventoryId: 1,
-          credentials: [1, 2],
-          extraVars: '{"key": "value"}',
+          organization_name: 'Default',
+          job_template_name: 'Deploy App',
+          job_template_id: 10,
+          inventory_name: 'Production',
+          inventory_id: 1,
+          job_credentials: [1, 2],
+          extra_vars: '{"key": "value"}',
           limit: 'host1',
           tags: 'deploy',
-          skipTags: 'debug',
+          skip_tags: 'debug',
           verbosity: '3',
-          jobType: 'run',
+          job_type: 'run',
           forks: 10,
           timeout: 300,
-          jobSlicing: 2,
-          diffMode: true,
-          executionEnvironment: 'Custom EE',
-          executionEnvironmentId: 2,
-          instanceGroup: 'controlplane',
-          instanceGroupId: 2,
+          job_slice_count: 2,
+          diff_mode: true,
+          execution_environment: 'Custom EE',
+          execution_environment_id: 2,
+          instance_group: 'controlplane',
+          instance_group_id: 2,
           labels: 'prod',
         }}
       />
@@ -365,9 +365,9 @@ describe('AAPNodeForm', () => {
         onSubmit={mockOnSubmit}
         onCancel={vi.fn()}
         initialData={{
-          organization: 'Default',
-          jobTemplateName: 'Deploy App',
-          jobTemplateId: 10,
+          organization_name: 'Default',
+          job_template_name: 'Deploy App',
+          job_template_id: 10,
           name: 'Test Step',
         }}
       />
@@ -387,9 +387,9 @@ describe('AAPNodeForm', () => {
         onSubmit={mockOnSubmit}
         onCancel={vi.fn()}
         initialData={{
-          organization: 'Default',
-          jobTemplateName: 'Deploy App',
-          jobTemplateId: 10,
+          organization_name: 'Default',
+          job_template_name: 'Deploy App',
+          job_template_id: 10,
           name: 'Test Step',
         }}
       />
@@ -417,9 +417,9 @@ describe('AAPNodeForm', () => {
         onSubmit={mockOnSubmit}
         onCancel={vi.fn()}
         initialData={{
-          organization: 'Default',
-          jobTemplateName: 'Deploy App',
-          jobTemplateId: 10,
+          organization_name: 'Default',
+          job_template_name: 'Deploy App',
+          job_template_id: 10,
           name: 'Test Step',
         }}
       />
