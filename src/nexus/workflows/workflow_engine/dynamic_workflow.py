@@ -22,7 +22,14 @@ with workflow.unsafe.imports_passed_through():
 from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.expression_resolver import safe_eval_condition
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
-from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, LoopType, NodeType
+from nexus.workflows.workflow_engine.models.workflow_definition import (
+    ActivityName,
+    DoWhileLoopState,
+    ForEachLoopState,
+    LoopState,
+    LoopType,
+    NodeType,
+)
 
 # Temporal start-to-close safety ceiling for activities that don't specify a timeout.
 # Each node type has its own configurable timeout in Settings; this is only the
@@ -126,7 +133,7 @@ class NexusWorkflow:
         self.node_control_data: dict[str, dict[str, Any]] = {}
         self.skipped_nodes: set[str] = set()
         self.failed_nodes: dict[str, str] = {}
-        self.loop_state: dict[str, dict[str, Any]] = {}
+        self.loop_state: dict[str, LoopState] = {}
         self.loop_body_map: dict[str, str] = {}
         self.loop_iteration_results: dict[str, dict[str, list[Any]]] = {}
         self._timeout_tasks: dict[str, asyncio.Task[Any]] = {}
@@ -905,52 +912,47 @@ class NexusWorkflow:
             if loop_type == LoopType.FOR_EACH:
                 # First execution - extract items from config
                 items = _parse_items(resolved_config.get("items", []))
-                self.loop_state[node_id] = {
-                    "type": LoopType.FOR_EACH,
-                    "items": items,
-                    "current_index": 0,
-                }
+                self.loop_state[node_id] = ForEachLoopState(items=items)
             elif loop_type == LoopType.DO_WHILE:
                 # First execution - store condition and max_iterations
-                self.loop_state[node_id] = {
-                    "type": LoopType.DO_WHILE,
-                    "condition": node.config.get("condition"),  # Raw template, not resolved
-                    "max_iterations": resolved_config.get("max_iterations", constants.MAX_LOOP_ITERATIONS),
-                    "current_index": 0,
-                }
+                self.loop_state[node_id] = DoWhileLoopState(
+                    condition=node.config.get("condition"),  # Raw template, not resolved
+                    max_iterations=resolved_config.get("max_iterations", constants.MAX_LOOP_ITERATIONS),
+                )
 
         # Initialize iteration results if not exists
         if node_id not in self.loop_iteration_results:
             self.loop_iteration_results[node_id] = {}
 
+        state = self.loop_state[node_id]
+
         # For do_while, evaluate condition after first iteration
         condition_result = None
-        if loop_type == LoopType.DO_WHILE and self.loop_state[node_id]["current_index"] > 0:
+        if isinstance(state, DoWhileLoopState) and state.current_index > 0:
             # Set context for condition evaluation (loop body nodes are available)
             self.resolver.set_context(loop_node_id=node_id)
-            condition_template = self.loop_state[node_id]["condition"]
-            condition_expr = self.resolver.resolve_value(condition_template)
+            condition_expr = self.resolver.resolve_value(state.condition)
             condition_result = safe_eval_condition(condition_expr)
             workflow.logger.info(f"Loop {node_id} condition evaluated: {condition_expr} = {condition_result}")
 
         # Pass current state to activity
-        loop_config = {
+        loop_config: dict[str, Any] = {
             "type": loop_type,
-            "current_index": self.loop_state[node_id]["current_index"],
+            "current_index": state.current_index,
         }
 
-        if loop_type == LoopType.FOR_EACH:
-            loop_config["items"] = self.loop_state[node_id]["items"]
-        elif loop_type == LoopType.DO_WHILE:
+        if isinstance(state, ForEachLoopState):
+            loop_config["items"] = state.items
+        elif isinstance(state, DoWhileLoopState):
             loop_config["condition_result"] = condition_result
-            loop_config["max_iterations"] = self.loop_state[node_id]["max_iterations"]
+            loop_config["max_iterations"] = state.max_iterations
 
         loop_result = cast(
             "dict[str, Any]",
             await workflow.execute_activity(
                 ActivityName.LOOP,
                 args=[loop_config, node.outputs, self.loop_iteration_results[node_id]],
-                activity_id=f"{node_id}_iter_{self.loop_state[node_id]['current_index']}",
+                activity_id=f"{node_id}_iter_{state.current_index}",
                 start_to_close_timeout=timedelta(seconds=timeout_seconds),
             ),
         )
@@ -958,7 +960,7 @@ class NexusWorkflow:
         # Update loop state from control data for next iteration
         control_data = loop_result.get("control", {})
         if control_data:
-            self.loop_state[node_id]["current_index"] = control_data.get("next_index", 0)
+            state.current_index = control_data.get("next_index", 0)
 
         return loop_result
 

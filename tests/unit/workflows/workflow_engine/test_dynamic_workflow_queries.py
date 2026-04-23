@@ -20,6 +20,7 @@ from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.dynamic_workflow import NexusWorkflow
 from nexus.workflows.workflow_engine.graph import WorkflowGraph
 from nexus.workflows.workflow_engine.graph_backend import InMemoryGraphBackend
+from nexus.workflows.workflow_engine.models.workflow_definition import ForEachLoopState
 
 
 @pytest.fixture(autouse=True)
@@ -211,10 +212,11 @@ class TestForEachLoop:
         items = ["alpha", "beta", "gamma"]
         node_id = "loop_node"
 
-        wf.loop_state[node_id] = {"type": "for_each", "items": items, "current_index": 0}
+        state = ForEachLoopState(items=items)
+        wf.loop_state[node_id] = state
 
-        assert wf.loop_state[node_id]["items"] == items
-        assert wf.loop_state[node_id]["current_index"] == 0
+        assert state.items == items
+        assert state.current_index == 0
 
     def test_loop_body_map_tracks_body_nodes(self) -> None:
         wf = _make_workflow()

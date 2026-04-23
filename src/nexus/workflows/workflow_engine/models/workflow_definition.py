@@ -97,6 +97,30 @@ class LoopType(StrEnum):
     DO_WHILE = "do_while"
 
 
+class ForEachLoopState(BaseModel):
+    """State for a for_each loop iteration."""
+
+    model_config = ConfigDict(frozen=False)
+
+    type: LoopType = LoopType.FOR_EACH
+    items: list[Any]
+    current_index: int = 0
+
+
+class DoWhileLoopState(BaseModel):
+    """State for a do_while loop iteration."""
+
+    model_config = ConfigDict(frozen=False)
+
+    type: LoopType = LoopType.DO_WHILE
+    condition: str | None
+    max_iterations: int
+    current_index: int = 0
+
+
+LoopState = ForEachLoopState | DoWhileLoopState
+
+
 class ActivityTerminalStatus(str, Enum):
     """Terminal activity execution statuses for telemetry events."""
 
