@@ -138,14 +138,14 @@ describe('ApprovalNodeDetails Component', () => {
   it('shows error when updateActivity throws', async () => {
     const user = userEvent.setup()
     mockUpdateActivity.mockImplementationOnce(() => {
-      throw new Error('Update failed')
+      throw new Error('The update failed')
     })
 
     render(<ApprovalNodeDetails taskData={createTaskData()} nodeId="approval-1" onClose={mockOnClose} />)
 
     await user.click(screen.getByTestId('submit-button'))
 
-    expect(mockShowError).toHaveBeenCalledWith('Update failed')
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
   })
 
   it('reads on_timeout from snake_case config field', () => {

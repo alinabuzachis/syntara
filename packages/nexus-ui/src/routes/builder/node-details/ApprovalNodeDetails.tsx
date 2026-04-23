@@ -6,7 +6,7 @@ import { useWorkflowStore } from '../../../stores/useWorkflowStore'
 import type { ApprovalFormSubmitData } from '../node-forms/ApprovalNodeForm'
 import { ApprovalNodeForm } from '../node-forms/ApprovalNodeForm'
 
-interface ApprovalNodeDetailsProps {
+type ApprovalNodeDetailsProps = {
   taskData: Activity
   nodeId: string
   onClose: () => void
@@ -48,7 +48,7 @@ export function ApprovalNodeDetails({ taskData, nodeId, onClose, onHeaderContent
       } as Partial<Activity>)
       onClose()
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to update approval step')
+      showError('Update failed', error instanceof Error ? error.message : 'Failed to update approval step')
     }
   }
 

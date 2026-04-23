@@ -248,7 +248,7 @@ describe('NodeDetailsPanel', () => {
 
     await user.click(screen.getByRole('button', { name: /Submit/i }))
 
-    expect(mockShowError).toHaveBeenCalledWith('boom', 'Failed to add step')
+    expect(mockShowError).toHaveBeenCalledWith('Add step failed', 'boom')
   })
 
   it('moves and connects new node when adding from an edge', async () => {

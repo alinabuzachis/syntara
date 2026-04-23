@@ -365,7 +365,7 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByRole('button', { name: 'Create' }))
 
       await waitFor(() => {
-        expect(mockShowSuccess).toHaveBeenCalledWith('Project "New Project" created', 'Project Created')
+        expect(mockShowSuccess).toHaveBeenCalledWith('Project created', 'Project "New Project" created')
         expect(mockSetSelectedProjectId).toHaveBeenCalledWith('proj-new')
         expect(mockRefetch).toHaveBeenCalled()
       })
@@ -388,7 +388,7 @@ describe('useProjectSelector', () => {
       await user.click(screen.getByRole('button', { name: 'Create' }))
 
       await waitFor(() => {
-        expect(mockShowError).toHaveBeenCalledWith('Name already exists', 'Failed to Create Project')
+        expect(mockShowError).toHaveBeenCalledWith('Failed to create project', 'Name already exists')
       })
     })
   })

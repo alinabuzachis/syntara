@@ -479,7 +479,7 @@ describe('TaskNodeDetails Component', () => {
   it('shows error when updateActivity throws', async () => {
     const user = userEvent.setup()
     mockUpdateActivity.mockImplementationOnce(() => {
-      throw new Error('Update failed')
+      throw new Error('The update failed')
     })
     const taskData = {
       type: 'script' as const,
@@ -495,7 +495,29 @@ describe('TaskNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('submit-button'))
 
-    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Update Failed')
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
+  })
+
+  it('shows error when updateActivity throws during API form submission', async () => {
+    const user = userEvent.setup()
+    mockUpdateActivity.mockImplementationOnce(() => {
+      throw new Error('The update failed')
+    })
+    const taskData = {
+      type: 'http_request' as const,
+      id: 'task-api',
+      name: 'API Task',
+      config: {
+        url: 'https://api.test.com',
+        method: 'GET' as const,
+      },
+    }
+
+    renderTaskNodeDetails(taskData, 'task-api')
+
+    await user.click(screen.getByTestId('submit-api-button'))
+
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
   })
 
   it('shows error when submitting API form with invalid headers JSON', async () => {
@@ -516,7 +538,7 @@ describe('TaskNodeDetails Component', () => {
 
     // Invalid headers JSON should show an error and prevent save
     expect(mockShowError).toHaveBeenCalledWith(
-      'Invalid Headers Format',
+      'Invalid headers format',
       'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type":"application/json"}'
     )
 

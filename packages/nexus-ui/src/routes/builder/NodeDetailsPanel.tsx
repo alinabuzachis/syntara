@@ -58,7 +58,7 @@ function findActivityInCurrentWorkflow(activityId: string): Activity | undefined
   return current?.workflow.activities.find((activity: Activity) => activity.id === activityId)
 }
 
-interface NodeDetailsPanelProps {
+type NodeDetailsPanelProps = {
   mode: 'add' | 'edit'
   node?: Node<NodeType['data']>
   nodeTypeId?: string | null
@@ -154,7 +154,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
           (newNodeId?: string) => {
             if (replacementNodeId) {
               if (!handleReplacement(newNodeId)) {
-                showError('Failed to replace step — step not found', 'Replacement failed')
+                showError('Replacement failed', 'Failed to replace step — step not found')
                 return
               }
             } else if (sourceNodeId && newNodeId) {
@@ -167,7 +167,7 @@ export function NodeDetailsPanel(props: NodeDetailsPanelProps) {
             onClose()
           },
           (error: string) => {
-            showError(error, 'Failed to add step')
+            showError('Add step failed', error)
           }
         )
       }

@@ -89,14 +89,14 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
       { body: data },
       {
         onSuccess: (created) => {
-          showSuccess(`Project "${created.name}" created`, 'Project Created')
+          showSuccess('Project created', `Project "${created.name}" created`)
           reset()
           setCreateDialogOpen(false)
           projectsQuery.refetch().catch(() => {})
           setSelectedProjectId(created.id ?? null)
         },
         onError: (error: unknown) => {
-          showError(getErrorMessage(error), 'Failed to Create Project')
+          showError('Failed to create project', getErrorMessage(error))
         },
       }
     )

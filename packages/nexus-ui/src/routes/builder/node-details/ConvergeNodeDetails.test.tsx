@@ -183,14 +183,14 @@ describe('ConvergeNodeDetails Component', () => {
   it('shows error when updateActivity throws', async () => {
     const user = userEvent.setup()
     mockUpdateActivity.mockImplementationOnce(() => {
-      throw new Error('Update failed')
+      throw new Error('The update failed')
     })
 
     render(<ConvergeNodeDetails convergeData={createConvergeData()} nodeId="converge-1" onClose={mockOnClose} />)
 
     await user.click(screen.getByTestId('submit-button'))
 
-    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Update Failed')
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
   })
 
   describe('timeout toggle state initialization', () => {

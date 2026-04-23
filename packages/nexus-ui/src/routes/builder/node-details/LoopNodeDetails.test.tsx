@@ -161,7 +161,7 @@ describe('LoopNodeDetails Component', () => {
   it('shows error when updateActivity throws', async () => {
     const user = userEvent.setup()
     mockUpdateActivity.mockImplementationOnce(() => {
-      throw new Error('Update failed')
+      throw new Error('The update failed')
     })
     const loopData = {
       type: 'loop' as const,
@@ -177,7 +177,7 @@ describe('LoopNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('submit-button'))
 
-    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Update Failed')
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
   })
 
   it('preserves indexVariable and itemVariable when updating forEach loop', async () => {

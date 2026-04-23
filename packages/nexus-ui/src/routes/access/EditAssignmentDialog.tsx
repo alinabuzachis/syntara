@@ -97,7 +97,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
       // left without a role. If delete fails, revoke the new assignment to roll back.
       if (row.sourceEndpoint === 'project-roles') {
         if (!row.projectId) {
-          showError('Invalid assignment: missing project ID', 'Update Failed')
+          showError('Update failed', 'Invalid assignment: missing project ID')
           setIsPending(false)
           return
         }
@@ -114,7 +114,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
         })
       } else if (row.sourceEndpoint === 'project-group-roles') {
         if (!row.projectId) {
-          showError('Invalid assignment: missing project ID', 'Update Failed')
+          showError('Update failed', 'Invalid assignment: missing project ID')
           setIsPending(false)
           return
         }
@@ -131,7 +131,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
         })
       } else if (row.sourceEndpoint === 'user-role-assignments') {
         if (!row.roleId) {
-          showError('Invalid assignment: missing role ID', 'Update Failed')
+          showError('Update failed', 'Invalid assignment: missing role ID')
           setIsPending(false)
           return
         }
@@ -143,7 +143,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
         })
       } else {
         if (!row.roleId) {
-          showError('Invalid assignment: missing role ID', 'Update Failed')
+          showError('Update failed', 'Invalid assignment: missing role ID')
           setIsPending(false)
           return
         }
@@ -155,11 +155,11 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
         })
       }
 
-      showSuccess(`Updated role for ${displayName}`, 'Assignment Updated')
+      showSuccess('Assignment updated', `Updated role for ${displayName}`)
       onSuccess()
       onClose()
     } catch (error) {
-      showError(getErrorMessage(error), 'Failed to Update Assignment')
+      showError('Failed to update assignment', getErrorMessage(error))
     } finally {
       setIsPending(false)
     }

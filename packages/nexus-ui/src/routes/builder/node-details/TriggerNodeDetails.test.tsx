@@ -271,7 +271,7 @@ describe('TriggerNodeDetails Component', () => {
       const submitButton = screen.getByTestId('submit-invalid')
       submitButton.click()
 
-      expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Invalid interval format'), 'Update Failed')
+      expect(mockShowError).toHaveBeenCalledWith('Update failed', expect.stringContaining('Invalid interval format'))
       expect(mockOnClose).not.toHaveBeenCalled()
 
       formSpy.mockRestore()
@@ -307,7 +307,7 @@ describe('TriggerNodeDetails Component', () => {
       const submitButton = screen.getByTestId('submit-empty-duration')
       submitButton.click()
 
-      expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Invalid interval format'), 'Update Failed')
+      expect(mockShowError).toHaveBeenCalledWith('Update failed', expect.stringContaining('Invalid interval format'))
       expect(mockOnClose).not.toHaveBeenCalled()
 
       formSpy.mockRestore()
@@ -415,7 +415,7 @@ describe('TriggerNodeDetails Component', () => {
       const submitButton = screen.getByTestId('submit-malformed-recurring')
       submitButton.click()
 
-      expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Invalid interval format'), 'Update Failed')
+      expect(mockShowError).toHaveBeenCalledWith('Update failed', expect.stringContaining('Invalid interval format'))
       expect(mockOnClose).not.toHaveBeenCalled()
 
       formSpy.mockRestore()
@@ -451,7 +451,7 @@ describe('TriggerNodeDetails Component', () => {
       const submitButton = screen.getByTestId('submit-empty-recurring-duration')
       submitButton.click()
 
-      expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Invalid interval format'), 'Update Failed')
+      expect(mockShowError).toHaveBeenCalledWith('Update failed', expect.stringContaining('Invalid interval format'))
       expect(mockOnClose).not.toHaveBeenCalled()
 
       formSpy.mockRestore()

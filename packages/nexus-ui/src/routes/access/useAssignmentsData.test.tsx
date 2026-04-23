@@ -715,5 +715,67 @@ describe('useAssignmentsData', () => {
       }
       expect(callbacks.onSettled).toBe(onSettled)
     })
+
+    it('early-returns with onSettled when project-roles row has no projectId', () => {
+      const mockDeleteMutate = vi.fn()
+      setupDefaultMocks()
+      vi.mocked(accessClient.useMutation).mockReturnValue({
+        ...mockMutationReturn,
+        mutate: mockDeleteMutate,
+      } as never)
+
+      const { result } = renderHook(() => useAssignmentsData(), { wrapper })
+
+      const row: PermissionRow = {
+        id: 'pr-missing',
+        principalType: 'user',
+        principalId: 'u1',
+        principalName: 'alice',
+        assignmentType: 'role',
+        assignmentName: 'Admin',
+        scopeType: 'project',
+        scopeName: 'Project Alpha',
+        sourceEndpoint: 'project-roles',
+      }
+
+      const onSettled = vi.fn()
+      act(() => {
+        result.current.handleDelete(row, onSettled)
+      })
+
+      expect(onSettled).toHaveBeenCalled()
+      expect(mockDeleteMutate).not.toHaveBeenCalled()
+    })
+
+    it('early-returns with onSettled when project-group-roles row has no projectId', () => {
+      const mockDeleteMutate = vi.fn()
+      setupDefaultMocks()
+      vi.mocked(accessClient.useMutation).mockReturnValue({
+        ...mockMutationReturn,
+        mutate: mockDeleteMutate,
+      } as never)
+
+      const { result } = renderHook(() => useAssignmentsData(), { wrapper })
+
+      const row: PermissionRow = {
+        id: 'pgr-missing',
+        principalType: 'group',
+        principalId: 'g1',
+        principalName: 'admins',
+        assignmentType: 'role',
+        assignmentName: 'Editor',
+        scopeType: 'project',
+        scopeName: 'Project Beta',
+        sourceEndpoint: 'project-group-roles',
+      }
+
+      const onSettled = vi.fn()
+      act(() => {
+        result.current.handleDelete(row, onSettled)
+      })
+
+      expect(onSettled).toHaveBeenCalled()
+      expect(mockDeleteMutate).not.toHaveBeenCalled()
+    })
   })
 })

@@ -445,7 +445,7 @@ describe('Automations Component', () => {
 
       // Verify success alert is shown
       await waitFor(() => {
-        expect(screen.getByText('Workflow Started')).toBeInTheDocument()
+        expect(screen.getByText('Workflow started')).toBeInTheDocument()
         expect(screen.getByText(/Successfully started workflow "Important Project Workflow"/)).toBeInTheDocument()
       })
     })
@@ -514,7 +514,7 @@ describe('Automations Component', () => {
 
       // Verify error alert is shown
       await waitFor(() => {
-        expect(screen.getByText('Workflow Failed')).toBeInTheDocument()
+        expect(screen.getByText('Workflow failed')).toBeInTheDocument()
         expect(
           screen.getByText(/Failed to start workflow "Important Project Workflow": Network error/)
         ).toBeInTheDocument()
@@ -580,7 +580,7 @@ describe('Automations Component', () => {
 
       // Verify error alert is shown with generic message
       await waitFor(() => {
-        expect(screen.getByText('Workflow Failed')).toBeInTheDocument()
+        expect(screen.getByText('Workflow failed')).toBeInTheDocument()
         expect(
           screen.getByText(/Failed to start workflow "Important Project Workflow": An unexpected error occurred/)
         ).toBeInTheDocument()
@@ -1061,7 +1061,7 @@ describe('Automations Component', () => {
       await waitFor(() => {
         expect(mockDeleteMutate).toHaveBeenCalled()
         expect(mockRefetch).toHaveBeenCalled()
-        expect(screen.getByText('Workflow Deleted')).toBeInTheDocument()
+        expect(screen.getByText('Workflow deleted')).toBeInTheDocument()
         expect(screen.getByText(/Successfully deleted workflow/)).toBeInTheDocument()
       })
     })
@@ -1126,7 +1126,7 @@ describe('Automations Component', () => {
       // Verify error alert
       await waitFor(() => {
         expect(mockDeleteMutate).toHaveBeenCalled()
-        expect(screen.getByText('Delete Failed')).toBeInTheDocument()
+        expect(screen.getByText('Delete failed')).toBeInTheDocument()
         expect(screen.getByText(/Failed to delete workflow/)).toBeInTheDocument()
       })
     })

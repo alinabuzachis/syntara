@@ -60,12 +60,12 @@ export function EditRoleDialog({ role, onClose, onSuccess }: Readonly<EditRoleDi
       },
       {
         onSuccess: () => {
-          showSuccess('Role updated successfully', 'Role Updated')
+          showSuccess('Role updated', 'Role updated successfully')
           onSuccess()
           onClose()
         },
         onError: (error) => {
-          showError(getErrorMessage(error), 'Failed to Update Role')
+          showError('Failed to update role', getErrorMessage(error))
         },
       }
     )

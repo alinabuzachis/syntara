@@ -107,7 +107,7 @@ describe('ConditionNodeDetails Component', () => {
   it('shows error when updateActivity throws', async () => {
     const user = userEvent.setup()
     mockUpdateActivity.mockImplementationOnce(() => {
-      throw new Error('Update failed')
+      throw new Error('The update failed')
     })
     const conditionData = {
       type: 'condition' as const,
@@ -120,6 +120,6 @@ describe('ConditionNodeDetails Component', () => {
 
     await user.click(screen.getByTestId('submit-button'))
 
-    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Update Failed')
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
   })
 })

@@ -128,9 +128,9 @@ This project ships with two MCP servers configured in `.mcp.json` that give you 
 
 ### Available MCP Tools
 
-| MCP Server         | What it does                                                                                          |
-| ------------------ | ----------------------------------------------------------------------------------------------------- |
-| **Playwright MCP** | Navigate pages, take accessibility snapshots, click elements, fill forms — a real browser you control  |
+| MCP Server          | What it does                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Playwright MCP**  | Navigate pages, take accessibility snapshots, click elements, fill forms — a real browser you control |
 | **Chrome DevTools** | Inspect DOM structure, monitor network requests, read console output, evaluate JavaScript in the page |
 
 ### Workflow: Explore → Snapshot → Write
@@ -154,13 +154,13 @@ Instead of guessing that a button is called "Save":
 
 ### When to Use Each MCP
 
-| Situation                              | Use                |
-| -------------------------------------- | ------------------ |
-| Discovering locators for a new page    | Playwright MCP     |
-| Verifying a multi-step user flow       | Playwright MCP     |
-| Checking network requests/responses    | Chrome DevTools    |
-| Debugging why a locator doesn't match  | Playwright MCP     |
-| Inspecting console errors on a page    | Chrome DevTools    |
+| Situation                                    | Use             |
+| -------------------------------------------- | --------------- |
+| Discovering locators for a new page          | Playwright MCP  |
+| Verifying a multi-step user flow             | Playwright MCP  |
+| Checking network requests/responses          | Chrome DevTools |
+| Debugging why a locator doesn't match        | Playwright MCP  |
+| Inspecting console errors on a page          | Chrome DevTools |
 | Verifying CSS/layout before screenshot tests | Chrome DevTools |
 
 ### Important Notes

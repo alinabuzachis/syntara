@@ -43,7 +43,7 @@ export function ConditionNodeDetails({
       updateActivity(nodeId, updatedActivity)
       onClose()
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to update step', 'Update Failed')
+      showError('Update failed', error instanceof Error ? error.message : 'Failed to update step')
     }
   }
 

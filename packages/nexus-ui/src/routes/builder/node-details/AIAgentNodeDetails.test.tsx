@@ -43,10 +43,11 @@ vi.mock('../../../stores/useWorkflowStore', async (importOriginal) => ({
 }))
 
 // Mock the alerts hook
+const mockShowError = vi.fn()
 vi.mock('../../../components/alerts', () => ({
   useAlerts: vi.fn(() => ({
     showSuccess: vi.fn(),
-    showError: vi.fn(),
+    showError: mockShowError,
   })),
 }))
 
@@ -157,6 +158,25 @@ describe('AIAgentNodeDetails Component', () => {
     render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
 
     expect(screen.getByTestId('initial-tools')).toHaveTextContent('')
+  })
+
+  it('shows error when updateActivity throws', async () => {
+    const user = userEvent.setup()
+    mockUpdateActivity.mockImplementationOnce(() => {
+      throw new Error('The update failed')
+    })
+    const taskData = {
+      type: 'agentic' as const,
+      id: 'agent-1',
+      name: 'Test Agent',
+      config: {},
+    }
+
+    render(<AIAgentNodeDetails taskData={taskData} nodeId="agent-1" onClose={mockOnClose} />)
+
+    await user.click(screen.getByTestId('submit-button'))
+
+    expect(mockShowError).toHaveBeenCalledWith('Update failed', 'The update failed')
   })
 
   it('preserves task inputs when updating', async () => {

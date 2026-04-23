@@ -229,12 +229,12 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
 
   const onSubmit = (data: AssignRoleFormData) => {
     const handleSuccess = () => {
-      showSuccess('Assignment created successfully', 'Assignment Added')
+      showSuccess('Assignment added', 'Assignment created successfully')
       onSuccess()
       onClose()
     }
     const handleError = (error: unknown) => {
-      showError(getErrorMessage(error), 'Failed to Add Assignment')
+      showError('Failed to add assignment', getErrorMessage(error))
     }
 
     switch (data.assignmentType) {

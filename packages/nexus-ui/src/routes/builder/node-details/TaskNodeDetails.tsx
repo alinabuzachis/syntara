@@ -67,7 +67,7 @@ function parseHeaders(
     return JSON.parse(headersJSON, safeJSONReviver) as Record<string, string>
   } catch {
     showError(
-      'Invalid Headers Format',
+      'Invalid headers format',
       'Headers must be valid JSON. Please fix the format before saving. Example: {"Content-Type":"application/json"}'
     )
     return null
@@ -233,7 +233,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
         updateActivity(nodeId, updatedActivity)
         onClose()
       } catch (error) {
-        showError(error instanceof Error ? error.message : 'Failed to update step', 'Update Failed')
+        showError('Update failed', error instanceof Error ? error.message : 'Failed to update step')
       }
     }
 
@@ -301,7 +301,7 @@ export function TaskNodeDetails({ taskData, nodeId, onClose, onHeaderContentChan
       updateActivity(nodeId, updatedActivity)
       onClose()
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to update step', 'Update Failed')
+      showError('Update failed', error instanceof Error ? error.message : 'Failed to update step')
     }
   }
 

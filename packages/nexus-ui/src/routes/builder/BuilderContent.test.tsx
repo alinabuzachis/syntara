@@ -639,7 +639,7 @@ describe('BuilderContent', () => {
       fireEvent.click(confirmButton)
 
       await waitFor(() => {
-        expect(screen.getByText('Workflow Failed')).toBeInTheDocument()
+        expect(screen.getByText('Workflow failed')).toBeInTheDocument()
       })
     })
 
@@ -1616,7 +1616,7 @@ describe('BuilderContent', () => {
       fireEvent.click(saveButton)
 
       await waitFor(() => {
-        expect(screen.getByText('Validation Failed')).toBeInTheDocument()
+        expect(screen.getByText('Validation failed')).toBeInTheDocument()
       })
     })
 
@@ -2198,7 +2198,7 @@ describe('BuilderContent', () => {
 
       await waitFor(() => {
         expect(screen.getByText('No workflow to save')).toBeInTheDocument()
-        expect(screen.getByText('Validation Failed')).toBeInTheDocument()
+        expect(screen.getByText('Validation failed')).toBeInTheDocument()
       })
     })
   })

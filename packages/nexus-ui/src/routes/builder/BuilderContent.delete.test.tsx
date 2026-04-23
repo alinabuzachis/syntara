@@ -232,7 +232,7 @@ describe('BuilderContent - Delete Workflow', () => {
         expect.any(Object)
       )
       expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/new')
-      expect(screen.getByText('Workflow Deleted')).toBeInTheDocument()
+      expect(screen.getByText('Workflow deleted')).toBeInTheDocument()
     })
   })
 
@@ -268,7 +268,7 @@ describe('BuilderContent - Delete Workflow', () => {
     // Verify error alert
     await waitFor(() => {
       expect(mockDeleteMutate).toHaveBeenCalled()
-      expect(screen.getByText('Delete Failed')).toBeInTheDocument()
+      expect(screen.getByText('Delete failed')).toBeInTheDocument()
       expect(screen.getByText(/Failed to delete workflow/)).toBeInTheDocument()
     })
   })

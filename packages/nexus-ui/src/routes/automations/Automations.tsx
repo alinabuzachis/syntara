@@ -151,14 +151,14 @@ export default function Automations() {
       { body: { workflow_id: workflow.id!, input_data: {} } },
       {
         onSuccess: (data) => {
-          showSuccess('Workflow Started', `Successfully started workflow "${workflow.name}"`)
+          showSuccess('Workflow started', `Successfully started workflow "${workflow.name}"`)
 
           if (data && 'id' in data) {
             setLocation(`/executions/${data.id}`)
           }
         },
         onError: (error: unknown) => {
-          showError('Workflow Failed', `Failed to start workflow "${workflow.name}": ${getErrorMessage(error)}`)
+          showError('Workflow failed', `Failed to start workflow "${workflow.name}": ${getErrorMessage(error)}`)
         },
       }
     )
@@ -172,12 +172,12 @@ export default function Automations() {
       { params: { path: { workflow_id: workflow.id! } } },
       {
         onSuccess: () => {
-          showSuccess('Workflow Deleted', `Successfully deleted workflow "${workflow.name}"`)
+          showSuccess('Workflow deleted', `Successfully deleted workflow "${workflow.name}"`)
 
           detachPromise(workflowsQuery.refetch())
         },
         onError: (error: unknown) => {
-          showError('Delete Failed', `Failed to delete workflow "${workflow.name}": ${getErrorMessage(error)}`)
+          showError('Delete failed', `Failed to delete workflow "${workflow.name}": ${getErrorMessage(error)}`)
         },
         onSettled: () => {
           deleteDialog.close()

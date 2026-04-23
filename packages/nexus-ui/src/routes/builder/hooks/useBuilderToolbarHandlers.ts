@@ -23,7 +23,7 @@ type DeleteWorkflowMutate = (
   }
 ) => void
 
-export interface UseBuilderToolbarHandlersOptions {
+export type UseBuilderToolbarHandlersOptions = {
   workflow: { id?: string } | undefined
   workflowName: string
   detailsOpen: boolean
@@ -62,12 +62,12 @@ export function useBuilderToolbarHandlers({
       { body: { workflow_id: workflow.id, input_data: {} } },
       {
         onSuccess: (data) => {
-          showSuccess('Workflow Started', `Successfully started workflow "${workflowName}"`)
+          showSuccess('Workflow started', `Successfully started workflow "${workflowName}"`)
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
           setLocation(`/executions/${data.id!}?history=open`)
         },
         onError: (error) => {
-          showError('Workflow Failed', `Failed to start workflow "${workflowName}": ${getErrorMessage(error)}`)
+          showError('Workflow failed', `Failed to start workflow "${workflowName}": ${getErrorMessage(error)}`)
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
         },
       }
@@ -81,12 +81,12 @@ export function useBuilderToolbarHandlers({
       { params: { path: { workflow_id: workflow.id } } },
       {
         onSuccess: () => {
-          showSuccess('Workflow Deleted', `Successfully deleted workflow "${workflowName}"`)
+          showSuccess('Workflow deleted', `Successfully deleted workflow "${workflowName}"`)
           dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
           setLocation('/workflow-builder/new')
         },
         onError: (error) => {
-          showError('Delete Failed', `Failed to delete workflow "${workflowName}": ${getErrorMessage(error)}`)
+          showError('Delete failed', `Failed to delete workflow "${workflowName}": ${getErrorMessage(error)}`)
           dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
         },
       }

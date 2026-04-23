@@ -41,8 +41,8 @@ export interface UseBuilderSaveWorkflowParams {
   workflowsListResources: { name: string }[] | undefined
   queryClient: QueryClient
   setLocation: (to: string) => void
-  showSuccess: (message: string, title: string) => void
-  showError: (message: string, title: string) => void
+  showSuccess: (title: string, description?: string) => void
+  showError: (title: string, description?: string) => void
   markClean: () => void
   createWorkflow: (
     args: { body: CreateWorkflowBodyExtended },
@@ -112,7 +112,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
   return useCallback((): Promise<boolean> => {
     return new Promise((resolve) => {
       if (!currentWorkflow) {
-        showError('No workflow to save', 'Validation Failed')
+        showError('Validation failed', 'No workflow to save')
         resolve(false)
         return
       }
@@ -123,7 +123,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
 
       if (!validationResult.valid) {
         const errorMessages = validationResult.errors.map((error) => error.message).join('\n• ')
-        showError(`Workflow validation failed:\n• ${errorMessages}`, 'Validation Failed')
+        showError('Validation failed', `Workflow validation failed:\n• ${errorMessages}`)
         resolve(false)
         return
       }
@@ -152,7 +152,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
       }
 
       const onSaveSuccess = async (successMessage: string, workflowIdToNavigate?: string) => {
-        showSuccess(successMessage, 'Workflow Saved')
+        showSuccess('Workflow saved', successMessage)
         markClean()
         await queryClient.invalidateQueries({ predicate: isWorkflowQuery })
 
@@ -165,7 +165,10 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
 
       const onSaveError = (error: unknown, action: string) => {
         const errorMessage = getErrorMessage(error)
-        showError(`Failed to ${action} workflow: ${errorMessage}`, `${action} Failed`)
+        showError(
+          `${action.charAt(0).toUpperCase()}${action.slice(1)} failed`,
+          `Failed to ${action} workflow: ${errorMessage}`
+        )
         resolve(false)
       }
 

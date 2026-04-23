@@ -619,25 +619,25 @@ This project ships with a Chrome DevTools MCP server configured in `.mcp.json`. 
 
 ### Available Capabilities
 
-| Capability                  | What it helps verify                                                      |
-| --------------------------- | ------------------------------------------------------------------------- |
-| **DOM inspection**          | Correct PatternFly component structure, semantic HTML, landmark roles     |
-| **Computed styles**         | Design tokens (`var(--pf-t--global--*)`) applied instead of hardcoded px  |
-| **Layout inspection**       | Page structure matches Compass layout, spacing is consistent              |
-| **Network monitoring**      | API calls use typed clients, responses match expected contracts           |
-| **Console monitoring**      | No runtime errors, warnings, or accessibility violations in console      |
-| **JavaScript evaluation**   | Inspect component state, verify Zustand store, check React props         |
+| Capability                | What it helps verify                                                     |
+| ------------------------- | ------------------------------------------------------------------------ |
+| **DOM inspection**        | Correct PatternFly component structure, semantic HTML, landmark roles    |
+| **Computed styles**       | Design tokens (`var(--pf-t--global--*)`) applied instead of hardcoded px |
+| **Layout inspection**     | Page structure matches Compass layout, spacing is consistent             |
+| **Network monitoring**    | API calls use typed clients, responses match expected contracts          |
+| **Console monitoring**    | No runtime errors, warnings, or accessibility violations in console      |
+| **JavaScript evaluation** | Inspect component state, verify Zustand store, check React props         |
 
 ### When to Use
 
-| Situation                                         | What to check                                                    |
-| ------------------------------------------------- | ---------------------------------------------------------------- |
-| Implementing a new page or component              | Verify PatternFly classes and tokens render correctly            |
-| Reviewing spacing or alignment issues             | Inspect computed styles for hardcoded px vs design tokens        |
-| Checking empty states, loading states, error states | Navigate to each state and verify correct component usage       |
-| Verifying accessibility                           | Inspect DOM for landmark roles, heading hierarchy, aria attrs    |
-| Debugging layout issues                           | Check flex/grid containers, overflow, and responsive breakpoints |
-| Validating modal/dialog behavior                  | Verify focus trap, button order, variant usage                   |
+| Situation                                           | What to check                                                    |
+| --------------------------------------------------- | ---------------------------------------------------------------- |
+| Implementing a new page or component                | Verify PatternFly classes and tokens render correctly            |
+| Reviewing spacing or alignment issues               | Inspect computed styles for hardcoded px vs design tokens        |
+| Checking empty states, loading states, error states | Navigate to each state and verify correct component usage        |
+| Verifying accessibility                             | Inspect DOM for landmark roles, heading hierarchy, aria attrs    |
+| Debugging layout issues                             | Check flex/grid containers, overflow, and responsive breakpoints |
+| Validating modal/dialog behavior                    | Verify focus trap, button order, variant usage                   |
 
 ### Workflow
 
