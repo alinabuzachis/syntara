@@ -85,6 +85,11 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
     runtime_settings = SettingsCache(session_factory=AsyncSessionLocal)
     set_runtime_settings(runtime_settings)
 
+    # Install database metrics event listeners on the main engine.
+    from nexus.metrics.database import install_database_metrics  # noqa: PLC0415
+
+    install_database_metrics(engine)
+
     # Apply runtime log level (overrides the startup static config if a
     # runtime override has been set by an operator).
     await apply_runtime_log_level()

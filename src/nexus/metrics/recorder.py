@@ -57,10 +57,6 @@ _COMPONENT_METRIC_MAP: dict[MetricType, tuple[str, str, tuple[str, ...]]] = {
     # Execution Service
     MetricType.WORKFLOW_START_LATENCY: ("workflow_start_latency_seconds", "histogram", ()),
     MetricType.WORKFLOW_COMPLETION_RATE: ("workflow_completion_rate", "gauge", ()),
-    # Database
-    MetricType.DATABASE_QUERY_RESPONSE_TIME: ("database_query_response_time_seconds", "histogram", ("table_name",)),
-    MetricType.DATABASE_CONNECTION_POOL_UTILIZATION: ("database_connection_pool_utilization", "gauge", ()),
-    MetricType.DATABASE_TRANSACTION_RATE: ("database_transaction_rate_tps", "gauge", ()),
     # System-Wide
     MetricType.SYSTEM_UPTIME: ("system_uptime", "gauge", ()),
     MetricType.SYSTEM_E2E_LATENCY: ("system_e2e_latency_seconds", "histogram", ()),
@@ -280,6 +276,7 @@ class MetricsRecorder:
             total_workflows=counters_snapshot.get("total_workflows", 0),
             active_workflows=counters_snapshot.get("active_workflows", 0),
             active_llm_requests=counters_snapshot.get("active_llm_requests", 0),
+            db_transactions=counters_snapshot.get("db_transactions", 0),
             period_start=now - self._store.retention,
             period_end=now,
         )
@@ -363,6 +360,13 @@ class MetricsRecorder:
             MetricType.TOOL_EXECUTION_STATUS,
         }:
             MetricsRecorder._dispatch_tool_execution(metric_type, value, labels, p)
+
+        elif metric_type in {
+            MetricType.DATABASE_QUERY_RESPONSE_TIME,
+            MetricType.DATABASE_CONNECTION_POOL_UTILIZATION,
+            MetricType.DATABASE_TRANSACTION_RATE,
+        }:
+            MetricsRecorder._dispatch_database(metric_type, value, labels, p)
 
         else:
             MetricsRecorder._dispatch_component(metric_type, value, labels, p)
@@ -451,6 +455,29 @@ class MetricsRecorder:
                 namespaced_name=namespaced_name,
                 status=status,
             ).inc()
+
+    @staticmethod
+    def _dispatch_database(
+        metric_type: MetricType,
+        value: float,
+        labels: dict[str, str],
+        p: NexusPrometheusMetrics,
+    ) -> None:
+        """Handle database metrics (query time, pool utilization, transactions)."""
+        component = labels.get("component", "database")
+
+        if metric_type == MetricType.DATABASE_QUERY_RESPONSE_TIME:
+            statement_type = labels.get("statement_type", "unknown")
+            p.database_query_response_time_seconds.labels(
+                component=component,
+                statement_type=statement_type,
+            ).observe(value / 1000)
+
+        elif metric_type == MetricType.DATABASE_CONNECTION_POOL_UTILIZATION:
+            p.database_connection_pool_utilization.labels(component=component).set(value)
+
+        elif metric_type == MetricType.DATABASE_TRANSACTION_RATE:
+            p.database_transaction_rate_tps.labels(component=component).inc()
 
     @staticmethod
     def _dispatch_component(

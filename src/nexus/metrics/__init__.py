@@ -8,6 +8,7 @@ Nexus records and exposes raw metrics data. KPI calculations (p95, averages,
 aggregations) are performed by external performance tests, not by Nexus.
 """
 
+from nexus.metrics.database import install_database_metrics
 from nexus.metrics.dependencies import get_metrics_recorder
 from nexus.metrics.instrumentation import (
     LLMCallMetrics,
@@ -42,5 +43,6 @@ __all__ = [
     "NexusPrometheusMetrics",
     "classify_error_type",
     "get_metrics_recorder",
+    "install_database_metrics",
     "record_llm_call",
 ]

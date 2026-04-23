@@ -226,7 +226,7 @@ class NexusPrometheusMetrics:
         self.database_query_response_time_seconds = Histogram(
             "nexus_database_query_response_time_seconds",
             "Database query response time in seconds",
-            ["component", "table_name"],
+            ["component", "statement_type"],
             buckets=LATENCY_BUCKETS_MEDIUM,
             registry=self.registry,
         )

@@ -277,6 +277,7 @@ class MetricsSummary(SQLModel):
     total_workflows: int = SQLField(default=0, description="Total workflow executions started")
     active_workflows: int = SQLField(default=0, description="Currently active workflows")
     active_llm_requests: int = SQLField(default=0, description="Currently in-flight LLM requests")
+    db_transactions: int = SQLField(default=0, description="Total database transactions committed")
     period_start: datetime = SQLField(..., description="Start of metrics retention period")
     period_end: datetime = SQLField(..., description="End of metrics period (now)")
 

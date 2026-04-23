@@ -288,7 +288,7 @@ def _build_tool_manager(recorder: MetricsRecorder) -> ComponentKPISummary:
     return ComponentKPISummary(component="tool_manager", metrics=m)
 
 
-def _build_database(recorder: MetricsRecorder) -> ComponentKPISummary:
+def _build_database(recorder: MetricsRecorder, summary: MetricsSummary) -> ComponentKPISummary:
     m: _MetricsDict = {}
     m["query_response_time_ms"] = _percentile_stats(
         _collect_values(recorder, {MetricType.DATABASE_QUERY_RESPONSE_TIME}),
@@ -296,7 +296,12 @@ def _build_database(recorder: MetricsRecorder) -> ComponentKPISummary:
     m["pool_utilization"] = _percentile_stats(
         _collect_values(recorder, {MetricType.DATABASE_CONNECTION_POOL_UTILIZATION}),
     )
-    m["transaction_rate"] = _percentile_stats(_collect_values(recorder, {MetricType.DATABASE_TRANSACTION_RATE}))
+    m["query_by_statement_type"] = _label_distribution(
+        recorder,
+        MetricType.DATABASE_QUERY_RESPONSE_TIME,
+        "statement_type",
+    )
+    m["total_transactions"] = summary.db_transactions
     return ComponentKPISummary(component="database", metrics=m)
 
 
@@ -341,7 +346,7 @@ def _build_kpi_dashboard(recorder: MetricsRecorder) -> KPIDashboard:
             _build_invocation_service(recorder),
             _build_routing_service(recorder),
             _build_tool_manager(recorder),
-            _build_database(recorder),
+            _build_database(recorder, summary),
             _build_llm(recorder, summary),
             _build_cache(recorder, summary),
             _build_system_wide(recorder, summary),
