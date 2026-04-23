@@ -98,7 +98,7 @@ describe('WebSocket Store', () => {
       useWebSocketStore.getState().connect('test', '/ws/test')
 
       expect(mockWebSocketInstances).toHaveLength(1)
-      expect(mockWebSocketInstances[0].url).toBe('ws://localhost:8000/ws/test')
+      expect(mockWebSocketInstances[0].url).toBe('ws://localhost:3000/ws/test')
     })
 
     it('handles full URLs', () => {

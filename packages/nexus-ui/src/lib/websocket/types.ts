@@ -12,7 +12,7 @@
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'failed'
 
 /** State for a single channel */
-export interface ChannelState {
+export type ChannelState = {
   socket: WebSocket | null
   url: string
   state: ConnectionState
@@ -26,7 +26,7 @@ export interface ChannelState {
 // ============================================================================
 
 /** Generic WebSocket message structure */
-export interface WebSocketMessage<T = unknown> {
+export type WebSocketMessage<T = unknown> = {
   type: string
   payload: T
   timestamp?: number
@@ -38,7 +38,7 @@ export interface WebSocketMessage<T = unknown> {
 // ============================================================================
 
 /** Reconnection configuration */
-export interface ReconnectionConfig {
+export type ReconnectionConfig = {
   initialDelay: number
   maxDelay: number
   backoffMultiplier: number
@@ -46,14 +46,22 @@ export interface ReconnectionConfig {
 }
 
 /** WebSocket configuration */
-export interface WebSocketConfig {
+export type WebSocketConfig = {
   baseUrl: string
   reconnection: ReconnectionConfig
 }
 
+function getDefaultWsUrl(): string {
+  if (typeof globalThis.location !== 'undefined') {
+    const protocol = globalThis.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${protocol}//${globalThis.location.host}`
+  }
+  return 'ws://localhost:3000'
+}
+
 /** Default configuration values */
 export const DEFAULT_CONFIG: WebSocketConfig = {
-  baseUrl: (import.meta.env.VITE_WS_URL as string | undefined) || 'ws://localhost:8000',
+  baseUrl: (import.meta.env.VITE_WS_URL as string | undefined) || getDefaultWsUrl(),
   reconnection: {
     initialDelay: 100,
     maxDelay: 30000,
@@ -73,7 +81,7 @@ export type MessageCallback<T = unknown> = (message: WebSocketMessage<T>) => voi
 export type StateChangeCallback = (state: ConnectionState, channelId: string) => void
 
 /** Subscriber options */
-export interface SubscriberOptions<T = unknown> {
+export type SubscriberOptions<T = unknown> = {
   onMessage?: MessageCallback<T>
   onStateChange?: StateChangeCallback
   messageTypes?: string[]

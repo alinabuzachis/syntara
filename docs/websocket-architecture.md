@@ -428,7 +428,7 @@ useWebSocketStore.getState().updateConfig({
 
 ## Configuration
 
-Default WebSocket base URL is `ws://localhost:8000`. Override via environment variable:
+Default WebSocket base URL is derived from the page's origin (`ws://` or `wss://` + `location.host`). Override via environment variable:
 
 ```env
 VITE_WS_URL=wss://api.example.com
