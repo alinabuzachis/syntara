@@ -1982,20 +1982,18 @@ export const handlers = [
 
   // ── Access Management: Project Role Assignments ─────────────────────────
 
-  http.get('/api/v1/projects/:project_id/roles', ({ params }) => {
+  http.get('/api/v1/projects/:project_id/role-assignments', ({ params }) => {
     const assignments = mockProjectRoleAssignments.filter((a) => a.project_id === params.project_id)
     return HttpResponse.json(assignments)
   }),
 
-  http.post('/api/v1/projects/:project_id/roles', async ({ params, request }) => {
+  http.post('/api/v1/projects/:project_id/role-assignments', async ({ params, request }) => {
     const body = (await request.json()) as { user_id: string; role_name: string }
-    const role = mockRoles.find((r) => r.name === body.role_name)
     const assignment = {
       id: uuidv4(),
       user_id: body.user_id,
       username: users.find((u) => u.id === body.user_id)?.username ?? body.user_id,
       project_id: params.project_id as string,
-      role_id: role?.id ?? uuidv4(),
       role_name: body.role_name,
       created_at: new Date().toISOString(),
     }
@@ -2003,7 +2001,7 @@ export const handlers = [
     return HttpResponse.json(assignment, { status: 201 })
   }),
 
-  http.delete('/api/v1/projects/:project_id/roles/:assignment_id', ({ params }) => {
+  http.delete('/api/v1/projects/:project_id/role-assignments/:assignment_id', ({ params }) => {
     const idx = mockProjectRoleAssignments.findIndex(
       (a) => a.id === params.assignment_id && a.project_id === params.project_id
     )
@@ -2019,20 +2017,18 @@ export const handlers = [
 
   // ── Access Management: Project Group Role Assignments ───────────────────
 
-  http.get('/api/v1/projects/:project_id/group-roles', ({ params }) => {
+  http.get('/api/v1/projects/:project_id/group-role-assignments', ({ params }) => {
     const assignments = mockProjectGroupRoleAssignments.filter((a) => a.project_id === params.project_id)
     return HttpResponse.json(assignments)
   }),
 
-  http.post('/api/v1/projects/:project_id/group-roles', async ({ params, request }) => {
+  http.post('/api/v1/projects/:project_id/group-role-assignments', async ({ params, request }) => {
     const body = (await request.json()) as { group_id: string; role_name: string }
-    const role = mockRoles.find((r) => r.name === body.role_name)
     const assignment = {
       id: uuidv4(),
       group_id: body.group_id,
       group_name: groups.find((g) => g.id === body.group_id)?.name ?? body.group_id,
       project_id: params.project_id as string,
-      role_id: role?.id ?? uuidv4(),
       role_name: body.role_name,
       created_at: new Date().toISOString(),
     }
@@ -2040,7 +2036,7 @@ export const handlers = [
     return HttpResponse.json(assignment, { status: 201 })
   }),
 
-  http.delete('/api/v1/projects/:project_id/group-roles/:assignment_id', ({ params }) => {
+  http.delete('/api/v1/projects/:project_id/group-role-assignments/:assignment_id', ({ params }) => {
     const idx = mockProjectGroupRoleAssignments.findIndex(
       (a) => a.id === params.assignment_id && a.project_id === params.project_id
     )
@@ -2051,6 +2047,183 @@ export const handlers = [
       )
     }
     mockProjectGroupRoleAssignments.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Access Management: Project-scoped Roles (CRUD) ─────────────────────
+
+  http.get('/api/v1/projects/:project_id/roles', ({ params, request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    const projectId = params.project_id as string
+    const filtered = mockRoles.filter((r) => r.project_id === projectId)
+
+    return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
+  }),
+
+  http.post('/api/v1/projects/:project_id/roles', async ({ params, request }) => {
+    const body = (await request.json()) as { name: string; description?: string; policies: string[] }
+    const projectId = params.project_id as string
+
+    if (mockRoles.some((r) => r.name === body.name && r.project_id === projectId)) {
+      return HttpResponse.json(
+        {
+          type: 'conflict',
+          title: 'Conflict',
+          detail: `Role with name '${body.name}' already exists in this project`,
+          code: 'ROLE_NAME_CONFLICT',
+          retryable: false,
+        },
+        { status: 409 }
+      )
+    }
+
+    const now = new Date().toISOString()
+    const role = {
+      id: uuidv4(),
+      name: body.name,
+      description: body.description ?? null,
+      policies: body.policies,
+      is_builtin: false,
+      project_id: projectId,
+      labels: {},
+      created_at: now,
+      updated_at: now,
+    }
+    mockRoles.push(role)
+    return HttpResponse.json(role, { status: 201 })
+  }),
+
+  http.get('/api/v1/projects/:project_id/roles/:role_id', ({ params }) => {
+    const role = mockRoles.find((r) => r.id === params.role_id && r.project_id === params.project_id)
+    if (!role) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Role not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(role)
+  }),
+
+  http.patch('/api/v1/projects/:project_id/roles/:role_id', async ({ params, request }) => {
+    const idx = mockRoles.findIndex((r) => r.id === params.role_id && r.project_id === params.project_id)
+    if (idx === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Role not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    const body = (await request.json()) as { name?: string; description?: string; policies?: string[] }
+    mockRoles[idx] = {
+      ...mockRoles[idx],
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.description !== undefined && { description: body.description }),
+      ...(body.policies !== undefined && { policies: body.policies }),
+      updated_at: new Date().toISOString(),
+    }
+    return HttpResponse.json(mockRoles[idx])
+  }),
+
+  http.delete('/api/v1/projects/:project_id/roles/:role_id', ({ params }) => {
+    const idx = mockRoles.findIndex((r) => r.id === params.role_id && r.project_id === params.project_id)
+    if (idx === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Role not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    mockRoles.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Access Management: Project-scoped Policies (CRUD) ──────────────────
+
+  http.get('/api/v1/projects/:project_id/policies', ({ params, request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+
+    const projectId = params.project_id as string
+    const filtered = mockPolicies.filter((p) => p.project_id === projectId || p.project_id === null)
+
+    return HttpResponse.json(paginate(filtered, cursor, limit, includeTotal))
+  }),
+
+  http.post('/api/v1/projects/:project_id/policies', async ({ params, request }) => {
+    const body = (await request.json()) as { name: string; description?: string; statements: unknown[] }
+    const projectId = params.project_id as string
+
+    if (mockPolicies.some((p) => p.name === body.name && p.project_id === projectId)) {
+      return HttpResponse.json(
+        {
+          type: 'conflict',
+          title: 'Conflict',
+          detail: `Policy with name '${body.name}' already exists in this project`,
+          code: 'POLICY_NAME_CONFLICT',
+          retryable: false,
+        },
+        { status: 409 }
+      )
+    }
+
+    const now = new Date().toISOString()
+    const policy = {
+      id: uuidv4(),
+      name: body.name,
+      description: body.description ?? null,
+      is_builtin: false,
+      project_id: projectId,
+      created_at: now,
+      updated_at: now,
+    }
+    mockPolicies.push(policy)
+    return HttpResponse.json(policy, { status: 201 })
+  }),
+
+  http.get('/api/v1/projects/:project_id/policies/:policy_id', ({ params }) => {
+    const policy = mockPolicies.find(
+      (p) => p.id === params.policy_id && (p.project_id === params.project_id || p.project_id === null)
+    )
+    if (!policy) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Policy not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    return HttpResponse.json(policy)
+  }),
+
+  http.patch('/api/v1/projects/:project_id/policies/:policy_id', async ({ params, request }) => {
+    const idx = mockPolicies.findIndex((p) => p.id === params.policy_id && p.project_id === params.project_id)
+    if (idx === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Policy not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    const body = (await request.json()) as { name?: string; description?: string }
+    mockPolicies[idx] = {
+      ...mockPolicies[idx],
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.description !== undefined && { description: body.description }),
+      updated_at: new Date().toISOString(),
+    }
+    return HttpResponse.json(mockPolicies[idx])
+  }),
+
+  http.delete('/api/v1/projects/:project_id/policies/:policy_id', ({ params }) => {
+    const idx = mockPolicies.findIndex((p) => p.id === params.policy_id && p.project_id === params.project_id)
+    if (idx === -1) {
+      return HttpResponse.json(
+        { type: 'not-found', title: 'Not Found', detail: 'Policy not found', code: 'NOT_FOUND', retryable: false },
+        { status: 404 }
+      )
+    }
+    mockPolicies.splice(idx, 1)
     return new HttpResponse(null, { status: 204 })
   }),
 
@@ -2305,6 +2478,118 @@ export const handlers = [
     }
     mockGroupRoleAssignments.splice(idx, 1)
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ── Access Management: All Role Assignments (unified view) ─────────────
+
+  http.get('/api/v1/all-role-assignments', ({ request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const principalType = url.searchParams.get('principal_type')
+    const principalName = url.searchParams.get('principal_name')
+    const roleName = url.searchParams.get('role_name')
+    const projectId = url.searchParams.get('project_id')
+
+    const userEntries = mockUserRoleAssignments.map((a) => ({
+      id: a.id,
+      principal_id: a.user_id,
+      principal_name: a.username,
+      principal_type: 'user' as const,
+      role_name: a.role_name,
+      project_id: null,
+      project_name: null,
+      created_at: a.created_at,
+    }))
+
+    const groupEntries = mockGroupRoleAssignments.map((a) => ({
+      id: a.id,
+      principal_id: a.group_id,
+      principal_name: a.group_name,
+      principal_type: 'group' as const,
+      role_name: a.role_name,
+      project_id: null,
+      project_name: null,
+      created_at: a.created_at,
+    }))
+
+    const projectUserEntries = mockProjectRoleAssignments.map((a) => ({
+      id: a.id,
+      principal_id: a.user_id,
+      principal_name: a.username,
+      principal_type: 'user' as const,
+      role_name: a.role_name,
+      project_id: a.project_id,
+      project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
+      created_at: a.created_at,
+    }))
+
+    const projectGroupEntries = mockProjectGroupRoleAssignments.map((a) => ({
+      id: a.id,
+      principal_id: a.group_id,
+      principal_name: a.group_name,
+      principal_type: 'group' as const,
+      role_name: a.role_name,
+      project_id: a.project_id,
+      project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
+      created_at: a.created_at,
+    }))
+
+    let all = [...userEntries, ...groupEntries, ...projectUserEntries, ...projectGroupEntries]
+
+    if (principalType) all = all.filter((a) => a.principal_type === principalType)
+    if (principalName) all = all.filter((a) => a.principal_name.includes(principalName))
+    if (roleName) all = all.filter((a) => a.role_name.includes(roleName))
+    if (projectId) all = all.filter((a) => a.project_id === projectId)
+
+    return HttpResponse.json(paginate(all, cursor, limit, includeTotal))
+  }),
+
+  http.get('/api/v1/projects/:project_id/all-role-assignments', ({ params, request }) => {
+    const url = new URL(request.url)
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+    const includeTotal = url.searchParams.get('include_total') === 'true'
+    const principalType = url.searchParams.get('principal_type')
+    const principalName = url.searchParams.get('principal_name')
+    const roleName = url.searchParams.get('role_name')
+
+    const pid = params.project_id as string
+
+    const userEntries = mockProjectRoleAssignments
+      .filter((a) => a.project_id === pid)
+      .map((a) => ({
+        id: a.id,
+        principal_id: a.user_id,
+        principal_name: a.username,
+        principal_type: 'user' as const,
+        role_name: a.role_name,
+        project_id: a.project_id,
+        project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
+        created_at: a.created_at,
+      }))
+
+    const groupEntries = mockProjectGroupRoleAssignments
+      .filter((a) => a.project_id === pid)
+      .map((a) => ({
+        id: a.id,
+        principal_id: a.group_id,
+        principal_name: a.group_name,
+        principal_type: 'group' as const,
+        role_name: a.role_name,
+        project_id: a.project_id,
+        project_name: mockProjects.find((p) => p.id === a.project_id)?.name ?? null,
+        created_at: a.created_at,
+      }))
+
+    let all = [...userEntries, ...groupEntries]
+
+    if (principalType) all = all.filter((a) => a.principal_type === principalType)
+    if (principalName) all = all.filter((a) => a.principal_name.includes(principalName))
+    if (roleName) all = all.filter((a) => a.role_name.includes(roleName))
+
+    return HttpResponse.json(paginate(all, cursor, limit, includeTotal))
   }),
 
   // ── Access Management: Users (for display in dropdowns) ─────────────────

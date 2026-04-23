@@ -27,7 +27,7 @@ function useCurrentUserId(enabled: boolean): string | undefined {
   return meQuery.data?.id
 }
 
-interface UserFormProps {
+type UserFormProps = {
   mode: 'create' | 'edit'
 }
 

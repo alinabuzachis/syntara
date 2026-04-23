@@ -15,8 +15,7 @@ export interface paths {
     put?: never
     /**
      * Check if the current user can perform an action
-     * @description Evaluates the current user's effective policies against OPA to determine
-     *     if a specific action is allowed on a resource.
+     * @description Evaluates the current user's effective policies against OPA to determine if a specific action is allowed on a resource.
      */
     post: operations['can_i']
     delete?: never
@@ -36,8 +35,7 @@ export interface paths {
     put?: never
     /**
      * List users who can perform an action
-     * @description Iterates all active users, resolves their policies, and checks each
-     *     against OPA. This is a debugging endpoint.
+     * @description Iterates all active users, resolves their policies, and checks each against OPA. This is a debugging endpoint.
      */
     post: operations['who_can']
     delete?: never
@@ -57,10 +55,31 @@ export interface paths {
     put?: never
     /**
      * List all permissions for the current user
-     * @description Resolves the current user's effective policies and returns them as a
-     *     flat list of permission entries. No OPA call needed.
+     * @description Resolves the current user's effective policies and returns them as a flat list of permission entries. No OPA call needed.
      */
     post: operations['what_can_i']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/authz/validate-name': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Validate Name
+     * @description Validate a resource name against naming rules.
+     *     Returns whether the name is valid and, if not, why.
+     *     Intended for real-time UI validation.
+     */
+    get: operations['validate_name']
+    put?: never
+    post?: never
     delete?: never
     options?: never
     head?: never
@@ -73,19 +92,27 @@ export interface components {
   schemas: {
     /**
      * Can I Request
-     * @description Request body for the Can I? authorization check
+     * @description Request body for the Can I? authorization check.
      */
     CanIRequest: {
-      /** @description The action to check (e.g., "read", "create", "delete") */
+      /**
+       * Action
+       * @description The action to check (e.g., "read", "create", "delete")
+       */
       action: string
-      /** @description The type of resource (e.g., "workflow", "project") */
+      /**
+       * Resource Type
+       * @description The type of resource (e.g., "workflow", "project")
+       */
       resource_type: string
       /**
+       * Resource Id
        * @description Optional specific resource ID
        * @default
        */
       resource_id?: string
       /**
+       * Resource Labels
        * @description Labels on the target resource
        * @default {}
        */
@@ -93,6 +120,7 @@ export interface components {
         [key: string]: string
       }
       /**
+       * Resource Metadata
        * @description Additional metadata about the target resource
        * @default {}
        */
@@ -100,6 +128,7 @@ export interface components {
         [key: string]: unknown
       }
       /**
+       * Resource Project
        * @description Project scope of the resource
        * @default
        */
@@ -107,118 +136,340 @@ export interface components {
     }
     /**
      * Can I Response
-     * @description Authorization decision result
+     * @description Authorization decision result.
      */
     CanIResponse: {
-      /** @description Whether the action is allowed */
+      /**
+       * Allowed
+       * @description Whether the action is allowed
+       */
       allowed: boolean
-      /** @description Whether the action is explicitly denied */
+      /**
+       * Denied
+       * @description Whether the action is explicitly denied
+       */
       denied: boolean
-      /** @description Name of the policy that matched */
+      /**
+       * Matched Policy
+       * @description Name of the policy that matched
+       */
       matched_policy: string
-      /** @description Reason for denial (empty if allowed) */
+      /**
+       * Denial Reason
+       * @description Reason for denial (empty if allowed)
+       */
       denial_reason: string
-      /** @description Name of the deny policy (empty if allowed) */
+      /**
+       * Denied By
+       * @description Name of the deny policy (empty if allowed)
+       */
       denied_by: string
     }
     /**
-     * Who Can Request
-     * @description Request body for the Who Can? query
+     * WhoCanRequest
+     * @description Request body for the Who can? endpoint.
      */
     WhoCanRequest: {
-      /** @description The action to check */
+      /** Action */
       action: string
-      /** @description The type of resource */
+      /** Resource Type */
       resource_type: string
       /**
-       * @description Optional specific resource ID
+       * Resource Id
        * @default
        */
       resource_id?: string
       /**
-       * @description Labels on the target resource
+       * Resource Labels
        * @default {}
        */
       resource_labels?: {
         [key: string]: string
       }
       /**
-       * @description Additional metadata about the target resource
+       * Resource Metadata
        * @default {}
        */
       resource_metadata?: {
         [key: string]: unknown
       }
       /**
-       * @description Project scope of the resource
+       * Resource Project
        * @default
        */
       resource_project?: string
       /**
+       * Limit
        * @description Maximum number of results per page
        * @default 20
        */
       limit?: number
-      /**
-       * Format: uuid
-       * @description Cursor for pagination (UUID of last user from previous page)
-       * @default null
-       */
+      /** Cursor */
       cursor?: string | null
     }
     /**
-     * Who Can User
-     * @description A user who can perform the requested action
+     * WhoCanUser
+     * @description A user who can perform the requested action.
      */
     WhoCanUser: {
       /**
+       * Id
        * Format: uuid
-       * @description User UUID
        */
       id: string
-      /** @description Username */
+      /** Username */
       username: string
     }
     /**
-     * Who Can Response
-     * @description Paginated list of users authorized to perform the action
+     * WhoCanResponse
+     * @description Response body for the Who can? endpoint.
      */
     WhoCanResponse: {
+      /** Users */
       users: components['schemas']['WhoCanUser'][]
-      /**
-       * Format: uuid
-       * @description Cursor for the next page (null when no more results)
-       */
+      /** Next Cursor */
       next_cursor?: string | null
     }
     /**
-     * Permission Entry
-     * @description A single permission from a policy statement
+     * PermissionEntry
+     * @description A single permission from a policy statement.
      */
     PermissionEntry: {
-      /** @description Name of the policy */
+      /** Policy Name */
       policy_name: string
-      /** @description allow or deny */
+      /** Effect */
       effect: string
-      /** @description List of resource_type:action strings */
+      /** Actions */
       actions: string[]
-      /** @description any or self */
+      /** Scope */
       scope: string
       /**
+       * Project
        * @description Project scope (empty for system-level)
        * @default
        */
       project?: string
     }
     /**
-     * What Can I Response
-     * @description All permissions for the current user
+     * WhatCanIResponse
+     * @description Response body for the What can I? endpoint.
      */
     WhatCanIResponse: {
+      /** Permissions */
       permissions: components['schemas']['PermissionEntry'][]
     }
+    /**
+     * ValidateNameResponse
+     * @description Response body for the validate-name endpoint.
+     */
+    ValidateNameResponse: {
+      /** Valid */
+      valid: boolean
+      /** Name */
+      name: string
+      /**
+       * Reason
+       * @default
+       */
+      reason?: string
+    }
+    /**
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     */
+    ErrorData: {
+      /**
+       * Type
+       * @description URI reference identifying the problem type
+       * @example https://api.nexus.com/errors/llm-error
+       */
+      type: string
+      /**
+       * Title
+       * @description Short, human-readable summary of the problem
+       * @example LLM Service Unavailable
+       */
+      title: string
+      /**
+       * Detail
+       * @description Human-readable explanation specific to this occurrence
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
+       */
+      detail: string
+      /**
+       * Code
+       * @description Machine-readable error code for programmatic handling
+       * @example RATE_LIMIT_EXCEEDED
+       */
+      code: string
+      /**
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
+       */
+      retryable: boolean
+      /**
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
+       */
+      instance?: string | null
+    }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: never
   requestBodies: never
   headers: never
@@ -248,6 +499,13 @@ export interface operations {
           'application/json': components['schemas']['CanIResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   who_can: {
@@ -272,6 +530,13 @@ export interface operations {
           'application/json': components['schemas']['WhoCanResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   what_can_i: {
@@ -292,6 +557,45 @@ export interface operations {
           'application/json': components['schemas']['WhatCanIResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  validate_name: {
+    parameters: {
+      query: {
+        /** @description Name to validate */
+        name: string
+        /** @description Resource type */
+        resource_type?: 'project' | 'policy' | 'role'
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ValidateNameResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

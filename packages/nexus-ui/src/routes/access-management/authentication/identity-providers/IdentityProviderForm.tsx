@@ -38,7 +38,7 @@ import {
 
 const PROVIDER_TYPE_OIDC = 'oidc' as const
 
-interface IdentityProviderFormProps {
+type IdentityProviderFormProps = {
   mode: 'add' | 'edit'
 }
 
@@ -85,7 +85,7 @@ function toPatchPayload(formData: IdentityProviderFormData) {
   }
 }
 
-interface ProviderConfig {
+type ProviderConfig = {
   auto_discovery?: boolean
   issuer_url?: string
   client_id?: string

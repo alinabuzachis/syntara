@@ -1,18 +1,15 @@
-import type { Execution } from '@ansible/nexus-contracts'
-
 import { getDateField } from '../../utils/getDateField'
 
-/**
- * Get the sort value for an execution based on column index.
- * Handles column index mapping when workflow column is hidden.
- *
- * @param execution - The execution resource to get sort value from
- * @param activeSortIndex - The currently active sort column index
- * @param showWorkflowColumn - Whether the workflow column is visible
- * @returns The value to sort by (string, Date, or null)
- */
+interface ExecutionLike {
+  id?: string
+  workflow_id?: string
+  status?: string
+  completed_at?: string | null
+  [key: string]: unknown
+}
+
 export function getExecutionSortValue(
-  execution: Execution,
+  execution: ExecutionLike,
   activeSortIndex: number,
   showWorkflowColumn: boolean
 ): string | Date | null {

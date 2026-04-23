@@ -139,8 +139,9 @@ export default function ApprovalDetail() {
   const approvalName = approval?.name || approval?.id || approvalId || 'Approval'
   const approvalStatus = approval?.status ?? 'pending'
   const isPending = approvalStatus === 'pending'
-  const automationName = approval?.workflow_context?.workflow_name || 'Automation'
-  const automationId = approval?.workflow_context?.workflow_version_id
+  const wfCtx = approval?.workflow_context as { workflow_name?: string; workflow_version_id?: string } | undefined
+  const automationName = wfCtx?.workflow_name || 'Automation'
+  const automationId = wfCtx?.workflow_version_id
   const automationLink = automationId ? AppRoute.AutomationBuilder.Edit.replace(':workflowId', automationId) : undefined
   const createdAt = approval ? getDateField(approval as Record<string, unknown>, 'createdAt') : null
   const approvalInitiated = formatDateTime(createdAt)

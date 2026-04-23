@@ -299,7 +299,7 @@ describe('AssignRoleModal', () => {
 
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
-          body: { user_id: 'u1', role_id: 'r1' },
+          body: { user_id: 'u1', role_name: 'admin-role' },
         })
       })
 
@@ -324,7 +324,7 @@ describe('AssignRoleModal', () => {
 
       await waitFor(() => {
         expect(mockMutateAsync).toHaveBeenCalledWith({
-          body: { group_id: 'g1', role_id: 'r1' },
+          body: { group_id: 'g1', role_name: 'admin-role' },
         })
       })
     })

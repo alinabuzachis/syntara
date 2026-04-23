@@ -6,6 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../components/alerts'
+import type { FilterConfig } from '../../types/filters'
 
 import { AssignmentsTab } from './AssignmentsTab'
 import type { PermissionRow } from './types'
@@ -24,8 +25,8 @@ const mockHandleDelete = vi.fn()
 
 const mockClearAllFilters = vi.fn()
 
-const defaultHookReturn = {
-  filters: [],
+const defaultHookReturn: ReturnType<typeof useAssignmentsData> = {
+  filters: [] as FilterConfig[],
   handleFilterChange: mockHandleFilterChange,
   clearAllFilters: mockClearAllFilters,
   getSortParams: mockGetSortParams,
@@ -36,12 +37,9 @@ const defaultHookReturn = {
       description: null,
       labels: {},
       is_default: true,
-      created_at: null,
-      updated_at: null,
     },
   ],
   projectNameMap: new Map([['p1', 'Project Alpha']]),
-  effectiveProjectId: 'p1',
   allRows: [] as PermissionRow[],
   sortedRows: [] as PermissionRow[],
   hasActiveFilters: false,

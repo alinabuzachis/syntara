@@ -6,6 +6,7 @@
  * consumers can call any access endpoint through one import.
  */
 import type {
+  AllRoleAssignmentsAPI,
   AuthzAPI,
   GroupRoleAssignmentsAPI,
   PoliciesAPI,
@@ -24,6 +25,7 @@ import { authMiddleware } from '../../client'
 // UsersAPI.paths is included for backward compat (users/groups CRUD is
 // used alongside RBAC endpoints in access-management components).
 type AccessPaths = ProjectsAPI.paths &
+  AllRoleAssignmentsAPI.paths &
   AuthzAPI.paths &
   RolesAPI.paths &
   PoliciesAPI.paths &

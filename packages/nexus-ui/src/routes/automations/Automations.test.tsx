@@ -7,6 +7,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { executionsClient, workflowClient } from '../../client'
 import { AlertProvider } from '../../components/alerts'
 import { assertUrlParam, assertUrlParamIsNull } from '../../test/filter-test-helpers'
+import { accessClient } from '../access/accessClient'
 
 import Automations from './Automations'
 
@@ -23,11 +24,26 @@ vi.mock('../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
 }))
 
-// Mock useProjectSelector to avoid accessClient dependency and ensure flat table rendering
+vi.mock('../access/accessClient', () => ({
+  accessClient: {
+    useQuery: vi.fn().mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    }),
+    useMutation: vi.fn(),
+  },
+}))
+
+// Mock useProjectSelector — default to a single selected project so that:
+// 1. projectSelectorReady is true (queries are enabled)
+// 2. the flat table body is rendered (most tests expect flat rows)
 const mockUseProjectSelector = vi.fn(() => ({
-  selectedProject: null as { id: string; name: string } | null,
+  selectedProject: { id: 'proj-default', name: 'Default Project' } as { id: string; name: string } | null,
   isAllProjects: false,
-  projects: [] as { id: string; name: string }[],
+  projects: [{ id: 'proj-default', name: 'Default Project' }],
   ProjectSelector: null,
 }))
 vi.mock('../../hooks/useProjectSelector', () => ({
@@ -47,6 +63,12 @@ vi.mock('wouter', async (importOriginal) => {
     useSearchParams: () => [mockSearchParams, mockSetSearchParams],
   }
 })
+
+/** Sets the same return value on both workflowClient.useQuery and accessClient.useQuery */
+function mockWorkflowQuery(returnValue: ReturnType<typeof workflowClient.useQuery>) {
+  vi.mocked(workflowClient.useQuery).mockReturnValue(returnValue)
+  vi.mocked(accessClient.useQuery).mockReturnValue(returnValue)
+}
 
 // Create a QueryClient instance
 const queryClient = new QueryClient({
@@ -95,7 +117,7 @@ describe('Automations Component', () => {
     // Reset mocks before each test
     mockSetSearchParams.mockClear()
     mockSearchParams = new URLSearchParams()
-    vi.mocked(workflowClient.useQuery).mockReturnValue({
+    const defaultQueryReturn = {
       data: {
         resources: mockWorkflows,
         next: null,
@@ -106,7 +128,8 @@ describe('Automations Component', () => {
       isError: false,
       error: null,
       refetch: vi.fn(),
-    })
+    }
+    mockWorkflowQuery(defaultQueryReturn)
 
     const defaultMutationReturn = {
       mutateAsync: vi.fn(),
@@ -235,7 +258,7 @@ describe('Automations Component', () => {
       const user = userEvent.setup()
 
       // Start with pagination cursor in URL
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: 'next-cursor',
@@ -265,12 +288,13 @@ describe('Automations Component', () => {
 
   describe('Error Handling', () => {
     it('displays loading state', () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValueOnce({
+      const loadingReturn = {
         data: null,
         isPending: true,
         isError: false,
         error: null,
-      })
+      }
+      mockWorkflowQuery(loadingReturn)
 
       render(<Automations />, { wrapper })
 
@@ -282,7 +306,7 @@ describe('Automations Component', () => {
     it('displays error state', () => {
       const mockError = new Error('Failed to load workflows')
       // NOTE: component may re-render due to AlertProvider updates; keep error stable across renders
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: null,
         isPending: false,
         isError: true,
@@ -331,7 +355,7 @@ describe('Automations Component', () => {
           labels: { deploy: '', prod: '' },
         },
       ]
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: workflowsWithTags,
           next: null,
@@ -697,7 +721,7 @@ describe('Automations Component', () => {
     })
 
     it('displays pagination controls when next or prev cursors are available', () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: 'next-cursor-xyz',
@@ -722,7 +746,7 @@ describe('Automations Component', () => {
     })
 
     it('displays total count when available', () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: 'next-cursor',
@@ -742,7 +766,7 @@ describe('Automations Component', () => {
     })
 
     it('enables both buttons when both cursors are available', () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: 'next-cursor',
@@ -765,7 +789,7 @@ describe('Automations Component', () => {
     })
 
     it('hides pagination when no cursors are available', () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: null,
@@ -786,7 +810,7 @@ describe('Automations Component', () => {
 
     it('handles navigation back to first page correctly', () => {
       // Simulate being on last page with only prev cursor available (no next)
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: null,
@@ -815,7 +839,7 @@ describe('Automations Component', () => {
     it('does not reset cursor while query is fetching', async () => {
       // Mock initial state with data and next cursor
       const mockRefetch = vi.fn()
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: 'next-cursor',
@@ -840,7 +864,7 @@ describe('Automations Component', () => {
       fireEvent.click(nextButton)
 
       // Now simulate fetching state (cursor should NOT be reset while isFetching)
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: 'next-cursor',
@@ -869,7 +893,7 @@ describe('Automations Component', () => {
       const mockRefetch = vi.fn()
 
       // Start with data
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: 'next-cursor',
@@ -887,7 +911,7 @@ describe('Automations Component', () => {
       const { rerender } = render(<Automations />, { wrapper })
 
       // Simulate truly empty state - no data and not fetching
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: [],
           next: null,
@@ -976,7 +1000,7 @@ describe('Automations Component', () => {
         }
       )
 
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: mockWorkflows,
           next: null,
@@ -1141,7 +1165,7 @@ describe('Automations Component', () => {
 
   describe('Empty States', () => {
     it('shows EmptyStateNoData when no automations and no active filters', () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: [],
           next: null,
@@ -1168,7 +1192,7 @@ describe('Automations Component', () => {
       const user = userEvent.setup()
       mockSetLocation.mockClear()
 
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: [],
           next: null,
@@ -1195,7 +1219,7 @@ describe('Automations Component', () => {
       // Set up URL to have an active filter
       mockSearchParams = new URLSearchParams('name%5Bcontains%5D=nonexistent')
 
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: [],
           next: null,
@@ -1436,7 +1460,7 @@ describe('Automations Component', () => {
         },
       ]
 
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: workflowsWithProjects,
           next: null,
@@ -1483,7 +1507,7 @@ describe('Automations Component', () => {
         },
       ]
 
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      mockWorkflowQuery({
         data: {
           resources: workflowsWithProjects,
           next: null,
@@ -1546,7 +1570,7 @@ describe('Automations Component', () => {
 
   describe('Singular/plural automation count', () => {
     it('shows singular "automation" for exactly one result', () => {
-      vi.mocked(workflowClient.useQuery).mockReturnValue({
+      const singleResult = {
         data: {
           resources: [mockWorkflows[0]],
           next: null,
@@ -1557,7 +1581,8 @@ describe('Automations Component', () => {
         isError: false,
         error: null,
         refetch: vi.fn(),
-      })
+      }
+      mockWorkflowQuery(singleResult)
 
       render(<Automations />, { wrapper })
 

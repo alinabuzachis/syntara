@@ -11,15 +11,29 @@ import Approvals from './Approvals'
 
 // Mock the approvalsClient
 vi.mock('../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
   approvalsClient: {
     useQuery: vi.fn(),
+  },
+}))
+
+// Mock the accessClient used for project-scoped approvals
+vi.mock('../access/accessClient', () => ({
+  accessClient: {
+    useQuery: vi.fn().mockReturnValue({
+      data: undefined,
+      isPending: false,
+      error: null,
+      isError: false,
+      refetch: vi.fn(),
+    }),
   },
 }))
 
 // Mock useProjectSelector to avoid needing accessClient / QueryClientProvider
 const mockUseProjectSelector = vi.fn(() => ({
   selectedProject: null as { id: string; name: string } | null,
-  isAllProjects: false,
+  isAllProjects: true,
   projects: [] as { id: string; name: string }[],
   ProjectSelector: null,
 }))

@@ -51,6 +51,7 @@ const mockRoles: RoleRead[] = [
     description: 'Full admin access',
     policies: ['admin-policy', 'read-all'],
     is_builtin: true,
+    is_system_scoped: true,
     project_id: null,
     labels: {},
     created_at: '2024-01-01T00:00:00Z',
@@ -62,6 +63,7 @@ const mockRoles: RoleRead[] = [
     description: 'Custom editor role',
     policies: ['workflow-edit'],
     is_builtin: false,
+    is_system_scoped: false,
     project_id: null,
     labels: {},
     created_at: '2024-02-01T00:00:00Z',
@@ -73,6 +75,7 @@ const mockRoles: RoleRead[] = [
     description: null,
     policies: ['read-only'],
     is_builtin: false,
+    is_system_scoped: false,
     project_id: null,
     labels: {},
     created_at: '2024-03-01T00:00:00Z',
@@ -176,7 +179,8 @@ describe('RolesTab', () => {
       const table = screen.getByRole('grid', { name: 'Roles' })
       const rows = within(table).getAllByRole('row')
       // viewer is row index 3 (header + 3 data rows, viewer is last)
-      expect(within(rows[3]).getByText('-')).toBeInTheDocument()
+      const descriptionCell = within(rows[3]).getAllByRole('cell')[1]
+      expect(descriptionCell).toHaveTextContent('-')
     })
 
     it('renders policies as labels', () => {

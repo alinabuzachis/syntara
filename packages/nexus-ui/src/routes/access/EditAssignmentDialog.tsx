@@ -60,11 +60,11 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
   // Mutations for delete
   const { mutateAsync: deleteProjectRole } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/roles/{assignment_id}'
+    '/projects/{project_id}/role-assignments/{assignment_id}'
   )
   const { mutateAsync: deleteProjectGroupRole } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/group-roles/{assignment_id}'
+    '/projects/{project_id}/group-role-assignments/{assignment_id}'
   )
   const { mutateAsync: deleteSystemUserRole } = accessClient.useMutation(
     'delete',
@@ -76,8 +76,11 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
   )
 
   // Mutations for create
-  const { mutateAsync: assignProjectRole } = accessClient.useMutation('post', '/projects/{project_id}/roles')
-  const { mutateAsync: assignProjectGroupRole } = accessClient.useMutation('post', '/projects/{project_id}/group-roles')
+  const { mutateAsync: assignProjectRole } = accessClient.useMutation('post', '/projects/{project_id}/role-assignments')
+  const { mutateAsync: assignProjectGroupRole } = accessClient.useMutation(
+    'post',
+    '/projects/{project_id}/group-role-assignments'
+  )
   const { mutateAsync: assignSystemUserRole } = accessClient.useMutation('post', '/user-role-assignments')
   const { mutateAsync: assignSystemGroupRole } = accessClient.useMutation('post', '/group-role-assignments')
 
@@ -133,7 +136,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
           return
         }
         await assignNewThenDeleteOldWithRollback({
-          assignNew: () => assignSystemUserRole({ body: { user_id: row.principalId, role_id: newRole } }),
+          assignNew: () => assignSystemUserRole({ body: { user_id: row.principalId, role_name: newRole } }),
           deleteOld: () => deleteSystemUserRole({ params: { path: { assignment_id: row.id } } }),
           revokeNew: (newAssignmentId) =>
             deleteSystemUserRole({ params: { path: { assignment_id: newAssignmentId } } }),
@@ -145,7 +148,7 @@ export function EditAssignmentDialog({ row, displayName, onClose, onSuccess }: R
           return
         }
         await assignNewThenDeleteOldWithRollback({
-          assignNew: () => assignSystemGroupRole({ body: { group_id: row.principalId, role_id: newRole } }),
+          assignNew: () => assignSystemGroupRole({ body: { group_id: row.principalId, role_name: newRole } }),
           deleteOld: () => deleteSystemGroupRole({ params: { path: { assignment_id: row.id } } }),
           revokeNew: (newAssignmentId) =>
             deleteSystemGroupRole({ params: { path: { assignment_id: newAssignmentId } } }),

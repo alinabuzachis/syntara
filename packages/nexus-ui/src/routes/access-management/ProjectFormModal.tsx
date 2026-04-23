@@ -24,7 +24,7 @@ import type { ProjectRead } from '../access/types'
 
 import { projectFormSchema, type ProjectFormData } from './projectFormSchema'
 
-export interface ProjectFormModalProps {
+export type ProjectFormModalProps = {
   /** Project to edit, or null/undefined to create a new project */
   project?: ProjectRead | null
   /** Whether the modal is open */
@@ -77,7 +77,7 @@ export function ProjectFormModal({ project, isOpen, onClose, onSuccess }: Readon
     if (isEditMode && project) {
       updateProject(
         {
-          params: { path: { project_id: project.id } },
+          params: { path: { project_id: project.id ?? '' } },
           body: {
             name: formData.name,
             description: formData.description ?? undefined,

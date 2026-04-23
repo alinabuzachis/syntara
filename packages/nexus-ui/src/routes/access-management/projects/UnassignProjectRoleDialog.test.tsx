@@ -12,7 +12,6 @@ const mockAssignment: ProjectRoleAssignmentRead = {
   user_id: 'u1',
   username: 'alice',
   project_id: 'p1',
-  role_id: 'r1',
   role_name: 'project-admin',
   created_at: '2024-01-01T00:00:00Z',
 }

@@ -26,7 +26,7 @@ import type { AddRoleFormData } from './addRoleSchema'
 import { PolicySelect } from './PolicySelect'
 import { TypeaheadSelect } from './TypeaheadSelect'
 
-interface AddRoleDialogProps {
+type AddRoleDialogProps = {
   onClose: () => void
   onSuccess: () => void
 }
@@ -69,7 +69,10 @@ export function AddRoleDialog({ onClose, onSuccess }: Readonly<AddRoleDialogProp
 
   const projectsQuery = accessClient.useQuery('get', '/projects')
   const projectOptions = useMemo(
-    () => (projectsQuery.data ?? []).map((p) => ({ value: p.id, label: p.name })),
+    () =>
+      (projectsQuery.data ?? [])
+        .filter((p): p is typeof p & { id: string } => !!p.id)
+        .map((p) => ({ value: p.id, label: p.name })),
     [projectsQuery.data]
   )
 

@@ -30,8 +30,8 @@ import { accessClient } from './accessClient'
 import { AddRoleDialog } from './AddRoleDialog'
 import { EditRoleDialog } from './EditRoleDialog'
 import { PaginationFooter } from './PaginationFooter'
-import { buildFilterDefsWithScope, transformFiltersForApi } from './scopeFilterUtils'
-import { ScopeLabel } from './ScopeLabel'
+import { buildProjectFilterDefs, ROLE_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
+import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { RoleRead } from './types'
 import { useBuiltinListState } from './useBuiltinListState'
 import { useProjectNameMap } from './useProjectNameMap'
@@ -49,8 +49,15 @@ const BASE_FILTER_FIELD_DEFS = [
     key: 'scope',
     label: 'Scope',
     type: FilterTypeEnum.SELECT,
-    options: [],
+    options: ROLE_SCOPE_OPTIONS,
     placeholder: 'Filter by scope',
+  },
+  {
+    key: 'project',
+    label: 'Project',
+    type: FilterTypeEnum.SELECT,
+    options: [],
+    placeholder: 'Filter by project',
   },
   {
     key: 'type',
@@ -67,7 +74,9 @@ const BASE_FILTER_FIELD_DEFS = [
 // Column index → API sort field
 const sortFieldByColumn: Record<number, string> = {
   0: 'name',
-  4: 'is_builtin',
+  3: 'scope',
+  4: 'project_id',
+  5: 'is_builtin',
 }
 
 function RolesTable({
@@ -102,8 +111,13 @@ function RolesTable({
           <Th sort={getSortParams(0)}>Name</Th>
           <Th>Description</Th>
           <Th>Policies</Th>
-          <Th modifier="nowrap">Scope</Th>
+          <Th sort={getSortParams(3)} modifier="nowrap">
+            Scope
+          </Th>
           <Th sort={getSortParams(4)} modifier="nowrap">
+            Project
+          </Th>
+          <Th sort={getSortParams(5)} modifier="nowrap">
             Type
           </Th>
           <Th screenReaderText="Actions" />
@@ -124,7 +138,10 @@ function RolesTable({
               </LabelGroup>
             </Td>
             <Td dataLabel="Scope">
-              <ScopeLabel projectId={role.project_id} projectNameMap={projectNameMap} />
+              <ScopeLabel scope={role.scope} />
+            </Td>
+            <Td dataLabel="Project">
+              <ProjectLabel projectId={role.project_id} projectNameMap={projectNameMap} />
             </Td>
             <Td dataLabel="Type">
               {role.is_builtin ? (
@@ -168,7 +185,7 @@ export function RolesTab() {
   const { projectNameMap } = useProjectNameMap()
 
   const filterFieldDefinitions = useMemo(
-    () => buildFilterDefsWithScope([...BASE_FILTER_FIELD_DEFS], projectNameMap),
+    () => buildProjectFilterDefs([...BASE_FILTER_FIELD_DEFS], projectNameMap),
     [projectNameMap]
   )
 

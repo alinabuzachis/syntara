@@ -47,7 +47,7 @@ export interface UseBuilderSaveWorkflowParams {
   createWorkflow: (
     args: { body: CreateWorkflowBodyExtended },
     opts?: {
-      onSuccess?: (data: { id: string }) => void | Promise<void>
+      onSuccess?: (data: { id?: string }) => void | Promise<void>
       onError?: (error: unknown) => void
     }
   ) => void

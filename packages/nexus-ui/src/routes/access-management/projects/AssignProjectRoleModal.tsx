@@ -20,7 +20,6 @@ import { useAlerts } from '../../../components/alerts'
 import { getErrorMessage } from '../../../utils/apiErrors'
 import { accessClient } from '../../access/accessClient'
 import { TypeaheadSelect } from '../../access/TypeaheadSelect'
-import { useAllRoles } from '../../access/useAllRoles'
 import { useAllUsers } from '../../access/useAllUsers'
 
 const assignProjectRoleSchema = z.object({
@@ -112,7 +111,12 @@ export function AssignProjectRoleModal({
   }, [isOpen, reset])
 
   const { users, isLoading: usersLoading } = useAllUsers()
-  const { roles: allRoles, isLoading: rolesLoading } = useAllRoles()
+
+  const projectRolesQuery = accessClient.useQuery('get', '/projects/{project_id}/roles', {
+    params: { path: { project_id: projectId }, query: { limit: 100 } },
+  })
+  const projectRoles = useMemo(() => projectRolesQuery.data?.resources ?? [], [projectRolesQuery.data])
+  const rolesLoading = projectRolesQuery.isLoading
 
   const selectedUserId = useWatch({ control, name: 'userId' })
 
@@ -123,7 +127,6 @@ export function AssignProjectRoleModal({
   const userOptions = useMemo(() => users.map((u) => ({ value: u.id, label: u.username ?? u.id })), [users])
 
   const roleOptions = useMemo(() => {
-    const projectRoles = allRoles.filter((r) => r.project_id === null && r.is_builtin && r.name.startsWith('project-'))
     const assignedForUser = selectedUserId ? assignedRolesByUser.get(selectedUserId) : undefined
     return projectRoles
       .filter((r) => !assignedForUser?.has(r.name))
@@ -132,9 +135,9 @@ export function AssignProjectRoleModal({
         label: r.name,
         description: r.description ?? undefined,
       }))
-  }, [allRoles, selectedUserId, assignedRolesByUser])
+  }, [projectRoles, selectedUserId, assignedRolesByUser])
 
-  const { mutate: assignRole, isPending } = accessClient.useMutation('post', '/projects/{project_id}/roles')
+  const { mutate: assignRole, isPending } = accessClient.useMutation('post', '/projects/{project_id}/role-assignments')
 
   const handleClose = () => {
     reset({ userId: '', roleName: '' })

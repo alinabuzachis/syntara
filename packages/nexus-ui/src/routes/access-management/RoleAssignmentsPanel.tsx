@@ -243,11 +243,11 @@ function useRoleAssignmentData(principalType: 'user' | 'group', principalId: str
   )
   const { mutate: deleteProjectUserRole } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/roles/{assignment_id}'
+    '/projects/{project_id}/role-assignments/{assignment_id}'
   )
   const { mutate: deleteProjectGroupRole } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/group-roles/{assignment_id}'
+    '/projects/{project_id}/group-role-assignments/{assignment_id}'
   )
 
   const deleteAssignment = (

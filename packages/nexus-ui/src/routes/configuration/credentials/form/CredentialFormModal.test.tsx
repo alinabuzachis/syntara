@@ -63,6 +63,7 @@ const mockCredential = {
   enabled: true,
   labels: {},
   created_by: 'user-1',
+  project_id: 'proj-1',
   created_at: '2026-03-01T00:00:00Z',
   updated_at: '2026-03-01T00:00:00Z',
 } as const
@@ -316,7 +317,7 @@ describe('CredentialFormModal', () => {
     expect(callArgs).toHaveProperty('body.project_id', 'proj-1')
   })
 
-  it('does not include project_id when defaultProjectId is not provided', async () => {
+  it('includes project_id as undefined when defaultProjectId is not provided', async () => {
     const user = userEvent.setup()
     render(<CredentialFormModal isOpen onClose={vi.fn()} />, { wrapper })
 
@@ -328,7 +329,7 @@ describe('CredentialFormModal', () => {
     await waitFor(() => expect(mockMutate).toHaveBeenCalled())
 
     const callArgs = mockMutate.mock.calls[0][0] as { body: Record<string, unknown> }
-    expect(callArgs.body).not.toHaveProperty('project_id')
+    expect(callArgs.body).toHaveProperty('project_id')
   })
 
   it('calls onCreated with the new credential ID on successful create', async () => {

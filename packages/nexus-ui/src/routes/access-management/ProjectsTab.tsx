@@ -101,7 +101,9 @@ function ProjectsTable({
               <Button
                 variant="link"
                 isInline
-                onClick={() => navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', project.id))}
+                onClick={() =>
+                  navigate(AppRoute.AccessManagement.ProjectDetail.replace(':projectId', project.id ?? ''))
+                }
               >
                 {project.name}
               </Button>
@@ -206,7 +208,7 @@ export function ProjectsTab() {
   const handleDelete = () => {
     if (!projectToDelete) return
     deleteProject(
-      { params: { path: { project_id: projectToDelete.id } } },
+      { params: { path: { project_id: projectToDelete.id ?? '' } } },
       {
         onSuccess: () => {
           showAlert({

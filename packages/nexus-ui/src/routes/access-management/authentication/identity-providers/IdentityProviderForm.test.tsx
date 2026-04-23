@@ -10,7 +10,7 @@ import { AlertProvider } from '../../../../components/alerts'
 
 import { IdentityProviderForm } from './IdentityProviderForm'
 
-interface MutationCallbacks {
+type MutationCallbacks = {
   onSuccess?: (data?: unknown) => void
   onError?: (error: unknown) => void
 }
@@ -20,6 +20,7 @@ function getMutationCallbacks(mockFn: ReturnType<typeof vi.fn>): MutationCallbac
 }
 
 vi.mock('../../../../client', () => ({
+  authMiddleware: { onRequest: vi.fn() },
   identityProvidersClient: {
     useQuery: vi.fn(),
     useMutation: vi.fn(),

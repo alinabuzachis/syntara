@@ -77,7 +77,7 @@ export default function Credentials() {
   const typeMap = useMemo(() => {
     const map = new Map<string, CredentialType>()
     for (const t of typesQuery.data?.resources ?? []) {
-      map.set(t.id, t)
+      map.set(t.id!, t)
     }
     return map
   }, [typesQuery.data])
@@ -126,7 +126,7 @@ export default function Credentials() {
       openDisableDialog(credential)
     } else {
       patchCredential(
-        { params: { path: { credential_id: credential.id } }, body: { enabled: true } },
+        { params: { path: { credential_id: credential.id! } }, body: { enabled: true } },
         {
           onSuccess: () => {
             showAlert({ title: 'Credential enabled', variant: 'success', autoDismiss: true })
@@ -148,7 +148,7 @@ export default function Credentials() {
   function handleConfirmDisable() {
     if (!credentialToDisable) return
     patchCredential(
-      { params: { path: { credential_id: credentialToDisable.id } }, body: { enabled: false } },
+      { params: { path: { credential_id: credentialToDisable.id! } }, body: { enabled: false } },
       {
         onSuccess: () => {
           showAlert({ title: 'Credential disabled', variant: 'success', autoDismiss: true })
@@ -170,7 +170,7 @@ export default function Credentials() {
   function handleConfirmDelete() {
     if (!credentialToDelete) return
     deleteCredential(
-      { params: { path: { credential_id: credentialToDelete.id } } },
+      { params: { path: { credential_id: credentialToDelete.id! } } },
       {
         onSuccess: () => {
           showAlert({
@@ -298,7 +298,10 @@ export default function Credentials() {
                           <Tr key={credential.id}>
                             <Td dataLabel="Name">
                               <LinkCell
-                                href={AppRoute.Configuration.Credentials.Detail.replace(':credentialId', credential.id)}
+                                href={AppRoute.Configuration.Credentials.Detail.replace(
+                                  ':credentialId',
+                                  credential.id!
+                                )}
                               >
                                 {credential.name}
                               </LinkCell>

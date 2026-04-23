@@ -12,15 +12,14 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List policies
+     * List Policies
      * @description List policies with filtering and pagination.
      */
     get: operations['list_policies']
     put?: never
     /**
-     * Create a custom policy
-     * @description Create a new custom policy with one or more statements.
-     *     Requires: policy:create permission (admin role).
+     * Create Policy
+     * @description Create a custom policy. Requires: policy:create permission.
      */
     post: operations['create_policy']
     delete?: never
@@ -36,27 +35,27 @@ export interface paths {
       path?: never
       cookie?: never
     }
-    /** Get a policy by ID */
+    /**
+     * Get Policy
+     * @description Get a policy by ID.
+     */
     get: operations['get_policy']
     /**
-     * Update a policy (full replacement)
-     * @description Update a policy. Builtin policies cannot be modified.
-     *     Requires: policy:update permission (admin role).
+     * Replace Policy
+     * @description Replace a policy. Builtin policies cannot be modified. Requires: policy:update permission.
      */
-    put: operations['update_policy_put']
+    put: operations['replace_policy']
     post?: never
     /**
-     * Delete a policy
-     * @description Delete a policy. Builtin policies cannot be deleted.
-     *     Requires: policy:delete permission (admin role).
+     * Delete Policy
+     * @description Delete a policy. Builtin policies cannot be deleted. Requires: policy:delete permission.
      */
     delete: operations['delete_policy']
     options?: never
     head?: never
     /**
-     * Update a policy
-     * @description Update a policy. Builtin policies cannot be modified.
-     *     Requires: policy:update permission (admin role).
+     * Update Policy
+     * @description Patch a policy. Builtin policies cannot be modified. Requires: policy:update permission.
      */
     patch: operations['update_policy']
     trace?: never
@@ -66,206 +65,371 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
-     * Policy Statement
-     * @description A single policy statement defining an access rule
+     * PolicyStatementSchema
+     * @description A single policy statement.
      */
     PolicyStatementSchema: {
       /**
-       * @description Whether this statement allows or denies access
-       * @enum {string}
+       * Effect
+       * @description allow or deny
        */
-      effect: 'allow' | 'deny'
-      /** @description List of resource_type:action strings (e.g., "workflow:read") */
+      effect: string
+      /**
+       * Actions
+       * @description List of resource_type:action strings
+       */
       actions: string[]
       /**
-       * @description Scope of the statement (any = all resources, self = owned resources)
-       * @enum {string}
+       * Scope
+       * @description any, self, or project
        */
-      scope: 'any' | 'self'
-      /** @description Optional attribute-based conditions */
+      scope: string
+      /**
+       * Conditions
+       * @description Optional attribute-based conditions
+       */
       conditions?: {
         [key: string]: unknown
       } | null
     }
     /**
-     * Policy Create
-     * @description Request body for creating a policy
+     * PolicyCreate
+     * @description Request body for creating a policy.
      */
     PolicyCreate: {
-      /** @description Unique policy name */
+      /** Name */
       name: string
-      /** @description Policy description */
+      /** Description */
       description?: string | null
-      /** @description Policy statements */
+      /** Statements */
       statements: components['schemas']['PolicyStatementSchema'][]
       /**
-       * @description Key-value labels
+       * Labels
        * @default {}
        */
       labels?: {
         [key: string]: string
       }
-      /**
-       * Format: uuid
-       * @description Project scope (null for system-level)
-       */
+      /** Project Id */
       project_id?: string | null
     }
     /**
-     * Policy Update
-     * @description Request body for updating a policy (partial)
+     * PolicyUpdate
+     * @description Request body for updating a policy (partial).
      */
     PolicyUpdate: {
-      /** @description Update policy name */
+      /** Name */
       name?: string | null
-      /** @description Update description */
+      /** Description */
       description?: string | null
-      /** @description Update statements */
+      /** Statements */
       statements?: components['schemas']['PolicyStatementSchema'][] | null
-      /** @description Update labels */
+      /** Labels */
       labels?: {
         [key: string]: string
       } | null
     }
     /**
-     * Policy Read
-     * @description Response body for a policy
+     * PolicyRead
+     * @description Response body for a policy.
      */
     PolicyRead: {
       /**
+       * Id
        * Format: uuid
-       * @description Policy UUID
        */
       id: string
-      /** @description Policy name */
+      /** Name */
       name: string
-      /** @description Policy description */
+      /** Description */
       description?: string | null
       /**
-       * @description Policy statements
+       * Statements
        * @default []
        */
       statements?: {
         [key: string]: unknown
       }[]
       /**
-       * @description Whether this is a builtin policy
+       * Is Builtin
        * @default false
        */
       is_builtin?: boolean
       /**
-       * Format: uuid
-       * @description Project scope (null for system-level)
+       * Is Project Eligible
+       * @default false
        */
+      is_project_eligible?: boolean
+      /**
+       * Is System Scoped
+       * @description True when the policy is not scoped to a specific project.
+       */
+      readonly is_system_scoped: boolean
+      /** Project Id */
       project_id?: string | null
       /**
-       * @description Key-value labels
+       * Scope
+       * @default any
+       */
+      scope?: string
+      /**
+       * Labels
        * @default {}
        */
       labels?: {
         [key: string]: unknown
       }
-      /** @description True when the policy is not scoped to a specific project (computed from project_id) */
-      readonly is_system_scoped?: boolean
-      /**
-       * Format: date-time
-       * @description Creation timestamp
-       */
+      /** Created At */
       created_at?: string | null
-      /**
-       * Format: date-time
-       * @description Last update timestamp
-       */
+      /** Updated At */
       updated_at?: string | null
     }
+    /**
+     * PolicyListResponse
+     * @description Paginated list response for policies.
+     */
     PolicyListResponse: components['schemas']['ResourcesResponseBase'] & {
       resources: components['schemas']['PolicyRead'][]
     }
     /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     ResourcesResponseBase: {
       /**
-       * Next Page Cursor
+       * Next
        * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       next?: string | null
       /**
-       * Previous Page Cursor
+       * Prev
        * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       prev?: string | null
       /**
-       * Total Count
+       * Total
        * @description Total count of resources (only when include_total=true)
-       * @example 150
        */
       total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
+    /** @description Maximum number of results per page */
     limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
     includeTotalParam: boolean
   }
   requestBodies: never
@@ -277,31 +441,22 @@ export interface operations {
   list_policies: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /** @description Sort field and direction (e.g., 'name', '-created_at') */
-        sort?: string
         /** @description Filter by policy name */
-        name?: string
+        name?: string | null
         /** @description Filter by builtin status */
-        is_builtin?: boolean
+        is_builtin?: boolean | null
         /** @description Filter by project scope */
-        project_id?: string
-        /** @description When true, return only policies whose actions are valid for project-scoped roles */
-        project_eligible?: boolean
+        project_id?: string | null
+        project_eligible?: boolean | null
+        scope?: string | null
       }
       header?: never
       path?: never
@@ -318,6 +473,13 @@ export interface operations {
           'application/json': components['schemas']['PolicyListResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   create_policy: {
@@ -342,15 +504,13 @@ export interface operations {
           'application/json': components['schemas']['PolicyRead']
         }
       }
-      /** @description Policy name conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_policy: {
@@ -358,7 +518,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Policy UUID */
         policy_id: string
       }
       cookie?: never
@@ -374,23 +533,20 @@ export interface operations {
           'application/json': components['schemas']['PolicyRead']
         }
       }
-      /** @description Policy not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  update_policy_put: {
+  replace_policy: {
     parameters: {
       query?: never
       header?: never
       path: {
-        /** @description Policy UUID */
         policy_id: string
       }
       cookie?: never
@@ -410,15 +566,13 @@ export interface operations {
           'application/json': components['schemas']['PolicyRead']
         }
       }
-      /** @description Policy not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   delete_policy: {
@@ -426,7 +580,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Policy UUID */
         policy_id: string
       }
       cookie?: never
@@ -440,15 +593,13 @@ export interface operations {
         }
         content?: never
       }
-      /** @description Policy not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   update_policy: {
@@ -456,7 +607,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Policy UUID */
         policy_id: string
       }
       cookie?: never
@@ -476,15 +626,13 @@ export interface operations {
           'application/json': components['schemas']['PolicyRead']
         }
       }
-      /** @description Policy not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

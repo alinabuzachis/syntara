@@ -33,7 +33,7 @@ type Execution = ExecutionsAPI.components['schemas']['Execution']
 
 const TRUNCATED_ID_LENGTH = 8 // First 8 chars of UUID provide sufficient uniqueness
 
-interface ExecutionGroup {
+type ExecutionGroup = {
   label: string
   items: Execution[]
 }
@@ -48,7 +48,7 @@ function groupExecutionsByDate(executions: Execution[]): ExecutionGroup[] {
   return Array.from(map.entries()).map(([label, items]) => ({ label, items }))
 }
 
-interface ExecutionHistoryRowProps {
+type ExecutionHistoryRowProps = {
   execution: Execution
   onSelect: () => void
   isSelected?: boolean
@@ -90,7 +90,7 @@ export function ExecutionHistoryRow({ execution, onSelect, isSelected }: Executi
   )
 }
 
-interface AutomationHistoryCardProps {
+type AutomationHistoryCardProps = {
   executions: Execution[]
   onClose: () => void
   onExecutionSelect: (executionId: string) => void

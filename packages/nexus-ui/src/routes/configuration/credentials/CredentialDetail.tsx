@@ -113,7 +113,7 @@ export default function CredentialDetail() {
       openDisableDialog(credential)
     } else {
       patchCredential(
-        { params: { path: { credential_id: credential.id } }, body: { enabled: true } },
+        { params: { path: { credential_id: credential.id! } }, body: { enabled: true } },
         {
           onSuccess: () => {
             showAlert({ title: 'Credential enabled', variant: 'success', autoDismiss: true })
@@ -135,7 +135,7 @@ export default function CredentialDetail() {
   function handleConfirmDisable() {
     if (!credentialToDisable) return
     patchCredential(
-      { params: { path: { credential_id: credentialToDisable.id } }, body: { enabled: false } },
+      { params: { path: { credential_id: credentialToDisable.id! } }, body: { enabled: false } },
       {
         onSuccess: () => {
           showAlert({ title: 'Credential disabled', variant: 'success', autoDismiss: true })
@@ -157,7 +157,7 @@ export default function CredentialDetail() {
   function handleConfirmDelete() {
     if (!credential) return
     deleteCredentialMut(
-      { params: { path: { credential_id: credential.id } } },
+      { params: { path: { credential_id: credential.id! } } },
       {
         onSuccess: () => {
           showAlert({ title: 'Credential deleted', variant: 'success', autoDismiss: true })
@@ -322,7 +322,7 @@ export default function CredentialDetail() {
                 </>
               }
             >
-              <CredentialWorkflowsTab credentialId={credential.id} />
+              <CredentialWorkflowsTab credentialId={credential.id!} />
             </Tab>
           </Tabs>
         </CompassPanel>

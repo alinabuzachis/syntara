@@ -34,7 +34,7 @@ export function ProjectPermissionsTab({ projectId }: Readonly<{ projectId: strin
   const [assignmentToUnassign, setAssignmentToUnassign] = useState<ProjectRoleAssignmentRead | null>(null)
   const { showSuccess, showError } = useAlerts()
 
-  const rolesQuery = accessClient.useQuery('get', '/projects/{project_id}/roles', {
+  const rolesQuery = accessClient.useQuery('get', '/projects/{project_id}/role-assignments', {
     params: { path: { project_id: projectId } },
   })
 
@@ -59,7 +59,7 @@ export function ProjectPermissionsTab({ projectId }: Readonly<{ projectId: strin
 
   const { mutate: deleteProjectRole } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/roles/{assignment_id}'
+    '/projects/{project_id}/role-assignments/{assignment_id}'
   )
 
   const handleUnassign = () => {

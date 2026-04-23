@@ -28,7 +28,9 @@ import type { ProjectRead } from '../../access/types'
 import { DetailPageShell } from '../DetailPageShell'
 
 import { ProjectNotFoundState } from './ProjectNotFoundState'
-import { ProjectPermissionsTab } from './ProjectPermissionsTab'
+import { ProjectPoliciesTab } from './ProjectPoliciesTab'
+import { ProjectRoleAssignmentsTab } from './ProjectRoleAssignmentsTab'
+import { ProjectRolesTab } from './ProjectRolesTab'
 
 function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
   const labelEntries = Object.entries(project.labels ?? {})
@@ -83,7 +85,7 @@ function ProjectDetailsTab({ project }: Readonly<{ project: ProjectRead }>) {
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>()
   const basePath = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId ?? '')
-  type ProjectTab = 'details' | 'permissions'
+  type ProjectTab = 'details' | 'role-assignments' | 'roles' | 'policies'
   const [activeTab, goToTab] = useDetailTab<ProjectTab>(basePath)
 
   const projectQuery = accessClient.useQuery(
@@ -129,13 +131,17 @@ export function ProjectDetail() {
       <StackItem>
         <Tabs activeKey={activeTab} onSelect={(_event, key) => goToTab(key as ProjectTab)}>
           <Tab eventKey="details" title={<TabTitleText>Details</TabTitleText>} />
-          <Tab eventKey="permissions" title={<TabTitleText>Permissions</TabTitleText>} />
+          <Tab eventKey="policies" title={<TabTitleText>Policies</TabTitleText>} />
+          <Tab eventKey="roles" title={<TabTitleText>Roles</TabTitleText>} />
+          <Tab eventKey="role-assignments" title={<TabTitleText>Role Assignments</TabTitleText>} />
         </Tabs>
       </StackItem>
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <CompassPanel isFullHeight>
           {activeTab === 'details' && <ProjectDetailsTab project={projectData} />}
-          {activeTab === 'permissions' && <ProjectPermissionsTab projectId={projectId ?? ''} />}
+          {activeTab === 'role-assignments' && <ProjectRoleAssignmentsTab projectId={projectId ?? ''} />}
+          {activeTab === 'roles' && <ProjectRolesTab projectId={projectId ?? ''} />}
+          {activeTab === 'policies' && <ProjectPoliciesTab projectId={projectId ?? ''} />}
         </CompassPanel>
       </StackItem>
     </AppPage>

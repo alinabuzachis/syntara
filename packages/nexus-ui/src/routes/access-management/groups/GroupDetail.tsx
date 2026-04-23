@@ -193,7 +193,7 @@ export function GroupDetail() {
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <CompassPanel isFullHeight>
           <GroupTabContent
-            group={groupData}
+            group={groupData as Group}
             groupId={groupId ?? ''}
             activeTab={activeTab}
             isAuthenticated={isAuthenticated}
@@ -205,7 +205,7 @@ export function GroupDetail() {
       </StackItem>
 
       <GroupFormModal
-        group={groupData}
+        group={groupData as Group}
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         onSuccess={() => {

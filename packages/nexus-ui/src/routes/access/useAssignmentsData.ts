@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 import { useAlerts } from '../../components/alerts'
@@ -6,83 +5,44 @@ import { useFilterState } from '../../hooks/useFilterState'
 import { useSortState } from '../../hooks/useSortState'
 import type { FilterConfig } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
-import { batchedAllSettled } from '../../utils/batchedSettled'
 
-import { accessClient, accessFetchClient } from './accessClient'
-import { SYSTEM_SCOPE_VALUE } from './scopeFilterUtils'
-import type { PermissionRow, ProjectRead } from './types'
+import { accessClient } from './accessClient'
+import type { PermissionRow } from './types'
 
-function buildPermissionRows(
-  projectRoles: { id: string; user_id: string; username?: string; role_name: string; project_id: string }[],
-  projectGroupRoles: { id: string; group_id: string; group_name?: string; role_name: string; project_id: string }[],
-  systemUserRoles: { id: string; user_id: string; username: string; role_id: string; role_name: string }[],
-  systemGroupRoles: { id: string; group_id: string; group_name: string; role_id: string; role_name: string }[],
-  projects: ProjectRead[]
-): PermissionRow[] {
-  const rows: PermissionRow[] = []
-  const projectMap = new Map(projects.map((p) => [p.id, p]))
+type AllRoleAssignment = {
+  id: string
+  principal_id: string
+  principal_name: string
+  principal_type: string
+  role_name: string
+  project_id?: string | null
+  project_name?: string | null
+  created_at?: string | null
+}
 
-  for (const a of projectRoles) {
-    rows.push({
+function buildPermissionRows(assignments: AllRoleAssignment[]): PermissionRow[] {
+  return assignments.map((a) => {
+    const isProject = !!a.project_id
+    const principalType = a.principal_type as 'user' | 'group'
+    let sourceEndpoint: PermissionRow['sourceEndpoint']
+    if (isProject) {
+      sourceEndpoint = principalType === 'user' ? 'project-roles' : 'project-group-roles'
+    } else {
+      sourceEndpoint = principalType === 'user' ? 'user-role-assignments' : 'group-role-assignments'
+    }
+    return {
       id: a.id,
-      principalType: 'user',
-      principalId: a.user_id,
-      principalName: a.username || a.user_id,
-      assignmentType: 'role',
+      principalType,
+      principalId: a.principal_id,
+      principalName: a.principal_name,
+      assignmentType: 'role' as const,
       assignmentName: a.role_name,
-      scopeType: 'project',
-      scopeName: projectMap.get(a.project_id)?.name ?? a.project_id,
-      projectId: a.project_id,
-      sourceEndpoint: 'project-roles',
-    })
-  }
-
-  for (const a of projectGroupRoles) {
-    rows.push({
-      id: a.id,
-      principalType: 'group',
-      principalId: a.group_id,
-      principalName: a.group_name || a.group_id,
-      assignmentType: 'role',
-      assignmentName: a.role_name,
-      scopeType: 'project',
-      scopeName: projectMap.get(a.project_id)?.name ?? a.project_id,
-      projectId: a.project_id,
-      sourceEndpoint: 'project-group-roles',
-    })
-  }
-
-  for (const a of systemUserRoles) {
-    rows.push({
-      id: a.id,
-      principalType: 'user',
-      principalId: a.user_id,
-      principalName: a.username,
-      assignmentType: 'role',
-      assignmentName: a.role_name,
-      roleId: a.role_id,
-      scopeType: 'system',
-      scopeName: 'System',
-      sourceEndpoint: 'user-role-assignments',
-    })
-  }
-
-  for (const a of systemGroupRoles) {
-    rows.push({
-      id: a.id,
-      principalType: 'group',
-      principalId: a.group_id,
-      principalName: a.group_name,
-      assignmentType: 'role',
-      assignmentName: a.role_name,
-      roleId: a.role_id,
-      scopeType: 'system',
-      scopeName: 'System',
-      sourceEndpoint: 'group-role-assignments',
-    })
-  }
-
-  return rows
+      scopeType: isProject ? ('project' as const) : ('system' as const),
+      scopeName: isProject ? (a.project_name ?? a.project_id!) : 'System',
+      projectId: a.project_id ?? undefined,
+      sourceEndpoint,
+    }
+  })
 }
 
 function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): PermissionRow[] {
@@ -97,9 +57,8 @@ function applyFilters(rows: PermissionRow[], filters: FilterConfig[]): Permissio
         case 'type':
           return row.principalType === value
         case 'scope':
-          // System scope: match rows with no projectId
-          if (value === SYSTEM_SCOPE_VALUE) return row.scopeType === 'system'
-          // Project scope: match rows by specific project ID
+          return row.scopeType === value
+        case 'project':
           return row.projectId === value
         default:
           return true
@@ -112,13 +71,15 @@ const assignmentsSortFieldByColumn: Record<number, string> = {
   0: 'principal_name',
   1: 'principal_type',
   2: 'assignment_name',
-  3: 'scope_name',
+  3: 'scope_type',
+  4: 'scope_name',
 }
 
 const assignmentsSortFieldToRow: Record<string, keyof PermissionRow> = {
   principal_name: 'principalName',
   principal_type: 'principalType',
   assignment_name: 'assignmentName',
+  scope_type: 'scopeType',
   scope_name: 'scopeName',
 }
 
@@ -140,60 +101,6 @@ function sortRows(
   })
 }
 
-interface ProjectRoleEntry {
-  id: string
-  user_id: string
-  username?: string
-  role_name: string
-  project_id: string
-}
-
-interface ProjectGroupRoleEntry {
-  id: string
-  group_id: string
-  group_name?: string
-  role_name: string
-  project_id: string
-}
-
-/**
- * Fetches project-scoped user role assignments for a set of projects.
- * The API requires a project_id path param, so we fetch all projects in parallel.
- */
-async function fetchProjectRolesForProjects(projectIds: string[]): Promise<ProjectRoleEntry[]> {
-  const settled = await batchedAllSettled(projectIds, (projectId) =>
-    accessFetchClient.GET('/projects/{project_id}/roles', {
-      params: { path: { project_id: projectId } },
-    })
-  )
-  const results: ProjectRoleEntry[] = []
-  for (const result of settled) {
-    if (result.status === 'fulfilled' && Array.isArray(result.value.data)) {
-      results.push(...result.value.data)
-    }
-  }
-  return results
-}
-
-/**
- * Fetches project-scoped group role assignments for a set of projects.
- * The API requires a project_id path param, so we fetch all projects in parallel.
- */
-async function fetchProjectGroupRolesForProjects(projectIds: string[]): Promise<ProjectGroupRoleEntry[]> {
-  const settled = await batchedAllSettled(projectIds, (projectId) =>
-    accessFetchClient.GET('/projects/{project_id}/group-roles', {
-      params: { path: { project_id: projectId } },
-    })
-  )
-  const results: ProjectGroupRoleEntry[] = []
-  for (const result of settled) {
-    if (result.status === 'fulfilled' && Array.isArray(result.value.data)) {
-      results.push(...result.value.data)
-    }
-  }
-  return results
-}
-
 export function useAssignmentsData() {
   const { filters, setAllFilters, clearAllFilters } = useFilterState()
   const { activeSortIndex, sortDirection, getSortParams } = useSortState(assignmentsSortFieldByColumn)
@@ -203,53 +110,22 @@ export function useAssignmentsData() {
     setAllFilters(newFilters)
   }
 
-  // Fetch projects
   const projectsQuery = accessClient.useQuery('get', '/projects')
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data])
-  const projectNameMap = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
-  const effectiveProjectId = projects[0]?.id ?? ''
-
-  // Fetch project-scoped roles for the first project via the typed client.
-  // This query also serves as the primary source of project role data.
-  const projectRolesQuery = accessClient.useQuery(
-    'get',
-    '/projects/{project_id}/roles',
-    { params: { path: { project_id: effectiveProjectId } } },
-    { enabled: !!effectiveProjectId }
-  )
-  const projectGroupRolesQuery = accessClient.useQuery(
-    'get',
-    '/projects/{project_id}/group-roles',
-    { params: { path: { project_id: effectiveProjectId } } },
-    { enabled: !!effectiveProjectId }
+  const projectNameMap = useMemo(
+    () => new Map(projects.filter((p): p is typeof p & { id: string } => !!p.id).map((p) => [p.id, p.name])),
+    [projects]
   )
 
-  // Fetch project-scoped roles for remaining projects (all except the first).
-  // The API is per-project, so we iterate over each additional project.
-  const remainingProjectIds = useMemo(() => projects.slice(1).map((p) => p.id), [projects])
+  const allAssignmentsQuery = accessClient.useQuery('get', '/all-role-assignments')
 
-  const remainingProjectRolesQuery = useQuery({
-    queryKey: ['remaining-project-roles', remainingProjectIds],
-    queryFn: () => fetchProjectRolesForProjects(remainingProjectIds),
-    enabled: remainingProjectIds.length > 0,
-  })
-  const remainingProjectGroupRolesQuery = useQuery({
-    queryKey: ['remaining-project-group-roles', remainingProjectIds],
-    queryFn: () => fetchProjectGroupRolesForProjects(remainingProjectIds),
-    enabled: remainingProjectIds.length > 0,
-  })
-
-  const systemUserRolesQuery = accessClient.useQuery('get', '/user-role-assignments')
-  const systemGroupRolesQuery = accessClient.useQuery('get', '/group-role-assignments')
-
-  // Mutations
   const { mutate: deleteProjectRole } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/roles/{assignment_id}'
+    '/projects/{project_id}/role-assignments/{assignment_id}'
   )
   const { mutate: deleteProjectGroupRole } = accessClient.useMutation(
     'delete',
-    '/projects/{project_id}/group-roles/{assignment_id}'
+    '/projects/{project_id}/group-role-assignments/{assignment_id}'
   )
   const { mutate: deleteSystemUserRole } = accessClient.useMutation('delete', '/user-role-assignments/{assignment_id}')
   const { mutate: deleteSystemGroupRole } = accessClient.useMutation(
@@ -257,23 +133,9 @@ export function useAssignmentsData() {
     '/group-role-assignments/{assignment_id}'
   )
 
-  // Merge roles from the first project and remaining projects
-  const allProjectRoles = useMemo(
-    () => [...(projectRolesQuery.data ?? []), ...(remainingProjectRolesQuery.data ?? [])],
-    [projectRolesQuery.data, remainingProjectRolesQuery.data]
-  )
-  const allProjectGroupRoles = useMemo(
-    () => [...(projectGroupRolesQuery.data ?? []), ...(remainingProjectGroupRolesQuery.data ?? [])],
-    [projectGroupRolesQuery.data, remainingProjectGroupRolesQuery.data]
-  )
-
-  // Build rows
-  const allRows = buildPermissionRows(
-    allProjectRoles,
-    allProjectGroupRoles,
-    systemUserRolesQuery.data ?? [],
-    systemGroupRolesQuery.data ?? [],
-    projects
+  const allRows = useMemo(
+    () => buildPermissionRows((allAssignmentsQuery.data?.resources ?? []) as AllRoleAssignment[]),
+    [allAssignmentsQuery.data]
   )
 
   const hasActiveFilters = filters.length > 0
@@ -284,12 +146,7 @@ export function useAssignmentsData() {
   )
 
   const refetchAll = () => {
-    projectRolesQuery.refetch().catch(() => {})
-    projectGroupRolesQuery.refetch().catch(() => {})
-    remainingProjectRolesQuery.refetch().catch(() => {})
-    remainingProjectGroupRolesQuery.refetch().catch(() => {})
-    systemUserRolesQuery.refetch().catch(() => {})
-    systemGroupRolesQuery.refetch().catch(() => {})
+    allAssignmentsQuery.refetch().catch(() => {})
   }
 
   const handleDelete = (row: PermissionRow, onSettled: () => void) => {
@@ -329,7 +186,6 @@ export function useAssignmentsData() {
     getSortParams,
     projects,
     projectNameMap,
-    effectiveProjectId,
     allRows,
     sortedRows,
     hasActiveFilters,

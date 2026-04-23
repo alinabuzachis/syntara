@@ -4,7 +4,7 @@ import { useEffect, useMemo, type Dispatch } from 'react'
 import type { BuilderAction } from '../builderReducer'
 
 interface ExecutionListQueryLike {
-  data?: { resources?: Array<{ id: string }> } | null
+  data?: { resources?: Array<{ id?: string }> } | null
 }
 
 interface ExecutionDetailQueryLike {
@@ -31,7 +31,7 @@ export function useBuilderExecutionCanvasState(
 
   useEffect(() => {
     if (historyCardOpen && !selectedExecutionId && executions.length > 0) {
-      dispatch({ type: 'SET_SELECTED_EXECUTION_ID', payload: executions[0].id })
+      dispatch({ type: 'SET_SELECTED_EXECUTION_ID', payload: executions[0].id! })
     }
   }, [historyCardOpen, selectedExecutionId, executions, dispatch])
 

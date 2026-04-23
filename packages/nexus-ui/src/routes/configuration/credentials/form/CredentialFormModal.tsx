@@ -184,7 +184,7 @@ export function CredentialFormModal({
   useEffect(() => {
     if (!isEditMode && !selectedTypeId && !preSelectedTypeId && types.length > 0) {
       const defaultType = types[0]
-      setValue('credential_type_id', defaultType.id)
+      setValue('credential_type_id', defaultType.id!)
       setValue('inputs', getDefaultInputs(defaultType))
     }
   }, [types, isEditMode, selectedTypeId, preSelectedTypeId, setValue])
@@ -260,7 +260,7 @@ export function CredentialFormModal({
     if (isEditMode && credentialToEdit) {
       patchCredential(
         {
-          params: { path: { credential_id: credentialToEdit.id } },
+          params: { path: { credential_id: credentialToEdit.id! } },
           body: {
             name: formData.name,
             description: formData.description || null,
@@ -284,8 +284,7 @@ export function CredentialFormModal({
             description: formData.description || null,
             credential_type_id: formData.credential_type_id,
             inputs: formData.inputs,
-            // TODO: Remove cast when project_id is added to the OpenAPI spec
-            ...(defaultProjectId && { project_id: defaultProjectId }),
+            project_id: defaultProjectId!,
           },
         },
         {

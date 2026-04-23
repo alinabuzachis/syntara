@@ -44,7 +44,7 @@ const SORT_FIELDS = ['name', 'enabled', 'issuer_url', 'client_id'] as const
 
 type IdentityProvider = IdentityProvidersAPI.components['schemas']['IdentityProviderResponse']
 
-interface DeleteDialogState {
+type DeleteDialogState = {
   deleteDialogOpen: boolean
   providerToDelete: IdentityProvider | null
 }

@@ -37,6 +37,7 @@ const mockRole: RoleRead = {
   description: 'A custom role for testing',
   policies: ['workflow-admin'],
   is_builtin: false,
+  is_system_scoped: false,
   project_id: null,
   labels: {},
   created_at: '2024-01-01T00:00:00Z',

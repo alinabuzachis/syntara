@@ -60,7 +60,7 @@ function buildTypeGroups(credentials: Credential[], credentialTypes: CredentialT
   }
   const typeMap = new Map<string, CredentialType>()
   for (const ct of credentialTypes) {
-    typeMap.set(ct.id, ct)
+    typeMap.set(ct.id!, ct)
   }
   const groupMap = new Map<string, TypeGroup>()
   for (const cred of credentials) {
@@ -181,7 +181,7 @@ export function CredentialSelector({
       value={credential.id}
       isSelected={credential.id === value}
       isDisabled={!credential.enabled}
-      description={credentialDescription(credential)}
+      description={credentialDescription(credential as { enabled: boolean; description?: string | null })}
     >
       {credential.name}
     </SelectOption>

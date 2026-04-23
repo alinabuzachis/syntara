@@ -15,10 +15,6 @@ vi.mock('./accessClient', () => ({
     useQuery: vi.fn(),
     useMutation: vi.fn(),
   },
-  accessFetchClient: {
-    GET: vi.fn().mockResolvedValue({ data: { resources: [] }, error: null }),
-    use: vi.fn(),
-  },
 }))
 
 vi.mock('../../client', () => ({
@@ -52,8 +48,6 @@ const mockProjects = [
     description: null,
     labels: {},
     is_default: true,
-    created_at: null,
-    updated_at: null,
   },
   {
     id: 'p2',
@@ -61,20 +55,51 @@ const mockProjects = [
     description: null,
     labels: {},
     is_default: false,
-    created_at: null,
-    updated_at: null,
   },
 ]
 
-const mockProjectRoles = [{ id: 'pr1', user_id: 'u1', username: 'alice', role_name: 'Admin', project_id: 'p1' }]
-
-const mockProjectGroupRoles = [
-  { id: 'pgr1', group_id: 'g1', group_name: 'Devs', role_name: 'Editor', project_id: 'p1' },
+const mockAllAssignments = [
+  {
+    id: 'pr1',
+    principal_id: 'u1',
+    principal_name: 'alice',
+    principal_type: 'user',
+    role_name: 'Admin',
+    project_id: 'p1',
+    project_name: 'Project Alpha',
+    created_at: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: 'sur1',
+    principal_id: 'u2',
+    principal_name: 'bob',
+    principal_type: 'user',
+    role_name: 'Viewer',
+    project_id: null,
+    project_name: null,
+    created_at: null,
+  },
+  {
+    id: 'pgr1',
+    principal_id: 'g1',
+    principal_name: 'Devs',
+    principal_type: 'group',
+    role_name: 'Editor',
+    project_id: 'p1',
+    project_name: 'Project Alpha',
+    created_at: null,
+  },
+  {
+    id: 'sgr1',
+    principal_id: 'g2',
+    principal_name: 'Ops',
+    principal_type: 'group',
+    role_name: 'Admin',
+    project_id: null,
+    project_name: null,
+    created_at: null,
+  },
 ]
-
-const mockSystemUserRoles = [{ id: 'sur1', user_id: 'u2', username: 'bob', role_name: 'Viewer' }]
-
-const mockSystemGroupRoles = [{ id: 'sgr1', group_id: 'g2', group_name: 'Ops', role_name: 'Admin' }]
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -110,39 +135,9 @@ function setupDefaultMocks() {
         refetch: mockRefetch,
       } as never
     }
-    if (path === '/projects/{project_id}/roles') {
+    if (path === '/all-role-assignments') {
       return {
-        data: mockProjectRoles,
-        isPending: false,
-        isError: false,
-        error: null,
-        isFetching: false,
-        refetch: mockRefetch,
-      } as never
-    }
-    if (path === '/projects/{project_id}/group-roles') {
-      return {
-        data: mockProjectGroupRoles,
-        isPending: false,
-        isError: false,
-        error: null,
-        isFetching: false,
-        refetch: mockRefetch,
-      } as never
-    }
-    if (path === '/user-role-assignments') {
-      return {
-        data: mockSystemUserRoles,
-        isPending: false,
-        isError: false,
-        error: null,
-        isFetching: false,
-        refetch: mockRefetch,
-      } as never
-    }
-    if (path === '/group-role-assignments') {
-      return {
-        data: mockSystemGroupRoles,
+        data: { resources: mockAllAssignments, total: mockAllAssignments.length, next: null },
         isPending: false,
         isError: false,
         error: null,
@@ -172,14 +167,14 @@ describe('useAssignmentsData', () => {
   })
 
   describe('buildPermissionRows', () => {
-    it('builds rows from all four data sources', () => {
+    it('builds rows from unified role assignments', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
       expect(result.current.allRows).toHaveLength(4)
     })
 
-    it('maps project role rows correctly', () => {
+    it('maps project-scoped user role correctly', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
@@ -195,7 +190,7 @@ describe('useAssignmentsData', () => {
       })
     })
 
-    it('maps project group role rows correctly', () => {
+    it('maps project-scoped group role correctly', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
@@ -210,7 +205,7 @@ describe('useAssignmentsData', () => {
       })
     })
 
-    it('maps system user role rows correctly', () => {
+    it('maps system-scoped user role correctly', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
@@ -226,7 +221,7 @@ describe('useAssignmentsData', () => {
       })
     })
 
-    it('maps system group role rows correctly', () => {
+    it('maps system-scoped group role correctly', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
@@ -242,53 +237,33 @@ describe('useAssignmentsData', () => {
       })
     })
 
-    it('falls back to user_id when username is not provided for project roles', () => {
-      vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-        if (path === '/projects') {
-          return {
-            data: mockProjects,
-            isPending: false,
-            isError: false,
-            error: null,
-            isFetching: false,
-            refetch: vi.fn(),
-          } as never
-        }
-        if (path === '/projects/{project_id}/roles') {
-          return {
-            data: [{ id: 'pr2', user_id: 'u99', role_name: 'Viewer', project_id: 'p1' }],
-            isPending: false,
-            isError: false,
-            error: null,
-            isFetching: false,
-            refetch: vi.fn(),
-          } as never
-        }
-        return { data: [], isPending: false, isError: false, error: null, isFetching: false, refetch: vi.fn() } as never
-      })
-      vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn as never)
-
+    it('uses project_name from response for scope name', () => {
+      setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      const row = result.current.allRows.find((r) => r.id === 'pr2')
-      expect(row?.principalName).toBe('u99')
+      const row = result.current.allRows.find((r) => r.id === 'pr1')
+      expect(row?.scopeName).toBe('Project Alpha')
     })
 
-    it('falls back to project_id when project is not in the projects list', () => {
+    it('falls back to project_id when project_name is missing', () => {
       vi.mocked(accessClient.useQuery).mockImplementation((_method: string, path: string) => {
-        if (path === '/projects') {
+        if (path === '/all-role-assignments') {
           return {
-            data: [],
-            isPending: false,
-            isError: false,
-            error: null,
-            isFetching: false,
-            refetch: vi.fn(),
-          } as never
-        }
-        if (path === '/projects/{project_id}/roles') {
-          return {
-            data: [{ id: 'pr3', user_id: 'u1', username: 'alice', role_name: 'Admin', project_id: 'unknown-proj' }],
+            data: {
+              resources: [
+                {
+                  id: 'x1',
+                  principal_id: 'u1',
+                  principal_name: 'alice',
+                  principal_type: 'user',
+                  role_name: 'Admin',
+                  project_id: 'unknown-proj',
+                  project_name: null,
+                },
+              ],
+              total: 1,
+              next: null,
+            },
             isPending: false,
             isError: false,
             error: null,
@@ -302,7 +277,7 @@ describe('useAssignmentsData', () => {
 
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      const row = result.current.allRows.find((r) => r.id === 'pr3')
+      const row = result.current.allRows.find((r) => r.id === 'x1')
       expect(row?.scopeName).toBe('unknown-proj')
     })
 
@@ -323,7 +298,7 @@ describe('useAssignmentsData', () => {
     })
   })
 
-  describe('projects and effectiveProjectId', () => {
+  describe('projects', () => {
     it('returns projects from query data', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
@@ -331,14 +306,7 @@ describe('useAssignmentsData', () => {
       expect(result.current.projects).toEqual(mockProjects)
     })
 
-    it('returns first project id as effectiveProjectId', () => {
-      setupDefaultMocks()
-      const { result } = renderHook(() => useAssignmentsData(), { wrapper })
-
-      expect(result.current.effectiveProjectId).toBe('p1')
-    })
-
-    it('returns empty string when no projects exist', () => {
+    it('returns empty array when no projects exist', () => {
       vi.mocked(accessClient.useQuery).mockReturnValue({
         data: undefined,
         isPending: false,
@@ -351,7 +319,7 @@ describe('useAssignmentsData', () => {
 
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      expect(result.current.effectiveProjectId).toBe('')
+      expect(result.current.projects).toEqual([])
     })
   })
 
@@ -406,7 +374,7 @@ describe('useAssignmentsData', () => {
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
       act(() => {
-        result.current.handleFilterChange([{ key: 'scope', value: '__system__' }])
+        result.current.handleFilterChange([{ key: 'scope', value: 'system' }])
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
@@ -418,11 +386,11 @@ describe('useAssignmentsData', () => {
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
       act(() => {
-        result.current.handleFilterChange([{ key: 'scope', value: 'p1' }])
+        result.current.handleFilterChange([{ key: 'scope', value: 'project' }])
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
-      expect(result.current.sortedRows.every((r) => r.projectId === 'p1')).toBe(true)
+      expect(result.current.sortedRows.every((r) => r.scopeType === 'project')).toBe(true)
     })
 
     it('filters by project id', () => {
@@ -430,7 +398,7 @@ describe('useAssignmentsData', () => {
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
       act(() => {
-        result.current.handleFilterChange([{ key: 'scope', value: 'p1' }])
+        result.current.handleFilterChange([{ key: 'project', value: 'p1' }])
       })
 
       expect(result.current.sortedRows).toHaveLength(2)
@@ -444,7 +412,7 @@ describe('useAssignmentsData', () => {
       act(() => {
         result.current.handleFilterChange([
           { key: 'type', value: 'user' },
-          { key: 'scope', value: 'p1' },
+          { key: 'project', value: 'p1' },
         ])
       })
 
@@ -476,7 +444,6 @@ describe('useAssignmentsData', () => {
         result.current.handleFilterChange([{ key: 'unknown-key', value: 'anything' }])
       })
 
-      // Unknown filter key should return true (pass through)
       expect(result.current.sortedRows).toHaveLength(4)
     })
   })
@@ -486,7 +453,6 @@ describe('useAssignmentsData', () => {
       setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
-      // No sort applied by default
       expect(result.current.sortedRows).toHaveLength(4)
     })
 
@@ -567,7 +533,7 @@ describe('useAssignmentsData', () => {
   })
 
   describe('refetchAll', () => {
-    it('calls refetch on all four queries', () => {
+    it('calls refetch on the all-role-assignments query', () => {
       const mockRefetch = setupDefaultMocks()
       const { result } = renderHook(() => useAssignmentsData(), { wrapper })
 
@@ -575,8 +541,7 @@ describe('useAssignmentsData', () => {
         result.current.refetchAll()
       })
 
-      // refetch should be called for projectRoles, projectGroupRoles, systemUserRoles, systemGroupRoles
-      expect(mockRefetch).toHaveBeenCalledTimes(4)
+      expect(mockRefetch).toHaveBeenCalled()
     })
   })
 

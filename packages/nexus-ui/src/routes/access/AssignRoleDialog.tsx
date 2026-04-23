@@ -33,7 +33,7 @@ const ASSIGNMENT_TYPE_OPTIONS = [
 
 // ── Form fields ───────────────────────────────────────────────────────────
 
-interface AssignmentFormFieldsProps {
+type AssignmentFormFieldsProps = {
   assignmentType: string
   projectOptions: { value: string; label: string }[]
   userOptions: { value: string; label: string }[]
@@ -112,8 +112,8 @@ function AssignmentFormFields({
 
       <FormGroup label="Role" isRequired fieldId="role-select">
         <Controller
-          key={isProjectScoped ? 'roleName' : 'roleId'}
-          name={isProjectScoped ? 'roleName' : 'roleId'}
+          key={isProjectScoped ? 'roleName' : 'systemRoleName'}
+          name={isProjectScoped ? 'roleName' : 'systemRoleName'}
           control={control}
           render={({ field }) => (
             <TypeaheadSelect
@@ -123,7 +123,7 @@ function AssignmentFormFields({
               selected={field.value ?? ''}
               onChange={field.onChange}
               placeholder={isRoleDisabled ? 'Select a project first...' : 'Select a role...'}
-              hasError={isProjectScoped ? !!errors.roleName : !!errors.roleId}
+              hasError={isProjectScoped ? !!errors.roleName : !!errors.systemRoleName}
               isDisabled={isRoleDisabled}
             />
           )}
@@ -135,7 +135,7 @@ function AssignmentFormFields({
 
 // ── Dialog ─────────────────────────────────────────────────────────────────
 
-interface AssignRoleDialogProps {
+type AssignRoleDialogProps = {
   onClose: () => void
   onSuccess: () => void
 }
@@ -163,7 +163,7 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
       userId: '',
       groupId: '',
       roleName: '',
-      roleId: '',
+      systemRoleName: '',
     },
   })
 
@@ -172,10 +172,10 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   const isProjectScoped = assignmentType === 'user-project' || assignmentType === 'group-project'
 
   // Reset role selection when switching between project/system scope
-  // because project-scoped uses roleName and system-scoped uses roleId
+  // because project-scoped uses roleName and system-scoped uses systemRoleName
   useEffect(() => {
     setValue('roleName', '')
-    setValue('roleId', '')
+    setValue('systemRoleName', '')
   }, [assignmentType, setValue])
 
   // Reset role selection when project changes (roles are project-specific)
@@ -186,7 +186,10 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
   }, [selectedProjectId, isProjectScoped, setValue])
 
   const projectOptions = useMemo(
-    () => (projectsData ?? []).map((p) => ({ value: p.id, label: p.name })),
+    () =>
+      (projectsData ?? [])
+        .filter((p): p is typeof p & { id: string } => !!p.id)
+        .map((p) => ({ value: p.id, label: p.name })),
     [projectsData]
   )
 
@@ -196,9 +199,9 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
     const filtered =
       isProjectScoped && selectedProjectId ? allRoles.filter((role) => role.project_id === selectedProjectId) : allRoles
     return filtered.map((role) => ({
-      value: isProjectScoped ? role.name : role.id,
+      value: role.name,
       label: role.name,
-      tag: role.is_system_scoped
+      tag: !role.project_id
         ? { label: 'System', color: 'blue' as const }
         : { label: 'Project', color: 'green' as const },
     }))
@@ -206,11 +209,11 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
 
   const { mutate: assignProjectRole, isPending: isPendingProjectRole } = accessClient.useMutation(
     'post',
-    '/projects/{project_id}/roles'
+    '/projects/{project_id}/role-assignments'
   )
   const { mutate: assignProjectGroupRole, isPending: isPendingProjectGroupRole } = accessClient.useMutation(
     'post',
-    '/projects/{project_id}/group-roles'
+    '/projects/{project_id}/group-role-assignments'
   )
   const { mutate: assignSystemUserRole, isPending: isPendingSystemUserRole } = accessClient.useMutation(
     'post',
@@ -255,13 +258,13 @@ export function AssignRoleDialog({ onClose, onSuccess }: Readonly<AssignRoleDial
         break
       case 'user-system':
         assignSystemUserRole(
-          { body: { user_id: data.userId, role_id: data.roleId } },
+          { body: { user_id: data.userId, role_name: data.systemRoleName } },
           { onSuccess: handleSuccess, onError: handleError }
         )
         break
       case 'group-system':
         assignSystemGroupRole(
-          { body: { group_id: data.groupId, role_id: data.roleId } },
+          { body: { group_id: data.groupId, role_name: data.systemRoleName } },
           { onSuccess: handleSuccess, onError: handleError }
         )
         break

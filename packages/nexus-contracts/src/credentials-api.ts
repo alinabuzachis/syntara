@@ -13,15 +13,13 @@ export interface paths {
     }
     /**
      * List Credentials
-     * @description Retrieve a paginated list of Credentials with optional filtering.
-     *     Secret fields are masked as $encrypted$ without decryption.
+     * @description List Credentials with filtering and pagination. Metadata only, no secrets.
      */
     get: operations['list_credentials']
     put?: never
     /**
      * Create Credential
-     * @description Create a new Credential. Inputs are validated against the Credential
-     *     type schema and encrypted before storage.
+     * @description Create a new Credential with encrypted inputs.
      */
     post: operations['create_credential']
     delete?: never
@@ -39,23 +37,21 @@ export interface paths {
     }
     /**
      * Get Credential
-     * @description Retrieve a single Credential. Secret fields are masked as $encrypted$.
-     *     Non-secret fields are decrypted and returned in plaintext.
+     * @description Get a Credential. Secret fields masked as $encrypted$.
      */
     get: operations['get_credential']
     put?: never
     post?: never
     /**
      * Delete Credential
-     * @description Soft-delete a Credential (sets deleted_at timestamp).
+     * @description Soft-delete a Credential.
      */
     delete: operations['delete_credential']
     options?: never
     head?: never
     /**
      * Update Credential
-     * @description Partially update a Credential. Fields set to $encrypted$ retain
-     *     their existing encrypted values. Omitted input fields are preserved.
+     * @description Update a Credential. Fields set to $encrypted$ retain existing values.
      */
     patch: operations['update_credential']
     trace?: never
@@ -69,9 +65,9 @@ export interface paths {
     }
     /**
      * Get Credential Workflows
-     * @description List workflows that reference this credential in their definitions.
-     *     Returns empty list until workflow credential integration (Epic 3) adds
-     *     credentialId to executor configs.
+     * @description Get workflows that reference this credential.
+     *
+     *     Returns empty list until Epic 3 adds credentialId to executor configs.
      */
     get: operations['get_credential_workflows']
     put?: never
@@ -91,8 +87,9 @@ export interface paths {
     }
     /**
      * List Credential Types
-     * @description Retrieve all Credential types including preseeded managed types.
-     *     Read-only for GA; full CRUD for custom types deferred to post-GA.
+     * @description List all Credential Types including preseeded managed types.
+     *
+     *     Each type includes a credential_count of non-deleted credentials using it.
      */
     get: operations['list_credential_types']
     put?: never
@@ -112,8 +109,7 @@ export interface paths {
     }
     /**
      * Get Credential Type
-     * @description Retrieve a single Credential type with its field schema and
-     *     injector templates.
+     * @description Get a single Credential Type with credential_count.
      */
     get: operations['get_credential_type']
     put?: never
@@ -129,130 +125,221 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
-     * Credential Create
-     * @description Request payload for creating a new Credential
+     * CredentialListResponse
+     * @description Paginated list response for credentials.
      */
-    CredentialCreate: {
-      /** @description Human-readable Credential name */
-      name: string
-      /** @description Optional description */
-      description?: string | null
+    CredentialListResponse: components['schemas']['ResourcesResponseBase'] & {
       /**
-       * Format: uuid
-       * @description ID of the Credential type
+       * Resources
+       * @description Array of resources in current page
        */
-      credential_type_id: string
-      /**
-       * @description Field values validated against the type schema. Max 64KB serialized.
-       *     The $encrypted$ sentinel value is reserved and cannot be used as input (returns 422).
-       * @default {}
-       */
-      inputs?: {
-        [key: string]: unknown
-      }
-      /**
-       * @description Key-value labels
-       * @default {}
-       */
-      labels?: {
-        [key: string]: string
-      }
-    }
-    CredentialRead: components['schemas']['Resource'] & {
-      /**
-       * Format: uuid
-       * @description ID of the Credential type schema
-       */
-      credential_type_id: string
-      /** @description Secret fields masked as $encrypted$, non-secret fields in plaintext */
-      inputs: {
-        [key: string]: unknown
-      }
-      /**
-       * @description Whether this credential is active
-       * @default true
-       */
-      enabled: boolean
+      resources: components['schemas']['CredentialRead'][]
     }
     /**
-     * Credential Patch
-     * @description Request payload for partially updating a Credential.
-     *     Only included fields are updated. Omitted fields are preserved.
+     * CredentialTypeListResponse
+     * @description Paginated list response for credential types.
      */
-    CredentialPatch: {
-      name?: string
+    CredentialTypeListResponse: components['schemas']['ResourcesResponseBase'] & {
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['CredentialTypeRead'][]
+    }
+    /**
+     * CredentialCreate
+     * @description Schema for creating a new credential.
+     */
+    CredentialCreate: {
+      /**
+       * Credential Type Id
+       * Format: uuid
+       * @description ID of the credential type
+       */
+      credential_type_id: string
+      /**
+       * Description
+       * @description Optional description
+       */
       description?: string | null
       /**
-       * @description Fields set to $encrypted$ retain existing values. Omitted fields are preserved.
-       *     Max 64KB serialized. The $encrypted$ sentinel cannot be used as input on create (returns 422).
+       * Inputs
+       * @description Field values validated against type schema
        */
       inputs?: {
         [key: string]: unknown
       }
+      /**
+       * Labels
+       * @description Key-value labels
+       */
       labels?: {
         [key: string]: string
       }
-      enabled?: boolean
-    }
-    CredentialTypeRead: components['schemas']['BaseResource'] & {
-      /** @description Human-readable type name */
+      /**
+       * Name
+       * @description Human-readable credential name
+       */
       name: string
-      /** @description Optional description */
+      /**
+       * Project Id
+       * Format: uuid
+       * @description Project to assign credential to
+       */
+      project_id: string
+    }
+    /**
+     * CredentialPatch
+     * @description Schema for partially updating a credential. $encrypted$ preserves existing values.
+     */
+    CredentialPatch: {
+      /** Description */
+      description?: string | null
+      /** Enabled */
+      enabled?: boolean | null
+      /** Inputs */
+      inputs?: {
+        [key: string]: unknown
+      } | null
+      /** Labels */
+      labels?: {
+        [key: string]: string
+      } | null
+      /** Name */
+      name?: string | null
+    }
+    /** @description Schema for credential API responses. Secret fields masked as $encrypted$. */
+    CredentialRead: components['schemas']['Resource'] & {
+      /**
+       * Created By
+       * @description Username or UUID of the credential creator
+       */
+      created_by?: string | null
+      /**
+       * Updated By
+       * @description Username or UUID of the last modifier
+       */
+      updated_by?: string | null
+      /**
+       * Credential Type Id
+       * Format: uuid
+       */
+      credential_type_id: string
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled?: boolean
+      /** Inputs */
+      inputs?: {
+        [key: string]: unknown
+      }
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
+      /**
+       * Workflow Count
+       * @description Number of workflows referencing this credential
+       * @default 0
+       */
+      workflow_count?: number
+    }
+    /** @description Read schema for credential type API responses. */
+    CredentialTypeRead: components['schemas']['BaseResource'] & {
+      /** Name */
+      name: string
+      /** Description */
       description?: string | null
       /**
-       * @description Field schema with fields array and required list.
-       *     Max 64KB serialized. Defines what fields a credential of this type has.
-       */
-      inputs: Record<string, never>
-      /**
-       * @description Consumption mapping with extra_vars, env, file templates.
-       *     Uses {{field_id}} syntax for template substitution at runtime.
-       */
-      injectors: Record<string, never>
-      /** @description true = preseeded system type that cannot be deleted */
-      managed: boolean
-      /**
+       * Credential Count
        * @description Number of non-deleted credentials using this type
        * @default 0
        */
       credential_count?: number
+      /** Injectors */
+      injectors?: {
+        [key: string]: unknown
+      }
+      /** Inputs */
+      inputs?: {
+        [key: string]: unknown
+      }
+      /**
+       * Managed
+       * @default false
+       */
+      managed?: boolean
     }
     /**
-     * Credential Workflow Reference
-     * @description Lightweight reference to a workflow that uses a credential
+     * CredentialWorkflowRef
+     * @description Reference to a workflow that uses a credential.
      */
     CredentialWorkflowRef: {
       /**
+       * Created By
+       * @description Username or UUID of the workflow creator
+       */
+      created_by?: string | null
+      /** Description */
+      description?: string | null
+      /**
+       * Id
        * Format: uuid
-       * @description Workflow ID
        */
       id: string
-      /** @description Workflow name */
+      /**
+       * Last Execution At
+       * @description Timestamp of the most recent execution
+       */
+      last_execution_at?: string | null
+      /**
+       * Last Execution Status
+       * @description Status of the most recent execution
+       */
+      last_execution_status?: string | null
+      /** Name */
       name: string
+      /**
+       * Node Names
+       * @description Names of nodes using this credential
+       */
+      node_names?: string[]
     }
     /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     ResourcesResponseBase: {
       /**
-       * Next Page Cursor
+       * Next
        * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       next?: string | null
       /**
-       * Previous Page Cursor
+       * Prev
        * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       prev?: string | null
       /**
-       * Total Count
+       * Total
        * @description Total count of resources (only when include_total=true)
-       * @example 150
        */
       total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
     }
     /**
      * Base Resource
@@ -265,21 +352,21 @@ export interface components {
        * @description Unique identifier for the resource
        * @example 550e8400-e29b-41d4-a716-446655440000
        */
-      readonly id: string
+      readonly id?: string
       /**
        * Created At
        * Format: date-time
        * @description Timestamp when resource was created
        * @example 2025-10-09T12:00:00Z
        */
-      readonly created_at: string
+      readonly created_at?: string
       /**
        * Updated At
        * Format: date-time
        * @description Timestamp when resource was last updated
        * @example 2025-10-09T12:30:00Z
        */
-      readonly updated_at: string
+      readonly updated_at?: string
       /**
        * Labels
        * @description Key-value pairs for resource labeling and filtering
@@ -293,6 +380,35 @@ export interface components {
       labels?: {
         [key: string]: string
       }
+    }
+    UserOwnedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Created By
+       * Format: uuid
+       * @description User who created the resource
+       * @example 770e8400-e29b-41d4-a716-446655440000
+       */
+      readonly created_by: string
+      /**
+       * Updated By
+       * @description User who last updated the resource
+       * @example 880e8400-e29b-41d4-a716-446655440000
+       */
+      readonly updated_by?: string | null
+    }
+    SoftDeletableResource: components['schemas']['BaseResource'] & {
+      /**
+       * Deleted At
+       * @description Timestamp when resource was soft deleted
+       * @example 2025-10-09T14:00:00Z
+       */
+      readonly deleted_at?: string | null
+      /**
+       * Deleted By
+       * @description User who performed the soft delete
+       * @example 660e8400-e29b-41d4-a716-446655440000
+       */
+      readonly deleted_by?: string | null
     }
     NamedResource: components['schemas']['BaseResource'] & {
       /**
@@ -308,234 +424,219 @@ export interface components {
        */
       description?: string | null
     }
-    SoftDeletableResource: components['schemas']['BaseResource'] & {
-      /**
-       * Deleted At
-       * Format: date-time
-       * @description Timestamp when resource was soft deleted
-       * @example 2025-10-09T14:00:00Z
-       */
-      readonly deleted_at?: string | null
-      /**
-       * Deleted By
-       * Format: uuid
-       * @description User who performed the soft delete
-       * @example 660e8400-e29b-41d4-a716-446655440000
-       */
-      readonly deleted_by?: string | null
-    }
-    UserOwnedResource: components['schemas']['BaseResource'] & {
-      /**
-       * Created By
-       * Format: uuid
-       * @description User who created the resource
-       * @example 770e8400-e29b-41d4-a716-446655440000
-       */
-      readonly created_by: string
-      /**
-       * Updated By
-       * Format: uuid
-       * @description User who last updated the resource
-       * @example 880e8400-e29b-41d4-a716-446655440000
-       */
-      readonly updated_by?: string | null
-    }
     /**
      * Resource
      * @description Composite resource combining named, soft-deletable, and user-owned capabilities
      */
-    Resource: components['schemas']['NamedResource'] &
+    Resource: components['schemas']['UserOwnedResource'] &
       components['schemas']['SoftDeletableResource'] &
-      components['schemas']['UserOwnedResource']
+      components['schemas']['NamedResource']
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
+    /** @description Maximum number of results per page */
     limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Sort order for resources.
-     *     - Ascending: `field` (e.g., `name`)
-     *     - Descending: `-field` (e.g., `-created_at`)
-     * @example -created_at
-     */
-    sortParam: string
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
     includeTotalParam: boolean
-    /**
-     * @description Filter resources by name.
-     *     - Exact match: `name=value`
-     *     - Contains: `name[contains]=value`
-     * @example auth
-     */
-    nameFilterParam: string & {
-      /**
-       * Contains
-       * @description Substring to match within the name (case-insensitive). ?name[contains]=<substring>
-       */
-      contains?: string
-      /**
-       * Starts With
-       * @description Prefix to match at the start of the name (case-insensitive). ?name[starts_with]=<prefix>
-       */
-      starts_with?: string
-      /**
-       * Equals
-       * @description Exact match of the name (case-insensitive). ?name[eq]=<name>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * @description Greater than comparison (lexicographical). ?name[gt]=<name>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * @description Greater than or equal comparison (lexicographical). ?name[gte]=<name>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * @description Less than comparison (lexicographical). ?name[lt]=<name>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * @description Less than or equal comparison (lexicographical). ?name[lte]=<name>
-       */
-      lte?: string
-    }
-    createdAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?created_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?created_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?created_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?created_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    updatedAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of last update timestamp. ?updated_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?updated_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?updated_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?updated_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?updated_at[lte]=<timestamp>
-       */
-      lte?: string
-    }
-    /**
-     * @description Filter resources by label key-value pairs.
-     *     - Single label: `labels[environment]=production`
-     *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-     *     All specified labels must match (AND logic).
-     * @example {
-     *       "environment": "production",
-     *       "region": "us-east-1"
-     *     }
-     */
-    labelsFilterParam: {
-      [key: string]: string
-    }
   }
   requestBodies: never
   headers: never
@@ -546,52 +647,18 @@ export interface operations {
   list_credentials: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /**
-         * @description Filter resources by name.
-         *     - Exact match: `name=value`
-         *     - Contains: `name[contains]=value`
-         * @example auth
-         */
-        name?: components['parameters']['nameFilterParam']
-        created_at?: components['parameters']['createdAtFilterParam']
-        updated_at?: components['parameters']['updatedAtFilterParam']
-        /**
-         * @description Filter resources by label key-value pairs.
-         *     - Single label: `labels[environment]=production`
-         *     - Multiple labels: `labels[environment]=production&labels[region]=us-east-1`
-         *     All specified labels must match (AND logic).
-         * @example {
-         *       "environment": "production",
-         *       "region": "us-east-1"
-         *     }
-         */
-        labels?: components['parameters']['labelsFilterParam']
-        /** @description Filter by Credential type ID */
-        credential_type_id?: string
+        /** @description Filter by credential type ID */
+        credential_type_id?: string | null
         /** @description Filter by enabled status */
-        enabled?: boolean
+        enabled?: boolean | null
       }
       header?: never
       path?: never
@@ -599,17 +666,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Paginated list of Credentials (metadata only, no secret values) */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['CredentialRead'][]
-          }
+          'application/json': components['schemas']['CredentialListResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   create_credential: {
@@ -625,7 +697,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Credential created successfully */
+      /** @description Successful Response */
       201: {
         headers: {
           [name: string]: unknown
@@ -634,33 +706,13 @@ export interface operations {
           'application/json': components['schemas']['CredentialRead']
         }
       }
-      /** @description Credential type not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Credential name conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Input validation error (unknown fields, missing required fields, $encrypted$ as input, payload > 64KB) */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_credential: {
@@ -668,14 +720,13 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Credential ID */
         credential_id: string
       }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Credential with secret fields masked */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -684,15 +735,13 @@ export interface operations {
           'application/json': components['schemas']['CredentialRead']
         }
       }
-      /** @description Credential not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   delete_credential: {
@@ -700,29 +749,26 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Credential ID */
         credential_id: string
       }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Credential deleted */
+      /** @description Successful Response */
       204: {
         headers: {
           [name: string]: unknown
         }
         content?: never
       }
-      /** @description Credential not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   update_credential: {
@@ -730,7 +776,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Credential ID */
         credential_id: string
       }
       cookie?: never
@@ -741,7 +786,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Credential updated */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -750,33 +795,13 @@ export interface operations {
           'application/json': components['schemas']['CredentialRead']
         }
       }
-      /** @description Credential not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Name conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Input validation error (unknown fields, missing required fields, $encrypted$ as input, payload > 64KB) */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_credential_workflows: {
@@ -784,14 +809,13 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Credential ID */
         credential_id: string
       }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description List of workflows referencing this credential */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -800,60 +824,40 @@ export interface operations {
           'application/json': components['schemas']['CredentialWorkflowRef'][]
         }
       }
-      /** @description Credential not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_credential_types: {
     parameters: {
-      query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
-        limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
-        cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
-        sort?: components['parameters']['sortParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
-        include_total?: components['parameters']['includeTotalParam']
-      }
+      query?: never
       header?: never
       path?: never
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Paginated list of Credential types */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['CredentialTypeRead'][]
-          }
+          'application/json': components['schemas']['CredentialTypeListResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_credential_type: {
@@ -861,14 +865,13 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Credential type ID */
         credential_type_id: string
       }
       cookie?: never
     }
     requestBody?: never
     responses: {
-      /** @description Credential type detail */
+      /** @description Successful Response */
       200: {
         headers: {
           [name: string]: unknown
@@ -877,15 +880,13 @@ export interface operations {
           'application/json': components['schemas']['CredentialTypeRead']
         }
       }
-      /** @description Credential type not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

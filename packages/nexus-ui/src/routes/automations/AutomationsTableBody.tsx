@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { Workflow as WorkflowWithId, WorkflowAPI } from '@ansible/nexus-contracts'
 import { Flex, FlexItem, Label } from '@patternfly/react-core'
 import { RhUiCaretDownIcon, RhUiCaretRightIcon } from '@patternfly/react-icons'
 import { ActionsColumn, Tbody, Td, Tr } from '@patternfly/react-table'
@@ -32,7 +32,7 @@ function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
         <DateCell dateString={getDateField(workflow, 'updatedAt')} />
       </Td>
       <Td dataLabel="Tags">
-        <BadgesCell items={getWorkflowTagsForDisplay(workflow)} />
+        <BadgesCell items={getWorkflowTagsForDisplay(workflow as WorkflowWithId)} />
       </Td>
       <Td dataLabel="State">
         <SwitchCell

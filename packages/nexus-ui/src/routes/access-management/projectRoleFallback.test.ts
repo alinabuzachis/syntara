@@ -54,7 +54,7 @@ describe('fetchProjectRolesForPrincipal', () => {
         }) as never
       }
 
-      if (path === '/projects/{project_id}/roles' && getProjectId(options) === 'project-1') {
+      if (path === '/projects/{project_id}/role-assignments' && getProjectId(options) === 'project-1') {
         return Promise.resolve({
           data: [
             {
@@ -74,14 +74,14 @@ describe('fetchProjectRolesForPrincipal', () => {
         }) as never
       }
 
-      if (path === '/projects/{project_id}/roles' && getProjectId(options) === 'project-2') {
+      if (path === '/projects/{project_id}/role-assignments' && getProjectId(options) === 'project-2') {
         return Promise.resolve({
           data: undefined,
           error: { status: 403, detail: 'Forbidden' },
         }) as never
       }
 
-      if (path === '/projects/{project_id}/roles' && getProjectId(options) === 'project-3') {
+      if (path === '/projects/{project_id}/role-assignments' && getProjectId(options) === 'project-3') {
         return Promise.resolve({
           data: undefined,
           error: { response: { status: 404 }, detail: 'Not found' },
@@ -115,7 +115,7 @@ describe('fetchProjectRolesForPrincipal', () => {
         }) as never
       }
 
-      if (path === '/projects/{project_id}/group-roles' && getProjectId(options) === 'project-1') {
+      if (path === '/projects/{project_id}/group-role-assignments' && getProjectId(options) === 'project-1') {
         return Promise.resolve({
           data: undefined,
           error: new Error('boom'),
@@ -141,7 +141,7 @@ describe('fetchProjectRolesForPrincipal', () => {
         }) as never
       }
 
-      if (path === '/projects/{project_id}/roles' && getProjectId(options) === 'project-9') {
+      if (path === '/projects/{project_id}/role-assignments' && getProjectId(options) === 'project-9') {
         return Promise.resolve({
           data: undefined,
           error: { status: 500, detail: 'Internal error' },

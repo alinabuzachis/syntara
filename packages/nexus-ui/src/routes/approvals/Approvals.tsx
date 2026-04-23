@@ -16,6 +16,7 @@ import { useCursorPagination, useCursorReset } from '../../hooks/useCursorPagina
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useTableSort } from '../../hooks/useTableSort'
 import { detachPromise } from '../../utils/detachPromise'
+import { accessClient } from '../access/accessClient'
 
 import { getApprovalNameFilterDefinition, getApprovalStatusFilterDefinition } from './approvalFilters'
 import { FlatApprovalsTableBody, GroupedApprovalsTableBody } from './ApprovalsTableBody'
@@ -31,11 +32,14 @@ export type ApprovalWithDetails = Approval & {
 const SORT_COLUMNS = ['approvalName', 'automationName', 'requested_at', 'decided_at', 'status'] as const
 type SortColumn = (typeof SORT_COLUMNS)[number]
 
-const getApprovalDetails = (approval: ApprovalWithDetails) => ({
-  approvalName: approval.name || approval.id,
-  automationName: approval.workflow_context?.workflow_name || 'Unknown',
-  workflowId: approval.workflow_context?.workflow_version_id,
-})
+const getApprovalDetails = (approval: ApprovalWithDetails) => {
+  const wfCtx = approval.workflow_context as { workflow_name?: string; workflow_version_id?: string } | undefined
+  return {
+    approvalName: approval.name || approval.id,
+    automationName: wfCtx?.workflow_name || 'Unknown',
+    workflowId: wfCtx?.workflow_version_id,
+  }
+}
 
 const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => {
   switch (sortColumn) {
@@ -75,7 +79,7 @@ function approvalsReducer(state: { expandedRows: Set<string> }, action: Approval
 }
 
 export default function Approvals() {
-  const { isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const [{ expandedRows }, dispatch] = useReducer(approvalsReducer, {
     expandedRows: new Set<string>(),
   })
@@ -104,13 +108,25 @@ export default function Approvals() {
   })
   const sortColumn = SORT_COLUMNS[activeSortIndex]
 
-  // Query approvals with server-side filtering
-  const approvalsQuery = approvalsClient.useQuery('get', '/approvals', {
-    params: {
-      query: queryParams,
-    },
+  // Query approvals — use project-scoped endpoint when a project is selected.
+  // When a project ID is stored but projects haven't loaded yet, wait before querying.
+  const projectId = selectedProject?.id
+  const projectSelectorReady = isAllProjects || !!projectId
+
+  const allApprovalsQuery = approvalsClient.useQuery('get', '/approvals', {
+    params: { query: queryParams },
+    enabled: projectSelectorReady && isAllProjects,
   })
 
+  const projectApprovalsQuery = accessClient.useQuery('get', '/projects/{project_id}/approvals', {
+    params: {
+      path: { project_id: projectId ?? 'none' },
+      query: queryParams,
+    },
+    enabled: projectSelectorReady && !isAllProjects,
+  })
+
+  const approvalsQuery = isAllProjects ? allApprovalsQuery : projectApprovalsQuery
   const approvalsData = approvalsQuery.data
 
   const enrichedApprovals = useMemo(() => {

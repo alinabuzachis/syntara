@@ -12,14 +12,13 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List projects
+     * List Projects
      * @description List projects the current user has read access to.
-     *     Results are filtered by the user's project-scoped permissions.
      */
     get: operations['list_projects']
     put?: never
     /**
-     * Create a project
+     * Create Project
      * @description Create a new project. The creator is automatically assigned
      *     the project-admin role. Requires: project:create permission.
      */
@@ -38,29 +37,26 @@ export interface paths {
       cookie?: never
     }
     /**
-     * Get a project by ID
-     * @description Requires project:read permission scoped to this project.
+     * Get Project
+     * @description Get a project by ID.
      */
     get: operations['get_project']
     /**
-     * Update a project (full replacement)
-     * @description Update a project.
-     *     Requires: project:update permission scoped to this project.
+     * Replace Project
+     * @description Replace a project. Requires: project:update permission scoped to this project.
      */
-    put: operations['update_project_put']
+    put: operations['replace_project']
     post?: never
     /**
-     * Delete a project
-     * @description Soft-delete a project.
-     *     Requires: project:delete permission scoped to this project.
+     * Delete Project
+     * @description Delete a project (soft-delete). Requires: project:delete permission scoped to this project.
      */
     delete: operations['delete_project']
     options?: never
     head?: never
     /**
-     * Update a project
-     * @description Partially update a project. Only provided fields are updated.
-     *     Requires: project:update permission scoped to this project.
+     * Update Project
+     * @description Patch a project. Requires: project:update permission scoped to this project.
      */
     patch: operations['update_project']
     trace?: never
@@ -73,8 +69,10 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List workflows in a project
+     * List Project Workflows
      * @description List workflows belonging to a specific project.
+     *
+     *     Returns only workflows with project_id matching the given project.
      *     Requires: workflow:read permission scoped to this project.
      */
     get: operations['list_project_workflows']
@@ -94,11 +92,133 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List approvals in a project
+     * List Project Approvals
      * @description List approval requests belonging to a specific project.
+     *
+     *     Returns only approvals with project_id matching the given project.
      *     Requires: approval:read permission scoped to this project.
      */
     get: operations['list_project_approvals']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/projects/{project_id}/role-assignments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Project Role Assignments
+     * @description List role assignments for a project.
+     *
+     *     Admin/auditor/project-admin see all assignments; other users see only their own.
+     */
+    get: operations['list_project_role_assignments']
+    put?: never
+    /**
+     * Assign Project Role
+     * @description Assign a role to a user within a project.
+     *
+     *     Valid roles: project-admin, project-user, project-auditor.
+     *     Requires: project-role:assign permission scoped to this project.
+     */
+    post: operations['assign_project_role']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/projects/{project_id}/role-assignments/{assignment_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Revoke Project Role
+     * @description Remove a role assignment from a project. Requires: project-role:revoke permission.
+     */
+    delete: operations['revoke_project_role']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/projects/{project_id}/group-role-assignments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Project Group Role Assignments
+     * @description List group role assignments for a project.
+     *
+     *     Admin/auditor/project-admin see all assignments; other users see only
+     *     assignments for groups they belong to.
+     */
+    get: operations['list_project_group_role_assignments']
+    put?: never
+    /**
+     * Assign Project Group Role
+     * @description Assign a role to a group within a project.
+     *
+     *     All members of the group inherit the role for this project.
+     *     Valid roles: project-admin, project-user, project-auditor.
+     *     Requires: project-role:assign permission scoped to this project.
+     */
+    post: operations['assign_project_group_role']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/projects/{project_id}/group-role-assignments/{assignment_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Revoke Project Group Role
+     * @description Remove a group role assignment from a project. Requires: project-role:revoke permission.
+     */
+    delete: operations['revoke_project_group_role']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/projects/{project_id}/all-role-assignments': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Project All Role Assignments
+     * @description List all role assignments (user + group) scoped to a project.
+     */
+    get: operations['list_project_all_role_assignments']
     put?: never
     post?: never
     delete?: never
@@ -115,46 +235,57 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List user role assignments for a project
-     * @description List all user-to-role assignments within a project.
+     * List Project Roles
+     * @description List roles visible within this project.
+     *
+     *     Includes project-owned roles and global roles with scope "project".
      */
     get: operations['list_project_roles']
     put?: never
     /**
-     * Assign a role to a user in a project
-     * @description Assign a project-scoped role to a user.
-     *     Valid roles: project-admin, project-user, project-auditor.
-     *     Requires: project-role:assign permission scoped to this project.
+     * Create Project Role
+     * @description Create a role scoped to this project. Requires: role:create permission.
      */
-    post: operations['assign_project_role']
+    post: operations['create_project_role']
     delete?: never
     options?: never
     head?: never
     patch?: never
     trace?: never
   }
-  '/projects/{project_id}/roles/{assignment_id}': {
+  '/projects/{project_id}/roles/{role_id}': {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    get?: never
-    put?: never
+    /**
+     * Get Project Role
+     * @description Get a single role, verifying it belongs to this project.
+     */
+    get: operations['get_project_role']
+    /**
+     * Replace Project Role
+     * @description Replace a project role. Builtin roles cannot be modified.
+     */
+    put: operations['replace_project_role']
     post?: never
     /**
-     * Remove a user role assignment from a project
-     * @description Revoke a user's project-scoped role.
-     *     Requires: project-role:revoke permission scoped to this project.
+     * Delete Project Role
+     * @description Delete a project role. Builtin roles cannot be deleted.
      */
-    delete: operations['revoke_project_role']
+    delete: operations['delete_project_role']
     options?: never
     head?: never
-    patch?: never
+    /**
+     * Update Project Role
+     * @description Patch a project role. Builtin roles cannot be modified.
+     */
+    patch: operations['update_project_role']
     trace?: never
   }
-  '/projects/{project_id}/group-roles': {
+  '/projects/{project_id}/policies': {
     parameters: {
       query?: never
       header?: never
@@ -162,44 +293,54 @@ export interface paths {
       cookie?: never
     }
     /**
-     * List group role assignments for a project
-     * @description List all group-to-role assignments within a project.
+     * List Project Policies
+     * @description List policies visible within this project.
+     *
+     *     Includes project-owned policies and global policies with scope "project".
      */
-    get: operations['list_project_group_roles']
+    get: operations['list_project_policies']
     put?: never
     /**
-     * Assign a role to a group in a project
-     * @description Assign a project-scoped role to a group. All members of the group
-     *     inherit the role for this project.
-     *     Valid roles: project-admin, project-user, project-auditor.
-     *     Requires: project-role:assign permission scoped to this project.
+     * Create Project Policy
+     * @description Create a policy scoped to this project. Requires: policy:create permission.
      */
-    post: operations['assign_project_group_role']
+    post: operations['create_project_policy']
     delete?: never
     options?: never
     head?: never
     patch?: never
     trace?: never
   }
-  '/projects/{project_id}/group-roles/{assignment_id}': {
+  '/projects/{project_id}/policies/{policy_id}': {
     parameters: {
       query?: never
       header?: never
       path?: never
       cookie?: never
     }
-    get?: never
-    put?: never
+    /**
+     * Get Project Policy
+     * @description Get a single policy, if it belongs to this project or is a global project-scoped policy.
+     */
+    get: operations['get_project_policy']
+    /**
+     * Replace Project Policy
+     * @description Replace a project policy. Only project-owned policies can be modified.
+     */
+    put: operations['replace_project_policy']
     post?: never
     /**
-     * Remove a group role assignment from a project
-     * @description Revoke a group's project-scoped role.
-     *     Requires: project-role:revoke permission scoped to this project.
+     * Delete Project Policy
+     * @description Delete a project policy. Only project-owned policies can be deleted.
      */
-    delete: operations['revoke_project_group_role']
+    delete: operations['delete_project_policy']
     options?: never
     head?: never
-    patch?: never
+    /**
+     * Update Project Policy
+     * @description Patch a project policy. Only project-owned policies can be modified.
+     */
+    patch: operations['update_project_policy']
     trace?: never
   }
 }
@@ -207,16 +348,16 @@ export type webhooks = Record<string, never>
 export interface components {
   schemas: {
     /**
-     * Project Create
-     * @description Request body for creating a project
+     * ProjectCreate
+     * @description Request body for creating a project.
      */
     ProjectCreate: {
-      /** @description Project name */
+      /** Name */
       name: string
-      /** @description Project description */
+      /** Description */
       description?: string | null
       /**
-       * @description Key-value labels
+       * Labels
        * @default {}
        */
       labels?: {
@@ -224,257 +365,879 @@ export interface components {
       }
     }
     /**
-     * Project Update
-     * @description Request body for updating a project (partial)
+     * ProjectUpdate
+     * @description Request body for updating a project.
      */
     ProjectUpdate: {
-      /** @description Update project name */
+      /** Name */
       name?: string | null
-      /** @description Update description */
+      /** Description */
       description?: string | null
-      /** @description Update labels */
+      /** Labels */
       labels?: {
         [key: string]: unknown
       } | null
     }
     /**
-     * Project Read
-     * @description Response body for a project
+     * ProjectRead
+     * @description Response body for a project.
      */
-    ProjectRead: {
-      /**
-       * Format: uuid
-       * @description Project UUID
-       */
-      id: string
-      /** @description Project name */
+    ProjectRead: components['schemas']['BaseResource'] & {
+      /** Name */
       name: string
-      /** @description Project description */
+      /** Description */
       description?: string | null
       /**
-       * @description Key-value labels
+       * Is Default
+       * @default false
+       */
+      is_default?: boolean
+    }
+    /**
+     * ProjectRoleAssignmentCreate
+     * @description Request body for assigning a role to a user within a project.
+     */
+    ProjectRoleAssignmentCreate: {
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string
+      /** Role Name */
+      role_name: string
+    }
+    /**
+     * ProjectRoleAssignmentRead
+     * @description Response body for a project role assignment.
+     */
+    ProjectRoleAssignmentRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string
+      /**
+       * Username
+       * @default
+       */
+      username?: string
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
+      /** Role Name */
+      role_name: string
+      /** Created At */
+      created_at?: string | null
+    }
+    /**
+     * ProjectGroupRoleAssignmentCreate
+     * @description Request body for assigning a role to a group within a project.
+     */
+    ProjectGroupRoleAssignmentCreate: {
+      /**
+       * Group Id
+       * Format: uuid
+       */
+      group_id: string
+      /** Role Name */
+      role_name: string
+    }
+    /**
+     * ProjectGroupRoleAssignmentRead
+     * @description Response body for a project group role assignment.
+     */
+    ProjectGroupRoleAssignmentRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Group Id
+       * Format: uuid
+       */
+      group_id: string
+      /**
+       * Group Name
+       * @default
+       */
+      group_name?: string
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string
+      /** Role Name */
+      role_name: string
+      /** Created At */
+      created_at?: string | null
+    }
+    /**
+     * ProjectRoleCreate
+     * @description Request body for creating a project-scoped role (project_id comes from URL path).
+     */
+    ProjectRoleCreate: {
+      /** Name */
+      name: string
+      /** Description */
+      description?: string | null
+      /** Policies */
+      policies: string[]
+      /**
+       * Labels
+       * @default {}
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    /**
+     * ProjectPolicyCreate
+     * @description Request body for creating a project-scoped policy (project_id comes from URL path).
+     */
+    ProjectPolicyCreate: {
+      /** Name */
+      name: string
+      /** Description */
+      description?: string | null
+      /** Statements */
+      statements: components['schemas']['PolicyStatementSchema'][]
+      /**
+       * Labels
+       * @default {}
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    /**
+     * PolicyStatementSchema
+     * @description A single policy statement.
+     */
+    PolicyStatementSchema: {
+      /**
+       * Effect
+       * @description allow or deny
+       */
+      effect: string
+      /**
+       * Actions
+       * @description List of resource_type:action strings
+       */
+      actions: string[]
+      /**
+       * Scope
+       * @description any, self, or project
+       */
+      scope: string
+      /**
+       * Conditions
+       * @description Optional attribute-based conditions
+       */
+      conditions?: {
+        [key: string]: unknown
+      } | null
+    }
+    /**
+     * PolicyRead
+     * @description Response body for a policy.
+     */
+    PolicyRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /** Name */
+      name: string
+      /** Description */
+      description?: string | null
+      /**
+       * Statements
+       * @default []
+       */
+      statements?: {
+        [key: string]: unknown
+      }[]
+      /**
+       * Is Builtin
+       * @default false
+       */
+      is_builtin?: boolean
+      /**
+       * Is Project Eligible
+       * @default false
+       */
+      is_project_eligible?: boolean
+      /**
+       * Is System Scoped
+       * @description True when the policy is not scoped to a specific project.
+       */
+      readonly is_system_scoped: boolean
+      /** Project Id */
+      project_id?: string | null
+      /**
+       * Scope
+       * @default any
+       */
+      scope?: string
+      /**
+       * Labels
        * @default {}
        */
       labels?: {
         [key: string]: unknown
       }
-      /**
-       * @description Whether this is the default project
-       * @default false
-       */
-      is_default?: boolean
-      /**
-       * Format: date-time
-       * @description Creation timestamp
-       */
+      /** Created At */
       created_at?: string | null
-      /**
-       * Format: date-time
-       * @description Last update timestamp
-       */
+      /** Updated At */
       updated_at?: string | null
     }
     /**
-     * Project Role Assignment Create
-     * @description Request body for assigning a role to a user within a project
+     * PolicyUpdate
+     * @description Request body for updating a policy (partial).
      */
-    ProjectRoleAssignmentCreate: {
-      /**
-       * Format: uuid
-       * @description User UUID
-       */
-      user_id: string
-      /** @description Role name (project-admin, project-user, or project-auditor) */
-      role_name: string
+    PolicyUpdate: {
+      /** Name */
+      name?: string | null
+      /** Description */
+      description?: string | null
+      /** Statements */
+      statements?: components['schemas']['PolicyStatementSchema'][] | null
+      /** Labels */
+      labels?: {
+        [key: string]: string
+      } | null
     }
     /**
-     * Project Role Assignment Read
-     * @description Response body for a project user role assignment
+     * PolicyListResponse
+     * @description Paginated list response for policies.
      */
-    ProjectRoleAssignmentRead: {
+    PolicyListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources: components['schemas']['PolicyRead'][]
+    }
+    /**
+     * RoleRead
+     * @description Response body for a role.
+     */
+    RoleRead: {
       /**
+       * Id
        * Format: uuid
-       * @description Assignment UUID
        */
       id: string
+      /** Name */
+      name: string
+      /** Description */
+      description?: string | null
       /**
-       * Format: uuid
-       * @description User UUID
+       * Policies
+       * @default []
        */
-      user_id: string
+      policies?: string[]
       /**
-       * @description Username (resolved via join)
-       * @default
+       * Is Builtin
+       * @default false
        */
-      username?: string
+      is_builtin?: boolean
       /**
-       * Format: uuid
-       * @description Project UUID
+       * Is System Scoped
+       * @description True when the role is not scoped to a specific project.
        */
-      project_id: string
+      readonly is_system_scoped: boolean
+      /** Project Id */
+      project_id?: string | null
       /**
-       * Format: uuid
-       * @description Role UUID
+       * Scope
+       * @default system
        */
-      role_id: string
-      /** @description Role name */
-      role_name: string
+      scope?: string
       /**
-       * Format: date-time
-       * @description Creation timestamp
+       * Labels
+       * @default {}
        */
+      labels?: {
+        [key: string]: unknown
+      }
+      /** Created At */
       created_at?: string | null
+      /** Updated At */
+      updated_at?: string | null
     }
     /**
-     * Project Group Role Assignment Create
-     * @description Request body for assigning a role to a group within a project
+     * RoleUpdate
+     * @description Request body for updating a role (partial).
      */
-    ProjectGroupRoleAssignmentCreate: {
-      /**
-       * Format: uuid
-       * @description Group UUID
-       */
-      group_id: string
-      /** @description Role name (project-admin, project-user, or project-auditor) */
-      role_name: string
+    RoleUpdate: {
+      /** Name */
+      name?: string | null
+      /** Description */
+      description?: string | null
+      /** Policies */
+      policies?: string[] | null
+      /** Labels */
+      labels?: {
+        [key: string]: string
+      } | null
     }
     /**
-     * Project Group Role Assignment Read
-     * @description Response body for a project group role assignment
+     * RoleListResponse
+     * @description Paginated list response for roles.
      */
-    ProjectGroupRoleAssignmentRead: {
-      /**
-       * Format: uuid
-       * @description Assignment UUID
-       */
-      id: string
-      /**
-       * Format: uuid
-       * @description Group UUID
-       */
-      group_id: string
-      /**
-       * @description Group name (resolved via join)
-       * @default
-       */
-      group_name?: string
-      /**
-       * Format: uuid
-       * @description Project UUID
-       */
-      project_id: string
-      /**
-       * Format: uuid
-       * @description Role UUID
-       */
-      role_id: string
-      /** @description Role name */
-      role_name: string
-      /**
-       * Format: date-time
-       * @description Creation timestamp
-       */
-      created_at?: string | null
+    RoleListResponse: components['schemas']['ResourcesResponseBase'] & {
+      resources: components['schemas']['RoleRead'][]
     }
+    /**
+     * WorkflowListResponse
+     * @description Paginated list response for workflows.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
     WorkflowListResponse: components['schemas']['ResourcesResponseBase'] & {
-      resources: Record<string, never>[]
-    }
-    ApprovalListResponse: components['schemas']['ResourcesResponseBase'] & {
-      resources: Record<string, never>[]
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['WorkflowRead'][]
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ApprovalListResponse
+     * @description Paginated list response for approval requests.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ApprovalListResponse: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['ApprovalRequestRead'][]
+    }
+    /**
+     * ApprovalRequestStatus
+     * @description Approval request status enumeration.
+     * @enum {string}
+     */
+    ApprovalRequestStatus: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
+    /**
+     * Base Resource
+     * @description Foundational schema for all API resources with system-managed metadata
+     */
+    BaseResource: {
+      /**
+       * Resource ID
+       * Format: uuid
+       * @description Unique identifier for the resource
+       * @example 550e8400-e29b-41d4-a716-446655440000
+       */
+      readonly id?: string
+      /**
+       * Created At
+       * Format: date-time
+       * @description Timestamp when resource was created
+       * @example 2025-10-09T12:00:00Z
+       */
+      readonly created_at?: string
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp when resource was last updated
+       * @example 2025-10-09T12:30:00Z
+       */
+      readonly updated_at?: string
+      /**
+       * Labels
+       * @description Key-value pairs for resource labeling and filtering
+       * @default {}
+       * @example {
+       *       "environment": "production",
+       *       "region": "us-east-1",
+       *       "team": "platform"
+       *     }
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    /**
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
     /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     ResourcesResponseBase: {
       /**
-       * Next Page Cursor
+       * Next
        * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       next?: string | null
       /**
-       * Previous Page Cursor
+       * Prev
        * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       prev?: string | null
       /**
-       * Total Count
+       * Total
        * @description Total count of resources (only when include_total=true)
-       * @example 150
        */
       total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
+    }
+    /**
+     * WorkflowRead
+     * @description Schema for workflow response (GET /workflows/{id}).
+     *
+     *     Includes all fields from the database table model.
+     *     Note: deleted_at and deleted_by are None since soft-deleted workflows are excluded from queries.
+     */
+    WorkflowRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string
+      /**
+       * Name
+       * @description Workflow name
+       */
+      name: string
+      /**
+       * Description
+       * @description Workflow description
+       */
+      description?: string | null
+      /**
+       * Labels
+       * @description Workflow labels
+       */
+      labels?: {
+        [key: string]: unknown
+      }
+      /** Current Version */
+      current_version: number
+      /** Is Enabled */
+      is_enabled: boolean
+      /**
+       * Created By
+       * Format: uuid
+       */
+      created_by: string
+      /** Project Id */
+      project_id?: string | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /** Deleted At */
+      deleted_at?: string | null
+      /** Deleted By */
+      deleted_by?: string | null
+    }
+    /**
+     * UserReference
+     * @description Minimal user identification for embedding in other resources.
+     *
+     *     Matches the UserReference schema from the OpenAPI specification.
+     *     This model captures user identity at the time of an action, providing
+     *     a snapshot that doesn't change even if the user's details are updated later.
+     */
+    UserReference: {
+      /**
+       * Id
+       * Format: uuid
+       * @description User's unique identifier
+       */
+      id: string
+      /**
+       * Name
+       * @description User's display name at time of action
+       */
+      name: string
+    }
+    ApprovalRequestRead: components['schemas']['BaseResource'] & {
+      /**
+       * Project Id
+       * @description Project this approval belongs to (denormalized from execution)
+       */
+      project_id?: string | null
+      /**
+       * Execution Id
+       * Format: uuid
+       * @description Parent execution ID
+       */
+      execution_id: string
+      /**
+       * Approval Node Id
+       * @description Activity ID from workflow definition
+       */
+      approval_node_id: string
+      /**
+       * Name
+       * @description Human-readable name for the approval request
+       */
+      name: string
+      /**
+       * @description Current approval status
+       * @default pending
+       */
+      status?: components['schemas']['ApprovalRequestStatus']
+      /**
+       * Timeout At
+       * @description When this request expires
+       */
+      timeout_at?: string | null
+      /**
+       * Next Step Approved
+       * @description First activity that executes if approved
+       */
+      next_step_approved: {
+        [key: string]: unknown
+      }
+      /**
+       * Next Step Rejected
+       * @description First activity that executes if rejected
+       */
+      next_step_rejected?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Workflow Context
+       * @description Workflow inputs and previous step output
+       */
+      workflow_context?: {
+        [key: string]: unknown
+      }
+      /** @description User who made the decision */
+      decided_by?: components['schemas']['UserReference'] | null
+      /**
+       * Decided At
+       * @description When decision was made
+       */
+      decided_at?: string | null
+      /**
+       * Decision Notes
+       * @description Notes provided with decision
+       */
+      decision_notes?: string | null
+    }
+    /**
+     * AllRoleAssignmentRead
+     * @description A single role assignment (user or group).
+     */
+    AllRoleAssignmentRead: {
+      /** Id */
+      id: string
+      /** Principal Id */
+      principal_id: string
+      /** Principal Name */
+      principal_name: string
+      /** Principal Type */
+      principal_type: string
+      /** Role Name */
+      role_name: string
+      /** Project Id */
+      project_id?: string | null
+      /** Project Name */
+      project_name?: string | null
+      /** Created At */
+      created_at?: string | null
+    }
+    /**
+     * AllRoleAssignmentListResponse
+     * @description Paginated response for all role assignments.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    AllRoleAssignmentListResponse: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['AllRoleAssignmentRead'][]
     }
   }
-  responses: never
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
   parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
+    /** @description Project UUID */
+    projectIdParam: string
+    /** @description Role UUID */
+    roleIdParam: string
+    /** @description Policy UUID */
+    policyIdParam: string
+    /** @description Maximum number of results per page */
     limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
     includeTotalParam: boolean
-    /**
-     * @description Sort order for resources.
-     *     - Ascending: `field` (e.g., `name`)
-     *     - Descending: `-field` (e.g., `-created_at`)
-     * @example -created_at
-     */
-    sortParam: string
   }
   requestBodies: never
   headers: never
@@ -500,6 +1263,13 @@ export interface operations {
           'application/json': components['schemas']['ProjectRead'][]
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   create_project: {
@@ -524,15 +1294,13 @@ export interface operations {
           'application/json': components['schemas']['ProjectRead']
         }
       }
-      /** @description Project name conflict */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_project: {
@@ -541,7 +1309,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -556,24 +1324,22 @@ export interface operations {
           'application/json': components['schemas']['ProjectRead']
         }
       }
-      /** @description Project not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  update_project_put: {
+  replace_project: {
     parameters: {
       query?: never
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -592,15 +1358,13 @@ export interface operations {
           'application/json': components['schemas']['ProjectRead']
         }
       }
-      /** @description Project not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   delete_project: {
@@ -609,7 +1373,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -622,15 +1386,13 @@ export interface operations {
         }
         content?: never
       }
-      /** @description Project not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   update_project: {
@@ -639,7 +1401,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -658,42 +1420,31 @@ export interface operations {
           'application/json': components['schemas']['ProjectRead']
         }
       }
-      /** @description Project not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_project_workflows: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /** @description Sort field and direction (e.g., 'name', '-created_at') */
-        sort?: string
       }
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -708,46 +1459,35 @@ export interface operations {
           'application/json': components['schemas']['WorkflowListResponse']
         }
       }
-      /** @description Project not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   list_project_approvals: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
         /** @description Filter by approval status */
-        status?: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
+        status?: components['schemas']['ApprovalRequestStatus'] | null
         /** @description Filter by parent workflow execution ID */
-        execution_id?: string
+        execution_id?: string | null
       }
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -762,24 +1502,22 @@ export interface operations {
           'application/json': components['schemas']['ApprovalListResponse']
         }
       }
-      /** @description Project not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  list_project_roles: {
+  list_project_role_assignments: {
     parameters: {
       query?: never
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -794,6 +1532,13 @@ export interface operations {
           'application/json': components['schemas']['ProjectRoleAssignmentRead'][]
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   assign_project_role: {
@@ -802,7 +1547,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -821,24 +1566,13 @@ export interface operations {
           'application/json': components['schemas']['ProjectRoleAssignmentRead']
         }
       }
-      /** @description Project, user, or role not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Assignment already exists */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   revoke_project_role: {
@@ -847,7 +1581,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
         /** @description Assignment UUID */
         assignment_id: string
       }
@@ -862,24 +1596,22 @@ export interface operations {
         }
         content?: never
       }
-      /** @description Assignment not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
-  list_project_group_roles: {
+  list_project_group_role_assignments: {
     parameters: {
       query?: never
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -894,6 +1626,13 @@ export interface operations {
           'application/json': components['schemas']['ProjectGroupRoleAssignmentRead'][]
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   assign_project_group_role: {
@@ -902,7 +1641,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
       }
       cookie?: never
     }
@@ -921,24 +1660,13 @@ export interface operations {
           'application/json': components['schemas']['ProjectGroupRoleAssignmentRead']
         }
       }
-      /** @description Project, group, or role not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Assignment already exists */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   revoke_project_group_role: {
@@ -947,7 +1675,7 @@ export interface operations {
       header?: never
       path: {
         /** @description Project UUID */
-        project_id: string
+        project_id: components['parameters']['projectIdParam']
         /** @description Assignment UUID */
         assignment_id: string
       }
@@ -962,15 +1690,486 @@ export interface operations {
         }
         content?: never
       }
-      /** @description Assignment not found */
-      404: {
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_project_all_role_assignments: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by principal type (user or group) */
+        principal_type?: string | null
+        /** @description Filter by principal name (username or group name) */
+        principal_name?: string | null
+        /** @description Filter by role name */
+        role_name?: string | null
+      }
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of role assignments for this project */
+      200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/problem+json': components['schemas']['ErrorData']
+          'application/json': components['schemas']['AllRoleAssignmentListResponse']
         }
       }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_project_roles: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by role name */
+        name?: string | null
+        /** @description Filter by builtin status */
+        is_builtin?: boolean | null
+        /** @description Filter by scope */
+        scope?: string | null
+      }
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of roles in the project */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RoleListResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  create_project_role: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ProjectRoleCreate']
+      }
+    }
+    responses: {
+      /** @description Role created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RoleRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_project_role: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Role UUID */
+        role_id: components['parameters']['roleIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Role details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RoleRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  replace_project_role: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Role UUID */
+        role_id: components['parameters']['roleIdParam']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleUpdate']
+      }
+    }
+    responses: {
+      /** @description Updated role */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RoleRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  delete_project_role: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Role UUID */
+        role_id: components['parameters']['roleIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Role deleted */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  update_project_role: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Role UUID */
+        role_id: components['parameters']['roleIdParam']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RoleUpdate']
+      }
+    }
+    responses: {
+      /** @description Updated role */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RoleRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  list_project_policies: {
+    parameters: {
+      query?: {
+        /** @description Maximum number of results per page */
+        limit?: components['parameters']['limitParam']
+        /** @description Pagination cursor from previous response */
+        cursor?: components['parameters']['cursorParam']
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
+        sort?: components['parameters']['sortParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        /** @description Filter by policy name */
+        name?: string | null
+        /** @description Filter by builtin status */
+        is_builtin?: boolean | null
+        /** @description Filter by project eligibility */
+        project_eligible?: boolean | null
+        /** @description Filter by scope */
+        scope?: string | null
+      }
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Paginated list of policies in the project */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PolicyListResponse']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  create_project_policy: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ProjectPolicyCreate']
+      }
+    }
+    responses: {
+      /** @description Policy created */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PolicyRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  get_project_policy: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Policy UUID */
+        policy_id: components['parameters']['policyIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Policy details */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PolicyRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  replace_project_policy: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Policy UUID */
+        policy_id: components['parameters']['policyIdParam']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PolicyUpdate']
+      }
+    }
+    responses: {
+      /** @description Updated policy */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PolicyRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  delete_project_policy: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Policy UUID */
+        policy_id: components['parameters']['policyIdParam']
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Policy deleted */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
+    }
+  }
+  update_project_policy: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        /** @description Project UUID */
+        project_id: components['parameters']['projectIdParam']
+        /** @description Policy UUID */
+        policy_id: components['parameters']['policyIdParam']
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PolicyUpdate']
+      }
+    }
+    responses: {
+      /** @description Updated policy */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PolicyRead']
+        }
+      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

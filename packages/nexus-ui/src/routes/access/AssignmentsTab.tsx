@@ -24,8 +24,8 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import { AssignRoleDialog } from './AssignRoleDialog'
 import { EditAssignmentDialog } from './EditAssignmentDialog'
 import { PaginationFooter } from './PaginationFooter'
-import { buildFilterDefsWithScope } from './scopeFilterUtils'
-import { ScopeLabel } from './ScopeLabel'
+import { buildProjectFilterDefs } from './scopeFilterUtils'
+import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { PermissionRow } from './types'
 import { useAssignmentsData } from './useAssignmentsData'
 
@@ -83,7 +83,7 @@ export function AssignmentsTab() {
 
   const filterFieldDefinitions = useMemo(
     () =>
-      buildFilterDefsWithScope(
+      buildProjectFilterDefs(
         [
           {
             key: 'name',
@@ -107,8 +107,18 @@ export function AssignmentsTab() {
             key: 'scope',
             label: 'Scope',
             type: FilterTypeEnum.SELECT,
-            options: [],
+            options: [
+              { value: 'system', label: 'System' },
+              { value: 'project', label: 'Project' },
+            ],
             placeholder: 'Filter by scope',
+          },
+          {
+            key: 'project',
+            label: 'Project',
+            type: FilterTypeEnum.SELECT,
+            options: [],
+            placeholder: 'Filter by project',
           },
         ],
         projectNameMap
@@ -179,8 +189,11 @@ export function AssignmentsTab() {
                   <Th width={20} sort={getSortParams(2)}>
                     Role
                   </Th>
-                  <Th width={15} sort={getSortParams(3)} modifier="nowrap">
+                  <Th width={10} sort={getSortParams(3)} modifier="nowrap">
                     Scope
+                  </Th>
+                  <Th width={10} sort={getSortParams(4)} modifier="nowrap">
+                    Project
                   </Th>
                   <Th screenReaderText="Actions" />
                 </Tr>
@@ -200,7 +213,10 @@ export function AssignmentsTab() {
                       </Label>
                     </Td>
                     <Td dataLabel="Scope">
-                      <ScopeLabel projectId={row.projectId} projectNameMap={projectNameMap} />
+                      <ScopeLabel scope={row.scopeType} />
+                    </Td>
+                    <Td dataLabel="Project">
+                      <ProjectLabel projectId={row.projectId} projectNameMap={projectNameMap} />
                     </Td>
                     <Td isActionCell>
                       <ActionsColumn items={getAssignmentActions(row)} />

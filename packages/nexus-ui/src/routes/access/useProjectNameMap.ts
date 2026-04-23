@@ -7,7 +7,7 @@ export function useProjectNameMap() {
   const projectNameMap = useMemo(() => {
     const projects = projectsQuery.data
     if (!Array.isArray(projects)) return new Map<string, string>()
-    return new Map(projects.map((p) => [p.id, p.name]))
+    return new Map(projects.filter((p): p is typeof p & { id: string } => !!p.id).map((p) => [p.id, p.name]))
   }, [projectsQuery.data])
 
   return { projectNameMap, isLoading: projectsQuery.isPending }

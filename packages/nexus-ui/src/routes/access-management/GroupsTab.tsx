@@ -171,12 +171,12 @@ export function GroupsTab() {
                             items={[
                               {
                                 title: <IconLabel icon={<RhUiEditFillIcon />}>Edit</IconLabel>,
-                                onClick: () => formDialog.open(group),
+                                onClick: () => formDialog.open(group as Group),
                               },
                               { isSeparator: true },
                               {
                                 title: <IconLabel icon={<RhUiTrashIcon />}>Delete</IconLabel>,
-                                onClick: () => deleteDialog.open(group),
+                                onClick: () => deleteDialog.open(group as Group),
                               },
                             ]}
                           />

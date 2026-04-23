@@ -6,20 +6,35 @@ import { AppRoute } from '../../app/AppRoute'
 
 import styles from './ScopeLabel.module.css'
 
+const SCOPE_DISPLAY: Record<string, { label: string; color: 'blue' | 'green' | 'teal' }> = {
+  system: { label: 'System', color: 'blue' },
+  any: { label: 'Any', color: 'blue' },
+  self: { label: 'Self', color: 'teal' },
+  project: { label: 'Project', color: 'green' },
+}
+
 interface ScopeLabelProps {
-  /** Project UUID, or null/undefined for system scope */
+  scope?: string | null
+}
+
+export function ScopeLabel({ scope }: Readonly<ScopeLabelProps>) {
+  const display = SCOPE_DISPLAY[scope ?? ''] ?? SCOPE_DISPLAY.system
+
+  return (
+    <Label color={display.color} isCompact>
+      {display.label}
+    </Label>
+  )
+}
+
+interface ProjectLabelProps {
   projectId?: string | null
-  /** Map of project IDs to project names for display */
   projectNameMap: Map<string, string>
 }
 
-export function ScopeLabel({ projectId, projectNameMap }: Readonly<ScopeLabelProps>) {
+export function ProjectLabel({ projectId, projectNameMap }: Readonly<ProjectLabelProps>) {
   if (!projectId) {
-    return (
-      <Label color="blue" isCompact>
-        System
-      </Label>
-    )
+    return <>-</>
   }
 
   const projectUrl = AppRoute.AccessManagement.ProjectDetail.replace(':projectId', projectId)

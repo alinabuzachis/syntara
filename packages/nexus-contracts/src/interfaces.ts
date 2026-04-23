@@ -4,15 +4,17 @@ import * as ToolManagerAPI from './tool-manager.js'
 import * as UsersAPI from './users-api.js'
 import * as WorkflowAPI from './workflow-api.js'
 
-export type Group = UsersAPI.components['schemas']['GroupRead']
-export type User = UsersAPI.components['schemas']['UserRead']
+type WithId<T> = T & { readonly id: string }
 
-export type Execution = ExecutionsAPI.components['schemas']['Execution']
+export type Group = WithId<UsersAPI.components['schemas']['GroupRead']>
+export type User = WithId<UsersAPI.components['schemas']['UserRead']>
+
+export type Execution = WithId<ExecutionsAPI.components['schemas']['Execution']>
 export type ActivityExecution = ExecutionsAPI.components['schemas']['ActivityExecution']
-export type Approval = ApprovalsAPI.components['schemas']['ApprovalRequest']
+export type Approval = WithId<ApprovalsAPI.components['schemas']['ApprovalRequestRead']>
 export type ExecutionStatus = ExecutionsAPI.components['schemas']['ExecutionStatus']
-export type ApprovalStatus = ApprovalsAPI.components['schemas']['ApprovalStatus']
-export type Workflow = WorkflowAPI.components['schemas']['Workflow']
+export type ApprovalStatus = ApprovalsAPI.components['schemas']['ApprovalRequestStatus']
+export type Workflow = WithId<WorkflowAPI.components['schemas']['Workflow']>
 
 /**
  * Constants for node type discriminators (v2)
@@ -99,9 +101,9 @@ export type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWit
 export type WorkflowWithVersionResponse =
   WorkflowAPI.paths['/workflows/{workflow_id}']['get']['responses']['200']['content']['application/json']
 
-export type Tool = ToolManagerAPI.components['schemas']['ToolWithParameters']
+export type Tool = WithId<ToolManagerAPI.components['schemas']['ToolWithParameters']>
 
-export type ToolProvider = ToolManagerAPI.components['schemas']['ToolProviderWithConfiguration']
+export type ToolProvider = WithId<ToolManagerAPI.components['schemas']['ToolProviderWithConfiguration']>
 export type ToolProviderCreate = ToolManagerAPI.components['schemas']['ToolProviderCreate']
 export type ToolProvidersResponse =
   ToolManagerAPI.paths['/tool_providers']['get']['responses']['200']['content']['application/json']

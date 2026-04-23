@@ -7,7 +7,6 @@ import { axe } from 'vitest-axe'
 
 import { AlertProvider } from '../../../components/alerts'
 import { accessClient } from '../../access/accessClient'
-import { useAllRoles } from '../../access/useAllRoles'
 import { useAllUsers } from '../../access/useAllUsers'
 
 import { AssignProjectRoleModal } from './AssignProjectRoleModal'
@@ -21,10 +20,6 @@ vi.mock('../../access/accessClient', () => ({
 
 vi.mock('../../../client', () => ({
   authMiddleware: { onRequest: vi.fn() },
-}))
-
-vi.mock('../../access/useAllRoles', () => ({
-  useAllRoles: vi.fn(),
 }))
 
 vi.mock('../../access/useAllUsers', () => ({
@@ -79,17 +74,20 @@ describe('AssignProjectRoleModal', () => {
   const emptyAssignedRoles = new Map<string, Set<string>>()
 
   function setupMocks() {
-    vi.mocked(useAllRoles).mockReturnValue({
-      roles: mockRoles as never,
-      isLoading: false,
-      error: null,
-    })
-
     vi.mocked(useAllUsers).mockReturnValue({
       users: mockUsers as never,
       isLoading: false,
       error: null,
     })
+
+    vi.mocked(accessClient.useQuery).mockReturnValue({
+      data: { resources: mockRoles },
+      isLoading: false,
+      isError: false,
+      error: null,
+      isFetching: false,
+      refetch: vi.fn(),
+    } as never)
 
     vi.mocked(accessClient.useMutation).mockReturnValue(mockMutationReturn)
   }
@@ -129,12 +127,10 @@ describe('AssignProjectRoleModal', () => {
     expect(screen.getByText('Role')).toBeInTheDocument()
   })
 
-  it('only shows built-in project-scoped roles in options', () => {
+  it('shows all project roles from the project endpoint', () => {
     renderModal()
 
     expect(screen.getByText('Role')).toBeInTheDocument()
-    expect(screen.queryByText('admin')).not.toBeInTheDocument()
-    expect(screen.queryByText('custom-role')).not.toBeInTheDocument()
   })
 
   it('calls onClose when Cancel is clicked', async () => {

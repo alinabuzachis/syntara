@@ -38,7 +38,7 @@ const assignRoleSchema = z.discriminatedUnion('scope', [
 
 type AssignRoleFormData = z.infer<typeof assignRoleSchema>
 
-interface AssignRoleModalProps {
+type AssignRoleModalProps = {
   principalType: 'user' | 'group'
   principalId: string
   isOpen: boolean
@@ -130,7 +130,7 @@ export function AssignRoleModal({
     if (scope === 'system') {
       return allRoles
         .filter((r) => r.project_id === null)
-        .map((r) => ({ id: r.id, name: r.name, description: r.description ?? null }))
+        .map((r) => ({ id: r.name, name: r.name, description: r.description ?? null }))
     }
     return allRoles
       .filter((r) => r.project_id === null && r.is_builtin && r.name.startsWith('project-'))
@@ -138,13 +138,21 @@ export function AssignRoleModal({
   }, [allRoles, scope])
 
   const projectOptions = useMemo(() => {
-    return (projectsQuery.data ?? []).map((p) => ({ value: p.id, label: p.name }))
+    return (projectsQuery.data ?? [])
+      .filter((p): p is typeof p & { id: string } => !!p.id)
+      .map((p) => ({ value: p.id, label: p.name }))
   }, [projectsQuery.data])
 
   const { mutateAsync: assignSystemUserRole } = accessClient.useMutation('post', '/user-role-assignments')
   const { mutateAsync: assignSystemGroupRole } = accessClient.useMutation('post', '/group-role-assignments')
-  const { mutateAsync: assignProjectUserRole } = accessClient.useMutation('post', '/projects/{project_id}/roles')
-  const { mutateAsync: assignProjectGroupRole } = accessClient.useMutation('post', '/projects/{project_id}/group-roles')
+  const { mutateAsync: assignProjectUserRole } = accessClient.useMutation(
+    'post',
+    '/projects/{project_id}/role-assignments'
+  )
+  const { mutateAsync: assignProjectGroupRole } = accessClient.useMutation(
+    'post',
+    '/projects/{project_id}/group-role-assignments'
+  )
 
   const handleClose = () => {
     reset({ scope: 'system', projectId: '', roleIds: [] })
@@ -157,9 +165,9 @@ export function AssignRoleModal({
       for (const roleKey of data.roleIds) {
         if (data.scope === 'system') {
           if (principalType === 'user') {
-            await assignSystemUserRole({ body: { user_id: principalId, role_id: roleKey } })
+            await assignSystemUserRole({ body: { user_id: principalId, role_name: roleKey } })
           } else {
-            await assignSystemGroupRole({ body: { group_id: principalId, role_id: roleKey } })
+            await assignSystemGroupRole({ body: { group_id: principalId, role_name: roleKey } })
           }
         } else if (principalType === 'user') {
           await assignProjectUserRole({

@@ -324,7 +324,7 @@ export default function IntegrationTools() {
     navigate(AppRoute.Configuration.Integrations.Root)
   }
 
-  const tools = useMemo(() => query.data?.resources ?? [], [query.data?.resources])
+  const tools = useMemo(() => (query.data?.resources ?? []) as Tool[], [query.data?.resources])
 
   const { getSortParams, sortData } = useTableSort({
     initialSortIndex: 0,

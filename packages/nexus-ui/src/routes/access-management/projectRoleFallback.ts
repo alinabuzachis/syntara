@@ -3,7 +3,7 @@ import { batchedAllSettled } from '../../utils/batchedSettled'
 import { accessFetchClient } from '../access/accessClient'
 import type { ProjectGroupRoleAssignmentRead, ProjectRoleAssignmentRead } from '../access/types'
 
-export interface ProjectScopedRoleAssignmentRow {
+export type ProjectScopedRoleAssignmentRow = {
   id: string
   roleName: string
   scope: string
@@ -75,13 +75,13 @@ async function fetchProjectRoleBatch(
   project: { id: string; name: string }
 ): Promise<ProjectRoleFetchResult> {
   if (principalType === 'user') {
-    const { data, error } = await accessFetchClient.GET('/projects/{project_id}/roles', {
+    const { data, error } = await accessFetchClient.GET('/projects/{project_id}/role-assignments', {
       params: { path: { project_id: project.id } },
     })
     return { project, assignments: data ?? [], error, type: 'user' }
   }
 
-  const { data, error } = await accessFetchClient.GET('/projects/{project_id}/group-roles', {
+  const { data, error } = await accessFetchClient.GET('/projects/{project_id}/group-role-assignments', {
     params: { path: { project_id: project.id } },
   })
   return { project, assignments: data ?? [], error, type: 'group' }
@@ -98,7 +98,10 @@ export async function fetchProjectRolesForPrincipal(
   const { data: projects } = await accessFetchClient.GET('/projects')
   if (!projects || projects.length === 0) return []
 
-  const fetchResults = await batchedAllSettled(projects, (project) => fetchProjectRoleBatch(principalType, project))
+  const projectsWithId = projects.filter((p): p is typeof p & { id: string } => !!p.id)
+  const fetchResults = await batchedAllSettled(projectsWithId, (project) =>
+    fetchProjectRoleBatch(principalType, project)
+  )
   const allRows: ProjectScopedRoleAssignmentRow[] = []
 
   for (const result of fetchResults) {

@@ -106,92 +106,6 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    /**
-     * Base Resource
-     * @description Foundational schema for all API resources with system-managed metadata
-     */
-    BaseResource: {
-      /**
-       * Resource ID
-       * Format: uuid
-       * @description Unique identifier for the resource
-       * @example 550e8400-e29b-41d4-a716-446655440000
-       */
-      readonly id: string
-      /**
-       * Created At
-       * Format: date-time
-       * @description Timestamp when resource was created
-       * @example 2025-10-09T12:00:00Z
-       */
-      readonly created_at: string
-      /**
-       * Updated At
-       * Format: date-time
-       * @description Timestamp when resource was last updated
-       * @example 2025-10-09T12:30:00Z
-       */
-      readonly updated_at: string
-      /**
-       * Labels
-       * @description Key-value pairs for resource labeling and filtering
-       * @default {}
-       * @example {
-       *       "environment": "production",
-       *       "region": "us-east-1",
-       *       "team": "platform"
-       *     }
-       */
-      labels?: {
-        [key: string]: string
-      }
-    }
-    NamedResource: components['schemas']['BaseResource'] & {
-      /**
-       * Name
-       * @description Human-readable name for the resource
-       * @example Authentication Service
-       */
-      name: string
-      /**
-       * Description
-       * @description Detailed description of the resource
-       * @example Handles user authentication and authorization workflows
-       */
-      description?: string | null
-    }
-    SoftDeletableResource: components['schemas']['BaseResource'] & {
-      /**
-       * Deleted At
-       * Format: date-time
-       * @description Timestamp when resource was soft deleted
-       * @example 2025-10-09T14:00:00Z
-       */
-      readonly deleted_at?: string | null
-      /**
-       * Deleted By
-       * Format: uuid
-       * @description User who performed the soft delete
-       * @example 660e8400-e29b-41d4-a716-446655440000
-       */
-      readonly deleted_by?: string | null
-    }
-    UserOwnedResource: components['schemas']['BaseResource'] & {
-      /**
-       * Created By
-       * Format: uuid
-       * @description User who created the resource
-       * @example 770e8400-e29b-41d4-a716-446655440000
-       */
-      readonly created_by: string
-      /**
-       * Updated By
-       * Format: uuid
-       * @description User who last updated the resource
-       * @example 880e8400-e29b-41d4-a716-446655440000
-       */
-      readonly updated_by?: string | null
-    }
     Workflow: components['schemas']['NamedResource'] &
       components['schemas']['SoftDeletableResource'] &
       components['schemas']['UserOwnedResource'] & {
@@ -278,66 +192,190 @@ export interface components {
       versions: components['schemas']['WorkflowVersionResponse'][]
     }
     /**
-     * Create Workflow Request
+     * WorkflowCreate
      * @description Request payload for creating a new workflow from a v2 graph-based workflow definition
      */
-    CreateWorkflowRequest: {
+    WorkflowCreate: {
+      /** @description Workflow name */
       name: string
+      /** @description Workflow description */
       description?: string
+      /**
+       * @description Workflow labels
+       * @default {}
+       */
+      labels?: {
+        [key: string]: unknown
+      }
       workflow_definition: components['schemas']['workflow_definition.schema']
       /**
-       * @description Enable workflow for execution (defaults to true if not specified)
+       * @description Enable workflow for execution
        * @default true
        */
       is_enabled?: boolean
+      /**
+       * Format: uuid
+       * @description Project to assign workflow to
+       */
+      project_id?: string | null
     }
     /**
-     * Patch Workflow Request
-     * @description Request payload for updating workflow fields. Behavior depends on which fields are provided:
-     *     - Metadata only (name, description, is_enabled, labels): Updates without creating new version
-     *     - With workflow_definition: Validates workflow definition, compares with current version, and creates new WorkflowVersion only if definition differs (change detection)
+     * WorkflowUpdate
+     * @description Schema for updating workflow (PATCH /workflows/{id}).
      *
-     *     Note: WorkflowVersion entities are read-only and managed automatically by the system.
+     *     All fields are optional for partial updates.
+     *     Supports metadata updates and workflow definition updates (creates new version).
      */
-    PatchWorkflowRequest: {
-      /** @description Update workflow name (metadata only, no version created) */
-      name?: string
-      /** @description Update workflow description (metadata only, no version created) */
-      description?: string
-      /** @description Enable or disable workflow for execution (metadata only, no version created) */
-      is_enabled?: boolean
-      /** @description Update workflow labels (metadata only, no version created) */
+    WorkflowUpdate: {
+      /**
+       * Name
+       * @description Update workflow name
+       */
+      name?: string | null
+      /**
+       * Description
+       * @description Update workflow description
+       */
+      description?: string | null
+      /**
+       * Is Enabled
+       * @description Enable/disable workflow
+       */
+      is_enabled?: boolean | null
+      /**
+       * Labels
+       * @description Update workflow labels
+       */
       labels?: {
-        [key: string]: string
-      }
-      /** @description New workflow definition - creates new version only if definition differs from current version (change detection) */
-      workflow_definition?: components['schemas']['workflow_definition.schema']
-      /** @description Description of changes (used when creating new version via workflow_definition) */
-      change_description?: string
+        [key: string]: unknown
+      } | null
+      /**
+       * Workflow Definition
+       * @description New workflow definition (auto-creates version)
+       */
+      workflow_definition?: components['schemas']['workflow_definition.schema'] | null
+      /**
+       * Change Description
+       * @description Description of changes for version history
+       */
+      change_description?: string | null
     }
     /**
      * Paginated Response Base
      * @description Pagination metadata structure for list responses
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
      */
     ResourcesResponseBase: {
       /**
-       * Next Page Cursor
+       * Next
        * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       next?: string | null
       /**
-       * Previous Page Cursor
+       * Prev
        * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
        */
       prev?: string | null
       /**
-       * Total Count
+       * Total
        * @description Total count of resources (only when include_total=true)
-       * @example 150
        */
       total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources?: unknown[]
+    }
+    /**
+     * Base Resource
+     * @description Foundational schema for all API resources with system-managed metadata
+     */
+    BaseResource: {
+      /**
+       * Resource ID
+       * Format: uuid
+       * @description Unique identifier for the resource
+       * @example 550e8400-e29b-41d4-a716-446655440000
+       */
+      readonly id?: string
+      /**
+       * Created At
+       * Format: date-time
+       * @description Timestamp when resource was created
+       * @example 2025-10-09T12:00:00Z
+       */
+      readonly created_at?: string
+      /**
+       * Updated At
+       * Format: date-time
+       * @description Timestamp when resource was last updated
+       * @example 2025-10-09T12:30:00Z
+       */
+      readonly updated_at?: string
+      /**
+       * Labels
+       * @description Key-value pairs for resource labeling and filtering
+       * @default {}
+       * @example {
+       *       "environment": "production",
+       *       "region": "us-east-1",
+       *       "team": "platform"
+       *     }
+       */
+      labels?: {
+        [key: string]: string
+      }
+    }
+    NamedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Name
+       * @description Human-readable name for the resource
+       * @example Authentication Service
+       */
+      name: string
+      /**
+       * Description
+       * @description Detailed description of the resource
+       * @example Handles user authentication and authorization workflows
+       */
+      description?: string | null
+    }
+    SoftDeletableResource: components['schemas']['BaseResource'] & {
+      /**
+       * Deleted At
+       * @description Timestamp when resource was soft deleted
+       * @example 2025-10-09T14:00:00Z
+       */
+      readonly deleted_at?: string | null
+      /**
+       * Deleted By
+       * @description User who performed the soft delete
+       * @example 660e8400-e29b-41d4-a716-446655440000
+       */
+      readonly deleted_by?: string | null
+    }
+    UserOwnedResource: components['schemas']['BaseResource'] & {
+      /**
+       * Created By
+       * Format: uuid
+       * @description User who created the resource
+       * @example 770e8400-e29b-41d4-a716-446655440000
+       */
+      readonly created_by: string
+      /**
+       * Updated By
+       * @description User who last updated the resource
+       * @example 880e8400-e29b-41d4-a716-446655440000
+       */
+      readonly updated_by?: string | null
     }
     /** @description Retry configuration for failed node execution */
     retry_policy: {
@@ -804,74 +842,82 @@ export interface components {
       }
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
   responses: never
   parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
+    /** @description Maximum number of results per page */
     limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Whether to include total count in response (may impact performance)
-     * @example true
-     */
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Include total count in response (expensive) */
     includeTotalParam: boolean
-    /**
-     * @description Sort order for resources.
-     *     - Ascending: `field` (e.g., `name`)
-     *     - Descending: `-field` (e.g., `-created_at`)
-     * @example -created_at
-     */
-    sortParam: string
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
     /**
      * @description Filter resources by name.
      *     - Exact match: `name=value`
@@ -1006,27 +1052,13 @@ export interface operations {
         created_by?: string
         /** @description Filter by enabled status */
         is_enabled?: boolean
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
         /**
          * @description Filter resources by name.
@@ -1077,7 +1109,7 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['CreateWorkflowRequest']
+        'application/json': components['schemas']['WorkflowCreate']
       }
     }
     responses: {
@@ -1229,7 +1261,7 @@ export interface operations {
     }
     requestBody: {
       content: {
-        'application/json': components['schemas']['PatchWorkflowRequest']
+        'application/json': components['schemas']['WorkflowUpdate']
       }
     }
     responses: {
@@ -1283,27 +1315,13 @@ export interface operations {
   list_workflow_versions: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Whether to include total count in response (may impact performance)
-         * @example true
-         */
+        /** @description Include total count in response (expensive) */
         include_total?: components['parameters']['includeTotalParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
         created_at?: components['parameters']['createdAtFilterParam']
       }

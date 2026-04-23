@@ -80,8 +80,22 @@ const mockGroupAssignments = [
 
 const mockRoles = {
   resources: [
-    { id: 'r1', name: 'admin-role', description: 'Full access', project_id: null, policies: ['policy-a', 'policy-b'] },
-    { id: 'r2', name: 'viewer-role', description: 'Read-only', project_id: null, policies: ['policy-c'] },
+    {
+      id: 'r1',
+      name: 'admin-role',
+      description: 'Full access',
+      project_id: null,
+      policies: ['policy-a', 'policy-b'],
+      is_system_scoped: false,
+    },
+    {
+      id: 'r2',
+      name: 'viewer-role',
+      description: 'Read-only',
+      project_id: null,
+      policies: ['policy-c'],
+      is_system_scoped: false,
+    },
   ],
 }
 

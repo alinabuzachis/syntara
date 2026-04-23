@@ -96,7 +96,7 @@ const executionsFetchClient = createFetchClient<ExecutionsAPI.paths>({ baseUrl: 
 executionsFetchClient.use(authMiddleware)
 export const executionsClient = createClient(executionsFetchClient)
 
-const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({ baseUrl: '/api/v1/tool_manager/' })
+const toolManagerFetchClient = createFetchClient<ToolManagerAPI.paths>({ baseUrl: '/api/v1/tool_manager' })
 toolManagerFetchClient.use(authMiddleware)
 export const toolManagerClient = createClient(toolManagerFetchClient)
 

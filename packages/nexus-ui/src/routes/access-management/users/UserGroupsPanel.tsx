@@ -51,11 +51,11 @@ const filterFieldDefinitions: FilterFieldDefinition[] = [
   },
 ]
 
-interface UserGroupsPanelProps {
+type UserGroupsPanelProps = {
   userId: string
 }
 
-interface GroupInfo {
+type GroupInfo = {
   id: string
   name: string
 }
@@ -381,7 +381,7 @@ export function UserGroupsPanel({ userId }: Readonly<UserGroupsPanelProps>) {
                     <Td dataLabel="Created">{formatDateTime(group.created_at)}</Td>
                     <Td dataLabel="Updated">{formatDateTime(group.updated_at)}</Td>
                     <Td isActionCell>
-                      {!group.is_builtin && <ActionsColumn items={getGroupActions(group, setGroupToRemove)} />}
+                      {!group.is_builtin && <ActionsColumn items={getGroupActions(group as Group, setGroupToRemove)} />}
                     </Td>
                   </Tr>
                 ))}

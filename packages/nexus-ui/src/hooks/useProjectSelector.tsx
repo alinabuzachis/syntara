@@ -28,12 +28,12 @@ import { getErrorMessage } from '../utils/apiErrors'
 const ALL_PROJECTS_VALUE = '__all__'
 const CREATE_PROJECT_VALUE = '__create__'
 
-interface UseProjectSelectorOptions {
+type UseProjectSelectorOptions = {
   /** When true, hides the "All projects" option and shows "Select a project" as placeholder. */
   requireProject?: boolean
 }
 
-interface UseProjectSelectorResult {
+type UseProjectSelectorResult = {
   selectedProject: ProjectRead | null
   isAllProjects: boolean
   projects: ProjectRead[]
@@ -93,7 +93,7 @@ export function useProjectSelector(options?: UseProjectSelectorOptions): UseProj
           reset()
           setCreateDialogOpen(false)
           projectsQuery.refetch().catch(() => {})
-          setSelectedProjectId(created.id)
+          setSelectedProjectId(created.id ?? null)
         },
         onError: (error: unknown) => {
           showError(getErrorMessage(error), 'Failed to Create Project')

@@ -1,4 +1,5 @@
 import * as AAPAPI from './aap-api.js'
+import * as AllRoleAssignmentsAPI from './all-role-assignments-api.js'
 import * as ApprovalsAPI from './approvals-api.js'
 import * as AuthAPI from './auth-api.js'
 import * as AuthzAPI from './authz-api.js'
@@ -20,6 +21,7 @@ import * as WorkflowAPI from './workflow-api.js'
 
 export {
   AAPAPI,
+  AllRoleAssignmentsAPI,
   ApprovalsAPI,
   AuthAPI,
   AuthzAPI,

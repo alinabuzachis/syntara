@@ -31,7 +31,7 @@ type ActivityInput = ActivityData | ActivityExecution
 // Store State
 // ============================================================================
 
-interface ExecutionStoreState {
+type ExecutionStoreState = {
   // === Execution Visualization (WebSocket streaming) ===
   /** Current execution being visualized/streamed */
   executionId: string | null
@@ -61,7 +61,7 @@ interface ExecutionStoreState {
 // Store Actions
 // ============================================================================
 
-interface ExecutionStoreActions {
+type ExecutionStoreActions = {
   // === Execution Visualization Actions ===
   /**
    * Set execution data from REST API or WebSocket snapshot

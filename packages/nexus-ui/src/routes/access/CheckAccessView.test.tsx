@@ -55,6 +55,7 @@ const samplePolicies: PolicyRead[] = [
     description: 'Admin policy',
     statements: [{ scope: 'any', effect: 'allow', actions: ['workflow:read', 'workflow:write', 'project:read'] }],
     is_builtin: true,
+    is_system_scoped: true,
     project_id: null,
     labels: {},
     created_at: null,

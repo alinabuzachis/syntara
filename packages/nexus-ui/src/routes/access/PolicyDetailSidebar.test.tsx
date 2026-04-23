@@ -28,7 +28,9 @@ const builtinPolicy: PolicyRead = {
     },
   ],
   is_builtin: true,
+  is_system_scoped: true,
   project_id: null,
+  scope: 'any',
   labels: { env: 'production', team: 'platform' },
   created_at: '2024-01-15T10:30:00Z',
   updated_at: '2024-06-20T14:45:00Z',
@@ -46,7 +48,9 @@ const customPolicy: PolicyRead = {
     },
   ],
   is_builtin: false,
+  is_system_scoped: false,
   project_id: 'proj-1',
+  scope: 'project',
   labels: {},
   created_at: null,
   updated_at: null,
@@ -58,6 +62,7 @@ const emptyStatementsPolicy: PolicyRead = {
   description: 'No statements',
   statements: [],
   is_builtin: false,
+  is_system_scoped: false,
   project_id: null,
   labels: {},
   created_at: null,
@@ -105,13 +110,13 @@ describe('PolicyDetailSidebar', () => {
     expect(screen.queryByText('Full admin access to all resources')).not.toBeInTheDocument()
   })
 
-  it('renders scope as Global when no project_id', () => {
+  it('renders scope value from the policy', () => {
     render(<PolicyDetailSidebar policy={builtinPolicy} onClose={onClose} />)
 
-    expect(screen.getByText('Global')).toBeInTheDocument()
+    expect(screen.getByText('Any')).toBeInTheDocument()
   })
 
-  it('renders scope with project ID when project_id exists', () => {
+  it('renders project link when project_id exists', () => {
     render(<PolicyDetailSidebar policy={customPolicy} onClose={onClose} />)
 
     expect(screen.getByText('Project: proj-1')).toBeInTheDocument()

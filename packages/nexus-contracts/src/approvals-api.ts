@@ -13,18 +13,19 @@ export interface paths {
     }
     /**
      * List approval requests
-     * @description Retrieve a paginated list of approval requests with optional filtering.
+     * @description List approval requests with filtering, sorting, and pagination.
      *
-     *     Use this endpoint to:
-     *     - View pending approvals requiring action
-     *     - Review historical approval decisions
-     *     - Filter by execution, status, or date range
+     *     Supports filtering using query parameters with standard operators:
+     *     - status: Filter by approval status (status=pending)
+     *     - execution_id: Filter by parent execution ID (execution_id=uuid)
+     *
+     *     Uses cursor-based pagination for scalability and consistency.
      */
     get: operations['list_approvals']
     put?: never
     /**
      * Create approval request
-     * @description Create a new approval request for a workflow execution.
+     * @description Create a new approval request.
      *
      *     This is an internal endpoint called by the Workflows component when
      *     a workflow execution reaches an approval node. It should not be called
@@ -46,7 +47,7 @@ export interface paths {
     }
     /**
      * Get approval request
-     * @description Retrieve details of a specific approval request.
+     * @description Get an approval request by ID.
      *
      *     The response includes:
      *     - Full request context (workflow inputs, completed step outputs)
@@ -106,171 +107,210 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
-    ApprovalRequest: components['schemas']['BaseResource'] & {
+    ApprovalRequestRead: components['schemas']['BaseResource'] & {
       /**
-       * Format: uuid
+       * Project Id
        * @description Project this approval belongs to (denormalized from execution)
        */
       project_id?: string | null
       /**
+       * Execution Id
        * Format: uuid
-       * @description Parent workflow execution ID
+       * @description Parent execution ID
        */
       execution_id: string
-      /** @description Activity ID from workflow definition */
-      approval_node_id: string
-      /** @description Display name for the approval request */
-      name: string
-      status: components['schemas']['ApprovalStatus']
       /**
-       * Format: date-time
-       * @description When this request expires (null = no timeout)
+       * Approval Node Id
+       * @description Activity ID from workflow definition
+       */
+      approval_node_id: string
+      /**
+       * Name
+       * @description Human-readable name for the approval request
+       */
+      name: string
+      /**
+       * @description Current approval status
+       * @default pending
+       */
+      status?: components['schemas']['ApprovalRequestStatus']
+      /**
+       * Timeout At
+       * @description When this request expires
        */
       timeout_at?: string | null
-      /** @description First activity that executes if approved */
-      next_step_approved: components['schemas']['ActivitySummary']
-      /** @description First activity that executes if rejected (null if path ends workflow) */
-      next_step_rejected?: components['schemas']['ActivitySummary'] | null
-      workflow_context: components['schemas']['WorkflowContext']
-      /** @description User who made the decision (captures name at decision time) */
+      /**
+       * Next Step Approved
+       * @description First activity that executes if approved
+       */
+      next_step_approved: {
+        [key: string]: unknown
+      }
+      /**
+       * Next Step Rejected
+       * @description First activity that executes if rejected
+       */
+      next_step_rejected?: {
+        [key: string]: unknown
+      } | null
+      /**
+       * Workflow Context
+       * @description Workflow inputs and previous step output
+       */
+      workflow_context?: {
+        [key: string]: unknown
+      }
+      /** @description User who made the decision */
       decided_by?: components['schemas']['UserReference'] | null
       /**
-       * Format: date-time
+       * Decided At
        * @description When decision was made
        */
       decided_at?: string | null
-      /** @description Notes provided with the decision */
+      /**
+       * Decision Notes
+       * @description Notes provided with decision
+       */
       decision_notes?: string | null
     }
     /**
-     * Approval Status
-     * @description Current state of a human approval request
+     * ApprovalRequestStatus
+     * @description Approval request status enumeration.
      * @enum {string}
      */
-    ApprovalStatus: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
+    ApprovalRequestStatus: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
     /**
      * ActivitySummary
-     * @description Summary of a workflow activity for display in approval context.
+     * @description Activity Summary for workflow context.
+     *
+     *     Summary of a workflow activity for display in approval context.
      *     Provides enough information for UI rendering without exposing
      *     full activity configuration details.
      */
     ActivitySummary: {
       /**
+       * Id
        * @description Activity ID from workflow definition
-       * @example apply_changes
        */
       id: string
       /**
+       * Name
        * @description Human-readable activity name
-       * @example Apply Changes
        */
       name: string
       /**
+       * Type
        * @description Activity type (task, approval, parallel, etc.)
-       * @example task
        */
       type: string
     }
     /**
      * ApprovalCreateRequest
      * @description Request payload for creating an approval request.
+     *
      *     This is an internal schema used by the Workflows component.
      */
     ApprovalCreateRequest: {
       /**
+       * Execution Id
        * Format: uuid
        * @description Parent workflow execution ID
        */
       execution_id: string
       /**
-       * Format: uuid
+       * Project Id
        * @description Project ID (denormalized from execution)
        */
       project_id?: string | null
-      /** @description Activity ID from workflow definition */
+      /**
+       * Approval Node Id
+       * @description Activity ID from workflow definition
+       */
       approval_node_id: string
-      /** @description Display name for the approval request */
+      /**
+       * Name
+       * @description Display name for the approval request
+       */
       name: string
       /**
-       * Format: date-time
+       * Timeout At
        * @description When this request expires (null = no timeout)
        */
       timeout_at?: string | null
       /** @description First activity that executes if approved */
-      next_step_approved: components['schemas']['ActivitySummary']
-      /** @description First activity that executes if rejected (null if path ends workflow) */
+      next_step_approved?: components['schemas']['ActivitySummary'] | null
+      /** @description First activity that executes if rejected */
       next_step_rejected?: components['schemas']['ActivitySummary'] | null
+      /** @description Workflow execution context */
       workflow_context: components['schemas']['WorkflowContext']
     }
     /**
      * WorkflowContext
-     * @description Essential context for approvers to make a decision.
-     *     Contains workflow identification, inputs, and the output from the immediately preceding activity.
-     *     For current workflow state (especially in parallel workflows), approvers should
-     *     navigate to the workflow execution canvas via the execution link.
-     * @example {
-     *       "workflow_version_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-     *       "workflow_name": "Production Deployment",
-     *       "inputs": {
-     *         "target_environment": "production",
-     *         "version": "2.1.0",
-     *         "requested_by": "alice@example.com"
-     *       },
-     *       "previous_step": {
-     *         "id": "security_scan",
-     *         "name": "Security Scan",
-     *         "type": "task",
-     *         "output": {
-     *           "vulnerabilities_found": 0,
-     *           "scan_duration_seconds": 120
-     *         }
-     *       }
-     *     }
+     * @description Workflow Context for approvers.
+     *
+     *     Essential context for approvers to make a decision.
+     *     Contains workflow identification, inputs, and the output from the immediately
+     *     preceding activity.
      */
     WorkflowContext: {
       /**
+       * Workflow Version Id
        * Format: uuid
        * @description ID of the workflow version being executed
        */
       workflow_version_id: string
-      /** @description Name of the workflow */
+      /**
+       * Workflow Name
+       * @description Name of the workflow
+       */
       workflow_name: string
-      /** @description Original workflow input parameters (structure varies per workflow) */
+      /**
+       * Inputs
+       * @description Original workflow input parameters (structure varies per workflow)
+       */
       inputs: {
         [key: string]: unknown
       }
-      previous_step?: components['schemas']['PreviousStepContext']
+      /** @description Previous step context and output */
+      previous_step?: components['schemas']['PreviousStepContext'] | null
     }
     /**
      * PreviousStepContext
-     * @description The activity that immediately preceded this approval node, including its output.
+     * @description Previous Step Context for workflow execution.
+     *
+     *     The activity that immediately preceded this approval node, including its output.
      *     Null if the approval node is the first activity in the workflow.
      */
     PreviousStepContext: {
       /**
+       * Id
        * @description Activity ID from workflow definition
-       * @example security_scan
        */
       id: string
       /**
+       * Name
        * @description Human-readable activity name
-       * @example Security Scan
        */
       name: string
       /**
+       * Type
        * @description Activity type (task, approval, parallel, etc.)
-       * @example task
        */
       type: string
-      /** @description Output from the activity (structure varies per activity type) */
+      /**
+       * Output
+       * @description Output from the activity (structure varies per activity type)
+       */
       output?: {
         [key: string]: unknown
       } | null
     }
     /**
      * ApprovalDecisionStatus
-     * @description Status values that can be submitted in approval decisions.
-     *     This is a subset of ApprovalRequestStatus containing only user-actionable values.
+     * @description Status values for approval decisions.
+     *
+     *     This is a subset of ApprovalRequestStatus representing only the
+     *     values that can be submitted in decision requests.
      * @enum {string}
      */
     ApprovalDecisionStatus: 'approved' | 'rejected'
@@ -281,17 +321,21 @@ export interface components {
      *     Status values:
      *     - approved: Approver grants the request, workflow continues on approval path
      *     - rejected: Approver denies the request, workflow continues on rejection path
-     *     - cancelled: Internal use only - set by workflow engine when parent workflow is cancelled.
-     *       Will be restricted to service accounts when authentication is implemented.
+     *     - cancelled: Internal use only - set by workflow engine when parent workflow is cancelled
      */
     ApprovalDecisionRequest: {
+      /** @description Decision status */
       status: components['schemas']['ApprovalDecisionStatus']
-      /** @description Optional notes explaining the decision */
+      /**
+       * Notes
+       * @description Optional notes explaining the decision
+       */
       notes?: string | null
     }
     /**
      * BatchApprovalDecisionStatus
      * @description Status values that can be submitted in batch approval decisions.
+     *
      *     This is a subset of ApprovalRequestStatus containing only system-actionable values.
      * @enum {string}
      */
@@ -302,12 +346,17 @@ export interface components {
      */
     BatchApprovalDecision: {
       /**
+       * Approval Id
        * Format: uuid
        * @description ID of the approval request
        */
       approval_id: string
+      /** @description Decision status */
       status: components['schemas']['BatchApprovalDecisionStatus']
-      /** @description Optional notes explaining the decision */
+      /**
+       * Notes
+       * @description Optional notes explaining the decision
+       */
       notes?: string | null
     }
     /**
@@ -315,7 +364,10 @@ export interface components {
      * @description Request payload for submitting multiple approval decisions at once.
      */
     BatchApprovalRequest: {
-      /** @description List of approval decisions to submit */
+      /**
+       * Decisions
+       * @description List of approval decisions to submit
+       */
       decisions: components['schemas']['BatchApprovalDecision'][]
     }
     /**
@@ -324,74 +376,111 @@ export interface components {
      */
     BatchApprovalResult: {
       /**
+       * Approval Id
        * Format: uuid
        * @description ID of the approval request
        */
       approval_id: string
-      /** @description Whether the decision was successfully recorded */
+      /**
+       * Success
+       * @description Whether the decision was successfully recorded
+       */
       success: boolean
       /** @description New status after the decision (if successful) */
-      status?: components['schemas']['ApprovalStatus']
+      status?: components['schemas']['ApprovalRequestStatus'] | null
       /**
-       * Format: date-time
+       * Decided At
        * @description When decision was recorded (if successful)
        */
       decided_at?: string | null
       /** @description User who made the decision (if successful) */
       decided_by?: components['schemas']['UserReference'] | null
-      /** @description Notes provided with the decision (echoed back from request) */
+      /**
+       * Decision Notes
+       * @description Notes provided with the decision (echoed back from request)
+       */
       decision_notes?: string | null
-      /** @description Error message if the decision failed */
+      /**
+       * Error
+       * @description Error message if the decision failed
+       */
       error?: string | null
     }
     /**
      * BatchApprovalResponse
-     * @description Response for batch approval submission
+     * @description Response for batch approval submission.
      */
     BatchApprovalResponse: {
-      /** @description Individual results for each decision */
+      /**
+       * Results
+       * @description Individual results for each decision
+       */
       results: components['schemas']['BatchApprovalResult'][]
-      /** @description Number of successfully processed decisions */
+      /**
+       * Total Success
+       * @description Number of successfully processed decisions
+       */
       total_success: number
-      /** @description Number of failed decisions */
+      /**
+       * Total Failed
+       * @description Number of failed decisions
+       */
       total_failed: number
     }
     /**
+     * ApprovalListResponse
+     * @description Paginated list response for approval requests.
+     * @example {
+     *       "next": "eyJpZCI6InV1aWQifQ",
+     *       "total": 150
+     *     }
+     * @example {
+     *       "next": "eyJpZCI6Im5leHQifQ",
+     *       "prev": "eyJpZCI6InByZXYifQ"
+     *     }
+     */
+    ApprovalListResponse: {
+      /**
+       * Next
+       * @description Cursor for next page of results
+       */
+      next?: string | null
+      /**
+       * Prev
+       * @description Cursor for previous page of results
+       */
+      prev?: string | null
+      /**
+       * Total
+       * @description Total count of resources (only when include_total=true)
+       */
+      total?: number | null
+      /**
+       * Resources
+       * @description Array of resources in current page
+       */
+      resources: components['schemas']['ApprovalRequestRead'][]
+    }
+    /**
      * UserReference
-     * @description Minimal user identification for embedding in other resources
+     * @description Minimal user identification for embedding in other resources.
+     *
+     *     Matches the UserReference schema from the OpenAPI specification.
+     *     This model captures user identity at the time of an action, providing
+     *     a snapshot that doesn't change even if the user's details are updated later.
      */
     UserReference: {
       /**
+       * Id
        * Format: uuid
        * @description User's unique identifier
        */
       id: string
-      /** @description User's display name at time of action */
+      /**
+       * Name
+       * @description User's display name at time of action
+       */
       name: string
-    }
-    /**
-     * Paginated Response Base
-     * @description Pagination metadata structure for list responses
-     */
-    ResourcesResponseBase: {
-      /**
-       * Next Page Cursor
-       * @description Cursor for next page of results
-       * @example eyJpZCI6InV1aWQifQ
-       */
-      next?: string | null
-      /**
-       * Previous Page Cursor
-       * @description Cursor for previous page of results
-       * @example eyJpZCI6InV1aWQifQ
-       */
-      prev?: string | null
-      /**
-       * Total Count
-       * @description Total count of resources (only when include_total=true)
-       * @example 150
-       */
-      total?: number | null
     }
     /**
      * Base Resource
@@ -404,21 +493,21 @@ export interface components {
        * @description Unique identifier for the resource
        * @example 550e8400-e29b-41d4-a716-446655440000
        */
-      readonly id: string
+      readonly id?: string
       /**
        * Created At
        * Format: date-time
        * @description Timestamp when resource was created
        * @example 2025-10-09T12:00:00Z
        */
-      readonly created_at: string
+      readonly created_at?: string
       /**
        * Updated At
        * Format: date-time
        * @description Timestamp when resource was last updated
        * @example 2025-10-09T12:30:00Z
        */
-      readonly updated_at: string
+      readonly updated_at?: string
       /**
        * Labels
        * @description Key-value pairs for resource labeling and filtering
@@ -434,101 +523,211 @@ export interface components {
       }
     }
     /**
-     * RFC 9457 Problem Details
-     * @description RFC 9457 Problem Details format for error responses.
-     *     This format provides machine-readable and human-readable error information
-     *     with consistent structure for all API error responses.
+     * ErrorData
+     * @description RFC 9457 Problem Details format for error event data.
+     *     This model is used for streaming error events and follows the RFC 9457 Problem Details specification. It provides machine-readable and human-readable error information with consistent structure.
+     *     Attributes:
+     *         type: URI reference identifying the problem type
+     *         title: Short, human-readable summary of the problem
+     *         detail: Human-readable explanation specific to this occurrence
+     *         code: Machine-readable error code for programmatic handling
+     *         retryable: Whether this error can be retried by creating a new invocation
+     *         instance: Optional URI reference identifying the specific occurrence
+     * @example {
+     *       "type": "https://api.nexus.com/errors/llm-error",
+     *       "title": "LLM Rate Limit Exceeded",
+     *       "detail": "OpenRouter API rate limit exceeded. Please try again in a few moments.",
+     *       "code": "RATE_LIMIT_EXCEEDED",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
+     * @example {
+     *       "type": "https://api.nexus.com/errors/timeout-error",
+     *       "title": "Streaming Timeout",
+     *       "detail": "LLM streaming timed out after 30 seconds",
+     *       "code": "STREAM_TIMEOUT",
+     *       "retryable": true,
+     *       "instance": "/invocations/550e8400-e29b-41d4-a716-446655440000"
+     *     }
      */
     ErrorData: {
       /**
-       * Problem Type URI
+       * Type
        * @description URI reference identifying the problem type
-       * @example https://api.nexus.com/errors/validation-error
+       * @example https://api.nexus.com/errors/llm-error
        */
       type: string
       /**
-       * Problem Title
+       * Title
        * @description Short, human-readable summary of the problem
-       * @example Validation Error
+       * @example LLM Service Unavailable
        */
       title: string
       /**
-       * Problem Detail
+       * Detail
        * @description Human-readable explanation specific to this occurrence
-       * @example Field 'name' must be between 1 and 255 characters
+       * @example OpenRouter API returned error: rate limit exceeded. Please try again in a few moments.
        */
       detail: string
       /**
-       * Error Code
+       * Code
        * @description Machine-readable error code for programmatic handling
-       * @example VALIDATION_ERROR
+       * @example RATE_LIMIT_EXCEEDED
        */
       code: string
       /**
-       * Retryable Flag
-       * @description Whether this error can be retried
-       * @example false
+       * Retryable
+       * @description Whether this error can be retried by creating a new invocation
+       * @example true
        */
       retryable: boolean
       /**
-       * Problem Instance
-       * @description URI reference identifying the specific occurrence
-       * @example /api/v1/workflows
+       * Instance
+       * @description Optional URI reference identifying the specific occurrence
+       * @example /invocations/550e8400-e29b-41d4-a716-446655440000
        */
       instance?: string | null
     }
   }
-  responses: never
-  parameters: {
-    /**
-     * @description Number of resources to return per page
-     * @example 20
-     */
-    limitParam: number
-    /**
-     * @description Opaque cursor for pagination (from previous response)
-     * @example eyJpZCI6InV1aWQifQ
-     */
-    cursorParam: string
-    /**
-     * @description Sort order for resources.
-     *     - Ascending: `field` (e.g., `name`)
-     *     - Descending: `-field` (e.g., `-created_at`)
-     * @example -created_at
-     */
-    sortParam: string
-    createdAtFilterParam: string & {
-      /**
-       * Equals
-       * Format: date-time
-       * @description Exact match of creation timestamp. ?created_at[eq]=<timestamp>
-       */
-      eq?: string
-      /**
-       * Greater Than
-       * Format: date-time
-       * @description Greater than comparison. ?created_at[gt]=<timestamp>
-       */
-      gt?: string
-      /**
-       * Greater Than Or Equal
-       * Format: date-time
-       * @description Greater than or equal comparison. ?created_at[gte]=<timestamp>
-       */
-      gte?: string
-      /**
-       * Less Than
-       * Format: date-time
-       * @description Less than comparison. ?created_at[lt]=<timestamp>
-       */
-      lt?: string
-      /**
-       * Less Than Or Equal
-       * Format: date-time
-       * @description Less than or equal comparison. ?created_at[lte]=<timestamp>
-       */
-      lte?: string
+  responses: {
+    /** @description Bad Request */
+    BadRequestError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/bad-request",
+         *       "title": "Bad Request",
+         *       "detail": "The request was malformed or contained invalid parameters",
+         *       "code": "BAD_REQUEST",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
     }
+    /** @description Unauthorized */
+    UnauthorizedError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/unauthorized",
+         *       "title": "Unauthorized",
+         *       "detail": "Authentication is required to access this resource",
+         *       "code": "UNAUTHORIZED",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Forbidden */
+    ForbiddenError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/forbidden",
+         *       "title": "Forbidden",
+         *       "detail": "You do not have permission to access this resource",
+         *       "code": "FORBIDDEN",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Not Found */
+    NotFoundError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/not-found",
+         *       "title": "Resource Not Found",
+         *       "detail": "No resource exists with the provided identifier",
+         *       "code": "NOT_FOUND",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Conflict */
+    ConflictError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/conflict",
+         *       "title": "Conflict",
+         *       "detail": "The request conflicts with the current state of the resource",
+         *       "code": "CONFLICT",
+         *       "retryable": false
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Validation Error */
+    ValidationError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/validation-error",
+         *       "title": "Validation Error",
+         *       "detail": "Field 'name' must be between 1 and 255 characters",
+         *       "code": "VALIDATION_ERROR",
+         *       "retryable": false,
+         *       "instance": "/api/v1/workflows"
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+    /** @description Internal Server Error */
+    InternalServerError: {
+      headers: {
+        [name: string]: unknown
+      }
+      content: {
+        /**
+         * @example {
+         *       "type": "https://api.nexus.com/errors/internal-error",
+         *       "title": "Internal Server Error",
+         *       "detail": "An unexpected error occurred",
+         *       "code": "INTERNAL_ERROR",
+         *       "retryable": true
+         *     }
+         */
+        'application/problem+json': components['schemas']['ErrorData']
+      }
+    }
+  }
+  parameters: {
+    /** @description Maximum number of results per page */
+    limitParam: number
+    /** @description Pagination cursor from previous response */
+    cursorParam: string | null
+    /** @description Sort parameter (e.g., 'name', '-created_at') */
+    sortParam: string | null
+    /** @description Include total count in response (expensive) */
+    includeTotalParam: boolean
   }
   requestBodies: never
   headers: never
@@ -539,28 +738,16 @@ export interface operations {
   list_approvals: {
     parameters: {
       query?: {
-        /**
-         * @description Number of resources to return per page
-         * @example 20
-         */
+        /** @description Maximum number of results per page */
         limit?: components['parameters']['limitParam']
-        /**
-         * @description Opaque cursor for pagination (from previous response)
-         * @example eyJpZCI6InV1aWQifQ
-         */
+        /** @description Pagination cursor from previous response */
         cursor?: components['parameters']['cursorParam']
-        /**
-         * @description Sort order for resources.
-         *     - Ascending: `field` (e.g., `name`)
-         *     - Descending: `-field` (e.g., `-created_at`)
-         * @example -created_at
-         */
+        /** @description Sort parameter (e.g., 'name', '-created_at') */
         sort?: components['parameters']['sortParam']
-        /** @description Filter by approval status */
-        status?: components['schemas']['ApprovalStatus']
-        /** @description Filter by parent workflow execution ID */
-        execution_id?: string
-        created_at?: components['parameters']['createdAtFilterParam']
+        /** @description Include total count in response (expensive) */
+        include_total?: components['parameters']['includeTotalParam']
+        status?: components['schemas']['ApprovalRequestStatus'] | null
+        execution_id?: string | null
       }
       header?: never
       path?: never
@@ -568,26 +755,22 @@ export interface operations {
     }
     requestBody?: never
     responses: {
-      /** @description Paginated list of approval requests */
+      /** @description List of approval requests */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ResourcesResponseBase'] & {
-            resources: components['schemas']['ApprovalRequest'][]
-          }
+          'application/json': components['schemas']['ApprovalListResponse']
         }
       }
-      /** @description Invalid query parameters */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   create_approval: {
@@ -609,27 +792,16 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ApprovalRequest']
+          'application/json': components['schemas']['ApprovalRequestRead']
         }
       }
-      /** @description Invalid request */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Approval request already exists for this execution and approval node */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   get_approval: {
@@ -637,7 +809,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Approval request ID */
         approval_id: string
       }
       cookie?: never
@@ -650,18 +821,16 @@ export interface operations {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ApprovalRequest']
+          'application/json': components['schemas']['ApprovalRequestRead']
         }
       }
-      /** @description Approval request not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   decide_approval: {
@@ -669,7 +838,6 @@ export interface operations {
       query?: never
       header?: never
       path: {
-        /** @description Approval request ID */
         approval_id: string
       }
       cookie?: never
@@ -680,42 +848,22 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Approval decision recorded and workflow resumed */
+      /** @description Updated approval request */
       200: {
         headers: {
           [name: string]: unknown
         }
         content: {
-          'application/json': components['schemas']['ApprovalRequest']
+          'application/json': components['schemas']['ApprovalRequestRead']
         }
       }
-      /** @description Invalid request payload (e.g., invalid status value) */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Approval request not found */
-      404: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
-      /** @description Approval already decided or workflow cancelled */
-      409: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
   batch_decide_approvals: {
@@ -731,7 +879,7 @@ export interface operations {
       }
     }
     responses: {
-      /** @description Batch processing complete (may include partial failures) */
+      /** @description Batch decision results */
       200: {
         headers: {
           [name: string]: unknown
@@ -740,15 +888,13 @@ export interface operations {
           'application/json': components['schemas']['BatchApprovalResponse']
         }
       }
-      /** @description Invalid request format */
-      400: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          'application/problem+json': components['schemas']['ErrorData']
-        }
-      }
+      400: components['responses']['BadRequestError']
+      401: components['responses']['UnauthorizedError']
+      403: components['responses']['ForbiddenError']
+      404: components['responses']['NotFoundError']
+      409: components['responses']['ConflictError']
+      422: components['responses']['ValidationError']
+      500: components['responses']['InternalServerError']
     }
   }
 }

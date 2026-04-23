@@ -1,3 +1,4 @@
+import type { Execution } from '@ansible/nexus-contracts'
 import { CompassPanel, Stack, StackItem } from '@patternfly/react-core'
 import { Thead, Tr, Th } from '@patternfly/react-table'
 import { useMemo, useState } from 'react'
@@ -35,7 +36,7 @@ function buildFilterFieldDefinitions(): FilterFieldDefinition[] {
 }
 
 export default function Executions() {
-  const { isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
   const searchParams = useSearch()
   const urlParams = useMemo(() => new URLSearchParams(searchParams), [searchParams])
   const workflowIdFilter = urlParams.get('workflow_id')
@@ -64,7 +65,11 @@ export default function Executions() {
   })
 
   const showWorkflowColumn = true
-  const executions = executionsQuery.data?.resources ?? []
+  const allExecutions = useMemo(() => (executionsQuery.data?.resources ?? []) as Execution[], [executionsQuery.data])
+  const executions = useMemo(() => {
+    if (isAllProjects || !selectedProject) return allExecutions
+    return allExecutions.filter((e) => (e as unknown as Record<string, unknown>).project_id === selectedProject.id)
+  }, [allExecutions, isAllProjects, selectedProject])
 
   useCursorReset(executions.length, hasActiveFilters, cursor, executionsQuery.isFetching, setCursor)
 
@@ -84,7 +89,7 @@ export default function Executions() {
 
   const groupedExecutions = useMemo(() => {
     if (!isAllProjects) return null
-    const groups = new Map<string, { project: (typeof projects)[number] | null; executions: typeof sortedExecutions }>()
+    const groups = new Map<string, { project: (typeof projects)[number] | null; executions: Execution[] }>()
     for (const execution of sortedExecutions) {
       const projectId = ((execution as Record<string, unknown>).project_id as string | undefined) ?? 'unknown'
       if (!groups.has(projectId)) {

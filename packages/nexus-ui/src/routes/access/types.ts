@@ -55,6 +55,18 @@ export type RoleRead = RolesAPI.components['schemas']['RoleRead']
 export type RoleCreate = RolesAPI.components['schemas']['RoleCreate']
 export type RoleUpdate = RolesAPI.components['schemas']['RoleUpdate']
 
+// ── Project-scoped Role ─────────────────────────────────────────────────
+
+export type ProjectRoleRead = ProjectsAPI.components['schemas']['RoleRead']
+export type ProjectRoleCreate = ProjectsAPI.components['schemas']['ProjectRoleCreate']
+export type ProjectRoleUpdate = ProjectsAPI.components['schemas']['RoleUpdate']
+
+// ── Project-scoped Policy ───────────────────────────────────────────────
+
+export type ProjectPolicyRead = ProjectsAPI.components['schemas']['PolicyRead']
+export type ProjectPolicyCreate = ProjectsAPI.components['schemas']['ProjectPolicyCreate']
+export type ProjectPolicyUpdate = ProjectsAPI.components['schemas']['PolicyUpdate']
+
 // ── User ─────────────────────────────────────────────────────────────────
 
 export type UserRead = User
@@ -73,7 +85,7 @@ export type WhatCanIResponse = AuthzAPI.components['schemas']['WhatCanIResponse'
 
 // ── Unified permission row for the Access Management table ───────────────
 
-export interface PermissionRow {
+export type PermissionRow = {
   id: string
   principalType: 'user' | 'group'
   principalId: string

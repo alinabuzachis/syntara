@@ -13,7 +13,7 @@ export const assignRoleSchema = z
     groupId: z.string(),
     projectId: z.string(),
     roleName: z.string(),
-    roleId: z.string(),
+    systemRoleName: z.string(),
   })
   .superRefine((data, ctx) => {
     const isUser = data.assignmentType === 'user-project' || data.assignmentType === 'user-system'
@@ -32,8 +32,8 @@ export const assignRoleSchema = z
     if (isProjectScoped && !data.roleName) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Role is required', path: ['roleName'] })
     }
-    if (!isProjectScoped && !data.roleId) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Role is required', path: ['roleId'] })
+    if (!isProjectScoped && !data.systemRoleName) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Role is required', path: ['systemRoleName'] })
     }
   })
 

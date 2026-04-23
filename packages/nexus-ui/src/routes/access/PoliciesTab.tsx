@@ -13,8 +13,8 @@ import { buildFilterParams } from '../../utils/filterUtils'
 import { accessClient } from './accessClient'
 import { PaginationFooter } from './PaginationFooter'
 import { PolicyDetailSidebar } from './PolicyDetailSidebar'
-import { buildFilterDefsWithScope, transformFiltersForApi } from './scopeFilterUtils'
-import { ScopeLabel } from './ScopeLabel'
+import { buildProjectFilterDefs, POLICY_SCOPE_OPTIONS, transformFiltersForApi } from './scopeFilterUtils'
+import { ProjectLabel, ScopeLabel } from './ScopeLabel'
 import type { PolicyRead } from './types'
 import { useBuiltinListState } from './useBuiltinListState'
 import { useProjectNameMap } from './useProjectNameMap'
@@ -40,8 +40,15 @@ const BASE_FILTER_FIELD_DEFS = [
     key: 'scope',
     label: 'Scope',
     type: FilterTypeEnum.SELECT,
-    options: [],
+    options: POLICY_SCOPE_OPTIONS,
     placeholder: 'Filter by scope',
+  },
+  {
+    key: 'project',
+    label: 'Project',
+    type: FilterTypeEnum.SELECT,
+    options: [],
+    placeholder: 'Filter by project',
   },
   {
     key: 'type',
@@ -58,7 +65,9 @@ const BASE_FILTER_FIELD_DEFS = [
 // Column index → API sort field
 const sortFieldByColumn: Record<number, string> = {
   0: 'name',
-  3: 'is_builtin',
+  2: 'scope',
+  3: 'project_id',
+  4: 'is_builtin',
 }
 
 export function PoliciesTab() {
@@ -81,7 +90,7 @@ export function PoliciesTab() {
   const { projectNameMap } = useProjectNameMap()
 
   const filterFieldDefinitions = useMemo(
-    () => buildFilterDefsWithScope([...BASE_FILTER_FIELD_DEFS], projectNameMap),
+    () => buildProjectFilterDefs([...BASE_FILTER_FIELD_DEFS], projectNameMap),
     [projectNameMap]
   )
 
@@ -141,8 +150,13 @@ export function PoliciesTab() {
                   <Tr>
                     <Th sort={getSortParams(0)}>Name</Th>
                     <Th>Description</Th>
-                    <Th modifier="nowrap">Scope</Th>
+                    <Th sort={getSortParams(2)} modifier="nowrap">
+                      Scope
+                    </Th>
                     <Th sort={getSortParams(3)} modifier="nowrap">
+                      Project
+                    </Th>
+                    <Th sort={getSortParams(4)} modifier="nowrap">
                       Type
                     </Th>
                   </Tr>
@@ -162,7 +176,10 @@ export function PoliciesTab() {
                       </Td>
                       <Td dataLabel="Description">{policy.description ?? '-'}</Td>
                       <Td dataLabel="Scope">
-                        <ScopeLabel projectId={policy.project_id} projectNameMap={projectNameMap} />
+                        <ScopeLabel scope={policy.scope} />
+                      </Td>
+                      <Td dataLabel="Project">
+                        <ProjectLabel projectId={policy.project_id} projectNameMap={projectNameMap} />
                       </Td>
                       <Td dataLabel="Type">
                         {policy.is_builtin ? (

@@ -8,6 +8,7 @@ function makePolicy(overrides: Partial<PolicyRead> & { id: string; name: string 
     description: null,
     statements: [],
     is_builtin: false,
+    is_system_scoped: false,
     project_id: null,
     labels: {},
     created_at: null,

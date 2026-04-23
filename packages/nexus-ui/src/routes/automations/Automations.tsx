@@ -25,6 +25,7 @@ import { FilterOperatorEnum, FilterTypeEnum } from '../../types/filters'
 import type { FilterConfig, FilterFieldDefinition } from '../../types/filters'
 import { getErrorMessage } from '../../utils/apiErrors'
 import { detachPromise } from '../../utils/detachPromise'
+import { accessClient } from '../access/accessClient'
 
 import { FlatAutomationsTableBody, GroupedAutomationsTableBody } from './AutomationsTableBody'
 
@@ -43,7 +44,7 @@ const transformIsEnabledFilter = (filters: FilterConfig[]): FilterConfig[] =>
 export default function Automations() {
   const { showSuccess, showError } = useAlerts()
   const [, setLocation] = useLocation()
-  const { isAllProjects, projects, ProjectSelector } = useProjectSelector()
+  const { selectedProject, isAllProjects, projects, ProjectSelector } = useProjectSelector()
 
   const {
     cursor,
@@ -84,14 +85,26 @@ export default function Automations() {
     []
   )
 
-  // Query workflows with server-side filtering
-  const workflowsQuery = workflowClient.useQuery('get', '/workflows', {
-    params: {
-      query: queryParams,
-    },
+  // Query workflows — use project-scoped endpoint when a project is selected.
+  // When a project ID is stored but projects haven't loaded yet, wait before querying.
+  const projectId = selectedProject?.id
+  const projectSelectorReady = isAllProjects || !!projectId
+
+  const allWorkflowsQuery = workflowClient.useQuery('get', '/workflows', {
+    params: { query: queryParams },
+    enabled: projectSelectorReady && isAllProjects,
   })
 
-  const workflows = workflowsQuery.data?.resources ?? []
+  const projectWorkflowsQuery = accessClient.useQuery('get', '/projects/{project_id}/workflows', {
+    params: {
+      path: { project_id: projectId ?? 'none' },
+      query: queryParams,
+    },
+    enabled: projectSelectorReady && !isAllProjects,
+  })
+
+  const workflowsQuery = isAllProjects ? allWorkflowsQuery : projectWorkflowsQuery
+  const workflows = (workflowsQuery.data?.resources ?? []) as Workflow[]
   const { mutate: executeAutomation } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
 
@@ -134,7 +147,7 @@ export default function Automations() {
 
   const handleRunAutomation = (workflow: Workflow) => {
     executeAutomation(
-      { body: { workflow_id: workflow?.id, input_data: {} } },
+      { body: { workflow_id: workflow.id!, input_data: {} } },
       {
         onSuccess: (data) => {
           showSuccess(`Successfully started automation "${workflow.name}"`, 'Automation Started')
@@ -154,7 +167,7 @@ export default function Automations() {
     if (!workflow) return
 
     deleteWorkflow(
-      { params: { path: { workflow_id: workflow.id } } },
+      { params: { path: { workflow_id: workflow.id! } } },
       {
         onSuccess: () => {
           showSuccess(`Successfully deleted automation "${workflow.name}"`, 'Automation Deleted')

@@ -144,13 +144,17 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
             <DescriptionListGroup>
               <DescriptionListTerm>Scope</DescriptionListTerm>
               <DescriptionListDescription>
-                {policy.project_id ? (
-                  <ProjectScopeLink projectId={policy.project_id} projectName={projectName} />
-                ) : (
-                  'Global'
-                )}
+                {(policy.scope ?? 'any').charAt(0).toUpperCase() + (policy.scope ?? 'any').slice(1)}
               </DescriptionListDescription>
             </DescriptionListGroup>
+            {policy.project_id && (
+              <DescriptionListGroup>
+                <DescriptionListTerm>Project</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <ProjectScopeLink projectId={policy.project_id} projectName={projectName} />
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            )}
             <DescriptionListGroup>
               <DescriptionListTerm>Created</DescriptionListTerm>
               <DescriptionListDescription>{formatTimestamp(policy.created_at ?? null)}</DescriptionListDescription>

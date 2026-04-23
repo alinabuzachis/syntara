@@ -1,4 +1,4 @@
-import type { WorkflowAPI } from '@ansible/nexus-contracts'
+import type { Execution, WorkflowAPI } from '@ansible/nexus-contracts'
 import {
   Button,
   CompassPanel,
@@ -40,7 +40,7 @@ import { useBuilderContentQueries } from './hooks/useBuilderContentQueries'
 import { useBuilderDerivedUiFlags } from './hooks/useBuilderDerivedUiFlags'
 import { useBuilderExecutionCanvasState } from './hooks/useBuilderExecutionCanvasState'
 import { useBuilderFlowInteractionHandlers } from './hooks/useBuilderFlowInteractionHandlers'
-import { useBuilderSaveWorkflow } from './hooks/useBuilderSaveWorkflow'
+import { useBuilderSaveWorkflow, type UseBuilderSaveWorkflowParams } from './hooks/useBuilderSaveWorkflow'
 import { useBuilderToolbarHandlers } from './hooks/useBuilderToolbarHandlers'
 import { useBuilderWindowEffects } from './hooks/useBuilderWindowEffects'
 import { useBuilderWorkflowLifecycle } from './hooks/useBuilderWorkflowLifecycle'
@@ -52,7 +52,7 @@ import { WorkflowSidepanel } from './WorkflowSidepanel'
 // Type aliases from API contracts
 type WorkflowWithVersion = WorkflowAPI.components['schemas']['WorkflowWithVersion']
 
-interface BuilderContentProps {
+type BuilderContentProps = {
   workflow?: WorkflowWithVersion
   isNew: boolean
   workflowId: string | null
@@ -160,14 +160,14 @@ export function BuilderContent(props: BuilderContentProps) {
     isEnabled,
     workflowId,
     isNew,
-    selectedProject,
+    selectedProject: selectedProject?.id ? { id: selectedProject.id } : null,
     workflowsListResources: workflowsListQuery.data?.resources,
     queryClient,
     setLocation,
     showSuccess,
     showError,
     markClean,
-    createWorkflow,
+    createWorkflow: createWorkflow as UseBuilderSaveWorkflowParams['createWorkflow'],
     updateWorkflow,
   })
 
@@ -179,7 +179,7 @@ export function BuilderContent(props: BuilderContentProps) {
 
   const { handleRunAutomation, handleDeleteAutomation, handleToggleDetails, handleToggleHistory } =
     useBuilderToolbarHandlers({
-      workflow,
+      workflow: workflow as { id: string } | undefined,
       workflowName,
       detailsOpen,
       historyCardOpen,
@@ -198,7 +198,7 @@ export function BuilderContent(props: BuilderContentProps) {
       historyCardOpen,
       selectedExecutionId,
       executionsQuery,
-      selectedExecutionQuery,
+      selectedExecutionQuery as { data?: Execution },
       dispatch
     )
 

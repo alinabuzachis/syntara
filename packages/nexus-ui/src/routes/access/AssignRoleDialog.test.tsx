@@ -413,7 +413,7 @@ describe('AssignRoleDialog', () => {
       const userOption = await screen.findByRole('option', { name: 'alice' })
       await user.click(userOption)
 
-      // Select a role (system-scoped uses role ID as value, options include scope tags)
+      // Select a role (system-scoped uses role name as value, options include scope tags)
       const roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
       // Use exact name to avoid matching "Project ProjectAdmin"
@@ -426,8 +426,8 @@ describe('AssignRoleDialog', () => {
         expect(mockMutate).toHaveBeenCalled()
       })
 
-      const callArgs = mockMutate.mock.calls[0] as [{ body: { user_id: string; role_id: string } }]
-      expect(callArgs[0]).toEqual({ body: { user_id: 'u1', role_id: 'r1' } })
+      const callArgs = mockMutate.mock.calls[0] as [{ body: { user_id: string; role_name: string } }]
+      expect(callArgs[0]).toEqual({ body: { user_id: 'u1', role_name: 'Admin' } })
     })
 
     it('calls assignSystemGroupRole mutation for group-system type', async () => {
@@ -460,8 +460,8 @@ describe('AssignRoleDialog', () => {
         expect(mockMutate).toHaveBeenCalled()
       })
 
-      const callArgs = mockMutate.mock.calls[0] as [{ body: { group_id: string; role_id: string } }]
-      expect(callArgs[0]).toEqual({ body: { group_id: 'test-group-id', role_id: 'r2' } })
+      const callArgs = mockMutate.mock.calls[0] as [{ body: { group_id: string; role_name: string } }]
+      expect(callArgs[0]).toEqual({ body: { group_id: 'test-group-id', role_name: 'Viewer' } })
     })
   })
 
@@ -552,7 +552,7 @@ describe('AssignRoleDialog', () => {
       const userOption = await screen.findByRole('option', { name: 'bob' })
       await user.click(userOption)
 
-      // Re-select a role (now uses roleId, options include scope tags)
+      // Re-select a role (now uses systemRoleName, options include scope tags)
       roleInput = screen.getByPlaceholderText('Select a role...')
       await user.click(roleInput)
       roleOption = await screen.findByRole('option', { name: /Viewer/ })
@@ -564,8 +564,8 @@ describe('AssignRoleDialog', () => {
         expect(mockMutate).toHaveBeenCalled()
       })
 
-      const callArgs = mockMutate.mock.calls[0] as [{ body: { user_id: string; role_id: string } }]
-      expect(callArgs[0]).toEqual({ body: { user_id: 'u2', role_id: 'r2' } })
+      const callArgs = mockMutate.mock.calls[0] as [{ body: { user_id: string; role_name: string } }]
+      expect(callArgs[0]).toEqual({ body: { user_id: 'u2', role_name: 'Viewer' } })
     })
   })
 
