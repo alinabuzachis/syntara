@@ -243,32 +243,65 @@ The application lifecycle handles the rest -- no additional wiring is needed. Th
 
 ## Migrating from `nexus.core.config`
 
-To move a setting from `NexusSettings` (Pydantic/env-var config) to runtime settings:
+### Pattern 1: Cache read (most settings)
 
-1. **Add the `SettingDefinition`** to `SETTINGS_CATALOG` with the same default value
-2. **Map Pydantic validators to `validation_schema`** -- e.g., `ge=0, le=1.0` becomes `{"min": 0.0, "max": 1.0}`
-3. **Replace reads** -- swap `settings.my_value` with `await settings.get_float("category.my_value")` (or the appropriate typed getter)
-4. **Remove the old field** from the Pydantic config class once all consumers are migrated
+The standard pattern. Consumers read live values from the settings cache at the point of use. No watchers, no startup functions, no module-level state.
 
-### Before (env-var config)
+**Steps:**
 
-```python
-from nexus.core.config import get_settings
-
-settings = get_settings()
-temperature = settings.compression_temperature
-```
-
-### After (runtime settings)
+1. **Add the `SettingDefinition`** to `SETTINGS_CATALOG` with the correct default value and validation schema
+2. **Remove the Pydantic field** from `base.py` -- the catalog is now the single source of truth
+3. **Read from the cache** at the point of use:
 
 ```python
-from nexus.settings.cache.settings_cache import get_runtime_settings
-
-settings = get_runtime_settings()
-temperature = await settings.get_float("context_manager.compression_temperature")
+cache = get_runtime_settings()
+timeout = await cache.get_int("document_conversion.timeout_seconds")
 ```
 
-Note the shift from sync to async -- callers must be in an async context.
+The cache resolves the effective value (user-set or catalog default) and handles caching via TTL. Changes made in the Settings UI propagate automatically.
+
+**Implementation details:**
+
+- **Pydantic Field defaults.** Some settings are used as Pydantic `Field(default=...)` values (e.g., `ScriptExecutorConfig.timeout`). These defaults are evaluated at class definition time and use a hardcoded literal. The activity injects the live value from the cache before calling `model_validate()`:
+
+  ```python
+  # In the activity, before validation:
+  if "timeout" not in input_config:
+      cache = get_runtime_settings()
+      input_config["timeout"] = await cache.get_int("workflow_engine.script_timeout_seconds")
+  config = ScriptExecutorConfig.model_validate(input_config)
+  ```
+
+- **Temporal workflow sandbox.** Workflow code (`@workflow.defn`) cannot do async cache reads. Omit the value from the workflow state and let the activity resolve it from the cache:
+
+  ```python
+  # In the workflow (sandbox) -- do NOT pass a default:
+  loop_state = {"type": "do_while", "current_index": 0}
+  if "max_iterations" in resolved_config:
+      loop_state["max_iterations"] = resolved_config["max_iterations"]
+  # If omitted, the loop activity reads it from the settings cache.
+  ```
+
+- **`requires_restart=True` settings.** For settings like `retriever.llm_model` that cannot change at runtime, the Pydantic field stays as-is. No cache read, no watcher -- changes only take effect on restart.
+
+### Pattern 2: Watcher (settings requiring immediate side effects)
+
+Use this only when a setting change must trigger an immediate action in the process -- not just return a new value on the next read, but actively reconfigure something. The only current example is `logging.log_level`, which must reconfigure Python's logging subsystem.
+
+**Steps:**
+
+1. **Add the `SettingDefinition`** to `SETTINGS_CATALOG`
+2. **Create a `runtime_settings.py` module** with an `apply_runtime_*()` startup function and `@watch_setting` handlers
+3. **Wire the apply function** into `main.py` and `worker.py` startup
+
+```python
+@watch_setting("logging.log_level")
+def _on_log_level_changed(_key: str, new_value: Any) -> None:
+    level = str(new_value).upper()
+    _set_log_level(level)
+```
+
+Most settings do **not** need this pattern. If the consumer reads the value on each request or activity execution, Pattern 1 is sufficient and simpler.
 
 ## Architecture
 

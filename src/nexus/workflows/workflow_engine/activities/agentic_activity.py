@@ -13,6 +13,7 @@ import structlog
 from pydantic import ValidationError
 from temporalio import activity, workflow
 
+from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models import AgenticExecutorConfig
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
@@ -48,6 +49,25 @@ class AgenticActivityError(ActivityExecutionError):
 # ============================================================================
 
 
+async def _inject_runtime_settings(input_config: dict[str, Any]) -> None:
+    """Inject live runtime settings into agentic activity config.
+
+    Raises:
+        ValueError: If the prompt exceeds the configured max length.
+
+    """
+    cache = get_runtime_settings()
+    if "timeout" not in input_config:
+        input_config["timeout"] = await cache.get_int("workflow_engine.agentic_timeout_seconds")
+
+    prompt = input_config.get("prompt", "")
+    if isinstance(prompt, str):
+        max_len = await cache.get_int("workflow_engine.max_prompt_length")
+        if len(prompt) > max_len:
+            msg = f"Prompt exceeds maximum length ({len(prompt)} > {max_len} characters)"
+            raise ValueError(msg)
+
+
 @activity.defn(name=ActivityName.AGENTIC)
 async def execute_agentic_activity(
     input_config: dict[str, Any],
@@ -71,6 +91,13 @@ async def execute_agentic_activity(
     logger.info("Starting agentic activity (v2)")
 
     try:
+        try:
+            await _inject_runtime_settings(input_config)
+        except ValueError as e:
+            full_result = {"status": "failed", "error": str(e)}
+            mapped_output = apply_output_mapping(full_result, output_config)
+            return {"output": mapped_output}
+
         # Validate config
         config = AgenticExecutorConfig.model_validate(input_config)
 

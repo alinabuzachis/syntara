@@ -127,18 +127,6 @@ class DocumentConversionSettings(BaseSettings):
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
-    document_conversion_timeout_seconds: int = Field(
-        default=30,
-        description="Maximum time allowed for document conversion (NFR-001: under 30 seconds)",
-        ge=1,
-        le=300,  # 5 minute absolute maximum
-    )
-
-    document_conversion_overwrite_existing: bool = Field(
-        default=False,
-        description="Whether to overwrite existing converted files",
-    )
-
     document_conversion_temp_dir: str = Field(
         default_factory=tempfile.gettempdir,
         description="Temporary directory for conversion operations",
@@ -919,12 +907,6 @@ class TemporalSettings(BaseSettings):
         description="System user UUID for automated/workflow operations",
     )
 
-    max_loop_iterations: int = Field(
-        default=10000,
-        description="Maximum iterations for loops to prevent runaway execution",
-        ge=1,
-    )
-
 
 # =============================================================================
 # Telemetry Configuration
@@ -974,44 +956,6 @@ class WorkflowEngineSettings(BaseSettings):
     Note: This class should not be instantiated directly. Use Settings via get_settings().
     """
 
-    # Activity execution timeouts
-    api_timeout_seconds: int = Field(
-        default=30,
-        description="Default timeout for API requests in seconds",
-        ge=1,
-    )
-
-    script_timeout_seconds: int = Field(
-        default=300,
-        description="Default timeout for script execution in seconds (5 minutes)",
-        ge=1,
-    )
-
-    agentic_timeout_seconds: int = Field(
-        default=300,
-        description="Default timeout for agentic activities in seconds (5 minutes)",
-        ge=1,
-    )
-
-    # Duration validation limits (0 = unlimited)
-    max_duration_hours: int = Field(
-        default=8760,
-        description="Maximum duration in hours (8760 = 1 year, 0 = unlimited)",
-        ge=0,
-    )
-
-    max_duration_minutes: int = Field(
-        default=525600,
-        description="Maximum duration in minutes (525600 = 1 year, 0 = unlimited)",
-        ge=0,
-    )
-
-    max_duration_seconds: int = Field(
-        default=31536000,
-        description="Maximum duration in seconds (31536000 = 1 year, 0 = unlimited)",
-        ge=0,
-    )
-
     # Script execution settings
     script_cleanup_terminate_timeout: float = Field(
         default=1.0,
@@ -1029,25 +973,6 @@ class WorkflowEngineSettings(BaseSettings):
         default=32768,
         description="Maximum length per environment variable in bytes (32KB)",
         ge=1024,
-    )
-
-    # Agentic activity settings
-    max_prompt_length: int = Field(
-        default=100000,
-        description="Maximum prompt length for agentic activities in characters (100KB)",
-        ge=1000,
-    )
-
-    max_input_value_length: int = Field(
-        default=10000,
-        description="Maximum length for individual input values in characters (10KB)",
-        ge=100,
-    )
-
-    max_total_input_size: int = Field(
-        default=50000,
-        description="Maximum total size of all input values combined in characters (50KB)",
-        ge=1000,
     )
 
     agent_orchestrator_base_url: HttpUrl = Field(  # type: ignore[assignment]

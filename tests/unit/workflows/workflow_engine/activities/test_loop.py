@@ -1,11 +1,15 @@
 """Tests for loop activity (for_each and do_while)."""
 
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from nexus.workflows.workflow_engine import constants
+from nexus.settings.catalog import SETTINGS_CATALOG
 from nexus.workflows.workflow_engine.activities.loop import loop
+
+_catalog = {s.key: s.default_value for s in SETTINGS_CATALOG}
+_DEFAULT_MAX_LOOP = int(_catalog["workflow_engine.max_loop_iterations"])  # type: ignore[arg-type]
 
 # ---------------------------------------------------------------------------
 # for_each loop
@@ -249,25 +253,36 @@ class TestLoopConfigDefaults:
         assert result["control"]["next_index"] == 1
 
     @pytest.mark.asyncio
-    async def test_do_while_default_max_iterations_is_1000(self) -> None:
-        config: dict[str, Any] = {
-            "type": "do_while",
-            "current_index": 999,
-            "condition_result": True,
-        }
-        result = await loop(config, None, {})
-        assert result["control"]["next_port"] == "iterate"
-        assert result["control"]["next_index"] == 1000
+    async def test_do_while_default_max_iterations_from_catalog(self) -> None:
+        mock_cache = AsyncMock()
+        mock_cache.get_int.return_value = _DEFAULT_MAX_LOOP
+        with patch(
+            "nexus.workflows.workflow_engine.activities.loop.get_runtime_settings",
+            return_value=mock_cache,
+        ):
+            config: dict[str, Any] = {
+                "type": "do_while",
+                "current_index": _DEFAULT_MAX_LOOP - 1,
+                "condition_result": True,
+            }
+            result = await loop(config, None, {})
+            assert result["control"]["next_port"] == "iterate"
 
     @pytest.mark.asyncio
     async def test_do_while_at_default_max_completes(self) -> None:
-        config: dict[str, Any] = {
-            "type": "do_while",
-            "current_index": constants.MAX_LOOP_ITERATIONS,
-            "condition_result": True,
-        }
-        result = await loop(config, None, {})
-        assert result["control"]["next_port"] == "complete"
+        mock_cache = AsyncMock()
+        mock_cache.get_int.return_value = _DEFAULT_MAX_LOOP
+        with patch(
+            "nexus.workflows.workflow_engine.activities.loop.get_runtime_settings",
+            return_value=mock_cache,
+        ):
+            config: dict[str, Any] = {
+                "type": "do_while",
+                "current_index": _DEFAULT_MAX_LOOP,
+                "condition_result": True,
+            }
+            result = await loop(config, None, {})
+            assert result["control"]["next_port"] == "complete"
 
 
 class TestDoWhileIterationResults:

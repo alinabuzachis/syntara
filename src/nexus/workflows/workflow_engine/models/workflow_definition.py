@@ -114,7 +114,7 @@ class DoWhileLoopState(BaseModel):
 
     type: LoopType = LoopType.DO_WHILE
     condition: str | None
-    max_iterations: int
+    max_iterations: int | None = None
     current_index: int = 0
 
 
@@ -162,7 +162,7 @@ class ScriptExecutorConfig(TemplateAwareBaseModel):
         language: Script language (bash or python)
         code: Script code to execute
         environment: Optional environment variables for script execution
-        timeout: Timeout for script execution in seconds (default from APP_SCRIPT_TIMEOUT_SECONDS)
+        timeout: Timeout for script execution in seconds (runtime setting: workflow_engine.script_timeout_seconds)
 
     """
 
@@ -170,10 +170,9 @@ class ScriptExecutorConfig(TemplateAwareBaseModel):
     code: str = Field(min_length=1, description="Script code to execute")
     environment: dict[str, str] = Field(default_factory=dict, description="Environment variables")
     timeout: int = Field(
-        default=constants.DEFAULT_SCRIPT_TIMEOUT_SECONDS,
         ge=1,
         le=3600,
-        description="Timeout in seconds (default from APP_SCRIPT_TIMEOUT_SECONDS)",
+        description="Timeout in seconds (runtime setting: workflow_engine.script_timeout_seconds)",
     )
 
 
@@ -222,7 +221,7 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
         prompt: The prompt template for the agent
         agent: Optional agent identifier for routing
         model: Optional model identifier
-        timeout: Timeout for agent invocation in seconds (default from APP_AGENTIC_TIMEOUT_SECONDS, max: 3600)
+        timeout: Timeout in seconds (runtime setting: workflow_engine.agentic_timeout_seconds)
         file_ids: List of file IDs to include as context for the agent (max 10)
 
     """
@@ -235,10 +234,9 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
         description="Nexus credential UUID for LLM provider authentication",
     )
     timeout: int = Field(
-        default=constants.DEFAULT_AGENTIC_TIMEOUT_SECONDS,
         ge=1,
         le=3600,
-        description="Timeout in seconds (default from APP_AGENTIC_TIMEOUT_SECONDS)",
+        description="Timeout in seconds (runtime setting: workflow_engine.agentic_timeout_seconds)",
     )
     file_ids: list[str] = Field(
         default_factory=list,
@@ -249,10 +247,11 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
     @field_validator("prompt")
     @classmethod
     def validate_prompt_security(cls, v: str) -> str:
-        """Validate prompt length and content for security."""
-        if len(v) > constants.MAX_PROMPT_LENGTH:
-            msg = f"Prompt exceeds maximum length ({len(v)} > {constants.MAX_PROMPT_LENGTH} characters)"
-            raise SafeValueError(msg)
+        """Validate prompt content for security.
+
+        Prompt length is validated at runtime by the agentic activity
+        against the ``workflow_engine.max_prompt_length`` setting.
+        """
         if "\0" in v:
             msg = "Prompt contains null bytes"
             raise SafeValueError(msg)

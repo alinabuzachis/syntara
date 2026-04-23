@@ -14,8 +14,8 @@ from temporalio import workflow
 
 with workflow.unsafe.imports_passed_through():
     from nexus.core.exceptions import SafeValueError
-    from nexus.workflows.workflow_engine import constants
     from nexus.workflows.workflow_engine.activities.credential_resolution_activity import resolve_workflow_credentials
+    from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName
     from nexus.workflows.workflow_engine.signals import WorkflowSignalProcessor
     from nexus.workflows.workflow_engine.utils.credential_scrubber import scrub_credentials
 
@@ -23,7 +23,6 @@ from nexus.workflows.utils.namespace_resolver import NamespaceResolver
 from nexus.workflows.workflow_engine.expression_resolver import safe_eval_condition
 from nexus.workflows.workflow_engine.graph import ActivityNode, WorkflowGraph
 from nexus.workflows.workflow_engine.models.workflow_definition import (
-    ActivityName,
     DoWhileLoopState,
     ForEachLoopState,
     LoopState,
@@ -917,7 +916,7 @@ class NexusWorkflow:
                 # First execution - store condition and max_iterations
                 self.loop_state[node_id] = DoWhileLoopState(
                     condition=node.config.get("condition"),  # Raw template, not resolved
-                    max_iterations=resolved_config.get("max_iterations", constants.MAX_LOOP_ITERATIONS),
+                    max_iterations=resolved_config.get("max_iterations"),
                 )
 
         # Initialize iteration results if not exists
@@ -945,7 +944,8 @@ class NexusWorkflow:
             loop_config["items"] = state.items
         elif isinstance(state, DoWhileLoopState):
             loop_config["condition_result"] = condition_result
-            loop_config["max_iterations"] = state.max_iterations
+            if state.max_iterations is not None:
+                loop_config["max_iterations"] = state.max_iterations
 
         loop_result = cast(
             "dict[str, Any]",

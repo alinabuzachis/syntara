@@ -146,7 +146,7 @@ class DocumentConverter(ABC):
                 print("Conversion timed out")
 
         """
-        config = ConversionConfig.from_settings()
+        config = await ConversionConfig.from_settings()
         start_time = time.time()
 
         try:

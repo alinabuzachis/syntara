@@ -66,6 +66,7 @@ class TestAgenticExecutorConfigCredentialId:
 
     def test_credential_id_serializes(self) -> None:
         config = AgenticExecutorConfig(
+            timeout=300,
             prompt="Hello",
             credential_id="550e8400-e29b-41d4-a716-446655440000",
         )
@@ -73,7 +74,7 @@ class TestAgenticExecutorConfigCredentialId:
         assert dumped["credential_id"] == "550e8400-e29b-41d4-a716-446655440000"
 
     def test_backward_compat_without_credential_id(self) -> None:
-        config = AgenticExecutorConfig.model_validate({"prompt": "Hello"})
+        config = AgenticExecutorConfig.model_validate({"timeout": 300, "prompt": "Hello"})
         assert config.credential_id is None
 
 

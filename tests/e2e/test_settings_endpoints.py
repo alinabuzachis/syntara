@@ -117,6 +117,52 @@ class TestLogLevelSetting:
         assert response.status_code == 422
 
 
+class TestNewSettings:
+    """E2E tests for runtime settings catalog entries."""
+
+    def test_new_categories_appear(self, nexus_client: AuthenticatedClient) -> None:
+        """GET /settings/categories includes ai_llm, workflow_execution, application."""
+        client = nexus_client.get_httpx_client()
+        response = client.get("/api/v1/settings/categories")
+
+        assert response.status_code == 200
+        slugs = [cat["slug"] for cat in response.json()["results"]]
+        assert "ai_llm" in slugs
+        assert "workflow_execution" in slugs
+        assert "application" in slugs
+
+    def test_workflow_setting_exists(self, nexus_client: AuthenticatedClient) -> None:
+        """GET /settings/{key} returns a workflow execution setting."""
+        client = nexus_client.get_httpx_client()
+        response = client.get("/api/v1/settings/workflow_engine.script_timeout_seconds")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["key"] == "workflow_engine.script_timeout_seconds"
+        assert data["category"] == "workflow_execution"
+        assert data["value_type"] == "integer"
+        assert data["default_value"] == 300
+
+    def test_retriever_setting_requires_restart(self, nexus_client: AuthenticatedClient) -> None:
+        """GET /settings/retriever.llm_model shows requires_restart=True."""
+        client = nexus_client.get_httpx_client()
+        response = client.get("/api/v1/settings/retriever.llm_model")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["requires_restart"] is True
+
+    def test_constraint_validation_rejects_invalid(self, nexus_client: AuthenticatedClient) -> None:
+        """PATCH with out-of-range value returns 422."""
+        client = nexus_client.get_httpx_client()
+        response = client.patch(
+            "/api/v1/settings/document_conversion.timeout_seconds",
+            json={"value": 999},
+        )
+
+        assert response.status_code == 422
+
+
 class TestSettingsAuthorization:
     """E2E tests verifying non-admin users cannot access settings."""
 

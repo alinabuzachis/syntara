@@ -37,6 +37,12 @@ class CategoryDefinition:
 
 CATEGORY_CATALOG: list[CategoryDefinition] = [
     CategoryDefinition(
+        slug="ai_llm",
+        name="AI / LLM",
+        description="Artificial intelligence and large language model settings",
+        display_order=5,
+    ),
+    CategoryDefinition(
         slug="system",
         name="System",
         description="System-level settings including observability and diagnostics",
@@ -47,6 +53,18 @@ CATEGORY_CATALOG: list[CategoryDefinition] = [
         name="Context Manager",
         description="Token limits, retrieval, grounding, compression, and context assembly",
         display_order=20,
+    ),
+    CategoryDefinition(
+        slug="workflow_execution",
+        name="Workflow Execution",
+        description="Workflow execution timeouts, duration limits, and input constraints",
+        display_order=30,
+    ),
+    CategoryDefinition(
+        slug="application",
+        name="Application",
+        description="Application-level settings including document conversion",
+        display_order=40,
     ),
 ]
 
@@ -61,6 +79,18 @@ class ContextManagerGroup(StrEnum):
     CONTEXT_ASSEMBLY = "Context assembly"
     PERFORMANCE = "Performance"
     COMPRESSION = "Compression"
+
+
+class WorkflowEngineGroup(StrEnum):
+    """Group names for workflow_execution settings."""
+
+    EXECUTION = "Execution"
+
+
+class DocumentConversionGroup(StrEnum):
+    """Group names for application/document conversion settings."""
+
+    GENERAL = "General"
 
 
 @dataclass
@@ -351,5 +381,76 @@ SETTINGS_CATALOG: list[SettingDefinition] = [
         description="Maximum tokens for compression LLM responses",
         group=ContextManagerGroup.COMPRESSION,
         validation_schema={"min": 1},
+    ),
+    # AI / LLM
+    SettingDefinition(
+        key="retriever.llm_model",
+        name="Retriever LLM model",
+        category=SettingCategory.AI_LLM,
+        value_type=SettingValueType.STRING,
+        default_value="anthropic/claude-3.5-sonnet",
+        description="OpenRouter model for LLM relevancy checking",
+        requires_restart=True,
+    ),
+    # Workflow Execution — Timeouts
+    SettingDefinition(
+        key="workflow_engine.max_loop_iterations",
+        name="Max loop iterations",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=10000,
+        description="Maximum iterations for loops to prevent runaway execution",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.script_timeout_seconds",
+        name="Script timeout (seconds)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=300,
+        description="Default timeout for script execution in seconds (5 minutes)",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.agentic_timeout_seconds",
+        name="Agentic timeout (seconds)",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=300,
+        description="Default timeout for agentic activities in seconds (5 minutes)",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1},
+    ),
+    SettingDefinition(
+        key="workflow_engine.max_prompt_length",
+        name="Max prompt length",
+        category=SettingCategory.WORKFLOW_EXECUTION,
+        value_type=SettingValueType.INTEGER,
+        default_value=100000,
+        description="Maximum prompt length for agentic activities in characters (100KB)",
+        group=WorkflowEngineGroup.EXECUTION,
+        validation_schema={"min": 1000},
+    ),
+    # Application — Document Conversion
+    SettingDefinition(
+        key="document_conversion.timeout_seconds",
+        name="Conversion timeout (seconds)",
+        category=SettingCategory.APPLICATION,
+        value_type=SettingValueType.INTEGER,
+        default_value=30,
+        description="Maximum time allowed for document conversion (NFR-001: under 30 seconds)",
+        group=DocumentConversionGroup.GENERAL,
+        validation_schema={"min": 1, "max": 300},
+    ),
+    SettingDefinition(
+        key="document_conversion.overwrite_existing",
+        name="Overwrite existing files",
+        category=SettingCategory.APPLICATION,
+        value_type=SettingValueType.BOOLEAN,
+        default_value=False,
+        description="Whether to overwrite existing converted files",
+        group=DocumentConversionGroup.GENERAL,
     ),
 ]

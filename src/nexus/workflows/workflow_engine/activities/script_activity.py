@@ -15,6 +15,7 @@ from typing import Any
 from temporalio import activity
 
 from nexus.core.exceptions import SafeValueError
+from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.workflows.workflow_engine import constants
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, ScriptExecutorConfig
 
@@ -324,6 +325,11 @@ async def execute_script_activity(
     from .output_mapping import apply_output_mapping  # noqa: PLC0415
 
     try:
+        # Inject live timeout from runtime settings if not specified
+        if "timeout" not in input_config:
+            cache = get_runtime_settings()
+            input_config["timeout"] = await cache.get_int("workflow_engine.script_timeout_seconds")
+
         # Validate config via Pydantic model
         try:
             config = ScriptExecutorConfig.model_validate(input_config)

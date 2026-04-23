@@ -286,7 +286,6 @@ class TestTemporalSettings:
             assert settings.temporal_namespace == "default"
             assert settings.task_queue == "nexus-workflow-queue"
             assert str(settings.system_user_id) == "00000000-0000-0000-0000-000000000001"
-            assert settings.max_loop_iterations == 10000
         finally:
             get_settings.cache_clear()
 
@@ -296,7 +295,6 @@ class TestTemporalSettings:
         os.environ["APP_TEMPORAL_NAMESPACE"] = "production"
         os.environ["APP_TASK_QUEUE"] = "prod-queue"
         os.environ["APP_SYSTEM_USER_ID"] = "12345678-1234-1234-1234-123456789012"
-        os.environ["APP_MAX_LOOP_ITERATIONS"] = "5000"
 
         try:
             settings = Settings()
@@ -304,22 +302,11 @@ class TestTemporalSettings:
             assert settings.temporal_namespace == "production"
             assert settings.task_queue == "prod-queue"
             assert str(settings.system_user_id) == "12345678-1234-1234-1234-123456789012"
-            assert settings.max_loop_iterations == 5000
         finally:
             os.environ.pop("APP_TEMPORAL_ADDRESS", None)
             os.environ.pop("APP_TEMPORAL_NAMESPACE", None)
             os.environ.pop("APP_TASK_QUEUE", None)
             os.environ.pop("APP_SYSTEM_USER_ID", None)
-            os.environ.pop("APP_MAX_LOOP_ITERATIONS", None)
-
-    def test_max_loop_iterations_validation(self) -> None:
-        """Test that max_loop_iterations must be at least 1."""
-        os.environ["APP_MAX_LOOP_ITERATIONS"] = "0"
-        try:
-            with pytest.raises(ValueError, match="greater than or equal to 1"):
-                Settings()
-        finally:
-            os.environ.pop("APP_MAX_LOOP_ITERATIONS", None)
 
 
 # =============================================================================
@@ -333,63 +320,20 @@ class TestWorkflowEngineSettings:
     def test_workflow_engine_defaults(self) -> None:
         """Test default workflow engine configuration values."""
         settings = Settings()
-        assert settings.api_timeout_seconds == 30
-        assert settings.script_timeout_seconds == 300
-        assert settings.agentic_timeout_seconds == 300
-        assert settings.max_duration_hours == 8760
-        assert settings.max_duration_minutes == 525600
-        assert settings.max_duration_seconds == 31536000
         assert settings.script_cleanup_terminate_timeout == pytest.approx(1.0)
         assert settings.script_cleanup_kill_timeout == pytest.approx(0.5)
         assert settings.max_env_var_length == 32768
-        assert settings.max_prompt_length == 100000
-        assert settings.max_input_value_length == 10000
-        assert settings.max_total_input_size == 50000
         assert str(settings.agent_orchestrator_base_url) == "http://localhost:8000/api/v1"
 
     def test_workflow_engine_settings_from_env(self) -> None:
         """Test workflow engine settings can be configured via environment."""
-        os.environ["APP_API_TIMEOUT_SECONDS"] = "60"
-        os.environ["APP_SCRIPT_TIMEOUT_SECONDS"] = "600"
-        os.environ["APP_AGENTIC_TIMEOUT_SECONDS"] = "600"
         os.environ["APP_AGENT_ORCHESTRATOR_BASE_URL"] = "http://agent.example.com/api/v1"
 
         try:
             settings = Settings()
-            assert settings.api_timeout_seconds == 60
-            assert settings.script_timeout_seconds == 600
-            assert settings.agentic_timeout_seconds == 600
             assert str(settings.agent_orchestrator_base_url) == "http://agent.example.com/api/v1"
         finally:
-            os.environ.pop("APP_API_TIMEOUT_SECONDS", None)
-            os.environ.pop("APP_SCRIPT_TIMEOUT_SECONDS", None)
-            os.environ.pop("APP_AGENTIC_TIMEOUT_SECONDS", None)
             os.environ.pop("APP_AGENT_ORCHESTRATOR_BASE_URL", None)
-
-    def test_duration_limits_allow_zero_for_unlimited(self) -> None:
-        """Test that duration limits can be set to 0 (unlimited)."""
-        os.environ["APP_MAX_DURATION_HOURS"] = "0"
-        os.environ["APP_MAX_DURATION_MINUTES"] = "0"
-        os.environ["APP_MAX_DURATION_SECONDS"] = "0"
-
-        try:
-            settings = Settings()
-            assert settings.max_duration_hours == 0
-            assert settings.max_duration_minutes == 0
-            assert settings.max_duration_seconds == 0
-        finally:
-            os.environ.pop("APP_MAX_DURATION_HOURS", None)
-            os.environ.pop("APP_MAX_DURATION_MINUTES", None)
-            os.environ.pop("APP_MAX_DURATION_SECONDS", None)
-
-    def test_timeout_validation(self) -> None:
-        """Test that timeout settings enforce minimum values."""
-        os.environ["APP_API_TIMEOUT_SECONDS"] = "0"
-        try:
-            with pytest.raises(ValueError, match="greater than or equal to 1"):
-                Settings()
-        finally:
-            os.environ.pop("APP_API_TIMEOUT_SECONDS", None)
 
 
 # =============================================================================

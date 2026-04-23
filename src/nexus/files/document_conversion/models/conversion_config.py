@@ -1,13 +1,14 @@
 """Configuration model for document conversion operations.
 
 This module provides the ConversionConfig class that encapsulates all settings
-needed for document conversion operations, sourced from the centralized
-configuration system.
+needed for document conversion operations, sourced from the runtime settings
+catalog and centralized configuration system.
 """
 
 from pydantic import BaseModel, Field
 
 from nexus.core.config.base import get_settings
+from nexus.settings.cache.settings_cache import get_runtime_settings
 
 
 class ConversionConfig(BaseModel):
@@ -28,21 +29,18 @@ class ConversionConfig(BaseModel):
     temp_dir: str = Field(description="Temporary directory for conversion operations")
 
     @classmethod
-    def from_settings(cls) -> "ConversionConfig":
-        """Create configuration from centralized settings.
+    async def from_settings(cls) -> "ConversionConfig":
+        """Create configuration from runtime settings.
 
         Returns:
-            ConversionConfig instance populated from DocumentConversionSettings
-
-        Example:
-            config = ConversionConfig.from_settings()
-            assert config.timeout_seconds == 30  # Default from settings
+            ConversionConfig with live values from the settings cache
 
         """
         settings = get_settings()
+        cache = get_runtime_settings()
 
         return cls(
-            timeout_seconds=settings.document_conversion_timeout_seconds,
-            overwrite_existing=settings.document_conversion_overwrite_existing,
+            timeout_seconds=await cache.get_int("document_conversion.timeout_seconds"),
+            overwrite_existing=await cache.get_bool("document_conversion.overwrite_existing"),
             temp_dir=settings.document_conversion_temp_dir,
         )

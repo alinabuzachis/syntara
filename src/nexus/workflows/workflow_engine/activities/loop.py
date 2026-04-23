@@ -5,7 +5,7 @@ from typing import Any
 import structlog
 from temporalio import activity
 
-from nexus.workflows.workflow_engine import constants
+from nexus.settings.cache.settings_cache import get_runtime_settings
 from nexus.workflows.workflow_engine.models.workflow_definition import ActivityName, LoopType
 
 from .output_mapping import apply_output_mapping
@@ -96,20 +96,18 @@ async def loop(
 
     if loop_type == LoopType.DO_WHILE:
         condition_result = input_config.get("condition_result")
-        max_iterations = input_config.get("max_iterations", constants.MAX_LOOP_ITERATIONS)
+
+        # Resolve max_iterations: use explicit config value or read from runtime settings
+        max_iterations = input_config.get("max_iterations")
+        if max_iterations is None:
+            cache = get_runtime_settings()
+            max_iterations = await cache.get_int("workflow_engine.max_loop_iterations")
 
         # First iteration always executes (do-while semantic)
-        # After first iteration, check condition and max_iterations
-        if current_index == 0:
-            # First iteration - always iterate
-            next_port = "iterate"
-            next_index = current_index + 1
-        elif condition_result is True and current_index < max_iterations:
-            # Condition is true and haven't hit limit - continue
+        if current_index == 0 or (condition_result is True and current_index < max_iterations):
             next_port = "iterate"
             next_index = current_index + 1
         else:
-            # Condition is false OR max iterations reached - complete
             next_port = "complete"
             next_index = current_index
 

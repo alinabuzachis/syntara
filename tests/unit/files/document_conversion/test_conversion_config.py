@@ -4,6 +4,7 @@ import tempfile
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -60,44 +61,54 @@ class TestConversionConfigValidation:
 class TestConversionConfigSystemIntegration:
     """Test ConversionConfig integration with system configuration."""
 
-    def test_from_settings_creates_valid_config(
+    async def test_from_settings_reads_from_cache(
         self,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
-        """Test that from_settings creates a valid configuration from system settings."""
-        with override_settings(
-            document_conversion_timeout_seconds=25,
-            document_conversion_overwrite_existing=True,
-            document_conversion_temp_dir="/app/tmp/conversions",
+        """Test that from_settings reads live values from the settings cache."""
+        mock_cache = AsyncMock()
+        mock_cache.get_int.return_value = 25
+        mock_cache.get_bool.return_value = True
+
+        with (
+            override_settings(document_conversion_temp_dir="/app/tmp/conversions"),
+            patch(
+                "nexus.files.document_conversion.models.conversion_config.get_runtime_settings",
+                return_value=mock_cache,
+            ),
         ):
-            config = ConversionConfig.from_settings()
+            config = await ConversionConfig.from_settings()
 
         assert config.timeout_seconds == 25
         assert config.overwrite_existing is True
         assert config.temp_dir == "/app/tmp/conversions"
 
-    def test_from_settings_respects_timeout_boundaries(
+    async def test_from_settings_respects_timeout_boundaries(
         self,
         override_settings: Callable[..., AbstractContextManager[object]],
     ) -> None:
         """Test that from_settings respects timeout validation boundaries."""
-        with override_settings(
-            document_conversion_timeout_seconds=1,
-            document_conversion_overwrite_existing=False,
-            document_conversion_temp_dir=tempfile.gettempdir(),
+        mock_cache = AsyncMock()
+        mock_cache.get_int.return_value = 1
+        mock_cache.get_bool.return_value = False
+
+        with (
+            override_settings(document_conversion_temp_dir=tempfile.gettempdir()),
+            patch(
+                "nexus.files.document_conversion.models.conversion_config.get_runtime_settings",
+                return_value=mock_cache,
+            ),
         ):
-            config = ConversionConfig.from_settings()
+            config = await ConversionConfig.from_settings()
 
         assert config.timeout_seconds == 1
 
     def test_nfr_001_timeout_constraint_enforcement(self) -> None:
         """Test that NFR-001 (under 30 seconds) constraint is enforced."""
-        # Test that 30 seconds is allowed (within limit)
         temp_dir = tempfile.gettempdir()
         config = ConversionConfig(timeout_seconds=30, temp_dir=temp_dir)
         assert config.timeout_seconds == 30
 
-        # Test that values above 30 are also allowed up to the maximum
         temp_dir = tempfile.gettempdir()
         config = ConversionConfig(timeout_seconds=60, temp_dir=temp_dir)
         assert config.timeout_seconds == 60

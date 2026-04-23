@@ -1,7 +1,7 @@
 """Test for DocumentConverter abstract base class."""
 
 import asyncio
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -110,9 +110,9 @@ class TestDocumentConverterTimingBehavior:
         assert "Test conversion error" in result.error_message
         assert result.metadata["exception_type"] == "ValueError"
 
-    @patch("src.nexus.files.document_conversion.models.conversion_config.ConversionConfig.from_settings")
+    @patch("nexus.files.document_conversion.models.conversion_config.ConversionConfig.from_settings")
     @pytest.mark.asyncio
-    async def test_convert_with_timeout_allows_fast_conversions(self, mock_from_settings) -> None:
+    async def test_convert_with_timeout_allows_fast_conversions(self, mock_from_settings: AsyncMock) -> None:
         """Test convert_with_timeout allows conversions that complete within timeout."""
         # Mock config with generous timeout
         mock_config = Mock()
