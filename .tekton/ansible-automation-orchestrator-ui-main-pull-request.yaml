@@ -42,9 +42,9 @@ spec:
   pipelineRef:
     params:
       - name: name
-        value: docker-build-multi-platform-oci-ta
+        value: container
       - name: bundle
-        value: quay.io/aap-ci/tekton-catalog/pipeline/build/docker-build-multi-platform-oci-ta:0.2@sha256:19ec0336c22d45c3b0dbd9e1bb84b2c522c28b902dc7b026ef2e3be2ed46dabc
+        value: quay.io/aap-ci/tekton-catalog/pipeline/build/container:0.2@sha256:d47e738364f52c28c95c82ae7de6dee106270a707a821d779a709e2bbba1ce01
       - name: kind
         value: pipeline
       - name: secret
