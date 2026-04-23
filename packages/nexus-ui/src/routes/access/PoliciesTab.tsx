@@ -166,7 +166,7 @@ export function PoliciesTab() {
                       </Td>
                       <Td dataLabel="Type">
                         {policy.is_builtin ? (
-                          <Label color="yellow" icon={<RhUiLockIcon />} isCompact>
+                          <Label color="grey" icon={<RhUiLockIcon />} isCompact>
                             Built-in
                           </Label>
                         ) : (

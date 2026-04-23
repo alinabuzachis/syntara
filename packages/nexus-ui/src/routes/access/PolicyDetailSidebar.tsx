@@ -26,7 +26,7 @@ import { CodeBlock } from '../../components/details/CodeBlock'
 
 import type { PolicyRead } from './types'
 
-interface PolicyDetailSidebarProps {
+type PolicyDetailSidebarProps = {
   policy: PolicyRead
   onClose: () => void
   /** Resolved project name for the policy scope. Falls back to UUID if not provided. */
@@ -107,7 +107,7 @@ export function PolicyDetailSidebar({ policy, onClose, projectName }: Readonly<P
             </FlexItem>
             <FlexItem>
               {policy.is_builtin ? (
-                <Label color="yellow" icon={<RhUiLockIcon />} isCompact>
+                <Label color="grey" icon={<RhUiLockIcon />} isCompact>
                   Built-in
                 </Label>
               ) : (
