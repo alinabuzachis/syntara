@@ -29,6 +29,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        '/ws': {
+          target: env.VITE_WS_URL || env.VITE_API_URL || 'http://localhost:3000',
+          changeOrigin: true,
+          secure: false,
+          ws: true, // Enable WebSocket proxying
+        },
       },
     },
     preview: {
