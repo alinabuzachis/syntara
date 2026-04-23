@@ -1,5 +1,7 @@
 """Unit tests for audit event tracking decorators."""
 
+# mypy: disable-error-code="attr-defined"
+
 from typing import Any
 from unittest.mock import Mock, patch
 from uuid import UUID, uuid4
@@ -8,8 +10,18 @@ import pytest
 
 from nexus.audit.actor_extractor import ActorContext
 from nexus.audit.decorators import track_event
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
-from nexus.audit.models.structured_data import FunctionData
+from nexus.audit.models.structured_data import AuditContextData
+
+
+@pytest.fixture(autouse=True)
+def _register_audit_event_handler() -> Any:  # noqa: ANN401
+    """Register FunctionExecutionHandler for decorator tests."""
+    AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
+    yield
+    AuditEventDispatcher.reset()
 
 
 def _assert_audit_event_fields(
@@ -48,9 +60,9 @@ def _assert_audit_event_fields(
     # Human-readable message
     assert event_obj.event_message == expected_message
 
-    # Event data (structured_data should always be present and be FunctionData for track_event)
+    # Event data (structured_data should always be present and be AuditContextData for track_event)
     assert event_obj.structured_data is not None
-    assert isinstance(event_obj.structured_data, FunctionData)
+    assert isinstance(event_obj.structured_data, AuditContextData)
 
 
 class TestTrackEventDecorator:
@@ -67,7 +79,7 @@ class TestTrackEventDecorator:
             result = test_function()
 
             assert result == "success"
-            mock_emit.assert_called_once()
+            assert mock_emit.call_count == 1
 
             # Verify all AuditEvent fields are correctly populated
             event_obj = mock_emit.call_args[0][0]
@@ -126,7 +138,7 @@ class TestTrackEventDecorator:
 
             # Verify function arguments capture
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             assert function_data.function_args == {"arg1": "test", "arg2": 42, "kwarg1": "custom"}
 
     def test_track_event_no_argument_capture(self) -> None:
@@ -153,7 +165,7 @@ class TestTrackEventDecorator:
             # Verify no function arguments captured
             function_data = event_obj.structured_data
             assert function_data is not None
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             assert function_data.function_args is not None
             assert isinstance(function_data.function_args, dict)
             assert len(function_data.function_args.items()) == 0
@@ -184,7 +196,7 @@ class TestTrackEventDecorator:
             # Verify function result capture and argument capture
             function_data = event_obj.structured_data
             assert function_data.function_args is not None
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             # Both the function argument and result should contain the same "test" value
             assert function_data.function_args["value"] == "test"
             assert function_data.function_result == {"result": "test"}
@@ -303,7 +315,7 @@ class TestTrackEventDecorator:
             with pytest.raises(ValueError, match="Test error message"):
                 test_function(should_fail=True)
 
-            # Should have emitted 2 events total (success + error)
+            # Should have emitted 2 events total (Complete for success, Failed for error)
             assert mock_emit.call_count == 2
 
             # Verify all AuditEvent fields in the error event.
@@ -321,9 +333,68 @@ class TestTrackEventDecorator:
 
             # Verify error-specific structured data
             function_data = error_event.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             assert function_data.error_type == "ValueError"
             assert function_data.error_message == "Look at the Operational Logs for full diagnosis"
+
+    def test_track_event_sanitizes_sensitive_data_in_exception_messages(self) -> None:
+        """Test that exception messages with sensitive data are sanitized and don't leak into audit events."""
+
+        @track_event(EventCategory.SECURITY_EVENT)
+        def test_function_with_password_leak(password: str) -> str:
+            msg = f"Invalid password: {password}"
+            raise ValueError(msg)
+
+        @track_event(EventCategory.SECURITY_EVENT)
+        def test_function_with_token_leak(token: str) -> str:
+            msg = f"Token {token} expired"
+            raise RuntimeError(msg)
+
+        @track_event(EventCategory.SECURITY_EVENT)
+        def test_function_with_api_key_leak(api_key: str) -> str:
+            msg = f"Missing API key: {api_key}"
+            raise KeyError(msg)
+
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
+            # Test password in exception message
+            with pytest.raises(ValueError, match="Invalid password: secret123"):
+                test_function_with_password_leak("secret123")
+
+            # Test token in exception message
+            with pytest.raises(RuntimeError, match="Token abc123xyz expired"):
+                test_function_with_token_leak("abc123xyz")
+
+            # Test API key in exception message
+            with pytest.raises(KeyError, match="Missing API key: sk-1234567890abcdef"):
+                test_function_with_api_key_leak("sk-1234567890abcdef")
+
+            # Should have emitted 3 events total (Failed for each function)
+            assert mock_emit.call_count == 3
+
+            # Check error events (indices 0, 1, 2)
+            error_events = [mock_emit.call_args_list[i][0][0] for i in [0, 1, 2]]
+            sensitive_patterns = ["secret123", "abc123xyz", "sk-1234567890abcdef"]
+
+            for error_event, sensitive_pattern in zip(error_events, sensitive_patterns, strict=True):
+                # 1. error_message should be the generic sanitized message
+                assert error_event.structured_data.error_message == "Look at the Operational Logs for full diagnosis"
+
+                # 2. error_type should be captured correctly
+                assert error_event.structured_data.error_type in ["ValueError", "RuntimeError", "KeyError"]
+
+                # 3. event_message should NOT contain the raw exception text with sensitive data
+                assert sensitive_pattern not in error_event.event_message
+                # event_message should be generic like "Function test_function_with_password_leak failed"
+                assert "test_function_with" in error_event.event_message
+                assert "failed with" in error_event.event_message
+
+                # 4. Verify sensitive pattern is NOT in any audit event field
+                event_dict = error_event.model_dump()
+                for field_name, field_value in event_dict.items():
+                    if isinstance(field_value, str):
+                        assert sensitive_pattern not in field_value, (
+                            f"Sensitive data '{sensitive_pattern}' leaked into field '{field_name}'"
+                        )
 
     def test_track_event_exception_with_args_capture(self) -> None:
         """Test exception handling with argument capture."""
@@ -352,7 +423,7 @@ class TestTrackEventDecorator:
 
             # Verify error-specific structured data with captured arguments
             function_data = error_event.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             assert function_data.error_type == "RuntimeError"
             assert function_data.error_message == "Look at the Operational Logs for full diagnosis"
             assert function_data.function_args == {"param1": "test", "param2": 42}
@@ -371,7 +442,7 @@ class TestTrackEventDecorator:
                 result = await async_function("test")
 
                 assert result == "async_test"
-                mock_emit.assert_called_once()
+                assert mock_emit.call_count == 1
 
                 # Verify all AuditEvent fields are correctly populated
                 event_obj = mock_emit.call_args[0][0]
@@ -415,7 +486,7 @@ class TestTrackEventDecorator:
 
             # Verify secure fallback when signature fails (no sensitive data exposure)
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             function_args = function_data.function_args
             # Should contain error indicator instead of raw args/kwargs
             assert function_args == {"capture_error": "Failed to bind function signature"}
@@ -489,7 +560,7 @@ class TestTrackEventEdgeCases:
             result = double_decorated_function()
 
             assert result == "success"
-            # Should emit 2 events (one for each decorator)
+            # Should emit 4 events (Attempting+Complete for each decorator)
             assert mock_emit.call_count == 2
 
             # Check that both decorators were applied with correct actions
@@ -536,7 +607,7 @@ class TestTrackEventEdgeCases:
 
             # Verify captured args and result
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             assert function_data.function_args is not None
             assert isinstance(function_data.function_args, dict)
             assert function_data.function_args["admin_user"] == "admin"
@@ -593,7 +664,7 @@ class TestTrackEventEdgeCases:
 
             # Verify sanitization pipeline redacted the sensitive field
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             assert function_data.function_args is not None
             assert function_data.function_args["password"] == "[REDACTED]"  # noqa: S105
             assert function_data.function_args["username"] == "testuser"
@@ -611,13 +682,13 @@ class TestTrackEventEdgeCases:
             result = await async_function("test_data")
 
             assert result == "processed_test_data"
-            mock_emit.assert_called_once()
+            assert mock_emit.call_count == 1
 
             # Verify result was captured correctly
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             assert function_data.function_result == "processed_test_data"
 
     async def test_track_event_async_function_error_handling(self) -> None:
@@ -634,7 +705,7 @@ class TestTrackEventEdgeCases:
             with pytest.raises(ValueError, match="Async function error"):
                 await async_function_with_error("test")
 
-            mock_emit.assert_called_once()
+            assert mock_emit.call_count == 1
 
             # Verify error event was captured correctly
             event_obj = mock_emit.call_args[0][0]
@@ -644,7 +715,7 @@ class TestTrackEventEdgeCases:
 
             # Verify error details in structured data
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
             assert function_data.error_type == "ValueError"
             assert function_data.error_message == "Look at the Operational Logs for full diagnosis"
             assert function_data.function_args == {"value": "test"}
@@ -662,7 +733,7 @@ class TestTrackEventEdgeCases:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # Should only capture specified parameters
             assert function_data.function_args is not None
@@ -693,7 +764,7 @@ class TestTrackEventEdgeCases:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # Should only capture specified fields
             assert function_data.function_result is not None
@@ -725,7 +796,7 @@ class TestTrackEventEdgeCases:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # Should only capture specified attributes
             assert function_data.function_result is not None
@@ -749,12 +820,12 @@ class TestTrackEventEdgeCases:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # Empty set behaves like False — no capture keys present
-            assert isinstance(function_data.function_args, dict)
-            assert len(function_data.function_args.items()) == 0
-            assert function_data.function_result is None
+            assert isinstance(getattr(function_data, "function_args", None), dict)
+            assert len(getattr(function_data, "function_args", {}).items()) == 0
+            assert getattr(function_data, "function_result", None) is None
 
     def test_track_event_selective_args_signature_failure(self) -> None:
         """Test selective argument capture behavior when signature binding fails."""
@@ -773,7 +844,7 @@ class TestTrackEventEdgeCases:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # For selective capture, should return error indicator instead of empty dict
             assert function_data.function_args == {"capture_error": "Failed to bind function signature"}
@@ -791,14 +862,14 @@ class TestTrackEventEdgeCases:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # Should capture everything (backward compatibility)
             assert function_data.function_args == {"username": "john", "safe_param": "safe_value"}
             assert function_data.function_result == {"result": "data", "status": "success"}
 
     async def test_track_event_async_vs_sync_timing(self) -> None:
-        """Test that async functions emit events after execution, not at coroutine creation."""
+        """Test event emits after function completes."""
         import asyncio
 
         events_captured = []
@@ -824,24 +895,21 @@ class TestTrackEventEdgeCases:
         with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
             mock_emit.side_effect = capture_event
 
-            # Test async function - event should be emitted AFTER execution
             await async_function()
             async_events = events_captured.copy()
 
             events_captured.clear()
 
-            # Test sync function for comparison
             sync_function()
             sync_events = events_captured.copy()
 
-        # For async function: start -> finish -> audit event
+        # body (start/finish) → complete
         assert async_events == [
             ("async_function", "started"),
             ("async_function", "finished"),
             ("async_function", "emitted"),
         ]
 
-        # For sync function: start -> finish -> audit event (same pattern)
         assert sync_events == [
             ("sync_function", "started"),
             ("sync_function", "finished"),
@@ -914,7 +982,7 @@ class TestTrackEventEdgeCases:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # Should capture the entire string result
             assert function_data.function_result == "Hello World"
@@ -933,10 +1001,10 @@ class TestTrackEventEdgeCases:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # Should not capture anything
-            assert function_data.function_result is None
+            assert getattr(function_data, "function_result", None) is None
 
     def test_track_event_string_result_capture_set(self) -> None:
         """Test that capture_result=set does not capture string return values and logs warning."""
@@ -955,10 +1023,10 @@ class TestTrackEventEdgeCases:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # Should not capture anything (safer audit default)
-            assert function_data.function_result is None
+            assert getattr(function_data, "function_result", None) is None
 
             # Should have logged a warning
             mock_logger.warning.assert_called_once()
@@ -985,7 +1053,7 @@ class TestTrackEventSanitizationAndTruncation:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # Password field should be redacted by the sanitizer
             assert isinstance(function_data.function_args, dict)
@@ -1007,7 +1075,7 @@ class TestTrackEventSanitizationAndTruncation:
             event_obj = mock_emit.call_args[0][0]
             assert event_obj.actor_type == ActorType.SYSTEM
             function_data = event_obj.structured_data
-            assert isinstance(function_data, FunctionData)
+            assert isinstance(function_data, AuditContextData)
 
             # The dict structure should be preserved with truncated string leaves
             assert isinstance(function_data.function_result, dict)
@@ -1162,3 +1230,62 @@ class TestEventSeverity:
                 "Function test_function failed with RuntimeError",
                 expected_status=EventStatus.ERROR,
             )
+
+
+class TestTrackEventAttemptingEvent:
+    """Tests for event emission timing."""
+
+    def test_single_event_emitted_on_success(self) -> None:
+        """Only one event is emitted on successful function completion."""
+
+        @track_event(EventCategory.USER_ACTION)
+        def test_function() -> str:
+            return "success"
+
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
+            test_function()
+
+            assert mock_emit.call_count == 1
+            event = mock_emit.call_args_list[0][0][0]
+            assert event.event_action == "test_function"
+            assert event.event_status == EventStatus.SUCCESS
+
+    def test_single_event_emitted_on_error(self) -> None:
+        """Only one event is emitted on function error."""
+
+        @track_event(EventCategory.USER_ACTION)
+        def test_function() -> str:
+            msg = "test error"
+            raise ValueError(msg)
+
+        with (
+            patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit,
+            pytest.raises(ValueError, match="test error"),
+        ):
+            test_function()
+
+            assert mock_emit.call_count == 1
+            event = mock_emit.call_args_list[0][0][0]
+            assert event.event_action == "test_function_error"
+            assert event.event_status == EventStatus.ERROR
+
+    def test_nested_decorators_produce_correct_order(self) -> None:
+        """Nested @track_event produces: Complete inner, Complete outer."""
+
+        @track_event(EventCategory.USER_ACTION, event_action="outer")
+        def outer_function() -> str:
+            return inner_function()
+
+        @track_event(EventCategory.USER_ACTION, event_action="inner")
+        def inner_function() -> str:
+            return "done"
+
+        with patch("nexus.audit.emitter._do_emit_audit_event") as mock_emit:
+            outer_function()
+
+            assert mock_emit.call_count == 2
+            actions = [call[0][0].event_action for call in mock_emit.call_args_list]
+            assert actions == [
+                "inner",
+                "outer",
+            ]

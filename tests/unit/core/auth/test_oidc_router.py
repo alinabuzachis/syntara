@@ -1,6 +1,7 @@
 # ruff: noqa: S105, S106, S107
 """Unit tests for OIDC authentication router endpoints."""
 
+from collections.abc import Generator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
@@ -174,11 +175,26 @@ def _make_oidc_service_mock(
     return mock
 
 
+@pytest.fixture
+def _mock_audit_dispatcher() -> Generator[MagicMock, None, None]:
+    """Prevent AuditEventDispatcher.dispatch from having side effects during tests."""
+    with patch("nexus.auth.router.AuditEventDispatcher.dispatch") as mock_dispatch:
+        yield mock_dispatch
+
+
+@pytest.fixture
+def _mock_audit_emission() -> Generator[None, None, None]:
+    """Prevent @track_event emission side effects in unit tests."""
+    with patch("nexus.audit.emitter.emit_audit_event"):
+        yield
+
+
 # =============================================================================
 # List Auth Providers
 # =============================================================================
 
 
+@pytest.mark.usefixtures("_mock_audit_dispatcher", "_mock_audit_emission")
 class TestListAuthProviders:
     """Tests for the /auth/providers endpoint."""
 
@@ -236,6 +252,7 @@ class TestListAuthProviders:
 # =============================================================================
 
 
+@pytest.mark.usefixtures("_mock_audit_dispatcher", "_mock_audit_emission")
 class TestOidcAuthorize:
     """Tests for the /auth/oidc/authorize endpoint."""
 
@@ -407,6 +424,7 @@ class TestGetOidcEndpoints:
 # =============================================================================
 
 
+@pytest.mark.usefixtures("_mock_audit_dispatcher", "_mock_audit_emission")
 class TestOidcCallback:
     """Tests for the /auth/oidc/callback endpoint."""
 

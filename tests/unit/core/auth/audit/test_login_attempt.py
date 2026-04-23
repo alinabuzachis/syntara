@@ -1,0 +1,143 @@
+"""Unit tests for LoginAttemptEvent and LoginAttemptHandler."""
+
+# mypy: disable-error-code="attr-defined"
+
+from uuid import uuid4
+
+from nexus.audit.handler import AuditEventHandler
+from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
+from nexus.audit.models.structured_data import AuditContextData
+from nexus.auth.audit.login_attempt import (
+    LoginAttemptEvent,
+    LoginAttemptHandler,
+    LoginErrorReason,
+    LoginMethod,
+)
+
+
+class TestLoginAttemptEvent:
+    """Tests for LoginAttemptEvent dataclass."""
+
+    def test_minimal_construction_defaults(self) -> None:
+        """LoginAttemptEvent can be constructed with just username and method; defaults apply."""
+        event = LoginAttemptEvent(username="alice", method=LoginMethod.PASSWORD)
+        assert event.username == "alice"
+        assert event.method == LoginMethod.PASSWORD
+        assert event.user_id is None
+        assert event.error_type is None
+
+    def test_enrichment_after_construction(self) -> None:
+        """error_type and user_id can be set after construction."""
+        event = LoginAttemptEvent(username="bob", method=LoginMethod.OIDC)
+        uid = uuid4()
+        event.error_type = "SomeError"
+        event.user_id = uid
+        assert event.error_type == "SomeError"
+        assert event.user_id == uid
+
+    def test_error_type_can_be_enum(self) -> None:
+        """error_type can be set to LoginErrorReason enum."""
+        event = LoginAttemptEvent(
+            username="alice", method=LoginMethod.PASSWORD, error_type=LoginErrorReason.BAD_PASSWORD
+        )
+        assert event.error_type == LoginErrorReason.BAD_PASSWORD
+
+
+class TestLoginAttemptHandler:
+    """Tests for LoginAttemptHandler."""
+
+    def test_is_audit_event_handler_subclass(self) -> None:
+        """LoginAttemptHandler is a subclass of AuditEventHandler."""
+        assert issubclass(LoginAttemptHandler, AuditEventHandler)
+
+    def test_successful_password_login(self) -> None:
+        """Successful login produces USER_ACTION / INFO / SUCCESS / 'login' event."""
+        uid = uuid4()
+        event = LoginAttemptEvent(username="alice", method=LoginMethod.PASSWORD, user_id=uid)
+        handler = LoginAttemptHandler()
+        result = handler.handle(event)
+
+        assert result.event_category == EventCategory.USER_ACTION
+        assert result.event_severity == EventSeverity.INFO
+        assert result.event_status == EventStatus.SUCCESS
+        assert result.event_action == "login"
+        assert result.actor_type == ActorType.USER
+        assert result.actor_id == uid
+        assert result.source_component == "nexus.auth.login"
+
+    def test_failed_login_business_error_known_user(self) -> None:
+        """Failed login with LoginErrorReason → SECURITY_EVENT / WARNING / ERROR / 'login' / USER actor."""
+        uid = uuid4()
+        event = LoginAttemptEvent(
+            username="alice",
+            method=LoginMethod.PASSWORD,
+            user_id=uid,
+            error_type=LoginErrorReason.BAD_PASSWORD,
+        )
+        handler = LoginAttemptHandler()
+        result = handler.handle(event)
+
+        assert result.event_category == EventCategory.SECURITY_EVENT
+        assert result.event_severity == EventSeverity.WARNING
+        assert result.event_status == EventStatus.ERROR
+        assert result.event_action == "login"
+        assert result.actor_type == ActorType.USER
+        assert result.actor_id == uid
+        # Business errors have no error_type in structured_data, error is in message
+        assert isinstance(result.structured_data, AuditContextData)
+        assert result.structured_data.error_type is None
+        assert "bad_password" in result.event_message
+
+    def test_failed_login_business_error_unknown_user(self) -> None:
+        """Failed login with no user_id → SYSTEM actor and actor_id is None."""
+        event = LoginAttemptEvent(
+            username="notexist",
+            method=LoginMethod.PASSWORD,
+            error_type=LoginErrorReason.UNKNOWN_USER,
+        )
+        handler = LoginAttemptHandler()
+        result = handler.handle(event)
+
+        assert result.actor_type == ActorType.SYSTEM
+        assert result.actor_id is None
+        assert result.event_status == EventStatus.ERROR
+        assert "unknown_user" in result.event_message
+
+    def test_failed_login_technical_error(self) -> None:
+        """Technical error (str error_type) → SECURITY_EVENT / ERROR / ERROR."""
+        uid = uuid4()
+        event = LoginAttemptEvent(
+            username="alice",
+            method=LoginMethod.PASSWORD,
+            user_id=uid,
+            error_type="RedisConnectionError",
+        )
+        handler = LoginAttemptHandler()
+        result = handler.handle(event)
+
+        assert result.event_category == EventCategory.SECURITY_EVENT
+        assert result.event_severity == EventSeverity.ERROR
+        assert result.event_status == EventStatus.ERROR
+        assert result.event_action == "login"
+        # Technical errors have error_type in structured_data
+        assert isinstance(result.structured_data, AuditContextData)
+        assert result.structured_data.error_type == "RedisConnectionError"
+        assert result.structured_data.error_message == "Look at the Operational Logs for full diagnosis"
+
+    def test_oidc_login_succeeds(self) -> None:
+        """Successful OIDC login produces SUCCESS event."""
+        uid = uuid4()
+        event = LoginAttemptEvent(
+            username="carol",
+            method=LoginMethod.OIDC,
+            user_id=uid,
+        )
+        handler = LoginAttemptHandler()
+        result = handler.handle(event)
+
+        assert result.event_status == EventStatus.SUCCESS
+        assert isinstance(result.structured_data, AuditContextData)
+        assert result.structured_data.data_type == "login-context"
+        assert result.structured_data.method == LoginMethod.OIDC
+        assert result.structured_data.error_type is None
+        assert result.structured_data.error_message is None

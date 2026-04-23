@@ -1,5 +1,7 @@
 """End-to-end audit event lifecycle tests: @track_event -> DB -> AuditEventService."""
 
+# mypy: disable-error-code="attr-defined"
+
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -10,10 +12,12 @@ import pytest_asyncio
 
 import nexus.audit.services.writer as writer_module
 from nexus.audit.decorators import track_event
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import EventCategory
 from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.audit.models.schemas import AuditEventListResponse
-from nexus.audit.models.structured_data import FunctionData
+from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.services.audit_event_service import AuditEventService
 from nexus.audit.services.writer import AuditEventWriter
 
@@ -25,6 +29,15 @@ if TYPE_CHECKING:
     from nexus.core.models import User
 
 RunMode = Literal["success", "error"]
+
+
+@pytest.fixture(autouse=True)
+def _register_audit_event_handler() -> Any:  # noqa: ANN401
+    """Register FunctionExecutionHandler for end-to-end tests."""
+    AuditEventDispatcher.register({FunctionExecutionEvent: FunctionExecutionHandler()})
+    yield
+    AuditEventDispatcher.reset()
+
 
 # ------------------------------------------------------------------ #
 # Decorated functions — decorator config is static, so one per scenario.
@@ -201,10 +214,10 @@ async def test_track_event_end_to_end(
     assert read.event_severity == expected["event_severity"]
     assert read.source_component == __name__
 
-    # structured_data is discriminated back to FunctionData with the expected content.
-    assert isinstance(read.structured_data, FunctionData)
+    # structured_data is discriminated back to AuditContextData with the expected content.
+    assert isinstance(read.structured_data, AuditContextData)
     sd = read.structured_data
-    assert sd.function_args == expected["function_args"]
-    assert sd.function_result == expected["function_result"]
+    assert getattr(sd, "function_args", None) == expected["function_args"]
+    assert getattr(sd, "function_result", None) == expected["function_result"]
     assert sd.error_type == expected["error_type"]
     assert sd.error_message == expected["error_message"]

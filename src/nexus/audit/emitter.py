@@ -15,6 +15,11 @@ if TYPE_CHECKING:
 
     from nexus.audit.models.audit_event import ActorType, AuditEvent
 
+audit_logger = structlog.stdlib.get_logger("nexus.audit")
+
+# Operational logger for diagnostics when audit emission itself fails.
+# Deliberately separate from ``audit_logger`` so failure notices don't
+# pollute the audit stream.
 logger = structlog.stdlib.get_logger(__name__)
 
 # Context variables for async-safe actor context management
@@ -68,32 +73,47 @@ def _get_current_actor_context() -> dict[str, Any]:
 
 
 def emit_audit_event(event: AuditEvent) -> None:
-    """Emit structured audit log entry to stdout with automatic context injection."""
-    # Inject current context if not already set
-    context = _get_current_actor_context()
-    if event.actor_id is None and context["actor_id"]:
-        event.actor_id = context["actor_id"]
-    if event.actor_type is None and context["actor_type"]:
-        event.actor_type = context["actor_type"]
-    if event.workflow_id is None and context["workflow_id"]:
-        event.workflow_id = context["workflow_id"]
-    if event.activity_id is None and context["activity_id"]:
-        event.activity_id = context["activity_id"]
-    if event.execution_id is None and context["execution_id"]:
-        event.execution_id = context["execution_id"]
+    """Emit structured audit log entry to stdout with automatic context injection.
 
-    # Sanitize and enforce payload limits before emitting
-    event.structured_data = _sanitizer.sanitize(event.structured_data)
-    event.structured_data = enforce_payload_limit(event.structured_data, DEFAULT_MAX_PAYLOAD_BYTES)
+    Fail-safe: any exception raised during context injection, sanitisation,
+    payload enforcement, or the underlying log call is caught and reported
+    via the operational logger. Audit capture must never fail the business
+    operation it is instrumenting — callers can rely on this function
+    not to raise.
+    """
+    try:
+        # Inject current context if not already set
+        context = _get_current_actor_context()
+        if event.actor_id is None and context["actor_id"]:
+            event.actor_id = context["actor_id"]
+        if event.actor_type is None and context["actor_type"]:
+            event.actor_type = context["actor_type"]
+        if event.workflow_id is None and context["workflow_id"]:
+            event.workflow_id = context["workflow_id"]
+        if event.activity_id is None and context["activity_id"]:
+            event.activity_id = context["activity_id"]
+        if event.execution_id is None and context["execution_id"]:
+            event.execution_id = context["execution_id"]
 
-    _do_emit_audit_event(event)
+        # Sanitize and enforce payload limits before emitting
+        event.structured_data = _sanitizer.sanitize(event.structured_data)
+        event.structured_data = enforce_payload_limit(event.structured_data, DEFAULT_MAX_PAYLOAD_BYTES)
+
+        _do_emit_audit_event(event)
+    except Exception:
+        logger.exception(
+            "Audit event emission failed — event dropped",
+            event_category=getattr(event, "event_category", None),
+            event_action=getattr(event, "event_action", None),
+            source_component=getattr(event, "source_component", None),
+        )
 
 
 def _do_emit_audit_event(event: AuditEvent) -> None:
     # Emit as structured log entry for downstream log aggregation.
     # Alternative implementations could emit the AuditEvent to OTEL etc.
     event_dict = event.model_dump(mode="json")
-    logger.info("audit_event", **event_dict)
+    audit_logger.info("audit_event", **event_dict)
 
     # Enqueue for database persistence via the audit event writer (non-blocking).
     from nexus.audit.services.writer import get_audit_writer  # noqa: PLC0415

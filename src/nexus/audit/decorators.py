@@ -12,16 +12,10 @@ import structlog
 
 from nexus.audit.actor_extractor import ActorContext, extract_actor_context
 from nexus.audit.constants import UNKNOWN
-from nexus.audit.emitter import actor_id_context_var, actor_type_context_var, emit_audit_event
-from nexus.audit.models.audit_event import (
-    ActorType,
-    AuditEvent,
-    EventCategory,
-    EventSeverity,
-    EventStatus,
-)
-from nexus.audit.models.structured_data import FunctionData
-from nexus.audit.utils import escalate_severity
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.emitter import actor_id_context_var, actor_type_context_var
+from nexus.audit.events.function_execution import FunctionExecutionEvent
+from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -30,14 +24,10 @@ logger = structlog.stdlib.get_logger(__name__)
 class AuditContext:
     """Container for audit context setup results."""
 
-    action: str
-    component: str
-    actor_context: ActorContext
-    structured_data: FunctionData
+    function_event: FunctionExecutionEvent
+    actor_context: ActorContext  # Captured early for nested decorator safety
     token_actor_id: contextvars.Token[UUID | None]
     token_actor_type: contextvars.Token[ActorType | None]
-    event_category: EventCategory
-    event_severity: EventSeverity
     capture_result: bool | set[str]
 
 
@@ -150,24 +140,30 @@ def _setup_audit_context(
         func_module=func.__module__,
     )
 
+    # Create the function execution event with initial state
+    function_event = FunctionExecutionEvent(
+        event_category=event_category,
+        event_action=action,
+        source_component=component,
+        actor_id=actor_context.actor_id,
+        actor_type=actor_context.actor_type,
+        event_severity=event_severity,
+        function_args=function_args,
+    )
+
     return AuditContext(
-        action=action,
-        component=component,
+        function_event=function_event,
         actor_context=actor_context,
-        structured_data=FunctionData(function_args=function_args),
         token_actor_id=token_actor_id,
         token_actor_type=token_actor_type,
-        event_category=event_category,
-        event_severity=event_severity,
         capture_result=capture_result,
     )
 
 
-def _handle_success_result(result: Any, audit_context: AuditContext) -> Any:  # noqa: ANN401
-    """Handle successful function execution and emit audit event.
+def _capture_result(result: Any, audit_context: AuditContext) -> None:  # noqa: ANN401
+    """Capture function result if requested.
 
-    IMPORTANT: Uses captured audit_context.actor_context rather than reading from
-    ContextVars to ensure correct actor data in nested @track_event scenarios.
+    Updates audit_context.function_event.function_result based on capture_result setting.
     """
     # Capture result if requested (False and empty set both mean "capture nothing")
     if audit_context.capture_result is not False and not (
@@ -175,83 +171,47 @@ def _handle_success_result(result: Any, audit_context: AuditContext) -> Any:  # 
     ):
         # If capture_result is True, capture the entire result
         if audit_context.capture_result is True:
-            audit_context.structured_data.function_result = result
+            audit_context.function_event.function_result = result
         # If capture_result is a set, capture only specified fields from dict/object result
         elif isinstance(audit_context.capture_result, set):
             # Handle dict-like results
             if isinstance(result, dict):
                 captured_result = {key: value for key, value in result.items() if key in audit_context.capture_result}
-                audit_context.structured_data.function_result = captured_result
+                audit_context.function_event.function_result = captured_result
             # Handle object-like results with attributes
             elif hasattr(result, "__dict__"):
                 result_dict = result.__dict__
                 captured_result = {
                     key: value for key, value in result_dict.items() if key in audit_context.capture_result
                 }
-                audit_context.structured_data.function_result = captured_result
+                audit_context.function_event.function_result = captured_result
             # Handle primitive types - log warning and do not capture
             else:
                 logger.warning(
                     "Selective result capture not supported for primitive return type, not capturing result",
-                    function_name=audit_context.action,
+                    function_name=audit_context.function_event.event_action,
                     result_type=type(result).__name__,
                     requested_fields=list(audit_context.capture_result),
                 )
 
-    # Create and emit success audit event
-    # NOTE: Must use audit_context.actor_context, NOT ContextVars, for nested decorator safety
-    event = AuditEvent(
-        event_category=audit_context.event_category,
-        event_severity=audit_context.event_severity,
-        event_status=EventStatus.SUCCESS,
-        event_action=audit_context.action,
-        event_message=f"Function {audit_context.action} executed successfully",
-        source_component=audit_context.component,
-        structured_data=audit_context.structured_data,
-        actor_id=audit_context.actor_context.actor_id,
-        actor_type=audit_context.actor_context.actor_type,
-    )
-    emit_audit_event(event)
 
-    return result
+def _capture_error(error: Exception, audit_context: AuditContext) -> None:
+    """Capture error information for audit event.
 
-
-def _handle_error(error: Exception, audit_context: AuditContext) -> None:
-    """Handle function execution error and emit audit event.
-
-    IMPORTANT: Uses captured audit_context.actor_context rather than reading from
-    ContextVars to ensure correct actor data in nested @track_event scenarios.
+    Updates audit_context.function_event with error details.
     """
     # Log error type to operational logs without full stack trace to avoid
     # leaking sensitive data (e.g., credentials in SQLAlchemy connection strings,
     # request bodies in FastAPI exceptions) through exc_info.
     logger.error(
         "Function failed with exception",
-        function_name=audit_context.action,
+        function_name=audit_context.function_event.event_action,
         error_type=type(error).__name__,
     )
 
-    # Create and emit error audit event
-    audit_context.structured_data.error_type = type(error).__name__
-    audit_context.structured_data.error_message = "Look at the Operational Logs for full diagnosis"
-
-    # Escalate severity on exception: unexpected failures are at least ERROR,
-    # but a caller-declared CRITICAL severity is preserved (never downgraded).
-    error_severity = escalate_severity(audit_context.event_severity, EventSeverity.ERROR)
-
-    # NOTE: Must use audit_context.actor_context, NOT ContextVars, for nested decorator safety
-    error_event = AuditEvent(
-        event_category=audit_context.event_category,
-        event_severity=error_severity,
-        event_status=EventStatus.ERROR,
-        event_action=f"{audit_context.action}_error",
-        event_message=f"Function {audit_context.action} failed with {type(error).__name__}",
-        source_component=audit_context.component,
-        structured_data=audit_context.structured_data,
-        actor_id=audit_context.actor_context.actor_id,
-        actor_type=audit_context.actor_context.actor_type,
-    )
-    emit_audit_event(error_event)
+    # Update event with error information
+    audit_context.function_event.error_type = type(error).__name__
+    audit_context.function_event.error_message = "Look at the Operational Logs for full diagnosis"
 
 
 def _cleanup_audit_context(audit_context: AuditContext) -> None:
@@ -343,16 +303,18 @@ def track_event[F: Callable[..., Any]](
                     capture_result=capture_result,
                 )
 
+                result: Any = None
                 try:
-                    # Execute the async function
                     result = await func(*args, **kwargs)
-                    return _handle_success_result(result, audit_context)
-
+                    _capture_result(result, audit_context)
                 except Exception as e:
-                    _handle_error(e, audit_context)
+                    _capture_error(e, audit_context)
                     raise
                 finally:
+                    AuditEventDispatcher.dispatch(audit_context.function_event)
                     _cleanup_audit_context(audit_context)
+
+                return result
 
             return async_wrapper  # type: ignore[return-value]
 
@@ -372,16 +334,18 @@ def track_event[F: Callable[..., Any]](
                 capture_result=capture_result,
             )
 
+            result: Any = None
             try:
-                # Execute the function
                 result = func(*args, **kwargs)
-                return _handle_success_result(result, audit_context)
-
+                _capture_result(result, audit_context)
             except Exception as e:
-                _handle_error(e, audit_context)
+                _capture_error(e, audit_context)
                 raise
             finally:
+                AuditEventDispatcher.dispatch(audit_context.function_event)
                 _cleanup_audit_context(audit_context)
+
+            return result
 
         return sync_wrapper  # type: ignore[return-value]
 

@@ -18,9 +18,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import text
 from temporalio.service import RPCError
 
+import nexus.audit.events  # Package scanned by discover_handlers() at startup
+import nexus.auth.audit  # Package scanned by discover_handlers() at startup
 import nexus.auth.exceptions  # Side-effect import to trigger exception handler registration
 import nexus.identity_providers.exceptions
 from nexus.api.constants import API_V1_PATH_PREFIX
+from nexus.audit.discovery import discover_handlers
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.services.writer import init_audit_writer
 from nexus.auth.middleware import StaleTokenMiddleware
@@ -133,6 +137,21 @@ async def _lifespan_startup(app: FastAPI) -> dict[str, Any]:
         raise RuntimeError(msg)
     app.state.opa_client = opa_client
 
+    # Discover audit event handlers and register them with the dispatcher.
+    # Scoped to known audit sub-packages; add new domains here as they are instrumented.
+    # Continue startup if discovery fails - audit is observability, not critical path
+    try:
+        audit_events_registry = discover_handlers(nexus.audit.events)
+        AuditEventDispatcher.register(audit_events_registry)
+
+        auth_audit_registry = discover_handlers(nexus.auth.audit)
+        AuditEventDispatcher.register(auth_audit_registry)
+
+        total_handlers = len(audit_events_registry) + len(auth_audit_registry)
+        logger.info("Audit event handlers discovered", handler_count=total_handlers)
+    except Exception:
+        logger.exception("Failed to discover and register audit handlers - audit system degraded")
+
     # Initialize telemetry (reads installation ID from database)
     await initialize_telemetry()
 
@@ -196,6 +215,9 @@ async def _lifespan_shutdown(resources: dict[str, Any]) -> None:
 
     await engine.dispose()
     logger.info("Database engine disposed")
+
+    AuditEventDispatcher.reset()
+    logger.info("Audit dispatcher reset")
 
     lock_file = _get_lock_file_path()
     try:
@@ -276,7 +298,7 @@ app.add_middleware(AuditMiddleware)
 # RFC 9457 compliant error handlers
 # Import exception modules so @fastapi_exception decorators populate the registry
 import nexus.core.storage_exceptions  # noqa: E402
-import nexus.credentials.exceptions  # noqa: F401, E402
+import nexus.credentials.exceptions  # noqa: E402
 
 # Register decorated exceptions automatically
 register_exceptions(app)

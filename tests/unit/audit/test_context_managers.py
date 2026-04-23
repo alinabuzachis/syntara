@@ -1,5 +1,7 @@
 """Unit tests for audit context managers."""
 
+# mypy: disable-error-code="attr-defined"
+
 from typing import Any
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -8,6 +10,7 @@ import pytest
 
 from nexus.audit.context_managers import actor_context, audit_context
 from nexus.audit.decorators import track_event
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
     activity_id_context_var,
     actor_id_context_var,
@@ -15,6 +18,8 @@ from nexus.audit.emitter import (
     execution_id_context_var,
     workflow_id_context_var,
 )
+from nexus.audit.events.audit_context import AuditContextEvent, AuditContextHandler
+from nexus.audit.events.function_execution import FunctionExecutionEvent, FunctionExecutionHandler
 from nexus.audit.models.audit_event import (
     ActorType,
     AuditEvent,
@@ -22,7 +27,17 @@ from nexus.audit.models.audit_event import (
     EventSeverity,
     EventStatus,
 )
-from nexus.audit.models.structured_data import AuditContextData, FunctionData
+from nexus.audit.models.structured_data import AuditContextData
+
+
+@pytest.fixture(autouse=True)
+def _register_audit_event_handlers() -> Any:  # noqa: ANN401
+    """Register AuditContextHandler and FunctionExecutionHandler for context manager tests."""
+    AuditEventDispatcher.register(
+        {AuditContextEvent: AuditContextHandler(), FunctionExecutionEvent: FunctionExecutionHandler()}
+    )
+    yield
+    AuditEventDispatcher.reset()
 
 
 class TestActorContext:
@@ -194,6 +209,59 @@ class TestAuditContext:
         structured_dict = emitted_event.structured_data.model_dump()
         assert structured_dict["test_field"] == "test_value"
 
+    @pytest.mark.parametrize(
+        ("exception", "sensitive_pattern"),
+        [
+            (ValueError("Invalid password: secret123"), "secret123"),
+            (RuntimeError("Token abc123xyz expired"), "abc123xyz"),
+            (KeyError("Missing API key: sk-1234567890abcdef"), "sk-1234567890abcdef"),
+            (Exception("Authentication failed with credentials: user:pass"), "user:pass"),
+        ],
+        ids=["password", "token", "api_key", "credentials"],
+    )
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    def test_audit_context_sanitizes_sensitive_data_in_exception_messages(
+        self, mock_emit: Mock, exception: Exception, sensitive_pattern: str
+    ) -> None:
+        """Test that exception messages with sensitive data are sanitized and don't leak into audit events."""
+        # Raise the exception within audit context
+        with (
+            pytest.raises(type(exception)),
+            audit_context(
+                event_category=EventCategory.SECURITY_EVENT,
+                event_action="test_action",
+                source_component="test.component",
+                actor_id=uuid4(),
+                actor_type=ActorType.SYSTEM,
+            ),
+        ):
+            raise exception
+
+        # Should have emitted one event
+        mock_emit.assert_called_once()
+        emitted_event = mock_emit.call_args[0][0]
+        exception_message = str(exception)
+
+        # 1. error_message should be the generic sanitized message
+        assert emitted_event.structured_data.error_message == "Look at the Operational Logs for full diagnosis"
+
+        # 2. error_type should be captured correctly
+        assert emitted_event.structured_data.error_type == type(exception).__name__
+
+        # 3. event_message should NOT contain the raw exception text with sensitive data
+        assert exception_message not in emitted_event.event_message
+        # event_message should be generic like "Operation test_action failed with ValueError"
+        assert "test_action" in emitted_event.event_message
+        assert type(exception).__name__ in emitted_event.event_message
+
+        # 4. Verify sensitive pattern is NOT in any audit event field
+        event_dict = emitted_event.model_dump()
+        for field_name, field_value in event_dict.items():
+            if isinstance(field_value, str):
+                assert sensitive_pattern not in field_value, (
+                    f"Sensitive data '{sensitive_pattern}' leaked into field '{field_name}'"
+                )
+
     @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_audit_context_with_no_context_data(self, mock_emit: Mock) -> None:
         """Test audit_context with no additional context data."""
@@ -214,11 +282,10 @@ class TestAuditContext:
         assert emitted_event.event_status == EventStatus.SUCCESS
         assert isinstance(emitted_event.structured_data, AuditContextData)
         assert emitted_event.actor_type == ActorType.SYSTEM
-        # Should only have base fields (error_type, error_message with defaults)
+        # Should only have base fields (data_type, error_type, error_message with defaults)
         structured_dict = emitted_event.structured_data.model_dump()
         expected_keys = {"data_type", "error_type", "error_message"}
         assert set(structured_dict.keys()) == expected_keys
-        assert structured_dict["data_type"] == "context"
         assert structured_dict["error_type"] is None
         assert structured_dict["error_message"] is None
 
@@ -383,19 +450,17 @@ class TestContextManagersWithTrackEventDecorator:
 
         # Assert
         assert result == "result_test_value"
-        mock_emit.assert_called_once()
+        # Decorator emits 1 event (complete only), actor_context emits 0 events
+        assert mock_emit.call_count == 1
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_id == test_actor_id
         assert emitted_event.actor_type == ActorType.USER
-        assert isinstance(emitted_event.structured_data, FunctionData)
+        assert isinstance(emitted_event.structured_data, AuditContextData)
         assert emitted_event.structured_data.function_args == {"param1": "test_value"}
 
-    @patch("nexus.audit.decorators.emit_audit_event")  # intercepts decorator's emit call
-    @patch("nexus.audit.emitter._do_emit_audit_event")  # intercepts context manager's final emit
-    def test_audit_context_with_track_event_decorator_success(
-        self, mock_context_emit: Mock, mock_decorator_emit: Mock
-    ) -> None:
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    def test_audit_context_with_track_event_decorator_success(self, mock_emit: Mock) -> None:
         """Test audit_context with @track_event decorated function - success case."""
 
         # Arrange
@@ -416,28 +481,24 @@ class TestContextManagersWithTrackEventDecorator:
         # Assert
         assert result == "success"
 
-        # Both the decorator and context manager should emit events
-        mock_decorator_emit.assert_called_once()
-        mock_context_emit.assert_called_once()
+        # Decorator emits 1 event (complete only), context manager emits 1 event
+        assert mock_emit.call_count == 2
 
-        # Verify decorator event
-        decorator_event = mock_decorator_emit.call_args[0][0]
+        # Verify decorator complete event (first call, index 0)
+        decorator_event = mock_emit.call_args_list[0][0][0]
         assert decorator_event.event_category == EventCategory.API_EXECUTION
         assert decorator_event.event_action == "test_function"
         assert decorator_event.actor_type == ActorType.USER
 
-        # Verify context manager event
-        context_event = mock_context_emit.call_args[0][0]
+        # Verify context manager event (second call, index 1)
+        context_event = mock_emit.call_args_list[1][0][0]
         assert context_event.event_category == EventCategory.SYSTEM_OPERATION
         assert context_event.event_action == "wrapper_operation"
         assert context_event.actor_type == ActorType.USER
         assert context_event.event_status == EventStatus.SUCCESS
 
-    @patch("nexus.audit.decorators.emit_audit_event")  # intercepts decorator's emit call
-    @patch("nexus.audit.emitter._do_emit_audit_event")  # intercepts context manager's final emit
-    def test_audit_context_with_track_event_decorator_error(
-        self, mock_context_emit: Mock, mock_decorator_emit: Mock
-    ) -> None:
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    def test_audit_context_with_track_event_decorator_error(self, mock_emit: Mock) -> None:
         """Test audit_context with @track_event decorated function - error case."""
         # Arrange
         error_msg = "function error"
@@ -460,18 +521,17 @@ class TestContextManagersWithTrackEventDecorator:
             test_function()
 
         # Assert
-        # Both the decorator and context manager should emit error events
-        mock_decorator_emit.assert_called_once()
-        mock_context_emit.assert_called_once()
+        # Decorator emits 1 event (error only), context manager emits 1 error event
+        assert mock_emit.call_count == 2
 
-        # Verify decorator error event
-        decorator_event = mock_decorator_emit.call_args[0][0]
+        # Verify decorator error event (first call, index 0)
+        decorator_event = mock_emit.call_args_list[0][0][0]
         assert decorator_event.event_category == EventCategory.API_EXECUTION
         assert decorator_event.event_action == "test_function_error"
         assert decorator_event.actor_type == ActorType.SERVICE
 
-        # Verify context manager error event
-        context_event = mock_context_emit.call_args[0][0]
+        # Verify context manager error event (second call, index 1)
+        context_event = mock_emit.call_args_list[1][0][0]
         assert context_event.event_category == EventCategory.SYSTEM_OPERATION
         assert context_event.event_action == "wrapper_operation_error"
         assert context_event.actor_type == ActorType.SERVICE
@@ -499,13 +559,14 @@ class TestContextManagersWithTrackEventDecorator:
 
         # Assert
         assert result == {"result": "processed_test_data"}
-        mock_emit.assert_called_once()
+        # Decorator emits 1 event (complete only), actor_context emits 0 events
+        assert mock_emit.call_count == 1
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_id == test_actor_id
         assert emitted_event.actor_type == ActorType.SERVICE
         assert emitted_event.workflow_id == test_workflow_id
-        assert isinstance(emitted_event.structured_data, FunctionData)
+        assert isinstance(emitted_event.structured_data, AuditContextData)
         assert emitted_event.structured_data.function_result == {"result": "processed_test_data"}
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
@@ -529,7 +590,8 @@ class TestContextManagersWithTrackEventDecorator:
 
         # Assert
         assert result == "async_result_test"
-        mock_emit.assert_called_once()
+        # Decorator emits 1 event (complete only), actor_context emits 0 events
+        assert mock_emit.call_count == 1
 
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_id == test_actor_id
@@ -555,7 +617,7 @@ class TestActorContextSanitizationAndTruncation:
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_type == ActorType.USER
         function_data = emitted_event.structured_data
-        assert isinstance(function_data, FunctionData)
+        assert isinstance(function_data, AuditContextData)
 
         # Secret field should be redacted by the sanitizer
         assert isinstance(function_data.function_args, dict)
@@ -578,7 +640,7 @@ class TestActorContextSanitizationAndTruncation:
         emitted_event = mock_emit.call_args[0][0]
         assert emitted_event.actor_type == ActorType.USER
         function_data = emitted_event.structured_data
-        assert isinstance(function_data, FunctionData)
+        assert isinstance(function_data, AuditContextData)
 
         # The dict structure should be preserved with truncated string leaves
         assert isinstance(function_data.function_result, dict)
@@ -612,6 +674,60 @@ class TestAuditContextSanitizationAndTruncation:
         assert structured_dict["user_password"] == "[REDACTED]"  # noqa: S105
         # Non-sensitive field should be preserved
         assert structured_dict["username"] == "alice"
+
+    @pytest.mark.parametrize(
+        ("sensitive_field_name", "sensitive_value"),
+        [
+            pytest.param("token", "abc123xyz", id="token"),
+            pytest.param("api_key", "sk-1234567890abcdef", id="api_key"),
+            pytest.param("secret", "my_secret_value", id="secret"),
+            pytest.param("credentials", "user:pass", id="credentials"),
+        ],
+    )
+    @patch("nexus.audit.emitter._do_emit_audit_event")
+    def test_audit_context_sanitizes_credential_patterns_in_context_data(
+        self,
+        mock_emit: Mock,
+        sensitive_field_name: str,
+        sensitive_value: str,
+    ) -> None:
+        """Test that common credential patterns in context_data are redacted by audit_context.
+
+        This test verifies that when sensitive credential patterns (token, api_key, secret,
+        credentials) are passed as keyword arguments to audit_context(), they are properly
+        sanitized to "[REDACTED]" in the emitted audit event's structured_data.
+
+        The sanitization should be selective - only sensitive fields are redacted while
+        non-sensitive fields preserve their original values.
+        """
+        # Build kwargs dynamically with one sensitive field and one non-sensitive field
+        context_kwargs: dict[str, Any] = {
+            sensitive_field_name: sensitive_value,
+            "username": "alice",  # Non-sensitive field for verification
+        }
+
+        with audit_context(
+            event_category=EventCategory.USER_ACTION,
+            event_action="test_action",
+            source_component="test.component",
+            actor_id=uuid4(),
+            actor_type=ActorType.USER,
+            **context_kwargs,
+        ):
+            pass
+
+        emitted_event = mock_emit.call_args[0][0]
+        assert emitted_event.actor_type == ActorType.USER
+        assert emitted_event.event_status == EventStatus.SUCCESS
+        assert isinstance(emitted_event.structured_data, AuditContextData)
+
+        structured_dict = emitted_event.structured_data.model_dump()
+        # Sensitive credential field should be redacted by the sanitizer
+        assert structured_dict[sensitive_field_name] == "[REDACTED]"
+        # Non-sensitive field should be preserved
+        assert structured_dict["username"] == "alice"
+        # Original sensitive value should not appear anywhere in the structured data
+        assert sensitive_value not in str(structured_dict)
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_audit_context_emitted_event_has_truncated_payload(self, mock_emit: Mock) -> None:

@@ -22,14 +22,14 @@ from uuid import UUID
 import structlog
 
 from nexus.api.constants import EXCLUDED_PATHS
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
-    emit_audit_event,
     execution_id_context_var,
     request_id_context_var,
     workflow_id_context_var,
 )
-from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
-from nexus.audit.models.structured_data import RequestCompletedData
+from nexus.audit.events.http_request import HTTPRequestEvent
+from nexus.audit.models.audit_event import ActorType
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -284,12 +284,11 @@ class AuditMiddleware:
             # Reset to 500 so an app that sent a 2xx response-start and then
             # raised during body streaming still emits ERROR, not the 2xx.
             status_code = HTTPStatus.INTERNAL_SERVER_ERROR
-            self._emit_completed(scope, path, status_code)
             raise
         finally:
+            # Emit audit event for request completion (success or error)
+            self._emit_completed(scope, path, status_code)
             request_id_context_var.reset(token)
-
-        self._emit_completed(scope, path, status_code)
 
     def _emit_completed(
         self,
@@ -297,7 +296,7 @@ class AuditMiddleware:
         path: str,
         status_code: int,
     ) -> None:
-        """Emit a ``request_completed`` audit event.
+        """Emit a ``request_completed`` audit event via dispatcher.
 
         All context (user, source component, context IDs, query parameters)
         is resolved from the ASGI scope after routing has completed.
@@ -316,42 +315,29 @@ class AuditMiddleware:
             actor_id = UUID(user_context["user_id"]) if "user_id" in user_context else None
             actor_type = user_context.get("actor_type", ActorType.SYSTEM)
 
-            # Build structured data — query params are sanitized by emit_audit_event
+            # Build and dispatch the domain event
             query_params = self._parse_query_params(scope.get("query_string", b""))
-            structured_data = RequestCompletedData(
+
+            # Extract context IDs with proper types
+            workflow_id_value = context_ids["workflow_id"]
+            execution_id_value = context_ids["execution_id"]
+            activity_id_value = context_ids["activity_id"]
+
+            event = HTTPRequestEvent(
                 method=method,
                 path=path,
                 status_code=status_code,
+                actor_id=actor_id,
+                actor_type=actor_type,
+                source_component=self._resolve_source_component(scope),
                 query_params=query_params or None,
                 user_role=user_context.get("user_role"),
+                workflow_id=workflow_id_value if isinstance(workflow_id_value, UUID) else None,
+                execution_id=execution_id_value if isinstance(execution_id_value, UUID) else None,
+                activity_id=activity_id_value if isinstance(activity_id_value, str) else None,
             )
 
-            # Derive severity and status from the HTTP response status code so that
-            # downstream consumers (alerting, SIEM) can filter on severity alone.
-            if status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
-                event_severity = EventSeverity.ERROR
-            elif status_code >= HTTPStatus.BAD_REQUEST:
-                event_severity = EventSeverity.WARNING
-            else:
-                event_severity = EventSeverity.INFO
-            event_status = EventStatus.SUCCESS if status_code < HTTPStatus.BAD_REQUEST else EventStatus.ERROR
-
-            emit_audit_event(
-                AuditEvent(
-                    event_category=EventCategory.USER_ACTION,
-                    event_action="request_completed",
-                    event_severity=event_severity,
-                    event_status=event_status,
-                    actor_id=actor_id,
-                    actor_type=actor_type,
-                    source_component=self._resolve_source_component(scope),
-                    workflow_id=context_ids["workflow_id"],
-                    activity_id=context_ids["activity_id"],
-                    execution_id=context_ids["execution_id"],
-                    event_message=f"Request completed: {method} {path} {status_code}",
-                    structured_data=structured_data,
-                ),
-            )
+            AuditEventDispatcher.dispatch(event)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "audit_middleware_failed",

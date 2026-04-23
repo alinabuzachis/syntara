@@ -12,7 +12,7 @@ from sqlalchemy import Index, text
 from sqlmodel import Field
 
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
-from nexus.audit.models.structured_data import AuditDataTypes, AuditDataUnion, BaseAuditData
+from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.models.base.base_resource import BaseResource
 from nexus.core.utils.sqlmodel import DiscriminatedJSONB, postgres_enum_column
 
@@ -82,9 +82,8 @@ class AuditEventRecord(BaseResource, table=True):
 
     # -- Payload ---------------------------------------------------------------
     event_message: str = Field(description="Human-readable description of the event")
-    structured_data: AuditDataTypes = Field(
-        default_factory=BaseAuditData,
-        sa_type=DiscriminatedJSONB(AuditDataUnion),  # type: ignore[arg-type, call-overload]
+    structured_data: AuditContextData = Field(
+        sa_type=DiscriminatedJSONB(AuditContextData),  # type: ignore[call-overload]
         description="Sanitised structured event data",
     )
 

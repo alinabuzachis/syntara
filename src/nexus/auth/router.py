@@ -20,6 +20,12 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.audit.decorators import track_event
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.models.audit_event import EventCategory
+from nexus.auth.audit.login_attempt import LoginAttemptEvent, LoginErrorReason, LoginMethod
+from nexus.auth.audit.oidc_flow import OIDCFlowEvent, OIDCStage
+from nexus.auth.audit.session_lifecycle import SessionAction, SessionLifecycleEvent
 from nexus.auth.cookies import (
     clear_refresh_cookie,
     set_refresh_cookie,
@@ -101,6 +107,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
         401: {"description": "Invalid username or password"},
     },
 )
+@track_event(EventCategory.SECURITY_EVENT)
 async def login(
     body: LoginRequest,
     request: Request,
@@ -124,8 +131,11 @@ async def login(
     """
     settings = get_settings()
 
-    # Look up user by username (case-insensitive)
     username = body.username.lower()
+    client_host = request.client.host if request.client else None
+    user_agent = request.headers.get("User-Agent")
+
+    # Look up user by username (case-insensitive)
     result = await db.exec(
         select(User).filter(
             User.username == username,  # type: ignore[arg-type]
@@ -135,12 +145,31 @@ async def login(
     user = result.one_or_none()
 
     if not user or not user.password_hash:
+        AuditEventDispatcher.dispatch(
+            LoginAttemptEvent(username=username, method=LoginMethod.PASSWORD, error_type=LoginErrorReason.UNKNOWN_USER)
+        )
         raise AuthenticationRequiredError
 
     if not verify_password(body.password, user.password_hash):
+        AuditEventDispatcher.dispatch(
+            LoginAttemptEvent(
+                username=username,
+                method=LoginMethod.PASSWORD,
+                error_type=LoginErrorReason.BAD_PASSWORD,
+                user_id=user.id,
+            )
+        )
         raise AuthenticationRequiredError
 
     if not user.is_active:
+        AuditEventDispatcher.dispatch(
+            LoginAttemptEvent(
+                username=username,
+                method=LoginMethod.PASSWORD,
+                error_type=LoginErrorReason.INACTIVE_ACCOUNT,
+                user_id=user.id,
+            )
+        )
         raise AuthenticationRequiredError
 
     # Resolve group names for JWT claims (before modifying session state)
@@ -177,17 +206,29 @@ async def login(
                 jti=jti,
                 user_id=user.id,
                 # Stored for future session management UI (e.g., "list active sessions")
-                device=request.headers.get("User-Agent"),
-                ip_address=request.client.host if request.client else None,
+                device=user_agent,
+                ip_address=client_host,
                 amr=[AMR_PASSWORD],
                 idp="local",
             )
     except (OSError, RedisConnectionError, RuntimeError) as exc:
+        AuditEventDispatcher.dispatch(
+            SessionLifecycleEvent(
+                action=SessionAction.CREATE,
+                user_id=user.id,
+                jti=jti,
+                idp="local",
+                error_type=type(exc).__name__,
+            )
+        )
         # Redis connection or session store errors — roll back last_login
         # so user state stays consistent (they didn't get a session).
         logger.exception("Redis connection failed during login", error=str(exc))
         await db.rollback()
         raise SessionStoreUnavailableError from exc
+    AuditEventDispatcher.dispatch(
+        SessionLifecycleEvent(action=SessionAction.CREATE, user_id=user.id, jti=jti, idp="local")
+    )
 
     # Commit last_login only after Redis session is successfully created
     await db.commit()
@@ -197,6 +238,7 @@ async def login(
     set_refresh_cookie(response, refresh_token_str, max_age=cookie_max_age)
 
     logger.info("User logged in", user_id=str(user.id), username=user.username)
+    AuditEventDispatcher.dispatch(LoginAttemptEvent(username=username, method=LoginMethod.PASSWORD, user_id=user.id))
 
     return AccessTokenResponse(
         access_token=access_token,
@@ -221,6 +263,7 @@ async def login(
         401: {"description": "Invalid or expired refresh token"},
     },
 )
+@track_event(EventCategory.USER_ACTION)
 async def refresh_token(
     raw_refresh_token: Annotated[str, Depends(get_refresh_token)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -317,6 +360,15 @@ async def refresh_token(
                 token_version=token_version,
             )
 
+            AuditEventDispatcher.dispatch(
+                SessionLifecycleEvent(
+                    action=SessionAction.REFRESH,
+                    user_id=user.id,
+                    jti=payload.jti,
+                    idp=idp,
+                )
+            )
+
             logger.info(
                 "Token refreshed successfully",
                 user_id=str(user.id),
@@ -350,6 +402,7 @@ async def refresh_token(
         401: {"description": "Invalid or expired refresh token"},
     },
 )
+@track_event(EventCategory.SECURITY_EVENT)
 async def logout(
     raw_refresh_token: Annotated[str, Depends(get_refresh_token)],
     response: Response,
@@ -391,6 +444,7 @@ async def logout(
         raise AuthenticationRequiredError
 
     # Revoke the session in Redis
+
     try:
         async with SessionStore() as store:
             revoked = await store.revoke(payload.jti)
@@ -408,8 +462,19 @@ async def logout(
                     jti=payload.jti,
                 )
     except (OSError, RedisConnectionError) as exc:
+        AuditEventDispatcher.dispatch(
+            SessionLifecycleEvent(
+                action=SessionAction.REVOKE,
+                user_id=UUID(payload.sub),
+                jti=payload.jti,
+                error_type=type(exc).__name__,
+            )
+        )
         logger.exception("Redis connection failed during logout", error=str(exc))
         raise SessionStoreUnavailableError from exc
+    AuditEventDispatcher.dispatch(
+        SessionLifecycleEvent(action=SessionAction.REVOKE, user_id=UUID(payload.sub), jti=payload.jti)
+    )
 
     # Clear the refresh cookie
     clear_refresh_cookie(response)
@@ -430,6 +495,7 @@ async def logout(
         401: {"description": "Invalid or missing authentication"},
     },
 )
+@track_event(EventCategory.USER_ACTION)
 async def get_me(
     payload: Annotated[TokenPayload, Depends(get_token_payload)],
 ) -> UserInfo:
@@ -461,6 +527,7 @@ async def get_me(
     """,
     response_description="List of enabled identity providers",
 )
+@track_event(EventCategory.USER_ACTION)
 async def list_auth_providers(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AuthProvidersResponse:
@@ -500,6 +567,7 @@ async def list_auth_providers(
         302: {"description": "Redirect to identity provider or frontend on error"},
     },
 )
+@track_event(EventCategory.SECURITY_EVENT)
 async def oidc_authorize(
     provider_id: Annotated[UUID, Query(description="UUID of the identity provider to use")],
     request: Request,
@@ -508,13 +576,22 @@ async def oidc_authorize(
 ) -> RedirectResponse:
     """Initiate OIDC login by redirecting to the provider's authorization endpoint."""
     origin = _extract_referer_origin(request)
+
     try:
-        return await _build_oidc_authorize_redirect(provider_id, request, db, redirect_to)
+        result = await _build_oidc_authorize_redirect(provider_id, request, db, redirect_to)
+        AuditEventDispatcher.dispatch(OIDCFlowEvent(provider_id=provider_id, stage=OIDCStage.AUTHORIZE))
+        return result
     except (OIDCError, _OIDCCallbackError) as e:
+        AuditEventDispatcher.dispatch(
+            OIDCFlowEvent(provider_id=provider_id, stage=OIDCStage.AUTHORIZE, error_type=type(e).__name__)
+        )
         logger.warning("OIDC authorize failed, redirecting to login", provider_id=str(provider_id), error=str(e))
         base_url = _get_frontend_base_url(origin)
         return RedirectResponse(url=f"{base_url}?auth_error={quote(str(e))}", status_code=302)
-    except Exception:
+    except Exception as e:
+        AuditEventDispatcher.dispatch(
+            OIDCFlowEvent(provider_id=provider_id, stage=OIDCStage.AUTHORIZE, error_type=type(e).__name__)
+        )
         # Safety net: this is a browser endpoint — never return JSON errors
         logger.exception("Unexpected error during OIDC authorize", provider_id=str(provider_id))
         base_url = _get_frontend_base_url(origin)
@@ -785,6 +862,7 @@ _OIDC_ERR_USER_FAILED = "Unable to sign in. Contact your administrator."
         401: {"description": "Authentication failed"},
     },
 )
+@track_event(EventCategory.SECURITY_EVENT)
 async def oidc_callback(
     state: Annotated[str, Query(description="OIDC state parameter for CSRF protection")],
     request: Request,
@@ -796,11 +874,22 @@ async def oidc_callback(
     ] = None,
 ) -> RedirectResponse:
     """Handle OIDC callback. Exchanges code for tokens, creates session."""
+    client_host = request.client.host if request.client else None
+    user_agent = request.headers.get("User-Agent")
+
     try:
         user, provider, state_data = await _process_oidc_callback(
-            state=state, db=db, code=code, error=error, error_description=error_description
+            state=state,
+            db=db,
+            code=code,
+            error=error,
+            error_description=error_description,
         )
+        AuditEventDispatcher.dispatch(OIDCFlowEvent(provider_id=provider.id, stage=OIDCStage.CALLBACK, user_id=user.id))
     except _OIDCCallbackError as e:
+        AuditEventDispatcher.dispatch(
+            OIDCFlowEvent(provider_id=None, stage=OIDCStage.CALLBACK, error_type=type(e).__name__)
+        )
         base_url = _get_frontend_base_url(e.origin)
         return RedirectResponse(url=f"{base_url}?auth_error={quote(str(e))}", status_code=302)
 
@@ -813,15 +902,30 @@ async def oidc_callback(
             await store.create(
                 jti=jti,
                 user_id=user.id,
-                device=request.headers.get("User-Agent"),
-                ip_address=request.client.host if request.client else None,
+                device=user_agent,
+                ip_address=client_host,
                 amr=[AMR_FEDERATED],
                 idp=provider.name,
             )
     except (OSError, RedisConnectionError) as exc:
+        AuditEventDispatcher.dispatch(
+            SessionLifecycleEvent(
+                action=SessionAction.CREATE,
+                user_id=user.id,
+                jti=jti,
+                idp=provider.name,
+                error_type=type(exc).__name__,
+            )
+        )
+        AuditEventDispatcher.dispatch(
+            LoginAttemptEvent(username=user.username, method=LoginMethod.OIDC, error_type=type(exc).__name__)
+        )
         logger.exception("Redis connection failed during OIDC callback", error=str(exc))
         await db.rollback()
         raise SessionStoreUnavailableError from exc
+    AuditEventDispatcher.dispatch(
+        SessionLifecycleEvent(action=SessionAction.CREATE, user_id=user.id, jti=jti, idp=provider.name)
+    )
 
     # Commit last_login only after Redis session is successfully created
     await db.commit()
@@ -837,6 +941,7 @@ async def oidc_callback(
     set_refresh_cookie(response, refresh_token_str, max_age=cookie_max_age)
 
     logger.info("OIDC login successful", user_id=str(user.id), provider=provider.name)
+    AuditEventDispatcher.dispatch(LoginAttemptEvent(username=user.username, method=LoginMethod.OIDC, user_id=user.id))
 
     return response
 

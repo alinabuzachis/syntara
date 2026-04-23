@@ -37,7 +37,7 @@ class AuditEventsFactory:
             "actor_type": "system",
             "source_component": "test_service",
             "event_message": "Test event",
-            "structured_data": {"data_type": "base"},
+            "structured_data": {"data_type": "context"},
         }
         defaults.update(overrides)
         record = AuditEventRecord(**defaults)

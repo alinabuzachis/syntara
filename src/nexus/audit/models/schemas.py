@@ -9,7 +9,7 @@ from uuid import UUID
 from sqlmodel import Field
 
 from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity, EventStatus
-from nexus.audit.models.structured_data import AuditDataUnion, BaseAuditData
+from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.models.base.base_resource import BaseResource
 from nexus.core.models.base.query_params import BaseListParams
 from nexus.core.models.pagination import ResourcesResponse
@@ -33,9 +33,8 @@ class AuditEventRead(BaseResource):
     activity_id: str | None = Field(default=None, description="Activity identifier for activity-level events")
     execution_id: UUID | None = Field(default=None, description="Execution identifier for execution tracing")
     event_message: str = Field(description="Human-readable description of the event")
-    structured_data: AuditDataUnion = Field(
-        default_factory=BaseAuditData,
-        description="Structured event data (sanitized), discriminated by ``data_type``.",
+    structured_data: AuditContextData = Field(
+        description="Structured event data (sanitized).",
     )
 
 

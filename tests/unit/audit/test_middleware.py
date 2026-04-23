@@ -10,6 +10,8 @@ Tests cover response logging:
 - Error resilience
 """
 
+# mypy: disable-error-code="attr-defined"
+
 from collections.abc import MutableMapping
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -18,11 +20,21 @@ from uuid import UUID, uuid4
 import pytest
 
 from nexus.api.constants import EXCLUDED_PATHS
+from nexus.audit.dispatcher import AuditEventDispatcher
+from nexus.audit.events.http_request import HTTPRequestEvent, HTTPRequestHandler
 from nexus.audit.middleware import AuditMiddleware
 from nexus.audit.models.audit_event import AuditEvent, EventSeverity, EventStatus
-from nexus.audit.models.structured_data import RequestCompletedData
+from nexus.audit.models.structured_data import AuditContextData
 
 _EMIT_PATCH = "nexus.audit.emitter._do_emit_audit_event"
+
+
+@pytest.fixture(autouse=True)
+def _register_http_handler() -> Any:  # noqa: ANN401
+    """Register HTTPRequestHandler for middleware tests."""
+    AuditEventDispatcher.register({HTTPRequestEvent: HTTPRequestHandler()})
+    yield
+    AuditEventDispatcher.reset()
 
 
 class _MockRole:
@@ -87,12 +99,12 @@ def _get_audit_events(mock_emit: MagicMock, event_action: str) -> list[AuditEven
     return [call[0][0] for call in mock_emit.call_args_list if call[0][0].event_action == event_action]
 
 
-def _get_request_completed_data(mock_emit: MagicMock) -> list[RequestCompletedData]:
-    """Extract typed RequestCompletedData from request_completed audit events."""
+def _get_request_completed_data(mock_emit: MagicMock) -> list[AuditContextData]:
+    """Extract typed AuditContextData from request_completed audit events."""
     events = _get_audit_events(mock_emit, "request_completed")
-    result: list[RequestCompletedData] = []
+    result: list[AuditContextData] = []
     for event in events:
-        assert isinstance(event.structured_data, RequestCompletedData)
+        assert isinstance(event.structured_data, AuditContextData)
         result.append(event.structured_data)
     return result
 
@@ -321,7 +333,7 @@ class TestAuditMiddlewareUserContext:
         assert len(events) == 1
         assert events[0].actor_id == user_id
         assert events[0].actor_type == "user"
-        assert isinstance(events[0].structured_data, RequestCompletedData)
+        assert isinstance(events[0].structured_data, AuditContextData)
         assert events[0].structured_data.user_role == "creator"
 
     @pytest.mark.asyncio
@@ -338,7 +350,7 @@ class TestAuditMiddlewareUserContext:
         assert len(events) == 1
         assert events[0].actor_id is None
         assert events[0].actor_type == "user"
-        assert isinstance(events[0].structured_data, RequestCompletedData)
+        assert isinstance(events[0].structured_data, AuditContextData)
         assert events[0].structured_data.user_role is None
 
     @pytest.mark.asyncio
@@ -358,7 +370,7 @@ class TestAuditMiddlewareUserContext:
         assert len(events) == 1
         assert events[0].actor_id is None
         assert events[0].actor_type == "user"
-        assert isinstance(events[0].structured_data, RequestCompletedData)
+        assert isinstance(events[0].structured_data, AuditContextData)
         assert events[0].structured_data.user_role is None
 
     @pytest.mark.asyncio
@@ -1025,8 +1037,8 @@ class TestAuditMiddlewareErrorResilience:
         async def capture_send(message: MutableMapping[str, Any]) -> None:
             sent_messages.append(message)
 
-        emit_patch = "nexus.audit.middleware.emit_audit_event"
-        with patch(emit_patch, side_effect=RuntimeError("emit broken")):
+        dispatch_patch = "nexus.audit.middleware.AuditEventDispatcher.dispatch"
+        with patch(dispatch_patch, side_effect=RuntimeError("dispatch broken")):
             await middleware(_make_scope(), AsyncMock(), capture_send)
 
         assert len(sent_messages) == 2
@@ -1038,9 +1050,9 @@ class TestAuditMiddlewareErrorResilience:
         app = _make_app(status_code=200)
         middleware = AuditMiddleware(app)
 
-        emit_patch = "nexus.audit.middleware.emit_audit_event"
+        dispatch_patch = "nexus.audit.middleware.AuditEventDispatcher.dispatch"
         with (
-            patch(emit_patch, side_effect=RuntimeError("emit broken")),
+            patch(dispatch_patch, side_effect=RuntimeError("dispatch broken")),
             patch("nexus.audit.middleware.logger") as mock_logger,
         ):
             await middleware(_make_scope(), AsyncMock(), AsyncMock())

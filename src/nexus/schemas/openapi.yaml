@@ -19408,120 +19408,36 @@ components:
           title: Event Message
           description: Human-readable description of the event
         structured_data:
-          anyOf:
-            - $ref: '#/components/schemas/FunctionData'
-            - $ref: '#/components/schemas/AuditContextData'
-            - $ref: '#/components/schemas/RequestCompletedData'
-            - $ref: '#/components/schemas/BaseAuditData'
-          title: Structured Data
-          description: Structured event data (sanitized), discriminated by ``data_type``.
+          $ref: '#/components/schemas/AuditContextData'
+          description: Structured event data (sanitized).
       required:
         - event_category
         - event_action
         - source_component
         - event_message
+        - structured_data
       type: object
       title: AuditEventRead
       description: Structured audit event representing a tracked system activity, user action, or operational occurrence.
-    BaseAuditData:
-      type: object
-      title: BaseAuditData
-      description: Base schema for audit event structured data with no additional fields.
-      properties:
-        data_type:
-          type: string
-          const: base
-          default: base
-          title: Data Type
-          description: Discriminator for the structured data variant
-        error_type:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error Type
-          description: Type of error if an error occurred
-        error_message:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error Message
-          description: Detailed error message if an error occurred
-    FunctionData:
-      type: object
-      title: FunctionData
-      description: Structured data for function decoration audit events.
-      properties:
-        data_type:
-          type: string
-          const: function
-          default: function
-          title: Data Type
-          description: Discriminator for the structured data variant
-        error_type:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error Type
-          description: Type of error if an error occurred
-        error_message:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error Message
-          description: Detailed error message if an error occurred
-        function_args:
-          anyOf:
-            - type: object
-              additionalProperties: true
-            - type: 'null'
-          title: Function Args
-          description: Function arguments that were passed
-        function_result:
-          title: Function Result
-          description: Function return value or result
     AuditContextData:
       type: object
       title: AuditContextData
       description: |-
-        Structured data for general audit context operations.
+        Universal structured data for all audit events.
 
-        Accepts arbitrary extra fields so callers may pass ad-hoc context
-        through ``**context_data`` in the context manager.
+        Accepts arbitrary extra fields so callers may pass domain-specific context.
+        All audit events use this single structured data type.
+
+        The data_type field serves as a discriminator for UI/frontend purposes,
+        allowing different audit event types to be distinguished and rendered appropriately.
       additionalProperties: true
-      properties:
-        data_type:
-          type: string
-          const: context
-          default: context
-          title: Data Type
-          description: Discriminator for the structured data variant
-        error_type:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error Type
-          description: Type of error if an error occurred
-        error_message:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: Error Message
-          description: Detailed error message if an error occurred
-    RequestCompletedData:
-      type: object
-      title: RequestCompletedData
-      description: Structured data for HTTP request completion audit events from middleware.
       required:
-        - method
-        - path
-        - status_code
+        - data_type
       properties:
         data_type:
           type: string
-          const: request_completed
-          default: request_completed
           title: Data Type
-          description: Discriminator for the structured data variant
+          description: Discriminator identifying the audit event type
         error_type:
           anyOf:
             - type: string
@@ -19534,31 +19450,6 @@ components:
             - type: 'null'
           title: Error Message
           description: Detailed error message if an error occurred
-        method:
-          type: string
-          title: Method
-          description: HTTP method of the request
-        path:
-          type: string
-          title: Path
-          description: Normalized request path
-        status_code:
-          type: integer
-          title: Status Code
-          description: HTTP response status code
-        query_params:
-          anyOf:
-            - type: object
-              additionalProperties: true
-            - type: 'null'
-          title: Query Params
-          description: Parsed query parameters
-        user_role:
-          anyOf:
-            - type: string
-            - type: 'null'
-          title: User Role
-          description: Authenticated user role if available
     EventCategory:
       type: string
       title: EventCategory

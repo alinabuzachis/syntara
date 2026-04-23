@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from nexus.audit.models.audit_event import AuditEvent, EventCategory
 from nexus.audit.models.audit_event_record import AuditEventRecord
-from nexus.audit.models.structured_data import BaseAuditData
+from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.services.writer import AuditEventWriter
 
 # ------------------------------------------------------------------ #
@@ -26,7 +26,7 @@ def _make_event(**overrides: object) -> AuditEvent:
         "event_action": "test_action",
         "source_component": "test",
         "event_message": "test message",
-        "structured_data": BaseAuditData(),
+        "structured_data": AuditContextData(data_type="test"),
     }
     defaults.update(overrides)
     return AuditEvent(**defaults)

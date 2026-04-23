@@ -1,14 +1,12 @@
 """Unit tests for AuditEventRecord model and from_event conversion."""
 
+# mypy: disable-error-code="attr-defined"
+
 from uuid import uuid4
 
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventSeverity, EventStatus
 from nexus.audit.models.audit_event_record import AuditEventRecord
-from nexus.audit.models.structured_data import (
-    AuditContextData,
-    BaseAuditData,
-    FunctionData,
-)
+from nexus.audit.models.structured_data import AuditContextData
 
 
 class TestAuditEventRecordFromEvent:
@@ -34,7 +32,7 @@ class TestAuditEventRecordFromEvent:
             activity_id="activity_123",
             execution_id=execution_id,
             event_message="Resource created",
-            structured_data=BaseAuditData(),
+            structured_data=AuditContextData(data_type="test"),
         )
 
         record = AuditEventRecord.from_event(event)
@@ -61,6 +59,7 @@ class TestAuditEventRecordFromEvent:
             event_action="startup",
             source_component="core",
             event_message="System started",
+            structured_data=AuditContextData(data_type="test"),
         )
 
         record = AuditEventRecord.from_event(event)
@@ -74,6 +73,7 @@ class TestAuditEventRecordFromEvent:
             event_action="cleanup",
             source_component="scheduler",
             event_message="Cleanup completed",
+            structured_data=AuditContextData(data_type="test"),
         )
 
         record = AuditEventRecord.from_event(event)
@@ -85,14 +85,15 @@ class TestAuditEventRecordFromEvent:
         assert record.execution_id is None
         assert record.event_status is None
 
-    def test_from_event_preserves_base_audit_data(self) -> None:
-        """Test that BaseAuditData is passed through as a typed instance."""
+    def test_from_event_preserves_audit_context_data(self) -> None:
+        """Test that AuditContextData is passed through as a typed instance."""
         event = AuditEvent(
             event_category=EventCategory.USER_ACTION,
             event_action="login",
             source_component="auth",
             event_message="User logged in",
-            structured_data=BaseAuditData(
+            structured_data=AuditContextData(
+                data_type="test",
                 error_type="AuthError",
                 error_message="Invalid credentials",
             ),
@@ -100,18 +101,19 @@ class TestAuditEventRecordFromEvent:
 
         record = AuditEventRecord.from_event(event)
 
-        assert isinstance(record.structured_data, BaseAuditData)
+        assert isinstance(record.structured_data, AuditContextData)
         assert record.structured_data.error_type == "AuthError"
         assert record.structured_data.error_message == "Invalid credentials"
 
     def test_from_event_preserves_function_data(self) -> None:
-        """Test that FunctionData is passed through as a typed instance."""
+        """Test that AuditContextData is passed through as a typed instance."""
         event = AuditEvent(
             event_category=EventCategory.API_EXECUTION,
             event_action="call_api",
             source_component="api_client",
             event_message="API called",
-            structured_data=FunctionData(
+            structured_data=AuditContextData(
+                data_type="test",
                 function_args={"param": "value"},
                 function_result={"status": "ok"},
             ),
@@ -119,7 +121,7 @@ class TestAuditEventRecordFromEvent:
 
         record = AuditEventRecord.from_event(event)
 
-        assert isinstance(record.structured_data, FunctionData)
+        assert isinstance(record.structured_data, AuditContextData)
         assert record.structured_data.function_args == {"param": "value"}
         assert record.structured_data.function_result == {"status": "ok"}
 
@@ -131,6 +133,7 @@ class TestAuditEventRecordFromEvent:
             source_component="agent",
             event_message="Agent queried",
             structured_data=AuditContextData(
+                data_type="test",
                 custom_field="custom_value",
                 nested={"key": "val"},
             ),
@@ -150,7 +153,8 @@ class TestAuditEventRecordFromEvent:
             event_action="call_api",
             source_component="api_client",
             event_message="API called",
-            structured_data=FunctionData(
+            structured_data=AuditContextData(
+                data_type="test",
                 error_type="ValidationError",
                 error_message="Bad request",
                 function_args={
@@ -167,13 +171,13 @@ class TestAuditEventRecordFromEvent:
 
         record = AuditEventRecord.from_event(event)
         sd = record.structured_data
-        assert isinstance(sd, FunctionData)
+        assert isinstance(sd, AuditContextData)
 
         # BaseAuditData fields
         assert isinstance(sd.error_type, str)
         assert isinstance(sd.error_message, str)
 
-        # FunctionData.function_args preserves nested types
+        # AuditContextData.function_args preserves nested types
         args = sd.function_args
         assert isinstance(args, dict)
         assert isinstance(args["username"], str)
@@ -185,7 +189,7 @@ class TestAuditEventRecordFromEvent:
         assert args["nested"]["deep"]["level"] == 3
         assert args["nullable_field"] is None
 
-        # FunctionData.function_result preserves types
+        # AuditContextData.function_result preserves types
         result = sd.function_result
         assert isinstance(result, dict)
         assert isinstance(result["items"], list)
@@ -202,6 +206,7 @@ class TestAuditEventRecordFromEvent:
             actor_type=ActorType.SERVICE,
             source_component="auth",
             event_message="Access denied",
+            structured_data=AuditContextData(data_type="test"),
         )
 
         record = AuditEventRecord.from_event(event)
@@ -219,11 +224,12 @@ class TestAuditEventRecordFromEvent:
             event_action="heartbeat",
             source_component="monitor",
             event_message="Heartbeat",
+            structured_data=AuditContextData(data_type="test"),
         )
 
         record = AuditEventRecord.from_event(event)
 
-        assert isinstance(record.structured_data, BaseAuditData)
+        assert isinstance(record.structured_data, AuditContextData)
         assert record.structured_data.error_type is None
         assert record.structured_data.error_message is None
 

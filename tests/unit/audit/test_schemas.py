@@ -3,9 +3,11 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import pytest
+
 from nexus.audit.models.audit_event_record import AuditEventRecord
 from nexus.audit.models.schemas import AuditEventListParams, AuditEventRead
-from nexus.audit.models.structured_data import AuditContextData, BaseAuditData
+from nexus.audit.models.structured_data import AuditContextData
 from nexus.core.models.base.query_params import BaseListParams
 
 
@@ -86,7 +88,7 @@ class TestAuditEventRead:
                 "event_action": "heartbeat",
                 "source_component": "monitor",
                 "event_message": "Heartbeat",
-                "structured_data": {"data_type": "base"},
+                "structured_data": {"data_type": "context"},
             }
         )
 
@@ -98,23 +100,27 @@ class TestAuditEventRead:
         assert schema.event_status is None
         assert schema.event_severity == "info"
 
-    def test_structured_data_defaults_to_base_audit_data(self) -> None:
-        """Test that structured_data defaults to an empty BaseAuditData instance."""
-        schema = AuditEventRead.model_validate(
-            {
-                "id": uuid4(),
-                "created_at": datetime.now(UTC),
-                "event_category": "system_operation",
-                "event_action": "test",
-                "actor_type": "system",
-                "source_component": "test",
-                "event_message": "Test",
-            }
-        )
+    def test_structured_data_is_required(self) -> None:
+        """Test that structured_data is a required field."""
+        import pydantic_core
 
-        assert isinstance(schema.structured_data, BaseAuditData)
-        assert schema.structured_data.error_type is None
-        assert schema.structured_data.error_message is None
+        with pytest.raises(pydantic_core.ValidationError) as exc_info:
+            AuditEventRead.model_validate(
+                {
+                    "id": uuid4(),
+                    "created_at": datetime.now(UTC),
+                    "event_category": "system_operation",
+                    "event_action": "test",
+                    "actor_type": "system",
+                    "source_component": "test",
+                    "event_message": "Test",
+                }
+            )
+
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+        assert errors[0]["loc"] == ("structured_data",)
+        assert errors[0]["type"] == "missing"
 
 
 class TestAuditEventListParams:

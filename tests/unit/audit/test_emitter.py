@@ -18,7 +18,7 @@ from nexus.audit.emitter import (
     workflow_id_context_var,
 )
 from nexus.audit.models.audit_event import ActorType, AuditEvent, EventCategory, EventStatus
-from nexus.audit.models.structured_data import AuditContextData, BaseAuditData
+from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.sanitization import EventSanitizer
 from nexus.audit.services.writer import AuditEventWriter
 
@@ -110,7 +110,7 @@ class TestEventCaptureEmitAuditEvent:
             source_component="test_component",
             event_message="Test message",
             event_status=EventStatus.SUCCESS,
-            structured_data=BaseAuditData(),
+            structured_data=AuditContextData(data_type="test"),
         )
 
         # Emit the event
@@ -156,6 +156,7 @@ class TestEventCaptureEmitAuditEvent:
                 actor_type=ActorType.SYSTEM,  # Required field, will not be overridden since it's truthy
                 source_component="test_component",
                 event_message="Auto message",
+                structured_data=AuditContextData(data_type="test"),
             )
 
             # Emit the event
@@ -199,6 +200,7 @@ class TestEventCaptureEmitAuditEvent:
                 workflow_id=event_workflow_id,  # Should not be overridden
                 source_component="test_component",
                 event_message="User message",
+                structured_data=AuditContextData(data_type="test"),
             )
 
             # Emit the event
@@ -224,6 +226,7 @@ class TestEventCaptureEmitAuditEvent:
             event_message="User login",
             event_status=EventStatus.SUCCESS,
             structured_data=AuditContextData(
+                data_type="test",
                 username="testuser",
                 password="secret123",  # noqa: S106
                 email="test@example.com",
@@ -257,6 +260,7 @@ class TestEventCaptureEmitAuditEvent:
             event_message="User authentication attempt",
             event_status=EventStatus.SUCCESS,
             structured_data=AuditContextData(
+                data_type="test",
                 # Original patterns
                 password="secret123",  # noqa: S106
                 secret="mysecret",  # noqa: S106
@@ -400,7 +404,7 @@ class TestEventCaptureEmitAuditEvent:
     ) -> None:
         """Test that specific fields are redacted according to defined patterns from emitter.py L#26-44."""
         # Create event with the specific field to test
-        structured_data = {field_name: field_value}
+        structured_data = {"data_type": "test", field_name: field_value}
         event = AuditEvent(
             event_category=EventCategory.USER_ACTION,
             event_action="field_test",
@@ -431,30 +435,6 @@ class TestEventCaptureEmitAuditEvent:
         )
 
     @patch("nexus.audit.emitter._do_emit_audit_event")
-    def test_emit_audit_event_empty_structured_data(self, mock_do_emit: Mock) -> None:
-        """Test audit event emission with empty structured data."""
-        # Create event with empty structured data
-        event = AuditEvent(
-            event_category=EventCategory.SYSTEM_OPERATION,
-            event_action="system_startup",
-            actor_id=uuid4(),
-            actor_type=ActorType.SYSTEM,
-            source_component="core_service",
-            event_message="System starting up",
-            # structured_data defaults to empty dict
-        )
-
-        # Emit the event
-        emit_audit_event(event)
-
-        # Verify default structured_data was handled correctly
-        event_obj = mock_do_emit.call_args[0][0]
-        assert event_obj.event_status is None
-        # After sanitization, structured_data remains as model but in-place sanitized
-        base_data = event_obj.structured_data
-        assert isinstance(base_data, BaseAuditData)
-
-    @patch("nexus.audit.emitter._do_emit_audit_event")
     def test_emit_audit_event_complex_structured_data(self, mock_do_emit: Mock) -> None:
         """Test audit event emission with complex nested structured data."""
         # Create event with complex structured data
@@ -467,6 +447,7 @@ class TestEventCaptureEmitAuditEvent:
             event_message="User creation request",
             event_status=EventStatus.SUCCESS,
             structured_data=AuditContextData(
+                data_type="test",
                 user_info={
                     "username": "testuser",
                     "email": "test@example.com",
@@ -504,7 +485,7 @@ class TestEventCaptureEmitAuditEvent:
 class TestEventCaptureDoEmitAuditEvent:
     """Test EventCapture._do_emit_audit_event method."""
 
-    @patch("nexus.audit.emitter.logger")
+    @patch("nexus.audit.emitter.audit_logger")
     def test_do_emit_audit_event_logger_setup(self, mock_logger: Mock) -> None:
         """Test that _do_emit_audit_event uses the audit logger correctly."""
         # Create test event
@@ -515,7 +496,7 @@ class TestEventCaptureDoEmitAuditEvent:
             actor_type=ActorType.USER,
             source_component="test_component",
             event_message="Test message",
-            structured_data=BaseAuditData(),
+            structured_data=AuditContextData(data_type="test"),
         )
 
         # Call the method
@@ -525,7 +506,7 @@ class TestEventCaptureDoEmitAuditEvent:
         expected_data = test_event.model_dump(mode="json")
         mock_logger.info.assert_called_once_with("audit_event", **expected_data)
 
-    @patch("nexus.audit.emitter.logger")
+    @patch("nexus.audit.emitter.audit_logger")
     def test_do_emit_audit_event_with_all_fields(self, mock_logger: Mock) -> None:
         """Test _do_emit_audit_event with all possible fields."""
         actor_id = uuid4()
@@ -544,6 +525,7 @@ class TestEventCaptureDoEmitAuditEvent:
             event_message="Workflow execution started",
             event_status=EventStatus.SUCCESS,
             structured_data=AuditContextData(
+                data_type="test",
                 workflow_name="test_workflow",
                 input_params={"param1": "value1"},
             ),
@@ -569,7 +551,7 @@ class TestEventCaptureDoEmitAuditEvent:
         assert kwargs["structured_data"]["workflow_name"] == "test_workflow"
         assert kwargs["structured_data"]["input_params"] == {"param1": "value1"}
 
-    @patch("nexus.audit.emitter.logger")
+    @patch("nexus.audit.emitter.audit_logger")
     def test_do_emit_audit_event_minimal_fields(self, mock_logger: Mock) -> None:
         """Test _do_emit_audit_event with minimal required fields."""
         test_event = AuditEvent(
@@ -579,7 +561,7 @@ class TestEventCaptureDoEmitAuditEvent:
             actor_type=ActorType.SYSTEM,
             source_component="test_component",
             event_message="Minimal test",
-            structured_data=BaseAuditData(),
+            structured_data=AuditContextData(data_type="test"),
         )
 
         # Call the method
@@ -621,6 +603,7 @@ class TestEventCaptureIntegration:
                 event_message="User queried agent",
                 event_status=EventStatus.SUCCESS,
                 structured_data=AuditContextData(
+                    data_type="test",
                     query="What is the weather?",
                     password="secret123",  # noqa: S106  # Should be sanitized
                     user_email="user@example.com",  # Should be sanitized
@@ -669,7 +652,7 @@ class TestEventCaptureIntegration:
                 source_component="test_component",
                 event_message=f"Test message {i}",
                 event_status=EventStatus.SUCCESS,
-                structured_data=AuditContextData(index=i),
+                structured_data=AuditContextData(data_type="test", index=i),
             )
             for i in range(3)
         ]
@@ -692,7 +675,7 @@ class TestEventCaptureIntegration:
 class TestWriterIntegration:
     """Test audit event writer integration in _do_emit_audit_event."""
 
-    @patch("nexus.audit.emitter.logger")
+    @patch("nexus.audit.emitter.audit_logger")
     def test_do_emit_calls_writer_enqueue(self, mock_logger: Mock) -> None:
         """Test that _do_emit_audit_event calls writer.enqueue."""
         event = AuditEvent(
@@ -701,6 +684,7 @@ class TestWriterIntegration:
             actor_type=ActorType.USER,
             source_component="test",
             event_message="Test",
+            structured_data=AuditContextData(data_type="test"),
         )
 
         mock_writer = Mock(spec=AuditEventWriter)
@@ -711,7 +695,7 @@ class TestWriterIntegration:
         # Also verify structured logging still happens
         mock_logger.info.assert_called_once()
 
-    @patch("nexus.audit.emitter.logger")
+    @patch("nexus.audit.emitter.audit_logger")
     def test_do_emit_skips_persist_when_writer_not_initialized(self, mock_logger: Mock) -> None:
         """Test that _do_emit_audit_event works when writer is not initialized."""
         event = AuditEvent(
@@ -719,6 +703,7 @@ class TestWriterIntegration:
             event_action="no_writer",
             source_component="test",
             event_message="No writer",
+            structured_data=AuditContextData(data_type="test"),
         )
 
         with patch("nexus.audit.services.writer.get_audit_writer", return_value=None):

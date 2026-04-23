@@ -5,25 +5,20 @@ from contextlib import contextmanager
 from typing import Any
 from uuid import UUID
 
+from nexus.audit.dispatcher import AuditEventDispatcher
 from nexus.audit.emitter import (
     activity_id_context_var,
     actor_id_context_var,
     actor_type_context_var,
-    emit_audit_event,
     execution_id_context_var,
     workflow_id_context_var,
 )
-from nexus.audit.models.audit_event import (
-    ActorType,
-    AuditEvent,
-    EventCategory,
-    EventSeverity,
-    EventStatus,
-)
-from nexus.audit.models.structured_data import AuditContextData, BaseAuditData
+from nexus.audit.events.audit_context import AuditContextEvent
+from nexus.audit.models.audit_event import ActorType, EventCategory, EventSeverity
+from nexus.audit.models.structured_data import AuditContextData
 from nexus.audit.utils import escalate_severity
 
-_RESERVED_AUDIT_FIELDS = frozenset(BaseAuditData.model_fields.keys())
+_RESERVED_AUDIT_FIELDS = frozenset(AuditContextData.model_fields.keys())
 
 
 @contextmanager
@@ -96,53 +91,35 @@ def audit_context(
     token_actor_id = actor_id_context_var.set(actor_id)
     token_actor_type = actor_type_context_var.set(actor_type)
 
+    # Track error state and severity (updated in except block if exception occurs)
+    error_type: str | None = None
+    error_message: str | None = None
+
     try:
         yield
 
-        # Create success structured data
-        success_data = AuditContextData(
-            **context_data,
-        )
-
-        event = AuditEvent(
-            event_category=event_category,
-            event_severity=event_severity,
-            event_status=EventStatus.SUCCESS,
-            event_action=event_action,
-            event_message=f"Operation {event_action} completed successfully",
-            source_component=source_component,
-            structured_data=success_data,
-            actor_id=actor_id,
-            actor_type=actor_type,
-        )
-        emit_audit_event(event)
-
     except Exception as e:
-        # Create error structured data
-        error_data = AuditContextData(
-            error_type=type(e).__name__,
-            error_message="Look at the Operational Logs for full diagnosis",
-            **context_data,
-        )
-
         # Escalate severity on exception: unexpected failures are at least ERROR,
         # but a caller-declared CRITICAL severity is preserved (never downgraded).
-        error_severity = escalate_severity(event_severity, EventSeverity.ERROR)
-
-        error_event = AuditEvent(
-            event_category=event_category,
-            event_severity=error_severity,
-            event_status=EventStatus.ERROR,
-            event_action=f"{event_action}_error",
-            event_message=f"Operation {event_action} failed with {type(e).__name__}",
-            source_component=source_component,
-            structured_data=error_data,
-            actor_id=actor_id,
-            actor_type=actor_type,
-        )
-        emit_audit_event(error_event)
+        event_severity = escalate_severity(event_severity, EventSeverity.ERROR)
+        error_type = type(e).__name__
+        error_message = "Look at the Operational Logs for full diagnosis"
         raise
     finally:
+        # Construct and dispatch the event (success or error)
+        event = AuditContextEvent(
+            event_category=event_category,
+            event_action=event_action,
+            source_component=source_component,
+            actor_id=actor_id,
+            actor_type=actor_type,
+            event_severity=event_severity,
+            error_type=error_type,
+            error_message=error_message,
+            context_data=context_data,
+        )
+        AuditEventDispatcher.dispatch(event)
+
         # Restore previous actor context
         actor_id_context_var.reset(token_actor_id)
         actor_type_context_var.reset(token_actor_type)

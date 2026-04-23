@@ -3,9 +3,10 @@
 from enum import StrEnum
 from uuid import UUID, uuid4
 
+from pydantic import SerializeAsAny
 from sqlmodel import Field, SQLModel
 
-from nexus.audit.models.structured_data import AuditDataUnion, BaseAuditData
+from nexus.audit.models.structured_data import AuditContextData
 
 
 class EventCategory(StrEnum):
@@ -70,6 +71,4 @@ class AuditEvent(SQLModel):
     event_message: str = Field(description="Human-readable description of the event")
 
     # Event data (sanitized)
-    structured_data: AuditDataUnion = Field(
-        default_factory=BaseAuditData, description="Structured event data (sanitized)"
-    )
+    structured_data: SerializeAsAny[AuditContextData] = Field(description="Structured event data (sanitized)")

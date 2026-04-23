@@ -1,0 +1,93 @@
+"""HTTPRequestEvent and HTTPRequestHandler for HTTP request audit."""
+
+from dataclasses import dataclass, field
+from uuid import UUID
+
+from nexus.audit.handler import AuditEventHandler
+from nexus.audit.models.audit_event import (
+    ActorType,
+    AuditEvent,
+    EventCategory,
+    EventSeverity,
+    EventStatus,
+)
+from nexus.audit.models.structured_data import AuditContextData
+
+# ---------------------------------------------------------------------------
+# Domain event
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class HTTPRequestEvent:
+    """Domain event representing an HTTP request completion.
+
+    Captures the essential information about an HTTP request/response cycle
+    for audit purposes, including method, path, status code, and user context.
+    """
+
+    method: str
+    path: str
+    status_code: int
+    actor_id: UUID | None = field(default=None)
+    actor_type: ActorType = field(default=ActorType.SYSTEM)
+    source_component: str = field(default="nexus.audit.middleware")
+    query_params: dict[str, str | list[str]] | None = field(default=None)
+    user_role: str | None = field(default=None)
+    workflow_id: UUID | None = field(default=None)
+    execution_id: UUID | None = field(default=None)
+    activity_id: str | None = field(default=None)
+
+
+# ---------------------------------------------------------------------------
+# Handler
+# ---------------------------------------------------------------------------
+
+
+class HTTPRequestHandler(AuditEventHandler[HTTPRequestEvent]):
+    """Maps an HTTPRequestEvent to a normalized AuditEvent."""
+
+    def handle(self, event: HTTPRequestEvent) -> AuditEvent:
+        """Map an HTTPRequestEvent to a normalized AuditEvent.
+
+        Args:
+            event: The HTTP request event to handle.
+
+        Returns:
+            A normalized AuditEvent for persistence and querying.
+
+        """
+        # Build structured data with request details
+        structured_data = AuditContextData(
+            data_type="request_completed",
+            method=event.method,
+            path=event.path,
+            status_code=event.status_code,
+            query_params=event.query_params,
+            user_role=event.user_role,
+        )
+
+        # Derive severity and status from HTTP status code
+        if event.status_code >= 500:  # noqa: PLR2004
+            event_severity = EventSeverity.ERROR
+        elif event.status_code >= 400:  # noqa: PLR2004
+            event_severity = EventSeverity.WARNING
+        else:
+            event_severity = EventSeverity.INFO
+
+        event_status = EventStatus.SUCCESS if event.status_code < 400 else EventStatus.ERROR  # noqa: PLR2004
+
+        return AuditEvent(
+            event_category=EventCategory.USER_ACTION,
+            event_severity=event_severity,
+            event_status=event_status,
+            event_action="request_completed",
+            event_message=f"Request completed: {event.method} {event.path} {event.status_code}",
+            source_component=event.source_component,
+            structured_data=structured_data,
+            actor_id=event.actor_id,
+            actor_type=event.actor_type,
+            workflow_id=event.workflow_id,
+            execution_id=event.execution_id,
+            activity_id=event.activity_id,
+        )
