@@ -227,7 +227,7 @@ def _get_aap_auth_from_credentials(
 # Only truthy values are included to skip None, empty lists, empty dicts, and 0/False.
 # Exception: verbosity=0 is meaningful (NORMAL level), so we check is not None for it.
 _LAUNCH_BODY_FIELDS: list[tuple[str, str]] = [
-    ("credentials", "credentials"),
+    ("job_credentials", "credentials"),
     ("extra_vars", "extra_vars"),
     ("limit", "limit"),
     ("tags", "job_tags"),  # AAP expects "job_tags" not "tags"
@@ -603,7 +603,7 @@ async def execute_aap_job_template_activity(
         input_config: Resolved node configuration (templates already resolved by dispatcher).
                       Expected keys: job_template_id or job_template_name, plus optional
                       inventory, extra_vars, credentials, limit, tags, skip_tags, verbosity,
-                      timeout, credentialId, _resolved_credentials.
+                      timeout, credential_id, _resolved_credentials.
         output_config: Output mapping configuration (field_name -> template expression)
                        None = return full result, {} = suppress all, {...} = extract specific fields
 

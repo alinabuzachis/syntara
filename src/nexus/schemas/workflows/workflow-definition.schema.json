@@ -221,8 +221,8 @@
           "$ref": "#/definitions/approvalDefinition",
           "description": "Human approval configuration (required if requiresApproval is true)"
         },
-        "retryPolicy": {
-          "$ref": "#/definitions/retryPolicy"
+        "retry_policy": {
+          "$ref": "#/definitions/retry_policy"
         },
         "timeout": {
           "type": "integer",
@@ -566,7 +566,7 @@
                 "type": "string"
               }
             },
-            "queryParams": {
+            "query_params": {
               "type": "object",
               "description": "URL query parameters",
               "additionalProperties": true
@@ -649,39 +649,39 @@
           "type": "object",
           "description": "Configuration for AAP job template execution. Job template must be specified by ID or name. When both are provided, ID takes precedence. Inventory can be specified by ID or name; when both are provided, ID takes precedence.",
           "properties": {
-            "jobTemplateId": {
+            "job_template_id": {
               "type": "integer",
-              "description": "AAP job template ID to launch. Takes precedence over jobTemplateName if both are provided.",
+              "description": "AAP job template ID to launch. Takes precedence over job_template_name if both are provided.",
               "minimum": 1
             },
-            "jobTemplateName": {
+            "job_template_name": {
               "type": "string",
-              "description": "AAP job template name. Requires organizationName. Ignored if jobTemplateId is also provided.",
+              "description": "AAP job template name. Requires organization_name. Ignored if job_template_id is also provided.",
               "minLength": 1
             },
-            "organizationName": {
+            "organization_name": {
               "type": "string",
-              "description": "AAP organization name. Required when using jobTemplateName or inventoryName for name-based lookups.",
+              "description": "AAP organization name. Required when using job_template_name or inventory_name for name-based lookups.",
               "minLength": 1
             },
-            "inventoryId": {
+            "inventory_id": {
               "type": "integer",
               "minimum": 1,
-              "description": "Override default inventory by ID. Takes precedence over inventoryName if both are provided."
+              "description": "Override default inventory by ID. Takes precedence over inventory_name if both are provided."
             },
-            "inventoryName": {
+            "inventory_name": {
               "type": "string",
-              "description": "Override default inventory by name. Requires organizationName. Ignored if inventoryId is also provided.",
+              "description": "Override default inventory by name. Requires organization_name. Ignored if inventory_id is also provided.",
               "minLength": 1
             },
-            "credentials": {
+            "job_credentials": {
               "type": "array",
               "description": "List of credential IDs to use",
               "items": {
                 "type": "integer"
               }
             },
-            "extraVars": {
+            "extra_vars": {
               "type": "object",
               "description": "Extra variables to pass to the job (can use expressions like ${input.version})",
               "additionalProperties": true
@@ -694,7 +694,7 @@
               "type": "string",
               "description": "Ansible tags to run (comma-separated)"
             },
-            "skipTags": {
+            "skip_tags": {
               "type": "string",
               "description": "Ansible tags to skip (comma-separated)"
             },
@@ -708,32 +708,32 @@
           },
           "allOf": [
             {
-              "description": "At least one of jobTemplateId or jobTemplateName must be provided",
+              "description": "At least one of job_template_id or job_template_name must be provided",
               "anyOf": [
                 {
-                  "required": ["jobTemplateId"]
+                  "required": ["job_template_id"]
                 },
                 {
-                  "required": ["jobTemplateName"]
+                  "required": ["job_template_name"]
                 }
               ]
             },
             {
               "if": {
-                "required": ["jobTemplateName"]
+                "required": ["job_template_name"]
               },
               "then": {
-                "description": "When job template is specified by name, organizationName is required",
-                "required": ["organizationName"]
+                "description": "When job template is specified by name, organization_name is required",
+                "required": ["organization_name"]
               }
             },
             {
               "if": {
-                "required": ["inventoryName"]
+                "required": ["inventory_name"]
               },
               "then": {
-                "description": "When inventory is specified by name, organizationName is required",
-                "required": ["organizationName"]
+                "description": "When inventory is specified by name, organization_name is required",
+                "required": ["organization_name"]
               }
             }
           ],
@@ -906,11 +906,11 @@
       },
       "additionalProperties": false
     },
-    "retryPolicy": {
+    "retry_policy": {
       "type": "object",
       "description": "Retry configuration for failed activities",
       "properties": {
-        "maxAttempts": {
+        "max_attempts": {
           "type": "integer",
           "description": "Maximum number of retry attempts",
           "minimum": 0,
@@ -923,14 +923,14 @@
           "description": "Backoff strategy between retries",
           "default": "exponential"
         },
-        "initialInterval": {
+        "initial_interval": {
           "type": "integer",
           "description": "Initial retry interval in seconds",
           "minimum": 1,
           "default": 1,
           "examples": [1, 5, 10]
         },
-        "maxInterval": {
+        "max_interval": {
           "type": "integer",
           "description": "Maximum retry interval in seconds",
           "minimum": 1,
@@ -943,7 +943,7 @@
           "maximum": 10,
           "default": 2
         },
-        "retryableErrors": {
+        "retryable_errors": {
           "type": "array",
           "description": "HTTP status codes or exit codes that should trigger retry (whitelist approach). If not specified, defaults to: [408, 429, 500, 502, 503, 504]. Supported code types: HTTP status codes (e.g., 500, 503) and process exit codes (e.g., 2, 3). Only errors with codes in this list will be retried - all other errors fail immediately. Use empty array [] to disable retries for all errors.",
           "items": {

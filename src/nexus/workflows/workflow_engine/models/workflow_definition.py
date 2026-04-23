@@ -190,17 +190,14 @@ class Authentication(TemplateAwareBaseModel):
 class APIExecutorConfig(TemplateAwareBaseModel):
     """Configuration for API executor (http_request activity)."""
 
-    model_config = ConfigDict(populate_by_name=True)
-
     method: HTTPMethod = Field(description="HTTP method")
     url: str = Field(description="Request URL")
     headers: dict[str, Any] = Field(default_factory=dict)
     body: dict[str, Any] | str | None = None
-    query_params: dict[str, Any] = Field(default_factory=dict, alias="queryParams")
+    query_params: dict[str, Any] = Field(default_factory=dict)
     authentication: Authentication | None = None
     credential_id: str | None = Field(
         default=None,
-        alias="credentialId",
         description="Nexus credential UUID for authentication. Takes priority over authentication field.",
     )
     timeout: int | None = Field(default=None, ge=1, description="Timeout in seconds")
@@ -230,14 +227,11 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
 
     """
 
-    model_config = ConfigDict(populate_by_name=True)
-
     prompt: str = Field(description="Prompt template for the agent")
     agent: str | None = None
     model: str | None = None
     credential_id: str | None = Field(
         default=None,
-        alias="credentialId",
         description="Nexus credential UUID for LLM provider authentication",
     )
     timeout: int = Field(
@@ -250,7 +244,6 @@ class AgenticExecutorConfig(TemplateAwareBaseModel):
         default_factory=list,
         max_length=10,
         description="File IDs for agent context",
-        alias="fileIds",
     )
 
     @field_validator("prompt")
@@ -301,38 +294,31 @@ class AAPJobType(str, Enum):
 class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     """Configuration for AAP Job Template executor."""
 
-    model_config = ConfigDict(populate_by_name=True)
-
     credential_id: str | None = Field(
         default=None,
-        alias="credentialId",
         description="Nexus credential UUID for AAP API authentication. Separate from legacy credentials list.",
     )
     job_template_id: int | None = Field(
         default=None,
         ge=1,
         description="AAP job template ID to launch",
-        alias="jobTemplateId",
     )
     inventory_id: int | None = Field(
         default=None,
         ge=1,
         description="Override default inventory by ID (mutually exclusive with inventory_name)",
-        alias="inventoryId",
     )
     inventory_name: str | None = Field(
         default=None,
         description="Override default inventory by name (requires organization_name)",
-        alias="inventoryName",
     )
-    credentials: list[int] | None = Field(
+    job_credentials: list[int] | None = Field(
         default=None,
-        description="List of credential IDs to use",
+        description="List of AAP credential IDs to pass to the job template (overrides template defaults)",
     )
     extra_vars: dict[str, Any] = Field(
         default_factory=dict,
         description="Extra variables to pass to job",
-        alias="extraVars",
     )
     limit: str | None = Field(
         default=None,
@@ -345,7 +331,6 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     skip_tags: str | None = Field(
         default=None,
         description="Ansible tags to skip (comma-separated)",
-        alias="skipTags",
     )
     verbosity: AAPVerbosity = Field(
         default=AAPVerbosity.NORMAL,
@@ -359,19 +344,16 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     job_template_name: str | None = Field(
         default=None,
         description="AAP job template name (used with organization_name)",
-        alias="jobTemplateName",
     )
     organization_name: str | None = Field(
         default=None,
         description="AAP organization name (used with job_template_name or inventory_name)",
-        alias="organizationName",
     )
     # UI-only fields — stored in config, sent in launch body only when
     # the AAP job template has "prompt on launch" enabled for the field.
     job_type: AAPJobType | None = Field(
         default=None,
         description="Job type override: 'run' or 'check' (dry run)",
-        alias="job_type",
     )
     forks: int | None = Field(
         default=None,
@@ -382,12 +364,10 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
         default=None,
         ge=1,
         description="Number of job slices",
-        alias="job_slicing",
     )
     diff_mode: bool | None = Field(
         default=None,
         description="Enable diff mode for playbook runs",
-        alias="diff_mode",
     )
     # The following fields are stored in the config for future prompt-on-launch
     # support but are NOT yet forwarded in _build_launch_body because the AAP
@@ -396,12 +376,10 @@ class AAPJobTemplateExecutorConfig(TemplateAwareBaseModel):
     execution_environment: str | None = Field(
         default=None,
         description="Execution environment override (deferred — requires ID resolution)",
-        alias="execution_environment",
     )
     instance_groups: str | None = Field(
         default=None,
         description="Instance groups override (deferred — requires ID resolution)",
-        alias="instance_groups",
     )
     labels: str | None = Field(
         default=None,

@@ -170,11 +170,11 @@ Verbosity levels: 0 (normal), 1 (-v), 2 (-vv), 3 (-vvv), 4 (-vvvv), 5 (-vvvvv)
 ```json
 {
   "job_template_id": 42,
-  "credentials": [15],
+  "job_credentials": [15],
   "tags": "credentials"
 }
 ```
-Uses a different AAP credential (ID 15) instead of the Job Template's default. The `credentials` parameter accepts an array of AAP credential IDs. Use `--tags credentials` to verify which user the job runs as.
+Uses a different AAP credential (ID 15) instead of the Job Template's default. The `job_credentials` parameter accepts an array of AAP credential IDs. Use `--tags credentials` to verify which user the job runs as.
 
 ## Playbook Features
 
@@ -267,7 +267,7 @@ curl -k https://aap.example.com/api/v2/credentials/ \
 ```json
 {
   "job_template_id": 42,
-  "credentials": [15],
+  "job_credentials": [15],
   "tags": "credentials"
 }
 ```

@@ -1009,10 +1009,10 @@ class NexusWorkflow:
     ) -> None:
         """Resolve and inject Nexus credentials for a task node.
 
-        If the node's config has a credentialId, calls the credential resolution
+        If the node's config has a credential_id, calls the credential resolution
         activity to decrypt and inject resolved credentials into the config.
         """
-        credential_id = resolved_config.get("credentialId")
+        credential_id = resolved_config.get("credential_id")
         if not credential_id:
             return
 
@@ -1020,7 +1020,8 @@ class NexusWorkflow:
         resolved_creds = await workflow.execute_activity(
             resolve_workflow_credentials,
             args=[credential_map],
-            start_to_close_timeout=timedelta(seconds=30),
+            activity_id="__internal__resolve_credentials",
+            start_to_close_timeout=timedelta(seconds=DEFAULT_ACTIVITY_TIMEOUT_SECONDS),
         )
 
         if node.id in resolved_creds:
@@ -1043,7 +1044,7 @@ class NexusWorkflow:
 
         Resolves credentials before dispatch and scrubs them after execution.
         """
-        # Resolve credentials if the node has a credentialId
+        # Resolve credentials if the node has a credential_id
         await self._resolve_and_inject_credentials(node, resolved_config)
 
         try:

@@ -160,7 +160,7 @@ async def get_credential_workflows(
 ) -> list[CredentialWorkflowRef]:
     """Get workflows that reference this credential.
 
-    Returns empty list until Epic 3 adds credentialId to executor configs.
+    Returns workflows with nodes that have credential_id in their executor configs.
     """
     return await service.get_credential_workflows(credential_id)
 

@@ -22,6 +22,9 @@
         "description": "LLM model to use",
         "examples": ["gpt-4", "claude-3-opus", "gemini-pro"]
       },
+      "credential_id": {
+        "$ref": "../common-definitions.schema.json#/$defs/credential_id"
+      },
       "tool_selection_strategy": {
         "type": "string",
         "enum": ["ALL", "NONE", "SELECTED"],

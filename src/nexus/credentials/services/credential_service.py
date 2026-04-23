@@ -39,7 +39,6 @@ from nexus.credentials.models.credential import (
     CredentialWorkflowRef,
 )
 from nexus.credentials.models.credential_type import CredentialType
-from nexus.workflows.utils.activity_traversal import traverse_activities
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -149,22 +148,18 @@ def _mask_all_secrets(type_inputs: dict[str, Any]) -> dict[str, Any]:
 
 
 def _extract_credential_node_names(workflow_definition: dict[str, Any], credential_id: str) -> list[str]:
-    """Extract activity names from a workflow definition that reference a given credential.
+    """Extract node names from a V2 workflow definition that reference a given credential."""
+    return [
+        node.get("name") or node.get("id", "Unknown")
+        for node in workflow_definition.get("nodes", [])
+        if _get_node_credential_id(node) == credential_id
+    ]
 
-    Uses the shared traverse_activities utility to walk nested activity structures
-    (parallel branches, sequences, conditions, loops) and find all activities
-    with a matching credentialId in their task config.
-    """
 
-    def _match_credential(activity: dict[str, Any], _path: str) -> str | None:
-        task = activity.get("task", {})
-        if task and task.get("config", {}).get("credentialId") == credential_id:
-            name: str = activity.get("name") or activity.get("id", "Unknown")
-            return name
-        return None
-
-    root_activities = workflow_definition.get("workflow", {}).get("activities", [])
-    return traverse_activities(root_activities, _match_credential)
+def _get_node_credential_id(node: dict[str, Any]) -> str | None:
+    config: dict[str, Any] = node.get("config", {})
+    result: str | None = config.get("credential_id")
+    return result
 
 
 class CredentialService(BaseService):
@@ -396,7 +391,7 @@ class CredentialService(BaseService):
     async def get_credential_workflows(self, credential_id: UUID) -> list[CredentialWorkflowRef]:
         """Find workflows that reference a given credential in their definitions.
 
-        Uses PostgreSQL jsonb_path_exists for precise matching of credentialId
+        Uses PostgreSQL jsonb_path_exists for precise matching of credential_id
         values in workflow definitions. Returns enriched workflow references
         including description, creator, node names, and latest execution info.
 
@@ -516,7 +511,7 @@ class CredentialService(BaseService):
                     (
                         func.jsonb_path_exists(
                             WorkflowVersion.workflow_definition,
-                            literal_column(f"'$.**.credentialId ? (@ == \"{cid}\")'::jsonpath"),
+                            literal_column(f"'$.**.credential_id ? (@ == \"{cid}\")'::jsonpath"),
                         ),
                         1,
                     ),
@@ -588,12 +583,12 @@ class CredentialService(BaseService):
             .where(Workflow.deleted_at.is_(None))  # type: ignore[union-attr]
         )
 
-        # Use jsonb_path_exists for precise credentialId matching (PostgreSQL 12+)
+        # Use jsonb_path_exists for precise credential_id matching (PostgreSQL 12+)
         # literal_column with ::jsonpath cast avoids asyncpg VARCHAR type mismatch
         jsonpath_conditions = [
             func.jsonb_path_exists(
                 WorkflowVersion.workflow_definition,
-                literal_column(f"'$.**.credentialId ? (@ == \"{cid}\")'::jsonpath"),
+                literal_column(f"'$.**.credential_id ? (@ == \"{cid}\")'::jsonpath"),
             )
             for cid in credential_ids
         ]

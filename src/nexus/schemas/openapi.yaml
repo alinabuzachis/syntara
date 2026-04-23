@@ -6321,7 +6321,7 @@ paths:
       description: |-
         Get workflows that reference this credential.
 
-        Returns empty list until Epic 3 adds credentialId to executor configs.
+        Returns workflows with nodes that have credential_id in their executor configs.
       operationId: get_credential_workflows
       tags:
         - Credentials

@@ -392,11 +392,11 @@ class TestAgenticExecutorConfig:
     def test_file_ids_must_be_valid_uuids(self) -> None:
         """File IDs must be valid UUID format."""
         with pytest.raises((ValidationError, SafeValueError)):
-            AgenticExecutorConfig(prompt="test", fileIds=["not-a-uuid"])
+            AgenticExecutorConfig(prompt="test", file_ids=["not-a-uuid"])
 
     def test_file_ids_with_template_allowed(self) -> None:
         """Template expressions in file_ids bypass UUID validation."""
-        config = AgenticExecutorConfig(prompt="test", fileIds=["${input.file_id}"])
+        config = AgenticExecutorConfig(prompt="test", file_ids=["${input.file_id}"])
         assert config.file_ids == ["${input.file_id}"]
 
     def test_default_timeout(self) -> None:
@@ -410,21 +410,21 @@ class TestAAPJobTemplateConfig:
 
     def test_valid_by_id(self) -> None:
         """Job template config with job_template_id is valid."""
-        config = AAPJobTemplateExecutorConfig(jobTemplateId=42)
+        config = AAPJobTemplateExecutorConfig(job_template_id=42)
         assert config.job_template_id == 42
 
     def test_valid_by_name(self) -> None:
         """Job template config with name + org is valid."""
         config = AAPJobTemplateExecutorConfig(
-            jobTemplateName="my-template",
-            organizationName="my-org",
+            job_template_name="my-template",
+            organization_name="my-org",
         )
         assert config.job_template_name == "my-template"
 
     def test_rejects_name_without_org(self) -> None:
         """Job template name requires organization_name."""
         with pytest.raises((ValidationError, SafeValueError), match="organization_name"):
-            AAPJobTemplateExecutorConfig(jobTemplateName="my-template")
+            AAPJobTemplateExecutorConfig(job_template_name="my-template")
 
     def test_rejects_missing_id_and_name(self) -> None:
         """Either job_template_id or job_template_name must be specified."""
@@ -433,13 +433,13 @@ class TestAAPJobTemplateConfig:
 
     def test_extra_vars_default_empty(self) -> None:
         """Extra vars default to empty dict."""
-        config = AAPJobTemplateExecutorConfig(jobTemplateId=1)
+        config = AAPJobTemplateExecutorConfig(job_template_id=1)
         assert config.extra_vars == {}
 
     def test_verbosity_range(self) -> None:
         """Verbosity must be 0-5."""
         with pytest.raises(ValidationError, match="verbosity"):
-            AAPJobTemplateExecutorConfig(jobTemplateId=1, verbosity=6)  # type: ignore[arg-type]
+            AAPJobTemplateExecutorConfig(job_template_id=1, verbosity=6)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------

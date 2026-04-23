@@ -48,7 +48,7 @@ class TestAgenticActivityFileIds:
         file_ids = generate_valid_uuids(3)
         input_config = {
             "prompt": "Analyze these files",
-            "fileIds": file_ids,
+            "file_ids": file_ids,
         }
 
         with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
@@ -87,7 +87,7 @@ class TestAgenticActivityFileIds:
         file_ids = generate_valid_uuids(2)
         input_config = {
             "prompt": "Process with context",
-            "fileIds": file_ids,
+            "file_ids": file_ids,
         }
 
         with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
@@ -106,7 +106,7 @@ class TestAgenticActivityFileIds:
         file_ids = generate_valid_uuids(10)
         input_config = {
             "prompt": "Process all 10 files",
-            "fileIds": file_ids,
+            "file_ids": file_ids,
         }
 
         with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:
@@ -123,7 +123,7 @@ class TestAgenticActivityFileIds:
         """Test that invalid file_ids are rejected during config validation."""
         input_config = {
             "prompt": "Test",
-            "fileIds": ["not-a-valid-uuid"],
+            "file_ids": ["not-a-valid-uuid"],
         }
 
         # V2 returns failed status for validation errors
@@ -136,7 +136,7 @@ class TestAgenticActivityFileIds:
         """Test that more than 10 file_ids are rejected."""
         input_config = {
             "prompt": "Test",
-            "fileIds": generate_valid_uuids(11),
+            "file_ids": generate_valid_uuids(11),
         }
 
         # V2 returns failed status for validation errors
@@ -149,7 +149,7 @@ class TestAgenticActivityFileIds:
         file_ids = generate_valid_uuids(5)
         input_config = {
             "prompt": "Test",
-            "fileIds": file_ids,
+            "file_ids": file_ids,
         }
 
         with patch("nexus.workflows.workflow_engine.activities.agentic_activity.AgentOrchestratorClient") as mock_cls:

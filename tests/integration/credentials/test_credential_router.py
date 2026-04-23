@@ -10,8 +10,10 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from nexus.core.models import User
 from nexus.credentials.lib.preseed import GA_CREDENTIAL_TYPES, preseed_credential_types
 from nexus.credentials.models.credential_type import CredentialType
+from nexus.workflows.models import Workflow, WorkflowVersion
 
 
 @pytest.fixture
@@ -298,6 +300,154 @@ class TestCredentialWorkflows:
         """Non-existent credential returns 404."""
         resp = await auth_client.get(f"/api/v1/credentials/{uuid4()}/workflows")
         assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_workflows_returns_referencing_workflow_with_node_names(
+        self,
+        auth_client: AsyncClient,
+        bearer_type: CredentialType,
+        test_db_session: AsyncSession,
+        test_user: User,
+        test_project_id: str,
+    ) -> None:
+        """Workflow referencing a credential is returned with correct node_names."""
+        create_resp = await auth_client.post(
+            "/api/v1/credentials",
+            json={
+                "name": f"Node Names Test {uuid4().hex[:8]}",
+                "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
+                "inputs": {"token": "test-token"},
+            },
+        )
+        cred_id = create_resp.json()["id"]
+
+        workflow = Workflow(
+            name=f"cred-ref-workflow-{uuid4().hex[:8]}",
+            description="Workflow referencing a credential",
+            created_by=test_user.id,
+            is_enabled=True,
+            current_version=1,
+        )
+        test_db_session.add(workflow)
+
+        version = WorkflowVersion(
+            workflow_id=workflow.id,
+            version=1,
+            schema_version="2.0.0",
+            workflow_definition={
+                "schema_version": "2.0.0",
+                "name": workflow.name,
+                "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+                "nodes": [
+                    {
+                        "id": "fetch_data",
+                        "name": "Fetch Data",
+                        "type": "http_request",
+                        "config": {
+                            "method": "GET",
+                            "url": "https://api.example.com/data",
+                            "credential_id": cred_id,
+                        },
+                    },
+                ],
+                "edges": [{"from": "trigger_manual", "to": "fetch_data"}],
+            },
+            created_by=test_user.id,
+        )
+        test_db_session.add(version)
+        await test_db_session.commit()
+
+        resp = await auth_client.get(f"/api/v1/credentials/{cred_id}/workflows")
+        assert resp.status_code == 200
+        workflows = resp.json()
+        assert len(workflows) == 1
+        assert workflows[0]["id"] == str(workflow.id)
+        assert workflows[0]["name"] == workflow.name
+        assert workflows[0]["node_names"] == ["Fetch Data"]
+
+    @pytest.mark.asyncio
+    async def test_workflows_returns_multiple_node_names(
+        self,
+        auth_client: AsyncClient,
+        bearer_type: CredentialType,
+        test_db_session: AsyncSession,
+        test_user: User,
+        test_project_id: str,
+    ) -> None:
+        """Multiple nodes referencing same credential returns all node names."""
+        create_resp = await auth_client.post(
+            "/api/v1/credentials",
+            json={
+                "name": f"Multi Node Test {uuid4().hex[:8]}",
+                "credential_type_id": str(bearer_type.id),
+                "project_id": test_project_id,
+                "inputs": {"token": "test-token"},
+            },
+        )
+        cred_id = create_resp.json()["id"]
+
+        workflow = Workflow(
+            name=f"multi-node-workflow-{uuid4().hex[:8]}",
+            description="Workflow with multiple nodes using same credential",
+            created_by=test_user.id,
+            is_enabled=True,
+            current_version=1,
+        )
+        test_db_session.add(workflow)
+
+        version = WorkflowVersion(
+            workflow_id=workflow.id,
+            version=1,
+            schema_version="2.0.0",
+            workflow_definition={
+                "schema_version": "2.0.0",
+                "name": workflow.name,
+                "triggers": [{"id": "trigger_manual", "type": "manual_trigger"}],
+                "nodes": [
+                    {
+                        "id": "step_1",
+                        "name": "Fetch Users",
+                        "type": "http_request",
+                        "config": {
+                            "method": "GET",
+                            "url": "https://api.example.com/users",
+                            "credential_id": cred_id,
+                        },
+                    },
+                    {
+                        "id": "step_2",
+                        "name": "Fetch Orders",
+                        "type": "http_request",
+                        "config": {
+                            "method": "GET",
+                            "url": "https://api.example.com/orders",
+                            "credential_id": cred_id,
+                        },
+                    },
+                    {
+                        "id": "step_3",
+                        "name": "Process Data",
+                        "type": "script",
+                        "config": {"language": "python", "code": "print('done')"},
+                    },
+                ],
+                "edges": [
+                    {"from": "trigger_manual", "to": "step_1"},
+                    {"from": "step_1", "to": "step_2"},
+                    {"from": "step_2", "to": "step_3"},
+                ],
+            },
+            created_by=test_user.id,
+        )
+        test_db_session.add(version)
+        await test_db_session.commit()
+
+        resp = await auth_client.get(f"/api/v1/credentials/{cred_id}/workflows")
+        assert resp.status_code == 200
+        workflows = resp.json()
+        assert len(workflows) == 1
+        assert sorted(workflows[0]["node_names"]) == ["Fetch Orders", "Fetch Users"]
 
 
 class TestCredentialTypes:

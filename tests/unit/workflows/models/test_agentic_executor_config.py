@@ -47,21 +47,21 @@ class TestAgenticExecutorConfigFileIds:
     def test_file_ids_single_valid_uuid(self) -> None:
         """Test that a single valid UUID is accepted."""
         file_id = generate_valid_uuid()
-        config = AgenticExecutorConfig(prompt="Test prompt", fileIds=[file_id])
+        config = AgenticExecutorConfig(prompt="Test prompt", file_ids=[file_id])
 
         assert config.file_ids == [file_id]
 
     def test_file_ids_multiple_valid_uuids(self) -> None:
         """Test that multiple valid UUIDs are accepted."""
         file_ids = generate_valid_uuids(5)
-        config = AgenticExecutorConfig(prompt="Test prompt", fileIds=file_ids)
+        config = AgenticExecutorConfig(prompt="Test prompt", file_ids=file_ids)
 
         assert config.file_ids == file_ids
 
     def test_file_ids_max_length_boundary_10(self) -> None:
         """Test that exactly 10 file_ids (max boundary) is accepted."""
         file_ids = generate_valid_uuids(10)
-        config = AgenticExecutorConfig(prompt="Test prompt", fileIds=file_ids)
+        config = AgenticExecutorConfig(prompt="Test prompt", file_ids=file_ids)
 
         assert len(config.file_ids) == 10
         assert config.file_ids == file_ids
@@ -77,7 +77,7 @@ class TestAgenticExecutorConfigFileIds:
 
         config = AgenticExecutorConfig(
             prompt="Test",
-            fileIds=[uuid_v4, uuid_upper, uuid_lower],
+            file_ids=[uuid_v4, uuid_upper, uuid_lower],
         )
 
         assert len(config.file_ids) == 3
@@ -89,7 +89,7 @@ class TestAgenticExecutorConfigFileIds:
     def test_file_ids_template_expression_bypass(self) -> None:
         """Test that template expressions bypass UUID validation."""
         template = "${input.document_id}"
-        config = AgenticExecutorConfig(prompt="Test prompt", fileIds=[template])
+        config = AgenticExecutorConfig(prompt="Test prompt", file_ids=[template])
 
         assert config.file_ids == [template]
 
@@ -100,7 +100,7 @@ class TestAgenticExecutorConfigFileIds:
             "${workflow.vars.document_ids[0]}",
             "${outputs.previous_task.file_id}",
         ]
-        config = AgenticExecutorConfig(prompt="Test", fileIds=templates)
+        config = AgenticExecutorConfig(prompt="Test", file_ids=templates)
 
         assert config.file_ids == templates
 
@@ -112,7 +112,7 @@ class TestAgenticExecutorConfigFileIds:
             generate_valid_uuid(),
             "${input.file2}",
         ]
-        config = AgenticExecutorConfig(prompt="Test", fileIds=file_ids)
+        config = AgenticExecutorConfig(prompt="Test", file_ids=file_ids)
 
         assert config.file_ids == file_ids
 
@@ -146,7 +146,7 @@ class TestAgenticExecutorConfigFileIds:
     def test_file_ids_invalid_uuid_format_rejected(self) -> None:
         """Test that invalid UUID format is rejected with clear error message."""
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt="Test", fileIds=["not-a-valid-uuid"])
+            AgenticExecutorConfig(prompt="Test", file_ids=["not-a-valid-uuid"])
 
         errors = exc_info.value.errors()
         assert len(errors) == 1
@@ -158,7 +158,7 @@ class TestAgenticExecutorConfigFileIds:
         file_ids = generate_valid_uuids(11)
 
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt="Test", fileIds=file_ids)
+            AgenticExecutorConfig(prompt="Test", file_ids=file_ids)
 
         errors = exc_info.value.errors()
         assert any("at most 10" in str(e).lower() or "too_long" in str(e) for e in errors)
@@ -166,7 +166,7 @@ class TestAgenticExecutorConfigFileIds:
     def test_file_ids_empty_string_rejected(self) -> None:
         """Test that empty string is rejected as invalid UUID."""
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt="Test", fileIds=[""])
+            AgenticExecutorConfig(prompt="Test", file_ids=[""])
 
         errors = exc_info.value.errors()
         assert "Invalid file_id format" in str(errors[0]["msg"])
@@ -176,7 +176,7 @@ class TestAgenticExecutorConfigFileIds:
         partial_uuid = "550e8400-e29b-41d4"  # Missing parts
 
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt="Test", fileIds=[partial_uuid])
+            AgenticExecutorConfig(prompt="Test", file_ids=[partial_uuid])
 
         errors = exc_info.value.errors()
         assert "Invalid file_id format" in str(errors[0]["msg"])
@@ -186,7 +186,7 @@ class TestAgenticExecutorConfigFileIds:
         invalid_uuid = "550e8400-e29b-41d4-a716-44665544000g"  # 'g' is invalid
 
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt="Test", fileIds=[invalid_uuid])
+            AgenticExecutorConfig(prompt="Test", file_ids=[invalid_uuid])
 
         errors = exc_info.value.errors()
         assert "Invalid file_id format" in str(errors[0]["msg"])
@@ -194,7 +194,7 @@ class TestAgenticExecutorConfigFileIds:
     def test_file_ids_whitespace_only_rejected(self) -> None:
         """Test that whitespace-only string is rejected."""
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt="Test", fileIds=["   "])
+            AgenticExecutorConfig(prompt="Test", file_ids=["   "])
 
         errors = exc_info.value.errors()
         assert "Invalid file_id format" in str(errors[0]["msg"])
@@ -208,7 +208,7 @@ class TestAgenticExecutorConfigFileIds:
         ]
 
         with pytest.raises(ValidationError) as exc_info:
-            AgenticExecutorConfig(prompt="Test", fileIds=file_ids)
+            AgenticExecutorConfig(prompt="Test", file_ids=file_ids)
 
         errors = exc_info.value.errors()
         assert "Invalid file_id format" in str(errors[0]["msg"])
@@ -218,36 +218,35 @@ class TestAgenticExecutorConfigFileIds:
     # API Alias (fileIds) Compatibility
     # ==========================================================================
 
-    def test_file_ids_alias_accepted(self) -> None:
-        """Test that fileIds alias (camelCase) is accepted in input."""
+    def test_file_ids_snake_case_accepted(self) -> None:
+        """Test that file_ids (snake_case) is accepted in input."""
         file_ids = generate_valid_uuids(3)
 
-        # Using alias in input (camelCase)
+        # Using snake_case in input
         config = AgenticExecutorConfig.model_validate(
             {
                 "prompt": "Test",
-                "fileIds": file_ids,
+                "file_ids": file_ids,
             }
         )
 
         assert config.file_ids == file_ids
 
-    def test_file_ids_serializes_with_alias(self) -> None:
-        """Test that file_ids serializes to fileIds when using by_alias."""
+    def test_file_ids_serializes_as_snake_case(self) -> None:
+        """Test that file_ids serializes to snake_case when using by_alias."""
         file_ids = generate_valid_uuids(2)
-        config = AgenticExecutorConfig(prompt="Test", fileIds=file_ids)
+        config = AgenticExecutorConfig(prompt="Test", file_ids=file_ids)
 
         # Serialize with by_alias=True (for API responses)
         serialized = config.model_dump(mode="json", by_alias=True)
 
-        assert "fileIds" in serialized
-        assert serialized["fileIds"] == file_ids
-        assert "file_ids" not in serialized
+        assert "file_ids" in serialized
+        assert serialized["file_ids"] == file_ids
 
     def test_file_ids_serializes_without_alias(self) -> None:
         """Test that file_ids serializes to file_ids when not using alias."""
         file_ids = generate_valid_uuids(2)
-        config = AgenticExecutorConfig(prompt="Test", fileIds=file_ids)
+        config = AgenticExecutorConfig(prompt="Test", file_ids=file_ids)
 
         # Serialize without by_alias (Python-style)
         serialized = config.model_dump()
@@ -268,7 +267,7 @@ class TestAgenticExecutorConfigIntegration:
             agent="document-analyzer",
             model="gpt-4",
             timeout=300,
-            fileIds=file_ids,
+            file_ids=file_ids,
         )
 
         assert config.prompt == "Analyze the documents and provide a summary"
@@ -284,7 +283,7 @@ class TestAgenticExecutorConfigIntegration:
             "agent": "file-processor",
             "model": "claude-3-5-sonnet",
             "timeout": 600,
-            "fileIds": [
+            "file_ids": [
                 "550e8400-e29b-41d4-a716-446655440000",
                 "${input.additional_file}",
             ],

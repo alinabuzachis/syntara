@@ -7,6 +7,9 @@
     "type": "object",
     "description": "Job template must be specified by ID or name. When both are provided, ID takes precedence.",
     "properties": {
+      "credential_id": {
+        "$ref": "../common-definitions.schema.json#/$defs/credential_id"
+      },
       "job_template_id": {
         "type": "integer",
         "description": "AAP job template ID to launch (takes precedence over name)",
@@ -32,9 +35,9 @@
         "description": "Override default inventory by name (requires organization_name)",
         "minLength": 1
       },
-      "credentials": {
+      "job_credentials": {
         "type": "array",
-        "description": "List of credential IDs to use",
+        "description": "List of AAP credential IDs to pass to the job template (overrides template defaults)",
         "items": {
           "type": "integer",
           "minimum": 1

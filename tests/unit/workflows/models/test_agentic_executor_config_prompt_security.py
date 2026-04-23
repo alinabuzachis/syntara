@@ -170,7 +170,7 @@ class TestAgenticExecutorConfigPromptValidatorIntegration:
                 "agent": "analyzer",
                 "model": "claude-3-5-sonnet",
                 "timeout": 120,
-                "fileIds": ["550e8400-e29b-41d4-a716-446655440000"],
+                "file_ids": ["550e8400-e29b-41d4-a716-446655440000"],
             }
         )
         assert config.prompt == "Analyze the following data"

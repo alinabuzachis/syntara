@@ -5,7 +5,7 @@ description: |
   Test workflow for AAP Job Template executor.
 
   This workflow demonstrates all available parameters for the AAP job template
-  executor including tags, limits, verbosity, credentials, extra_vars, and inventory.
+  executor including tags, limits, verbosity, job_credentials, extra_vars, and inventory.
 
   Prerequisites:
   1. Create a Job Template in AAP based on samples/playbooks/test-aap-parameters.yml
@@ -87,11 +87,11 @@ nodes:
     type: aap_job_template
     name: Execute AAP Job Template
     config:
-      jobTemplateId: ${trigger.job_template_id}
-      inventoryId: ${trigger.inventory_id}
-      inventoryName: ${trigger.inventory_name}
-      organizationName: ${trigger.organization_name}
-      extraVars:
+      job_template_id: ${trigger.job_template_id}
+      inventory_id: ${trigger.inventory_id}
+      inventory_name: ${trigger.inventory_name}
+      organization_name: ${trigger.organization_name}
+      extra_vars:
         app_name: ${trigger.app_name}
         app_version: ${trigger.app_version}
         deployment_env: ${trigger.deployment_env}
@@ -101,7 +101,7 @@ nodes:
         workflow_execution_time: "${workflow.started_at}"
       limit: ${trigger.limit}
       tags: ${trigger.tags}
-      skipTags: ${trigger.skip_tags}
+      skip_tags: ${trigger.skip_tags}
       verbosity: ${trigger.verbosity}
     outputs:
       job_id: $.job_id
@@ -109,11 +109,11 @@ nodes:
       output: $.output
       artifacts: $.artifacts
       elapsed_ms: $.elapsed_ms
-    retryPolicy:
-      maxAttempts: 3
+    retry_policy:
+      max_attempts: 3
       backoff: exponential
-      initialInterval: 5
-      maxInterval: 60
+      initial_interval: 5
+      max_interval: 60
     timeout: 1800
 
   - id: display_results

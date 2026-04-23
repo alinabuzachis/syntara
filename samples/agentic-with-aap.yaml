@@ -52,8 +52,8 @@ nodes:
     type: aap_job_template
     name: Launch the Job Template in AAP
     config:
-      jobTemplateName: ${name_via_ai.output.analysis.default_job_template}
-      organizationName: ${trigger.organization_name}
+      job_template_name: ${name_via_ai.output.analysis.default_job_template}
+      organization_name: ${trigger.organization_name}
       verbosity: 3
 edges:
   - from: trigger_manual

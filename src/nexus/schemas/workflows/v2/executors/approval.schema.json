@@ -6,6 +6,9 @@
   "configSchema": {
     "type": "object",
     "properties": {
+      "credential_id": {
+        "$ref": "../common-definitions.schema.json#/$defs/credential_id"
+      },
       "approver_timeout": {
         "type": "integer",
         "description": "Time limit in seconds for approver to respond. If the timeout expires, the decision is set to 'expired' and the workflow follows the rejection path. If not set, waits indefinitely until approved, rejected, or workflow is cancelled.",

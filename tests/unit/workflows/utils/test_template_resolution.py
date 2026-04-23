@@ -179,20 +179,20 @@ class TestResolveConfigTemplates:
         }
 
         config = {
-            "jobTemplateId": "${input.job_template_id}",
+            "job_template_id": "${input.job_template_id}",
             "verbosity": "${input.verbosity}",
             "inventory": "${input.inventory}",
             "timeout": "${input.timeout}",
-            "extraVars": {"key": "value"},
+            "extra_vars": {"key": "value"},
         }
 
         result = resolve_config_templates(config, workflow_state)
         assert result == {
-            "jobTemplateId": 42,
+            "job_template_id": 42,
             "verbosity": 2,
             "inventory": 10,
             "timeout": 3600,
-            "extraVars": {"key": "value"},
+            "extra_vars": {"key": "value"},
         }
 
     def test_resolve_config_with_nested_extra_vars(self) -> None:
@@ -202,9 +202,9 @@ class TestResolveConfigTemplates:
         }
 
         config = {
-            "jobTemplateId": 42,
+            "job_template_id": 42,
             "timeout": "${input.timeout}",
-            "extraVars": {
+            "extra_vars": {
                 "app_name": "${input.app_name}",
                 "app_version": "${input.version}",
                 "deployment_env": "${input.env}",
@@ -214,9 +214,9 @@ class TestResolveConfigTemplates:
 
         result = resolve_config_templates(config, workflow_state)
         assert result == {
-            "jobTemplateId": 42,
+            "job_template_id": 42,
             "timeout": 1800,
-            "extraVars": {
+            "extra_vars": {
                 "app_name": "myapp",
                 "app_version": "2.0.0",
                 "deployment_env": "production",

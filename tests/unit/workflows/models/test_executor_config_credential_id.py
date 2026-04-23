@@ -14,24 +14,24 @@ from nexus.workflows.workflow_engine.models.workflow_definition import (
 class TestAPIExecutorConfigCredentialId:
     """Verify credentialId on APIExecutorConfig."""
 
-    def test_credential_id_serializes_as_camel_case(self) -> None:
-        """CredentialId should serialize with camelCase alias."""
+    def test_credential_id_serializes_as_snake_case(self) -> None:
+        """CredentialId should serialize with snake_case."""
         config = APIExecutorConfig(
             method=HTTPMethod.GET,
             url="https://example.com",
-            credentialId="550e8400-e29b-41d4-a716-446655440000",
+            credential_id="550e8400-e29b-41d4-a716-446655440000",
         )
         dumped = config.model_dump(by_alias=True)
-        assert "credentialId" in dumped
-        assert dumped["credentialId"] == "550e8400-e29b-41d4-a716-446655440000"
+        assert "credential_id" in dumped
+        assert dumped["credential_id"] == "550e8400-e29b-41d4-a716-446655440000"
 
-    def test_credential_id_deserializes_from_camel_case(self) -> None:
-        """CredentialId should deserialize from camelCase JSON."""
+    def test_credential_id_deserializes_from_snake_case(self) -> None:
+        """CredentialId should deserialize from snake_case JSON."""
         config = APIExecutorConfig.model_validate(
             {
                 "method": "GET",
                 "url": "https://example.com",
-                "credentialId": "550e8400-e29b-41d4-a716-446655440000",
+                "credential_id": "550e8400-e29b-41d4-a716-446655440000",
             }
         )
         assert config.credential_id == "550e8400-e29b-41d4-a716-446655440000"
@@ -47,11 +47,11 @@ class TestAPIExecutorConfigCredentialId:
         assert config.credential_id is None
 
     def test_credential_id_and_authentication_coexist(self) -> None:
-        """Both credentialId and authentication can be set simultaneously."""
+        """Both credential_id and authentication can be set simultaneously."""
         config = APIExecutorConfig(
             method=HTTPMethod.GET,
             url="https://example.com",
-            credentialId="550e8400-e29b-41d4-a716-446655440000",
+            credential_id="550e8400-e29b-41d4-a716-446655440000",
             authentication=Authentication(
                 type=AuthenticationType.BEARER,
                 credentials="${secrets.my_token}",
@@ -62,15 +62,15 @@ class TestAPIExecutorConfigCredentialId:
 
 
 class TestAgenticExecutorConfigCredentialId:
-    """Verify credentialId on AgenticExecutorConfig."""
+    """Verify credential_id on AgenticExecutorConfig."""
 
     def test_credential_id_serializes(self) -> None:
         config = AgenticExecutorConfig(
             prompt="Hello",
-            credentialId="550e8400-e29b-41d4-a716-446655440000",
+            credential_id="550e8400-e29b-41d4-a716-446655440000",
         )
         dumped = config.model_dump(by_alias=True)
-        assert dumped["credentialId"] == "550e8400-e29b-41d4-a716-446655440000"
+        assert dumped["credential_id"] == "550e8400-e29b-41d4-a716-446655440000"
 
     def test_backward_compat_without_credential_id(self) -> None:
         config = AgenticExecutorConfig.model_validate({"prompt": "Hello"})
@@ -78,26 +78,31 @@ class TestAgenticExecutorConfigCredentialId:
 
 
 class TestAAPJobTemplateExecutorConfigCredentialId:
-    """Verify credentialId on AAPJobTemplateExecutorConfig."""
+    """Verify credential_id on AAPJobTemplateExecutorConfig."""
 
     def test_credential_id_serializes(self) -> None:
         config = AAPJobTemplateExecutorConfig(
-            jobTemplateId=1,
-            credentialId="550e8400-e29b-41d4-a716-446655440000",
+            job_template_id=1,
+            credential_id="550e8400-e29b-41d4-a716-446655440000",
         )
         dumped = config.model_dump(by_alias=True)
-        assert dumped["credentialId"] == "550e8400-e29b-41d4-a716-446655440000"
+        assert dumped["credential_id"] == "550e8400-e29b-41d4-a716-446655440000"
 
-    def test_credential_id_coexists_with_legacy_credentials(self) -> None:
-        """CredentialId (Nexus) and credentials (AAP legacy IDs) can coexist."""
+    def test_credential_id_coexists_with_job_credentials(self) -> None:
+        """credential_id (Nexus) and job_credentials (AAP IDs) can coexist."""
         config = AAPJobTemplateExecutorConfig(
-            jobTemplateId=1,
-            credentialId="550e8400-e29b-41d4-a716-446655440000",
-            credentials=[42, 43],
+            job_template_id=1,
+            credential_id="550e8400-e29b-41d4-a716-446655440000",
+            job_credentials=[42, 43],
         )
         assert config.credential_id is not None
-        assert config.credentials == [42, 43]
+        assert config.job_credentials == [42, 43]
+
+    def test_job_credentials_field_works(self) -> None:
+        """The job_credentials field can be set directly."""
+        config = AAPJobTemplateExecutorConfig.model_validate({"job_template_id": 1, "job_credentials": [42, 43]})
+        assert config.job_credentials == [42, 43]
 
     def test_backward_compat_without_credential_id(self) -> None:
-        config = AAPJobTemplateExecutorConfig.model_validate({"jobTemplateId": 1})
+        config = AAPJobTemplateExecutorConfig.model_validate({"job_template_id": 1})
         assert config.credential_id is None

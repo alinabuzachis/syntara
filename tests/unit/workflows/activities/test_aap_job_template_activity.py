@@ -1260,7 +1260,7 @@ class TestBuildLaunchBody:
         from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
         from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 
-        config = AAPJobTemplateExecutorConfig(jobTemplateId=1)
+        config = AAPJobTemplateExecutorConfig(job_template_id=1)
         body = _build_launch_body(config, inventory_id=42)
 
         assert body["inventory"] == 42
@@ -1270,7 +1270,7 @@ class TestBuildLaunchBody:
         from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
         from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 
-        config = AAPJobTemplateExecutorConfig(jobTemplateId=1)
+        config = AAPJobTemplateExecutorConfig(job_template_id=1)
         body = _build_launch_body(config, inventory_id=None)
 
         assert "inventory" not in body
@@ -1281,37 +1281,47 @@ class TestBuildLaunchBody:
         from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
         from nexus.workflows.workflow_engine.models.workflow_definition import AAPVerbosity
 
-        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, verbosity=AAPVerbosity.NORMAL)
+        config = AAPJobTemplateExecutorConfig(job_template_id=1, verbosity=AAPVerbosity.NORMAL)
         body = _build_launch_body(config, inventory_id=None)
 
         assert body["verbosity"] == AAPVerbosity.NORMAL
 
-    def test_skips_empty_credentials_list(self) -> None:
+    def test_skips_empty_job_credentials_list(self) -> None:
         """Should not include credentials when empty list."""
         from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
         from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 
-        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, credentials=[])
+        config = AAPJobTemplateExecutorConfig(job_template_id=1, job_credentials=[])
         body = _build_launch_body(config, inventory_id=None)
 
         assert "credentials" not in body
 
-    def test_includes_non_empty_credentials_list(self) -> None:
-        """Should include credentials when non-empty list."""
+    def test_includes_non_empty_job_credentials_list(self) -> None:
+        """Should include credentials in AAP API body when job_credentials provided."""
         from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
         from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 
-        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, credentials=[1, 2, 3])
+        config = AAPJobTemplateExecutorConfig(job_template_id=1, job_credentials=[1, 2, 3])
         body = _build_launch_body(config, inventory_id=None)
 
         assert body["credentials"] == [1, 2, 3]
+
+    def test_accepts_job_credentials_field(self) -> None:
+        """Should accept job_credentials field directly."""
+        from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
+        from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
+
+        config = AAPJobTemplateExecutorConfig.model_validate({"job_template_id": 1, "job_credentials": [5, 6]})
+        body = _build_launch_body(config, inventory_id=None)
+
+        assert body["credentials"] == [5, 6]
 
     def test_skips_empty_extra_vars_dict(self) -> None:
         """Should not include extra_vars when empty dict."""
         from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
         from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 
-        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, extraVars={})
+        config = AAPJobTemplateExecutorConfig(job_template_id=1, extra_vars={})
         body = _build_launch_body(config, inventory_id=None)
 
         assert "extra_vars" not in body
@@ -1321,7 +1331,7 @@ class TestBuildLaunchBody:
         from nexus.workflows.workflow_engine.activities.aap_job_template_activity import _build_launch_body
         from nexus.workflows.workflow_engine.models import AAPJobTemplateExecutorConfig
 
-        config = AAPJobTemplateExecutorConfig(jobTemplateId=1, extraVars={"key": "value"})
+        config = AAPJobTemplateExecutorConfig(job_template_id=1, extra_vars={"key": "value"})
         body = _build_launch_body(config, inventory_id=None)
 
         assert body["extra_vars"] == {"key": "value"}
@@ -1333,12 +1343,12 @@ class TestBuildLaunchBody:
         from nexus.workflows.workflow_engine.models.workflow_definition import AAPJobType, AAPVerbosity
 
         config = AAPJobTemplateExecutorConfig(
-            jobTemplateId=1,
-            credentials=[1],
-            extraVars={"foo": "bar"},
+            job_template_id=1,
+            job_credentials=[1],
+            extra_vars={"foo": "bar"},
             limit="host1",
             tags="deploy",
-            skipTags="skip",
+            skip_tags="skip",
             verbosity=AAPVerbosity.VERBOSE,
             job_type=AAPJobType.RUN,
             forks=10,

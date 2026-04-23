@@ -30,7 +30,7 @@ nodes:
       url: https://randomuser.me/api/
       headers:
         Accept: application/json
-      queryParams:
+      query_params:
         results: ${input.count}
         nat: us,gb,ca
     outputs:
@@ -88,8 +88,8 @@ nodes:
       users: ${fetch_users.output.users}
     outputs:
       directory: $.output
-      totalUsers: $.output.total_users
-      averageAge: $.output.average_age
+      total_users: $.output.total_users
+      average_age: $.output.average_age
       summary: $.output.summary
     timeout: 60
 edges:

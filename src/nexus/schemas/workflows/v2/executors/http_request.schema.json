@@ -50,6 +50,9 @@
           {"type": "null"}
         ]
       },
+      "credential_id": {
+        "$ref": "../common-definitions.schema.json#/$defs/credential_id"
+      },
       "authentication": {
         "type": "object",
         "description": "Authentication configuration",
