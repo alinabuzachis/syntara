@@ -14,7 +14,7 @@ export function LoopTypeHelp() {
       headerContent="Loop type"
       bodyContent={
         <Stack hasGutter>
-          <StackItem>Determine how the automation should repeat the tasks contained within this step.</StackItem>
+          <StackItem>Determine how the workflow should repeat the tasks contained within this step.</StackItem>
           <StackItem>
             <strong>Options:</strong>
           </StackItem>

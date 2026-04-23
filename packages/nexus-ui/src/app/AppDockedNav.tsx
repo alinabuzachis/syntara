@@ -51,8 +51,8 @@ import { navigationItems } from './navigationItems'
 import { useUnsavedChanges } from './useUnsavedChanges'
 
 const navIconMap: Record<string, React.ComponentType> = {
-  '/automation-builder': RhUiInfrastructureIcon,
-  '/automations': RhUiListIcon,
+  '/workflow-builder': RhUiInfrastructureIcon,
+  '/workflows': RhUiListIcon,
   '/executions': RhUiPlayCircleIcon,
   '/approvals': RhUiLikeIcon,
   '/access-management': RhUiUsersIcon,

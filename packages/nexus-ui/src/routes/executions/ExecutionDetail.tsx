@@ -212,7 +212,7 @@ export default function ExecutionDetail() {
       // Invalidate all execution queries to refresh:
       // - ExecutionDetail header status
       // - ExecutionDetailsPanel (bottom panel)
-      // - AutomationHistoryCard (run history)
+      // - WorkflowHistoryCard (run history)
       detachPromise(
         Promise.all([
           queryClient.invalidateQueries({
@@ -372,7 +372,7 @@ export default function ExecutionDetail() {
         <RunHistoryToggleButton onClick={toggleHistoryCard} isActive={historyCardOpen} />
         <Button
           variant="primary"
-          onClick={() => execution?.workflow_id && setLocation(`/automation-builder/${execution.workflow_id}`)}
+          onClick={() => execution?.workflow_id && setLocation(`/workflow-builder/${execution.workflow_id}`)}
         >
           Back to editor
         </Button>

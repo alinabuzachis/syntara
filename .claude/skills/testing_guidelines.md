@@ -107,12 +107,12 @@ test('increments count on button click', async () => {
 import { test, expect, toAppUrl } from './fixtures'
 import { buildUniqueName } from './helpers/workflows'
 
-test('user creates an automation', async ({ app }) => {
+test('user creates a workflow', async ({ app }) => {
   const workflowName = buildUniqueName('e2e-test')
 
   try {
-    await app.goto(toAppUrl('/automations'))
-    await app.getByRole('button', { name: 'Create automation' }).click()
+    await app.goto(toAppUrl('/workflows'))
+    await app.getByRole('button', { name: 'Create workflow' }).click()
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
     await expect(app.getByText('Workflow created successfully')).toBeVisible()
@@ -273,8 +273,8 @@ async function expectNoA11yViolations(page: Page) {
 }
 
 test('page has no a11y violations', async ({ app }) => {
-  await app.goto(toAppUrl('/automations'))
-  await expect(app.getByRole('heading', { name: /automations/i })).toBeVisible()
+  await app.goto(toAppUrl('/workflows'))
+  await expect(app.getByRole('heading', { name: /workflows/i })).toBeVisible()
 
   await expectNoA11yViolations(app)
 })

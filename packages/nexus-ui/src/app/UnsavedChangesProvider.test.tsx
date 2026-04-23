@@ -8,7 +8,7 @@ import { useUnsavedChanges } from './useUnsavedChanges'
 
 // Mock wouter - needed to control current location and capture navigation calls
 const mockSetLocation = vi.fn()
-let mockLocation = '/automation-builder/123'
+let mockLocation = '/workflow-builder/123'
 
 vi.mock('wouter', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal()
@@ -25,7 +25,7 @@ vi.mock('../stores/useWorkflowStore', () => ({
 
 // Test helper component
 function TestConsumer({
-  targetPath = '/automations',
+  targetPath = '/workflows',
   saveHandler,
 }: {
   targetPath?: string
@@ -47,7 +47,7 @@ describe('UnsavedChangesProvider', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockLocation = '/automation-builder/123'
+    mockLocation = '/workflow-builder/123'
 
     vi.mocked(useWorkflowStore).mockReturnValue({
       setWorkflow: mockSetWorkflow,
@@ -69,7 +69,7 @@ describe('UnsavedChangesProvider', () => {
 
       fireEvent.click(screen.getByText('Navigate Away'))
 
-      expect(screen.getByText('Save changes before exiting the automation builder?')).toBeInTheDocument()
+      expect(screen.getByText('Save changes before exiting the workflow builder?')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Exit without saving' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled() // No handler registered
     })
@@ -86,7 +86,7 @@ describe('UnsavedChangesProvider', () => {
 
       expect(mockSetWorkflow).toHaveBeenCalledWith(null)
       expect(mockSetEdges).toHaveBeenCalledWith([])
-      expect(mockSetLocation).toHaveBeenCalledWith('/automations')
+      expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
     })
 
     it('saves and navigates when save succeeds', async () => {
@@ -104,7 +104,7 @@ describe('UnsavedChangesProvider', () => {
 
       await waitFor(() => {
         expect(saveHandler).toHaveBeenCalled()
-        expect(mockSetLocation).toHaveBeenCalledWith('/automations')
+        expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
       })
     })
 
@@ -123,7 +123,7 @@ describe('UnsavedChangesProvider', () => {
 
       await waitFor(() => {
         expect(saveHandler).toHaveBeenCalled()
-        expect(screen.queryByText('Save changes before exiting the automation builder?')).not.toBeInTheDocument()
+        expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
       })
 
       expect(mockSetLocation).not.toHaveBeenCalled()
@@ -139,7 +139,7 @@ describe('UnsavedChangesProvider', () => {
       fireEvent.click(screen.getByText('Navigate Away'))
       fireEvent.click(screen.getByRole('button', { name: /close/i }))
 
-      expect(screen.queryByText('Save changes before exiting the automation builder?')).not.toBeInTheDocument()
+      expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
       expect(mockSetLocation).not.toHaveBeenCalled()
     })
 
@@ -164,7 +164,7 @@ describe('UnsavedChangesProvider', () => {
       resolveSave(true)
 
       await waitFor(() => {
-        expect(screen.queryByText('Save changes before exiting the automation builder?')).not.toBeInTheDocument()
+        expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
       })
     })
   })
@@ -173,14 +173,14 @@ describe('UnsavedChangesProvider', () => {
     it('navigates without modal when staying within builder', () => {
       render(
         <UnsavedChangesProvider>
-          <TestConsumer targetPath="/automation-builder/456" />
+          <TestConsumer targetPath="/workflow-builder/456" />
         </UnsavedChangesProvider>
       )
 
       fireEvent.click(screen.getByText('Navigate Away'))
 
-      expect(screen.queryByText('Save changes before exiting the automation builder?')).not.toBeInTheDocument()
-      expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/456')
+      expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
+      expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/456')
     })
 
     it('navigates without modal when no unsaved changes', () => {
@@ -194,12 +194,12 @@ describe('UnsavedChangesProvider', () => {
 
       fireEvent.click(screen.getByText('Navigate Away'))
 
-      expect(screen.queryByText('Save changes before exiting the automation builder?')).not.toBeInTheDocument()
-      expect(mockSetLocation).toHaveBeenCalledWith('/automations')
+      expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
+      expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
     })
 
     it('navigates without modal when not on builder route', () => {
-      mockLocation = '/automations'
+      mockLocation = '/workflows'
 
       render(
         <UnsavedChangesProvider>
@@ -209,8 +209,8 @@ describe('UnsavedChangesProvider', () => {
 
       fireEvent.click(screen.getByText('Navigate Away'))
 
-      expect(screen.queryByText('Save changes before exiting the automation builder?')).not.toBeInTheDocument()
-      expect(mockSetLocation).toHaveBeenCalledWith('/automations')
+      expect(screen.queryByText('Save changes before exiting the workflow builder?')).not.toBeInTheDocument()
+      expect(mockSetLocation).toHaveBeenCalledWith('/workflows')
     })
   })
 

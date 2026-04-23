@@ -34,7 +34,7 @@ export type INavigationItem = {
   element?: React.ReactNode
   children?: INavigationItem[]
   hidden?: boolean // Hide from navigation but keep for routing
-  matchPattern?: string // Optional pattern to match for active state (e.g., "/automation-builder/:workflowId")
+  matchPattern?: string // Optional pattern to match for active state (e.g., "/workflow-builder/:workflowId")
   separatorBefore?: boolean // Render a divider above this item in the nav
   icon?: React.ReactNode // Icon to display next to the label in dropdown menus
 }
@@ -42,17 +42,17 @@ export type INavigationItem = {
 export const navigationItems: INavigationItem[] = [
   {
     label: 'Builder',
-    path: AppRoute.AutomationBuilder.New,
+    path: AppRoute.WorkflowBuilder.New,
     element: <BuilderNew />,
-    matchPattern: '/automation-builder/:workflowId',
+    matchPattern: '/workflow-builder/:workflowId',
   },
   {
-    label: 'Automations',
-    path: AppRoute.Automations.Root,
+    label: 'Workflows',
+    path: AppRoute.Workflows.Root,
     element: <Automations />,
   },
   {
-    label: 'Automation Runs',
+    label: 'Workflow Runs',
     path: AppRoute.Executions.Root,
     element: <Executions />,
   },
@@ -253,7 +253,7 @@ export const navigationItems: INavigationItem[] = [
   },
   {
     label: 'Edit Workflow',
-    path: AppRoute.AutomationBuilder.Edit,
+    path: AppRoute.WorkflowBuilder.Edit,
     element: <BuilderEdit />,
     hidden: true,
   },

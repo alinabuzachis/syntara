@@ -2,7 +2,7 @@ import { Badge, Flex, FlexItem, Truncate } from '@patternfly/react-core'
 
 /**
  * Renders a list of strings as badges in a flex wrap layout.
- * Used by the Automations table for the Tags column.
+ * Used by the Workflows table for the Tags column.
  */
 export function BadgesCell(props: { items: string[] }) {
   if (!props.items.length) {

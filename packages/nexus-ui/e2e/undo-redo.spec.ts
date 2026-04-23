@@ -93,8 +93,8 @@ test('undo history resets when navigating away from the builder', async ({ app }
     await addScriptNode(app, nodeName)
     await expect(undoButton(app)).toBeEnabled()
 
-    await app.goto(toAppUrl('/automations'))
-    await expect(app.getByText('Automations', { exact: true }).first()).toBeVisible()
+    await app.goto(toAppUrl('/workflows'))
+    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
 
     await openWorkflowInBuilder(app, workflowName)
 

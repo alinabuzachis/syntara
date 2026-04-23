@@ -174,7 +174,7 @@ Node renders ExecutionStatusBadge
 
 ## Manual Testing Steps
 
-1. Start a workflow execution from automation builder
+1. Start a workflow execution from the workflow builder
 2. Navigate directly to `/executions/{id}?history=open`
 3. Verify all nodes show execution status badges
 4. Open history panel and select different execution

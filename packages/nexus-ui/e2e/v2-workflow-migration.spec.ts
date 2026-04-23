@@ -96,7 +96,7 @@ test.describe('V2 Workflow Schema Migration', () => {
 
   test('workflow save payload uses v2 schema format', async ({ app }) => {
     const workflowName = buildUniqueName('v2-schema-format')
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
 
     // Build a minimal workflow: manual trigger → script
     await addManualTrigger(app)
@@ -143,7 +143,7 @@ test.describe('V2 Workflow Schema Migration', () => {
   // These tests validate v2 schema correctness but need helper updates for terminology changes.
   test.skip('creates and saves all v2 executor node types', async ({ app }) => {
     const workflowName = buildUniqueName('v2-all-executors')
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
 
     // Manual trigger + all 5 executor types
     // Note: Approval node must have a branch completed to be valid
@@ -188,9 +188,9 @@ test.describe('V2 Workflow Schema Migration', () => {
     // Edges form a chain: trigger → script → http → ai → aap → approval
     expect(def.edges.length).toBeGreaterThanOrEqual(5)
 
-    // Verify workflow appears in automations list
-    await expect(app).toHaveURL(/automation-builder\/.+/)
-    await app.goto(toAppUrl('/automations'))
+    // Verify workflow appears in workflows list
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     const targetRow = app.getByRole('row', { name: new RegExp(workflowName) })
@@ -203,7 +203,7 @@ test.describe('V2 Workflow Schema Migration', () => {
 
   test.skip('creates and saves all v2 control flow node types', async ({ app }) => {
     const workflowName = buildUniqueName('v2-control-flow')
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
 
     // Manual trigger + all 3 control flow types
     await addManualTrigger(app, 'Start')
@@ -263,7 +263,7 @@ test.describe('V2 Workflow Schema Migration', () => {
 
   test.skip('comprehensive v2 workflow: all node types persist and reload', async ({ app }) => {
     const workflowName = buildUniqueName('v2-comprehensive')
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
 
     // --- Build a workflow with ALL 9 v2 node types ---
 
@@ -309,8 +309,8 @@ test.describe('V2 Workflow Schema Migration', () => {
     }
 
     // --- Round-trip: navigate away, come back, verify all nodes visible ---
-    await expect(app).toHaveURL(/automation-builder\/.+/)
-    await app.goto(toAppUrl('/automations'))
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     const targetRow = app.getByRole('row', { name: new RegExp(workflowName) })
@@ -345,7 +345,7 @@ test.describe('V2 Workflow Schema Migration', () => {
 
   test('API response preserves v2 schema format on reload', async ({ app }) => {
     const workflowName = buildUniqueName('v2-response-format')
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
 
     // Create and save a simple workflow (select project first to avoid name reset)
     await addManualTrigger(app)
@@ -353,11 +353,11 @@ test.describe('V2 Workflow Schema Migration', () => {
     await selectProjectIfRequired(app)
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
-    await expect(app).toHaveURL(/automation-builder\/.+/)
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
 
-    // Navigate to automations list, find the saved workflow, and reopen it.
+    // Navigate to workflows list, find the saved workflow, and reopen it.
     // This is more reliable than page.reload() which can lose session context.
-    await app.goto(toAppUrl('/automations'))
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
 

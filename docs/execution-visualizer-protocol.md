@@ -35,7 +35,7 @@ GET  /api/v1/executions/{execution_id}?include=workflow_definition,activities
 ┌─────────────────────────────────────────────────────────────────┐
 │ STEP 1: User Action                                             │
 └─────────────────────────────────────────────────────────────────┘
-  User clicks "Run Automation" button on builder page
+  User clicks "Run workflow" button on builder page
   ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │ STEP 2: HTTP POST - Create Execution                            │

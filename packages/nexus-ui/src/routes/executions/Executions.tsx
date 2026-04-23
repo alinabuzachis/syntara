@@ -122,7 +122,7 @@ export default function Executions() {
   if (queryState) {
     return (
       <AppPage>
-        <AppPageHeader title={<PageTitleWithProject title="Automation Runs" projectSelector={ProjectSelector} />} />
+        <AppPageHeader title={<PageTitleWithProject title="Workflow Runs" projectSelector={ProjectSelector} />} />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>{queryState}</CompassPanel>
         </StackItem>
@@ -132,7 +132,7 @@ export default function Executions() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<PageTitleWithProject title="Automation Runs" projectSelector={ProjectSelector} />} />
+      <AppPageHeader title={<PageTitleWithProject title="Workflow Runs" projectSelector={ProjectSelector} />} />
       <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
         <CompassPanel isFullHeight>
           <Stack style={{ height: '100%', padding: '0 var(--pf-t--global--spacer--sm)' }}>
@@ -159,7 +159,7 @@ export default function Executions() {
                 <Thead>
                   <Tr>
                     <Th modifier="nowrap" style={{ minWidth: '200px', width: '200px' }} sort={getSortParams(0)}>
-                      Automation name
+                      Workflow name
                     </Th>
                     <Th modifier="nowrap" style={{ minWidth: '250px', width: '250px' }} sort={getSortParams(1)}>
                       Run ID

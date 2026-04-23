@@ -92,7 +92,7 @@ export function CredentialWorkflowsTab({ credentialId }: Readonly<CredentialWork
               <Tr
                 key={workflow.id}
                 isClickable
-                onRowClick={() => navigate(AppRoute.AutomationBuilder.Edit.replace(':workflowId', workflow.id))}
+                onRowClick={() => navigate(AppRoute.WorkflowBuilder.Edit.replace(':workflowId', workflow.id))}
               >
                 <Td dataLabel="Workflow Name">
                   <Content component={ContentVariants.p} style={nameStyle}>

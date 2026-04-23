@@ -7,9 +7,9 @@ import { RhUiCubesFillIcon } from '@patternfly/react-icons'
  *
  * @example
  * <EmptyStateNoData
- *   title="No automations found"
- *   description="Create your first automation to get started."
- *   buttonText="Create Automation"
+ *   title="No workflows found"
+ *   description="Create your first workflow to get started."
+ *   buttonText="Create Workflow"
  *   addData={() => navigate('/create')}
  * />
  */

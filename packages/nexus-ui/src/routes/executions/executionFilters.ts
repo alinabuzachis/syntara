@@ -22,7 +22,7 @@ export function transformWorkflowsToOptions(
 }
 
 /**
- * Returns filter definition for filtering executions by workflow/automation with server-side typeahead
+ * Returns filter definition for filtering executions by workflow with server-side typeahead
  *
  * @returns FilterFieldDefinition configured for workflow filtering with async SELECT type
  *
@@ -40,7 +40,7 @@ export function transformWorkflowsToOptions(
  */
 export const getExecutionWorkflowFilterDefinition = (): FilterFieldDefinition => ({
   key: 'workflow_id',
-  label: 'Automation name',
+  label: 'Workflow name',
   type: FilterTypeEnum.SELECT,
   asyncOptions: async (searchValue: string) => {
     const params: Record<string, unknown> = {
@@ -62,7 +62,7 @@ export const getExecutionWorkflowFilterDefinition = (): FilterFieldDefinition =>
       return []
     }
   },
-  placeholder: 'Search automations',
+  placeholder: 'Search workflows',
 })
 
 /**

@@ -10,7 +10,7 @@ describe('EditAutomationDetailsPopover', () => {
     render(
       <EditAutomationDetailsPopover name="My Workflow" description="A test workflow" tags={[]} onApply={onApply} />
     )
-    expect(screen.getByRole('button', { name: 'Edit automation details' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit workflow details' })).toBeInTheDocument()
   })
 
   it('opens popover when edit button is clicked', async () => {
@@ -19,9 +19,9 @@ describe('EditAutomationDetailsPopover', () => {
     render(
       <EditAutomationDetailsPopover name="My Workflow" description="A test workflow" tags={[]} onApply={onApply} />
     )
-    await user.click(screen.getByRole('button', { name: 'Edit automation details' }))
+    await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
-      expect(screen.getByText('Edit automation details')).toBeInTheDocument()
+      expect(screen.getByText('Edit workflow details')).toBeInTheDocument()
     })
     expect(screen.getByLabelText('Name')).toHaveValue('My Workflow')
     expect(screen.getByLabelText('Description')).toHaveValue('A test workflow')
@@ -33,7 +33,7 @@ describe('EditAutomationDetailsPopover', () => {
     render(
       <EditAutomationDetailsPopover name="My Workflow" description="A test workflow" tags={[]} onApply={onApply} />
     )
-    await user.click(screen.getByRole('button', { name: 'Edit automation details' }))
+    await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByLabelText('Name')).toBeInTheDocument()
     })
@@ -48,7 +48,7 @@ describe('EditAutomationDetailsPopover', () => {
     const user = userEvent.setup()
     const onApply = vi.fn()
     render(<EditAutomationDetailsPopover name="Workflow" description="" tags={[]} onApply={onApply} />)
-    await user.click(screen.getByRole('button', { name: 'Edit automation details' }))
+    await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByLabelText('Add tag')).toBeInTheDocument()
     })
@@ -60,7 +60,7 @@ describe('EditAutomationDetailsPopover', () => {
   it('adds tag on comma', async () => {
     const user = userEvent.setup()
     render(<EditAutomationDetailsPopover name="Workflow" description="" tags={[]} onApply={vi.fn()} />)
-    await user.click(screen.getByRole('button', { name: 'Edit automation details' }))
+    await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByLabelText('Add tag')).toBeInTheDocument()
     })
@@ -71,7 +71,7 @@ describe('EditAutomationDetailsPopover', () => {
   it('removes tag when close button is clicked', async () => {
     const user = userEvent.setup()
     render(<EditAutomationDetailsPopover name="Workflow" description="" tags={['deploy']} onApply={vi.fn()} />)
-    await user.click(screen.getByRole('button', { name: 'Edit automation details' }))
+    await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByText('deploy')).toBeInTheDocument()
     })
@@ -83,7 +83,7 @@ describe('EditAutomationDetailsPopover', () => {
     const user = userEvent.setup()
     const onApply = vi.fn()
     render(<EditAutomationDetailsPopover name="My Workflow" description="Desc" tags={[]} onApply={onApply} />)
-    await user.click(screen.getByRole('button', { name: 'Edit automation details' }))
+    await user.click(screen.getByRole('button', { name: 'Edit workflow details' }))
     await waitFor(() => {
       expect(screen.getByLabelText('Name')).toBeInTheDocument()
     })

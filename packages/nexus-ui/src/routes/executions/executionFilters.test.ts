@@ -19,9 +19,9 @@ describe('executionFilters', () => {
       const definition = getExecutionWorkflowFilterDefinition()
 
       expect(definition.key).toBe('workflow_id')
-      expect(definition.label).toBe('Automation name')
+      expect(definition.label).toBe('Workflow name')
       expect(definition.type).toBe(FilterTypeEnum.SELECT)
-      expect(definition.placeholder).toBe('Search automations')
+      expect(definition.placeholder).toBe('Search workflows')
     })
 
     it('uses async options for server-side typeahead', () => {

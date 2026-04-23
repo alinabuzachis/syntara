@@ -160,8 +160,8 @@ describe('ProjectsTab', () => {
 
       render(<ProjectsTab />, { wrapper })
 
-      expect(screen.getByText('No projects')).toBeInTheDocument()
-      expect(screen.getByText('Create a project to organize automations and manage access.')).toBeInTheDocument()
+      expect(screen.getByText('No projects yet')).toBeInTheDocument()
+      expect(screen.getByText('Create a project to organize workflows and manage access.')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /add project/i })).toBeInTheDocument()
     })
 

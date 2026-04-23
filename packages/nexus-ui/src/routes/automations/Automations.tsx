@@ -105,20 +105,21 @@ export default function Automations() {
 
   const workflowsQuery = isAllProjects ? allWorkflowsQuery : projectWorkflowsQuery
   const workflows = (workflowsQuery.data?.resources ?? []) as Workflow[]
-  const { mutate: executeAutomation } = executionsClient.useMutation('post', '/executions')
-  const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
+  const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
+  const { mutate: deleteWorkflow, isPending: isDeleting } = workflowClient.useMutation(
+    'delete',
+    '/workflows/{workflow_id}'
+  )
 
-  // Note: Client-side sorting disabled for cursor-paginated data
-  // TODO: Implement server-side sorting by passing sort params to the API
-  const automations = workflows
+  const sortedWorkflows = workflows
 
   // Group workflows by project when viewing all projects
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set())
 
-  const groupedAutomations = useMemo(() => {
+  const groupedWorkflows = useMemo(() => {
     if (!isAllProjects) return null
     const groups = new Map<string, { project: (typeof projects)[number] | null; workflows: Workflow[] }>()
-    for (const workflow of automations) {
+    for (const workflow of sortedWorkflows) {
       const projectId = (workflow as unknown as { project_id?: string }).project_id ?? 'unknown'
       if (!groups.has(projectId)) {
         groups.set(projectId, {
@@ -129,7 +130,7 @@ export default function Automations() {
       groups.get(projectId)!.workflows.push(workflow)
     }
     return groups
-  }, [automations, projects, isAllProjects])
+  }, [sortedWorkflows, projects, isAllProjects])
 
   const toggleProjectCollapsed = (projectId: string) => {
     setCollapsedProjects((prev) => {
@@ -143,26 +144,27 @@ export default function Automations() {
     })
   }
 
-  useCursorReset(automations.length, hasActiveFilters, cursor, workflowsQuery.isFetching, setCursor)
+  useCursorReset(sortedWorkflows.length, hasActiveFilters, cursor, workflowsQuery.isFetching, setCursor)
 
-  const handleRunAutomation = (workflow: Workflow) => {
-    executeAutomation(
+  const handleRunWorkflow = (workflow: Workflow) => {
+    executeWorkflow(
       { body: { workflow_id: workflow.id!, input_data: {} } },
       {
         onSuccess: (data) => {
-          showSuccess(`Successfully started automation "${workflow.name}"`, 'Automation Started')
+          showSuccess('Workflow Started', `Successfully started workflow "${workflow.name}"`)
+
           if (data && 'id' in data) {
             setLocation(`/executions/${data.id}`)
           }
         },
         onError: (error: unknown) => {
-          showError(`Failed to start automation "${workflow.name}": ${getErrorMessage(error)}`, 'Automation Failed')
+          showError('Workflow Failed', `Failed to start workflow "${workflow.name}": ${getErrorMessage(error)}`)
         },
       }
     )
   }
 
-  const handleDeleteAutomation = () => {
+  const handleDeleteWorkflow = () => {
     const workflow = deleteDialog.item
     if (!workflow) return
 
@@ -170,11 +172,12 @@ export default function Automations() {
       { params: { path: { workflow_id: workflow.id! } } },
       {
         onSuccess: () => {
-          showSuccess(`Successfully deleted automation "${workflow.name}"`, 'Automation Deleted')
+          showSuccess('Workflow Deleted', `Successfully deleted workflow "${workflow.name}"`)
+
           detachPromise(workflowsQuery.refetch())
         },
         onError: (error: unknown) => {
-          showError(`Failed to delete automation "${workflow.name}": ${getErrorMessage(error)}`, 'Delete Failed')
+          showError('Delete Failed', `Failed to delete workflow "${workflow.name}": ${getErrorMessage(error)}`)
         },
         onSettled: () => {
           deleteDialog.close()
@@ -185,11 +188,11 @@ export default function Automations() {
 
   const getRowActions = (workflow: Workflow): IAction[] => [
     {
-      title: <IconLabel icon={<RhUiEditFillIcon />}>Edit automation</IconLabel>,
-      onClick: () => setLocation(`/automation-builder/${workflow.id}`),
+      title: <IconLabel icon={<RhUiEditFillIcon />}>Edit workflow</IconLabel>,
+      onClick: () => setLocation(`/workflow-builder/${workflow.id}`),
     },
     {
-      title: <IconLabel icon={<RhUiPlayIcon />}>Run automation</IconLabel>,
+      title: <IconLabel icon={<RhUiPlayIcon />}>Run workflow</IconLabel>,
       onClick: () => runDialog.open(workflow),
     },
     {
@@ -200,7 +203,7 @@ export default function Automations() {
       isSeparator: true,
     },
     {
-      title: <IconLabel icon={<RhUiTrashIcon />}>Delete automation</IconLabel>,
+      title: <IconLabel icon={<RhUiTrashIcon />}>Delete workflow</IconLabel>,
       onClick: () => deleteDialog.open(workflow),
     },
   ]
@@ -214,7 +217,7 @@ export default function Automations() {
   if (queryState) {
     return (
       <AppPage>
-        <AppPageHeader title="Automations" />
+        <AppPageHeader title="Workflows" />
         <StackItem isFilled style={{ minHeight: 0, overflow: 'hidden' }}>
           <CompassPanel isFullHeight>{queryState}</CompassPanel>
         </StackItem>
@@ -224,9 +227,9 @@ export default function Automations() {
 
   return (
     <AppPage>
-      <AppPageHeader title={<PageTitleWithProject title="Automations" projectSelector={ProjectSelector} />}>
-        <Button variant="primary" onClick={() => setLocation('/automation-builder/new')}>
-          Create automation
+      <AppPageHeader title={<PageTitleWithProject title="Workflows" projectSelector={ProjectSelector} />}>
+        <Button variant="primary" onClick={() => setLocation('/workflow-builder/new')}>
+          Create workflow
         </Button>
       </AppPageHeader>
 
@@ -240,24 +243,24 @@ export default function Automations() {
               showClearAll={true}
             />
 
-            {automations.length === 0 ? (
+            {sortedWorkflows.length === 0 ? (
               <StackItem isFilled style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {hasActiveFilters ? (
                   <EmptyStateFilter clearAllFilters={handleClearAllFilters} />
                 ) : (
                   <EmptyStateNoData
-                    title="No automations found"
-                    description="Create your first automation to get started."
-                    buttonText="Create automation"
-                    addData={() => setLocation('/automation-builder/new')}
+                    title="No workflows yet"
+                    description="Create your first workflow to get started."
+                    buttonText="Create workflow"
+                    addData={() => setLocation('/workflow-builder/new')}
                   />
                 )}
               </StackItem>
             ) : (
               <ScrollableTableContainer
-                aria-label="Automations table"
+                aria-label="Workflows table"
                 useFixedLayout={false}
-                footer={getFooterProps(workflowsQuery.data, automations.length, 'automation', 'automations')}
+                footer={getFooterProps(workflowsQuery.data, sortedWorkflows.length, 'workflow', 'workflows')}
               >
                 <Thead>
                   <Tr>
@@ -269,15 +272,15 @@ export default function Automations() {
                     <Th screenReaderText="Actions" />
                   </Tr>
                 </Thead>
-                {isAllProjects && groupedAutomations ? (
+                {isAllProjects && groupedWorkflows ? (
                   <GroupedAutomationsTableBody
-                    groupedAutomations={groupedAutomations}
+                    groupedWorkflows={groupedWorkflows}
                     collapsedProjects={collapsedProjects}
                     onToggleProject={toggleProjectCollapsed}
                     getRowActions={getRowActions}
                   />
                 ) : (
-                  <FlatAutomationsTableBody automations={automations} getRowActions={getRowActions} />
+                  <FlatAutomationsTableBody workflows={sortedWorkflows} getRowActions={getRowActions} />
                 )}
               </ScrollableTableContainer>
             )}
@@ -290,39 +293,41 @@ export default function Automations() {
         onClose={runDialog.close}
         onConfirm={() => {
           if (runDialog.item) {
-            handleRunAutomation(runDialog.item)
+            handleRunWorkflow(runDialog.item)
           }
           runDialog.close()
         }}
         title={`Run ${runDialog.item?.name}?`}
         confirmLabel="Run now"
       >
-        You are about to manually run this automation. This action will start the automation immediately, bypassing its
+        You are about to manually run this workflow. This action will start the workflow immediately, bypassing its
         normal trigger conditions.
       </ConfirmationDialog>
 
       <ConfirmationDialog
         isOpen={deleteDialog.isOpen}
         onClose={deleteDialog.close}
-        onConfirm={handleDeleteAutomation}
-        title="Delete automation?"
+        onConfirm={handleDeleteWorkflow}
+        title={`Delete workflow "${deleteDialog.item?.name ?? ''}"?`}
         confirmLabel="Delete"
         confirmVariant="danger"
-        variant="medium"
         titleIconVariant="warning"
-        aria-labelledby="delete-automation-modal-title"
-        aria-describedby="delete-automation-modal-body"
+        confirmLoading={isDeleting}
+        destructiveAcknowledgement={{
+          checkboxId: 'delete-workflow-ack',
+          label: 'I understand this workflow will be permanently deleted.',
+        }}
       >
         <Stack hasGutter>
           <StackItem>
-            You are about to permanently delete this automation. This action cannot be reversed. After deletion, the
+            You are about to permanently delete this workflow. This action cannot be reversed. After deletion, the
             following will occur:
           </StackItem>
           <StackItem>
             <List>
-              <ListItem>This automation will stop running immediately.</ListItem>
+              <ListItem>This workflow will stop running immediately.</ListItem>
               <ListItem>
-                Any other automations that use this one as a step will also become invalid and stop running.
+                Any other workflows that use this one as a step will also become invalid and stop running.
               </ListItem>
             </List>
           </StackItem>

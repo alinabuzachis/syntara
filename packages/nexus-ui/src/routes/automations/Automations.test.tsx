@@ -59,7 +59,7 @@ vi.mock('wouter', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal()
   return {
     ...actual,
-    useLocation: () => ['/automations', mockSetLocation],
+    useLocation: () => ['/workflows', mockSetLocation],
     useSearchParams: () => [mockSearchParams, mockSetSearchParams],
   }
 })
@@ -148,7 +148,7 @@ describe('Automations Component', () => {
       submittedAt: 0,
     }
 
-    // Mock executionsClient.useMutation for execute automation
+    // Mock executionsClient.useMutation for execute workflow
     vi.mocked(executionsClient.useMutation).mockReturnValue({
       ...defaultMutationReturn,
       mutate: vi.fn(
@@ -163,7 +163,7 @@ describe('Automations Component', () => {
       ),
     })
 
-    // Mock workflowClient.useMutation for delete automation
+    // Mock workflowClient.useMutation for delete workflow
     vi.mocked(workflowClient.useMutation).mockReturnValue({
       ...defaultMutationReturn,
       mutate: vi.fn(),
@@ -175,10 +175,10 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       // Check page header
-      expect(screen.getByText('Automations')).toBeInTheDocument()
+      expect(screen.getByText('Workflows')).toBeInTheDocument()
 
       // Check table is rendered
-      expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
     })
 
     it('renders workflows in the table', async () => {
@@ -186,7 +186,7 @@ describe('Automations Component', () => {
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Check workflow names are rendered
@@ -200,10 +200,10 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       // FilterBar should be present but keyword search input should not
-      expect(screen.queryByPlaceholderText('Search automations...')).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Search workflows...')).not.toBeInTheDocument()
 
       // Table should still render
-      expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+      expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
     })
 
     it('shows all workflows when no filters are active', async () => {
@@ -211,7 +211,7 @@ describe('Automations Component', () => {
 
       // Wait for table to render
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // All workflows should be visible
@@ -332,7 +332,7 @@ describe('Automations Component', () => {
 
       // Click the link button and verify navigation
       fireEvent.click(workflowNode)
-      expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/1')
+      expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/1')
     })
 
     it('renders tags column with label keys from workflow.labels', () => {
@@ -375,8 +375,8 @@ describe('Automations Component', () => {
     })
   })
 
-  describe('Execute Automation Row Action', () => {
-    it('shows success alert when automation executes successfully', async () => {
+  describe('Execute Workflow Row Action', () => {
+    it('shows success alert when workflow executes successfully', async () => {
       const mockMutate = vi.fn(
         (
           body: unknown,
@@ -410,11 +410,11 @@ describe('Automations Component', () => {
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
@@ -424,9 +424,9 @@ describe('Automations Component', () => {
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      // Wait for menu to open and click the "Run automation" menu item
-      const runAutomationItem = await screen.findByText('Run automation')
-      fireEvent.click(runAutomationItem)
+      // Wait for menu to open and click the "Run workflow" menu item
+      const runWorkflowItem = await screen.findByText('Run workflow')
+      fireEvent.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Run now" button
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
@@ -445,12 +445,12 @@ describe('Automations Component', () => {
 
       // Verify success alert is shown
       await waitFor(() => {
-        expect(screen.getByText('Automation Started')).toBeInTheDocument()
-        expect(screen.getByText(/Successfully started automation "Important Project Workflow"/)).toBeInTheDocument()
+        expect(screen.getByText('Workflow Started')).toBeInTheDocument()
+        expect(screen.getByText(/Successfully started workflow "Important Project Workflow"/)).toBeInTheDocument()
       })
     })
 
-    it('shows error alert when automation execution fails', async () => {
+    it('shows error alert when workflow execution fails', async () => {
       const mockError = new Error('Network error')
       const mockMutate = vi.fn(
         (
@@ -485,11 +485,11 @@ describe('Automations Component', () => {
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
@@ -499,9 +499,9 @@ describe('Automations Component', () => {
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      // Wait for menu to open and click the "Run automation" menu item
-      const runAutomationItem = await screen.findByText('Run automation')
-      fireEvent.click(runAutomationItem)
+      // Wait for menu to open and click the "Run workflow" menu item
+      const runWorkflowItem = await screen.findByText('Run workflow')
+      fireEvent.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Run now" button
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
@@ -514,9 +514,9 @@ describe('Automations Component', () => {
 
       // Verify error alert is shown
       await waitFor(() => {
-        expect(screen.getByText('Automation Failed')).toBeInTheDocument()
+        expect(screen.getByText('Workflow Failed')).toBeInTheDocument()
         expect(
-          screen.getByText(/Failed to start automation "Important Project Workflow": Network error/)
+          screen.getByText(/Failed to start workflow "Important Project Workflow": Network error/)
         ).toBeInTheDocument()
       })
     })
@@ -556,11 +556,11 @@ describe('Automations Component', () => {
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
@@ -570,9 +570,9 @@ describe('Automations Component', () => {
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      // Wait for menu to open and click the "Run automation" menu item
-      const runAutomationItem = await screen.findByText('Run automation')
-      fireEvent.click(runAutomationItem)
+      // Wait for menu to open and click the "Run workflow" menu item
+      const runWorkflowItem = await screen.findByText('Run workflow')
+      fireEvent.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Run now" button
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
@@ -580,23 +580,23 @@ describe('Automations Component', () => {
 
       // Verify error alert is shown with generic message
       await waitFor(() => {
-        expect(screen.getByText('Automation Failed')).toBeInTheDocument()
+        expect(screen.getByText('Workflow Failed')).toBeInTheDocument()
         expect(
-          screen.getByText(/Failed to start automation "Important Project Workflow": An unexpected error occurred/)
+          screen.getByText(/Failed to start workflow "Important Project Workflow": An unexpected error occurred/)
         ).toBeInTheDocument()
       })
     })
 
-    it('shows confirmation dialog when running automation', async () => {
+    it('shows confirmation dialog when running workflow', async () => {
       render(<Automations />, { wrapper })
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
@@ -606,16 +606,16 @@ describe('Automations Component', () => {
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      // Wait for menu to open and click the "Run automation" menu item
-      const runAutomationItem = await screen.findByText('Run automation')
-      fireEvent.click(runAutomationItem)
+      // Wait for menu to open and click the "Run workflow" menu item
+      const runWorkflowItem = await screen.findByText('Run workflow')
+      fireEvent.click(runWorkflowItem)
 
       // Verify confirmation dialog is shown
       await waitFor(() => {
         expect(screen.getByText('Run Important Project Workflow?')).toBeInTheDocument()
         expect(
           screen.getByText(
-            /You are about to manually run this automation. This action will start the automation immediately, bypassing its normal trigger conditions./
+            /You are about to manually run this workflow. This action will start the workflow immediately, bypassing its normal trigger conditions./
           )
         ).toBeInTheDocument()
       })
@@ -625,7 +625,7 @@ describe('Automations Component', () => {
       expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument()
     })
 
-    it('cancels automation run when cancel button is clicked', async () => {
+    it('cancels workflow run when cancel button is clicked', async () => {
       const mockMutate = vi.fn()
 
       vi.mocked(executionsClient.useMutation).mockReturnValue({
@@ -650,11 +650,11 @@ describe('Automations Component', () => {
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
@@ -664,9 +664,9 @@ describe('Automations Component', () => {
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      // Wait for menu to open and click the "Run automation" menu item
-      const runAutomationItem = await screen.findByText('Run automation')
-      fireEvent.click(runAutomationItem)
+      // Wait for menu to open and click the "Run workflow" menu item
+      const runWorkflowItem = await screen.findByText('Run workflow')
+      fireEvent.click(runWorkflowItem)
 
       // Wait for confirmation dialog to appear and click "Cancel" button
       const cancelButton = await screen.findByRole('button', { name: /Cancel/i })
@@ -690,11 +690,11 @@ describe('Automations Component', () => {
 
       // Wait for table to render (PF Table uses role="grid")
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Find and click the row action button for the first workflow
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
@@ -761,7 +761,7 @@ describe('Automations Component', () => {
 
       render(<Automations />, { wrapper })
 
-      expect(screen.getByText(/2 automations/)).toBeInTheDocument()
+      expect(screen.getByText(/2 workflows/)).toBeInTheDocument()
       expect(screen.getByText(/\(of 30 total\)/)).toBeInTheDocument()
     })
 
@@ -930,21 +930,21 @@ describe('Automations Component', () => {
 
       // Should show empty state (cursor was reset)
       await waitFor(() => {
-        expect(screen.getByText('No automations found')).toBeInTheDocument()
+        expect(screen.getByText('No workflows yet')).toBeInTheDocument()
       })
     })
   })
 
-  describe('Delete Automation', () => {
+  describe('Delete Workflow', () => {
     it('shows delete option in row actions menu', async () => {
       render(<Automations />, { wrapper })
 
       // Wait for table to render
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
@@ -955,18 +955,18 @@ describe('Automations Component', () => {
 
       // Verify delete option exists
       await waitFor(() => {
-        expect(screen.getByText('Delete automation')).toBeInTheDocument()
+        expect(screen.getByText('Delete workflow')).toBeInTheDocument()
       })
     })
 
-    it('opens delete confirmation modal when delete is clicked', async () => {
+    it('opens delete confirmation dialog when delete is clicked', async () => {
       render(<Automations />, { wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
 
@@ -976,18 +976,18 @@ describe('Automations Component', () => {
       fireEvent.click(menuTrigger)
 
       // Click delete
-      const deleteItem = await screen.findByText('Delete automation')
+      const deleteItem = await screen.findByText('Delete workflow')
       fireEvent.click(deleteItem)
 
       // Verify modal is shown
       await waitFor(() => {
-        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
-        expect(screen.getByText(/You are about to permanently delete this automation/)).toBeInTheDocument()
-        expect(screen.getByText(/This automation will stop running immediately/)).toBeInTheDocument()
+        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
+        expect(screen.getByText(/You are about to permanently delete this workflow/)).toBeInTheDocument()
+        expect(screen.getByText(/This workflow will stop running immediately/)).toBeInTheDocument()
       })
     })
 
-    it('deletes automation successfully and shows success alert', async () => {
+    it('deletes workflow successfully and shows success alert', async () => {
       const mockRefetch = vi.fn()
       const mockDeleteMutate = vi.fn(
         (
@@ -1034,25 +1034,26 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Open actions menu and click delete
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      const deleteItem = await screen.findByText('Delete automation')
+      const deleteItem = await screen.findByText('Delete workflow')
       fireEvent.click(deleteItem)
 
       // Confirm deletion
       await waitFor(() => {
-        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
       })
 
+      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
       const deleteButton = screen.getByRole('button', { name: 'Delete' })
       fireEvent.click(deleteButton)
 
@@ -1060,8 +1061,8 @@ describe('Automations Component', () => {
       await waitFor(() => {
         expect(mockDeleteMutate).toHaveBeenCalled()
         expect(mockRefetch).toHaveBeenCalled()
-        expect(screen.getByText('Automation Deleted')).toBeInTheDocument()
-        expect(screen.getByText(/Successfully deleted automation/)).toBeInTheDocument()
+        expect(screen.getByText('Workflow Deleted')).toBeInTheDocument()
+        expect(screen.getByText(/Successfully deleted workflow/)).toBeInTheDocument()
       })
     })
 
@@ -1099,25 +1100,26 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Open actions menu and click delete
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      const deleteItem = await screen.findByText('Delete automation')
+      const deleteItem = await screen.findByText('Delete workflow')
       fireEvent.click(deleteItem)
 
       // Confirm deletion
       await waitFor(() => {
-        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
       })
 
+      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
       const deleteButton = screen.getByRole('button', { name: 'Delete' })
       fireEvent.click(deleteButton)
 
@@ -1125,7 +1127,7 @@ describe('Automations Component', () => {
       await waitFor(() => {
         expect(mockDeleteMutate).toHaveBeenCalled()
         expect(screen.getByText('Delete Failed')).toBeInTheDocument()
-        expect(screen.getByText(/Failed to delete automation/)).toBeInTheDocument()
+        expect(screen.getByText(/Failed to delete workflow/)).toBeInTheDocument()
       })
     })
 
@@ -1133,23 +1135,23 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Open actions menu and click delete
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      const deleteItem = await screen.findByText('Delete automation')
+      const deleteItem = await screen.findByText('Delete workflow')
       fireEvent.click(deleteItem)
 
       // Modal appears
       await waitFor(() => {
-        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
       })
 
       // Click cancel
@@ -1158,13 +1160,13 @@ describe('Automations Component', () => {
 
       // Modal closes
       await waitFor(() => {
-        expect(screen.queryByText('Delete automation?')).not.toBeInTheDocument()
+        expect(screen.queryByText(/Delete workflow ".*"\?/)).not.toBeInTheDocument()
       })
     })
   })
 
   describe('Empty States', () => {
-    it('shows EmptyStateNoData when no automations and no active filters', () => {
+    it('shows EmptyStateNoData when no workflows and no active filters', () => {
       mockWorkflowQuery({
         data: {
           resources: [],
@@ -1181,14 +1183,14 @@ describe('Automations Component', () => {
 
       render(<Automations />, { wrapper })
 
-      expect(screen.getByText('No automations found')).toBeInTheDocument()
-      expect(screen.getByText('Create your first automation to get started.')).toBeInTheDocument()
-      // Both the header and empty state have "Create automation" buttons
-      const createButtons = screen.getAllByRole('button', { name: 'Create automation' })
+      expect(screen.getByText('No workflows yet')).toBeInTheDocument()
+      expect(screen.getByText('Create your first workflow to get started.')).toBeInTheDocument()
+      // Both the header and empty state have "Create workflow" buttons
+      const createButtons = screen.getAllByRole('button', { name: 'Create workflow' })
       expect(createButtons.length).toBeGreaterThanOrEqual(1)
     })
 
-    it('navigates to builder when empty state "Create automation" button is clicked', async () => {
+    it('navigates to builder when empty state "Create workflow" button is clicked', async () => {
       const user = userEvent.setup()
       mockSetLocation.mockClear()
 
@@ -1208,11 +1210,11 @@ describe('Automations Component', () => {
 
       render(<Automations />, { wrapper })
 
-      // Both the header and empty state have "Create automation" buttons; click the last one (empty state)
-      const createButtons = screen.getAllByRole('button', { name: 'Create automation' })
+      // Both the header and empty state have "Create workflow" buttons; click the last one (empty state)
+      const createButtons = screen.getAllByRole('button', { name: 'Create workflow' })
       await user.click(createButtons[createButtons.length - 1])
 
-      expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/new')
+      expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/new')
     })
 
     it('shows EmptyStateFilter when active filters return no results', () => {
@@ -1240,7 +1242,7 @@ describe('Automations Component', () => {
     })
   })
 
-  describe('Run automation with navigation', () => {
+  describe('Run workflow with navigation', () => {
     it('navigates to execution detail page on successful run when response has id', async () => {
       mockSetLocation.mockClear()
       const mockMutate = vi.fn(
@@ -1275,18 +1277,18 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
-      // Open actions menu and click "Run automation"
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      // Open actions menu and click "Run workflow"
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      const runItem = await screen.findByText('Run automation')
+      const runItem = await screen.findByText('Run workflow')
       fireEvent.click(runItem)
 
       const runButton = await screen.findByRole('button', { name: /^Run now$/i })
@@ -1298,7 +1300,7 @@ describe('Automations Component', () => {
     })
   })
 
-  describe('Delete automation settled behavior', () => {
+  describe('Delete workflow settled behavior', () => {
     it('closes dialog and clears workflow on settled (success)', async () => {
       const mockDeleteMutate = vi.fn(
         (
@@ -1335,30 +1337,31 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
       // Open actions menu and click delete
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      const deleteItem = await screen.findByText('Delete automation')
+      const deleteItem = await screen.findByText('Delete workflow')
       fireEvent.click(deleteItem)
 
       await waitFor(() => {
-        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
       })
 
+      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
       const deleteButton = screen.getByRole('button', { name: 'Delete' })
       fireEvent.click(deleteButton)
 
       // After onSettled, the delete dialog should be closed
       await waitFor(() => {
-        expect(screen.queryByText('Delete automation?')).not.toBeInTheDocument()
+        expect(screen.queryByText(/Delete workflow ".*"\?/)).not.toBeInTheDocument()
       })
     })
 
@@ -1398,35 +1401,36 @@ describe('Automations Component', () => {
       render(<Automations />, { wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('grid', { name: 'Automations table' })).toBeInTheDocument()
+        expect(screen.getByRole('grid', { name: 'Workflows table' })).toBeInTheDocument()
       })
 
-      const table = screen.getByRole('grid', { name: 'Automations table' })
+      const table = screen.getByRole('grid', { name: 'Workflows table' })
       const rows = within(table).getAllByRole('row')
       const firstDataRow = rows[1]
       const buttons = within(firstDataRow).getAllByRole('button')
       const menuTrigger = buttons[buttons.length - 1]
       fireEvent.click(menuTrigger)
 
-      const deleteItem = await screen.findByText('Delete automation')
+      const deleteItem = await screen.findByText('Delete workflow')
       fireEvent.click(deleteItem)
 
       await waitFor(() => {
-        expect(screen.getByText('Delete automation?')).toBeInTheDocument()
+        expect(screen.getByText(/Delete workflow ".*"\?/)).toBeInTheDocument()
       })
 
+      fireEvent.click(screen.getByRole('checkbox', { name: /I understand this workflow/ }))
       const deleteButton = screen.getByRole('button', { name: 'Delete' })
       fireEvent.click(deleteButton)
 
       // After onSettled, the delete dialog should be closed even on error
       await waitFor(() => {
-        expect(screen.queryByText('Delete automation?')).not.toBeInTheDocument()
+        expect(screen.queryByText(/Delete workflow ".*"\?/)).not.toBeInTheDocument()
       })
     })
   })
 
   describe('Grouped view (All Projects)', () => {
-    it('renders grouped automations when all projects are selected', () => {
+    it('renders grouped workflows when all projects are selected', () => {
       mockUseProjectSelector.mockReturnValue({
         selectedProject: null,
         isAllProjects: true,
@@ -1568,8 +1572,8 @@ describe('Automations Component', () => {
     })
   })
 
-  describe('Singular/plural automation count', () => {
-    it('shows singular "automation" for exactly one result', () => {
+  describe('Singular/plural workflow count', () => {
+    it('shows singular "workflow" for exactly one result', () => {
       const singleResult = {
         data: {
           resources: [mockWorkflows[0]],
@@ -1586,7 +1590,7 @@ describe('Automations Component', () => {
 
       render(<Automations />, { wrapper })
 
-      expect(screen.getByText(/1 automation$/)).toBeInTheDocument()
+      expect(screen.getByText(/1 workflow$/)).toBeInTheDocument()
     })
   })
 

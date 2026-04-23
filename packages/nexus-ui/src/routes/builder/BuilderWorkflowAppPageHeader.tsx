@@ -58,20 +58,20 @@ export type BuilderWorkflowAppPageHeaderProps = Readonly<{
   handleSaveWorkflow: () => void
 }>
 
-type AutomationKebabToggleProps = Readonly<{
+type WorkflowKebabToggleProps = Readonly<{
   toggleRef: Ref<MenuToggleElement>
   isKebabOpen: boolean
   dispatch: Dispatch<BuilderAction>
 }>
 
-function AutomationKebabToggle({ toggleRef, isKebabOpen, dispatch }: AutomationKebabToggleProps) {
+function WorkflowKebabToggle({ toggleRef, isKebabOpen, dispatch }: WorkflowKebabToggleProps) {
   return (
     <MenuToggle
       ref={toggleRef}
       variant="plain"
       onClick={() => dispatch({ type: 'SET_KEBAB_OPEN', payload: !isKebabOpen })}
       isExpanded={isKebabOpen}
-      aria-label="Automation actions"
+      aria-label="Workflow actions"
     >
       <RhUiEllipsisVerticalFillIcon />
     </MenuToggle>
@@ -103,7 +103,7 @@ export function BuilderWorkflowAppPageHeader({
 }: BuilderWorkflowAppPageHeaderProps) {
   const renderKebabMenuToggle = useCallback(
     (toggleRef: Ref<MenuToggleElement>) => (
-      <AutomationKebabToggle toggleRef={toggleRef} isKebabOpen={isKebabOpen} dispatch={dispatch} />
+      <WorkflowKebabToggle toggleRef={toggleRef} isKebabOpen={isKebabOpen} dispatch={dispatch} />
     ),
     [dispatch, isKebabOpen]
   )
@@ -274,7 +274,7 @@ export function BuilderWorkflowAppPageHeader({
                     <Icon isInline style={{ marginRight: 'var(--pf-t--global--spacer--sm)' }}>
                       <RhUiTrashIcon />
                     </Icon>
-                    Delete automation
+                    Delete workflow
                   </DropdownItem>
                 </DropdownList>
               </Dropdown>

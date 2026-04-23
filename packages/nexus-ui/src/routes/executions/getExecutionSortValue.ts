@@ -13,7 +13,7 @@ export function getExecutionSortValue(
   activeSortIndex: number,
   showWorkflowColumn: boolean
 ): string | Date | null {
-  // When workflow column is hidden, shift all indices by 1 since Automation name is first column
+  // When workflow column is hidden, shift all indices by 1 since Workflow name is first column
   const columnIndex = showWorkflowColumn ? activeSortIndex : activeSortIndex + 1
 
   switch (columnIndex) {

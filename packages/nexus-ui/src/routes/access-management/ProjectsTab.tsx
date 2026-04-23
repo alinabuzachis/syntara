@@ -242,8 +242,8 @@ export function ProjectsTab() {
     return (
       <>
         <EmptyStateNoData
-          title="No projects"
-          description="Create a project to organize automations and manage access."
+          title="No projects yet"
+          description="Create a project to organize workflows and manage access."
           buttonText="Add project"
           addData={() => setFormModalOpen(true)}
         />

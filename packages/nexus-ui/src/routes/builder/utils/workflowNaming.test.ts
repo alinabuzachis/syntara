@@ -8,7 +8,7 @@ describe('getNextDefaultWorkflowName', () => {
   })
 
   it('returns new-workflow when name is not taken', () => {
-    expect(getNextDefaultWorkflowName(['Other Workflow', 'My Automation'])).toBe('new-workflow')
+    expect(getNextDefaultWorkflowName(['Other Workflow', 'My Workflow'])).toBe('new-workflow')
   })
 
   it('returns new-workflow-1 when new-workflow exists', () => {

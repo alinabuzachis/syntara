@@ -5,9 +5,9 @@ import { getErrorMessage } from '../../../utils/apiErrors'
 import { detachPromise } from '../../../utils/detachPromise'
 import type { BuilderAction } from '../builderReducer'
 
-type ShowAlert = (message: string, title?: string) => void
+type ShowAlert = (title: string, description?: string) => void
 
-type ExecuteAutomationMutate = (
+type ExecuteWorkflowMutate = (
   variables: { body: { workflow_id: string; input_data?: Record<string, never> } },
   options?: {
     onSuccess?: (data: { id?: string }) => void
@@ -31,7 +31,7 @@ export interface UseBuilderToolbarHandlersOptions {
   reactFlowInstance: ReactFlowInstance
   executionsQuery: { refetch: () => Promise<unknown> }
   dispatch: Dispatch<BuilderAction>
-  executeAutomation: ExecuteAutomationMutate
+  executeWorkflow: ExecuteWorkflowMutate
   deleteWorkflow: DeleteWorkflowMutate
   showSuccess: ShowAlert
   showError: ShowAlert
@@ -39,7 +39,7 @@ export interface UseBuilderToolbarHandlersOptions {
 }
 
 /**
- * Header toolbar actions: details/history toggles, run, delete automation.
+ * Header toolbar actions: details/history toggles, run, delete workflow.
  */
 export function useBuilderToolbarHandlers({
   workflow,
@@ -49,44 +49,44 @@ export function useBuilderToolbarHandlers({
   reactFlowInstance,
   executionsQuery,
   dispatch,
-  executeAutomation,
+  executeWorkflow,
   deleteWorkflow,
   showSuccess,
   showError,
   setLocation,
 }: UseBuilderToolbarHandlersOptions) {
-  const handleRunAutomation = useCallback(() => {
+  const handleRunWorkflow = useCallback(() => {
     if (!workflow?.id) return
 
-    executeAutomation(
+    executeWorkflow(
       { body: { workflow_id: workflow.id, input_data: {} } },
       {
         onSuccess: (data) => {
-          showSuccess(`Successfully started automation "${workflowName}"`, 'Automation Started')
+          showSuccess('Workflow Started', `Successfully started workflow "${workflowName}"`)
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
           setLocation(`/executions/${data.id!}?history=open`)
         },
         onError: (error) => {
-          showError(`Failed to start automation "${workflowName}": ${getErrorMessage(error)}`, 'Automation Failed')
+          showError('Workflow Failed', `Failed to start workflow "${workflowName}": ${getErrorMessage(error)}`)
           dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })
         },
       }
     )
-  }, [workflow, workflowName, executeAutomation, showSuccess, showError, setLocation, dispatch])
+  }, [workflow, workflowName, executeWorkflow, showSuccess, showError, setLocation, dispatch])
 
-  const handleDeleteAutomation = useCallback(() => {
+  const handleDeleteWorkflow = useCallback(() => {
     if (!workflow?.id) return
 
     deleteWorkflow(
       { params: { path: { workflow_id: workflow.id } } },
       {
         onSuccess: () => {
-          showSuccess(`Successfully deleted automation "${workflowName}"`, 'Automation Deleted')
+          showSuccess('Workflow Deleted', `Successfully deleted workflow "${workflowName}"`)
           dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
-          setLocation('/automation-builder/new')
+          setLocation('/workflow-builder/new')
         },
         onError: (error) => {
-          showError(`Failed to delete automation "${workflowName}": ${getErrorMessage(error)}`, 'Delete Failed')
+          showError('Delete Failed', `Failed to delete workflow "${workflowName}": ${getErrorMessage(error)}`)
           dispatch({ type: 'SET_DELETE_DIALOG', payload: false })
         },
       }
@@ -107,5 +107,5 @@ export function useBuilderToolbarHandlers({
     }
   }, [historyCardOpen, executionsQuery, dispatch])
 
-  return { handleRunAutomation, handleDeleteAutomation, handleToggleDetails, handleToggleHistory }
+  return { handleRunWorkflow, handleDeleteWorkflow, handleToggleDetails, handleToggleHistory }
 }

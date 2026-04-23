@@ -20,7 +20,7 @@ export interface UseBuilderFlowInteractionHandlersOptions {
 }
 
 /**
- * React Flow node/edge interaction handlers for the automation builder canvas.
+ * React Flow node/edge interaction handlers for the workflow builder canvas.
  */
 export function useBuilderFlowInteractionHandlers({
   reactFlowInstance,

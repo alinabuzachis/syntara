@@ -12,7 +12,7 @@ describe('getExecutionSortValue', () => {
   } as Parameters<typeof getExecutionSortValue>[0]
 
   describe('with workflow column visible', () => {
-    it('returns workflow_id for index 0 (Automation name column)', () => {
+    it('returns workflow_id for index 0 (Workflow name column)', () => {
       expect(getExecutionSortValue(mockExecution, 0, true)).toBe('workflow-456')
     })
 

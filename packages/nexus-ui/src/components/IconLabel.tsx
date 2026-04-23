@@ -6,7 +6,7 @@ import type { ReactElement } from 'react'
  * Commonly used in action menus, status indicators, and navigation items.
  *
  * @example
- * <IconLabel icon={<PencilAltIcon />}>Edit automation</IconLabel>
+ * <IconLabel icon={<PencilAltIcon />}>Edit workflow</IconLabel>
  */
 export function IconLabel(props: { icon?: ReactElement; children: React.ReactNode; color?: string }) {
   return (

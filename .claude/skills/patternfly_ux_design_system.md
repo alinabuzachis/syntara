@@ -210,7 +210,7 @@ Filter bar is visible when data exists or when filters are active; hidden only w
   - Action order: non-destructive actions first (e.g., "Edit", "Duplicate", "Disable"), then a divider, then destructive actions last (e.g., "Delete", "Remove")
   - On the **details page header**, the same actions appear in a kebab menu. Frequently used actions are promoted to direct buttons in the header based on usage patterns — these become the primary actions for that resource. The remaining actions stay in the kebab.
 - **Footer/pagination** — uses cursor-based pagination via `ScrollableTableContainer`'s `footer` prop (`TableFooterProps`):
-  - Left: Item count — `"5 automations (of 100 total)"` format showing current page count and overall total
+  - Left: Item count — `"5 workflows (of 100 total)"` format showing current page count and overall total
   - Right: **Previous / Next** buttons using cursor tokens from the API (`prev`, `next`). No page numbers, no per-page selector, no jump-to-page — the API returns opaque cursor strings, not offsets
   - Pass `{ content, prev, next, onPrev, onNext }` to the `footer` prop
 

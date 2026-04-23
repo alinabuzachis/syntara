@@ -266,7 +266,7 @@ it('applies name filter to API query', async () => {
 
 ---
 
-### Automations (Recommended Enhancement)
+### Workflows (Recommended Enhancement)
 
 **File:** `src/routes/automations/Automations.test.tsx`
 

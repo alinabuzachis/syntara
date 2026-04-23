@@ -1,6 +1,15 @@
-import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core'
+import { Button, Checkbox, Modal, ModalBody, ModalFooter, ModalHeader, Stack, StackItem } from '@patternfly/react-core'
+import { useEffect, useState, type ReactNode } from 'react'
 
 type ConfirmVariant = 'primary' | 'danger'
+
+/** When set, the user must check the box before the confirm action is enabled. */
+export interface DestructiveAcknowledgementProps {
+  /** Stable id for the checkbox (labels and tests). */
+  checkboxId: string
+  /** Checkbox label (e.g. "I understand this cannot be undone"). */
+  label: ReactNode
+}
 
 interface ConfirmationDialogProps {
   /** Whether the dialog is open */
@@ -12,7 +21,7 @@ interface ConfirmationDialogProps {
   /** Dialog title */
   title: string
   /** Dialog body content */
-  children: React.ReactNode
+  children: ReactNode
   /** Confirm button label (defaults to "Confirm") */
   confirmLabel?: string
   /** Cancel button label (defaults to "Cancel") */
@@ -23,6 +32,13 @@ interface ConfirmationDialogProps {
   variant?: 'small' | 'medium' | 'large'
   /** Optional title icon variant (e.g., "warning") */
   titleIconVariant?: 'warning' | 'danger'
+  /**
+   * Optional extra confirmation for irreversible actions. The confirm button stays
+   * disabled until the checkbox is checked; state resets whenever the dialog opens.
+   */
+  destructiveAcknowledgement?: DestructiveAcknowledgementProps
+  /** When true, confirm shows a spinner and both footer actions are disabled */
+  confirmLoading?: boolean
   /** Optional aria-labelledby id */
   'aria-labelledby'?: string
   /** Optional aria-describedby id */
@@ -41,11 +57,18 @@ interface ConfirmationDialogProps {
  *   isOpen={deleteDialogOpen}
  *   onClose={closeDialog}
  *   onConfirm={handleDelete}
- *   title="Delete user"
+ *   title="Delete user?"
  *   confirmLabel="Delete"
  *   confirmVariant="danger"
+ *   titleIconVariant="warning"
+ *   destructiveAcknowledgement={{
+ *     checkboxId: 'delete-user-ack',
+ *     label: 'I understand this cannot be undone.',
+ *   }}
  * >
- *   Are you sure you want to delete "{user.name}"? This action cannot be undone.
+ *   <Content component="p">
+ *     The user <strong>{user.name}</strong> will be deleted. This cannot be undone.
+ *   </Content>
  * </ConfirmationDialog>
  * ```
  */
@@ -60,9 +83,40 @@ export function ConfirmationDialog({
   confirmVariant = 'primary',
   variant = 'small',
   titleIconVariant,
+  destructiveAcknowledgement,
+  confirmLoading = false,
   'aria-labelledby': ariaLabelledby,
   'aria-describedby': ariaDescribedby,
 }: Readonly<ConfirmationDialogProps>) {
+  const [destructiveAcknowledged, setDestructiveAcknowledged] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    queueMicrotask(() => {
+      setDestructiveAcknowledged(false)
+    })
+  }, [isOpen])
+
+  const confirmDisabled = Boolean(destructiveAcknowledgement) && !destructiveAcknowledged
+
+  const body = destructiveAcknowledgement ? (
+    <Stack hasGutter>
+      <StackItem>{children}</StackItem>
+      <StackItem>
+        <Checkbox
+          id={destructiveAcknowledgement.checkboxId}
+          label={destructiveAcknowledgement.label}
+          isChecked={destructiveAcknowledged}
+          onChange={(_event, checked) => {
+            setDestructiveAcknowledged(checked)
+          }}
+        />
+      </StackItem>
+    </Stack>
+  ) : (
+    children
+  )
+
   return (
     <Modal
       isOpen={isOpen}
@@ -72,12 +126,17 @@ export function ConfirmationDialog({
       aria-describedby={ariaDescribedby}
     >
       <ModalHeader title={title} titleIconVariant={titleIconVariant} labelId={ariaLabelledby} />
-      <ModalBody id={ariaDescribedby}>{children}</ModalBody>
+      <ModalBody id={ariaDescribedby}>{body}</ModalBody>
       <ModalFooter>
-        <Button variant={confirmVariant} onClick={onConfirm}>
+        <Button
+          variant={confirmVariant}
+          onClick={onConfirm}
+          isDisabled={confirmDisabled || confirmLoading}
+          isLoading={confirmLoading}
+        >
           {confirmLabel}
         </Button>
-        <Button variant="link" onClick={onClose}>
+        <Button variant="link" onClick={onClose} isDisabled={confirmLoading}>
           {cancelLabel}
         </Button>
       </ModalFooter>

@@ -224,7 +224,7 @@ import MyIcon from '../../../../assets/my-icon.svg?react'
    ```
 
 2. **Open the workflow builder:**
-   Navigate to `/automation-builder/new`
+   Navigate to `/workflow-builder/new`
 
 3. **Test the add panel:**
    - Click "Add Step"

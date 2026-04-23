@@ -21,7 +21,7 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
 
   // Check if we're on a builder route with unsaved changes
   const hasUnsavedChanges = useCallback(() => {
-    const isOnBuilder = location.startsWith('/automation-builder')
+    const isOnBuilder = location.startsWith('/workflow-builder')
     // Get the current isDirty directly from store to avoid stale closure
     const currentIsDirty = useWorkflowStore.getState().isDirty
     if (!isOnBuilder) return false
@@ -32,7 +32,7 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
   const requestNavigation = useCallback(
     (targetPath: string) => {
       // If navigating within builder or no unsaved changes, proceed immediately
-      if (targetPath.startsWith('/automation-builder') || !hasUnsavedChanges()) {
+      if (targetPath.startsWith('/workflow-builder') || !hasUnsavedChanges()) {
         setLocation(targetPath)
         return
       }
@@ -113,10 +113,10 @@ export function UnsavedChangesProvider({ children }: Readonly<UnsavedChangesProv
         aria-describedby="unsaved-changes-modal-body"
         variant="medium"
       >
-        <ModalHeader title="Save changes before exiting the automation builder?" titleIconVariant="warning" />
+        <ModalHeader title="Save changes before exiting the workflow builder?" titleIconVariant="warning" />
         <ModalBody id="unsaved-changes-modal-body">
-          Exiting now will permanently delete all recent unsaved progress on your automation. Please save your work
-          before leaving.
+          Exiting now will permanently delete all recent unsaved progress on your workflow. Please save your work before
+          leaving.
         </ModalBody>
         <ModalFooter>
           <Button key="exit" variant="secondary" onClick={handleExitWithoutSaving} isDisabled={isSaving}>

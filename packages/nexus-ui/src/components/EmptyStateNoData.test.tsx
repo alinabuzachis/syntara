@@ -20,9 +20,9 @@ describe('EmptyStateNoData', () => {
   })
 
   it('renders with custom title', () => {
-    render(<EmptyStateNoData title="No automations found" />)
+    render(<EmptyStateNoData title="No workflows found" />)
 
-    expect(screen.getByText('No automations found')).toBeInTheDocument()
+    expect(screen.getByText('No workflows found')).toBeInTheDocument()
   })
 
   it('renders with custom description', () => {
@@ -54,9 +54,9 @@ describe('EmptyStateNoData', () => {
 
   it('renders with custom button text', () => {
     const addData = vi.fn()
-    render(<EmptyStateNoData addData={addData} buttonText="Create Automation" />)
+    render(<EmptyStateNoData addData={addData} buttonText="Create Workflow" />)
 
-    expect(screen.getByRole('button', { name: 'Create Automation' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create Workflow' })).toBeInTheDocument()
   })
 
   it('renders with custom image', () => {

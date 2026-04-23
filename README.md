@@ -63,7 +63,7 @@ The UI loads with demo workflows from the mock API. No backend setup needed for 
 Get familiar with the hot reload workflow:
 
 1. **Open the UI** in your browser: <http://localhost:5173>
-2. **Navigate to** the Automations page
+2. **Navigate to** the Workflows page
 3. **Open the code** in your editor: `packages/nexus-ui/src/routes/automations/Automations.tsx`
 4. **Find the `AppPageHeader`** component and change the title text
 5. **Watch it reload** automatically in your browser - no refresh needed!

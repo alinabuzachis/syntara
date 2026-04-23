@@ -13,7 +13,7 @@ vi.mock('./useGlossaryTerms', () => ({
 const mockTerms: GlossaryTerm[] = [
   { term: 'Alpha', definition: 'First letter of the alphabet' },
   { term: 'Beta', definition: 'Second letter' },
-  { term: 'Workflow', definition: 'A process or automation definition' },
+  { term: 'Workflow', definition: 'A process or workflow definition' },
 ]
 
 describe('Glossary', () => {
@@ -29,7 +29,7 @@ describe('Glossary', () => {
     expect(screen.getByText('Workflow')).toBeInTheDocument()
     expect(screen.getByText('First letter of the alphabet')).toBeInTheDocument()
     expect(screen.getByText('Second letter')).toBeInTheDocument()
-    expect(screen.getByText('A process or automation definition')).toBeInTheDocument()
+    expect(screen.getByText('A process or workflow definition')).toBeInTheDocument()
   })
 
   it('renders search input with placeholder', () => {
@@ -57,7 +57,7 @@ describe('Glossary', () => {
     await user.type(screen.getByPlaceholderText('Search glossary...'), 'process')
 
     expect(screen.getByText('Workflow')).toBeInTheDocument()
-    expect(screen.getByText('A process or automation definition')).toBeInTheDocument()
+    expect(screen.getByText('A process or workflow definition')).toBeInTheDocument()
     expect(screen.queryByText('Alpha')).not.toBeInTheDocument()
     expect(screen.queryByText('Beta')).not.toBeInTheDocument()
   })

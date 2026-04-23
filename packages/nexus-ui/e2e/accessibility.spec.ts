@@ -11,16 +11,16 @@ async function expectNoA11yViolations(page: Page) {
 }
 
 test.describe('Accessibility', () => {
-  test('automations page has no accessibility violations', async ({ app }) => {
-    await app.goto(toAppUrl('/automations'))
-    await expect(app.getByText('Automations', { exact: true }).first()).toBeVisible()
+  test('workflows page has no accessibility violations', async ({ app }) => {
+    await app.goto(toAppUrl('/workflows'))
+    await expect(app.getByText('Workflows', { exact: true }).first()).toBeVisible()
 
     await expectNoA11yViolations(app)
   })
 
   test('executions page has no accessibility violations', async ({ app }) => {
     await app.goto(toAppUrl('/executions'))
-    await expect(app.getByText('Automation Runs', { exact: true }).first()).toBeVisible()
+    await expect(app.getByText('Workflow Runs', { exact: true }).first()).toBeVisible()
 
     await expectNoA11yViolations(app)
   })
@@ -40,7 +40,7 @@ test.describe('Accessibility', () => {
   })
 
   test('workflow builder page has no accessibility violations', async ({ app }) => {
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await expect(app.getByPlaceholder('Workflow name')).toBeVisible()
 
     await expectNoA11yViolations(app)

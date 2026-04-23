@@ -138,7 +138,7 @@ export type FilterType = (typeof FilterTypeEnum)[keyof typeof FilterTypeEnum]
  * // Async typeahead select
  * {
  *   key: 'workflow_id',
- *   label: 'Automation',
+ *   label: 'Workflow',
  *   type: FilterTypeEnum.SELECT,
  *   asyncOptions: async (searchValue) => {
  *     const response = await fetch(`/workflows?name[contains]=${searchValue}`)

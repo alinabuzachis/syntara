@@ -26,7 +26,7 @@ describe('IntegrationEmptyState', () => {
   it('renders description text', () => {
     render(<IntegrationEmptyState />)
 
-    expect(screen.getByText(/Configure integrations to use them in automation/i)).toBeInTheDocument()
+    expect(screen.getByText(/Configure integrations to use them in workflows/i)).toBeInTheDocument()
   })
 
   it('renders add integration button', () => {

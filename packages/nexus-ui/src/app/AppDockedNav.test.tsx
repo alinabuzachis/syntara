@@ -11,7 +11,7 @@ import { AppDockedNav } from './AppDockedNav'
 // Mock wouter
 const mockNavigate = vi.fn()
 vi.mock('wouter', () => ({
-  useLocation: () => ['/automations', mockNavigate],
+  useLocation: () => ['/workflows', mockNavigate],
 }))
 
 // Mock useUnsavedChanges
@@ -126,7 +126,7 @@ describe('AppDockedNav', () => {
     const user = userEvent.setup()
     renderDockedNav()
 
-    const navItem = screen.getByLabelText('Automations')
+    const navItem = screen.getByLabelText('Workflows')
     await user.click(navItem)
     expect(mockRequestNavigation).toHaveBeenCalled()
   })
@@ -134,7 +134,7 @@ describe('AppDockedNav', () => {
   it('renders with correct active state based on location', () => {
     renderDockedNav()
 
-    // Since we mocked location as '/automations', that nav item should be active
+    // Since we mocked location as '/workflows', that nav item should be active
     const nav = screen.getByRole('navigation', { name: 'Main navigation' })
     expect(nav).toBeInTheDocument()
   })

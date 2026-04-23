@@ -41,7 +41,7 @@ export function ConnectionBanner({ isVisible }: ConnectionBannerProps) {
       <Stack hasGutter>
         <StackItem>
           <Content component={ContentVariants.p}>
-            Your automation is still running safely in the background. Refresh the page to see the latest progress.
+            Your workflow is still running safely in the background. Refresh the page to see the latest progress.
           </Content>
         </StackItem>
         <StackItem>

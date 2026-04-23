@@ -88,7 +88,7 @@ describe('ApprovalDetail Component', () => {
 
     expect(screen.getByText('Test Approval')).toBeInTheDocument()
     expect(screen.getByText('Approval type')).toBeInTheDocument()
-    expect(screen.getByText('Automation')).toBeInTheDocument()
+    expect(screen.getByText('Workflow')).toBeInTheDocument()
     expect(screen.getByText('Approval initiated')).toBeInTheDocument()
   })
 

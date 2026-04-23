@@ -1,18 +1,5 @@
 import type { Execution, WorkflowAPI } from '@ansible/nexus-contracts'
-import {
-  Button,
-  CompassPanel,
-  Flex,
-  FlexItem,
-  List,
-  ListItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core'
+import { CompassPanel, Content, Flex, FlexItem, Stack, StackItem } from '@patternfly/react-core'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReactFlow, useNodesInitialized } from '@xyflow/react'
 import { useEffect, useMemo, useReducer, useState } from 'react'
@@ -22,6 +9,7 @@ import { AppPage } from '../../app/AppPage'
 import { useUnsavedChanges } from '../../app/useUnsavedChanges'
 import { executionsClient, workflowClient } from '../../client'
 import { useAlerts } from '../../components/alerts'
+import { ConfirmationDialog } from '../../components/ConfirmationDialog'
 import { useProjectSelector } from '../../hooks/useProjectSelector'
 import { useWorkflowStore } from '../../stores/useWorkflowStore'
 import type { FilterConfig } from '../../types/filters'
@@ -147,7 +135,7 @@ export function BuilderContent(props: BuilderContentProps) {
     'patch',
     '/workflows/{workflow_id}'
   )
-  const { mutate: executeAutomation } = executionsClient.useMutation('post', '/executions')
+  const { mutate: executeWorkflow } = executionsClient.useMutation('post', '/executions')
   const { mutate: deleteWorkflow } = workflowClient.useMutation('delete', '/workflows/{workflow_id}')
 
   const isPending = isCreating || isUpdating
@@ -177,7 +165,7 @@ export function BuilderContent(props: BuilderContentProps) {
     return () => unregisterSaveHandler()
   }, [handleSaveWorkflow, registerSaveHandler, unregisterSaveHandler])
 
-  const { handleRunAutomation, handleDeleteAutomation, handleToggleDetails, handleToggleHistory } =
+  const { handleRunWorkflow, handleDeleteWorkflow, handleToggleDetails, handleToggleHistory } =
     useBuilderToolbarHandlers({
       workflow: workflow as { id: string } | undefined,
       workflowName,
@@ -186,7 +174,7 @@ export function BuilderContent(props: BuilderContentProps) {
       reactFlowInstance,
       executionsQuery,
       dispatch,
-      executeAutomation,
+      executeWorkflow,
       deleteWorkflow,
       showSuccess,
       showError,
@@ -418,68 +406,41 @@ export function BuilderContent(props: BuilderContentProps) {
             </StackItem>
           </Stack>
 
-          <Modal
+          <ConfirmationDialog
             isOpen={confirmDialogOpen}
             onClose={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}
-            variant="small"
+            onConfirm={handleRunWorkflow}
+            title={`Run ${workflowName}?`}
+            confirmLabel="Run now"
             aria-labelledby="run-workflow-modal-title"
             aria-describedby="run-workflow-modal-description"
           >
-            <ModalHeader title={`Run ${workflowName}?`} labelId="run-workflow-modal-title" />
-            <ModalBody id="run-workflow-modal-description">
-              You are about to manually run this automation. This action will start the automation immediately,
-              bypassing its normal trigger conditions.
-            </ModalBody>
-            <ModalFooter>
-              <Button variant="link" onClick={() => dispatch({ type: 'SET_CONFIRM_DIALOG', payload: false })}>
-                Cancel
-              </Button>
-              <Button variant="primary" onClick={handleRunAutomation}>
-                Run now
-              </Button>
-            </ModalFooter>
-          </Modal>
-          <Modal
+            You are about to manually run this workflow. This action will start the workflow immediately, bypassing its
+            normal trigger conditions.
+          </ConfirmationDialog>
+          <ConfirmationDialog
             isOpen={deleteDialogOpen}
             onClose={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
-            variant="medium"
-            aria-labelledby="delete-automation-modal-title"
-            aria-describedby="delete-automation-modal-body"
+            onConfirm={handleDeleteWorkflow}
+            title="Delete workflow?"
+            confirmLabel="Delete"
+            confirmVariant="danger"
+            titleIconVariant="warning"
+            aria-labelledby="delete-workflow-modal-title"
+            aria-describedby="delete-workflow-modal-body"
+            destructiveAcknowledgement={{
+              checkboxId: `delete-workflow-ack-${workflowId ?? ''}`,
+              label: 'I understand this workflow will be permanently deleted.',
+            }}
           >
-            <ModalHeader
-              title="Delete automation?"
-              titleIconVariant="warning"
-              labelId="delete-automation-modal-title"
-            />
-            <ModalBody id="delete-automation-modal-body">
-              <Stack hasGutter>
-                <StackItem>
-                  You are about to permanently delete this automation. This action cannot be reversed. After deletion,
-                  the following will occur:
-                </StackItem>
-                <StackItem>
-                  <List>
-                    <ListItem>This automation will stop running immediately.</ListItem>
-                    <ListItem>
-                      Any other automations that use this one as a step will also become invalid and stop running.
-                    </ListItem>
-                  </List>
-                </StackItem>
-              </Stack>
-            </ModalBody>
-            <ModalFooter>
-              <Button
-                key="cancel"
-                variant="secondary"
-                onClick={() => dispatch({ type: 'SET_DELETE_DIALOG', payload: false })}
-              >
-                Cancel
-              </Button>
-              <Button key="delete" variant="danger" onClick={handleDeleteAutomation}>
-                Delete
-              </Button>
-            </ModalFooter>
-          </Modal>
+            <Stack hasGutter>
+              <StackItem>
+                <Content component="p">
+                  The workflow <strong>{workflowName}</strong> will be deleted. This cannot be undone.
+                </Content>
+              </StackItem>
+            </Stack>
+          </ConfirmationDialog>
         </AppPage>
       </NodeExpandedAllContext.Provider>
     </NodeActionsContext.Provider>

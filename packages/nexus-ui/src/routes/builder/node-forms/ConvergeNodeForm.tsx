@@ -53,12 +53,12 @@ const TIMEOUT_ACTION_OPTIONS: Array<{ label: string; value: 'fail' | 'continue';
     value: 'fail',
     label: 'Fail',
     description:
-      'The automation will fail if the parameters set on this converge step are not met by the specified timeout time.',
+      'The workflow will fail if the parameters set on this converge step are not met by the specified timeout time.',
   },
   {
     value: 'continue',
     label: 'Continue with partial data',
-    description: 'The automation will continue ignoring the parameters set for this converge step.',
+    description: 'The workflow will continue ignoring the parameters set for this converge step.',
   },
 ]
 

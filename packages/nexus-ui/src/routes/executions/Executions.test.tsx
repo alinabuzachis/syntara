@@ -154,9 +154,9 @@ describe('Executions Component', () => {
 
     render(<Executions />)
 
-    expect(screen.getByText('Automation Runs')).toBeInTheDocument()
+    expect(screen.getByText('Workflow Runs')).toBeInTheDocument()
     // FilterBar is visible - check for filter value selector button
-    expect(screen.getByRole('button', { name: 'Search automations' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Search workflows' })).toBeInTheDocument()
   })
 
   it('displays execution IDs', () => {
@@ -185,7 +185,7 @@ describe('Executions Component', () => {
     render(<Executions />)
 
     expect(screen.getByRole('columnheader', { name: /Run ID/i })).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: /^Automation name$/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^Workflow name$/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /^Status$/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Created at/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Completed at/i })).toBeInTheDocument()
@@ -279,8 +279,8 @@ describe('Executions Component', () => {
       },
     })
 
-    // Title is always "Automation Runs" regardless of filters
-    expect(screen.getByText('Automation Runs')).toBeInTheDocument()
+    // Title is always "Workflow Runs" regardless of filters
+    expect(screen.getByText('Workflow Runs')).toBeInTheDocument()
     // FilterBar should be present with active filter chip
     expect(screen.getByRole('button', { name: /Clear all filters/i })).toBeInTheDocument()
   })
@@ -312,7 +312,7 @@ describe('Executions Component', () => {
     expect(workflowButton).toBeInTheDocument()
 
     await user.click(workflowButton)
-    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1')
+    expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/workflow-1')
   })
 
   it('all execution IDs navigate to their respective execution detail pages', async () => {
@@ -346,15 +346,15 @@ describe('Executions Component', () => {
 
     const workflow1Button = screen.getByRole('button', { name: 'Hello World Workflow' })
     await user.click(workflow1Button)
-    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-1')
+    expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/workflow-1')
 
     const workflow2Button = screen.getByRole('button', { name: 'Data Processing Workflow' })
     await user.click(workflow2Button)
-    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-2')
+    expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/workflow-2')
 
     const workflow3Button = screen.getByRole('button', { name: 'API Integration Workflow' })
     await user.click(workflow3Button)
-    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/workflow-3')
+    expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/workflow-3')
   })
 
   describe('Sorting Functionality', () => {
@@ -367,7 +367,7 @@ describe('Executions Component', () => {
       const executionIdHeader = screen.getByRole('columnheader', { name: /Run ID/i })
       expect(within(executionIdHeader).getByRole('button')).toBeInTheDocument()
 
-      const workflowHeader = screen.getByRole('columnheader', { name: /^Automation name$/i })
+      const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow name$/i })
       expect(within(workflowHeader).getByRole('button')).toBeInTheDocument()
 
       const statusHeader = screen.getByRole('columnheader', { name: /^Status$/i })
@@ -413,8 +413,8 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      // Click Automation name header
-      const workflowHeader = screen.getByRole('columnheader', { name: /^Automation name$/i })
+      // Click Workflow name header
+      const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow name$/i })
       const sortButton = within(workflowHeader).getByRole('button')
       fireEvent.click(sortButton)
 
@@ -452,7 +452,7 @@ describe('Executions Component', () => {
       expect(screen.getByText('123e4567-e89b-12d3-a456-426614174000')).toBeInTheDocument()
     })
 
-    it('shows Automation name column even when filtering by workflow_id', () => {
+    it('shows Workflow name column even when filtering by workflow_id', () => {
       vi.mocked(useSearch).mockReturnValue('?workflow_id=workflow-1')
 
       const filteredExecutions = [
@@ -482,11 +482,11 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      // Automation name column is always visible
-      expect(screen.getByRole('columnheader', { name: /^Automation name$/i })).toBeInTheDocument()
+      // Workflow name column is always visible
+      expect(screen.getByRole('columnheader', { name: /^Workflow name$/i })).toBeInTheDocument()
 
       // Can still sort by all columns
-      const workflowHeader = screen.getByRole('columnheader', { name: /^Automation name$/i })
+      const workflowHeader = screen.getByRole('columnheader', { name: /^Workflow name$/i })
       fireEvent.click(within(workflowHeader).getByRole('button'))
 
       // Executions should still be visible after sorting
@@ -513,7 +513,7 @@ describe('Executions Component', () => {
       render(<Executions />)
 
       // Open field selector
-      const fieldSelector = screen.getAllByRole('button', { name: 'Automation name' })[0]
+      const fieldSelector = screen.getAllByRole('button', { name: 'Workflow name' })[0]
       await user.click(fieldSelector)
 
       // Select Status field
@@ -595,9 +595,9 @@ describe('Executions Component', () => {
       render(<Executions />)
 
       // FilterBar shows by default - verify filter components are present
-      // The field selector for "Automation name" exists (there are 2: filter selector and table header)
-      const automationButtons = screen.getAllByRole('button', { name: 'Automation name' })
-      expect(automationButtons.length).toBeGreaterThan(0)
+      // The field selector for "Workflow name" exists (there are 2: filter selector and table header)
+      const workflowButtons = screen.getAllByRole('button', { name: 'Workflow name' })
+      expect(workflowButtons.length).toBeGreaterThan(0)
     })
 
     it('can select a different filter field from the dropdown', async () => {
@@ -606,8 +606,8 @@ describe('Executions Component', () => {
 
       render(<Executions />)
 
-      // Click the field selector dropdown - get all buttons with "Automation name" and pick the first (filter selector)
-      const buttons = screen.getAllByRole('button', { name: 'Automation name' })
+      // Click the field selector dropdown - get all buttons with "Workflow name" and pick the first (filter selector)
+      const buttons = screen.getAllByRole('button', { name: 'Workflow name' })
       const fieldSelector = buttons[0] // First one is the filter field selector
       await user.click(fieldSelector)
 
@@ -616,8 +616,8 @@ describe('Executions Component', () => {
       await waitFor(() => {
         expect(screen.getByRole('option', { name: 'Status' })).toBeInTheDocument()
       })
-      // Only Automation name and Status filters are available (Created Date disabled)
-      expect(screen.getByRole('option', { name: 'Automation name' })).toBeInTheDocument()
+      // Only Workflow name and Status filters are available (Created Date disabled)
+      expect(screen.getByRole('option', { name: 'Workflow name' })).toBeInTheDocument()
     })
 
     it('preserves workflow_id filter from URL parameter and syncs to query params', () => {
@@ -658,8 +658,8 @@ describe('Executions Component', () => {
         },
       })
 
-      // Title is always "Automation Runs"
-      expect(screen.getByText('Automation Runs')).toBeInTheDocument()
+      // Title is always "Workflow Runs"
+      expect(screen.getByText('Workflow Runs')).toBeInTheDocument()
       // FilterBar should be present with active filter chip
       expect(screen.getByRole('button', { name: /Clear all filters/i })).toBeInTheDocument()
     })

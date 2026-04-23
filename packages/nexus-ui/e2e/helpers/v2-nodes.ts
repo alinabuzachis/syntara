@@ -53,7 +53,7 @@ async function selectDirectNodeType(page: Page, label: string | RegExp) {
 // Trigger
 // ---------------------------------------------------------------------------
 
-/** Add a manual trigger. Must be called on a fresh /automation-builder/new page. */
+/** Add a manual trigger. Must be called on a fresh /workflow-builder/new page. */
 export async function addManualTrigger(page: Page, name = 'Manual trigger') {
   // Wait for page to finish loading
   await expect(page.getByRole('progressbar', { name: 'Loading' })).not.toBeVisible({ timeout: 15000 })

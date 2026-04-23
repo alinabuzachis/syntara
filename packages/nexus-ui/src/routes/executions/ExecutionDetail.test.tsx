@@ -288,7 +288,7 @@ describe('ExecutionDetail', () => {
     expect(mockSetLocation).toHaveBeenCalledWith('/executions/exec-123?history=closed')
   })
 
-  it('navigates to automation builder when Back to editor button is clicked', async () => {
+  it('navigates to workflow builder when Back to editor button is clicked', async () => {
     const user = userEvent.setup()
     const queryClient = new QueryClient()
     render(
@@ -300,7 +300,7 @@ describe('ExecutionDetail', () => {
     const backButton = screen.getByRole('button', { name: 'Back to editor' })
     await user.click(backButton)
 
-    expect(mockSetLocation).toHaveBeenCalledWith('/automation-builder/wf-456')
+    expect(mockSetLocation).toHaveBeenCalledWith('/workflow-builder/wf-456')
   })
 
   it('preserves history panel state when navigating to different execution', async () => {

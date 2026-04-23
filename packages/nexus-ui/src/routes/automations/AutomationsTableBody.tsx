@@ -23,7 +23,7 @@ function WorkflowRow({ workflow, getRowActions }: Readonly<WorkflowRowProps>) {
   return (
     <Tr key={workflow.id}>
       <Td dataLabel="Name">
-        <LinkCell href={`/automation-builder/${workflow.id}`}>{workflow.name}</LinkCell>
+        <LinkCell href={`/workflow-builder/${workflow.id}`}>{workflow.name}</LinkCell>
       </Td>
       <Td dataLabel="Created at">
         <DateCell dateString={getDateField(workflow, 'createdAt')} />
@@ -56,22 +56,22 @@ interface ProjectGroup {
   workflows: Workflow[]
 }
 
-interface GroupedAutomationsTableBodyProps {
-  groupedAutomations: Map<string, ProjectGroup>
+interface GroupedWorkflowsTableBodyProps {
+  groupedWorkflows: Map<string, ProjectGroup>
   collapsedProjects: Set<string>
   onToggleProject: (projectId: string) => void
   getRowActions: (workflow: Workflow) => IAction[]
 }
 
 export function GroupedAutomationsTableBody({
-  groupedAutomations,
+  groupedWorkflows,
   collapsedProjects,
   onToggleProject,
   getRowActions,
-}: Readonly<GroupedAutomationsTableBodyProps>) {
+}: Readonly<GroupedWorkflowsTableBodyProps>) {
   return (
     <>
-      {[...groupedAutomations.entries()].map(([projectId, { project, workflows }]) => (
+      {[...groupedWorkflows.entries()].map(([projectId, { project, workflows }]) => (
         <Tbody key={projectId}>
           <Tr
             style={{ backgroundColor: 'rgba(196, 181, 253, 0.05)', cursor: 'pointer' }}
@@ -101,15 +101,15 @@ export function GroupedAutomationsTableBody({
   )
 }
 
-interface FlatAutomationsTableBodyProps {
-  automations: Workflow[]
+interface FlatWorkflowsTableBodyProps {
+  workflows: Workflow[]
   getRowActions: (workflow: Workflow) => IAction[]
 }
 
-export function FlatAutomationsTableBody({ automations, getRowActions }: Readonly<FlatAutomationsTableBodyProps>) {
+export function FlatAutomationsTableBody({ workflows, getRowActions }: Readonly<FlatWorkflowsTableBodyProps>) {
   return (
     <Tbody>
-      {automations.map((workflow) => (
+      {workflows.map((workflow) => (
         <WorkflowRow key={workflow.id} workflow={workflow} getRowActions={getRowActions} />
       ))}
     </Tbody>

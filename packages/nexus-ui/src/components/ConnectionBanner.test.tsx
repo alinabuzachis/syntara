@@ -15,7 +15,7 @@ describe('ConnectionBanner', () => {
     expect(screen.getByText('Live updates paused')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Your automation is still running safely in the background. Refresh the page to see the latest progress.'
+        'Your workflow is still running safely in the background. Refresh the page to see the latest progress.'
       )
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument()

@@ -18,7 +18,7 @@ export default function registerAAPNode() {
     icon: AnsibleIcon,
     category: 'action',
     description: 'Execute Ansible Automation Platform jobs',
-    keywords: ['ansible', 'aap', 'automation', 'playbook', 'job', 'template'],
+    keywords: ['ansible', 'aap', 'workflow', 'playbook', 'job', 'template'],
     order: 40,
     formComponent: AAPNodeForm,
     onSubmit: (data, onSuccess, onError) => {

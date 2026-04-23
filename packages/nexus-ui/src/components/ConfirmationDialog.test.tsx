@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
@@ -166,5 +166,78 @@ describe('ConfirmationDialog', () => {
 
     const results = await axe(baseElement)
     expect(results).toHaveNoViolations()
+  })
+
+  describe('destructiveAcknowledgement', () => {
+    const ackProps = {
+      destructiveAcknowledgement: {
+        checkboxId: 'test-ack',
+        label: 'I understand this cannot be undone.',
+      },
+      confirmLabel: 'Delete',
+      confirmVariant: 'danger' as const,
+    }
+
+    it('renders checkbox and disables confirm button until checked', async () => {
+      const user = userEvent.setup()
+      const { props } = renderDialog(ackProps)
+
+      const checkbox = screen.getByRole('checkbox', { name: 'I understand this cannot be undone.' })
+      const deleteButton = screen.getByRole('button', { name: 'Delete' })
+
+      expect(checkbox).not.toBeChecked()
+      expect(deleteButton).toBeDisabled()
+
+      await user.click(checkbox)
+
+      expect(checkbox).toBeChecked()
+      expect(deleteButton).toBeEnabled()
+
+      await user.click(deleteButton)
+      expect(props.onConfirm).toHaveBeenCalledTimes(1)
+    })
+
+    it('resets checkbox when dialog reopens', async () => {
+      const user = userEvent.setup()
+      const { rerender } = renderDialog(ackProps)
+
+      await user.click(screen.getByRole('checkbox', { name: 'I understand this cannot be undone.' }))
+      expect(screen.getByRole('checkbox')).toBeChecked()
+
+      rerender(<ConfirmationDialog {...defaultProps} {...ackProps} isOpen={false} />)
+      rerender(<ConfirmationDialog {...defaultProps} {...ackProps} isOpen />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('checkbox')).not.toBeChecked()
+      })
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+    })
+
+    it('has no accessibility violations with acknowledgement checkbox', async () => {
+      const { baseElement } = renderDialog({
+        ...ackProps,
+        'aria-labelledby': 'ack-dialog-title',
+        'aria-describedby': 'ack-dialog-body',
+      })
+
+      const results = await axe(baseElement)
+      expect(results).toHaveNoViolations()
+    })
+  })
+
+  describe('confirmLoading', () => {
+    it('disables both buttons when confirmLoading is true', () => {
+      renderDialog({ confirmLoading: true })
+
+      expect(screen.getByRole('button', { name: /Confirm/ })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    })
+
+    it('enables both buttons when confirmLoading is false', () => {
+      renderDialog({ confirmLoading: false })
+
+      expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+    })
   })
 })

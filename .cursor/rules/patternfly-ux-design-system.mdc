@@ -92,7 +92,7 @@ Use a docked icon navigation (left sidebar) with PatternFly's flyout panels comp
 - Clicking resource name navigates to details view
 - "Created"/"Modified" columns: username (linked) + date together
 - Footer/pagination: cursor-based via `ScrollableTableContainer`'s `footer` prop (`TableFooterProps`)
-  - Left: item count — `"5 automations (of 100 total)"`
+  - Left: item count — `"5 workflows (of 100 total)"`
   - Right: Previous / Next buttons using API cursor tokens (`prev`, `next`) — no page numbers or per-page selector
   - Pass `{ content, prev, next, onPrev, onNext }` to the `footer` prop
 

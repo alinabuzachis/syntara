@@ -31,7 +31,7 @@ import type { FilterConfig } from '../types/filters'
  * )
  *
  * @example
- * // With value transformation (Automations - convert is_enabled string to boolean)
+ * // With value transformation (Workflows - convert is_enabled string to boolean)
  * const handleFilterChange = createFilterChangeHandler(
  *   cursor,
  *   () => dispatch({ type: 'SET_CURSOR', payload: null }),

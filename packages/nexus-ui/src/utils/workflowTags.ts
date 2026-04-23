@@ -11,7 +11,7 @@ export function getWorkflowTagsFromLabels(workflow: Workflow): string[] {
 }
 
 /**
- * Tags for the Automations table. Single source of truth: workflow.labels (label keys).
+ * Tags for the Workflows table. Single source of truth: workflow.labels (label keys).
  */
 export function getWorkflowTagsForDisplay(workflow: Workflow): string[] {
   return getWorkflowTagsFromLabels(workflow)

@@ -209,7 +209,7 @@ Let's add a console.log to understand the data flow:
    console.log('🔍 BuilderFlow rendered with:', { nodeCount: nodes.length, edgeCount: edges.length })
    ```
 
-4. **Go to**: <http://localhost:5173/automations> in your browser
+4. **Go to**: <http://localhost:5173/workflows> in your browser
 5. **Click** any workflow to open the builder
 6. **Open DevTools** (F12 → Console tab)
 7. **Watch** the console log appear when you interact with the canvas
@@ -351,8 +351,8 @@ flowchart LR
   end
 
   subgraph URL["Browser URL"]
-    U["/automations"]
-    U2["/automation-builder/:workflowId"]
+    U["/workflows"]
+    U2["/workflow-builder/:workflowId"]
     U3["/configuration/settings"]
   end
 
@@ -362,11 +362,11 @@ flowchart LR
   Router -->|"match"| Component["Lazy-loaded Component"]
 ```
 
-| File                      | Role                                                                           |
-| ------------------------- | ------------------------------------------------------------------------------ |
-| `app/AppRoute.tsx`        | Route path constants (e.g., `/automations`, `/automation-builder/:workflowId`) |
-| `app/navigationItems.tsx` | Defines nav tree + lazy-loaded route components                                |
-| `app/AppRouter.tsx`       | Maps `navigationItems` into `<Route>` elements                                 |
+| File                      | Role                                                                       |
+| ------------------------- | -------------------------------------------------------------------------- |
+| `app/AppRoute.tsx`        | Route path constants (e.g., `/workflows`, `/workflow-builder/:workflowId`) |
+| `app/navigationItems.tsx` | Defines nav tree + lazy-loaded route components                            |
+| `app/AppRouter.tsx`       | Maps `navigationItems` into `<Route>` elements                             |
 
 > **Note**: The `/dashboard` route is defined in `AppRoute.tsx` and appears in navigation, but has no component mounted (placeholder for future implementation).
 
@@ -375,7 +375,7 @@ flowchart LR
 ```tsx
 // Navigate programmatically
 const [, navigate] = useLocation()
-navigate('/automations')
+navigate('/workflows')
 
 // Read URL params
 const { workflowId } = useParams()
@@ -548,10 +548,10 @@ The builder edits nodes + edges directly in the Zustand store. On save, `buildWo
 
 ### Builder entry points
 
-| Route                             | File              | Purpose                |
-| --------------------------------- | ----------------- | ---------------------- |
-| `/automation-builder/new`         | `BuilderNew.tsx`  | Create new workflow    |
-| `/automation-builder/:workflowId` | `BuilderEdit.tsx` | Edit existing workflow |
+| Route                           | File              | Purpose                |
+| ------------------------------- | ----------------- | ---------------------- |
+| `/workflow-builder/new`         | `BuilderNew.tsx`  | Create new workflow    |
+| `/workflow-builder/:workflowId` | `BuilderEdit.tsx` | Edit existing workflow |
 
 ### Load path: API → store → canvas
 
@@ -1047,8 +1047,8 @@ sequenceDiagram
 ```mermaid
 flowchart TB
   subgraph Routes["Route Entry Points"]
-    R1["/automation-builder/new"]
-    R2["/automation-builder/:workflowId"]
+    R1["/workflow-builder/new"]
+    R2["/workflow-builder/:workflowId"]
   end
 
   subgraph Components["Component Hierarchy"]
@@ -1072,7 +1072,7 @@ flowchart TB
 - Separate components for new (`BuilderNew.tsx`) and edit (`BuilderEdit.tsx`) workflows.
 - `BuilderContent` component encapsulates all shared UI logic.
 - `BuilderFlow.tsx` handles workflow → graph conversion and legacy detection.
-- Routes: `/automation-builder/new` (new) and `/automation-builder/:workflowId` (edit).
+- Routes: `/workflow-builder/new` (new) and `/workflow-builder/:workflowId` (edit).
 
 ---
 

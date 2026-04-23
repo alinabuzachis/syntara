@@ -17,7 +17,7 @@ test.describe('Visual regression — PF6 token migration', { tag: '@local-only' 
   test.skip(!!process.env.CI, 'Visual regression baselines are OS-specific; run locally only')
 
   test('sidebar navigation (AppDockedNav)', async ({ app }) => {
-    await app.goto(toAppUrl('/automations'))
+    await app.goto(toAppUrl('/workflows'))
     const nav = app.getByRole('navigation', { name: 'Main navigation' })
     await expect(nav).toBeVisible()
 
@@ -32,7 +32,7 @@ test.describe('Visual regression — PF6 token migration', { tag: '@local-only' 
   })
 
   test('trigger node on canvas', async ({ app }) => {
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
     // Add a manual trigger so a TriggerNode renders on the canvas
@@ -47,7 +47,7 @@ test.describe('Visual regression — PF6 token migration', { tag: '@local-only' 
   })
 
   test('condition node with expression group', async ({ app }) => {
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
     // Add manual trigger first
@@ -72,7 +72,7 @@ test.describe('Visual regression — PF6 token migration', { tag: '@local-only' 
   })
 
   test('scheduled trigger with date range picker', async ({ app }) => {
-    await app.goto(toAppUrl('/automation-builder/new'))
+    await app.goto(toAppUrl('/workflow-builder/new'))
     await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
     // Add a scheduled trigger

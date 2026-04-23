@@ -20,17 +20,21 @@ type Execution = {
   [key: string]: unknown
 }
 
-interface ExecutionRowProps {
+type ExecutionRowProps = {
   execution: Execution
 }
 
 function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
   return (
     <Tr>
-      <Td dataLabel="Automation name" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
-        <LinkCell href={`/automation-builder/${execution.workflow_id}`}>
-          {execution.workflow_id && <WorkflowName workflowId={execution.workflow_id} />}
-        </LinkCell>
+      <Td dataLabel="Workflow name" modifier="nowrap" style={{ minWidth: '200px', width: '200px' }}>
+        {execution.workflow_id ? (
+          <LinkCell href={`/workflow-builder/${execution.workflow_id}`}>
+            <WorkflowName workflowId={execution.workflow_id} />
+          </LinkCell>
+        ) : (
+          '—'
+        )}
       </Td>
       <Td dataLabel="Run ID" modifier="nowrap" style={{ minWidth: '250px', width: '250px' }}>
         <LinkCell href={`/executions/${execution.id}`}>
@@ -52,12 +56,12 @@ function ExecutionRow({ execution }: Readonly<ExecutionRowProps>) {
   )
 }
 
-interface ProjectGroup {
+type ProjectGroup = {
   project: ProjectRead | null
   executions: Execution[]
 }
 
-interface GroupedExecutionsTableBodyProps {
+type GroupedExecutionsTableBodyProps = {
   groupedExecutions: Map<string, ProjectGroup>
   collapsedProjects: Set<string>
   onToggleProject: (projectId: string) => void
@@ -98,7 +102,7 @@ export function GroupedExecutionsTableBody({
   )
 }
 
-interface FlatExecutionsTableBodyProps {
+type FlatExecutionsTableBodyProps = {
   executions: Execution[]
 }
 

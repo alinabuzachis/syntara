@@ -11,7 +11,7 @@ import {
 test('user creates and saves a multi-node workflow', async ({ app }) => {
   // Arrange - Start a new workflow
   const workflowName = buildUniqueName('e2e-multi-node')
-  await app.goto(toAppUrl('/automation-builder/new'))
+  await app.goto(toAppUrl('/workflow-builder/new'))
   await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
   try {
@@ -42,14 +42,14 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
     await app.getByPlaceholder('Workflow name').fill(workflowName)
     await app.getByRole('button', { name: 'Save' }).click()
 
-    // Assert - Workflow is persisted in automations list
-    await expect(app).toHaveURL(/automation-builder\/.+/)
-    await app.goto(toAppUrl('/automations'))
+    // Assert - Workflow is persisted in workflows list
+    await expect(app).toHaveURL(/workflow-builder\/.+/)
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await expect(app.getByRole('button', { name: workflowName, exact: true })).toBeVisible()
   } finally {
-    await app.goto(toAppUrl('/automations'))
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     const row = app.getByRole('row', { name: new RegExp(workflowName) })
@@ -58,7 +58,8 @@ test('user creates and saves a multi-node workflow', async ({ app }) => {
         .getByRole('button', { name: /Actions|Kebab toggle/i })
         .first()
         .click({ force: true })
-      await app.getByRole('menuitem', { name: 'Delete automation' }).click()
+      await app.getByRole('menuitem', { name: 'Delete workflow' }).click()
+      await app.getByRole('checkbox', { name: /I understand this workflow/i }).check()
       await app.getByRole('button', { name: 'Delete' }).click()
     }
   }
@@ -72,8 +73,8 @@ test('user edits an existing workflow and changes persist', async ({ app }) => {
   const updatedName = `${workflowName}-updated`
 
   try {
-    // Act - Open workflow from automations list
-    await app.goto(toAppUrl('/automations'))
+    // Act - Open workflow from workflows list
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('button', { name: workflowName, exact: true }).click()
@@ -82,13 +83,13 @@ test('user edits an existing workflow and changes persist', async ({ app }) => {
     await app.getByRole('button', { name: 'Save' }).click()
 
     // Assert - Updated name persists
-    await app.goto(toAppUrl('/automations'))
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(updatedName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await expect(app.getByRole('button', { name: updatedName, exact: true })).toBeVisible()
   } finally {
     for (const name of [updatedName, workflowName]) {
-      await app.goto(toAppUrl('/automations'))
+      await app.goto(toAppUrl('/workflows'))
       await app.getByPlaceholder('Filter by name').fill(name)
       await app.getByRole('button', { name: 'Apply filter' }).click()
       const row = app.getByRole('row', { name: new RegExp(name) })
@@ -97,7 +98,8 @@ test('user edits an existing workflow and changes persist', async ({ app }) => {
           .getByRole('button', { name: /Actions|Kebab toggle/i })
           .first()
           .click({ force: true })
-        await app.getByRole('menuitem', { name: 'Delete automation' }).click()
+        await app.getByRole('menuitem', { name: 'Delete workflow' }).click()
+        await app.getByRole('checkbox', { name: /I understand this workflow/i }).check()
         await app.getByRole('button', { name: 'Delete' }).click()
       }
     }

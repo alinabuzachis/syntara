@@ -248,8 +248,8 @@ test.describe('Settings', () => {
 
   test('navigate to settings via Access Management nav', async ({ app }) => {
     // Navigate away first
-    await app.goto(toAppUrl('/automations'))
-    await expect(app).toHaveURL(/automations/)
+    await app.goto(toAppUrl('/workflows'))
+    await expect(app).toHaveURL(/workflows/)
 
     // Open Access Management flyout and click Settings
     await app.getByRole('button', { name: 'Access Management' }).click()

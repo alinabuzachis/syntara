@@ -31,7 +31,7 @@ export function AppRouter() {
             </Fragment>
           ))}
           <Route>
-            <Redirect to="/automations" />
+            <Redirect to="/workflows" />
           </Route>
         </Switch>
       </Suspense>

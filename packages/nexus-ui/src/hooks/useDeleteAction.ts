@@ -15,7 +15,7 @@ interface UseDeleteActionOptions<T, P = unknown> {
   ) => void
   /** Build the mutation params from the item */
   buildParams: (item: T) => P
-  /** Entity type label for alert messages (e.g., "user", "group", "automation") */
+  /** Entity type label for alert messages (e.g., "user", "group", "workflow") */
   entityLabel: string
   /** Get the display name from the item for alert messages */
   getItemName: (item: T) => string

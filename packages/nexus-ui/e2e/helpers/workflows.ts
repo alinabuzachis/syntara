@@ -114,9 +114,9 @@ export async function selectProjectIfRequired(page: Page, projectName = 'default
   }
 }
 
-/** Delete a workflow from the automations list by its unique name. */
+/** Delete a workflow from the workflows list by its unique name. */
 export async function deleteWorkflow(page: Page, workflowName: string) {
-  await page.goto(toAppUrl('/automations'))
+  await page.goto(toAppUrl('/workflows'))
   await page.getByPlaceholder('Filter by name').fill(workflowName)
   await page.getByRole('button', { name: 'Apply filter' }).click()
   const row = page.getByRole('row', { name: new RegExp(workflowName) })
@@ -129,14 +129,15 @@ export async function deleteWorkflow(page: Page, workflowName: string) {
       .getByRole('button', { name: /Actions|Kebab toggle/i })
       .first()
       .click({ force: true })
-    await page.getByRole('menuitem', { name: 'Delete automation' }).click()
+    await page.getByRole('menuitem', { name: 'Delete workflow' }).click()
+    await page.getByRole('checkbox', { name: /I understand this workflow/i }).check()
     await page.getByRole('button', { name: 'Delete' }).click()
   }
 }
 
-/** Open a saved workflow in the builder by filtering the automations list. */
+/** Open a saved workflow in the builder by filtering the workflows list. */
 export async function openWorkflowInBuilder(page: Page, workflowName: string) {
-  await page.goto(toAppUrl('/automations'))
+  await page.goto(toAppUrl('/workflows'))
   await page.getByPlaceholder('Filter by name').fill(workflowName)
   await page.getByRole('button', { name: 'Apply filter' }).click()
   await page.getByRole('button', { name: workflowName, exact: true }).click()
@@ -145,7 +146,7 @@ export async function openWorkflowInBuilder(page: Page, workflowName: string) {
 
 export async function createBasicWorkflow(page: Page, workflowName: string, actionName: string) {
   // Arrange - Start from the new workflow builder
-  await page.goto(toAppUrl('/automation-builder/new'))
+  await page.goto(toAppUrl('/workflow-builder/new'))
   await expect(page.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
   // Act - Add manual trigger
@@ -168,5 +169,5 @@ export async function createBasicWorkflow(page: Page, workflowName: string, acti
   await page.getByRole('button', { name: 'Save' }).click()
 
   // Assert - Workflow created and navigated to edit route
-  await expect(page).toHaveURL(/automation-builder\/.+/)
+  await expect(page).toHaveURL(/workflow-builder\/.+/)
 }

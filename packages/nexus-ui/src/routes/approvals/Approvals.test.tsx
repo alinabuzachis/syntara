@@ -230,7 +230,7 @@ describe('Approvals Component', () => {
     expect(screen.getByText('Approval name')).toBeInTheDocument()
     // Approval type column removed for RH1 - may be added back later
     // expect(screen.getByText('Approval type')).toBeInTheDocument()
-    expect(screen.getByText('Automation')).toBeInTheDocument()
+    expect(screen.getByText('Workflow')).toBeInTheDocument()
     expect(screen.getByText('Approval initiated')).toBeInTheDocument()
     expect(screen.getByText('Actioned on')).toBeInTheDocument()
     expect(screen.getByText('Status')).toBeInTheDocument()
@@ -263,7 +263,7 @@ describe('Approvals Component', () => {
     expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
   })
 
-  it('displays automation names', () => {
+  it('displays workflow names', () => {
     mockApprovalsQuery(mockApprovals)
 
     render(<Approvals />)
@@ -300,8 +300,8 @@ describe('Approvals Component', () => {
       const approvalNameHeader = screen.getByRole('columnheader', { name: /Approval name/i })
       expect(within(approvalNameHeader).getByRole('button')).toBeInTheDocument()
 
-      const automationHeader = screen.getByRole('columnheader', { name: /Automation/i })
-      expect(within(automationHeader).getByRole('button')).toBeInTheDocument()
+      const workflowHeader = screen.getByRole('columnheader', { name: /Workflow/i })
+      expect(within(workflowHeader).getByRole('button')).toBeInTheDocument()
 
       const statusHeader = screen.getByRole('columnheader', { name: /Status/i })
       expect(within(statusHeader).getByRole('button')).toBeInTheDocument()
@@ -373,13 +373,13 @@ describe('Approvals Component', () => {
       expect(screen.getByText('Test Approval 3')).toBeInTheDocument()
     })
 
-    it('can sort by Automation column', () => {
+    it('can sort by Workflow column', () => {
       mockApprovalsQuery(mockApprovals)
 
       render(<Approvals />)
 
-      const automationHeader = screen.getByRole('columnheader', { name: /Automation/i })
-      const sortButton = within(automationHeader).getByRole('button')
+      const workflowHeader = screen.getByRole('columnheader', { name: /Workflow/i })
+      const sortButton = within(workflowHeader).getByRole('button')
       fireEvent.click(sortButton)
 
       expect(screen.getByText('Another Workflow')).toBeInTheDocument()
@@ -828,11 +828,11 @@ describe('Approvals Component', () => {
 
       render(<Approvals />)
 
-      // Automation name should be displayed but not as a link
-      const automationText = screen.getByText('Test Workflow')
-      expect(automationText).toBeInTheDocument()
+      // Workflow name should be displayed but not as a link
+      const workflowText = screen.getByText('Test Workflow')
+      expect(workflowText).toBeInTheDocument()
 
-      expect(automationText.closest('button')).toBeNull()
+      expect(workflowText.closest('button')).toBeNull()
     })
 
     it('handles approval without decided_at (pending)', () => {
@@ -868,7 +868,7 @@ describe('Approvals Component', () => {
       expect(screen.getByText('550e8400-e29b-41d4-a716-446655440001')).toBeInTheDocument()
     })
 
-    it('handles approval without workflow_context (Unknown automation)', () => {
+    it('handles approval without workflow_context (Unknown workflow)', () => {
       const approvalWithoutContext = {
         ...mockApprovals[0],
         workflow_context: undefined,

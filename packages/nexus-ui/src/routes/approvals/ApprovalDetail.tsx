@@ -43,10 +43,10 @@ const getNotesLabel = (status: string) => {
 }
 
 function ApprovalSummaryList(props: {
-  automationLink?: string
-  automationName: string
+  workflowLink?: string
+  workflowName: string
   approvalInitiated: string
-  onAutomationClick: (link: string) => void
+  onWorkflowClick: (link: string) => void
 }) {
   return (
     <DescriptionList
@@ -61,19 +61,19 @@ function ApprovalSummaryList(props: {
         </DescriptionListDescription>
       </DescriptionListGroup>
       <DescriptionListGroup>
-        <DescriptionListTerm>Automation</DescriptionListTerm>
+        <DescriptionListTerm>Workflow</DescriptionListTerm>
         <DescriptionListDescription>
-          {props.automationLink ? (
+          {props.workflowLink ? (
             <Button
               variant="link"
               isInline
-              onClick={() => props.onAutomationClick(props.automationLink!)}
+              onClick={() => props.onWorkflowClick(props.workflowLink!)}
               style={{ paddingLeft: 0 }}
             >
-              {props.automationName}
+              {props.workflowName}
             </Button>
           ) : (
-            props.automationName
+            props.workflowName
           )}
         </DescriptionListDescription>
       </DescriptionListGroup>
@@ -140,9 +140,9 @@ export default function ApprovalDetail() {
   const approvalStatus = approval?.status ?? 'pending'
   const isPending = approvalStatus === 'pending'
   const wfCtx = approval?.workflow_context as { workflow_name?: string; workflow_version_id?: string } | undefined
-  const automationName = wfCtx?.workflow_name || 'Automation'
-  const automationId = wfCtx?.workflow_version_id
-  const automationLink = automationId ? AppRoute.AutomationBuilder.Edit.replace(':workflowId', automationId) : undefined
+  const workflowName = wfCtx?.workflow_name || 'Workflow'
+  const workflowId = wfCtx?.workflow_version_id
+  const workflowLink = workflowId ? AppRoute.WorkflowBuilder.Edit.replace(':workflowId', workflowId) : undefined
   const createdAt = approval ? getDateField(approval as Record<string, unknown>, 'createdAt') : null
   const approvalInitiated = formatDateTime(createdAt)
   const decisionNotes = approval?.decision_notes ?? undefined
@@ -211,7 +211,7 @@ export default function ApprovalDetail() {
             aria-label={decisionCopy?.label ?? 'Notes'}
             value={pendingReason}
             onChange={(_e, value: string) => setPendingReason(value)}
-            placeholder={`Explain the reason for ${decisionCopy?.verb ?? 'updating'} this automation step.`}
+            placeholder={`Explain the reason for ${decisionCopy?.verb ?? 'updating'} this workflow step.`}
           />
         </FormGroup>
       </Stack>
@@ -236,10 +236,10 @@ export default function ApprovalDetail() {
               <>
                 <StackItem isFilled>
                   <ApprovalSummaryList
-                    automationLink={automationLink}
-                    automationName={automationName}
+                    workflowLink={workflowLink}
+                    workflowName={workflowName}
                     approvalInitiated={approvalInitiated}
-                    onAutomationClick={setLocation}
+                    onWorkflowClick={setLocation}
                   />
                 </StackItem>
                 <StackItem isFilled style={{ minHeight: 0 }}>

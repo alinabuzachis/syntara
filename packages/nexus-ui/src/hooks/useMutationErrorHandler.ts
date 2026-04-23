@@ -58,7 +58,7 @@ export interface MutationErrorHandlerOptions {
  * // With context for better error messages
  * mutate(data, {
  *   onError: handleError({
- *     title: 'Automation failed',
+ *     title: 'Workflow failed',
  *     context: `Workflow "${workflow.name}"`
  *   })
  * })

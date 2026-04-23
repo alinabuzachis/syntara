@@ -197,7 +197,7 @@ export function AutomationHistoryCard(props: AutomationHistoryCardProps) {
                     Run History
                   </Title>
                 </Flex>
-                <Content component={ContentVariants.small}>View past runs of this automation.</Content>
+                <Content component={ContentVariants.small}>View past runs of this workflow.</Content>
               </Stack>
             </FlexItem>
             <FlexItem>

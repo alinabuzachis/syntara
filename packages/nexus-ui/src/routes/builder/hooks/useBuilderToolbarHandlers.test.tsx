@@ -4,7 +4,7 @@ import { describe, expect, it, vi, type MockedFunction } from 'vitest'
 import type { UseBuilderToolbarHandlersOptions } from './useBuilderToolbarHandlers'
 import { useBuilderToolbarHandlers } from './useBuilderToolbarHandlers'
 
-type ExecuteAutomation = UseBuilderToolbarHandlersOptions['executeAutomation']
+type ExecuteWorkflow = UseBuilderToolbarHandlersOptions['executeWorkflow']
 type DeleteWorkflow = UseBuilderToolbarHandlersOptions['deleteWorkflow']
 type ReactFlowInstanceParam = UseBuilderToolbarHandlersOptions['reactFlowInstance']
 
@@ -24,7 +24,7 @@ function buildOptions(overrides: Partial<UseBuilderToolbarHandlersOptions> = {})
     reactFlowInstance: createMockReactFlowInstance(),
     executionsQuery: { refetch: vi.fn().mockResolvedValue({}) },
     dispatch: vi.fn(),
-    executeAutomation: vi.fn(),
+    executeWorkflow: vi.fn(),
     deleteWorkflow: vi.fn(),
     showSuccess: vi.fn(),
     showError: vi.fn(),
@@ -34,70 +34,70 @@ function buildOptions(overrides: Partial<UseBuilderToolbarHandlersOptions> = {})
 }
 
 describe('useBuilderToolbarHandlers', () => {
-  it('handleRunAutomation does not call executeAutomation when workflow is missing', () => {
-    const executeAutomation = vi.fn() as MockedFunction<ExecuteAutomation>
+  it('handleRunWorkflow does not call executeWorkflow when workflow is missing', () => {
+    const executeWorkflow = vi.fn() as MockedFunction<ExecuteWorkflow>
     const { result } = renderHook(() =>
-      useBuilderToolbarHandlers(buildOptions({ workflow: undefined, executeAutomation }))
+      useBuilderToolbarHandlers(buildOptions({ workflow: undefined, executeWorkflow }))
     )
 
-    result.current.handleRunAutomation()
+    result.current.handleRunWorkflow()
 
-    expect(executeAutomation).not.toHaveBeenCalled()
+    expect(executeWorkflow).not.toHaveBeenCalled()
   })
 
-  it('handleRunAutomation invokes executeAutomation and navigates on success', () => {
-    const executeAutomation = vi.fn((...args: Parameters<ExecuteAutomation>) => {
+  it('handleRunWorkflow invokes executeWorkflow and navigates on success', () => {
+    const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
       const options = args[1]
       options?.onSuccess?.({ id: 'exec-99' })
-    }) as MockedFunction<ExecuteAutomation>
+    }) as MockedFunction<ExecuteWorkflow>
     const setLocation = vi.fn()
     const dispatch = vi.fn()
     const showSuccess = vi.fn()
     const { result } = renderHook(() =>
-      useBuilderToolbarHandlers(buildOptions({ executeAutomation, setLocation, dispatch, showSuccess }))
+      useBuilderToolbarHandlers(buildOptions({ executeWorkflow, setLocation, dispatch, showSuccess }))
     )
 
-    result.current.handleRunAutomation()
+    result.current.handleRunWorkflow()
 
-    expect(executeAutomation).toHaveBeenCalledTimes(1)
-    const [variables, options] = executeAutomation.mock.calls[0]
+    expect(executeWorkflow).toHaveBeenCalledTimes(1)
+    const [variables, options] = executeWorkflow.mock.calls[0]
     expect(variables).toEqual({ body: { workflow_id: 'wf-1', input_data: {} } })
     expect(options?.onSuccess).toEqual(expect.any(Function))
     expect(options?.onError).toEqual(expect.any(Function))
-    expect(showSuccess).toHaveBeenCalledWith('Successfully started automation "My workflow"', 'Automation Started')
+    expect(showSuccess).toHaveBeenCalledWith('Workflow Started', 'Successfully started workflow "My workflow"')
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
     expect(setLocation).toHaveBeenCalledWith('/executions/exec-99?history=open')
   })
 
-  it('handleRunAutomation shows error and closes dialog on failure', () => {
-    const executeAutomation = vi.fn((...args: Parameters<ExecuteAutomation>) => {
+  it('handleRunWorkflow shows error and closes dialog on failure', () => {
+    const executeWorkflow = vi.fn((...args: Parameters<ExecuteWorkflow>) => {
       const options = args[1]
       options?.onError?.(new Error('boom'))
-    }) as MockedFunction<ExecuteAutomation>
+    }) as MockedFunction<ExecuteWorkflow>
     const showError = vi.fn()
     const dispatch = vi.fn()
     const { result } = renderHook(() =>
-      useBuilderToolbarHandlers(buildOptions({ executeAutomation, showError, dispatch }))
+      useBuilderToolbarHandlers(buildOptions({ executeWorkflow, showError, dispatch }))
     )
 
-    result.current.handleRunAutomation()
+    result.current.handleRunWorkflow()
 
-    expect(showError).toHaveBeenCalledWith('Failed to start automation "My workflow": boom', 'Automation Failed')
+    expect(showError).toHaveBeenCalledWith('Workflow Failed', 'Failed to start workflow "My workflow": boom')
     expect(dispatch).toHaveBeenCalledWith({ type: 'SET_CONFIRM_DIALOG', payload: false })
   })
 
-  it('handleDeleteAutomation does not call deleteWorkflow when workflow is missing', () => {
+  it('handleDeleteWorkflow does not call deleteWorkflow when workflow is missing', () => {
     const deleteWorkflow = vi.fn() as MockedFunction<DeleteWorkflow>
     const { result } = renderHook(() =>
       useBuilderToolbarHandlers(buildOptions({ workflow: undefined, deleteWorkflow }))
     )
 
-    result.current.handleDeleteAutomation()
+    result.current.handleDeleteWorkflow()
 
     expect(deleteWorkflow).not.toHaveBeenCalled()
   })
 
-  it('handleDeleteAutomation invokes deleteWorkflow on success', () => {
+  it('handleDeleteWorkflow invokes deleteWorkflow on success', () => {
     const deleteWorkflow = vi.fn((...args: Parameters<DeleteWorkflow>) => {
       const options = args[1]
       options?.onSuccess?.()
@@ -109,15 +109,15 @@ describe('useBuilderToolbarHandlers', () => {
       useBuilderToolbarHandlers(buildOptions({ deleteWorkflow, setLocation, showSuccess, dispatch }))
     )
 
-    result.current.handleDeleteAutomation()
+    result.current.handleDeleteWorkflow()
 
     expect(deleteWorkflow).toHaveBeenCalledTimes(1)
     const [variables, options] = deleteWorkflow.mock.calls[0]
     expect(variables).toEqual({ params: { path: { workflow_id: 'wf-1' } } })
     expect(options?.onSuccess).toEqual(expect.any(Function))
     expect(options?.onError).toEqual(expect.any(Function))
-    expect(showSuccess).toHaveBeenCalledWith('Successfully deleted automation "My workflow"', 'Automation Deleted')
-    expect(setLocation).toHaveBeenCalledWith('/automation-builder/new')
+    expect(showSuccess).toHaveBeenCalledWith('Workflow Deleted', 'Successfully deleted workflow "My workflow"')
+    expect(setLocation).toHaveBeenCalledWith('/workflow-builder/new')
   })
 
   it('handleToggleDetails dispatches and clears node selection when opening', () => {

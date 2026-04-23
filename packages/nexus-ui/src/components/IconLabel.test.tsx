@@ -6,9 +6,9 @@ import { IconLabel } from './IconLabel'
 
 describe('IconLabel', () => {
   it('renders children text', () => {
-    render(<IconLabel>Edit automation</IconLabel>)
+    render(<IconLabel>Edit workflow</IconLabel>)
 
-    expect(screen.getByText('Edit automation')).toBeInTheDocument()
+    expect(screen.getByText('Edit workflow')).toBeInTheDocument()
   })
 
   it('renders with icon', () => {

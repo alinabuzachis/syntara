@@ -55,7 +55,7 @@ describe('AutomationHistoryCard', () => {
 
   it('renders the subtext', () => {
     render(<AutomationHistoryCard {...defaultProps} />)
-    expect(screen.getByText('View past runs of this automation.')).toBeInTheDocument()
+    expect(screen.getByText('View past runs of this workflow.')).toBeInTheDocument()
   })
 
   it('renders close button', () => {

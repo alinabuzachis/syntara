@@ -76,7 +76,7 @@ To test against the real Nexus backend instead of the mock API:
 
 **Important:** When running against a real backend, test isolation and cleanup are critical — tests operate on a shared persistent database. The patterns in this skill (unique names, try-finally cleanup) ensure tests work reliably in both modes.
 
-**Note on data-dependent tests:** Some tests (integration-filtering, approvals, pagination) require seed data that the mock API provides. Against a fresh real backend these tests skip automatically via `test.skip()` guards. Tests that CREATE their own data (builder, automations, integrations) work in both modes.
+**Note on data-dependent tests:** Some tests (integration-filtering, approvals, pagination) require seed data that the mock API provides. Against a fresh real backend these tests skip automatically via `test.skip()` guards. Tests that CREATE their own data (builder, workflows, integrations) work in both modes.
 
 ---
 
@@ -178,7 +178,7 @@ Instead of guessing that a button is called "Save":
 ### Key information to gather
 
 1. **Routes:** Read `src/app/AppRoute.tsx` and `src/app/navigationItems.tsx`
-2. **Features:** Automations, Builder, Executions, Credentials, Integrations, Approvals
+2. **Features:** Workflows, Builder, Executions, Credentials, Integrations, Approvals
 3. **Critical paths:**
    - Create workflow → Add steps → Save → Execute → View results
    - Workflow builder (complex UI state management)
@@ -240,12 +240,12 @@ Tests run with `fullyParallel: true` and must be completely independent.
 
    // ❌ BAD: Assumes created row is visible on first page without filtering
    await createBasicWorkflow(app, workflowName, 'Test action')
-   await app.goto(toAppUrl('/automations'))
+   await app.goto(toAppUrl('/workflows'))
    await expect(app.getByRole('row', { name: workflowName })).toBeVisible()
 
    // ✅ GOOD: Filter by unique name to find your data regardless of what else exists
    await createBasicWorkflow(app, workflowName, 'Test action')
-   await app.goto(toAppUrl('/automations'))
+   await app.goto(toAppUrl('/workflows'))
    await app.getByPlaceholder('Filter by name').fill(workflowName)
    await app.getByRole('button', { name: 'Apply filter' }).click()
    await expect(app.getByRole('row', { name: new RegExp(workflowName) })).toBeVisible()
@@ -303,7 +303,7 @@ test('user creates and verifies a workflow', async ({ app }) => {
   await createBasicWorkflow(app, workflowName, 'Test action')
 
   // Assert — verify workflow exists in list
-  await app.goto(toAppUrl('/automations'))
+  await app.goto(toAppUrl('/workflows'))
   await app.getByPlaceholder('Filter by name').fill(workflowName)
   await app.getByRole('button', { name: 'Apply filter' }).click()
   await expect(app.getByRole('row', { name: new RegExp(workflowName) })).toBeVisible()
@@ -359,8 +359,8 @@ Follow this priority:
 await app.getByRole('button', { name: 'Save' }).click()
 await app.getByLabel('Name').fill('My Workflow')
 await app.getByPlaceholder('Filter by name').fill('test')
-await app.getByRole('heading', { name: /automations/i })
-await app.getByRole('grid', { name: 'Automations table' })
+await app.getByRole('heading', { name: /workflows/i })
+await app.getByRole('grid', { name: 'Workflows table' })
 
 // ⚠️ ACCEPTABLE: When no semantic alternative exists
 await app.getByTestId('workflow-builder-canvas').click()
@@ -416,13 +416,13 @@ Playwright assertions auto-retry until the condition is met or timeout. Always u
 
 ```typescript
 // ✅ GOOD: Auto-retrying assertion — waits for element
-await expect(app.getByRole('heading', { name: 'Automations' })).toBeVisible()
-await expect(app).toHaveURL(/automation-builder\/.+/)
+await expect(app.getByRole('heading', { name: 'Workflows' })).toBeVisible()
+await expect(app).toHaveURL(/workflow-builder\/.+/)
 await expect(app.getByPlaceholder('Workflow name')).toHaveValue(workflowName)
 
 // ❌ BAD: Manual check — no retry, flaky
 const heading = await app.getByRole('heading').textContent()
-expect(heading).toBe('Automations')
+expect(heading).toBe('Workflows')
 ```
 
 **Common web-first assertions:**
@@ -473,7 +473,7 @@ test('edits a workflow name', async ({ app }) => {
   await createBasicWorkflow(app, workflowName, 'Initial task')
 
   try {
-    await app.goto(toAppUrl('/automations'))
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(workflowName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await app.getByRole('button', { name: workflowName, exact: true }).click()
@@ -482,13 +482,13 @@ test('edits a workflow name', async ({ app }) => {
     await app.getByPlaceholder('Workflow name').fill(updatedName)
     await app.getByRole('button', { name: 'Save' }).click()
 
-    await app.goto(toAppUrl('/automations'))
+    await app.goto(toAppUrl('/workflows'))
     await app.getByPlaceholder('Filter by name').fill(updatedName)
     await app.getByRole('button', { name: 'Apply filter' }).click()
     await expect(app.getByRole('button', { name: updatedName, exact: true })).toBeVisible()
   } finally {
     // Delete via UI kebab menu
-    await app.goto(toAppUrl('/automations'))
+    await app.goto(toAppUrl('/workflows'))
     const searchTerm = workflowName.slice(0, 20)
     await app.getByPlaceholder('Filter by name').fill(searchTerm)
     await app.getByRole('button', { name: 'Apply filter' }).click()
@@ -498,7 +498,7 @@ test('edits a workflow name', async ({ app }) => {
         .getByRole('button', { name: /Actions|Kebab toggle/i })
         .first()
         .click({ force: true })
-      await app.getByRole('menuitem', { name: 'Delete automation' }).click()
+      await app.getByRole('menuitem', { name: 'Delete workflow' }).click()
       await app.getByRole('button', { name: 'Delete' }).click()
     }
   }
@@ -593,7 +593,7 @@ test('user executes a workflow', async ({ app }) => {
 
   try {
     // Test via UI (what users actually do)
-    await app.goto(toAppUrl(`/automations/${id}`))
+    await app.goto(toAppUrl(`/workflows/${id}`))
     await app.getByRole('button', { name: 'Execute' }).click()
     await expect(app.getByText(/execution started/i)).toBeVisible()
   } finally {
@@ -623,7 +623,7 @@ test('shareable URLs: filters restored from URL', async ({ app, context }) => {
   await newPage.goto(urlWithFilters)
 
   // Assert filters restored
-  await expect(newPage.getByRole('heading', { name: 'Automations' })).toBeVisible()
+  await expect(newPage.getByRole('heading', { name: 'Workflows' })).toBeVisible()
   // ...verify filter chips
 
   await newPage.close()

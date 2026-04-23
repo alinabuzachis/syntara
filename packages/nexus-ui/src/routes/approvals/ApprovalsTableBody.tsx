@@ -63,11 +63,13 @@ function ApprovalRow({
         <Td dataLabel="Approval name">
           <LinkCell href={`/approvals/${approval.id}`}>{approval.approvalName || approval.id}</LinkCell>
         </Td>
-        <Td dataLabel="Automation">
+        <Td dataLabel="Workflow">
           {approval.workflowId ? (
-            <LinkCell href={`/automation-builder/${approval.workflowId}`}>{approval.automationName}</LinkCell>
+            <LinkCell href={`/workflow-builder/${approval.workflowId}`}>
+              {approval.workflowName || approval.workflowId}
+            </LinkCell>
           ) : (
-            approval.automationName
+            (approval.workflowName ?? '—')
           )}
         </Td>
         <Td dataLabel="Approval initiated">
@@ -98,12 +100,12 @@ function ApprovalRow({
   )
 }
 
-interface ProjectGroup {
+type ProjectGroup = {
   project: ProjectRead | null
   approvals: ApprovalWithDetails[]
 }
 
-interface GroupedApprovalsTableBodyProps {
+type GroupedApprovalsTableBodyProps = {
   groupedApprovals: Map<string, ProjectGroup>
   collapsedProjects: Set<string>
   onToggleProject: (projectId: string) => void
@@ -161,7 +163,7 @@ export function GroupedApprovalsTableBody({
   )
 }
 
-interface FlatApprovalsTableBodyProps {
+type FlatApprovalsTableBodyProps = {
   approvals: ApprovalWithDetails[]
   expandedRows: Set<string>
   onToggleRow: (id: string) => void

@@ -11,7 +11,7 @@ import { buildUniqueName, clickAddConnectedStep } from './helpers/workflows'
  * Flow: New workflow → Manual trigger → Add connected step → Action → REST API
  */
 async function navigateToApiActionForm(app: Page) {
-  await app.goto(toAppUrl('/automation-builder/new'))
+  await app.goto(toAppUrl('/workflow-builder/new'))
   await expect(app.getByRole('heading', { name: 'Select a trigger step' })).toBeVisible()
 
   // Add manual trigger

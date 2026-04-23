@@ -139,7 +139,7 @@ describe('useBuilderSaveWorkflow', () => {
     expect(createWorkflow).toHaveBeenCalledTimes(1)
     const [{ body }] = createWorkflow.mock.calls[0]
     expect(body.labels).toBeUndefined()
-    expect(setLocation).toHaveBeenCalledWith('/automation-builder/new-wf-id')
+    expect(setLocation).toHaveBeenCalledWith('/workflow-builder/new-wf-id')
   })
 
   it('creates workflow in one call with labels when tags are present', async () => {

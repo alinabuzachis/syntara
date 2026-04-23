@@ -27,7 +27,7 @@ export function IntegrationEmptyState() {
               No integrations have been configured yet.
             </Title>
             <Content component={ContentVariants.p}>
-              Configure integrations to use them in automation. Integrations will allow for monitoring of server health
+              Configure integrations to use them in workflows. Integrations will allow for monitoring of server health
               and performance metrics, view server logs, and manage server settings and configurations.
             </Content>
             <Button variant="primary" onClick={() => navigate(AppRoute.Configuration.Integrations.Configure)}>

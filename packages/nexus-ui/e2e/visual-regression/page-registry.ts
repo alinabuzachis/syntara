@@ -12,7 +12,7 @@
  *   - Modals and dialogs (create, edit, delete confirmations)
  *   - Detail pages with tabs
  *
- * Note: Pages that use `PageTitleWithProject` (Automations, Executions,
+ * Note: Pages that use `PageTitleWithProject` (Workflows, Executions,
  * Approvals) render titles in a `<span>` — use `getByText()` not `getByRole('heading')`.
  */
 import { type Page, expect } from '@playwright/test'
@@ -53,23 +53,23 @@ const MOCK_PROVIDER_ID = '1'
 // ---------------------------------------------------------------------------
 export const pages: PageEntry[] = [
   // ══════════════════════════════════════════════════════════════════════════
-  // AUTOMATIONS
+  // WORKFLOWS
   // ══════════════════════════════════════════════════════════════════════════
   {
-    section: 'automations',
-    name: 'automations-list',
-    path: '/automations',
+    section: 'workflows',
+    name: 'workflows-list',
+    path: '/workflows',
     waitFor: async (page) => {
-      await expect(page.getByText('Automations', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
   },
   {
-    section: 'automations',
-    name: 'automations-list-empty-filter',
-    path: '/automations',
+    section: 'workflows',
+    name: 'workflows-list-empty-filter',
+    path: '/workflows',
     waitFor: async (page) => {
-      await expect(page.getByText('Automations', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -78,11 +78,11 @@ export const pages: PageEntry[] = [
     },
   },
   {
-    section: 'automations',
-    name: 'automations-delete-dialog',
-    path: '/automations',
+    section: 'workflows',
+    name: 'workflows-delete-dialog',
+    path: '/workflows',
     waitFor: async (page) => {
-      await expect(page.getByText('Automations', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('Workflows', { exact: true }).first()).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
     setup: async (page) => {
@@ -98,9 +98,9 @@ export const pages: PageEntry[] = [
   // Note: builder-new excluded — ReactFlow + Zustand + lazy-load initialization
   // exceeds the 10s assertion timeout in CI. builder-edit covers the canvas.
   {
-    section: 'automations',
+    section: 'workflows',
     name: 'builder-edit',
-    path: `/automation-builder/${MOCK_WORKFLOW_ID}`,
+    path: `/workflow-builder/${MOCK_WORKFLOW_ID}`,
     waitFor: async (page) => {
       // ReactFlow + Zustand + lazy-load initialization is slow in CI — extend timeout
       await expect(page.locator('.react-flow')).toBeVisible({ timeout: 30_000 })
@@ -115,7 +115,7 @@ export const pages: PageEntry[] = [
     name: 'executions-list',
     path: '/executions',
     waitFor: async (page) => {
-      await expect(page.getByText('Automation Runs', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('Workflow Runs', { exact: true }).first()).toBeVisible()
       await expect(page.locator('table tbody tr').first()).toBeVisible()
     },
   },
@@ -576,7 +576,7 @@ export const excludedUnimplemented: string[] = [
 /** Routes excluded because they need dynamic setup or have no seeded mock data */
 export const excludedDynamic: string[] = [
   // ReactFlow + Zustand + lazy-load initialization exceeds 10s CI timeout; builder-edit covers the canvas
-  '/automation-builder/new',
+  '/workflow-builder/new',
   // No seeded identity providers in mock API — would need a setup step to create one first
   '/access-management/authentication/identity-providers/:providerId',
   // Redirects to /access-management/users

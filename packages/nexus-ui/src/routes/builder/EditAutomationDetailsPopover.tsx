@@ -1,5 +1,5 @@
 /**
- * Popover for editing automation name, description, and tags.
+ * Popover for editing workflow name, description, and tags.
  * Updates apply to builder state on Close. On Save, tags are persisted as workflow.labels
  * (key = tag name, value = '') so they appear in the list API and Tags column.
  *
@@ -78,9 +78,9 @@ export function EditAutomationDetailsPopover({ name, description, tags, onApply 
   const bodyContent = (
     <Stack hasGutter>
       <StackItem>
-        <FormGroup label="Name" isRequired fieldId="edit-automation-name">
+        <FormGroup label="Name" isRequired fieldId="edit-workflow-name">
           <TextInput
-            id="edit-automation-name"
+            id="edit-workflow-name"
             type="text"
             value={localName}
             validated={nameError ? 'error' : 'default'}
@@ -103,9 +103,9 @@ export function EditAutomationDetailsPopover({ name, description, tags, onApply 
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Description" fieldId="edit-automation-description">
+        <FormGroup label="Description" fieldId="edit-workflow-description">
           <TextArea
-            id="edit-automation-description"
+            id="edit-workflow-description"
             value={localDescription}
             onChange={(_event, value) => setLocalDescription(value)}
             placeholder="Enter description"
@@ -115,9 +115,9 @@ export function EditAutomationDetailsPopover({ name, description, tags, onApply 
         </FormGroup>
       </StackItem>
       <StackItem>
-        <FormGroup label="Tags" fieldId="edit-automation-tags">
+        <FormGroup label="Tags" fieldId="edit-workflow-tags">
           <TagInput
-            id="edit-automation-tags-inline-input"
+            id="edit-workflow-tags-inline-input"
             value={localTags}
             onChange={setLocalTags}
             ariaLabel="Add tag"
@@ -144,7 +144,7 @@ export function EditAutomationDetailsPopover({ name, description, tags, onApply 
           <Icon isInline>
             <RhUiEditIcon />
           </Icon>
-          <span>Edit automation details</span>
+          <span>Edit workflow details</span>
         </Flex>
       }
       bodyContent={bodyContent}
@@ -158,7 +158,7 @@ export function EditAutomationDetailsPopover({ name, description, tags, onApply 
             <RhUiEditIcon />
           </Icon>
         }
-        aria-label="Edit automation details"
+        aria-label="Edit workflow details"
         onClick={() => setIsOpen(true)}
       />
     </Popover>

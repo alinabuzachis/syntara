@@ -23,20 +23,20 @@ import { FlatApprovalsTableBody, GroupedApprovalsTableBody } from './ApprovalsTa
 
 export type ApprovalWithDetails = Approval & {
   approvalName?: string
-  automationName?: string
+  workflowName?: string
   workflowId?: string
   description?: string | null
 }
 
 // Column indices for sorting (excluding the expand column)
-const SORT_COLUMNS = ['approvalName', 'automationName', 'requested_at', 'decided_at', 'status'] as const
+const SORT_COLUMNS = ['approvalName', 'workflowName', 'requested_at', 'decided_at', 'status'] as const
 type SortColumn = (typeof SORT_COLUMNS)[number]
 
 const getApprovalDetails = (approval: ApprovalWithDetails) => {
   const wfCtx = approval.workflow_context as { workflow_name?: string; workflow_version_id?: string } | undefined
   return {
     approvalName: approval.name || approval.id,
-    automationName: wfCtx?.workflow_name || 'Unknown',
+    workflowName: wfCtx?.workflow_name || 'Unknown',
     workflowId: wfCtx?.workflow_version_id,
   }
 }
@@ -45,8 +45,8 @@ const getSortValue = (approval: ApprovalWithDetails, sortColumn: SortColumn) => 
   switch (sortColumn) {
     case 'approvalName':
       return approval.approvalName || approval.id
-    case 'automationName':
-      return approval.automationName ?? ''
+    case 'workflowName':
+      return approval.workflowName ?? ''
     case 'requested_at':
       return approval.created_at ? new Date(approval.created_at).getTime() : 0
     case 'decided_at': {
@@ -132,11 +132,11 @@ export default function Approvals() {
   const enrichedApprovals = useMemo(() => {
     const approvals = (approvalsData?.resources ?? []) as ApprovalWithDetails[]
     return approvals.map((approval) => {
-      const { approvalName, automationName, workflowId } = getApprovalDetails(approval)
+      const { approvalName, workflowName, workflowId } = getApprovalDetails(approval)
       return {
         ...approval,
         approvalName,
-        automationName,
+        workflowName,
         workflowId,
       }
     })
@@ -274,7 +274,7 @@ export default function Approvals() {
                       Approval name
                     </Th>
                     <Th modifier="nowrap" sort={getSortParams(1)}>
-                      Automation
+                      Workflow
                     </Th>
                     <Th modifier="nowrap" sort={getSortParams(2)}>
                       Approval initiated

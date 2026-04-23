@@ -157,7 +157,7 @@ export function useBuilderSaveWorkflow(params: UseBuilderSaveWorkflowParams): ()
         await queryClient.invalidateQueries({ predicate: isWorkflowQuery })
 
         if (workflowIdToNavigate && isNew) {
-          setLocation(`/automation-builder/${workflowIdToNavigate}`)
+          setLocation(`/workflow-builder/${workflowIdToNavigate}`)
         }
 
         resolve(true)

@@ -176,7 +176,7 @@ function buildAAPInitialData(taskName: string, config: Record<string, unknown>):
     limit: getField(c.limit, ''),
     tags: getField(c.tags, ''),
     skip_tags: getField(c.skip_tags as string | undefined, ''),
-    verbosity: (c.verbosity)?.toString() ?? '',
+    verbosity: c.verbosity?.toString() ?? '',
     job_credentials: (c.job_credentials as number[] | undefined) ?? [],
     job_type: getField(c.job_type as string | undefined, ''),
     forks: c.forks,
