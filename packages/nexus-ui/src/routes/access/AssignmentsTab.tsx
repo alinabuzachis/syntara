@@ -87,11 +87,11 @@ export function AssignmentsTab() {
         [
           {
             key: 'name',
-            label: 'Name',
+            label: 'Principal',
             type: FilterTypeEnum.TEXT,
             operators: [FilterOperatorEnum.CONTAINS],
             defaultOperator: FilterOperatorEnum.CONTAINS,
-            placeholder: 'Filter by name',
+            placeholder: 'Filter by principal',
           },
           {
             key: 'type',
